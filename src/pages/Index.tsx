@@ -31,7 +31,7 @@ const classStudios = [{
 }, {
   icon: Activity,
   title: "Aerobics Room",
-  description: "Yoga, HIIT, barre & more in our versatile studio",
+  description: "Bootcamp, Sculpt, Yoga, HIIT and more in our versatile studio",
   image: aerobicsStudio,
   isHeated: true,
   badgeText: "AEROBICS",
