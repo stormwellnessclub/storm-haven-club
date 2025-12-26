@@ -200,7 +200,7 @@ export default function Index() {
               <img src={treatmentRoom} alt="Facials" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
-                <h3 className="font-serif text-xl text-primary-foreground mb-1">Signature Facials</h3>
+                <h3 className="font-serif text-xl text-primary-foreground mb-1">Facials</h3>
                 <p className="text-primary-foreground/70 text-sm">Deep cleansing & hydration</p>
               </div>
             </div>
