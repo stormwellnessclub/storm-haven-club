@@ -11,6 +11,7 @@ import Cafe from "./pages/Cafe";
 import Amenities from "./pages/Amenities";
 import KidsCare from "./pages/KidsCare";
 import ClassPasses from "./pages/ClassPasses";
+import Memberships from "./pages/Memberships";
 import Apply from "./pages/Apply";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/amenities" element={<Amenities />} />
             <Route path="/kids-care" element={<KidsCare />} />
             <Route path="/class-passes" element={<ClassPasses />} />
+            <Route path="/memberships" element={<Memberships />} />
             <Route path="/apply" element={<Apply />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="*" element={<NotFound />} />
