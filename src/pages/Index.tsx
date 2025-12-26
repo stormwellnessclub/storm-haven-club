@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, Coffee, Baby, CheckCircle2 } from "lucide-react";
+import gymArea1 from "@/assets/gym-area-1.jpg";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 import sauna from "@/assets/sauna.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
@@ -315,7 +316,7 @@ export default function Index() {
       {/* Final CTA */}
       <section className="py-24 bg-charcoal relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
-          <img src={gymArea2} alt="" className="w-full h-full object-cover" />
+          <img src={gymArea1} alt="" className="w-full h-full object-cover" />
         </div>
         <div className="relative z-10 container mx-auto px-6 text-center">
           <h2 className="heading-section text-primary-foreground mb-6">
