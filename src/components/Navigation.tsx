@@ -42,7 +42,7 @@ export function Navigation() {
             <img 
               src={logo} 
               alt="Storm Wellness Club" 
-              className="h-12 w-auto"
+              className="h-16 w-auto"
             />
           </Link>
 
