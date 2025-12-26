@@ -10,6 +10,7 @@ import treatmentRoom from "@/assets/treatment-room.jpg";
 import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
 import aerobicsStudio from "@/assets/aerobics-studio.jpg";
+import stormLogoDark from "@/assets/storm-logo-dark.png";
 const classStudios = [{
   icon: CircleDot,
   title: "Reformer Pilates",
@@ -87,9 +88,11 @@ export default function Index() {
         </div>
         
         <div className="relative z-10 container mx-auto px-6 text-center">
-          <p className="text-primary-foreground/80 text-sm uppercase tracking-[0.3em] mb-6 animate-fade-up opacity-0 stagger-1">
-            Exclusive Wellness Sanctuary
-          </p>
+          <img 
+            src={stormLogoDark} 
+            alt="Storm Wellness Club" 
+            className="h-24 md:h-32 mx-auto mb-8 animate-fade-up opacity-0 stagger-1 brightness-0 invert"
+          />
           <h1 className="heading-display text-primary-foreground mb-6 animate-fade-up opacity-0 stagger-2">
             Elevate Your
             <br />
