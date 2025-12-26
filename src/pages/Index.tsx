@@ -88,11 +88,7 @@ export default function Index() {
         </div>
         
         <div className="relative z-10 container mx-auto px-6 text-center">
-          <img 
-            src={stormLogoDark} 
-            alt="Storm Wellness Club" 
-            className="h-24 md:h-32 mx-auto mb-8 animate-fade-up opacity-0 stagger-1"
-          />
+          
           <h1 className="heading-display text-primary-foreground mb-6 animate-fade-up opacity-0 stagger-2">
             Elevate Your
             <br />
