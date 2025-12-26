@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-text.png";
 
 const navLinks = [
   { href: "/classes", label: "Classes" },
@@ -29,7 +29,7 @@ export function Navigation() {
             <img 
               src={logo} 
               alt="Storm Wellness Club" 
-              className={`h-12 w-auto transition-all ${isHome ? "brightness-0 invert" : ""}`}
+              className={`h-10 w-auto transition-all ${isHome ? "brightness-100" : "brightness-0"}`}
             />
           </Link>
 
