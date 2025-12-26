@@ -2,22 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
-import { 
-  ArrowRight, 
-  Flame, 
-  Snowflake, 
-  Sparkles, 
-  CircleDot, 
-  Bike, 
-  Activity,
-  Bath,
-  Droplets,
-  Wind,
-  Coffee,
-  Baby,
-  CheckCircle2
-} from "lucide-react";
-
+import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, Coffee, Baby, CheckCircle2 } from "lucide-react";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 import sauna from "@/assets/sauna.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
@@ -25,65 +10,78 @@ import treatmentRoom from "@/assets/treatment-room.jpg";
 import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
 import aerobicsStudio from "@/assets/aerobics-studio.jpg";
-
-const classStudios = [
-  {
-    icon: CircleDot,
-    title: "Reformer Pilates",
-    description: "12 premium reformers with heated & non-heated options",
-    image: reformerPilates,
-    isHeated: false,
-    color: "text-purple-500",
-    bgColor: "bg-purple-500/10",
-  },
-  {
-    icon: Bike,
-    title: "Cycling Studio",
-    description: "20 TechnoGym bikes with immersive lighting & sound",
-    image: cycling,
-    isHeated: true,
-    badgeText: "Cycling",
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
-  },
-  {
-    icon: Activity,
-    title: "Aerobics Room",
-    description: "Yoga, HIIT, barre & more in our versatile studio",
-    image: aerobicsStudio,
-    isHeated: true,
-    color: "text-rose-500",
-    bgColor: "bg-rose-500/10",
-  },
-];
-
-const quickLinks = [
-  { href: "/classes", icon: Activity, label: "View Classes", description: "Explore our full schedule" },
-  { href: "/spa", icon: Sparkles, label: "Book Spa", description: "Treatments open to public" },
-  { href: "/cafe", icon: Coffee, label: "Café Menu", description: "Fresh & healthy options" },
-  { href: "/amenities", icon: Bath, label: "Amenities", description: "Member facilities" },
-];
-
-const memberAmenities = [
-  { icon: Bath, label: "Luxury Locker Rooms" },
-  { icon: Wind, label: "Steam & Sauna" },
-  { icon: Droplets, label: "Cold Plunge Pool" },
-  { icon: Sparkles, label: "Relaxation Lounge" },
-  { icon: Coffee, label: "Café Access" },
-  { icon: Baby, label: "Kids Care Available" },
-];
-
+const classStudios = [{
+  icon: CircleDot,
+  title: "Reformer Pilates",
+  description: "12 premium reformers with heated & non-heated options",
+  image: reformerPilates,
+  isHeated: false,
+  color: "text-purple-500",
+  bgColor: "bg-purple-500/10"
+}, {
+  icon: Bike,
+  title: "Cycling Studio",
+  description: "20 TechnoGym bikes with immersive lighting & sound",
+  image: cycling,
+  isHeated: true,
+  badgeText: "Cycling",
+  color: "text-blue-500",
+  bgColor: "bg-blue-500/10"
+}, {
+  icon: Activity,
+  title: "Aerobics Room",
+  description: "Yoga, HIIT, barre & more in our versatile studio",
+  image: aerobicsStudio,
+  isHeated: true,
+  color: "text-rose-500",
+  bgColor: "bg-rose-500/10"
+}];
+const quickLinks = [{
+  href: "/classes",
+  icon: Activity,
+  label: "View Classes",
+  description: "Explore our full schedule"
+}, {
+  href: "/spa",
+  icon: Sparkles,
+  label: "Book Spa",
+  description: "Treatments open to public"
+}, {
+  href: "/cafe",
+  icon: Coffee,
+  label: "Café Menu",
+  description: "Fresh & healthy options"
+}, {
+  href: "/amenities",
+  icon: Bath,
+  label: "Amenities",
+  description: "Member facilities"
+}];
+const memberAmenities = [{
+  icon: Bath,
+  label: "Luxury Locker Rooms"
+}, {
+  icon: Wind,
+  label: "Steam & Sauna"
+}, {
+  icon: Droplets,
+  label: "Cold Plunge Pool"
+}, {
+  icon: Sparkles,
+  label: "Relaxation Lounge"
+}, {
+  icon: Coffee,
+  label: "Café Access"
+}, {
+  icon: Baby,
+  label: "Kids Care Available"
+}];
 export default function Index() {
-  return (
-    <Layout>
+  return <Layout>
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
-          <img
-            src={gymArea2}
-            alt="Storm Wellness Club Interior"
-            className="w-full h-full object-cover"
-          />
+          <img src={gymArea2} alt="Storm Wellness Club Interior" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-charcoal/40 via-charcoal/50 to-charcoal/80" />
         </div>
         
@@ -124,12 +122,7 @@ export default function Index() {
       <section className="py-8 bg-background border-b border-border">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {quickLinks.map((link) => (
-              <Link 
-                key={link.href} 
-                to={link.href}
-                className="card-luxury p-4 flex items-center gap-4 hover:border-accent transition-colors"
-              >
+            {quickLinks.map(link => <Link key={link.href} to={link.href} className="card-luxury p-4 flex items-center gap-4 hover:border-accent transition-colors">
                 <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                   <link.icon className="w-5 h-5 text-accent" />
                 </div>
@@ -137,8 +130,7 @@ export default function Index() {
                   <p className="font-medium text-sm">{link.label}</p>
                   <p className="text-muted-foreground text-xs">{link.description}</p>
                 </div>
-              </Link>
-            ))}
+              </Link>)}
           </div>
         </div>
       </section>
@@ -146,31 +138,18 @@ export default function Index() {
       {/* Class Studios Section */}
       <section className="py-24 bg-background">
         <div className="container mx-auto px-6">
-          <SectionHeading
-            title="Three Distinct Studios"
-            subtitle="From reformer pilates to high-intensity cycling, discover classes designed to challenge and transform."
-          />
+          <SectionHeading title="Three Distinct Studios" subtitle="From reformer pilates to high-intensity cycling, discover classes designed to challenge and transform." />
           
           <div className="grid md:grid-cols-3 gap-8">
-            {classStudios.map((studio, index) => (
-              <div key={index} className="card-luxury overflow-hidden group">
+            {classStudios.map((studio, index) => <div key={index} className="card-luxury overflow-hidden group">
                 <div className="relative h-64 overflow-hidden">
-                  <img
-                    src={studio.image}
-                    alt={studio.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                  <img src={studio.image} alt={studio.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-hero" />
                   <div className="absolute top-4 right-4 flex gap-2">
-                    {studio.isHeated ? (
-                      <span className="flex items-center gap-1 px-3 py-1 bg-accent text-accent-foreground text-xs uppercase tracking-wider">
-                        <Flame className="w-3 h-3" /> {studio.badgeText || "Heated Options"}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 px-3 py-1 bg-secondary text-secondary-foreground text-xs uppercase tracking-wider">
-                        <Snowflake className="w-3 h-3" /> Non-Heated
-                      </span>
-                    )}
+                    {studio.isHeated ? <span className="flex items-center gap-1 px-3 py-1 text-accent-foreground text-xs uppercase tracking-wider bg-primary-foreground">
+                         {studio.badgeText || "Heated Options"}
+                      </span> : <span className="flex items-center gap-1 px-3 py-1 bg-secondary text-secondary-foreground text-xs uppercase tracking-wider">RPilates REFORMER Pilates  
+                      </span>}
                   </div>
                 </div>
                 <div className="p-6">
@@ -182,8 +161,7 @@ export default function Index() {
                   </div>
                   <p className="text-muted-foreground text-sm">{studio.description}</p>
                 </div>
-              </div>
-            ))}
+              </div>)}
           </div>
 
           <div className="text-center mt-12">
@@ -213,12 +191,10 @@ export default function Index() {
                 body sculpting in our serene environment.
               </p>
               <div className="grid grid-cols-2 gap-4 mb-8">
-                {["Facials", "Massage", "Red Light Therapy", "Body Wraps", "Body Sculpting", "Salt Room"].map((service) => (
-                  <div key={service} className="flex items-center gap-2 text-sm">
+                {["Facials", "Massage", "Red Light Therapy", "Body Wraps", "Body Sculpting", "Salt Room"].map(service => <div key={service} className="flex items-center gap-2 text-sm">
                     <Sparkles className="w-4 h-4 text-accent" />
                     <span>{service}</span>
-                  </div>
-                ))}
+                  </div>)}
               </div>
               <Link to="/spa">
                 <Button size="lg">
@@ -246,11 +222,7 @@ export default function Index() {
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <img
-                src={cycling}
-                alt="Cycling Studio"
-                className="rounded-sm shadow-2xl"
-              />
+              <img src={cycling} alt="Cycling Studio" className="rounded-sm shadow-2xl" />
             </div>
             <div>
               <p className="text-gold-light text-sm uppercase tracking-widest mb-4">Member Benefits</p>
@@ -265,12 +237,10 @@ export default function Index() {
               </p>
               
               <div className="grid grid-cols-2 gap-4 mb-10">
-                {memberAmenities.map((amenity) => (
-                  <div key={amenity.label} className="flex items-center gap-2 text-sm text-primary-foreground/90">
+                {memberAmenities.map(amenity => <div key={amenity.label} className="flex items-center gap-2 text-sm text-primary-foreground/90">
                     <amenity.icon className="w-4 h-4 text-gold-light" />
                     <span>{amenity.label}</span>
-                  </div>
-                ))}
+                  </div>)}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
@@ -347,6 +317,5 @@ export default function Index() {
           </Link>
         </div>
       </section>
-    </Layout>
-  );
+    </Layout>;
 }
