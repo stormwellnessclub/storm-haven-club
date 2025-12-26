@@ -26,8 +26,8 @@ const classStudios = [{
   image: cycling,
   isHeated: true,
   badgeText: "Cycling",
-  color: "text-blue-500",
-  bgColor: "bg-blue-500/10"
+  color: "text-amber-800",
+  bgColor: "bg-amber-800/10"
 }, {
   icon: Activity,
   title: "Aerobics Room",
