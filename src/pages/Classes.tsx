@@ -442,9 +442,9 @@ const classes: ClassItem[] = [
 ];
 
 const classTypeConfig = {
-  pilates: { icon: CircleDot, label: "Reformer Pilates", color: "text-purple-500" },
-  cycling: { icon: Bike, label: "Cycling", color: "text-blue-500" },
-  aerobics: { icon: Activity, label: "Aerobics", color: "text-rose-500" },
+  pilates: { icon: CircleDot, label: "Reformer Pilates", color: "text-amber-900" },
+  cycling: { icon: Bike, label: "Cycling", color: "text-foreground" },
+  aerobics: { icon: Activity, label: "Aerobics", color: "text-amber-700" },
 };
 
 export default function Classes() {
@@ -481,22 +481,22 @@ export default function Classes() {
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-500/10 flex items-center justify-center">
-                <CircleDot className="w-8 h-8 text-purple-500" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-900/10 flex items-center justify-center">
+                <CircleDot className="w-8 h-8 text-amber-900" />
               </div>
               <h3 className="font-serif text-xl mb-2">Reformer Pilates</h3>
               <p className="text-muted-foreground text-sm">Premium reformer studio with heated & non-heated class options</p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <Bike className="w-8 h-8 text-blue-500" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-foreground/10 flex items-center justify-center">
+                <Bike className="w-8 h-8 text-foreground" />
               </div>
               <h3 className="font-serif text-xl mb-2">Cycling</h3>
               <p className="text-muted-foreground text-sm">TechnoGym bikes with immersive lighting & sound system</p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-500/10 flex items-center justify-center">
-                <Activity className="w-8 h-8 text-rose-500" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-700/10 flex items-center justify-center">
+                <Activity className="w-8 h-8 text-amber-700" />
               </div>
               <h3 className="font-serif text-xl mb-2">Aerobics</h3>
               <p className="text-muted-foreground text-sm">Versatile studio for yoga, bootcamp, mat pilates & more</p>
@@ -591,12 +591,12 @@ export default function Classes() {
                   <div className="p-6">
                     <div className="flex items-start gap-3 mb-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        cls.type === 'pilates' ? 'bg-purple-500/10' : 
-                        cls.type === 'cycling' ? 'bg-blue-500/10' : 'bg-rose-500/10'
+                        cls.type === 'pilates' ? 'bg-amber-900/10' : 
+                        cls.type === 'cycling' ? 'bg-foreground/10' : 'bg-amber-700/10'
                       }`}>
                         <ClassIcon className={`w-4 h-4 ${
-                          cls.type === 'pilates' ? 'text-purple-500' : 
-                          cls.type === 'cycling' ? 'text-blue-500' : 'text-rose-500'
+                          cls.type === 'pilates' ? 'text-amber-900' : 
+                          cls.type === 'cycling' ? 'text-foreground' : 'text-amber-700'
                         }`} />
                       </div>
                       <div>
