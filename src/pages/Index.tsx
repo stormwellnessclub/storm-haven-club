@@ -91,7 +91,7 @@ export default function Index() {
           <img 
             src={stormLogoDark} 
             alt="Storm Wellness Club" 
-            className="h-24 md:h-32 mx-auto mb-8 animate-fade-up opacity-0 stagger-1 brightness-0 invert"
+            className="h-24 md:h-32 mx-auto mb-8 animate-fade-up opacity-0 stagger-1"
           />
           <h1 className="heading-display text-primary-foreground mb-6 animate-fade-up opacity-0 stagger-2">
             Elevate Your
