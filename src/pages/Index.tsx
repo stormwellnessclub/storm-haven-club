@@ -5,14 +5,14 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, Coffee, Baby, CheckCircle2 } from "lucide-react";
 import gymArea1 from "@/assets/gym-area-1.jpg";
 import gymArea2 from "@/assets/gym-area-2.jpg";
-import sauna from "@/assets/sauna.jpg";
-import spaShower from "@/assets/spa-shower.jpg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
 import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
 import aerobicsStudio from "@/assets/aerobics-studio.jpg";
 import stormLogoDark from "@/assets/storm-logo-dark.png";
 import aellaLogo from "@/assets/aella-logo.jpg";
+import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
+import bodyTreatments from "@/assets/body-treatments.jpg";
 const classStudios = [{
   icon: CircleDot,
   title: "Reformer Pilates",
@@ -197,29 +197,29 @@ export default function Index() {
           {/* Services with Images */}
           <div className="grid md:grid-cols-3 gap-6 mb-12">
             <Link to="/spa?category=Facials" className="group relative rounded-sm overflow-hidden h-72 block">
-              <img src={treatmentRoom} alt="Facials" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <img src={treatmentRoom} alt="Signature Facials" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <h3 className="font-serif text-xl text-primary-foreground mb-1">Facials</h3>
-                <p className="text-primary-foreground/70 text-sm">View facial treatments →</p>
+              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
+                <h3 className="font-serif text-xl text-primary-foreground">Signature Facials</h3>
+                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/10 transition-colors">Explore</span>
               </div>
             </Link>
-            <div className="group relative rounded-sm overflow-hidden h-72">
-              <img src={spaShower} alt="Massage" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+            <Link to="/spa?category=Massage" className="group relative rounded-sm overflow-hidden h-72 block">
+              <img src={therapeuticMassage} alt="Therapeutic Massage" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <h3 className="font-serif text-xl text-primary-foreground mb-1">Therapeutic Massage</h3>
-                <p className="text-primary-foreground/70 text-sm">Deep tissue & relaxation</p>
+              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
+                <h3 className="font-serif text-xl text-primary-foreground">Therapeutic Massage</h3>
+                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/10 transition-colors">Explore</span>
               </div>
-            </div>
-            <div className="group relative rounded-sm overflow-hidden h-72">
-              <img src={sauna} alt="Body Treatments" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+            </Link>
+            <Link to="/spa?category=Body Wraps" className="group relative rounded-sm overflow-hidden h-72 block">
+              <img src={bodyTreatments} alt="Body Treatments" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <h3 className="font-serif text-xl text-primary-foreground mb-1">Body Treatments</h3>
-                <p className="text-primary-foreground/70 text-sm">Wraps, sculpting & red light</p>
+              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
+                <h3 className="font-serif text-xl text-primary-foreground">Body Treatments</h3>
+                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/10 transition-colors">Explore</span>
               </div>
-            </div>
+            </Link>
           </div>
 
           <div className="text-center">
