@@ -15,6 +15,13 @@ import Memberships from "./pages/Memberships";
 import Apply from "./pages/Apply";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Dashboard from "./pages/admin/Dashboard";
+import Members from "./pages/admin/Members";
+import CheckIn from "./pages/admin/CheckIn";
+import Applications from "./pages/admin/Applications";
+import Appointments from "./pages/admin/Appointments";
+import Payments from "./pages/admin/Payments";
+import Settings from "./pages/admin/Settings";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +43,13 @@ const App = () => (
             <Route path="/memberships" element={<Memberships />} />
             <Route path="/apply" element={<Apply />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/admin" element={<Dashboard />} />
+            <Route path="/admin/members" element={<Members />} />
+            <Route path="/admin/check-in" element={<CheckIn />} />
+            <Route path="/admin/applications" element={<Applications />} />
+            <Route path="/admin/appointments" element={<Appointments />} />
+            <Route path="/admin/payments" element={<Payments />} />
+            <Route path="/admin/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
