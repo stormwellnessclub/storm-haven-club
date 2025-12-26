@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import logoText from "@/assets/logo-text.png";
+import logo from "@/assets/storm-logo-gold.png";
 
 const navLinks = [
   { href: "/classes", label: "Classes" },
@@ -40,9 +40,9 @@ export function Navigation() {
           {/* Logo */}
           <Link to="/" className="flex-shrink-0">
             <img 
-              src={logoText} 
+              src={logo} 
               alt="Storm Wellness Club" 
-              className={`h-12 w-auto ${isHome ? "brightness-0 invert" : "brightness-0"}`}
+              className="h-16 w-auto"
             />
           </Link>
 
