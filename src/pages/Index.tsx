@@ -16,8 +16,8 @@ const classStudios = [{
   description: "12 premium reformers with heated & non-heated options",
   image: reformerPilates,
   isHeated: false,
-  color: "text-purple-500",
-  bgColor: "bg-purple-500/10"
+  color: "text-amber-900",
+  bgColor: "bg-amber-900/10"
 }, {
   icon: Bike,
   title: "Cycling Studio",
