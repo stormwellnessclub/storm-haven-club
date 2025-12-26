@@ -118,10 +118,19 @@ const spaServices: SpaService[] = [
 
 const categories = ["All", "Facials", "Massage", "Red Light Therapy", "Body Wraps", "Body Sculpting"];
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 
 export default function Spa() {
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchParams] = useSearchParams();
+  const categoryFromUrl = searchParams.get("category");
+  const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || "All");
+
+  useEffect(() => {
+    if (categoryFromUrl && categories.includes(categoryFromUrl)) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [categoryFromUrl]);
 
   const filteredServices = selectedCategory === "All" 
     ? spaServices 
