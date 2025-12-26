@@ -6,8 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Check, ArrowRight, ExternalLink } from "lucide-react";
+import { Check, ArrowRight, ExternalLink, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
@@ -43,6 +44,7 @@ const motivations = [
 
 export default function Apply() {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     dateOfBirth: "",
@@ -93,7 +95,7 @@ export default function Apply() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate required fields
@@ -109,8 +111,53 @@ export default function Apply() {
       return;
     }
 
-    // Show success message
-    setIsSubmitted(true);
+    setIsSubmitting(true);
+
+    try {
+      // Save application to database (without credit card details for security)
+      const { error } = await supabase.from("membership_applications").insert({
+        full_name: formData.fullName,
+        date_of_birth: formData.dateOfBirth,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zip_code: formData.zipCode,
+        country: formData.country,
+        email: formData.email,
+        phone: formData.phone,
+        membership_plan: formData.membershipPlan,
+        wellness_goals: formData.wellnessGoals,
+        other_goals: formData.otherGoals || null,
+        services_interested: formData.servicesInterested,
+        other_services: formData.otherServices || null,
+        previous_member: formData.previousMember || null,
+        motivations: formData.motivations,
+        other_motivation: formData.otherMotivation || null,
+        lifestyle_integration: formData.lifestyleIntegration || null,
+        holistic_wellness: formData.holisticWellness || null,
+        referred_by_member: formData.referredByMember,
+        founding_member: formData.foundingMember,
+        payment_info_provided: true,
+        credit_card_auth: formData.creditCardAuth,
+        one_year_commitment: formData.oneYearCommitment,
+        auth_acknowledgment: formData.authAcknowledgment,
+        submission_confirmation: formData.submissionConfirmation,
+      });
+
+      if (error) {
+        console.error("Error submitting application:", error);
+        toast.error("There was an error submitting your application. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Show success message
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error("Error submitting application:", error);
+      toast.error("There was an error submitting your application. Please try again.");
+      setIsSubmitting(false);
+    }
   };
 
   if (isSubmitted) {
@@ -759,9 +806,18 @@ export default function Apply() {
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full">
-              Submit Application
-              <ArrowRight className="ml-2 w-4 h-4" />
+            <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  Submit Application
+                  <ArrowRight className="ml-2 w-4 h-4" />
+                </>
+              )}
             </Button>
           </form>
         </div>
