@@ -11,6 +11,7 @@ import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
 import aerobicsStudio from "@/assets/aerobics-studio.jpg";
 import stormLogoDark from "@/assets/storm-logo-dark.png";
+import aellaLogo from "@/assets/aella-logo.jpg";
 const classStudios = [{
   icon: CircleDot,
   title: "Reformer Pilates",
@@ -46,8 +47,8 @@ const quickLinks = [{
 }, {
   href: "/spa",
   icon: Sparkles,
-  label: "Book Spa",
-  description: "Treatments open to public"
+  label: "Book Aella Spa",
+  description: "Open to all, no membership"
 }, {
   href: "/cafe",
   icon: Coffee,
@@ -177,43 +178,60 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Spa & Wellness Section */}
-      <section className="py-24 bg-secondary/30">
+      {/* Aella Spa Section */}
+      <section className="py-24 bg-gradient-to-b from-secondary/20 via-secondary/30 to-secondary/20">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <p className="text-accent text-sm uppercase tracking-widest mb-4">Public Spa</p>
+              <img src={aellaLogo} alt="Aella by Storm Wellness Club" className="h-16 w-auto mb-6" />
+              <p className="text-accent text-sm uppercase tracking-widest mb-4">by Storm Wellness Club</p>
               <h2 className="heading-section mb-6">
-                Sanctuary for the
+                A Sanctuary for
                 <br />
-                <span className="text-accent">Body & Mind</span>
+                <span className="text-accent">Renewal & Serenity</span>
               </h2>
               <p className="text-muted-foreground mb-8 leading-relaxed">
-                Our spa is open to everyone—no membership required. Experience world-class treatments 
-                including facials, therapeutic massage, red light therapy, body wraps, and advanced 
-                body sculpting in our serene environment.
+                Open to all—no membership required. Immerse yourself in tranquil luxury with 
+                world-class treatments designed to restore balance, rejuvenate the spirit, 
+                and awaken your radiance.
               </p>
               <div className="grid grid-cols-2 gap-4 mb-8">
-                {["Facials", "Massage", "Red Light Therapy", "Body Wraps", "Body Sculpting", "Salt Room"].map(service => <div key={service} className="flex items-center gap-2 text-sm">
+                {["Signature Facials", "Therapeutic Massage", "Red Light Therapy", "Body Wraps", "Body Sculpting", "Salt Room"].map(service => <div key={service} className="flex items-center gap-2 text-sm">
                     <Sparkles className="w-4 h-4 text-accent" />
                     <span>{service}</span>
                   </div>)}
               </div>
               <Link to="/spa">
-                <Button size="lg">
-                  View Spa Menu <ArrowRight className="ml-2 w-4 h-4" />
+                <Button variant="gold" size="lg">
+                  Explore Aella <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </Link>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-4">
-                <img src={sauna} alt="Sauna" className="rounded-sm object-cover h-48 w-full" />
-                <img src={treatmentRoom} alt="Treatment Room" className="rounded-sm object-cover h-64 w-full" />
+                <div className="relative rounded-sm overflow-hidden h-48 group">
+                  <img src={sauna} alt="Infrared Sauna" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
+                  <p className="absolute bottom-3 left-3 text-primary-foreground text-sm font-medium">Infrared Sauna</p>
+                </div>
+                <div className="relative rounded-sm overflow-hidden h-64 group">
+                  <img src={treatmentRoom} alt="Treatment Suite" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
+                  <p className="absolute bottom-3 left-3 text-primary-foreground text-sm font-medium">Treatment Suite</p>
+                </div>
               </div>
               <div className="space-y-4 pt-8">
-                <img src={spaShower} alt="Spa Shower" className="rounded-sm object-cover h-64 w-full" />
-                <img src={reformerPilates} alt="Wellness Area" className="rounded-sm object-cover h-48 w-full" />
+                <div className="relative rounded-sm overflow-hidden h-64 group">
+                  <img src={spaShower} alt="Hydrotherapy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
+                  <p className="absolute bottom-3 left-3 text-primary-foreground text-sm font-medium">Hydrotherapy</p>
+                </div>
+                <div className="relative rounded-sm overflow-hidden h-48 group">
+                  <img src={reformerPilates} alt="Relaxation Lounge" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
+                  <p className="absolute bottom-3 left-3 text-primary-foreground text-sm font-medium">Relaxation Lounge</p>
+                </div>
               </div>
             </div>
           </div>

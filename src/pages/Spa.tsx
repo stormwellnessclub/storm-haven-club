@@ -6,6 +6,7 @@ import { Clock, Star } from "lucide-react";
 import sauna from "@/assets/sauna.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
+import aellaLogo from "@/assets/aella-logo.jpg";
 
 interface SpaService {
   id: number;
@@ -129,20 +130,21 @@ export default function Spa() {
   return (
     <Layout>
       {/* Hero */}
-      <section className="relative pt-20 min-h-[60vh] flex items-center">
+      <section className="relative pt-20 min-h-[70vh] flex items-center">
         <div className="absolute inset-0">
-          <img src={sauna} alt="Spa" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-charcoal/80 via-charcoal/60 to-transparent" />
+          <img src={sauna} alt="Aella Spa" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-charcoal/90 via-charcoal/70 to-charcoal/40" />
         </div>
         <div className="relative z-10 container mx-auto px-6 py-24">
           <div className="max-w-xl">
-            <p className="text-gold-light text-sm uppercase tracking-widest mb-4">Public Spa</p>
+            <img src={aellaLogo} alt="Aella" className="h-20 w-auto mb-6" />
+            <p className="text-gold-light text-sm uppercase tracking-widest mb-4">by Storm Wellness Club</p>
             <h1 className="heading-display text-primary-foreground mb-6">
-              Sanctuary for Body & Mind
+              A Sanctuary for Renewal
             </h1>
             <p className="text-primary-foreground/80 text-lg leading-relaxed mb-8">
-              No membership required. Experience world-class spa treatments in our 
-              serene environment.
+              Open to all—no membership required. Immerse yourself in tranquil luxury 
+              with world-class treatments designed to restore and rejuvenate.
             </p>
             <Button variant="gold" size="lg">
               Book a Treatment
