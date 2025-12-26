@@ -181,59 +181,52 @@ export default function Index() {
       {/* Aella Spa Section */}
       <section className="py-24 bg-gradient-to-b from-secondary/20 via-secondary/30 to-secondary/20">
         <div className="container mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div>
-              <img src={aellaLogo} alt="Aella by Storm Wellness Club" className="h-16 w-auto mb-6" />
-              <p className="text-accent text-sm uppercase tracking-widest mb-4">by Storm Wellness Club</p>
-              <h2 className="heading-section mb-6">
-                A Sanctuary for
-                <br />
-                <span className="text-accent">Renewal & Serenity</span>
-              </h2>
-              <p className="text-muted-foreground mb-8 leading-relaxed">
-                Open to all—no membership required. Immerse yourself in tranquil luxury with 
-                world-class treatments designed to restore balance, rejuvenate the spirit, 
-                and awaken your radiance.
-              </p>
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                {["Signature Facials", "Therapeutic Massage", "Red Light Therapy", "Body Wraps", "Body Sculpting", "Salt Room"].map(service => <div key={service} className="flex items-center gap-2 text-sm">
-                    <Sparkles className="w-4 h-4 text-accent" />
-                    <span>{service}</span>
-                  </div>)}
-              </div>
-              <Link to="/spa">
-                <Button variant="gold" size="lg">
-                  Explore Aella <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <div className="relative rounded-sm overflow-hidden h-48 group">
-                  <img src={sauna} alt="Infrared Sauna" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
-                  <p className="absolute bottom-3 left-3 text-primary-foreground text-sm font-medium">Infrared Sauna</p>
-                </div>
-                <div className="relative rounded-sm overflow-hidden h-64 group">
-                  <img src={treatmentRoom} alt="Treatment Suite" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
-                  <p className="absolute bottom-3 left-3 text-primary-foreground text-sm font-medium">Treatment Suite</p>
-                </div>
-              </div>
-              <div className="space-y-4 pt-8">
-                <div className="relative rounded-sm overflow-hidden h-64 group">
-                  <img src={spaShower} alt="Hydrotherapy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
-                  <p className="absolute bottom-3 left-3 text-primary-foreground text-sm font-medium">Hydrotherapy</p>
-                </div>
-                <div className="relative rounded-sm overflow-hidden h-48 group">
-                  <img src={reformerPilates} alt="Relaxation Lounge" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
-                  <p className="absolute bottom-3 left-3 text-primary-foreground text-sm font-medium">Relaxation Lounge</p>
-                </div>
+          <div className="text-center mb-16">
+            <img src={aellaLogo} alt="Aella" className="h-24 w-auto mx-auto mb-2 mix-blend-multiply" />
+            <p className="text-accent text-sm uppercase tracking-widest mb-6">by Storm Wellness Club</p>
+            <h2 className="heading-section mb-4">
+              A Sanctuary for <span className="text-accent">Renewal & Serenity</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              Open to all—no membership required. Immerse yourself in tranquil luxury with 
+              world-class treatments designed to restore balance and rejuvenate the spirit.
+            </p>
+          </div>
+
+          {/* Services with Images */}
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            <div className="group relative rounded-sm overflow-hidden h-72">
+              <img src={treatmentRoom} alt="Facials" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <h3 className="font-serif text-xl text-primary-foreground mb-1">Signature Facials</h3>
+                <p className="text-primary-foreground/70 text-sm">Deep cleansing & hydration</p>
               </div>
             </div>
+            <div className="group relative rounded-sm overflow-hidden h-72">
+              <img src={spaShower} alt="Massage" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <h3 className="font-serif text-xl text-primary-foreground mb-1">Therapeutic Massage</h3>
+                <p className="text-primary-foreground/70 text-sm">Deep tissue & relaxation</p>
+              </div>
+            </div>
+            <div className="group relative rounded-sm overflow-hidden h-72">
+              <img src={sauna} alt="Body Treatments" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <h3 className="font-serif text-xl text-primary-foreground mb-1">Body Treatments</h3>
+                <p className="text-primary-foreground/70 text-sm">Wraps, sculpting & red light</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link to="/spa">
+              <Button variant="gold" size="lg">
+                Explore Aella <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
