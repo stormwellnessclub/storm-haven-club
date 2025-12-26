@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          created_at: string
+          date_of_birth: string | null
+          email: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          first_name: string
+          fitness_goals: string | null
+          id: string
+          last_name: string
+          membership_agreement_signed: boolean
+          membership_agreement_signed_at: string | null
+          phone: string | null
+          state: string | null
+          updated_at: string
+          user_id: string
+          waiver_signed: boolean
+          waiver_signed_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          first_name: string
+          fitness_goals?: string | null
+          id?: string
+          last_name: string
+          membership_agreement_signed?: boolean
+          membership_agreement_signed_at?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id: string
+          waiver_signed?: boolean
+          waiver_signed_at?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          first_name?: string
+          fitness_goals?: string | null
+          id?: string
+          last_name?: string
+          membership_agreement_signed?: boolean
+          membership_agreement_signed_at?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id?: string
+          waiver_signed?: boolean
+          waiver_signed_at?: string | null
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
