@@ -35,8 +35,8 @@ const classStudios = [{
   image: aerobicsStudio,
   isHeated: true,
   badgeText: "AEROBICS",
-  color: "text-rose-500",
-  bgColor: "bg-rose-500/10"
+  color: "text-amber-700",
+  bgColor: "bg-amber-700/10"
 }];
 const quickLinks = [{
   href: "/classes",
