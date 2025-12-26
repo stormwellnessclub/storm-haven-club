@@ -22,7 +22,7 @@ const classStudios = [{
 }, {
   icon: Bike,
   title: "Cycling Studio",
-  description: "Various energetic classes with immersive lighting and sound",
+  description: "High-energy rides with immersive lighting and cinematic sound",
   image: cycling,
   isHeated: true,
   badgeText: "Cycling",
