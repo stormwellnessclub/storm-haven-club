@@ -105,9 +105,9 @@ export default function Index() {
                 Apply for Membership
               </Button>
             </Link>
-            <Link to="/classes">
+            <Link to="/memberships">
               <Button variant="hero-outline" size="lg">
-                Explore Classes
+                Explore Memberships
               </Button>
             </Link>
           </div>
