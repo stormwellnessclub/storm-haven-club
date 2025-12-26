@@ -29,7 +29,7 @@ export function Navigation() {
             <img 
               src={logo} 
               alt="Storm Wellness Club" 
-              className={`h-12 w-auto transition-all ${isHome ? "brightness-0 invert" : ""}`}
+              className="h-12 w-auto"
             />
           </Link>
 
