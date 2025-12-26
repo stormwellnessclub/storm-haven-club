@@ -33,6 +33,7 @@ const classStudios = [{
   description: "Yoga, HIIT, barre & more in our versatile studio",
   image: aerobicsStudio,
   isHeated: true,
+  badgeText: "AEROBICS",
   color: "text-rose-500",
   bgColor: "bg-rose-500/10"
 }];
