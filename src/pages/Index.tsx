@@ -42,6 +42,7 @@ const classStudios = [
     description: "20 TechnoGym bikes with immersive lighting & sound",
     image: cycling,
     isHeated: true,
+    badgeText: "Cycling",
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
   },
@@ -163,7 +164,7 @@ export default function Index() {
                   <div className="absolute top-4 right-4 flex gap-2">
                     {studio.isHeated ? (
                       <span className="flex items-center gap-1 px-3 py-1 bg-accent text-accent-foreground text-xs uppercase tracking-wider">
-                        <Flame className="w-3 h-3" /> Heated Options
+                        <Flame className="w-3 h-3" /> {studio.badgeText || "Heated Options"}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 px-3 py-1 bg-secondary text-secondary-foreground text-xs uppercase tracking-wider">
