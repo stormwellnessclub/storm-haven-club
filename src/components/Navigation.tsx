@@ -40,7 +40,7 @@ export function Navigation() {
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link to="/" className="flex-shrink-0">
-            <img alt="Storm Wellness Club" className="h-16 w-auto" src="/lovable-uploads/da2bfb84-b4c3-4698-8873-616dc85799d4.png" />
+            <img alt="Storm Wellness Club" className="h-20 w-auto" src="/lovable-uploads/da2bfb84-b4c3-4698-8873-616dc85799d4.png" />
           </Link>
 
           {/* Desktop Navigation */}
