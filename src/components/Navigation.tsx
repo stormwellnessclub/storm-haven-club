@@ -6,6 +6,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import logo from "@/assets/storm-logo-gold.png";
 const navLinks = [{
+  href: "/memberships",
+  label: "Memberships"
+}, {
   href: "/classes",
   label: "Classes"
 }, {
@@ -23,6 +26,9 @@ const navLinks = [{
 }, {
   href: "/class-passes",
   label: "Class Passes"
+}, {
+  href: "/apply",
+  label: "Apply"
 }];
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
