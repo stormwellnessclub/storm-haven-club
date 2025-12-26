@@ -147,9 +147,9 @@ export default function Index() {
                   <img src={studio.image} alt={studio.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-hero" />
                   <div className="absolute top-4 right-4 flex gap-2">
-                    {studio.isHeated ? <span className="flex items-center gap-1 px-3 py-1 text-accent-foreground text-xs uppercase tracking-wider bg-primary-foreground">
+                    {studio.isHeated ? <span className="flex items-center gap-1 px-3 py-1 text-accent-foreground text-xs uppercase tracking-wider bg-secondary">
                          {studio.badgeText || "Heated Options"}
-                      </span> : <span className="flex items-center gap-1 px-3 py-1 bg-secondary text-secondary-foreground text-xs uppercase tracking-wider">RPilates REFORMER Pilates  
+                      </span> : <span className="flex items-center gap-1 px-3 py-1 text-secondary-foreground text-xs uppercase tracking-wider bg-secondary">RPilates REFORMER Pilates  
                       </span>}
                   </div>
                 </div>
