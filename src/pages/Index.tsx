@@ -22,7 +22,7 @@ const classStudios = [{
 }, {
   icon: Bike,
   title: "Cycling Studio",
-  description: "20 TechnoGym bikes with immersive lighting & sound",
+  description: "Various energetic classes with immersive lighting and sound",
   image: cycling,
   isHeated: true,
   badgeText: "Cycling",
