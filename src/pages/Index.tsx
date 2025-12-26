@@ -13,7 +13,7 @@ import aerobicsStudio from "@/assets/aerobics-studio.jpg";
 const classStudios = [{
   icon: CircleDot,
   title: "Reformer Pilates",
-  description: "12 premium reformers with heated & non-heated options",
+  description: "A mixture of reformer classes, both heated and non-heated options",
   image: reformerPilates,
   isHeated: false,
   color: "text-amber-900",
@@ -160,7 +160,10 @@ export default function Index() {
                     </div>
                     <h3 className="font-serif text-xl">{studio.title}</h3>
                   </div>
-                  <p className="text-muted-foreground text-sm">{studio.description}</p>
+                  <p className="text-muted-foreground text-sm mb-3">{studio.description}</p>
+                  <Link to="/classes" className="text-accent text-sm font-medium hover:underline">
+                    View Classes →
+                  </Link>
                 </div>
               </div>)}
           </div>
