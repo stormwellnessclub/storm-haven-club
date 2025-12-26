@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import logo from "@/assets/storm-logo.png";
 
 const navLinks = [
@@ -17,6 +25,11 @@ export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -48,13 +61,47 @@ export function Navigation() {
             ))}
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden lg:block">
-            <Link to="/apply">
-              <Button variant={isHome ? "hero-outline" : "default"} size="sm">
-                Apply for Membership
-              </Button>
-            </Link>
+          {/* CTA & Account Button */}
+          <div className="hidden lg:flex items-center gap-3">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant={isHome ? "hero-outline" : "outline"} size="sm" className="gap-2">
+                    <User className="w-4 h-4" />
+                    Account
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem className="text-muted-foreground text-xs">
+                    {user.email}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/apply" className="cursor-pointer">
+                      Membership Application
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant={isHome ? "hero-outline" : "outline"} size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/apply">
+                  <Button variant={isHome ? "hero" : "default"} size="sm">
+                    Apply for Membership
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -87,11 +134,43 @@ export function Navigation() {
                   {link.label}
                 </Link>
               ))}
-              <Link to="/apply" onClick={() => setIsOpen(false)}>
-                <Button variant="default" className="w-full mt-4">
-                  Apply for Membership
-                </Button>
-              </Link>
+              
+              <div className="border-t border-border pt-4 mt-2">
+                {user ? (
+                  <>
+                    <p className="text-muted-foreground text-xs mb-3">{user.email}</p>
+                    <Link to="/apply" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full mb-2">
+                        Membership Application
+                      </Button>
+                    </Link>
+                    <Button 
+                      variant="destructive" 
+                      className="w-full"
+                      onClick={() => {
+                        handleSignOut();
+                        setIsOpen(false);
+                      }}
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/auth" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full mb-2">
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link to="/apply" onClick={() => setIsOpen(false)}>
+                      <Button variant="default" className="w-full">
+                        Apply for Membership
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
