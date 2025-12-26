@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import logo from "@/assets/storm-logo.png";
+import logo from "@/assets/storm-logo-gold.png";
 
 const navLinks = [
   { href: "/classes", label: "Classes" },
