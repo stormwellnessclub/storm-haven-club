@@ -96,7 +96,7 @@ export function Navigation() {
         </div>
 
         {/* Mobile Navigation */}
-        {isOpen && <div className="lg:hidden absolute top-20 left-0 right-0 bg-background/98 backdrop-blur-md border-b border-border animate-slide-in">
+        {isOpen && <div className="lg:hidden absolute top-20 left-0 right-0 bg-background border-b border-border shadow-xl animate-slide-in">
             <div className="container px-6 py-6 flex flex-col gap-4">
               {navLinks.map(link => <Link key={link.href} to={link.href} onClick={() => setIsOpen(false)} className={`text-sm uppercase tracking-widest font-medium py-2 transition-colors hover:text-accent ${location.pathname === link.href ? "text-accent" : "text-foreground"}`}>
                   {link.label}
