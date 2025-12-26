@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      membership_applications: {
+        Row: {
+          address: string
+          auth_acknowledgment: boolean
+          city: string
+          country: string
+          created_at: string
+          credit_card_auth: boolean
+          date_of_birth: string
+          email: string
+          founding_member: string
+          full_name: string
+          holistic_wellness: string | null
+          id: string
+          lifestyle_integration: string | null
+          membership_plan: string
+          motivations: string[] | null
+          notes: string | null
+          one_year_commitment: boolean
+          other_goals: string | null
+          other_motivation: string | null
+          other_services: string | null
+          payment_info_provided: boolean
+          phone: string
+          previous_member: string | null
+          referred_by_member: string
+          services_interested: string[]
+          state: string
+          status: string
+          submission_confirmation: boolean
+          updated_at: string
+          wellness_goals: string[]
+          zip_code: string
+        }
+        Insert: {
+          address: string
+          auth_acknowledgment?: boolean
+          city: string
+          country?: string
+          created_at?: string
+          credit_card_auth?: boolean
+          date_of_birth: string
+          email: string
+          founding_member: string
+          full_name: string
+          holistic_wellness?: string | null
+          id?: string
+          lifestyle_integration?: string | null
+          membership_plan: string
+          motivations?: string[] | null
+          notes?: string | null
+          one_year_commitment?: boolean
+          other_goals?: string | null
+          other_motivation?: string | null
+          other_services?: string | null
+          payment_info_provided?: boolean
+          phone: string
+          previous_member?: string | null
+          referred_by_member: string
+          services_interested?: string[]
+          state: string
+          status?: string
+          submission_confirmation?: boolean
+          updated_at?: string
+          wellness_goals?: string[]
+          zip_code: string
+        }
+        Update: {
+          address?: string
+          auth_acknowledgment?: boolean
+          city?: string
+          country?: string
+          created_at?: string
+          credit_card_auth?: boolean
+          date_of_birth?: string
+          email?: string
+          founding_member?: string
+          full_name?: string
+          holistic_wellness?: string | null
+          id?: string
+          lifestyle_integration?: string | null
+          membership_plan?: string
+          motivations?: string[] | null
+          notes?: string | null
+          one_year_commitment?: boolean
+          other_goals?: string | null
+          other_motivation?: string | null
+          other_services?: string | null
+          payment_info_provided?: boolean
+          phone?: string
+          previous_member?: string | null
+          referred_by_member?: string
+          services_interested?: string[]
+          state?: string
+          status?: string
+          submission_confirmation?: boolean
+          updated_at?: string
+          wellness_goals?: string[]
+          zip_code?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address_line1: string | null
