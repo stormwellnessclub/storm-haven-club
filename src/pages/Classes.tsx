@@ -566,14 +566,16 @@ export default function Classes() {
                     />
                     <div className="absolute inset-0 bg-gradient-hero" />
                     <div className="absolute top-4 left-4 flex gap-2">
-                      {cls.isHeated ? (
-                        <span className="flex items-center gap-1 px-2 py-1 bg-accent text-accent-foreground text-xs uppercase tracking-wider">
-                          <Flame className="w-3 h-3" /> Heated
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 px-2 py-1 bg-secondary text-secondary-foreground text-xs uppercase tracking-wider">
-                          <Snowflake className="w-3 h-3" /> Non-Heated
-                        </span>
+                      {cls.type !== "cycling" && (
+                        cls.isHeated ? (
+                          <span className="flex items-center gap-1 px-2 py-1 bg-accent text-accent-foreground text-xs uppercase tracking-wider">
+                            <Flame className="w-3 h-3" /> Heated
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 px-2 py-1 bg-secondary text-secondary-foreground text-xs uppercase tracking-wider">
+                            <Snowflake className="w-3 h-3" /> Non-Heated
+                          </span>
+                        )
                       )}
                     </div>
                     <div className="absolute bottom-4 left-4 right-4">
