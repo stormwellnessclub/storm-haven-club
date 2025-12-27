@@ -140,6 +140,7 @@ export default function Applications() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [pendingBulkAction, setPendingBulkAction] = useState<string | null>(null);
+  const [planFilter, setPlanFilter] = useState<string>("all");
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading } = useQuery({
@@ -278,17 +279,20 @@ export default function Applications() {
     toast.success(`Exported ${filteredApplications.length} applications`);
   };
 
+  const membershipPlans = [...new Set(applications.map((app) => app.membership_plan))].sort();
+
   const filteredApplications = applications.filter((app) => {
     const matchesSearch =
       app.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
+    const matchesPlan = planFilter === "all" || app.membership_plan === planFilter;
     
     const appDate = new Date(app.created_at);
     const matchesDateFrom = !dateFrom || !isBefore(appDate, startOfDay(dateFrom));
     const matchesDateTo = !dateTo || !isAfter(appDate, endOfDay(dateTo));
     
-    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
+    return matchesSearch && matchesStatus && matchesPlan && matchesDateFrom && matchesDateTo;
   });
 
   const pendingCount = applications.filter((a) => a.status === "pending").length;
@@ -425,7 +429,7 @@ export default function Applications() {
           </div>
         </div>
 
-        {/* Date Range Filter */}
+        {/* Date Range & Plan Filter */}
         <div className="flex flex-wrap gap-2 items-center">
           <Popover>
             <PopoverTrigger asChild>
@@ -454,6 +458,19 @@ export default function Applications() {
               <X className="h-4 w-4" />
             </Button>
           )}
+          <div className="h-6 w-px bg-border mx-1" />
+          <select
+            value={planFilter}
+            onChange={(e) => setPlanFilter(e.target.value)}
+            className="h-8 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <option value="all">All Plans</option>
+            {membershipPlans.map((plan) => (
+              <option key={plan} value={plan}>
+                {plan.split(" –")[0]}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Bulk Actions */}
