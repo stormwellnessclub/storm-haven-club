@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      check_ins: {
+        Row: {
+          checked_in_at: string
+          checked_in_by: string | null
+          checked_out_at: string | null
+          created_at: string | null
+          id: string
+          member_id: string
+          notes: string | null
+        }
+        Insert: {
+          checked_in_at?: string
+          checked_in_by?: string | null
+          checked_out_at?: string | null
+          created_at?: string | null
+          id?: string
+          member_id: string
+          notes?: string | null
+        }
+        Update: {
+          checked_in_at?: string
+          checked_in_by?: string | null
+          checked_out_at?: string | null
+          created_at?: string | null
+          id?: string
+          member_id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_ins_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      members: {
+        Row: {
+          created_at: string | null
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          member_id: string
+          membership_end_date: string | null
+          membership_start_date: string
+          membership_type: string
+          phone: string | null
+          photo_url: string | null
+          status: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          member_id: string
+          membership_end_date?: string | null
+          membership_start_date?: string
+          membership_type?: string
+          phone?: string | null
+          photo_url?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          member_id?: string
+          membership_end_date?: string | null
+          membership_start_date?: string
+          membership_type?: string
+          phone?: string | null
+          photo_url?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       membership_applications: {
         Row: {
           address: string

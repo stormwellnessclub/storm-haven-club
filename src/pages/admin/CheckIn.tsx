@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  QrCode, 
   Search, 
   UserCheck, 
   Clock, 
@@ -14,47 +13,170 @@ import {
   XCircle,
   User,
   CreditCard,
-  Calendar
+  Calendar,
+  Loader2
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
-const recentCheckIns = [
-  { name: "Sarah Johnson", time: "8:45 AM", membership: "Premium", status: "success", photo: null },
-  { name: "Michael Chen", time: "8:30 AM", membership: "Executive", status: "success", photo: null },
-  { name: "Emily Davis", time: "8:15 AM", membership: "Standard", status: "success", photo: null },
-  { name: "James Wilson", time: "8:00 AM", membership: "Premium", status: "warning", photo: null },
-  { name: "Amanda Roberts", time: "7:45 AM", membership: "Executive", status: "success", photo: null },
-  { name: "David Brown", time: "7:30 AM", membership: "Premium", status: "success", photo: null },
-];
+type MemberStatus = "active" | "past_due" | "frozen" | "expired" | "cancelled";
 
-type MemberStatus = "active" | "past_due" | "frozen" | "expired";
-
-interface ScannedMember {
-  name: string;
-  membership: string;
+interface Member {
+  id: string;
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  membership_type: string;
   status: MemberStatus;
-  memberId: string;
-  expiresAt: string;
-  checkInCount: number;
+  membership_end_date: string | null;
+  photo_url: string | null;
+}
+
+interface CheckInRecord {
+  id: string;
+  member_id: string;
+  checked_in_at: string;
+  members: {
+    first_name: string;
+    last_name: string;
+    membership_type: string;
+  };
 }
 
 export default function CheckIn() {
-  const [manualSearch, setManualSearch] = useState("");
-  const [isScanning, setIsScanning] = useState(false);
-  const [lastScanned, setLastScanned] = useState<ScannedMember | null>(null);
+  const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Member[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [recentCheckIns, setRecentCheckIns] = useState<CheckInRecord[]>([]);
+  const [todayStats, setTodayStats] = useState({ total: 0, currentlyIn: 0 });
+  const [memberCheckInCount, setMemberCheckInCount] = useState(0);
 
-  const handleStartScanning = () => {
-    setIsScanning(true);
-    setTimeout(() => {
-      setLastScanned({
-        name: "Sarah Johnson",
-        membership: "Premium",
-        status: "active",
-        memberId: "STM-001284",
-        expiresAt: "Dec 31, 2025",
-        checkInCount: 47,
-      });
-      setIsScanning(false);
-    }, 2000);
+  // Fetch recent check-ins on mount
+  useEffect(() => {
+    fetchRecentCheckIns();
+    fetchTodayStats();
+  }, []);
+
+  const fetchRecentCheckIns = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const { data, error } = await supabase
+      .from("check_ins")
+      .select(`
+        id,
+        member_id,
+        checked_in_at,
+        members (
+          first_name,
+          last_name,
+          membership_type
+        )
+      `)
+      .gte("checked_in_at", today.toISOString())
+      .order("checked_in_at", { ascending: false })
+      .limit(6);
+
+    if (!error && data) {
+      setRecentCheckIns(data as unknown as CheckInRecord[]);
+    }
+  };
+
+  const fetchTodayStats = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const { count: totalToday } = await supabase
+      .from("check_ins")
+      .select("*", { count: "exact", head: true })
+      .gte("checked_in_at", today.toISOString());
+
+    const { count: currentlyIn } = await supabase
+      .from("check_ins")
+      .select("*", { count: "exact", head: true })
+      .gte("checked_in_at", today.toISOString())
+      .is("checked_out_at", null);
+
+    setTodayStats({
+      total: totalToday || 0,
+      currentlyIn: currentlyIn || 0,
+    });
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setSearchResults([]);
+    setSelectedMember(null);
+
+    const { data, error } = await supabase
+      .from("members")
+      .select("*")
+      .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,member_id.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+      .limit(10);
+
+    setIsSearching(false);
+
+    if (error) {
+      toast.error("Search failed");
+      return;
+    }
+
+    if (data && data.length > 0) {
+      setSearchResults(data as Member[]);
+    } else {
+      toast.info("No members found");
+    }
+  };
+
+  const selectMember = async (member: Member) => {
+    setSelectedMember(member);
+    setSearchResults([]);
+    setSearchQuery("");
+
+    // Fetch this month's check-in count
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count } = await supabase
+      .from("check_ins")
+      .select("*", { count: "exact", head: true })
+      .eq("member_id", member.id)
+      .gte("checked_in_at", startOfMonth.toISOString());
+
+    setMemberCheckInCount(count || 0);
+  };
+
+  const handleCheckIn = async () => {
+    if (!selectedMember || !user) return;
+
+    setIsCheckingIn(true);
+
+    const { error } = await supabase.from("check_ins").insert({
+      member_id: selectedMember.id,
+      checked_in_by: user.id,
+    });
+
+    setIsCheckingIn(false);
+
+    if (error) {
+      toast.error("Check-in failed");
+      return;
+    }
+
+    toast.success(`${selectedMember.first_name} ${selectedMember.last_name} checked in!`);
+    setMemberCheckInCount((prev) => prev + 1);
+    fetchRecentCheckIns();
+    fetchTodayStats();
   };
 
   const getStatusConfig = (status: MemberStatus) => {
@@ -66,6 +188,7 @@ export default function CheckIn() {
           badge: <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">Active</Badge>,
           bgClass: "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800",
           iconClass: "text-green-600",
+          canCheckIn: true,
         };
       case "past_due":
         return {
@@ -74,6 +197,7 @@ export default function CheckIn() {
           badge: <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">Past Due</Badge>,
           bgClass: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",
           iconClass: "text-amber-600",
+          canCheckIn: true,
         };
       case "frozen":
         return {
@@ -82,14 +206,26 @@ export default function CheckIn() {
           badge: <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">Frozen</Badge>,
           bgClass: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800",
           iconClass: "text-blue-600",
+          canCheckIn: false,
         };
       case "expired":
+      case "cancelled":
         return {
           icon: XCircle,
-          label: "Membership Expired",
-          badge: <Badge className="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">Expired</Badge>,
+          label: status === "expired" ? "Membership Expired" : "Membership Cancelled",
+          badge: <Badge className="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">{status === "expired" ? "Expired" : "Cancelled"}</Badge>,
           bgClass: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
           iconClass: "text-red-600",
+          canCheckIn: false,
+        };
+      default:
+        return {
+          icon: User,
+          label: "Unknown Status",
+          badge: <Badge variant="outline">Unknown</Badge>,
+          bgClass: "bg-secondary",
+          iconClass: "text-muted-foreground",
+          canCheckIn: false,
         };
     }
   };
@@ -99,91 +235,100 @@ export default function CheckIn() {
       <div className="space-y-6">
         {/* Main Check-In Area */}
         <div className="grid gap-6 lg:grid-cols-5">
-          {/* QR Scanner - Primary Focus */}
+          {/* Search Panel */}
           <Card className="lg:col-span-3">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-xl">
-                    <QrCode className="h-5 w-5" />
-                    QR Code Scanner
+                    <Search className="h-5 w-5" />
+                    Member Lookup
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    Point the scanner at a member's QR code
+                    Search by name, member ID, email, or phone
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  Camera: Ready
-                </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Scanner Preview */}
-              <div className="aspect-[4/3] max-h-[400px] mx-auto bg-secondary/30 rounded-lg flex items-center justify-center border-2 border-dashed border-border relative overflow-hidden">
-                {isScanning ? (
-                  <div className="text-center space-y-4">
-                    <div className="relative">
-                      <div className="absolute inset-0 animate-ping">
-                        <QrCode className="h-20 w-20 mx-auto text-accent/50" />
-                      </div>
-                      <QrCode className="h-20 w-20 mx-auto text-accent" />
-                    </div>
-                    <p className="text-muted-foreground font-medium">Scanning...</p>
-                  </div>
-                ) : (
-                  <div className="text-center space-y-4 p-8">
-                    <div className="mx-auto w-32 h-32 rounded-lg border-4 border-dashed border-muted-foreground/30 flex items-center justify-center">
-                      <QrCode className="h-16 w-16 text-muted-foreground/40" />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-muted-foreground">Camera preview area</p>
-                      <Button size="lg" onClick={handleStartScanning} className="mt-2">
-                        <QrCode className="h-4 w-4 mr-2" />
-                        Start Scanning
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Manual Search */}
+              {/* Search Input */}
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Manual Lookup</p>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search by name, member ID, or phone..."
-                      value={manualSearch}
-                      onChange={(e) => setManualSearch(e.target.value)}
+                      placeholder="Search by name, member ID, email, or phone..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                       className="pl-10"
                     />
                   </div>
-                  <Button variant="secondary">Search</Button>
+                  <Button onClick={handleSearch} disabled={isSearching}>
+                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
+                  </Button>
                 </div>
               </div>
+
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Search Results</p>
+                  <div className="grid gap-2 max-h-[300px] overflow-y-auto">
+                    {searchResults.map((member) => (
+                      <button
+                        key={member.id}
+                        onClick={() => selectMember(member)}
+                        className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors text-left w-full"
+                      >
+                        <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                          <User className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {member.first_name} {member.last_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {member.member_id} • {member.membership_type}
+                          </p>
+                        </div>
+                        {getStatusConfig(member.status).badge}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!selectedMember && searchResults.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Search className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="font-medium">Search for a member</p>
+                  <p className="text-sm mt-1">Enter a name, member ID, email, or phone number</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Member Result Panel */}
           <Card className="lg:col-span-2">
             <CardHeader className="pb-4">
-              <CardTitle className="text-base">Scan Result</CardTitle>
+              <CardTitle className="text-base">Member Details</CardTitle>
             </CardHeader>
             <CardContent>
-              {lastScanned ? (
+              {selectedMember ? (
                 <div className="space-y-4">
                   {/* Status Banner */}
-                  <div className={`p-4 rounded-lg border ${getStatusConfig(lastScanned.status).bgClass}`}>
+                  <div className={`p-4 rounded-lg border ${getStatusConfig(selectedMember.status).bgClass}`}>
                     <div className="flex items-center gap-3">
                       {(() => {
-                        const StatusIcon = getStatusConfig(lastScanned.status).icon;
-                        return <StatusIcon className={`h-8 w-8 ${getStatusConfig(lastScanned.status).iconClass}`} />;
+                        const StatusIcon = getStatusConfig(selectedMember.status).icon;
+                        return <StatusIcon className={`h-8 w-8 ${getStatusConfig(selectedMember.status).iconClass}`} />;
                       })()}
                       <div>
-                        <p className="font-semibold">{getStatusConfig(lastScanned.status).label}</p>
+                        <p className="font-semibold">{getStatusConfig(selectedMember.status).label}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {format(new Date(), "h:mm a")}
                         </p>
                       </div>
                     </div>
@@ -196,8 +341,10 @@ export default function CheckIn() {
                         <User className="h-8 w-8 text-muted-foreground" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold">{lastScanned.name}</h3>
-                        <p className="text-sm text-muted-foreground">{lastScanned.memberId}</p>
+                        <h3 className="text-lg font-semibold">
+                          {selectedMember.first_name} {selectedMember.last_name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">{selectedMember.member_id}</p>
                       </div>
                     </div>
 
@@ -206,38 +353,58 @@ export default function CheckIn() {
                         <CreditCard className="h-4 w-4 text-muted-foreground" />
                         <div className="flex-1">
                           <p className="text-xs text-muted-foreground">Membership</p>
-                          <p className="font-medium">{lastScanned.membership}</p>
+                          <p className="font-medium">{selectedMember.membership_type}</p>
                         </div>
-                        {getStatusConfig(lastScanned.status).badge}
+                        {getStatusConfig(selectedMember.status).badge}
                       </div>
-                      
-                      <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">Expires</p>
-                          <p className="font-medium">{lastScanned.expiresAt}</p>
+
+                      {selectedMember.membership_end_date && (
+                        <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">Expires</p>
+                            <p className="font-medium">
+                              {format(new Date(selectedMember.membership_end_date), "MMM d, yyyy")}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      
+                      )}
+
                       <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
                         <UserCheck className="h-4 w-4 text-muted-foreground" />
                         <div className="flex-1">
                           <p className="text-xs text-muted-foreground">Check-ins This Month</p>
-                          <p className="font-medium">{lastScanned.checkInCount}</p>
+                          <p className="font-medium">{memberCheckInCount}</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <Button className="w-full" variant="outline">
-                    View Full Profile
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={handleCheckIn}
+                    disabled={isCheckingIn || !getStatusConfig(selectedMember.status).canCheckIn}
+                  >
+                    {isCheckingIn ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <UserCheck className="h-4 w-4 mr-2" />
+                    )}
+                    Check In Member
                   </Button>
+
+                  {!getStatusConfig(selectedMember.status).canCheckIn && (
+                    <p className="text-sm text-center text-destructive">
+                      Cannot check in - membership is {selectedMember.status}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <User className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                  <p className="font-medium">No Member Scanned</p>
-                  <p className="text-sm mt-1">Scan a QR code to see member details</p>
+                  <p className="font-medium">No Member Selected</p>
+                  <p className="text-sm mt-1">Search and select a member to check in</p>
                 </div>
               )}
             </CardContent>
@@ -257,20 +424,12 @@ export default function CheckIn() {
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 bg-green-50 dark:bg-green-950/30 rounded-lg">
-                  <p className="text-3xl font-bold text-green-700 dark:text-green-400">89</p>
+                  <p className="text-3xl font-bold text-green-700 dark:text-green-400">{todayStats.total}</p>
                   <p className="text-xs text-green-600 dark:text-green-500">Total Check-Ins</p>
                 </div>
                 <div className="text-center p-4 bg-secondary/50 rounded-lg">
-                  <p className="text-3xl font-bold">147</p>
+                  <p className="text-3xl font-bold">{todayStats.currentlyIn}</p>
                   <p className="text-xs text-muted-foreground">Currently In</p>
-                </div>
-                <div className="text-center p-4 bg-secondary/50 rounded-lg">
-                  <p className="text-3xl font-bold">11am</p>
-                  <p className="text-xs text-muted-foreground">Peak Hour</p>
-                </div>
-                <div className="text-center p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
-                  <p className="text-3xl font-bold text-amber-700 dark:text-amber-400">3</p>
-                  <p className="text-xs text-amber-600 dark:text-amber-500">Issues</p>
                 </div>
               </div>
             </CardContent>
@@ -285,25 +444,32 @@ export default function CheckIn() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {recentCheckIns.map((checkIn, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg"
-                  >
-                    {checkIn.status === "success" ? (
+              {recentCheckIns.length > 0 ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {recentCheckIns.map((checkIn) => (
+                    <div
+                      key={checkIn.id}
+                      className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg"
+                    >
                       <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{checkIn.name}</p>
-                      <p className="text-xs text-muted-foreground">{checkIn.membership}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {checkIn.members.first_name} {checkIn.members.last_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{checkIn.members.membership_type}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {format(new Date(checkIn.checked_in_at), "h:mm a")}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground shrink-0">{checkIn.time}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No check-ins today yet</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
