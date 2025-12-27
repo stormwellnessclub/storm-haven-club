@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,65 +26,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
-const mockApplications = [
-  {
-    id: "1",
-    name: "John Smith",
-    email: "john.smith@email.com",
-    phone: "(555) 111-2222",
-    membership: "Premium",
-    status: "pending",
-    submittedAt: "Dec 25, 2024",
-    goals: ["Weight Loss", "Stress Management"],
-    foundingMember: "Yes",
-  },
-  {
-    id: "2",
-    name: "Lisa Thompson",
-    email: "lisa.t@email.com",
-    phone: "(555) 333-4444",
-    membership: "Executive",
-    status: "pending",
-    submittedAt: "Dec 24, 2024",
-    goals: ["Build Strength", "Improve Flexibility"],
-    foundingMember: "Yes",
-  },
-  {
-    id: "3",
-    name: "Robert Garcia",
-    email: "r.garcia@email.com",
-    phone: "(555) 555-6666",
-    membership: "Standard",
-    status: "approved",
-    submittedAt: "Dec 23, 2024",
-    goals: ["General Fitness"],
-    foundingMember: "No",
-  },
-  {
-    id: "4",
-    name: "Jennifer Lee",
-    email: "j.lee@email.com",
-    phone: "(555) 777-8888",
-    membership: "Premium",
-    status: "pending",
-    submittedAt: "Dec 23, 2024",
-    goals: ["Spa & Relaxation", "Holistic Wellness"],
-    foundingMember: "Yes",
-  },
-  {
-    id: "5",
-    name: "Mark Anderson",
-    email: "m.anderson@email.com",
-    phone: "(555) 999-0000",
-    membership: "Standard",
-    status: "rejected",
-    submittedAt: "Dec 22, 2024",
-    goals: ["General Fitness"],
-    foundingMember: "No",
-  },
-];
+type Application = {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  membership_plan: string;
+  status: string;
+  created_at: string;
+  founding_member: string;
+  wellness_goals: string[];
+  date_of_birth: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  lifestyle_integration: string | null;
+  holistic_wellness: string | null;
+  referred_by_member: string;
+  services_interested: string[];
+};
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -116,17 +84,59 @@ const getStatusBadge = (status: string) => {
 export default function Applications() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedApplication, setSelectedApplication] = useState<typeof mockApplications[0] | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const queryClient = useQueryClient();
 
-  const filteredApplications = mockApplications.filter((app) => {
+  const { data: applications = [], isLoading } = useQuery({
+    queryKey: ["membership-applications"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("membership_applications")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Application[];
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase
+        .from("membership_applications")
+        .update({ status })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+      toast.success("Application status updated");
+      setSelectedApplication(null);
+    },
+    onError: () => {
+      toast.error("Failed to update application");
+    },
+  });
+
+  const filteredApplications = applications.filter((app) => {
     const matchesSearch =
-      app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      app.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const pendingCount = mockApplications.filter((a) => a.status === "pending").length;
+  const pendingCount = applications.filter((a) => a.status === "pending").length;
+  const approvedCount = applications.filter((a) => a.status === "approved").length;
+
+  if (isLoading) {
+    return (
+      <AdminLayout title="Membership Applications">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout title="Membership Applications">
@@ -148,8 +158,8 @@ export default function Applications() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Approved This Month</p>
-                  <p className="text-3xl font-bold">12</p>
+                  <p className="text-sm text-muted-foreground">Approved</p>
+                  <p className="text-3xl font-bold">{approvedCount}</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-500" />
               </div>
@@ -160,7 +170,7 @@ export default function Applications() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Applications</p>
-                  <p className="text-3xl font-bold">47</p>
+                  <p className="text-3xl font-bold">{applications.length}</p>
                 </div>
                 <Eye className="h-8 w-8 text-muted-foreground" />
               </div>
@@ -180,34 +190,10 @@ export default function Applications() {
             />
           </div>
           <div className="flex gap-2">
-            <Button
-              variant={statusFilter === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter("all")}
-            >
-              All
-            </Button>
-            <Button
-              variant={statusFilter === "pending" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter("pending")}
-            >
-              Pending
-            </Button>
-            <Button
-              variant={statusFilter === "approved" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter("approved")}
-            >
-              Approved
-            </Button>
-            <Button
-              variant={statusFilter === "rejected" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter("rejected")}
-            >
-              Rejected
-            </Button>
+            <Button variant={statusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("all")}>All</Button>
+            <Button variant={statusFilter === "pending" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("pending")}>Pending</Button>
+            <Button variant={statusFilter === "approved" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("approved")}>Approved</Button>
+            <Button variant={statusFilter === "rejected" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("rejected")}>Rejected</Button>
           </div>
         </div>
 
@@ -233,20 +219,20 @@ export default function Applications() {
                   <TableRow key={app.id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{app.name}</p>
+                        <p className="font-medium">{app.full_name}</p>
                         <p className="text-sm text-muted-foreground">{app.email}</p>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{app.membership}</Badge>
+                      <Badge variant="outline">{app.membership_plan.split(" –")[0]}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={app.foundingMember === "Yes" ? "default" : "secondary"}>
-                        {app.foundingMember}
+                      <Badge variant={app.founding_member === "Yes" ? "default" : "secondary"}>
+                        {app.founding_member}
                       </Badge>
                     </TableCell>
                     <TableCell>{getStatusBadge(app.status)}</TableCell>
-                    <TableCell>{app.submittedAt}</TableCell>
+                    <TableCell>{format(new Date(app.created_at), "MMM d, yyyy")}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -261,11 +247,11 @@ export default function Applications() {
                           </DropdownMenuItem>
                           {app.status === "pending" && (
                             <>
-                              <DropdownMenuItem className="text-green-600">
+                              <DropdownMenuItem className="text-green-600" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved" })}>
                                 <CheckCircle className="h-4 w-4 mr-2" />
                                 Approve
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">
+                              <DropdownMenuItem className="text-destructive" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "rejected" })}>
                                 <XCircle className="h-4 w-4 mr-2" />
                                 Reject
                               </DropdownMenuItem>
@@ -283,68 +269,95 @@ export default function Applications() {
 
         {/* Application Detail Dialog */}
         <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Application Details</DialogTitle>
               <DialogDescription>
-                Submitted on {selectedApplication?.submittedAt}
+                Submitted on {selectedApplication && format(new Date(selectedApplication.created_at), "MMMM d, yyyy 'at' h:mm a")}
               </DialogDescription>
             </DialogHeader>
             {selectedApplication && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Full Name</p>
-                    <p className="font-medium">{selectedApplication.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{selectedApplication.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="font-medium">{selectedApplication.phone}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Membership Plan</p>
-                    <p className="font-medium">{selectedApplication.membership}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Founding Member</p>
-                    <Badge variant={selectedApplication.foundingMember === "Yes" ? "default" : "secondary"}>
-                      {selectedApplication.foundingMember}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    {getStatusBadge(selectedApplication.status)}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Wellness Goals</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedApplication.goals.map((goal) => (
-                      <Badge key={goal} variant="outline">
-                        {goal}
+              <ScrollArea className="max-h-[60vh]">
+                <div className="space-y-6 pr-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Full Name</p>
+                      <p className="font-medium">{selectedApplication.full_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium">{selectedApplication.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="font-medium">{selectedApplication.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Membership Plan</p>
+                      <p className="font-medium">{selectedApplication.membership_plan}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Founding Member</p>
+                      <Badge variant={selectedApplication.founding_member === "Yes" ? "default" : "secondary"}>
+                        {selectedApplication.founding_member}
                       </Badge>
-                    ))}
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      {getStatusBadge(selectedApplication.status)}
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-sm text-muted-foreground">Address</p>
+                      <p className="font-medium">{selectedApplication.address}, {selectedApplication.city}, {selectedApplication.state} {selectedApplication.zip_code}</p>
+                    </div>
                   </div>
-                </div>
 
-                {selectedApplication.status === "pending" && (
-                  <div className="flex gap-3 pt-4 border-t">
-                    <Button className="flex-1" variant="default">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Approve Application
-                    </Button>
-                    <Button className="flex-1" variant="destructive">
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject Application
-                    </Button>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Wellness Goals</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedApplication.wellness_goals?.map((goal) => (
+                        <Badge key={goal} variant="outline">{goal}</Badge>
+                      ))}
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Services Interested</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedApplication.services_interested?.map((service) => (
+                        <Badge key={service} variant="outline">{service}</Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedApplication.lifestyle_integration && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Lifestyle Integration</p>
+                      <p className="text-sm">{selectedApplication.lifestyle_integration}</p>
+                    </div>
+                  )}
+
+                  {selectedApplication.holistic_wellness && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Holistic Wellness Goals</p>
+                      <p className="text-sm">{selectedApplication.holistic_wellness}</p>
+                    </div>
+                  )}
+
+                  {selectedApplication.status === "pending" && (
+                    <div className="flex gap-3 pt-4 border-t">
+                      <Button className="flex-1" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "approved" })}>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Approve Application
+                      </Button>
+                      <Button className="flex-1" variant="destructive" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "rejected" })}>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Reject Application
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             )}
           </DialogContent>
         </Dialog>
