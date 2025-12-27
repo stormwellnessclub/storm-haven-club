@@ -106,6 +106,7 @@ export type Database = {
       membership_applications: {
         Row: {
           address: string
+          annual_fee_status: string
           auth_acknowledgment: boolean
           city: string
           country: string
@@ -139,6 +140,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          annual_fee_status?: string
           auth_acknowledgment?: boolean
           city: string
           country?: string
@@ -172,6 +174,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          annual_fee_status?: string
           auth_acknowledgment?: boolean
           city?: string
           country?: string

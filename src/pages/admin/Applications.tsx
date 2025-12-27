@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -51,6 +51,7 @@ type Application = {
   holistic_wellness: string | null;
   referred_by_member: string;
   services_interested: string[];
+  annual_fee_status: string;
 };
 
 const getStatusBadge = (status: string) => {
@@ -76,8 +77,42 @@ const getStatusBadge = (status: string) => {
           Rejected
         </Badge>
       );
+    case "cancelled":
+      return (
+        <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
+          <Ban className="h-3 w-3 mr-1" />
+          Cancelled
+        </Badge>
+      );
     default:
       return null;
+  }
+};
+
+const getAnnualFeeBadge = (status: string) => {
+  switch (status) {
+    case "paid":
+      return (
+        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+          <DollarSign className="h-3 w-3 mr-1" />
+          Paid
+        </Badge>
+      );
+    case "failed":
+      return (
+        <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Failed
+        </Badge>
+      );
+    case "pending":
+    default:
+      return (
+        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+          <Clock className="h-3 w-3 mr-1" />
+          Pending
+        </Badge>
+      );
   }
 };
 
@@ -114,6 +149,23 @@ export default function Applications() {
     },
     onError: () => {
       toast.error("Failed to update application");
+    },
+  });
+
+  const updateAnnualFeeMutation = useMutation({
+    mutationFn: async ({ id, annual_fee_status }: { id: string; annual_fee_status: string }) => {
+      const { error } = await supabase
+        .from("membership_applications")
+        .update({ annual_fee_status })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+      toast.success("Annual fee status updated");
+    },
+    onError: () => {
+      toast.error("Failed to update annual fee status");
     },
   });
 
@@ -189,11 +241,12 @@ export default function Applications() {
               className="pl-10"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant={statusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("all")}>All</Button>
             <Button variant={statusFilter === "pending" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("pending")}>Pending</Button>
             <Button variant={statusFilter === "approved" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("approved")}>Approved</Button>
             <Button variant={statusFilter === "rejected" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("rejected")}>Rejected</Button>
+            <Button variant={statusFilter === "cancelled" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("cancelled")}>Cancelled</Button>
           </div>
         </div>
 
@@ -210,6 +263,7 @@ export default function Applications() {
                   <TableHead>Membership</TableHead>
                   <TableHead>Founding Member</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Annual Fee ($300)</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -232,6 +286,7 @@ export default function Applications() {
                       </Badge>
                     </TableCell>
                     <TableCell>{getStatusBadge(app.status)}</TableCell>
+                    <TableCell>{getAnnualFeeBadge(app.annual_fee_status)}</TableCell>
                     <TableCell>{format(new Date(app.created_at), "MMM d, yyyy")}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -245,17 +300,23 @@ export default function Applications() {
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          {app.status === "pending" && (
-                            <>
-                              <DropdownMenuItem className="text-green-600" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved" })}>
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Approve
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "rejected" })}>
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Reject
-                              </DropdownMenuItem>
-                            </>
+                          {app.status !== "approved" && (
+                            <DropdownMenuItem className="text-green-600" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved" })}>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Approve
+                            </DropdownMenuItem>
+                          )}
+                          {app.status !== "rejected" && (
+                            <DropdownMenuItem className="text-destructive" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "rejected" })}>
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Reject
+                            </DropdownMenuItem>
+                          )}
+                          {app.status !== "cancelled" && (
+                            <DropdownMenuItem className="text-gray-600" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "cancelled" })}>
+                              <Ban className="h-4 w-4 mr-2" />
+                              Cancel
+                            </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -306,6 +367,10 @@ export default function Applications() {
                       <p className="text-sm text-muted-foreground">Status</p>
                       {getStatusBadge(selectedApplication.status)}
                     </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Annual Fee ($300)</p>
+                      {getAnnualFeeBadge(selectedApplication.annual_fee_status)}
+                    </div>
                     <div className="col-span-2">
                       <p className="text-sm text-muted-foreground">Address</p>
                       <p className="font-medium">{selectedApplication.address}, {selectedApplication.city}, {selectedApplication.state} {selectedApplication.zip_code}</p>
@@ -344,18 +409,61 @@ export default function Applications() {
                     </div>
                   )}
 
-                  {selectedApplication.status === "pending" && (
-                    <div className="flex gap-3 pt-4 border-t">
-                      <Button className="flex-1" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "approved" })}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Approve Application
+                  {/* Annual Fee Actions */}
+                  <div className="pt-4 border-t">
+                    <p className="text-sm text-muted-foreground mb-3">Update Annual Fee Status ($300)</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button 
+                        size="sm" 
+                        variant={selectedApplication.annual_fee_status === "paid" ? "default" : "outline"}
+                        onClick={() => updateAnnualFeeMutation.mutate({ id: selectedApplication.id, annual_fee_status: "paid" })}
+                      >
+                        <DollarSign className="h-4 w-4 mr-1" />
+                        Paid
                       </Button>
-                      <Button className="flex-1" variant="destructive" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "rejected" })}>
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Reject Application
+                      <Button 
+                        size="sm" 
+                        variant={selectedApplication.annual_fee_status === "pending" ? "default" : "outline"}
+                        onClick={() => updateAnnualFeeMutation.mutate({ id: selectedApplication.id, annual_fee_status: "pending" })}
+                      >
+                        <Clock className="h-4 w-4 mr-1" />
+                        Pending
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={selectedApplication.annual_fee_status === "failed" ? "destructive" : "outline"}
+                        onClick={() => updateAnnualFeeMutation.mutate({ id: selectedApplication.id, annual_fee_status: "failed" })}
+                      >
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        Failed
                       </Button>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Application Status Actions */}
+                  <div className="pt-4 border-t">
+                    <p className="text-sm text-muted-foreground mb-3">Update Application Status</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {selectedApplication.status !== "approved" && (
+                        <Button size="sm" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "approved" })}>
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                      )}
+                      {selectedApplication.status !== "rejected" && (
+                        <Button size="sm" variant="destructive" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "rejected" })}>
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      )}
+                      {selectedApplication.status !== "cancelled" && (
+                        <Button size="sm" variant="outline" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "cancelled" })}>
+                          <Ban className="h-4 w-4 mr-1" />
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </ScrollArea>
             )}
