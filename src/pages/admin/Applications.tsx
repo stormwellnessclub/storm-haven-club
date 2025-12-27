@@ -27,11 +27,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 
 type Application = {
   id: string;
@@ -123,6 +126,9 @@ export default function Applications() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [notesValue, setNotesValue] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading } = useQuery({
@@ -266,11 +272,65 @@ export default function Applications() {
       app.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    const appDate = new Date(app.created_at);
+    const matchesDateFrom = !dateFrom || !isBefore(appDate, startOfDay(dateFrom));
+    const matchesDateTo = !dateTo || !isAfter(appDate, endOfDay(dateTo));
+    
+    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
   });
 
   const pendingCount = applications.filter((a) => a.status === "pending").length;
   const approvedCount = applications.filter((a) => a.status === "approved").length;
+
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+      const { error } = await supabase
+        .from("membership_applications")
+        .update({ status })
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, { ids, status }) => {
+      queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+      toast.success(`${ids.length} application(s) marked as ${status}`);
+      setSelectedIds(new Set());
+    },
+    onError: () => {
+      toast.error("Failed to update applications");
+    },
+  });
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredApplications.map((app) => app.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedIds);
+    if (checked) {
+      newSet.add(id);
+    } else {
+      newSet.delete(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const handleBulkAction = (status: string) => {
+    if (selectedIds.size === 0) {
+      toast.error("No applications selected");
+      return;
+    }
+    bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), status });
+  };
+
+  const clearDateFilters = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
 
   if (isLoading) {
     return (
@@ -347,6 +407,65 @@ export default function Applications() {
           </div>
         </div>
 
+        {/* Date Range Filter */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFrom ? format(dateFrom, "MMM d, yyyy") : "From date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus />
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateTo ? format(dateTo, "MMM d, yyyy") : "To date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus />
+            </PopoverContent>
+          </Popover>
+          {(dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={clearDateFilters}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Bulk Actions */}
+        {selectedIds.size > 0 && (
+          <Card className="bg-muted/50">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-4 flex-wrap">
+                <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => handleBulkAction("approved")} disabled={bulkUpdateMutation.isPending}>
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Approve All
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleBulkAction("rejected")} disabled={bulkUpdateMutation.isPending}>
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Reject All
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleBulkAction("cancelled")} disabled={bulkUpdateMutation.isPending}>
+                    <Ban className="h-4 w-4 mr-1" />
+                    Cancel All
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                    Clear Selection
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Applications Table */}
         <Card>
           <CardHeader>
@@ -356,6 +475,12 @@ export default function Applications() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={filteredApplications.length > 0 && selectedIds.size === filteredApplications.length}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>Applicant</TableHead>
                   <TableHead>Membership</TableHead>
                   <TableHead>Founding Member</TableHead>
@@ -368,6 +493,12 @@ export default function Applications() {
               <TableBody>
                 {filteredApplications.map((app) => (
                   <TableRow key={app.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(app.id)}
+                        onCheckedChange={(checked) => handleSelectOne(app.id, !!checked)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{app.full_name}</p>
