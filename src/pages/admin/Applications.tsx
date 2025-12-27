@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -194,6 +194,73 @@ export default function Applications() {
     setNotesValue(app.notes || "");
   };
 
+  const handleExportCSV = () => {
+    const headers = [
+      "Full Name",
+      "Email",
+      "Phone",
+      "Membership Plan",
+      "Status",
+      "Annual Fee Status",
+      "Founding Member",
+      "Date of Birth",
+      "Address",
+      "City",
+      "State",
+      "Zip Code",
+      "Wellness Goals",
+      "Services Interested",
+      "Lifestyle Integration",
+      "Holistic Wellness",
+      "Referred By Member",
+      "Notes",
+      "Submitted"
+    ];
+
+    const escapeCSV = (value: string | null | undefined) => {
+      if (value === null || value === undefined) return "";
+      const str = String(value);
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = filteredApplications.map((app) => [
+      escapeCSV(app.full_name),
+      escapeCSV(app.email),
+      escapeCSV(app.phone),
+      escapeCSV(app.membership_plan),
+      escapeCSV(app.status),
+      escapeCSV(app.annual_fee_status),
+      escapeCSV(app.founding_member),
+      escapeCSV(app.date_of_birth),
+      escapeCSV(app.address),
+      escapeCSV(app.city),
+      escapeCSV(app.state),
+      escapeCSV(app.zip_code),
+      escapeCSV(app.wellness_goals?.join("; ")),
+      escapeCSV(app.services_interested?.join("; ")),
+      escapeCSV(app.lifestyle_integration),
+      escapeCSV(app.holistic_wellness),
+      escapeCSV(app.referred_by_member),
+      escapeCSV(app.notes),
+      escapeCSV(format(new Date(app.created_at), "yyyy-MM-dd HH:mm:ss"))
+    ].join(","));
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `applications-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${filteredApplications.length} applications`);
+  };
+
   const filteredApplications = applications.filter((app) => {
     const matchesSearch =
       app.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -266,12 +333,17 @@ export default function Applications() {
               className="pl-10"
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             <Button variant={statusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("all")}>All</Button>
             <Button variant={statusFilter === "pending" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("pending")}>Pending</Button>
             <Button variant={statusFilter === "approved" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("approved")}>Approved</Button>
             <Button variant={statusFilter === "rejected" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("rejected")}>Rejected</Button>
             <Button variant={statusFilter === "cancelled" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("cancelled")}>Cancelled</Button>
+            <div className="h-6 w-px bg-border mx-1" />
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>
+              <Download className="h-4 w-4 mr-1" />
+              Export CSV
+            </Button>
           </div>
         </div>
 
