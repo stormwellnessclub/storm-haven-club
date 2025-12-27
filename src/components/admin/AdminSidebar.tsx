@@ -8,6 +8,7 @@ import {
   CreditCard,
   Settings,
   LogOut,
+  Home,
 } from "lucide-react";
 import {
   Sidebar,
@@ -25,16 +26,19 @@ import {
 import { Button } from "@/components/ui/button";
 import stormLogo from "@/assets/storm-logo-gold.png";
 
-const mainMenuItems = [
+const quickAccessItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
+  { title: "Check-In", url: "/admin/check-in", icon: QrCode, highlight: true },
+];
+
+const managementItems = [
   { title: "Members", url: "/admin/members", icon: Users },
-  { title: "Check-In", url: "/admin/check-in", icon: QrCode },
   { title: "Applications", url: "/admin/applications", icon: FileText },
   { title: "Appointments", url: "/admin/appointments", icon: Calendar },
   { title: "Payments", url: "/admin/payments", icon: CreditCard },
 ];
 
-const settingsItems = [
+const systemItems = [
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
@@ -68,17 +72,21 @@ export function AdminSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
+      <SidebarContent className="px-2">
+        {/* Quick Access */}
+        <SidebarGroup className="pt-4">
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
+            Quick Access
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainMenuItems.map((item) => (
+              {quickAccessItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
                     isActive={isActive(item.url)}
                     tooltip={item.title}
+                    className={item.highlight && !isActive(item.url) ? "bg-accent/20 hover:bg-accent/30" : ""}
                   >
                     <NavLink to={item.url} end={item.url === "/admin"}>
                       <item.icon className="h-4 w-4" />
@@ -91,11 +99,39 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>System</SidebarGroupLabel>
+        {/* Management */}
+        <SidebarGroup className="pt-4">
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
+            Management
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {settingsItems.map((item) => (
+              {managementItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.url)}
+                    tooltip={item.title}
+                  >
+                    <NavLink to={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* System */}
+        <SidebarGroup className="pt-4">
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
+            System
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {systemItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -114,10 +150,18 @@ export function AdminSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-border">
+      <SidebarFooter className="p-4 border-t border-border space-y-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Sign Out" className="text-destructive hover:text-destructive">
+            <SidebarMenuButton asChild tooltip="Back to Website">
+              <NavLink to="/">
+                <Home className="h-4 w-4" />
+                <span>Back to Website</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Sign Out" className="text-destructive hover:text-destructive hover:bg-destructive/10">
               <LogOut className="h-4 w-4" />
               <span>Sign Out</span>
             </SidebarMenuButton>
