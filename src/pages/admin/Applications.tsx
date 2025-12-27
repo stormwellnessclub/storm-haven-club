@@ -27,7 +27,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -52,6 +53,7 @@ type Application = {
   referred_by_member: string;
   services_interested: string[];
   annual_fee_status: string;
+  notes: string | null;
 };
 
 const getStatusBadge = (status: string) => {
@@ -120,6 +122,7 @@ export default function Applications() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [notesValue, setNotesValue] = useState("");
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading } = useQuery({
@@ -168,6 +171,28 @@ export default function Applications() {
       toast.error("Failed to update annual fee status");
     },
   });
+
+  const updateNotesMutation = useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+      const { error } = await supabase
+        .from("membership_applications")
+        .update({ notes })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+      toast.success("Notes saved");
+    },
+    onError: () => {
+      toast.error("Failed to save notes");
+    },
+  });
+
+  const handleOpenApplication = (app: Application) => {
+    setSelectedApplication(app);
+    setNotesValue(app.notes || "");
+  };
 
   const filteredApplications = applications.filter((app) => {
     const matchesSearch =
@@ -296,7 +321,7 @@ export default function Applications() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSelectedApplication(app)}>
+                          <DropdownMenuItem onClick={() => handleOpenApplication(app)}>
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
@@ -408,6 +433,32 @@ export default function Applications() {
                       <p className="text-sm">{selectedApplication.holistic_wellness}</p>
                     </div>
                   )}
+
+                  {/* Admin Notes */}
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center gap-2 mb-3">
+                      <StickyNote className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Admin Notes</p>
+                    </div>
+                    <Textarea
+                      placeholder="Add your notes about this application..."
+                      value={notesValue}
+                      onChange={(e) => setNotesValue(e.target.value)}
+                      className="min-h-[100px] mb-3"
+                    />
+                    <Button 
+                      size="sm" 
+                      onClick={() => updateNotesMutation.mutate({ id: selectedApplication.id, notes: notesValue })}
+                      disabled={updateNotesMutation.isPending}
+                    >
+                      {updateNotesMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-1" />
+                      )}
+                      Save Notes
+                    </Button>
+                  </div>
 
                   {/* Annual Fee Actions */}
                   <div className="pt-4 border-t">
