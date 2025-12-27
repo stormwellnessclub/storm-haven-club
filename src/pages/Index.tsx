@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
-import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, Coffee, Baby, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, Coffee, Baby, Flame, Sun, Snowflake } from "lucide-react";
 import gymArea1 from "@/assets/gym-area-1.jpg";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
@@ -13,6 +13,8 @@ import stormLogoDark from "@/assets/storm-logo-dark.png";
 import aellaLogo from "@/assets/aella-logo.jpg";
 import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
 import bodyTreatments from "@/assets/body-treatments.jpg";
+import sauna from "@/assets/sauna.jpg";
+
 const classStudios = [{
   icon: CircleDot,
   title: "Reformer Pilates",
@@ -40,6 +42,7 @@ const classStudios = [{
   color: "text-amber-700",
   bgColor: "bg-amber-700/10"
 }];
+
 const quickLinks = [{
   href: "/classes",
   icon: Activity,
@@ -61,25 +64,21 @@ const quickLinks = [{
   label: "Amenities",
   description: "Member facilities"
 }];
-const memberAmenities = [{
-  icon: Bath,
-  label: "Luxury Locker Rooms"
-}, {
-  icon: Wind,
-  label: "Steam & Sauna"
-}, {
-  icon: Droplets,
-  label: "Cold Plunge Pool"
-}, {
-  icon: Sparkles,
-  label: "Relaxation Lounge"
-}, {
-  icon: Coffee,
-  label: "Café Access"
-}, {
-  icon: Baby,
-  label: "Kids Care Available"
-}];
+
+const recoverySuiteAmenities = [
+  { icon: Flame, label: "Infrared Sauna" },
+  { icon: Wind, label: "Steam Room" },
+  { icon: Droplets, label: "Cold Plunge Pool" },
+  { icon: Sun, label: "Red Light Therapy" },
+  { icon: Snowflake, label: "Starpool ZeroBody Cryo" },
+];
+
+const lifestyleAmenities = [
+  { icon: Bath, label: "Luxury Locker Rooms" },
+  { icon: Sparkles, label: "Relaxation Lounge" },
+  { icon: Coffee, label: "Café Access" },
+  { icon: Baby, label: "Kids Care" },
+];
 export default function Index() {
   return <Layout>
       {/* Hero Section */}
@@ -237,7 +236,7 @@ export default function Index() {
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <img src={cycling} alt="Cycling Studio" className="rounded-sm shadow-2xl" />
+              <img src={sauna} alt="Infrared Sauna" className="rounded-sm shadow-2xl" />
             </div>
             <div>
               <p className="text-gold-light text-sm uppercase tracking-widest mb-4">Member Benefits</p>
@@ -251,11 +250,30 @@ export default function Index() {
                 Join our community of wellness enthusiasts and unlock access to premium amenities.
               </p>
               
-              <div className="grid grid-cols-2 gap-4 mb-10">
-                {memberAmenities.map(amenity => <div key={amenity.label} className="flex items-center gap-2 text-sm text-primary-foreground/90">
-                    <amenity.icon className="w-4 h-4 text-gold-light" />
-                    <span>{amenity.label}</span>
-                  </div>)}
+              {/* Recovery Suite */}
+              <div className="mb-6">
+                <p className="text-gold-light text-xs uppercase tracking-widest mb-3 font-medium">Recovery Suite</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {recoverySuiteAmenities.map(amenity => (
+                    <div key={amenity.label} className="flex items-center gap-2 text-sm text-primary-foreground/90">
+                      <amenity.icon className="w-4 h-4 text-gold-light" />
+                      <span>{amenity.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lifestyle & Comfort */}
+              <div className="mb-10">
+                <p className="text-gold-light text-xs uppercase tracking-widest mb-3 font-medium">Lifestyle & Comfort</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {lifestyleAmenities.map(amenity => (
+                    <div key={amenity.label} className="flex items-center gap-2 text-sm text-primary-foreground/90">
+                      <amenity.icon className="w-4 h-4 text-gold-light" />
+                      <span>{amenity.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
