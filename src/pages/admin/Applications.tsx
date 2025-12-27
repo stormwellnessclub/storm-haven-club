@@ -26,6 +26,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -129,6 +139,7 @@ export default function Applications() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [pendingBulkAction, setPendingBulkAction] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading } = useQuery({
@@ -324,7 +335,14 @@ export default function Applications() {
       toast.error("No applications selected");
       return;
     }
-    bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), status });
+    setPendingBulkAction(status);
+  };
+
+  const confirmBulkAction = () => {
+    if (pendingBulkAction) {
+      bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), status: pendingBulkAction });
+      setPendingBulkAction(null);
+    }
   };
 
   const clearDateFilters = () => {
@@ -465,6 +483,24 @@ export default function Applications() {
             </CardContent>
           </Card>
         )}
+
+        {/* Bulk Action Confirmation Dialog */}
+        <AlertDialog open={!!pendingBulkAction} onOpenChange={() => setPendingBulkAction(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Bulk Action</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to mark {selectedIds.size} application(s) as <strong>{pendingBulkAction}</strong>? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmBulkAction}>
+                Confirm
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Applications Table */}
         <Card>
