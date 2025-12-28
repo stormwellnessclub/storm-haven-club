@@ -26,6 +26,8 @@ import {
 
 import sauna from "@/assets/sauna.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
+import lockerRoom from "@/assets/locker-room.jpg";
+import classesHero from "@/assets/classes-hero.jpg";
 import gymArea1 from "@/assets/gym-area-1.jpg";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 import reformerPilates from "@/assets/reformer-pilates.jpg";
@@ -197,7 +199,7 @@ export default function Amenities() {
       {/* Hero - Full bleed */}
       <section className="relative min-h-[70vh] flex items-center">
         <div className="absolute inset-0">
-          <img src={sauna} alt="Storm Wellness Club Recovery Suite" className="w-full h-full object-cover" />
+          <img src={lockerRoom} alt="Storm Wellness Club Members Only" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-charcoal/95 via-charcoal/80 to-charcoal/50" />
         </div>
         <div className="relative z-10 container mx-auto px-6 py-32">
@@ -312,35 +314,46 @@ export default function Amenities() {
       </section>
 
       {/* Signature Classes */}
-      <section className="py-24 bg-background">
-        <div className="container mx-auto px-6">
-          <div className="max-w-3xl mx-auto text-center mb-16">
-            <p className="text-accent text-sm uppercase tracking-[0.2em] mb-4">Movement</p>
-            <h2 className="text-4xl md:text-5xl font-serif mb-6">Signature Classes</h2>
-            <p className="text-muted-foreground text-lg">
-              Designed for the individual. Powered by the collective. Included with Premium and Elite memberships.
-            </p>
+      <section className="relative">
+        {/* Hero Image */}
+        <div className="relative h-[50vh] min-h-[400px]">
+          <img src={classesHero} alt="Storm Wellness Group Fitness" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/60 via-charcoal/40 to-charcoal" />
+          <div className="absolute inset-0 flex items-center justify-center text-center">
+            <div className="max-w-3xl px-6">
+              <p className="text-gold-light text-sm uppercase tracking-[0.3em] mb-4">Movement</p>
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif text-primary-foreground mb-6">Signature Classes</h2>
+              <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto">
+                Designed for the individual. Powered by the collective. Included with Premium and Elite memberships.
+              </p>
+            </div>
           </div>
+        </div>
+        
+        {/* Classes Grid */}
+        <div className="bg-primary py-16">
+          <div className="container mx-auto px-6">
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {signatureClasses.map((classItem, index) => (
-              <div key={index} className="group text-center">
-                <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-secondary/50 flex items-center justify-center transition-all duration-300 group-hover:bg-accent/10 group-hover:scale-110">
-                  <classItem.icon className="w-7 h-7 text-accent" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {signatureClasses.map((classItem, index) => (
+                <div key={index} className="group text-center">
+                  <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-primary-foreground/10 flex items-center justify-center transition-all duration-300 group-hover:bg-gold/20 group-hover:scale-110">
+                    <classItem.icon className="w-7 h-7 text-gold-light" />
+                  </div>
+                  <h3 className="font-serif text-lg text-primary-foreground mb-2">{classItem.title}</h3>
+                  <p className="text-primary-foreground/70 text-sm leading-relaxed">{classItem.description}</p>
                 </div>
-                <h3 className="font-serif text-lg mb-2">{classItem.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{classItem.description}</p>
-              </div>
-            ))}
+              ))}
           </div>
 
           <div className="text-center mt-12">
             <Link to="/classes">
-              <Button variant="outline" size="lg" className="group">
+              <Button variant="outline" size="lg" className="group border-gold/30 text-primary-foreground hover:bg-gold/10 hover:text-primary-foreground">
                 View Class Schedule
                 <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
+          </div>
           </div>
         </div>
       </section>
