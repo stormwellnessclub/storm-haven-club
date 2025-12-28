@@ -33,6 +33,7 @@ import cycling from "@/assets/cycling.jpg";
 import pilates from "@/assets/pilates.jpg";
 import redLightTherapy from "@/assets/red-light-therapy.jpg";
 import zerobodyCryo from "@/assets/zerobody-cryo.jpg";
+import strengthSculpt from "@/assets/strength-sculpt.jpg";
 
 // Recovery Suite amenities - open access (no booking needed)
 const recoveryAmenities = [
@@ -100,7 +101,7 @@ const signatureClasses = [
     icon: Dumbbell,
     title: "Strength & Sculpt",
     description: "Full-body conditioning combining weights and functional training for total-body transformation.",
-    image: gymArea1,
+    image: strengthSculpt,
   },
 ];
 
