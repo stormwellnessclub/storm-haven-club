@@ -11,15 +11,13 @@ interface PricingTier {
 }
 
 const pilatesCyclingPricing: PricingTier[] = [
-  { type: "Single Class", memberPrice: 28, nonMemberPrice: 35 },
-  { type: "5 Class Pack", memberPrice: 126, nonMemberPrice: 158 },
-  { type: "10 Class Pack", memberPrice: 238, nonMemberPrice: 298 },
+  { type: "Single Class", memberPrice: 25, nonMemberPrice: 0 },
+  { type: "10 Class Pack", memberPrice: 170, nonMemberPrice: 0 },
 ];
 
 const otherClassesPricing: PricingTier[] = [
-  { type: "Single Class", memberPrice: 22, nonMemberPrice: 28 },
-  { type: "5 Class Pack", memberPrice: 99, nonMemberPrice: 126 },
-  { type: "10 Class Pack", memberPrice: 176, nonMemberPrice: 238 },
+  { type: "Single Class", memberPrice: 15, nonMemberPrice: 0 },
+  { type: "10 Class Pack", memberPrice: 150, nonMemberPrice: 0 },
 ];
 
 export default function ClassPasses() {
@@ -129,9 +127,9 @@ export default function ClassPasses() {
                     <Clock className="w-5 h-5 text-accent" />
                   </div>
                   <div>
-                    <h3 className="font-serif text-xl mb-2">Pass Validity</h3>
+                <h3 className="font-serif text-xl mb-2">Pass Validity</h3>
                     <p className="text-muted-foreground text-sm mb-4">
-                      All class passes are valid for 2 months from the date of purchase.
+                      10 Class Packs are valid for 2 months. Single Class Passes are valid for 1 week.
                     </p>
                     <ul className="space-y-2">
                       <li className="flex items-start gap-2 text-sm">
