@@ -5,10 +5,10 @@ import { ClassCalendar } from "@/components/booking/ClassCalendar";
 import { BookingModal } from "@/components/booking/BookingModal";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame, CircleDot, Bike, Activity } from "lucide-react";
 import { startOfWeek, addWeeks, format } from "date-fns";
 
-type CategoryFilter = "all" | "pilates_cycling" | "other";
+type CategoryFilter = "all" | "pilates" | "cycling" | "aerobics";
 type HeatFilter = "all" | boolean;
 
 export default function Schedule() {
@@ -20,7 +20,7 @@ export default function Schedule() {
 
   const { data: sessions = [], isLoading } = useClassSessions({
     weekOffset,
-    category: categoryFilter,
+    category: "all", // Get all, filter client-side for more granular control
     isHeated: heatFilter,
   });
 
@@ -28,6 +28,25 @@ export default function Schedule() {
   const bookedSessionIds = bookings
     .filter((b) => b.status === "confirmed")
     .map((b) => b.session_id);
+
+  // Filter sessions based on category
+  const filteredSessions = sessions.filter((session) => {
+    if (categoryFilter === "all") return true;
+    
+    const name = session.class_type.name.toLowerCase();
+    const category = session.class_type.category;
+    
+    if (categoryFilter === "pilates") {
+      return name.includes("pilates") || name.includes("reformer");
+    }
+    if (categoryFilter === "cycling") {
+      return name.includes("cycle");
+    }
+    if (categoryFilter === "aerobics") {
+      return category === "other" && !name.includes("pilates") && !name.includes("cycle");
+    }
+    return true;
+  });
 
   const weekStart = startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 0 });
 
@@ -38,16 +57,22 @@ export default function Schedule() {
 
   return (
     <Layout>
-      <div className="container py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Class Schedule</h1>
-          <p className="text-muted-foreground">
-            Book your classes up to 3 weeks in advance
-          </p>
+      {/* Hero */}
+      <section className="pt-32 pb-8 bg-secondary/30">
+        <div className="container mx-auto px-6">
+          <div className="max-w-3xl">
+            <p className="text-accent text-sm uppercase tracking-widest mb-4">Book Your Classes</p>
+            <h1 className="heading-display mb-4">Class Schedule</h1>
+            <p className="text-muted-foreground text-lg">
+              Book your classes up to 3 weeks in advance. Diamond members get 10 included classes per month.
+            </p>
+          </div>
         </div>
+      </section>
 
+      <div className="container py-8">
         {/* Filters and Navigation */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
           {/* Week Navigation */}
           <div className="flex items-center gap-2">
             <Button
@@ -81,25 +106,39 @@ export default function Schedule() {
               All Classes
             </Button>
             <Button
-              variant={categoryFilter === "pilates_cycling" ? "default" : "outline"}
+              variant={categoryFilter === "pilates" ? "default" : "outline"}
               size="sm"
-              onClick={() => setCategoryFilter("pilates_cycling")}
+              onClick={() => setCategoryFilter("pilates")}
+              className="gap-1"
             >
-              Pilates & Cycling
+              <CircleDot className="h-4 w-4" />
+              Reformer Pilates
             </Button>
             <Button
-              variant={categoryFilter === "other" ? "default" : "outline"}
+              variant={categoryFilter === "cycling" ? "default" : "outline"}
               size="sm"
-              onClick={() => setCategoryFilter("other")}
+              onClick={() => setCategoryFilter("cycling")}
+              className="gap-1"
             >
-              Other Classes
+              <Bike className="h-4 w-4" />
+              Cycling
+            </Button>
+            <Button
+              variant={categoryFilter === "aerobics" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCategoryFilter("aerobics")}
+              className="gap-1"
+            >
+              <Activity className="h-4 w-4" />
+              Aerobics
             </Button>
             <Button
               variant={heatFilter === true ? "destructive" : "outline"}
               size="sm"
               onClick={() => setHeatFilter(heatFilter === true ? "all" : true)}
+              className="gap-1"
             >
-              <Flame className="h-4 w-4 mr-1" />
+              <Flame className="h-4 w-4" />
               Hot Only
             </Button>
           </div>
@@ -107,7 +146,7 @@ export default function Schedule() {
 
         {/* Calendar */}
         <ClassCalendar
-          sessions={sessions}
+          sessions={filteredSessions}
           isLoading={isLoading}
           onBook={handleBook}
           bookedSessionIds={bookedSessionIds}

@@ -19,10 +19,16 @@ export function ClassCard({ session, onBook, isBooked = false }: ClassCardProps)
   const startTime = parse(session.start_time, "HH:mm:ss", new Date());
   const formattedTime = format(startTime, "h:mm a");
 
-  const categoryLabel =
-    session.class_type.category === "pilates_cycling"
-      ? "Pilates/Cycling"
-      : "Other";
+  // Determine category label based on class name
+  const name = session.class_type.name.toLowerCase();
+  let categoryLabel = "Other";
+  if (name.includes("pilates") || name.includes("reformer")) {
+    categoryLabel = "Pilates";
+  } else if (name.includes("cycle")) {
+    categoryLabel = "Cycling";
+  } else {
+    categoryLabel = "Aerobics";
+  }
 
   return (
     <Card className="group hover:shadow-md transition-shadow">
