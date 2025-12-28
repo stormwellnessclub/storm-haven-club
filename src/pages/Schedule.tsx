@@ -3,7 +3,7 @@ import { useClassSessions, ClassSession } from "@/hooks/useClassSessions";
 import { useMyBookings } from "@/hooks/useBooking";
 import { ClassCalendar } from "@/components/booking/ClassCalendar";
 import { BookingModal } from "@/components/booking/BookingModal";
-import Layout from "@/components/Layout";
+import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import { startOfWeek, addWeeks, format } from "date-fns";
