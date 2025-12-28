@@ -11,13 +11,13 @@ interface PricingTier {
 }
 
 const pilatesCyclingPricing: PricingTier[] = [
-  { type: "Single Class", memberPrice: 25, nonMemberPrice: 0 },
-  { type: "10 Class Pack", memberPrice: 170, nonMemberPrice: 0 },
+  { type: "Single Class", memberPrice: 25, nonMemberPrice: 40 },
+  { type: "10 Class Pack", memberPrice: 170, nonMemberPrice: 300 },
 ];
 
 const otherClassesPricing: PricingTier[] = [
-  { type: "Single Class", memberPrice: 15, nonMemberPrice: 0 },
-  { type: "10 Class Pack", memberPrice: 150, nonMemberPrice: 0 },
+  { type: "Single Class", memberPrice: 15, nonMemberPrice: 30 },
+  { type: "10 Class Pack", memberPrice: 150, nonMemberPrice: 200 },
 ];
 
 export default function ClassPasses() {
