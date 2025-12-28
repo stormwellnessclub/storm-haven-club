@@ -14,6 +14,9 @@ import {
   Baby,
   Dumbbell,
   Shield,
+  ListChecks,
+  UserCog,
+  CalendarDays,
 } from "lucide-react";
 import {
   Sidebar,
@@ -56,6 +59,9 @@ const managementItems: MenuItem[] = [
 
 const servicesItems: MenuItem[] = [
   { title: "Classes", url: "/admin/classes", icon: Dumbbell, requiredRoles: ['super_admin', 'admin', 'class_instructor'] },
+  { title: "Class Types", url: "/admin/class-types", icon: ListChecks, requiredRoles: ['super_admin', 'admin', 'manager'] },
+  { title: "Instructors", url: "/admin/instructors", icon: UserCog, requiredRoles: ['super_admin', 'admin', 'manager'] },
+  { title: "Schedules", url: "/admin/class-schedules", icon: CalendarDays, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Cafe POS", url: "/admin/cafe", icon: Coffee, requiredRoles: ['super_admin', 'admin', 'cafe_staff'] },
   { title: "Childcare", url: "/admin/childcare", icon: Baby, requiredRoles: ['super_admin', 'admin', 'childcare_staff'] },
 ];

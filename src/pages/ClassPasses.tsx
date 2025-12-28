@@ -1,126 +1,25 @@
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
-import { Check, Star, Baby, Dumbbell, Bike, Activity } from "lucide-react";
+import { Check, Info, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
 
-interface PassOption {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  period: string;
-  features: string[];
-  popular?: boolean;
-  icon?: React.ComponentType<{ className?: string }>;
+interface PricingTier {
+  type: string;
+  memberPrice: number;
+  nonMemberPrice: number;
 }
 
-const classPasses: PassOption[] = [
-  {
-    id: "single",
-    name: "Drop-In Class",
-    description: "Perfect for trying out a single class",
-    price: 35,
-    period: "per class",
-    features: [
-      "Access to any single class",
-      "Reformer, Cycling, or Aerobics",
-      "Valid for 30 days",
-      "Towel service included",
-    ],
-  },
-  {
-    id: "5-pack",
-    name: "5 Class Pack",
-    description: "Great for regular attendees",
-    price: 150,
-    period: "5 classes",
-    features: [
-      "5 classes of your choice",
-      "Mix and match class types",
-      "Valid for 60 days",
-      "Priority booking",
-      "Towel service included",
-    ],
-  },
-  {
-    id: "10-pack",
-    name: "10 Class Pack",
-    description: "Best value for committed wellness",
-    price: 275,
-    period: "10 classes",
-    features: [
-      "10 classes of your choice",
-      "Mix and match class types",
-      "Valid for 90 days",
-      "Priority booking",
-      "Complimentary guest pass",
-      "Towel service included",
-    ],
-    popular: true,
-  },
-  {
-    id: "unlimited",
-    name: "Monthly Unlimited",
-    description: "For the dedicated practitioner",
-    price: 199,
-    period: "per month",
-    features: [
-      "Unlimited classes",
-      "All class types included",
-      "Priority booking",
-      "Guest passes (2/month)",
-      "Locker access",
-      "Towel service included",
-    ],
-  },
+const pilatesCyclingPricing: PricingTier[] = [
+  { type: "Single Class", memberPrice: 28, nonMemberPrice: 35 },
+  { type: "5 Class Pack", memberPrice: 126, nonMemberPrice: 158 },
+  { type: "10 Class Pack", memberPrice: 238, nonMemberPrice: 298 },
 ];
 
-const specialtyPasses: PassOption[] = [
-  {
-    id: "kids-care",
-    name: "Kids Care Pass",
-    description: "Childcare while you work out",
-    price: 75,
-    period: "per month",
-    features: [
-      "Unlimited kids care sessions",
-      "Up to 2 hours per session",
-      "Professional caregivers",
-      "Age 3 months - 10 years",
-      "Advance booking access",
-    ],
-    icon: Baby,
-  },
-  {
-    id: "pilates-series",
-    name: "Pilates Fundamentals",
-    description: "4-week reformer introduction",
-    price: 250,
-    period: "4 weeks",
-    features: [
-      "8 reformer classes",
-      "Small group setting (6 max)",
-      "Equipment orientation",
-      "Personalized feedback",
-      "Completion certificate",
-    ],
-    icon: Dumbbell,
-  },
-  {
-    id: "cycling-challenge",
-    name: "Cycling Challenge",
-    description: "30-day cycling transformation",
-    price: 199,
-    period: "30 days",
-    features: [
-      "Unlimited cycling classes",
-      "Progress tracking",
-      "Nutrition guide",
-      "Performance metrics",
-      "Challenge completion rewards",
-    ],
-    icon: Bike,
-  },
+const otherClassesPricing: PricingTier[] = [
+  { type: "Single Class", memberPrice: 22, nonMemberPrice: 28 },
+  { type: "5 Class Pack", memberPrice: 99, nonMemberPrice: 126 },
+  { type: "10 Class Pack", memberPrice: 176, nonMemberPrice: 238 },
 ];
 
 export default function ClassPasses() {
@@ -133,108 +32,155 @@ export default function ClassPasses() {
             <p className="text-accent text-sm uppercase tracking-widest mb-4">Flexible Options</p>
             <h1 className="heading-display mb-6">Class Passes</h1>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              Choose the pass that fits your lifestyle. From single sessions to unlimited access, 
-              we have options for every wellness journey.
+              Purchase class passes for our Reformer Pilates, Cycling, and Aerobics studios. 
+              Members receive discounted pricing on all class packages.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Class Passes */}
+      {/* Pilates & Cycling Pricing */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-6">
           <SectionHeading
-            title="Class Packages"
-            subtitle="Access reformer pilates, cycling, and aerobics classes with our flexible packages."
+            title="Pilates & Cycling Classes"
+            subtitle="Our signature Reformer Pilates and high-energy Cycling classes."
           />
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {classPasses.map((pass) => (
-              <div 
-                key={pass.id} 
-                className={`card-luxury p-6 flex flex-col ${
-                  pass.popular ? "ring-2 ring-accent relative" : ""
-                }`}
-              >
-                {pass.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-accent text-accent-foreground text-xs uppercase tracking-wider flex items-center gap-1">
-                    <Star className="w-3 h-3" /> Most Popular
-                  </span>
-                )}
-                
-                <div className="mb-4">
-                  <h3 className="font-serif text-xl mb-1">{pass.name}</h3>
-                  <p className="text-muted-foreground text-sm">{pass.description}</p>
-                </div>
-                
-                <div className="mb-6">
-                  <span className="text-3xl font-light">${pass.price}</span>
-                  <span className="text-muted-foreground text-sm ml-1">/{pass.period}</span>
-                </div>
-                
-                <ul className="space-y-3 mb-6 flex-1">
-                  {pass.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm">
-                      <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                
-                <Button 
-                  variant={pass.popular ? "gold" : "outline"} 
-                  className="w-full"
-                >
-                  Purchase
-                </Button>
+          <div className="max-w-4xl mx-auto">
+            <div className="card-luxury overflow-hidden">
+              {/* Header */}
+              <div className="grid grid-cols-3 bg-secondary/50 p-4 border-b border-border">
+                <div className="font-medium">Package</div>
+                <div className="font-medium text-center">Member Price</div>
+                <div className="font-medium text-center">Non-Member Price</div>
               </div>
-            ))}
+              
+              {/* Rows */}
+              {pilatesCyclingPricing.map((tier, index) => (
+                <div 
+                  key={tier.type}
+                  className={`grid grid-cols-3 p-4 items-center ${
+                    index !== pilatesCyclingPricing.length - 1 ? "border-b border-border" : ""
+                  }`}
+                >
+                  <div className="font-medium">{tier.type}</div>
+                  <div className="text-center">
+                    <span className="text-2xl font-light">${tier.memberPrice}</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-2xl font-light">${tier.nonMemberPrice}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Specialty Passes */}
+      {/* Other Classes Pricing */}
       <section className="py-16 bg-secondary/30">
         <div className="container mx-auto px-6">
           <SectionHeading
-            title="Specialty Passes"
-            subtitle="Targeted programs and add-ons to enhance your experience."
+            title="Other Classes"
+            subtitle="Yoga, Mat Pilates, Bootcamp, and other studio classes."
           />
           
-          <div className="grid md:grid-cols-3 gap-6">
-            {specialtyPasses.map((pass) => (
-              <div key={pass.id} className="card-luxury p-6 flex flex-col">
-                <div className="flex items-start gap-4 mb-4">
-                  {pass.icon && (
-                    <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                      <pass.icon className="w-5 h-5 text-accent" />
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="font-serif text-xl mb-1">{pass.name}</h3>
-                    <p className="text-muted-foreground text-sm">{pass.description}</p>
+          <div className="max-w-4xl mx-auto">
+            <div className="card-luxury overflow-hidden">
+              {/* Header */}
+              <div className="grid grid-cols-3 bg-secondary/50 p-4 border-b border-border">
+                <div className="font-medium">Package</div>
+                <div className="font-medium text-center">Member Price</div>
+                <div className="font-medium text-center">Non-Member Price</div>
+              </div>
+              
+              {/* Rows */}
+              {otherClassesPricing.map((tier, index) => (
+                <div 
+                  key={tier.type}
+                  className={`grid grid-cols-3 p-4 items-center ${
+                    index !== otherClassesPricing.length - 1 ? "border-b border-border" : ""
+                  }`}
+                >
+                  <div className="font-medium">{tier.type}</div>
+                  <div className="text-center">
+                    <span className="text-2xl font-light">${tier.memberPrice}</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-2xl font-light">${tier.nonMemberPrice}</span>
                   </div>
                 </div>
-                
-                <div className="mb-6">
-                  <span className="text-2xl font-light">${pass.price}</span>
-                  <span className="text-muted-foreground text-sm ml-1">/{pass.period}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pass Information */}
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Pass Validity */}
+              <div className="card-luxury p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-5 h-5 text-accent" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-xl mb-2">Pass Validity</h3>
+                    <p className="text-muted-foreground text-sm mb-4">
+                      All class passes are valid for 2 months from the date of purchase.
+                    </p>
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                        <span>Use across any eligible class type</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                        <span>Classes do not roll over after expiration</span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
-                
-                <ul className="space-y-3 mb-6 flex-1">
-                  {pass.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm">
-                      <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                
-                <Button variant="outline" className="w-full">
-                  Purchase
-                </Button>
               </div>
-            ))}
+              
+              {/* Non-Member Access */}
+              <div className="card-luxury p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+                    <Info className="w-5 h-5 text-accent" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-xl mb-2">Non-Member Access</h3>
+                    <p className="text-muted-foreground text-sm mb-4">
+                      Non-member class passes provide access to studios only.
+                    </p>
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                        <span>Studio access for booked class</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                        <span>Amenities not included</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Cancellation Policy */}
+            <div className="card-luxury p-6 mt-6">
+              <h3 className="font-serif text-xl mb-4">Cancellation Policy</h3>
+              <p className="text-muted-foreground">
+                Classes must be cancelled at least <strong className="text-foreground">24 hours in advance</strong> to 
+                avoid forfeiting your class credit or pass. No-shows will result in the class being marked as used.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -247,11 +193,11 @@ export default function ClassPasses() {
               Looking for Full Access?
             </h2>
             <p className="text-primary-foreground/70 mb-8">
-              Members receive exclusive benefits including class discounts, 
-              priority booking, and access to all amenities.
+              Members receive discounted class pricing plus access to all club amenities, 
+              spa services, and priority booking.
             </p>
             <Button variant="gold" size="lg" asChild>
-              <a href="/apply">Apply for Membership</a>
+              <Link to="/apply">Apply for Membership</Link>
             </Button>
           </div>
         </div>
