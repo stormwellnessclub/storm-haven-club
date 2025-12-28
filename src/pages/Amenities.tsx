@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { 
   Bath, 
-  Thermometer, 
   Wind, 
   Droplets, 
   Shirt, 
@@ -20,6 +19,7 @@ import {
   Flame,
   Moon,
   Sun,
+  Snowflake,
   CheckCircle2
 } from "lucide-react";
 
@@ -28,96 +28,102 @@ import spaShower from "@/assets/spa-shower.jpg";
 import gymArea1 from "@/assets/gym-area-1.jpg";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
-// Member amenities from stormwellnessclub.com
-const memberAmenities = [
+// Recovery Suite amenities - premium wellness recovery
+const recoverySuiteAmenities = [
   {
-    icon: Bath,
-    title: "Luxury Locker Rooms",
-    description: "Spa-grade locker rooms with private showers, premium toiletries, and plush towels.",
-    category: "essentials",
-  },
-  {
-    icon: Thermometer,
+    icon: Flame,
     title: "Infrared Sauna",
     description: "State-of-the-art infrared sauna for deep heat therapy, detoxification, and muscle recovery.",
-    category: "recovery",
     bookable: true,
   },
   {
     icon: Wind,
     title: "Steam Room",
     description: "Eucalyptus-infused steam room for relaxation and respiratory wellness.",
-    category: "recovery",
     bookable: true,
   },
   {
     icon: Droplets,
     title: "Cold Plunge Pool",
     description: "Invigorating cold therapy pool to boost circulation, reduce inflammation, and accelerate recovery.",
-    category: "recovery",
+    bookable: true,
+  },
+  {
+    icon: Sun,
+    title: "Red Light Therapy",
+    description: "Full-body red light therapy for skin rejuvenation, muscle recovery, and cellular regeneration.",
+    bookable: true,
+  },
+  {
+    icon: Snowflake,
+    title: "Starpool ZeroBody Cryo",
+    description: "Revolutionary dry floatation therapy combining weightlessness with thermal wellness for deep relaxation.",
     bookable: true,
   },
   {
     icon: Waves,
     title: "Salt Room",
     description: "Himalayan salt therapy room for respiratory health and skin rejuvenation.",
-    category: "recovery",
     bookable: true,
+  },
+];
+
+// Lifestyle & Comfort amenities
+const lifestyleAmenities = [
+  {
+    icon: Bath,
+    title: "Luxury Locker Rooms",
+    description: "Spa-grade locker rooms with private showers, premium toiletries, and plush towels.",
   },
   {
     icon: Moon,
     title: "Relaxation Lounge",
     description: "Quiet sanctuary with zero-gravity chairs for post-treatment rest and meditation.",
-    category: "relaxation",
-  },
-  {
-    icon: Shirt,
-    title: "Towel Service",
-    description: "Fresh, warm towels available throughout the club for your convenience.",
-    category: "essentials",
   },
   {
     icon: Lock,
     title: "Private Changing Suites",
     description: "Private suites for members who prefer additional privacy.",
-    category: "essentials",
   },
   {
     icon: Sparkles,
     title: "Premium Toiletries",
     description: "Organic, luxury toiletries including shampoo, conditioner, body wash, and skincare.",
-    category: "essentials",
+  },
+  {
+    icon: Shirt,
+    title: "Towel Service",
+    description: "Fresh, warm towels available throughout the club for your convenience.",
+  },
+  {
+    icon: Car,
+    title: "Complimentary Parking",
+    description: "Ample free parking for all members with reserved spaces available.",
+  },
+];
+
+// Additional amenities
+const additionalAmenities = [
+  {
+    icon: Dumbbell,
+    title: "Fitness Floor",
+    description: "Full fitness floor with premium cardio and strength equipment.",
   },
   {
     icon: Coffee,
     title: "Storm Café Access",
     description: "Fresh juices, smoothies, protein shakes, and healthy dining options.",
-    category: "lifestyle",
   },
   {
     icon: Baby,
     title: "Kids Care",
     description: "Supervised childcare while you enjoy your workout or spa treatment.",
-    category: "lifestyle",
     addon: true,
   },
   {
     icon: Wifi,
     title: "Business Lounge",
     description: "Quiet workspace with high-speed WiFi, charging stations, and meeting areas.",
-    category: "lifestyle",
-  },
-  {
-    icon: Car,
-    title: "Complimentary Parking",
-    description: "Ample free parking for all members with reserved spaces available.",
-    category: "essentials",
-  },
-  {
-    icon: Dumbbell,
-    title: "Fitness Floor",
-    description: "Full fitness floor with premium cardio and strength equipment.",
-    category: "fitness",
   },
 ];
 
@@ -192,6 +198,18 @@ const bookableAmenities = [
     icon: Droplets,
   },
   {
+    name: "Red Light Therapy",
+    duration: "30 min",
+    description: "Full-body red light therapy session",
+    icon: Sun,
+  },
+  {
+    name: "Starpool ZeroBody",
+    duration: "45 min",
+    description: "Dry floatation therapy for deep relaxation",
+    icon: Snowflake,
+  },
+  {
     name: "Salt Room",
     duration: "45 min",
     description: "Himalayan salt therapy session",
@@ -222,18 +240,18 @@ export default function Amenities() {
         </div>
       </section>
 
-      {/* Amenities Grid */}
+      {/* Recovery Suite Section */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-6">
           <SectionHeading
-            title="Included With Membership"
-            subtitle="Every membership includes access to our full suite of premium amenities."
+            title="Recovery Suite"
+            subtitle="Premium wellness recovery amenities designed for optimal physical and mental restoration."
           />
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {memberAmenities.slice(0, 8).map((amenity, index) => (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {recoverySuiteAmenities.map((amenity, index) => (
               <div key={index} className="card-luxury p-6 text-center">
-                <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
+                <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-accent/10 flex items-center justify-center">
                   <amenity.icon className="w-6 h-6 text-accent" />
                 </div>
                 <h3 className="font-serif text-lg mb-2">{amenity.title}</h3>
@@ -246,9 +264,19 @@ export default function Amenities() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {memberAmenities.slice(8).map((amenity, index) => (
+      {/* Lifestyle & Comfort Section */}
+      <section className="py-16 bg-secondary/30">
+        <div className="container mx-auto px-6">
+          <SectionHeading
+            title="Lifestyle & Comfort"
+            subtitle="Every detail designed for your comfort and convenience."
+          />
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {lifestyleAmenities.map((amenity, index) => (
               <div key={index} className="card-luxury p-6 flex items-start gap-4">
                 <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                   <amenity.icon className="w-5 h-5 text-accent" />
@@ -256,6 +284,20 @@ export default function Amenities() {
                 <div>
                   <h3 className="font-serif text-lg mb-1">{amenity.title}</h3>
                   <p className="text-muted-foreground text-sm">{amenity.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+            {additionalAmenities.map((amenity, index) => (
+              <div key={index} className="card-luxury p-6 flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                  <amenity.icon className="w-4 h-4 text-accent" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-base mb-1">{amenity.title}</h3>
+                  <p className="text-muted-foreground text-xs">{amenity.description}</p>
                   {amenity.addon && (
                     <span className="inline-block mt-2 text-xs text-muted-foreground uppercase tracking-wider">
                       Add-on Available
@@ -268,15 +310,15 @@ export default function Amenities() {
         </div>
       </section>
 
-      {/* Recovery Suite */}
-      <section className="py-16 bg-secondary/30">
+      {/* Book Recovery Sessions */}
+      <section className="py-16 bg-background">
         <div className="container mx-auto px-6">
           <SectionHeading
-            title="Recovery Suite"
-            subtitle="Book private sessions in our recovery amenities for the ultimate wellness experience."
+            title="Book Recovery Sessions"
+            subtitle="Reserve private sessions in our recovery amenities for the ultimate wellness experience."
           />
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {bookableAmenities.map((amenity, index) => (
               <div key={index} className="card-luxury p-6 text-center">
                 <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-accent/10 flex items-center justify-center">
