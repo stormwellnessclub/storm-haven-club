@@ -31,6 +31,8 @@ import gymArea2 from "@/assets/gym-area-2.jpg";
 import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
 import pilates from "@/assets/pilates.jpg";
+import redLightTherapy from "@/assets/red-light-therapy.jpg";
+import zerobodyCryo from "@/assets/zerobody-cryo.jpg";
 
 // Recovery Suite amenities - open access (no booking needed)
 const recoveryAmenities = [
@@ -61,15 +63,15 @@ const premiumExperiences = [
   {
     icon: Sun,
     title: "Red Light Therapy",
-    description: "Full-body treatment for skin rejuvenation, muscle recovery, and cellular regeneration.",
-    duration: "30 min",
+    description: "Cellular repair through precision wavelengths. Reduce inflammation, accelerate recovery, restore skin.",
+    duration: "20 min",
     bookable: true,
   },
   {
     icon: Snowflake,
-    title: "Starpool ZeroBody Cryo",
-    description: "Revolutionary dry floatation therapy combining weightlessness with thermal wellness.",
-    duration: "45 min",
+    title: "Starpool ZeroBody",
+    description: "Dry floatation in complete weightlessness. The nervous system resets. The mind follows.",
+    duration: "5 min",
     bookable: true,
   },
 ];
@@ -191,20 +193,20 @@ const membershipTiers = [
 export default function Amenities() {
   return (
     <Layout>
-      {/* Hero - Full bleed, Equinox-inspired */}
+      {/* Hero - Full bleed */}
       <section className="relative min-h-[70vh] flex items-center">
         <div className="absolute inset-0">
-          <img src={spaShower} alt="Storm Wellness" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-charcoal/90 via-charcoal/70 to-charcoal/40" />
+          <img src={sauna} alt="Storm Wellness Club Recovery Suite" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-charcoal/95 via-charcoal/80 to-charcoal/50" />
         </div>
         <div className="relative z-10 container mx-auto px-6 py-32">
           <div className="max-w-2xl">
             <p className="text-gold-light text-sm uppercase tracking-[0.3em] mb-6 font-medium">Members Only</p>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif text-primary-foreground mb-8 leading-[1.1]">
-              Where Wellness<br />Meets Luxury
+              The Space<br />Supports the Work
             </h1>
             <p className="text-primary-foreground/80 text-lg md:text-xl leading-relaxed max-w-lg">
-              Award-winning spaces and regenerative amenities designed to drive your transformation forward.
+              Recovery, movement, and stillness—integrated by design. Every detail serves your wellbeing.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <Link to="/apply">
@@ -248,33 +250,62 @@ export default function Amenities() {
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
             <p className="text-gold-light text-sm uppercase tracking-[0.2em] mb-4">Reservation Required</p>
-            <h2 className="text-4xl md:text-5xl font-serif text-primary-foreground mb-6">Premium Experiences</h2>
+            <h2 className="text-4xl md:text-5xl font-serif text-primary-foreground mb-6">Advanced Recovery</h2>
             <p className="text-primary-foreground/70 text-lg">
-              Exclusive treatments that require advance booking for a personalized experience.
+              Precision therapies. Booking ensures your time is protected.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {premiumExperiences.map((experience, index) => (
-              <div key={index} className="bg-charcoal/50 backdrop-blur-sm rounded-sm p-8 border border-gold/10 hover:border-gold/30 transition-all duration-300">
-                <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center flex-shrink-0">
-                    <experience.icon className="w-7 h-7 text-gold-light" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-serif text-2xl text-primary-foreground mb-2">{experience.title}</h3>
-                    <div className="flex items-center gap-2 text-sm text-gold-light mb-3">
-                      <Clock className="w-4 h-4" />
-                      {experience.duration}
-                    </div>
-                    <p className="text-primary-foreground/70 text-sm leading-relaxed mb-4">{experience.description}</p>
-                    <Button variant="outline" className="border-gold/30 text-primary-foreground hover:bg-gold/10 hover:text-primary-foreground">
-                      Book Session
-                    </Button>
-                  </div>
-                </div>
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Red Light Therapy */}
+            <div className="group relative overflow-hidden rounded-sm">
+              <div className="aspect-[4/3]">
+                <img 
+                  src={redLightTherapy} 
+                  alt="Red Light Therapy" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                />
               </div>
-            ))}
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/40 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-8">
+                <h3 className="font-serif text-2xl text-primary-foreground mb-2">Red Light Therapy</h3>
+                <div className="flex items-center gap-2 text-sm text-gold-light mb-3">
+                  <Clock className="w-4 h-4" />
+                  20 minutes
+                </div>
+                <p className="text-primary-foreground/80 text-sm leading-relaxed mb-4">
+                  Cellular repair through precision wavelengths. Reduce inflammation, accelerate recovery, restore skin.
+                </p>
+                <Button variant="outline" className="border-gold/30 text-primary-foreground hover:bg-gold/10 hover:text-primary-foreground">
+                  Book Session
+                </Button>
+              </div>
+            </div>
+
+            {/* ZeroBody */}
+            <div className="group relative overflow-hidden rounded-sm">
+              <div className="aspect-[4/3]">
+                <img 
+                  src={zerobodyCryo} 
+                  alt="Starpool ZeroBody" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                />
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/40 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-8">
+                <h3 className="font-serif text-2xl text-primary-foreground mb-2">Starpool ZeroBody</h3>
+                <div className="flex items-center gap-2 text-sm text-gold-light mb-3">
+                  <Clock className="w-4 h-4" />
+                  5 minutes
+                </div>
+                <p className="text-primary-foreground/80 text-sm leading-relaxed mb-4">
+                  Dry floatation in complete weightlessness. The nervous system resets. The mind follows.
+                </p>
+                <Button variant="outline" className="border-gold/30 text-primary-foreground hover:bg-gold/10 hover:text-primary-foreground">
+                  Book Session
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
