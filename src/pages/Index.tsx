@@ -91,12 +91,12 @@ export default function Index() {
         <div className="relative z-10 container mx-auto px-6 text-center">
           
           <h1 className="heading-display text-primary-foreground mb-6 animate-fade-up opacity-0 stagger-2">
-            Elevate Your
+            The Wellness Solution
             <br />
-            <span className="text-gold-light">Wellness Journey</span>
+            <span className="text-gold-light">You Have Been Seeking</span>
           </h1>
           <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto mb-10 animate-fade-up opacity-0 stagger-3">
-            An application-based membership club offering premium fitness, spa, and lifestyle experiences.
+            Where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-up opacity-0 stagger-4">
             <Link to="/apply">
@@ -139,7 +139,7 @@ export default function Index() {
       {/* Class Studios Section */}
       <section className="py-24 bg-background">
         <div className="container mx-auto px-6">
-          <SectionHeading title="Three Distinct Studios" subtitle="From reformer pilates to high-intensity cycling, discover classes designed to challenge and transform." />
+          <SectionHeading title="Three Distinct Studios" subtitle="A harmonious blend of mental clarity, emotional resilience, and physical strength—designed to address all facets of wellness." />
           
           <div className="grid md:grid-cols-3 gap-8">
             {classStudios.map((studio, index) => <div key={index} className="card-luxury overflow-hidden group">
@@ -185,11 +185,11 @@ export default function Index() {
             <img src={aellaLogo} alt="Aella" className="h-24 w-auto mx-auto mb-2 mix-blend-multiply" />
             <p className="text-accent text-sm uppercase tracking-widest mb-6">by Storm Wellness Club</p>
             <h2 className="heading-section mb-4">
-              A Sanctuary for <span className="text-accent">Renewal & Serenity</span>
+              A Sanctuary for <span className="text-accent">Renewal & Restoration</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Open to all—no membership required. Immerse yourself in tranquil luxury with 
-              world-class treatments designed to restore balance and rejuvenate the spirit.
+              Open to all—no membership required. Our holistic approach encompasses a wide range of 
+              treatments designed to support every step of your wellness journey.
             </p>
           </div>
 
@@ -241,13 +241,13 @@ export default function Index() {
             <div>
               <p className="text-gold-light text-sm uppercase tracking-widest mb-4">Member Benefits</p>
               <h2 className="heading-section text-primary-foreground mb-6">
-                An Exclusive
+                A Comprehensive
                 <br />
-                Experience Awaits
+                Approach to Wellness
               </h2>
               <p className="text-primary-foreground/80 mb-8 leading-relaxed">
-                Storm Wellness Club is an application-based membership. 
-                Join our community of wellness enthusiasts and unlock access to premium amenities.
+                We believe that true fitness transcends physical boundaries. Our exclusive center 
+                is designed to address all facets of wellness—body, mind, and spirit.
               </p>
               
               {/* Recovery Suite */}
@@ -300,8 +300,8 @@ export default function Index() {
             <p className="text-accent text-sm uppercase tracking-widest mb-4">The Storm Café</p>
             <h2 className="heading-section mb-6">Nourish From Within</h2>
             <p className="text-muted-foreground mb-8 leading-relaxed">
-              Fuel your wellness journey with our carefully curated menu of fresh juices, 
-              smoothies, health bowls, and clean eating options. Available for dine-in or order ahead.
+              Support your wellness journey with our curated menu of fresh juices, smoothies, 
+              and health-forward cuisine designed to fuel your transformation.
             </p>
             <Link to="/cafe">
               <Button variant="outline" size="lg">
@@ -319,8 +319,8 @@ export default function Index() {
             <p className="text-accent text-sm uppercase tracking-widest mb-4">For Families</p>
             <h2 className="heading-section mb-6">Storm Kids Care</h2>
             <p className="text-muted-foreground mb-8 leading-relaxed">
-              Focus on your wellness while your little ones enjoy supervised activities in our 
-              dedicated kids care space. Available exclusively to members with a Kids Care Pass.
+              Prioritize your health while your little ones enjoy supervised care in our 
+              dedicated space. Available to members with a Kids Care add-on.
             </p>
             <Link to="/kids-care">
               <Button variant="outline" size="lg">
@@ -338,10 +338,10 @@ export default function Index() {
         </div>
         <div className="relative z-10 container mx-auto px-6 text-center">
           <h2 className="heading-section text-primary-foreground mb-6">
-            Ready to Begin Your Journey?
+            Begin Your Wellness Journey
           </h2>
           <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10">
-            Apply for membership today and unlock access to Houston's most exclusive wellness destination.
+            Embark on a journey where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
           </p>
           <Link to="/apply">
             <Button variant="gold" size="lg">
