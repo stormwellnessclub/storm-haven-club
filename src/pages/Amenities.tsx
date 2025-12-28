@@ -322,22 +322,14 @@ export default function Amenities() {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {signatureClasses.map((classItem, index) => (
-              <div key={index} className="group relative overflow-hidden rounded-sm h-80">
-                <img 
-                  src={classItem.image} 
-                  alt={classItem.title} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/50 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8">
-                  <div className="flex items-center gap-3 mb-3">
-                    <classItem.icon className="w-5 h-5 text-gold-light" />
-                    <h3 className="font-serif text-2xl text-primary-foreground">{classItem.title}</h3>
-                  </div>
-                  <p className="text-primary-foreground/80 text-sm leading-relaxed">{classItem.description}</p>
+              <div key={index} className="group text-center">
+                <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-secondary/50 flex items-center justify-center transition-all duration-300 group-hover:bg-accent/10 group-hover:scale-110">
+                  <classItem.icon className="w-7 h-7 text-accent" />
                 </div>
+                <h3 className="font-serif text-lg mb-2">{classItem.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{classItem.description}</p>
               </div>
             ))}
           </div>
