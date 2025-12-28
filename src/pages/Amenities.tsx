@@ -340,7 +340,7 @@ export default function Amenities() {
               <p className="text-gold-light text-sm uppercase tracking-[0.3em] mb-4">Movement</p>
               <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif text-primary-foreground mb-6">Signature Classes</h2>
               <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto">
-                Designed for the individual. Powered by the collective. Included with Premium and Elite memberships.
+                Where physical, mental, and spiritual wellness converge. Small class sizes, expert instruction.
               </p>
             </div>
           </div>
