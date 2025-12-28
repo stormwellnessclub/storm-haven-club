@@ -145,49 +145,65 @@ const lifestyleAmenities = [
 // Membership tiers
 const membershipTiers = [
   {
-    name: "Essential",
-    price: "$199",
+    name: "Silver",
+    subtitle: "The Foundation",
+    price: "$200",
     period: "/month",
+    annualFee: "$300",
     description: "Begin your wellness journey",
     features: [
-      "Unlimited fitness floor access",
-      "4 classes per month",
-      "Locker room & shower access",
-      "Towel service",
-      "Café discount (10%)",
+      "Full gym access",
+      "Wet spa amenities (sauna, steam, salt room, cold plunge)",
+      "Classes available à la carte or via credits",
+      "Preferred spa service pricing",
     ],
     popular: false,
   },
   {
-    name: "Premium",
-    price: "$299",
+    name: "Gold",
+    subtitle: "The Enhanced Experience",
+    price: "$250",
     period: "/month",
-    description: "Full access for wellness enthusiasts",
+    annualFee: "$300",
+    description: "Enhanced wellness treatments",
     features: [
-      "Everything in Essential",
-      "Unlimited classes",
-      "Recovery suite access",
-      "Salt room access",
-      "Café discount (15%)",
-      "Guest passes (2/month)",
+      "All Silver benefits",
+      "Red Light Therapy (4x/month)",
+      "Dry Cryo (2x/month)",
+      "Classes available à la carte or via credits",
+      "Preferred spa service pricing",
+    ],
+    popular: false,
+  },
+  {
+    name: "Platinum",
+    subtitle: "The Pinnacle of Luxury",
+    price: "$350",
+    period: "/month",
+    annualFee: "$300",
+    description: "Premium wellness experience",
+    features: [
+      "All Silver & Gold benefits",
+      "Red Light Therapy (6x/month)",
+      "Dry Cryo (4x/month)",
+      "Classes available à la carte or via credits",
+      "Preferred spa service pricing",
     ],
     popular: true,
   },
   {
-    name: "Elite",
-    price: "$449",
+    name: "Diamond",
+    subtitle: "The Ultimate Commitment",
+    price: "$500",
     period: "/month",
-    description: "The ultimate Storm experience",
+    annualFee: "$300",
+    description: "The highest level of wellness care",
     features: [
-      "Everything in Premium",
-      "Priority class booking",
-      "Monthly spa treatment credit ($100)",
-      "Red Light Therapy sessions",
-      "ZeroBody Cryo sessions",
-      "Kids care included",
-      "Private locker",
-      "Café discount (20%)",
-      "Unlimited guest passes",
+      "Full facility access",
+      "10 classes per month included",
+      "Red Light Therapy (10x/month)",
+      "Dry Cryo (6x/month)",
+      "Preferred spa service pricing",
     ],
     popular: false,
   },
@@ -401,11 +417,11 @@ export default function Amenities() {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {membershipTiers.map((tier, index) => (
               <div 
                 key={index} 
-                className={`rounded-sm p-8 relative transition-all duration-300 hover:shadow-xl ${
+                className={`rounded-sm p-6 relative transition-all duration-300 hover:shadow-xl ${
                   tier.popular 
                     ? 'bg-primary text-primary-foreground ring-2 ring-accent' 
                     : 'bg-secondary/30'
@@ -413,23 +429,26 @@ export default function Amenities() {
               >
                 {tier.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="bg-accent text-accent-foreground text-xs uppercase tracking-wider px-4 py-1 rounded-full">
+                    <span className="bg-accent text-accent-foreground text-xs uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap">
                       Most Popular
                     </span>
                   </div>
                 )}
-                <div className="text-center mb-8">
-                  <h3 className="font-serif text-2xl mb-2">{tier.name}</h3>
+                <div className="text-center mb-6">
+                  <h3 className="font-serif text-xl mb-1">{tier.name}</h3>
+                  <p className={`text-xs uppercase tracking-wider mb-3 ${tier.popular ? 'text-gold-light' : 'text-accent'}`}>
+                    {tier.subtitle}
+                  </p>
                   <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-serif font-medium">{tier.price}</span>
+                    <span className="text-3xl font-serif font-medium">{tier.price}</span>
                     <span className={tier.popular ? 'text-primary-foreground/60' : 'text-muted-foreground'}>{tier.period}</span>
                   </div>
-                  <p className={`text-sm mt-3 ${tier.popular ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                    {tier.description}
+                  <p className={`text-xs mt-2 ${tier.popular ? 'text-primary-foreground/50' : 'text-muted-foreground'}`}>
+                    Annual Fee: {tier.annualFee}
                   </p>
                 </div>
                 
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-2 mb-6">
                   {tier.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
                       <CheckCircle2 className={`w-4 h-4 flex-shrink-0 mt-0.5 ${tier.popular ? 'text-gold-light' : 'text-accent'}`} />
@@ -442,6 +461,7 @@ export default function Amenities() {
                   <Button 
                     variant={tier.popular ? "gold" : "outline"} 
                     className="w-full"
+                    size="sm"
                   >
                     Apply Now
                   </Button>
@@ -450,9 +470,11 @@ export default function Amenities() {
             ))}
           </div>
           
-          <p className="text-center text-muted-foreground text-sm mt-12">
-            Storm Wellness Club is an application-based membership. All applications are reviewed within 48 hours.
-          </p>
+          <div className="text-center text-muted-foreground text-sm mt-12 max-w-2xl mx-auto space-y-2">
+            <p className="font-medium">Childcare Add-on: $75/month</p>
+            <p className="text-xs">Limit 2 hours/day, 4 days/week. Additional usage subject to availability and fees.</p>
+            <p className="mt-4">Storm Wellness Club is an application-based membership. All applications are reviewed within 48 hours.</p>
+          </div>
         </div>
       </section>
 
