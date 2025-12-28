@@ -469,8 +469,8 @@ export default function Classes() {
             <p className="text-accent text-sm uppercase tracking-widest mb-4">Three Distinct Studios</p>
             <h1 className="heading-display mb-6">Class Schedule</h1>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              From reformer pilates to high-intensity cycling, discover classes designed to 
-              challenge and transform. Filter by class type or temperature preference.
+              A harmonious blend of mental clarity, emotional resilience, and physical strength. 
+              Our holistic approach encompasses classes designed for continuous growth and transformation.
             </p>
           </div>
         </div>
@@ -485,14 +485,14 @@ export default function Classes() {
                 <CircleDot className="w-8 h-8 text-amber-900" />
               </div>
               <h3 className="font-serif text-xl mb-2">Reformer Pilates</h3>
-              <p className="text-muted-foreground text-sm">Premium reformer studio with heated & non-heated class options</p>
+              <p className="text-muted-foreground text-sm">Precision movement with heated & non-heated options for all levels</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-foreground/10 flex items-center justify-center">
                 <Bike className="w-8 h-8 text-foreground" />
               </div>
               <h3 className="font-serif text-xl mb-2">Cycling</h3>
-              <p className="text-muted-foreground text-sm">TechnoGym bikes with immersive lighting & sound system</p>
+              <p className="text-muted-foreground text-sm">High-energy rides with immersive lighting and cinematic sound</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-700/10 flex items-center justify-center">

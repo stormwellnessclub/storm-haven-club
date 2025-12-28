@@ -478,8 +478,8 @@ export default function Spa() {
               A Sanctuary for Renewal
             </h1>
             <p className="text-primary-foreground/80 text-lg leading-relaxed mb-8">
-              Open to all—no membership required. Immerse yourself in tranquil luxury 
-              with world-class treatments designed to restore and rejuvenate.
+              Open to all—no membership required. Our holistic approach encompasses 
+              world-class treatments designed to support every step of your wellness journey.
             </p>
             <Button variant="gold" size="lg">
               Book a Treatment

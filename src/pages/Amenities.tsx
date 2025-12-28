@@ -222,10 +222,10 @@ export default function Amenities() {
           <div className="max-w-2xl">
             <p className="text-gold-light text-sm uppercase tracking-[0.3em] mb-6 font-medium">Members Only</p>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif text-primary-foreground mb-8 leading-[1.1]">
-              The Space<br />Supports the Work
+              A Sanctuary of<br />Wellness & Luxury
             </h1>
             <p className="text-primary-foreground/80 text-lg md:text-xl leading-relaxed max-w-lg">
-              Recovery, movement, and stillness—integrated by design. Every detail serves your wellbeing.
+              Every aspect of our space is designed with your holistic wellness in mind—nurturing body, mind, and spirit.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <Link to="/apply">
@@ -246,7 +246,7 @@ export default function Amenities() {
             <p className="text-accent text-sm uppercase tracking-[0.2em] mb-4">Open Access</p>
             <h2 className="text-4xl md:text-5xl font-serif mb-6">Recovery Suite</h2>
             <p className="text-muted-foreground text-lg">
-              Step into our recovery sanctuary. No reservations required—simply show up and restore.
+              Our recovery sanctuary supports your journey toward continuous growth and restoration.
             </p>
           </div>
           
@@ -411,9 +411,9 @@ export default function Amenities() {
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
             <p className="text-accent text-sm uppercase tracking-[0.2em] mb-4">Membership</p>
-            <h2 className="text-4xl md:text-5xl font-serif mb-6">Choose Your Path</h2>
+            <h2 className="text-4xl md:text-5xl font-serif mb-6">Your Wellness Journey</h2>
             <p className="text-muted-foreground text-lg">
-              Select the membership that aligns with your wellness goals.
+              Select the membership that aligns with your wellness goals and lifestyle.
             </p>
           </div>
           
@@ -496,10 +496,10 @@ export default function Amenities() {
         <div className="relative container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-serif text-primary-foreground mb-6">
-              Ready to Transform?
+              Begin Your Transformation
             </h2>
             <p className="text-primary-foreground/70 text-lg mb-10 max-w-xl mx-auto">
-              Join Houston's most exclusive wellness destination. Your transformation begins here.
+              Embark on a journey where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
             </p>
             <Link to="/apply">
               <Button variant="gold" size="lg" className="group">
