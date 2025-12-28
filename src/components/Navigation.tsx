@@ -12,6 +12,9 @@ const navLinks = [{
   href: "/classes",
   label: "Classes"
 }, {
+  href: "/schedule",
+  label: "Schedule"
+}, {
   href: "/spa",
   label: "Spa"
 }, {
@@ -21,14 +24,8 @@ const navLinks = [{
   href: "/amenities",
   label: "Amenities"
 }, {
-  href: "/kids-care",
-  label: "Kids Care"
-}, {
   href: "/class-passes",
   label: "Class Passes"
-}, {
-  href: "/apply",
-  label: "Apply"
 }];
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
@@ -70,6 +67,11 @@ export function Navigation() {
                     {user.email}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/my-bookings" className="cursor-pointer">
+                      My Bookings
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/apply" className="cursor-pointer">
                       Membership Application

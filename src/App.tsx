@@ -15,6 +15,8 @@ import ClassPasses from "./pages/ClassPasses";
 import Memberships from "./pages/Memberships";
 import Apply from "./pages/Apply";
 import Auth from "./pages/Auth";
+import Schedule from "./pages/Schedule";
+import MyBookings from "./pages/MyBookings";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/admin/Dashboard";
 import Members from "./pages/admin/Members";
@@ -53,6 +55,8 @@ const App = () => (
             <Route path="/memberships" element={<Memberships />} />
             <Route path="/apply" element={<Apply />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/my-bookings" element={<MyBookings />} />
             
             {/* Admin Routes - Protected by Role */}
             <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />
