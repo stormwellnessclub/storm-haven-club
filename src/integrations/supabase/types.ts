@@ -52,6 +52,475 @@ export type Database = {
           },
         ]
       }
+      class_bookings: {
+        Row: {
+          amount_paid: number | null
+          booked_at: string
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          checked_in_at: string | null
+          created_at: string
+          credits_used: number | null
+          id: string
+          member_id: string | null
+          pass_id: string | null
+          payment_method: string | null
+          session_id: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_paid?: number | null
+          booked_at?: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          checked_in_at?: string | null
+          created_at?: string
+          credits_used?: number | null
+          id?: string
+          member_id?: string | null
+          pass_id?: string | null
+          payment_method?: string | null
+          session_id: string
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_paid?: number | null
+          booked_at?: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          checked_in_at?: string | null
+          created_at?: string
+          credits_used?: number | null
+          id?: string
+          member_id?: string | null
+          pass_id?: string | null
+          payment_method?: string | null
+          session_id?: string
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_bookings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_credits: {
+        Row: {
+          created_at: string
+          credits_remaining: number
+          credits_total: number
+          expires_at: string
+          id: string
+          member_id: string
+          month_year: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_remaining?: number
+          credits_total?: number
+          expires_at: string
+          id?: string
+          member_id: string
+          month_year: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_remaining?: number
+          credits_total?: number
+          expires_at?: string
+          id?: string
+          member_id?: string
+          month_year?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_credits_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_passes: {
+        Row: {
+          category: Database["public"]["Enums"]["class_category"]
+          classes_remaining: number
+          classes_total: number
+          created_at: string
+          expires_at: string
+          id: string
+          is_member_price: boolean
+          member_id: string | null
+          pass_type: string
+          price_paid: number
+          purchased_at: string
+          status: Database["public"]["Enums"]["pass_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["class_category"]
+          classes_remaining: number
+          classes_total: number
+          created_at?: string
+          expires_at: string
+          id?: string
+          is_member_price?: boolean
+          member_id?: string | null
+          pass_type: string
+          price_paid: number
+          purchased_at?: string
+          status?: Database["public"]["Enums"]["pass_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["class_category"]
+          classes_remaining?: number
+          classes_total?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_member_price?: boolean
+          member_id?: string | null
+          pass_type?: string
+          price_paid?: number
+          purchased_at?: string
+          status?: Database["public"]["Enums"]["pass_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_passes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_pricing: {
+        Row: {
+          category: Database["public"]["Enums"]["class_category"]
+          created_at: string
+          id: string
+          is_active: boolean
+          member_price: number
+          non_member_price: number
+          pass_type: string
+          updated_at: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["class_category"]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          member_price: number
+          non_member_price: number
+          pass_type: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["class_category"]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          member_price?: number
+          non_member_price?: number
+          pass_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      class_schedules: {
+        Row: {
+          class_type_id: string
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          instructor_id: string | null
+          is_active: boolean
+          max_capacity: number | null
+          room: string | null
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          class_type_id: string
+          created_at?: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          instructor_id?: string | null
+          is_active?: boolean
+          max_capacity?: number | null
+          room?: string | null
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          class_type_id?: string
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          instructor_id?: string | null
+          is_active?: boolean
+          max_capacity?: number | null
+          room?: string | null
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_schedules_class_type_id_fkey"
+            columns: ["class_type_id"]
+            isOneToOne: false
+            referencedRelation: "class_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_schedules_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_sessions: {
+        Row: {
+          cancellation_reason: string | null
+          class_type_id: string
+          created_at: string
+          current_enrollment: number
+          end_time: string
+          id: string
+          instructor_id: string | null
+          is_cancelled: boolean
+          max_capacity: number
+          room: string | null
+          schedule_id: string | null
+          session_date: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          cancellation_reason?: string | null
+          class_type_id: string
+          created_at?: string
+          current_enrollment?: number
+          end_time: string
+          id?: string
+          instructor_id?: string | null
+          is_cancelled?: boolean
+          max_capacity: number
+          room?: string | null
+          schedule_id?: string | null
+          session_date: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          cancellation_reason?: string | null
+          class_type_id?: string
+          created_at?: string
+          current_enrollment?: number
+          end_time?: string
+          id?: string
+          instructor_id?: string | null
+          is_cancelled?: boolean
+          max_capacity?: number
+          room?: string | null
+          schedule_id?: string | null
+          session_date?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_sessions_class_type_id_fkey"
+            columns: ["class_type_id"]
+            isOneToOne: false
+            referencedRelation: "class_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_sessions_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_sessions_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "class_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_types: {
+        Row: {
+          category: Database["public"]["Enums"]["class_category"]
+          created_at: string
+          description: string | null
+          duration_minutes: number
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_heated: boolean
+          max_capacity: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["class_category"]
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_heated?: boolean
+          max_capacity?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["class_category"]
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_heated?: boolean
+          max_capacity?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      class_waitlist: {
+        Row: {
+          claim_expires_at: string | null
+          claimed_at: string | null
+          created_at: string
+          id: string
+          notified_at: string | null
+          position: number
+          session_id: string
+          status: Database["public"]["Enums"]["waitlist_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          claim_expires_at?: string | null
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          notified_at?: string | null
+          position: number
+          session_id: string
+          status?: Database["public"]["Enums"]["waitlist_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          claim_expires_at?: string | null
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          notified_at?: string | null
+          position?: number
+          session_id?: string
+          status?: Database["public"]["Enums"]["waitlist_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_waitlist_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instructors: {
+        Row: {
+          bio: string | null
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          is_active: boolean
+          last_name: string
+          phone: string | null
+          photo_url: string | null
+          specialties: string[] | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string
+          email: string
+          first_name: string
+          id?: string
+          is_active?: boolean
+          last_name: string
+          phone?: string | null
+          photo_url?: string | null
+          specialties?: string[] | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          is_active?: boolean
+          last_name?: string
+          phone?: string | null
+          photo_url?: string | null
+          specialties?: string[] | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       members: {
         Row: {
           created_at: string | null
@@ -335,6 +804,15 @@ export type Database = {
         | "class_instructor"
         | "cafe_staff"
         | "childcare_staff"
+      booking_status: "confirmed" | "cancelled" | "no_show" | "completed"
+      class_category: "pilates_cycling" | "other"
+      pass_status: "active" | "expired" | "exhausted"
+      waitlist_status:
+        | "waiting"
+        | "notified"
+        | "claimed"
+        | "expired"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -471,6 +949,16 @@ export const Constants = {
         "class_instructor",
         "cafe_staff",
         "childcare_staff",
+      ],
+      booking_status: ["confirmed", "cancelled", "no_show", "completed"],
+      class_category: ["pilates_cycling", "other"],
+      pass_status: ["active", "expired", "exhausted"],
+      waitlist_status: [
+        "waiting",
+        "notified",
+        "claimed",
+        "expired",
+        "cancelled",
       ],
     },
   },

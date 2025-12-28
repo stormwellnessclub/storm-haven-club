@@ -28,6 +28,9 @@ import CafePOS from "./pages/admin/CafePOS";
 import Childcare from "./pages/admin/Childcare";
 import AdminClasses from "./pages/admin/Classes";
 import StaffRoles from "./pages/admin/StaffRoles";
+import ClassTypes from "./pages/admin/ClassTypes";
+import Instructors from "./pages/admin/Instructors";
+import ClassSchedules from "./pages/admin/ClassSchedules";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +65,9 @@ const App = () => (
             <Route path="/admin/cafe" element={<ProtectedAdminRoute><CafePOS /></ProtectedAdminRoute>} />
             <Route path="/admin/childcare" element={<ProtectedAdminRoute><Childcare /></ProtectedAdminRoute>} />
             <Route path="/admin/classes" element={<ProtectedAdminRoute><AdminClasses /></ProtectedAdminRoute>} />
+            <Route path="/admin/class-types" element={<ProtectedAdminRoute><ClassTypes /></ProtectedAdminRoute>} />
+            <Route path="/admin/instructors" element={<ProtectedAdminRoute><Instructors /></ProtectedAdminRoute>} />
+            <Route path="/admin/class-schedules" element={<ProtectedAdminRoute><ClassSchedules /></ProtectedAdminRoute>} />
             <Route path="/admin/staff-roles" element={<ProtectedAdminRoute><StaffRoles /></ProtectedAdminRoute>} />
             <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
             
