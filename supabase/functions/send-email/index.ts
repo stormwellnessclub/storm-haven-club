@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder';
+  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder';
   to: string;
   data: Record<string, any>;
 }
@@ -207,6 +207,51 @@ serve(async (req) => {
                 <a href="${BASE_URL}/member/waivers" style="${emailStyles.button}">Sign Your Waiver</a>
               </div>
               <p style="${emailStyles.muted}">This only takes a minute and you'll be ready to join any class!</p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'class_reminder':
+        subject = `Reminder: ${data.class_name} Tomorrow at ${data.time}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="color: #1a1a2e; margin-top: 0;">Class Reminder ⏰</h2>
+              <p>Don't forget - you have a class coming up tomorrow!</p>
+              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Class</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.class_name}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Time</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.time}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Instructor</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.instructor}</td>
+                  </tr>
+                  ${data.room ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Room</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.room}</td>
+                  </tr>
+                  ` : ''}
+                </table>
+              </div>
+              <p style="${emailStyles.muted}">Please arrive 5-10 minutes early to check in and prepare for your class.</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/bookings" style="${emailStyles.button}">View My Bookings</a>
+              </div>
+              <p style="${emailStyles.muted}">Need to cancel? Please do so at least 24 hours in advance to avoid losing your credit.</p>
             </div>
             ${getEmailFooter()}
           </div>
