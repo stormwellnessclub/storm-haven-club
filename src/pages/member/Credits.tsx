@@ -132,9 +132,12 @@ export default function MemberCredits() {
             ) : showClassCredits ? (
               <div className="text-center py-6">
                 <AlertCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  Your monthly class credits will be available at the start of your next billing cycle
+                <p className="text-muted-foreground mb-4">
+                  Your class credits haven't been activated yet
                 </p>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/member/support">Contact Support</Link>
+                </Button>
               </div>
             ) : credits?.isMember ? (
               <div className="text-center py-6">
@@ -248,9 +251,12 @@ function CreditCard3D({ credit, type, icon, tierName }: CreditCard3DProps) {
         <CardContent>
           <div className="text-center py-4">
             <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Credits will be available at the start of your next billing cycle
+            <p className="text-sm text-muted-foreground mb-3">
+              Your credits haven't been activated yet
             </p>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/member/support">Contact Support</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
