@@ -30,7 +30,7 @@ export default function Auth() {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate("/member");
     }
   }, [user, navigate]);
 
@@ -108,7 +108,7 @@ export default function Auth() {
             title: "Welcome to Storm Wellness Club!",
             description: "Your account has been created successfully.",
           });
-          navigate("/");
+          navigate("/member");
         }
       } else {
         const { error } = await signIn(email, password);
@@ -128,7 +128,7 @@ export default function Auth() {
             });
           }
         } else {
-          navigate("/");
+          navigate("/member");
         }
       }
     } catch (err) {
