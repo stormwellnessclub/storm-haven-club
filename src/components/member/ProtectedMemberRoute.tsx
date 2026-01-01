@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
+import { ActivationRequired } from "./ActivationRequired";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedMemberRouteProps {
@@ -40,6 +41,11 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   // Show "Application Under Review" view for pending applications
   if (applicationStatus?.status === "pending_application" && applicationStatus.applicationData) {
     return <ApplicationUnderReview applicationData={applicationStatus.applicationData} />;
+  }
+
+  // Show "Activation Required" view for approved members who haven't chosen start date
+  if (applicationStatus?.status === "pending_activation" && applicationStatus.memberData) {
+    return <ActivationRequired memberData={applicationStatus.memberData} />;
   }
 
   // For active members or users without applications, show the member portal

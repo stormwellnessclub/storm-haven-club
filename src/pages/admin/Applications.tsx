@@ -166,27 +166,64 @@ export default function Applications() {
         .eq("id", id);
       if (error) throw error;
       
-      // Send approval email when status is approved
+      // Create member record and send approval email when status is approved
       if (status === "approved" && application) {
+        const now = new Date();
+        const activationDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+        
+        // Parse full name into first/last
+        const nameParts = application.full_name.trim().split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+        
+        // Look up user_id by email
+        const { data: userData } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("email", application.email)
+          .maybeSingle();
+        
+        // Create member with pending_activation status
+        // Note: Using type assertion because new columns may not be in types.ts yet
+        const { error: memberError } = await supabase
+          .from("members")
+          .insert({
+            first_name: firstName,
+            last_name: lastName,
+            email: application.email,
+            phone: application.phone,
+            membership_type: application.membership_plan.split(" –")[0], // Extract tier name
+            status: "pending_activation",
+            approved_at: now.toISOString(),
+            activation_deadline: activationDeadline.toISOString(),
+            user_id: userData?.user_id || null,
+          } as any);
+        
+        if (memberError) {
+          console.error("Failed to create member record:", memberError);
+          // Don't throw - application status is updated, member creation is secondary
+        }
+        
+        // Send approval email with 7-day activation notice
         try {
           await supabase.functions.invoke("send-email", {
             body: {
               type: "application_approved",
               to: application.email,
               data: {
-                name: application.full_name.split(" ")[0], // Use first name for greeting
+                name: firstName,
+                activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
               },
             },
           });
         } catch (emailError) {
           console.error("Failed to send approval email:", emailError);
-          // Don't throw - status update succeeded, email is secondary
         }
       }
     },
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
-      toast.success(status === "approved" ? "Application approved & email sent" : "Application status updated");
+      toast.success(status === "approved" ? "Application approved, member created & email sent" : "Application status updated");
       setSelectedApplication(null);
     },
     onError: () => {
@@ -327,17 +364,53 @@ export default function Applications() {
         .in("id", ids);
       if (error) throw error;
       
-      // Send approval emails for bulk approvals
+      // Create member records and send approval emails for bulk approvals
       if (status === "approved") {
         const approvedApps = applications.filter(app => ids.includes(app.id));
         for (const app of approvedApps) {
+          const now = new Date();
+          const activationDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          
+          const nameParts = app.full_name.trim().split(" ");
+          const firstName = nameParts[0] || "";
+          const lastName = nameParts.slice(1).join(" ") || "";
+          
+          // Look up user_id by email
+          const { data: userData } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .eq("email", app.email)
+            .maybeSingle();
+          
+          // Create member record
+          // Note: Using type assertion because new columns may not be in types.ts yet
+          try {
+            await supabase
+              .from("members")
+              .insert({
+                first_name: firstName,
+                last_name: lastName,
+                email: app.email,
+                phone: app.phone,
+                membership_type: app.membership_plan.split(" –")[0],
+                status: "pending_activation",
+                approved_at: now.toISOString(),
+                activation_deadline: activationDeadline.toISOString(),
+                user_id: userData?.user_id || null,
+              } as any);
+          } catch (memberError) {
+            console.error(`Failed to create member for ${app.email}:`, memberError);
+          }
+          
+          // Send approval email
           try {
             await supabase.functions.invoke("send-email", {
               body: {
                 type: "application_approved",
                 to: app.email,
                 data: {
-                  name: app.full_name.split(" ")[0],
+                  name: firstName,
+                  activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
                 },
               },
             });
@@ -350,7 +423,7 @@ export default function Applications() {
     onSuccess: (_, { ids, status }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
       toast.success(status === "approved" 
-        ? `${ids.length} application(s) approved & emails sent` 
+        ? `${ids.length} application(s) approved, members created & emails sent` 
         : `${ids.length} application(s) marked as ${status}`);
       setSelectedIds(new Set());
     },
