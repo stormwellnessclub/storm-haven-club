@@ -195,9 +195,54 @@ export function useBookClass() {
         payment_method: paymentMethod,
       };
 
+      // Handle credit deduction for member credits
       if (paymentMethod === "credits") {
+        const { data: credit, error: creditError } = await supabase
+          .from("member_credits")
+          .select("id, credits_remaining")
+          .eq("user_id", currentUserId)
+          .eq("credit_type", "class")
+          .gt("expires_at", new Date().toISOString())
+          .gt("credits_remaining", 0)
+          .order("expires_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (creditError) throw creditError;
+        if (!credit) throw new Error("No available class credits");
+
+        // Deduct the credit
+        const { error: deductError } = await supabase
+          .from("member_credits")
+          .update({ credits_remaining: credit.credits_remaining - 1 })
+          .eq("id", credit.id);
+
+        if (deductError) throw deductError;
+
+        bookingData.member_credit_id = credit.id;
         bookingData.credits_used = 1;
-      } else if (paymentMethod === "pass" && passId) {
+      } 
+      // Handle class pass deduction
+      else if (paymentMethod === "pass" && passId) {
+        const { data: pass, error: passError } = await supabase
+          .from("class_passes")
+          .select("id, classes_remaining")
+          .eq("id", passId)
+          .single();
+
+        if (passError) throw passError;
+        if (!pass || pass.classes_remaining <= 0) {
+          throw new Error("This pass has no remaining classes");
+        }
+
+        // Deduct from pass
+        const { error: deductError } = await supabase
+          .from("class_passes")
+          .update({ classes_remaining: pass.classes_remaining - 1 })
+          .eq("id", passId);
+
+        if (deductError) throw deductError;
+
         bookingData.pass_id = passId;
         bookingData.credits_used = 1;
       }
@@ -230,17 +275,6 @@ export function useBookClass() {
             claimed_at: new Date().toISOString(),
           })
           .eq("id", waitlistEntry.id);
-      }
-
-      // If using a class pass, decrement the remaining classes
-      if (paymentMethod === "pass" && passId) {
-        await supabase
-          .from("class_passes")
-          .update({ classes_remaining: supabase.rpc ? undefined : undefined })
-          .eq("id", passId)
-          .then(() => {
-            // Update handled by trigger if exists
-          });
       }
 
       // Send booking confirmation email (or waitlist claim confirmation)
@@ -296,6 +330,7 @@ export function useBookClass() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["user-credits"] });
       toast.success("Class booked successfully!");
     },
     onError: (error: Error) => {
@@ -317,11 +352,13 @@ export function useCancelBooking() {
         throw new Error("Your session has expired. Please sign in again.");
       }
 
-      // Get booking details with session info for email
+      // Get booking details with session info for email and refund
       const { data: booking, error: bookingError } = await supabase
         .from("class_bookings")
         .select(`
           *,
+          member_credit_id,
+          pass_id,
           session:class_sessions(
             *,
             class_type:class_types(name),
@@ -358,6 +395,43 @@ export function useCancelBooking() {
         .single();
 
       if (error) throw error;
+
+      // Refund credit/pass if cancelled more than 24 hours in advance
+      if (!forfeitCredit) {
+        if (booking.member_credit_id) {
+          // Refund member credit
+          const { data: credit } = await supabase
+            .from("member_credits")
+            .select("credits_remaining, credits_total")
+            .eq("id", booking.member_credit_id)
+            .single();
+
+          if (credit) {
+            await supabase
+              .from("member_credits")
+              .update({ 
+                credits_remaining: Math.min(credit.credits_remaining + 1, credit.credits_total) 
+              })
+              .eq("id", booking.member_credit_id);
+          }
+        } else if (booking.pass_id) {
+          // Refund class pass
+          const { data: pass } = await supabase
+            .from("class_passes")
+            .select("classes_remaining, classes_total")
+            .eq("id", booking.pass_id)
+            .single();
+
+          if (pass) {
+            await supabase
+              .from("class_passes")
+              .update({ 
+                classes_remaining: Math.min(pass.classes_remaining + 1, pass.classes_total) 
+              })
+              .eq("id", booking.pass_id);
+          }
+        }
+      }
 
       // Send cancellation confirmation email
       try {
@@ -404,6 +478,7 @@ export function useCancelBooking() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["user-credits"] });
       
       if (data.forfeitCredit) {
         toast.warning("Class cancelled. Credit/pass forfeited due to late cancellation (less than 24 hours before class).");

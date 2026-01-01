@@ -62,6 +62,7 @@ export type Database = {
           created_at: string
           credits_used: number | null
           id: string
+          member_credit_id: string | null
           member_id: string | null
           pass_id: string | null
           payment_method: string | null
@@ -79,6 +80,7 @@ export type Database = {
           created_at?: string
           credits_used?: number | null
           id?: string
+          member_credit_id?: string | null
           member_id?: string | null
           pass_id?: string | null
           payment_method?: string | null
@@ -96,6 +98,7 @@ export type Database = {
           created_at?: string
           credits_used?: number | null
           id?: string
+          member_credit_id?: string | null
           member_id?: string | null
           pass_id?: string | null
           payment_method?: string | null
@@ -105,6 +108,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "class_bookings_member_credit_id_fkey"
+            columns: ["member_credit_id"]
+            isOneToOne: false
+            referencedRelation: "member_credits"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "class_bookings_member_id_fkey"
             columns: ["member_id"]
