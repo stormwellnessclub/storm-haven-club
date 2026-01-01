@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, addDays, isAfter, isBefore, startOfDay } from "date-fns";
+import { format, addDays, isAfter, isBefore, startOfDay, endOfMonth } from "date-fns";
 import { Calendar, Clock, CheckCircle, Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -34,6 +35,7 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const deadlineDate = memberData.activation_deadline 
     ? new Date(memberData.activation_deadline) 
@@ -54,6 +56,29 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
         .eq("id", memberData.id);
 
       if (error) throw error;
+
+      // Create credits for Diamond members
+      const isDiamond = memberData.membership_type.toLowerCase().includes("diamond");
+      if (isDiamond && user) {
+        const currentMonth = format(new Date(), "yyyy-MM");
+        const monthEnd = endOfMonth(new Date());
+        
+        const { error: creditsError } = await supabase
+          .from("class_credits")
+          .insert({
+            user_id: user.id,
+            member_id: memberData.id,
+            credits_total: 10,
+            credits_remaining: 10,
+            month_year: currentMonth,
+            expires_at: monthEnd.toISOString(),
+          });
+
+        if (creditsError) {
+          console.error("Failed to create credits:", creditsError);
+          // Don't throw - activation succeeded, just log the error
+        }
+      }
 
       // Send activation confirmation email
       try {

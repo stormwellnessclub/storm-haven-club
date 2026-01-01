@@ -25,6 +25,8 @@ export default function MemberCredits() {
 
   const memberCredits = credits?.memberCredits;
   const classPasses = credits?.classPasses || [];
+  const membershipType = credits?.membershipType;
+  const isDiamondMember = membershipType?.toLowerCase().includes("diamond");
 
   const pilatesCyclingPasses = classPasses.filter(p => p.category === "pilates_cycling");
   const otherPasses = classPasses.filter(p => p.category === "other");
@@ -67,18 +69,28 @@ export default function MemberCredits() {
                   Use your monthly credits for any class at Storm Wellness
                 </p>
               </div>
-            ) : credits?.isMember ? (
+            ) : credits?.isMember && isDiamondMember ? (
               <div className="text-center py-6">
                 <AlertCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
                 <p className="text-muted-foreground">
                   Your monthly credits will be available at the start of your next billing cycle
                 </p>
               </div>
+            ) : credits?.isMember ? (
+              <div className="text-center py-6">
+                <CreditCard className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                <p className="text-muted-foreground mb-4">
+                  Monthly class credits are included only with Diamond membership
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  You can purchase class passes below to book classes
+                </p>
+              </div>
             ) : (
               <div className="text-center py-6">
                 <CreditCard className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
                 <p className="text-muted-foreground mb-4">
-                  Monthly credits are included with membership
+                  Monthly credits are included with Diamond membership
                 </p>
                 <Button asChild variant="outline">
                   <Link to="/apply">Apply for Membership</Link>
