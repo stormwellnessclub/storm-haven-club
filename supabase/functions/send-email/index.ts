@@ -12,7 +12,7 @@ interface EmailRequest {
   data: Record<string, any>;
 }
 
-const BASE_URL = 'https://cqzmrdzwgsujgbjqpoxh.lovableproject.com';
+const BASE_URL = Deno.env.get('APP_BASE_URL') ?? 'https://storm-haven-club.lovable.app';
 
 // Email template styling - Brand colors: Gold #C9A227, Charcoal #312D28
 const emailStyles = {
