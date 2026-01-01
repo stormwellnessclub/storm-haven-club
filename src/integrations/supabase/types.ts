@@ -309,6 +309,13 @@ export type Database = {
             foreignKeyName: "class_schedules_instructor_id_fkey"
             columns: ["instructor_id"]
             isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_schedules_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
             referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
@@ -369,6 +376,13 @@ export type Database = {
             columns: ["class_type_id"]
             isOneToOne: false
             referencedRelation: "class_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_sessions_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -858,7 +872,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      instructor_public_profiles: {
+        Row: {
+          bio: string | null
+          created_at: string | null
+          first_name: string | null
+          id: string | null
+          is_active: boolean | null
+          last_name: string | null
+          photo_url: string | null
+          specialties: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          photo_url?: string | null
+          specialties?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          photo_url?: string | null
+          specialties?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       current_user_email: { Args: never; Returns: string }
