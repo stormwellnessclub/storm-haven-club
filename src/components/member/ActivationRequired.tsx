@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, addDays, isAfter, isBefore, startOfDay, endOfMonth } from "date-fns";
+import { format, addDays, isAfter, isBefore, startOfDay } from "date-fns";
 import { Calendar, Clock, CheckCircle, Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import stormLogo from "@/assets/storm-logo-gold.png";
+import { getCreditsToCreate } from "@/lib/memberCredits";
 
 interface MemberData {
   id: string;
@@ -57,26 +58,24 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
 
       if (error) throw error;
 
-      // Create credits for Diamond members
-      const isDiamond = memberData.membership_type.toLowerCase().includes("diamond");
-      if (isDiamond && user) {
-        const currentMonth = format(new Date(), "yyyy-MM");
-        const monthEnd = endOfMonth(new Date());
-        
-        const { error: creditsError } = await supabase
-          .from("class_credits")
-          .insert({
-            user_id: user.id,
-            member_id: memberData.id,
-            credits_total: 10,
-            credits_remaining: 10,
-            month_year: currentMonth,
-            expires_at: monthEnd.toISOString(),
-          });
+      // Create credits based on membership tier
+      if (user) {
+        const creditsToCreate = getCreditsToCreate(
+          memberData.membership_type,
+          user.id,
+          memberData.id,
+          startDate
+        );
 
-        if (creditsError) {
-          console.error("Failed to create credits:", creditsError);
-          // Don't throw - activation succeeded, just log the error
+        if (creditsToCreate.length > 0) {
+          const { error: creditsError } = await supabase
+            .from("member_credits")
+            .insert(creditsToCreate);
+
+          if (creditsError) {
+            console.error("Failed to create credits:", creditsError);
+            // Don't throw - activation succeeded, just log the error
+          }
         }
       }
 

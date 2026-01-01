@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { format } from "date-fns";
+import { CreditType } from "@/lib/memberCredits";
 
 export interface ClassPass {
   id: string;
@@ -14,18 +14,22 @@ export interface ClassPass {
   is_member_price: boolean;
 }
 
-export interface MemberCredits {
+export interface MemberCredit {
   id: string;
+  credit_type: CreditType;
   credits_total: number;
   credits_remaining: number;
-  month_year: string;
+  cycle_start: string;
+  cycle_end: string;
   expires_at: string;
 }
 
 export interface UserCreditsData {
   isMember: boolean;
   membershipType: string | null;
-  memberCredits: MemberCredits | null;
+  classCredits: MemberCredit | null;
+  redLightCredits: MemberCredit | null;
+  dryCredits: MemberCredit | null;
   classPasses: ClassPass[];
 }
 
@@ -36,7 +40,14 @@ export function useUserCredits() {
     queryKey: ["user-credits", user?.id],
     queryFn: async (): Promise<UserCreditsData> => {
       if (!user) {
-        return { isMember: false, membershipType: null, memberCredits: null, classPasses: [] };
+        return {
+          isMember: false,
+          membershipType: null,
+          classCredits: null,
+          redLightCredits: null,
+          dryCredits: null,
+          classPasses: [],
+        };
       }
 
       // Check if user is a member
@@ -45,25 +56,41 @@ export function useUserCredits() {
         .select("id, membership_type, status")
         .eq("user_id", user.id)
         .eq("status", "active")
-        .single();
+        .maybeSingle();
 
       const isMember = !!member;
       const membershipType = member?.membership_type || null;
-      const isDiamondMember = membershipType?.toLowerCase().includes("diamond");
 
-      // Get member credits if applicable (only Diamond members get credits)
-      let memberCredits: MemberCredits | null = null;
-      if (isMember && isDiamondMember) {
-        const currentMonth = format(new Date(), "yyyy-MM");
+      // Get active member credits (not expired)
+      let classCredits: MemberCredit | null = null;
+      let redLightCredits: MemberCredit | null = null;
+      let dryCredits: MemberCredit | null = null;
+
+      if (isMember) {
+        const now = new Date().toISOString();
         const { data: credits } = await supabase
-          .from("class_credits")
+          .from("member_credits")
           .select("*")
           .eq("user_id", user.id)
-          .eq("month_year", currentMonth)
-          .single();
+          .gt("expires_at", now)
+          .order("expires_at", { ascending: true });
 
         if (credits) {
-          memberCredits = credits as MemberCredits;
+          // Get the most recent active credit for each type
+          for (const credit of credits) {
+            const typedCredit = credit as unknown as MemberCredit;
+            switch (typedCredit.credit_type) {
+              case "class":
+                if (!classCredits) classCredits = typedCredit;
+                break;
+              case "red_light":
+                if (!redLightCredits) redLightCredits = typedCredit;
+                break;
+              case "dry_cryo":
+                if (!dryCredits) dryCredits = typedCredit;
+                break;
+            }
+          }
         }
       }
 
@@ -81,7 +108,9 @@ export function useUserCredits() {
       return {
         isMember,
         membershipType,
-        memberCredits,
+        classCredits,
+        redLightCredits,
+        dryCredits,
         classPasses: (passes || []) as ClassPass[],
       };
     },
@@ -96,15 +125,15 @@ export function useAvailableCreditsForCategory(category: "pilates_cycling" | "ot
     (pass) => pass.category === category && pass.classes_remaining > 0
   ) || [];
 
-  const hasMemberCredits =
+  const hasClassCredits =
     creditsData?.isMember &&
-    creditsData?.memberCredits &&
-    creditsData.memberCredits.credits_remaining > 0;
+    creditsData?.classCredits &&
+    creditsData.classCredits.credits_remaining > 0;
 
   return {
     data: {
-      hasMemberCredits,
-      memberCreditsRemaining: creditsData?.memberCredits?.credits_remaining || 0,
+      hasClassCredits,
+      classCreditsRemaining: creditsData?.classCredits?.credits_remaining || 0,
       availablePasses,
       totalPassCredits: availablePasses.reduce((sum, p) => sum + p.classes_remaining, 0),
     },

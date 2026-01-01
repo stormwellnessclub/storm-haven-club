@@ -76,13 +76,13 @@ export default function MemberDashboard() {
             <CardContent>
               {creditsLoading ? (
                 <Skeleton className="h-8 w-24" />
-              ) : credits?.memberCredits ? (
+              ) : credits?.classCredits ? (
                 <>
                   <div className="text-2xl font-bold">
-                    {credits.memberCredits.credits_remaining}
+                    {credits.classCredits.credits_remaining}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    of {credits.memberCredits.credits_total} remaining
+                    of {credits.classCredits.credits_total} remaining
                   </p>
                 </>
               ) : (

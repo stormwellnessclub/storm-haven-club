@@ -68,7 +68,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     onOpenChange(false);
   };
 
-  const canUseMemberCredits = creditsData?.hasMemberCredits;
+  const canUseMemberCredits = creditsData?.hasClassCredits;
   const canUsePass = creditsData?.availablePasses && creditsData.availablePasses.length > 0;
 
   return (
@@ -151,7 +151,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                         <span>Diamond Member Credit</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {creditsData?.memberCreditsRemaining} credits remaining this month
+                        {creditsData?.classCreditsRemaining} credits remaining this cycle
                       </p>
                     </Label>
                   </div>

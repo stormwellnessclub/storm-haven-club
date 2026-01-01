@@ -609,6 +609,56 @@ export type Database = {
         }
         Relationships: []
       }
+      member_credits: {
+        Row: {
+          created_at: string
+          credit_type: Database["public"]["Enums"]["credit_type"]
+          credits_remaining: number
+          credits_total: number
+          cycle_end: string
+          cycle_start: string
+          expires_at: string
+          id: string
+          member_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credit_type: Database["public"]["Enums"]["credit_type"]
+          credits_remaining: number
+          credits_total: number
+          cycle_end: string
+          cycle_start: string
+          expires_at: string
+          id?: string
+          member_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credit_type?: Database["public"]["Enums"]["credit_type"]
+          credits_remaining?: number
+          credits_total?: number
+          cycle_end?: string
+          cycle_start?: string
+          expires_at?: string
+          id?: string
+          member_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_credits_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           activated_at: string | null
@@ -940,6 +990,7 @@ export type Database = {
       booking_status: "confirmed" | "cancelled" | "no_show" | "completed"
       class_category: "pilates_cycling" | "other"
       conversation_status: "open" | "in_progress" | "resolved" | "closed"
+      credit_type: "class" | "red_light" | "dry_cryo"
       message_sender_type: "member" | "staff"
       pass_status: "active" | "expired" | "exhausted"
       waitlist_status:
@@ -1088,6 +1139,7 @@ export const Constants = {
       booking_status: ["confirmed", "cancelled", "no_show", "completed"],
       class_category: ["pilates_cycling", "other"],
       conversation_status: ["open", "in_progress", "resolved", "closed"],
+      credit_type: ["class", "red_light", "dry_cryo"],
       message_sender_type: ["member", "staff"],
       pass_status: ["active", "expired", "exhausted"],
       waitlist_status: [
