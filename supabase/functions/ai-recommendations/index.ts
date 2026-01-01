@@ -8,7 +8,6 @@ const corsHeaders = {
 
 interface RecommendationRequest {
   type: 'class_recommendations' | 'fitness_tips' | 'schedule_optimization';
-  userId?: string;
   preferences?: Record<string, any>;
 }
 
@@ -33,29 +32,60 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const { type, userId, preferences }: RecommendationRequest = await req.json();
-    console.log(`Processing AI recommendation type: ${type}`);
-
-    // Get user's booking history if userId provided
-    let userHistory = null;
-    if (userId) {
-      const { data: bookings } = await supabase
-        .from('class_bookings')
-        .select(`
-          *,
-          class_sessions (
-            session_date,
-            start_time,
-            class_types (name, category, is_heated)
-          )
-        `)
-        .eq('user_id', userId)
-        .eq('status', 'completed')
-        .order('booked_at', { ascending: false })
-        .limit(20);
-      
-      userHistory = bookings;
+    // Authenticate the user via JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error("Missing or invalid authorization header");
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
     }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error("Authentication failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Invalid authentication token" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const userId = user.id;
+    console.log(`Authenticated user: ${userId}`);
+
+    const { type, preferences }: RecommendationRequest = await req.json();
+    console.log(`Processing AI recommendation type: ${type} for user: ${userId}`);
+
+    // Validate request type
+    const validTypes = ['class_recommendations', 'fitness_tips', 'schedule_optimization'];
+    if (!type || !validTypes.includes(type)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid recommendation type" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Get user's booking history using authenticated userId
+    let userHistory = null;
+    const { data: bookings } = await supabase
+      .from('class_bookings')
+      .select(`
+        *,
+        class_sessions (
+          session_date,
+          start_time,
+          class_types (name, category, is_heated)
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .order('booked_at', { ascending: false })
+      .limit(20);
+    
+    userHistory = bookings;
 
     // Get available class types
     const { data: classTypes } = await supabase
@@ -149,7 +179,7 @@ serve(async (req) => {
     const aiData = await aiResponse.json();
     const recommendation = aiData.choices?.[0]?.message?.content;
 
-    console.log("AI recommendation generated successfully");
+    console.log("AI recommendation generated successfully for user:", userId);
 
     return new Response(
       JSON.stringify({ 
