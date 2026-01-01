@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, addDays, isAfter, isBefore, startOfDay } from "date-fns";
 import { Calendar, Clock, CheckCircle, Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const deadlineDate = memberData.activation_deadline 
     ? new Date(memberData.activation_deadline) 
@@ -73,6 +75,9 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["application-status"] });
       toast.success("Membership activated! Welcome to Storm Wellness Club.");
+      setTimeout(() => {
+        navigate("/member", { replace: true });
+      }, 500);
     },
     onError: (error) => {
       console.error("Activation error:", error);
