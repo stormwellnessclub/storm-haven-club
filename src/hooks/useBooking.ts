@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, differenceInHours, addWeeks, parseISO } from "date-fns";
+import { format, differenceInHours, addWeeks, parseISO, parse } from "date-fns";
 
 export interface Booking {
   id: string;
@@ -211,6 +211,51 @@ export function useBookClass() {
           .then(() => {
             // Update handled by trigger if exists
           });
+      }
+
+      // Send booking confirmation email
+      try {
+        const { data: sessionDetails } = await supabase
+          .from("class_sessions")
+          .select(`
+            session_date,
+            start_time,
+            room,
+            class_type:class_types(name),
+            instructor:instructors(first_name, last_name)
+          `)
+          .eq("id", sessionId)
+          .single();
+
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+        if (currentUser?.email && sessionDetails) {
+          const classType = Array.isArray(sessionDetails.class_type)
+            ? sessionDetails.class_type[0]
+            : sessionDetails.class_type;
+          const instructor = Array.isArray(sessionDetails.instructor)
+            ? sessionDetails.instructor[0]
+            : sessionDetails.instructor;
+
+          await supabase.functions.invoke("send-email", {
+            body: {
+              type: "booking_confirmation",
+              to: currentUser.email,
+              data: {
+                class_name: classType?.name || "Class",
+                date: format(parseISO(sessionDetails.session_date), "EEEE, MMMM d, yyyy"),
+                time: format(parse(sessionDetails.start_time, "HH:mm:ss", new Date()), "h:mm a"),
+                location: sessionDetails.room || "Storm Wellness Club",
+                instructor: instructor
+                  ? `${instructor.first_name} ${instructor.last_name}`
+                  : "TBA",
+              },
+            },
+          });
+        }
+      } catch (emailError) {
+        console.error("Failed to send confirmation email:", emailError);
+        // Don't throw - booking succeeded, email is secondary
       }
 
       return data;
