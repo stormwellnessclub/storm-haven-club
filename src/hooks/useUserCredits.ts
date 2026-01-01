@@ -24,6 +24,7 @@ export interface MemberCredits {
 
 export interface UserCreditsData {
   isMember: boolean;
+  membershipType: string | null;
   memberCredits: MemberCredits | null;
   classPasses: ClassPass[];
 }
@@ -35,7 +36,7 @@ export function useUserCredits() {
     queryKey: ["user-credits", user?.id],
     queryFn: async (): Promise<UserCreditsData> => {
       if (!user) {
-        return { isMember: false, memberCredits: null, classPasses: [] };
+        return { isMember: false, membershipType: null, memberCredits: null, classPasses: [] };
       }
 
       // Check if user is a member
@@ -47,10 +48,12 @@ export function useUserCredits() {
         .single();
 
       const isMember = !!member;
+      const membershipType = member?.membership_type || null;
+      const isDiamondMember = membershipType?.toLowerCase().includes("diamond");
 
-      // Get member credits if applicable
+      // Get member credits if applicable (only Diamond members get credits)
       let memberCredits: MemberCredits | null = null;
-      if (isMember) {
+      if (isMember && isDiamondMember) {
         const currentMonth = format(new Date(), "yyyy-MM");
         const { data: credits } = await supabase
           .from("class_credits")
@@ -77,6 +80,7 @@ export function useUserCredits() {
 
       return {
         isMember,
+        membershipType,
         memberCredits,
         classPasses: (passes || []) as ClassPass[],
       };
