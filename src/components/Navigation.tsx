@@ -58,8 +58,8 @@ export function Navigation() {
             {user ? <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant={isHome ? "hero-outline" : "outline"} size="sm" className="gap-2">
-                    <User className="w-4 h-4" />
-                    Account
+                    <LayoutDashboard className="w-4 h-4" />
+                    My Portal
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -145,6 +145,24 @@ export function Navigation() {
               <div className="border-t border-border pt-4 mt-2">
                 {user ? <>
                     <p className="text-muted-foreground text-xs mb-3">{user.email}</p>
+                    <Link to="/member" onClick={() => setIsOpen(false)}>
+                      <Button variant="default" className="w-full mb-2">
+                        <LayoutDashboard className="w-4 h-4 mr-2" />
+                        My Portal
+                      </Button>
+                    </Link>
+                    <Link to="/member/bookings" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full mb-2">
+                        <CalendarDays className="w-4 h-4 mr-2" />
+                        My Bookings
+                      </Button>
+                    </Link>
+                    <Link to="/member/credits" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full mb-2">
+                        <Ticket className="w-4 h-4 mr-2" />
+                        My Credits
+                      </Button>
+                    </Link>
                     <Link to="/apply" onClick={() => setIsOpen(false)}>
                       <Button variant="outline" className="w-full mb-2">
                         Membership Application
