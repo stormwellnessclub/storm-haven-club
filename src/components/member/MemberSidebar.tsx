@@ -6,6 +6,7 @@ import {
   IdCard,
   Calendar,
   FileCheck,
+  MessageCircle,
   LogOut,
   Home,
 } from "lucide-react";
@@ -38,6 +39,7 @@ const memberMenuItems: MenuItem[] = [
   { title: "My Membership", url: "/member/membership", icon: IdCard },
   { title: "My Bookings", url: "/member/bookings", icon: Calendar },
   { title: "Waivers", url: "/member/waivers", icon: FileCheck },
+  { title: "Support", url: "/member/support", icon: MessageCircle },
 ];
 
 export function MemberSidebar() {
