@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,102 +20,71 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Filter, MoreHorizontal, UserPlus, Mail, Phone } from "lucide-react";
-
-const mockMembers = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@email.com",
-    phone: "(555) 123-4567",
-    membership: "Premium",
-    status: "Active",
-    joinDate: "Jan 15, 2024",
-    lastCheckIn: "Today, 8:30 AM",
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    email: "michael.chen@email.com",
-    phone: "(555) 234-5678",
-    membership: "Premium",
-    status: "Active",
-    joinDate: "Feb 2, 2024",
-    lastCheckIn: "Yesterday, 6:00 PM",
-  },
-  {
-    id: "3",
-    name: "Emily Davis",
-    email: "emily.davis@email.com",
-    phone: "(555) 345-6789",
-    membership: "Standard",
-    status: "Active",
-    joinDate: "Mar 10, 2024",
-    lastCheckIn: "2 days ago",
-  },
-  {
-    id: "4",
-    name: "James Wilson",
-    email: "james.wilson@email.com",
-    phone: "(555) 456-7890",
-    membership: "Premium",
-    status: "Past Due",
-    joinDate: "Nov 5, 2023",
-    lastCheckIn: "1 week ago",
-  },
-  {
-    id: "5",
-    name: "Amanda Roberts",
-    email: "amanda.roberts@email.com",
-    phone: "(555) 567-8901",
-    membership: "Executive",
-    status: "Active",
-    joinDate: "Dec 1, 2023",
-    lastCheckIn: "Today, 7:15 AM",
-  },
-  {
-    id: "6",
-    name: "David Brown",
-    email: "david.brown@email.com",
-    phone: "(555) 678-9012",
-    membership: "Standard",
-    status: "Frozen",
-    joinDate: "Aug 20, 2023",
-    lastCheckIn: "1 month ago",
-  },
-];
+import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2 } from "lucide-react";
+import { format } from "date-fns";
 
 const getStatusColor = (status: string) => {
-  switch (status) {
-    case "Active":
+  switch (status?.toLowerCase()) {
+    case "active":
       return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-    case "Past Due":
+    case "pending_activation":
+      return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300";
+    case "past_due":
       return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
-    case "Frozen":
+    case "frozen":
       return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+    case "suspended":
+      return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
+    case "cancelled":
+    case "expired":
+    case "inactive":
+      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
     default:
       return "bg-secondary text-secondary-foreground";
   }
 };
 
 const getMembershipColor = (membership: string) => {
-  switch (membership) {
-    case "Executive":
-      return "bg-accent text-accent-foreground";
-    case "Premium":
-      return "bg-primary text-primary-foreground";
+  switch (membership?.toLowerCase()) {
+    case "diamond":
+      return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
+    case "platinum":
+      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+    case "gold":
+      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
+    case "silver":
+      return "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300";
     default:
       return "bg-secondary text-secondary-foreground";
   }
 };
 
+const formatStatus = (status: string) => {
+  return status?.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Unknown";
+};
+
 export default function Members() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredMembers = mockMembers.filter(
+  const { data: members = [], isLoading, error } = useQuery({
+    queryKey: ["admin-members"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("members")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const filteredMembers = members.filter(
     (member) =>
-      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase())
+      member.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.member_id?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -148,65 +119,85 @@ export default function Members() {
             <CardTitle>All Members ({filteredMembers.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Membership</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Join Date</TableHead>
-                  <TableHead>Last Check-In</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMembers.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{member.name}</p>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 text-destructive">
+                Error loading members. Please try again.
+              </div>
+            ) : filteredMembers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchQuery ? "No members match your search." : "No members yet."}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member ID</TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Membership</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Join Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMembers.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-mono text-sm">
+                        {member.member_id}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {member.first_name} {member.last_name}
+                          </p>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <Mail className="h-3 w-3" />
                             {member.email}
-                          </span>
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getMembershipColor(member.membership)}>
-                        {member.membership}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={getStatusColor(member.status)}>
-                        {member.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{member.joinDate}</TableCell>
-                    <TableCell>{member.lastCheckIn}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Profile</DropdownMenuItem>
-                          <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                          <DropdownMenuItem>Check In</DropdownMenuItem>
-                          <DropdownMenuItem>View Payment History</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            Suspend Membership
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getMembershipColor(member.membership_type)}>
+                          {member.membership_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={getStatusColor(member.status)}>
+                          {formatStatus(member.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {member.membership_start_date
+                          ? format(new Date(member.membership_start_date), "MMM d, yyyy")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>View Profile</DropdownMenuItem>
+                            <DropdownMenuItem>Edit Details</DropdownMenuItem>
+                            <DropdownMenuItem>Check In</DropdownMenuItem>
+                            <DropdownMenuItem>View Payment History</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">
+                              Suspend Membership
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
