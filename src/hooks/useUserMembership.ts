@@ -63,7 +63,11 @@ export function getMembershipTierBenefits(tier: string): string[] {
       "Purchase classes à la carte or through class passes",
     ],
     Diamond: [
-      "All Platinum benefits",
+      "All Silver and Gold benefits",
+      "10 classes per month (Cycling, Pilates, Aerobics, HIIT, Dance)",
+      "Red Light Therapy (10 sessions/month)",
+      "Dry Cryo (6 sessions/month)",
+      "Childcare add-on available ($75/month)",
     ],
   };
 
