@@ -597,6 +597,9 @@ export type Database = {
       }
       members: {
         Row: {
+          activated_at: string | null
+          activation_deadline: string | null
+          approved_at: string | null
           created_at: string | null
           email: string
           first_name: string
@@ -613,6 +616,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          activated_at?: string | null
+          activation_deadline?: string | null
+          approved_at?: string | null
           created_at?: string | null
           email: string
           first_name: string
@@ -629,6 +635,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          activated_at?: string | null
+          activation_deadline?: string | null
+          approved_at?: string | null
           created_at?: string | null
           email?: string
           first_name?: string

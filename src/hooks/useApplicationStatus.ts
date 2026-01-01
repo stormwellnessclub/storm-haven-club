@@ -4,9 +4,10 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export type ApplicationStatus = 
   | "loading"
-  | "active_member"      // Has approved membership
-  | "pending_application" // Application submitted, awaiting review
-  | "no_application";     // No application on file
+  | "active_member"           // Has approved membership and activated
+  | "pending_activation"      // Approved but needs to choose start date
+  | "pending_application"     // Application submitted, awaiting review
+  | "no_application";         // No application on file
 
 export interface ApplicationStatusResult {
   status: ApplicationStatus;
@@ -17,9 +18,16 @@ export interface ApplicationStatusResult {
     status: string;
   };
   memberData?: {
+    id: string;
     member_id: string;
     membership_type: string;
     status: string;
+    approved_at: string | null;
+    activation_deadline: string | null;
+    activated_at: string | null;
+    first_name: string;
+    last_name: string;
+    email: string;
   };
 }
 
@@ -33,12 +41,11 @@ export function useApplicationStatus() {
         return { status: "no_application" };
       }
 
-      // First check if user has an active membership record
+      // First check if user has a membership record
       const { data: memberData, error: memberError } = await supabase
         .from("members")
-        .select("member_id, membership_type, status")
+        .select("id, member_id, membership_type, status, approved_at, activation_deadline, activated_at, first_name, last_name, email")
         .eq("user_id", user.id)
-        .eq("status", "active")
         .maybeSingle();
 
       if (memberError) {
@@ -47,14 +54,43 @@ export function useApplicationStatus() {
       }
 
       if (memberData) {
-        return {
-          status: "active_member",
-          memberData: {
-            member_id: memberData.member_id,
-            membership_type: memberData.membership_type,
-            status: memberData.status,
-          },
-        };
+        // Check if member is pending activation (approved but hasn't chosen start date)
+        if (memberData.status === "pending_activation") {
+          return {
+            status: "pending_activation",
+            memberData: {
+              id: memberData.id,
+              member_id: memberData.member_id,
+              membership_type: memberData.membership_type,
+              status: memberData.status,
+              approved_at: memberData.approved_at,
+              activation_deadline: memberData.activation_deadline,
+              activated_at: memberData.activated_at,
+              first_name: memberData.first_name,
+              last_name: memberData.last_name,
+              email: memberData.email,
+            },
+          };
+        }
+        
+        // Active member
+        if (memberData.status === "active") {
+          return {
+            status: "active_member",
+            memberData: {
+              id: memberData.id,
+              member_id: memberData.member_id,
+              membership_type: memberData.membership_type,
+              status: memberData.status,
+              approved_at: memberData.approved_at,
+              activation_deadline: memberData.activation_deadline,
+              activated_at: memberData.activated_at,
+              first_name: memberData.first_name,
+              last_name: memberData.last_name,
+              email: memberData.email,
+            },
+          };
+        }
       }
 
       // If no active membership, check for pending application by email

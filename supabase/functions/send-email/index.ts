@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation';
+  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated';
   to: string;
   data: Record<string, any>;
 }
@@ -113,12 +113,134 @@ serve(async (req) => {
                 Every element of Storm Wellness Club is designed with care and precision, so your time, energy, and well-being are respected the moment you step inside.
               </p>
               
+              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">
+                  ⏰ Please sign in to your member portal within the next 7 days to select your membership start date.
+                </p>
+                <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px;">
+                  Your billing will begin on the date you choose. If no date is selected by <strong>${data.activationDeadline || 'the deadline'}</strong>, your membership will automatically begin on that date.
+                </p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Choose Your Start Date</a>
+              </div>
+              
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
                 We look forward to welcoming you inside Storm Wellness Club.
               </p>
               
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
+                <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'activation_reminder_day3':
+        subject = 'Choose Your Start Date at Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                You're just a few steps away from beginning your Storm Wellness Club membership.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Sign in to your member portal to select your start date. You have <strong>4 days remaining</strong> to make your selection before your membership automatically begins.
+              </p>
+              
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Access Your Member Portal</a>
+                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Choose My Start Date</a>
+              </div>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'activation_reminder_day5':
+        subject = '2 Days Remaining to Choose Your Start Date';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">
+                  ⏰ Your membership activation window closes in 2 days.
+                </p>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Please sign in to select your preferred start date. If no date is selected by <strong>${data.activationDeadline}</strong>, your membership will automatically begin on that date.
+              </p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Choose My Start Date</a>
+              </div>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'membership_activated':
+        subject = 'Welcome to Storm Wellness Club - Membership Activated!';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Welcome, ${data.name}! 🎉</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Your membership is now active. We're thrilled to have you as part of the Storm Wellness Club community.
+              </p>
+              
+              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Membership Tier</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.membershipType}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Start Date</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.startDate}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Here's what you can do next:
+              </p>
+              
+              <ul style="color: #374151; line-height: 2;">
+                <li>Browse and book classes in your member portal</li>
+                <li>Complete your profile and sign your waivers</li>
+                <li>Explore our amenities and spa services</li>
+              </ul>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member" style="${emailStyles.button}">Access Member Portal</a>
+                <a href="${BASE_URL}/schedule" style="${emailStyles.buttonSecondary}">Book a Class</a>
               </div>
               
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
