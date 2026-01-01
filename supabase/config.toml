@@ -6,7 +6,7 @@ verify_jwt = false
 
 [functions.send-email]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 
 [functions.stripe-payment]
 enabled = true
