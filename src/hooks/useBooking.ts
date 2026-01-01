@@ -142,7 +142,15 @@ export function useBookClass() {
 
   return useMutation({
     mutationFn: async ({ sessionId, paymentMethod, passId }: BookClassParams) => {
-      if (!user) throw new Error("Must be logged in to book a class");
+      // Validate and refresh session to ensure JWT is current for RLS
+      const { data: { session: authSession }, error: sessionRefreshError } = 
+        await supabase.auth.getSession();
+      
+      if (sessionRefreshError || !authSession) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+
+      const currentUserId = authSession.user.id;
 
       // Get session details to check availability and advance booking limit
       const { data: session, error: sessionError } = await supabase
@@ -171,7 +179,7 @@ export function useBookClass() {
         .from("class_bookings")
         .select("id")
         .eq("session_id", sessionId)
-        .eq("user_id", user.id)
+        .eq("user_id", currentUserId)
         .eq("status", "confirmed")
         .single();
 
@@ -182,7 +190,7 @@ export function useBookClass() {
       // Create booking
       const bookingData: any = {
         session_id: sessionId,
-        user_id: user.id,
+        user_id: currentUserId,
         status: "confirmed",
         payment_method: paymentMethod,
       };
@@ -199,7 +207,7 @@ export function useBookClass() {
         .from("class_waitlist")
         .select("id, status")
         .eq("session_id", sessionId)
-        .eq("user_id", user.id)
+        .eq("user_id", currentUserId)
         .eq("status", "notified")
         .single();
 
