@@ -49,13 +49,12 @@ export function getMembershipTierBenefits(tier: string): string[] {
       "Member pricing on class passes",
       "5% spa discount",
     ],
-    Premium: [
-      "All Essential benefits",
-      "Priority class booking",
-      "15 monthly class credits",
-      "Guest passes (2 per month)",
-      "8% spa discount",
-      "Complimentary fitness assessment",
+    Gold: [
+      "All Silver benefits",
+      "Red Light Therapy (4 sessions/month)",
+      "Dry Cryo (2 sessions/month)",
+      "Childcare add-on available ($75/month)",
+      "Purchase classes à la carte or through class passes",
     ],
     Elite: [
       "All Premium benefits",
