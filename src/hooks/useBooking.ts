@@ -276,10 +276,17 @@ export function useCancelBooking() {
 
   return useMutation({
     mutationFn: async (bookingId: string) => {
-      // Get booking details
+      // Get booking details with session info for email
       const { data: booking, error: bookingError } = await supabase
         .from("class_bookings")
-        .select("*, session:class_sessions(*)")
+        .select(`
+          *,
+          session:class_sessions(
+            *,
+            class_type:class_types(name),
+            instructor:instructors(first_name, last_name)
+          )
+        `)
         .eq("id", bookingId)
         .single();
 
@@ -310,6 +317,36 @@ export function useCancelBooking() {
         .single();
 
       if (error) throw error;
+
+      // Send cancellation confirmation email
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+        if (currentUser?.email && booking.session) {
+          const classType = Array.isArray(booking.session.class_type)
+            ? booking.session.class_type[0]
+            : booking.session.class_type;
+          const instructor = Array.isArray(booking.session.instructor)
+            ? booking.session.instructor[0]
+            : booking.session.instructor;
+
+          await supabase.functions.invoke("send-email", {
+            body: {
+              type: "booking_cancellation",
+              to: currentUser.email,
+              data: {
+                class_name: classType?.name || "Class",
+                date: format(parseISO(booking.session.session_date), "EEEE, MMMM d, yyyy"),
+                time: format(parse(booking.session.start_time, "HH:mm:ss", new Date()), "h:mm a"),
+                credit_refunded: !forfeitCredit,
+              },
+            },
+          });
+        }
+      } catch (emailError) {
+        console.error("Failed to send cancellation email:", emailError);
+        // Don't throw - cancellation succeeded, email is secondary
+      }
 
       return { ...data, forfeitCredit };
     },
