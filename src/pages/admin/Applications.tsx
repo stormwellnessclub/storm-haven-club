@@ -38,7 +38,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -145,7 +146,7 @@ export default function Applications() {
   const [planFilter, setPlanFilter] = useState<string>("all");
   const queryClient = useQueryClient();
 
-  const { data: applications = [], isLoading } = useQuery({
+  const { data: applications = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["membership-applications"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -156,6 +157,7 @@ export default function Applications() {
       return data as Application[];
     },
     enabled: !!user,
+    retry: 2,
   });
 
   const updateStatusMutation = useMutation({
@@ -476,6 +478,26 @@ export default function Applications() {
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
+      </AdminLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <AdminLayout title="Membership Applications">
+        <Alert variant="destructive" className="max-w-2xl mx-auto mt-8">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Failed to load applications</AlertTitle>
+          <AlertDescription className="mt-2">
+            <p className="mb-3">
+              {(error as Error)?.message || "An unexpected error occurred while fetching applications."}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
       </AdminLayout>
     );
   }
