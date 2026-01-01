@@ -194,6 +194,17 @@ export function useBookClass() {
         bookingData.credits_used = 1;
       }
 
+      // Check if user is claiming from waitlist (has 'notified' status for this session)
+      const { data: waitlistEntry } = await supabase
+        .from("class_waitlist")
+        .select("id, status")
+        .eq("session_id", sessionId)
+        .eq("user_id", user.id)
+        .eq("status", "notified")
+        .single();
+
+      const isWaitlistClaim = !!waitlistEntry;
+
       const { data, error } = await supabase
         .from("class_bookings")
         .insert(bookingData)
@@ -201,6 +212,17 @@ export function useBookClass() {
         .single();
 
       if (error) throw error;
+
+      // If claiming from waitlist, update the waitlist entry to 'claimed'
+      if (isWaitlistClaim && waitlistEntry) {
+        await supabase
+          .from("class_waitlist")
+          .update({
+            status: "claimed",
+            claimed_at: new Date().toISOString(),
+          })
+          .eq("id", waitlistEntry.id);
+      }
 
       // If using a class pass, decrement the remaining classes
       if (paymentMethod === "pass" && passId) {
@@ -213,7 +235,7 @@ export function useBookClass() {
           });
       }
 
-      // Send booking confirmation email
+      // Send booking confirmation email (or waitlist claim confirmation)
       try {
         const { data: sessionDetails } = await supabase
           .from("class_sessions")
@@ -237,14 +259,17 @@ export function useBookClass() {
             ? sessionDetails.instructor[0]
             : sessionDetails.instructor;
 
+          // Send different email based on whether this was a waitlist claim
           await supabase.functions.invoke("send-email", {
             body: {
-              type: "booking_confirmation",
+              type: isWaitlistClaim ? "waitlist_claim_confirmation" : "booking_confirmation",
               to: currentUser.email,
               data: {
                 class_name: classType?.name || "Class",
+                className: classType?.name || "Class",
                 date: format(parseISO(sessionDetails.session_date), "EEEE, MMMM d, yyyy"),
                 time: format(parse(sessionDetails.start_time, "HH:mm:ss", new Date()), "h:mm a"),
+                room: sessionDetails.room || undefined,
                 location: sessionDetails.room || "Storm Wellness Club",
                 instructor: instructor
                   ? `${instructor.first_name} ${instructor.last_name}`

@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification';
+  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation';
   to: string;
   data: Record<string, any>;
 }
@@ -289,6 +289,51 @@ serve(async (req) => {
                 <a href="${BASE_URL}/schedule" style="${emailStyles.button}">Claim Your Spot Now</a>
               </div>
               <p style="${emailStyles.muted}">If you don't claim this spot within 5 minutes, it will be offered to the next person on the waitlist.</p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'waitlist_claim_confirmation':
+        subject = `Waitlist Spot Claimed! - ${data.class_name}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="color: #1a1a2e; margin-top: 0;">You Got the Spot! 🎉</h2>
+              <p>Congratulations! You successfully claimed your spot from the waitlist:</p>
+              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Class</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.class_name}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Time</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.time}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Instructor</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.instructor}</td>
+                  </tr>
+                  ${data.room ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Room</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.room}</td>
+                  </tr>
+                  ` : ''}
+                </table>
+              </div>
+              <p style="color: #10b981; font-weight: 500;">✓ Your spot is now confirmed!</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/bookings" style="${emailStyles.button}">View My Bookings</a>
+              </div>
+              <p style="${emailStyles.muted}">Please arrive 5-10 minutes early to check in. Remember, cancellations must be made at least 24 hours in advance to avoid forfeiting your credit.</p>
             </div>
             ${getEmailFooter()}
           </div>
