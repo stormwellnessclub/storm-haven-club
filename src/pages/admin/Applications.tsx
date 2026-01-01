@@ -159,16 +159,34 @@ export default function Applications() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, application }: { id: string; status: string; application?: Application }) => {
       const { error } = await supabase
         .from("membership_applications")
         .update({ status })
         .eq("id", id);
       if (error) throw error;
+      
+      // Send approval email when status is approved
+      if (status === "approved" && application) {
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              type: "application_approved",
+              to: application.email,
+              data: {
+                name: application.full_name.split(" ")[0], // Use first name for greeting
+              },
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send approval email:", emailError);
+          // Don't throw - status update succeeded, email is secondary
+        }
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
-      toast.success("Application status updated");
+      toast.success(status === "approved" ? "Application approved & email sent" : "Application status updated");
       setSelectedApplication(null);
     },
     onError: () => {
@@ -308,10 +326,32 @@ export default function Applications() {
         .update({ status })
         .in("id", ids);
       if (error) throw error;
+      
+      // Send approval emails for bulk approvals
+      if (status === "approved") {
+        const approvedApps = applications.filter(app => ids.includes(app.id));
+        for (const app of approvedApps) {
+          try {
+            await supabase.functions.invoke("send-email", {
+              body: {
+                type: "application_approved",
+                to: app.email,
+                data: {
+                  name: app.full_name.split(" ")[0],
+                },
+              },
+            });
+          } catch (emailError) {
+            console.error(`Failed to send approval email to ${app.email}:`, emailError);
+          }
+        }
+      }
     },
     onSuccess: (_, { ids, status }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
-      toast.success(`${ids.length} application(s) marked as ${status}`);
+      toast.success(status === "approved" 
+        ? `${ids.length} application(s) approved & emails sent` 
+        : `${ids.length} application(s) marked as ${status}`);
       setSelectedIds(new Set());
     },
     onError: () => {
@@ -585,7 +625,7 @@ export default function Applications() {
                             View Details
                           </DropdownMenuItem>
                           {app.status !== "approved" && (
-                            <DropdownMenuItem className="text-green-600" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved" })}>
+                            <DropdownMenuItem className="text-green-600" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app })}>
                               <CheckCircle className="h-4 w-4 mr-2" />
                               Approve
                             </DropdownMenuItem>
@@ -755,7 +795,7 @@ export default function Applications() {
                     <p className="text-sm text-muted-foreground mb-3">Update Application Status</p>
                     <div className="flex gap-2 flex-wrap">
                       {selectedApplication.status !== "approved" && (
-                        <Button size="sm" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "approved" })}>
+                        <Button size="sm" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "approved", application: selectedApplication })}>
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Approve
                         </Button>

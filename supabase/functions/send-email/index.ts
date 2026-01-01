@@ -94,21 +94,38 @@ serve(async (req) => {
         break;
 
       case 'application_approved':
-        subject = 'Welcome to Storm Wellness Club!';
+        subject = 'Your Application to Storm Wellness Club is Approved';
         html = `
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="${emailStyles.heading}">Congratulations, ${data.name}!</h2>
-              <p>Your membership application has been <strong style="color: #10b981;">approved</strong>!</p>
-              <div style="background: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0;"><strong>Your Member ID:</strong> ${data.memberId}</p>
-              </div>
-              <p>You can now sign in to your member portal and start booking classes.</p>
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Your application to Storm Wellness Club is approved.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                The way you choose to care for yourself matters. Storm Wellness Club was built for people who value intention, depth, and an environment that supports the whole person—physically, mentally, and through recovery.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Every element of Storm Wellness Club is designed with care and precision, so your time, energy, and well-being are respected the moment you step inside.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We look forward to welcoming you inside Storm Wellness Club.
+              </p>
+              
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Sign In to Member Portal</a>
+                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Access Your Member Portal</a>
               </div>
-              <p>We look forward to seeing you at the club!</p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
+                <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
             </div>
             ${getEmailFooter()}
           </div>
