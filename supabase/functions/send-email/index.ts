@@ -14,22 +14,22 @@ interface EmailRequest {
 
 const BASE_URL = 'https://stormwellnessclub.com';
 
-// Email template styling
+// Email template styling - Brand colors: Gold #C9A227, Charcoal #312D28
 const emailStyles = {
   container: 'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;',
-  header: 'background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;',
-  logo: 'color: #c4a052; font-size: 24px; font-weight: bold; margin: 0;',
+  header: 'background: linear-gradient(135deg, #312D28 0%, #3D3830 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;',
   content: 'background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none;',
   footer: 'background: #f9fafb; padding: 20px; text-align: center; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;',
-  button: 'display: inline-block; background: #c4a052; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px 5px;',
-  buttonSecondary: 'display: inline-block; background: #1a1a2e; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 500; margin: 10px 5px;',
-  link: 'color: #c4a052; text-decoration: none;',
+  button: 'display: inline-block; background: #C9A227; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px 5px;',
+  buttonSecondary: 'display: inline-block; background: #312D28; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 500; margin: 10px 5px;',
+  link: 'color: #C9A227; text-decoration: none;',
   muted: 'color: #6b7280; font-size: 14px;',
+  heading: 'color: #312D28; margin-top: 0;',
 };
 
 const getEmailHeader = () => `
   <div style="${emailStyles.header}">
-    <h1 style="${emailStyles.logo}">STORM WELLNESS CLUB</h1>
+    <img src="${BASE_URL}/storm-logo-gold.png" alt="Storm Wellness Club" height="60" style="display: block; margin: 0 auto;" />
   </div>
 `;
 
@@ -79,7 +79,7 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="color: #1a1a2e; margin-top: 0;">Thank you for applying, ${data.name}!</h2>
+              <h2 style="${emailStyles.heading}">Thank you for applying, ${data.name}!</h2>
               <p>We have received your membership application for the <strong>${data.membershipPlan}</strong> plan.</p>
               <p>Our team will review your application and get back to you within 2-3 business days.</p>
               <p>In the meantime, feel free to explore our facilities and class offerings:</p>
@@ -99,7 +99,7 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="color: #1a1a2e; margin-top: 0;">Congratulations, ${data.name}!</h2>
+              <h2 style="${emailStyles.heading}">Congratulations, ${data.name}!</h2>
               <p>Your membership application has been <strong style="color: #10b981;">approved</strong>!</p>
               <div style="background: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 15px; margin: 20px 0;">
                 <p style="margin: 0;"><strong>Your Member ID:</strong> ${data.memberId}</p>
@@ -121,7 +121,7 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="color: #1a1a2e; margin-top: 0;">Booking Confirmed! ✓</h2>
+              <h2 style="${emailStyles.heading}">Booking Confirmed! ✓</h2>
               <p>You're all set for your upcoming class:</p>
               <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <table style="width: 100%; border-collapse: collapse;">
@@ -166,7 +166,7 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="color: #1a1a2e; margin-top: 0;">Booking Cancelled</h2>
+              <h2 style="${emailStyles.heading}">Booking Cancelled</h2>
               <p>Your booking has been cancelled:</p>
               <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <table style="width: 100%; border-collapse: collapse;">
@@ -200,7 +200,7 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="color: #1a1a2e; margin-top: 0;">Waiver Signature Required</h2>
+              <h2 style="${emailStyles.heading}">Waiver Signature Required</h2>
               <p>Hi ${data.name},</p>
               <p>Please sign your liability waiver before your first class. This is required for your safety and ours.</p>
               <div style="text-align: center; margin: 30px 0;">
@@ -219,7 +219,7 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="color: #1a1a2e; margin-top: 0;">Class Reminder ⏰</h2>
+              <h2 style="${emailStyles.heading}">Class Reminder ⏰</h2>
               <p>Don't forget - you have a class coming up tomorrow!</p>
               <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <table style="width: 100%; border-collapse: collapse;">
@@ -264,7 +264,7 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="color: #1a1a2e; margin-top: 0;">A Spot Just Opened Up! 🎉</h2>
+              <h2 style="${emailStyles.heading}">A Spot Just Opened Up! 🎉</h2>
               <p>Great news! A spot has become available in a class you're on the waitlist for:</p>
               <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <table style="width: 100%; border-collapse: collapse;">
@@ -301,7 +301,7 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="color: #1a1a2e; margin-top: 0;">You Got the Spot! 🎉</h2>
+              <h2 style="${emailStyles.heading}">You Got the Spot! 🎉</h2>
               <p>Congratulations! You successfully claimed your spot from the waitlist:</p>
               <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <table style="width: 100%; border-collapse: collapse;">
