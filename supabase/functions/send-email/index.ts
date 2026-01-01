@@ -12,7 +12,7 @@ interface EmailRequest {
   data: Record<string, any>;
 }
 
-const BASE_URL = 'https://stormwellnessclub.com';
+const BASE_URL = 'https://cqzmrdzwgsujgbjqpoxh.lovableproject.com';
 
 // Email template styling - Brand colors: Gold #C9A227, Charcoal #312D28
 const emailStyles = {
