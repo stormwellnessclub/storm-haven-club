@@ -27,3 +27,7 @@ verify_jwt = false
 [functions.notify-waitlist]
 enabled = true
 verify_jwt = true
+
+[functions.process-expired-waitlist]
+enabled = true
+verify_jwt = false
