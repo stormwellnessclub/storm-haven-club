@@ -17,6 +17,7 @@ import {
   ListChecks,
   UserCog,
   CalendarDays,
+  Mail,
 } from "lucide-react";
 import {
   Sidebar,
@@ -68,6 +69,7 @@ const servicesItems: MenuItem[] = [
 
 const systemItems: MenuItem[] = [
   { title: "Staff Roles", url: "/admin/staff-roles", icon: Shield, requiredRoles: ['super_admin', 'admin'] },
+  { title: "Emails", url: "/admin/emails", icon: Mail, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
   { title: "Settings", url: "/admin/settings", icon: Settings, requiredRoles: ['super_admin', 'admin'] },
 ];
 

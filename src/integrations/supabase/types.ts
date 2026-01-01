@@ -476,6 +476,80 @@ export type Database = {
           },
         ]
       }
+      email_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string | null
+          status: Database["public"]["Enums"]["conversation_status"]
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          status?: Database["public"]["Enums"]["conversation_status"]
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          status?: Database["public"]["Enums"]["conversation_status"]
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_messages: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message_body: string
+          resend_message_id: string | null
+          sender_email: string
+          sender_name: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type"]
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_body: string
+          resend_message_id?: string | null
+          sender_email: string
+          sender_name?: string | null
+          sender_type: Database["public"]["Enums"]["message_sender_type"]
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_body?: string
+          resend_message_id?: string | null
+          sender_email?: string
+          sender_name?: string | null
+          sender_type?: Database["public"]["Enums"]["message_sender_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "email_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instructors: {
         Row: {
           bio: string | null
@@ -806,6 +880,8 @@ export type Database = {
         | "childcare_staff"
       booking_status: "confirmed" | "cancelled" | "no_show" | "completed"
       class_category: "pilates_cycling" | "other"
+      conversation_status: "open" | "in_progress" | "resolved" | "closed"
+      message_sender_type: "member" | "staff"
       pass_status: "active" | "expired" | "exhausted"
       waitlist_status:
         | "waiting"
@@ -952,6 +1028,8 @@ export const Constants = {
       ],
       booking_status: ["confirmed", "cancelled", "no_show", "completed"],
       class_category: ["pilates_cycling", "other"],
+      conversation_status: ["open", "in_progress", "resolved", "closed"],
+      message_sender_type: ["member", "staff"],
       pass_status: ["active", "expired", "exhausted"],
       waitlist_status: [
         "waiting",
