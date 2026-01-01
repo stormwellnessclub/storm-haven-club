@@ -43,10 +43,10 @@ export function useUserMembership() {
 export function getMembershipTierBenefits(tier: string): string[] {
   const tierBenefits: Record<string, string[]> = {
     Silver: [
-      "Access to gym floor and equipment",
-      "Locker room access",
-      "Sauna and steam room access",
-      "Member pricing on class passes",
+      "Full access to state-of-the-art gym",
+      "Wet spa amenities: sauna, steam room, Himalayan salt room, cold plunge",
+      "Childcare add-on available ($75/month)",
+      "Purchase classes à la carte or through class passes",
     ],
     Gold: [
       "All Silver benefits",
