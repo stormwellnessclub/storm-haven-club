@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder';
+  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification';
   to: string;
   data: Record<string, any>;
 }
@@ -252,6 +252,43 @@ serve(async (req) => {
                 <a href="${BASE_URL}/member/bookings" style="${emailStyles.button}">View My Bookings</a>
               </div>
               <p style="${emailStyles.muted}">Need to cancel? Please do so at least 24 hours in advance to avoid losing your credit.</p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'waitlist_notification':
+        subject = `Spot Available: ${data.class_name} - Claim Now!`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="color: #1a1a2e; margin-top: 0;">A Spot Just Opened Up! 🎉</h2>
+              <p>Great news! A spot has become available in a class you're on the waitlist for:</p>
+              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Class</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.class_name}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Time</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.time}</td>
+                  </tr>
+                </table>
+              </div>
+              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">⏰ Act fast! You have 5 minutes to claim this spot.</p>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/schedule" style="${emailStyles.button}">Claim Your Spot Now</a>
+              </div>
+              <p style="${emailStyles.muted}">If you don't claim this spot within 5 minutes, it will be offered to the next person on the waitlist.</p>
             </div>
             ${getEmailFooter()}
           </div>

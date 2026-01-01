@@ -348,6 +348,16 @@ export function useCancelBooking() {
         // Don't throw - cancellation succeeded, email is secondary
       }
 
+      // Notify next person on waitlist if there is one
+      try {
+        await supabase.functions.invoke("notify-waitlist", {
+          body: { session_id: booking.session.id },
+        });
+      } catch (waitlistError) {
+        console.error("Failed to notify waitlist:", waitlistError);
+        // Don't throw - cancellation succeeded, waitlist notification is secondary
+      }
+
       return { ...data, forfeitCredit };
     },
     onSuccess: (data) => {
