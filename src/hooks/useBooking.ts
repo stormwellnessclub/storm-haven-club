@@ -309,6 +309,14 @@ export function useCancelBooking() {
 
   return useMutation({
     mutationFn: async (bookingId: string) => {
+      // Validate and refresh session to ensure JWT is current for RLS
+      const { data: { session: authSession }, error: sessionRefreshError } = 
+        await supabase.auth.getSession();
+      
+      if (sessionRefreshError || !authSession) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+
       // Get booking details with session info for email
       const { data: booking, error: bookingError } = await supabase
         .from("class_bookings")
