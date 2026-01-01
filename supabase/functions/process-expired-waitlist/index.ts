@@ -6,6 +6,59 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Validate authorization - accepts service role key, anon key (cron), or admin JWT
+async function validateRequest(req: Request, supabase: any): Promise<boolean> {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader) {
+    console.log('No authorization header present');
+    return false;
+  }
+
+  // Check for service role key (internal function calls)
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (authHeader === `Bearer ${serviceRoleKey}`) {
+    console.log('Authorized via service role key');
+    return true;
+  }
+
+  // Check for anon key (cron job calls via pg_net)
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (authHeader === `Bearer ${anonKey}`) {
+    console.log('Authorized via anon key (cron job)');
+    return true;
+  }
+
+  // Validate JWT token for admin users
+  try {
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.log('Invalid JWT token:', error?.message);
+      return false;
+    }
+
+    // Check if user has admin role
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .in('role', ['super_admin', 'admin']);
+
+    if (roles && roles.length > 0) {
+      console.log(`Authorized admin user: ${user.id}`);
+      return true;
+    }
+
+    console.log('User lacks admin privileges');
+    return false;
+  } catch (err) {
+    console.error('JWT validation error:', err);
+    return false;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -19,6 +72,16 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate authorization
+    const isAuthorized = await validateRequest(req, supabase);
+    if (!isAuthorized) {
+      console.log('Unauthorized request rejected');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
 
     // Find expired waitlist notifications
     const { data: expiredEntries, error: fetchError } = await supabase

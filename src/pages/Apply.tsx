@@ -68,10 +68,7 @@ export default function Apply() {
     referredByMember: "",
     foundingMember: "",
     creditCardAuth: false,
-    nameOnCard: "",
-    expiryDate: "",
-    cardNumber: "",
-    cvv: "",
+    paymentAcknowledged: false,
     oneYearCommitment: false,
     authAcknowledgment: false,
     submissionConfirmation: false,
@@ -104,10 +101,50 @@ export default function Apply() {
         !formData.email || !formData.phone || !formData.membershipPlan ||
         formData.wellnessGoals.length === 0 || formData.servicesInterested.length === 0 ||
         !formData.referredByMember || !formData.foundingMember ||
-        !formData.creditCardAuth || !formData.nameOnCard || !formData.expiryDate ||
-        !formData.cardNumber || !formData.cvv || !formData.oneYearCommitment ||
+        !formData.creditCardAuth || !formData.paymentAcknowledged || !formData.oneYearCommitment ||
         !formData.authAcknowledgment || !formData.submissionConfirmation) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Validate input lengths for security
+    const maxLengths: Record<string, number> = {
+      fullName: 100,
+      address: 200,
+      city: 100,
+      state: 50,
+      zipCode: 20,
+      country: 100,
+      email: 255,
+      phone: 30,
+      otherGoals: 500,
+      otherServices: 500,
+      otherMotivation: 500,
+      lifestyleIntegration: 1000,
+      holisticWellness: 1000,
+      previousMember: 50,
+      referredByMember: 50,
+      foundingMember: 50,
+    };
+
+    for (const [field, maxLength] of Object.entries(maxLengths)) {
+      const value = formData[field as keyof typeof formData];
+      if (typeof value === 'string' && value.length > maxLength) {
+        toast.error(`${field.replace(/([A-Z])/g, ' $1').trim()} is too long (max ${maxLength} characters)`);
+        return;
+      }
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    // Validate array lengths
+    if (formData.wellnessGoals.length > 10 || formData.servicesInterested.length > 10 || formData.motivations.length > 10) {
+      toast.error("Too many selections");
       return;
     }
 
@@ -651,20 +688,19 @@ export default function Apply() {
               </div>
             </div>
 
-            {/* Payment Details */}
+            {/* Payment Information */}
             <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-accent">Payment Details</h2>
+              <h2 className="font-serif text-2xl mb-6 text-accent">Payment Information</h2>
               
               <div className="space-y-4">
                 <div className="p-4 bg-secondary/50 rounded-sm mb-4">
                   <p className="text-sm text-muted-foreground">
-                    <strong className="text-foreground">Credit Card Initiation Authorization Notice</strong>
+                    <strong className="text-foreground">Secure Payment Process</strong>
                     <br /><br />
-                    As part of the application process for membership at Storm Fitness and Wellness Center, 
-                    we require all applicants to provide valid credit card information. Please note that no 
-                    charges will be made to your card at the time of application. Your credit card will only 
-                    be charged the initiation fee upon the approval of your membership application. This policy 
-                    ensures a seamless transition into our community for approved members.
+                    For your security, we do not collect credit card information during the application process. 
+                    Once your membership application is approved, you will receive a secure payment link via email 
+                    to complete your initiation fee payment through our encrypted payment processor. No charges 
+                    will be made until your membership is approved and you authorize the payment.
                   </p>
                 </div>
 
@@ -676,57 +712,20 @@ export default function Apply() {
                     required
                   />
                   <Label htmlFor="creditCardAuth" className="font-normal cursor-pointer text-sm">
-                    I have read, understand, and agree to abide by the terms and conditions stated on this application. *
+                    I understand that I will receive a secure payment link upon approval of my membership application. *
                   </Label>
                 </div>
 
-                <div>
-                  <Label htmlFor="nameOnCard">Name on Card *</Label>
-                  <Input
-                    id="nameOnCard"
-                    name="nameOnCard"
-                    value={formData.nameOnCard}
-                    onChange={handleInputChange}
-                    className="mt-1"
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="paymentAcknowledged"
+                    checked={formData.paymentAcknowledged}
+                    onCheckedChange={(checked) => handleCheckboxChange("paymentAcknowledged", checked as boolean)}
                     required
                   />
-                </div>
-
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="expiryDate">Expiry Date *</Label>
-                    <Input
-                      id="expiryDate"
-                      name="expiryDate"
-                      value={formData.expiryDate}
-                      onChange={handleInputChange}
-                      placeholder="MM/YY"
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cardNumber">Card Number *</Label>
-                    <Input
-                      id="cardNumber"
-                      name="cardNumber"
-                      value={formData.cardNumber}
-                      onChange={handleInputChange}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cvv">CVC/CVV *</Label>
-                    <Input
-                      id="cvv"
-                      name="cvv"
-                      value={formData.cvv}
-                      onChange={handleInputChange}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
+                  <Label htmlFor="paymentAcknowledged" className="font-normal cursor-pointer text-sm">
+                    I acknowledge that the initiation fee will be due upon approval and I agree to complete payment via the secure link provided. *
+                  </Label>
                 </div>
               </div>
             </div>
