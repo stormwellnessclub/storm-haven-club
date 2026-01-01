@@ -36,8 +36,9 @@ const getEmailHeader = () => `
 const getEmailFooter = () => `
   <div style="${emailStyles.footer}">
     <p style="${emailStyles.muted}">
-      Have questions? Reply to this email or contact us at<br>
-      <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a>
+      Have questions? Visit your member portal:<br>
+      <a href="${BASE_URL}/member/support" style="${emailStyles.link}">Contact Support</a> · 
+      <a href="${BASE_URL}/member/bookings" style="${emailStyles.link}">Manage Bookings</a>
     </p>
     <p style="${emailStyles.muted}">
       Storm Wellness Club<br>
@@ -218,7 +219,6 @@ serve(async (req) => {
 
     const emailResponse = await resend.emails.send({
       from: 'Storm Wellness Club <admin@stormwellnessclub.com>',
-      reply_to: 'admin@stormwellnessclub.com',
       to: [to],
       subject,
       html,
