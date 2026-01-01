@@ -1,1 +1,17 @@
 project_id = "cqzmrdzwgsujgbjqpoxh"
+
+[functions.hello]
+enabled = true
+verify_jwt = false
+
+[functions.send-email]
+enabled = true
+verify_jwt = true
+
+[functions.stripe-payment]
+enabled = true
+verify_jwt = false
+
+[functions.ai-recommendations]
+enabled = true
+verify_jwt = true

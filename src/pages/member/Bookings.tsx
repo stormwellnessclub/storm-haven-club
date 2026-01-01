@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUpcomingBookings, usePastBookings, useCancelBooking } from "@/hooks/useBooking";
 import { Calendar, Clock, MapPin, User, X } from "lucide-react";
-import { format, parseISO, differenceInHours } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -113,15 +113,8 @@ function BookingCard({ booking, isUpcoming }: BookingCardProps) {
   
   const cancelBooking = useCancelBooking();
 
-  const sessionDateTime = new Date(`${session?.session_date}T${session?.start_time}`);
-  const hoursUntilClass = differenceInHours(sessionDateTime, new Date());
-  const isLateCancellation = hoursUntilClass < 12;
-
   const handleCancel = () => {
-    cancelBooking.mutate({ 
-      bookingId: booking.id,
-      isLateCancellation 
-    });
+    cancelBooking.mutate(booking.id);
   };
 
   return (
@@ -179,15 +172,7 @@ function BookingCard({ booking, isUpcoming }: BookingCardProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {isLateCancellation ? (
-                      <>
-                        <strong className="text-destructive">Late Cancellation Warning:</strong> This class 
-                        starts in less than 12 hours. Late cancellations may result in the loss of your 
-                        class credit or pass.
-                      </>
-                    ) : (
-                      "Are you sure you want to cancel this booking? Your credit or pass will be refunded."
-                    )}
+                    Are you sure you want to cancel this booking? Late cancellations (less than 12 hours before class) may result in the loss of your class credit or pass.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

@@ -5,6 +5,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedAdminRoute } from "@/components/admin/ProtectedAdminRoute";
+import { ProtectedMemberRoute } from "@/components/member/ProtectedMemberRoute";
+import MemberDashboard from "@/pages/member/Dashboard";
+import MemberProfile from "@/pages/member/Profile";
+import MemberCredits from "@/pages/member/Credits";
+import MemberMembership from "@/pages/member/Membership";
+import MemberBookings from "@/pages/member/Bookings";
+import MemberWaivers from "@/pages/member/Waivers";
 import Index from "./pages/Index";
 import Classes from "./pages/Classes";
 import Spa from "./pages/Spa";
@@ -57,6 +64,14 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/my-bookings" element={<MyBookings />} />
+            
+            {/* Member Portal Routes - Protected */}
+            <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
+            <Route path="/member/profile" element={<ProtectedMemberRoute><MemberProfile /></ProtectedMemberRoute>} />
+            <Route path="/member/credits" element={<ProtectedMemberRoute><MemberCredits /></ProtectedMemberRoute>} />
+            <Route path="/member/membership" element={<ProtectedMemberRoute><MemberMembership /></ProtectedMemberRoute>} />
+            <Route path="/member/bookings" element={<ProtectedMemberRoute><MemberBookings /></ProtectedMemberRoute>} />
+            <Route path="/member/waivers" element={<ProtectedMemberRoute><MemberWaivers /></ProtectedMemberRoute>} />
             
             {/* Admin Routes - Protected by Role */}
             <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />

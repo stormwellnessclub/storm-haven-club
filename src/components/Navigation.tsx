@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, X, User, LogOut, LayoutDashboard, CalendarDays, CreditCard, Ticket, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -62,16 +62,48 @@ export function Navigation() {
                     Account
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem className="text-muted-foreground text-xs">
                     {user.email}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/my-bookings" className="cursor-pointer">
+                    <Link to="/member" className="cursor-pointer">
+                      <LayoutDashboard className="w-4 h-4 mr-2" />
+                      My Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/member/profile" className="cursor-pointer">
+                      <User className="w-4 h-4 mr-2" />
+                      My Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/member/bookings" className="cursor-pointer">
+                      <CalendarDays className="w-4 h-4 mr-2" />
                       My Bookings
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/member/credits" className="cursor-pointer">
+                      <Ticket className="w-4 h-4 mr-2" />
+                      My Credits
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/member/membership" className="cursor-pointer">
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      My Membership
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/member/waivers" className="cursor-pointer">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Waivers
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link to="/apply" className="cursor-pointer">
                       Membership Application
