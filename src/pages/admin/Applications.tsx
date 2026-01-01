@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -132,6 +133,7 @@ const getAnnualFeeBadge = (status: string) => {
 };
 
 export default function Applications() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
@@ -153,6 +155,7 @@ export default function Applications() {
       if (error) throw error;
       return data as Application[];
     },
+    enabled: !!user,
   });
 
   const updateStatusMutation = useMutation({
