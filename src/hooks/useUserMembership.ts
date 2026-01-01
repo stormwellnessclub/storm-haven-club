@@ -42,12 +42,11 @@ export function useUserMembership() {
 
 export function getMembershipTierBenefits(tier: string): string[] {
   const tierBenefits: Record<string, string[]> = {
-    Essential: [
+    Silver: [
       "Access to gym floor and equipment",
       "Locker room access",
-      "10 monthly class credits",
+      "Sauna and steam room access",
       "Member pricing on class passes",
-      "5% spa discount",
     ],
     Gold: [
       "All Silver benefits",
@@ -56,17 +55,28 @@ export function getMembershipTierBenefits(tier: string): string[] {
       "Childcare add-on available ($75/month)",
       "Purchase classes à la carte or through class passes",
     ],
-    Elite: [
-      "All Premium benefits",
-      "Unlimited class credits",
-      "Priority spa booking",
-      "Guest passes (4 per month)",
-      "12% spa discount",
-      "Personal training session monthly",
-      "Exclusive member events",
-      "Complimentary childcare",
+    Platinum: [
+      "All Gold benefits",
+    ],
+    Diamond: [
+      "All Platinum benefits",
     ],
   };
 
-  return tierBenefits[tier] || tierBenefits["Essential"];
+  // Normalize the tier name: lowercase, remove "membership" suffix
+  const normalizedTier = tier
+    ?.toLowerCase()
+    .replace(" membership", "")
+    .trim();
+  
+  // Map to proper case
+  const tierMap: Record<string, string> = {
+    silver: "Silver",
+    gold: "Gold", 
+    platinum: "Platinum",
+    diamond: "Diamond",
+  };
+  
+  const matchedTier = tierMap[normalizedTier] || "Silver";
+  return tierBenefits[matchedTier] || tierBenefits["Silver"];
 }
