@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
@@ -6,17 +6,46 @@ import { ApplicationUnderReview } from "./ApplicationUnderReview";
 import { ActivationRequired } from "./ActivationRequired";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProtectedMemberRouteProps {
   children: ReactNode;
 }
 
 export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const [validatingSession, setValidatingSession] = useState(true);
+  const [sessionValid, setSessionValid] = useState(false);
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
 
-  // Show loading while auth is being determined
-  if (authLoading) {
+  // Validate session on mount
+  useEffect(() => {
+    const validateSession = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error || !user) {
+        // Session invalid - try refresh
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          // Refresh failed - sign out
+          await signOut();
+          setSessionValid(false);
+        } else {
+          setSessionValid(true);
+        }
+      } else {
+        setSessionValid(true);
+      }
+      setValidatingSession(false);
+    };
+
+    if (!authLoading) {
+      validateSession();
+    }
+  }, [authLoading, signOut]);
+
+  // Show loading while auth or session validation is in progress
+  if (authLoading || validatingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -24,8 +53,8 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
     );
   }
 
-  // Redirect to auth if not logged in
-  if (!user) {
+  // Redirect to auth if not logged in or session invalid
+  if (!user || !sessionValid) {
     return <Navigate to="/auth" replace />;
   }
 
@@ -67,6 +96,5 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   }
 
   // For active members or users without applications, show the member portal
-  // Users without applications can still access the portal to view classes, etc.
   return <>{children}</>;
 }
