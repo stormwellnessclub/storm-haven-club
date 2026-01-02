@@ -500,6 +500,63 @@ export type Database = {
           },
         ]
       }
+      credit_adjustments: {
+        Row: {
+          adjusted_by: string
+          adjustment_type: string
+          amount: number
+          created_at: string
+          credit_type: string
+          id: string
+          member_credit_id: string | null
+          member_id: string
+          new_balance: number
+          previous_balance: number
+          reason: string | null
+        }
+        Insert: {
+          adjusted_by: string
+          adjustment_type: string
+          amount: number
+          created_at?: string
+          credit_type: string
+          id?: string
+          member_credit_id?: string | null
+          member_id: string
+          new_balance: number
+          previous_balance: number
+          reason?: string | null
+        }
+        Update: {
+          adjusted_by?: string
+          adjustment_type?: string
+          amount?: number
+          created_at?: string
+          credit_type?: string
+          id?: string
+          member_credit_id?: string | null
+          member_id?: string
+          new_balance?: number
+          previous_balance?: number
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_adjustments_member_credit_id_fkey"
+            columns: ["member_credit_id"]
+            isOneToOne: false
+            referencedRelation: "member_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_adjustments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_conversations: {
         Row: {
           created_at: string
