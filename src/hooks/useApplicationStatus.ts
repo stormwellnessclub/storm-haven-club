@@ -70,49 +70,32 @@ export function useApplicationStatus() {
         }
       }
 
-      // No member found by user_id - try to find and auto-link by email
+      // No member found by user_id - try to auto-link using secure RPC function
       if (!memberData && user.email) {
-        const { data: unlinkedMember, error: unlinkedError } = await supabase
-          .from("members")
-          .select("*")
-          .ilike("email", user.email)
-          .is("user_id", null)
-          .maybeSingle();
+        console.log("No linked member found, attempting auto-link via RPC for:", user.email);
+        
+        const { data: linkedResult, error: linkError } = await supabase
+          .rpc("link_member_by_email");
 
-        if (unlinkedError) {
-          console.error("Error checking for unlinked member:", unlinkedError);
-        }
-
-        // Found an unlinked member with matching email - try to link it
-        if (unlinkedMember) {
-          console.log("Found unlinked member, attempting to link:", unlinkedMember.email);
+        if (linkError) {
+          console.error("Error calling link_member_by_email RPC:", linkError);
+          // Continue to check for pending application
+        } else if (linkedResult && linkedResult.length > 0) {
+          const linkedMember = linkedResult[0];
+          console.log("Successfully linked member via RPC:", linkedMember.email, "status:", linkedMember.status);
           
-          const { data: linkedMember, error: linkError } = await supabase
-            .from("members")
-            .update({ user_id: user.id })
-            .eq("id", unlinkedMember.id)
-            .select()
-            .single();
-
-          if (linkError) {
-            console.error("Failed to auto-link member:", linkError);
-            // Continue to check for pending application
-          } else if (linkedMember) {
-            console.log("Successfully auto-linked member:", linkedMember.email);
-            
-            if (linkedMember.status === "active") {
-              return {
-                status: "active_member",
-                memberData: linkedMember,
-              };
-            }
-            
-            if (linkedMember.status === "pending_activation") {
-              return {
-                status: "pending_activation",
-                memberData: linkedMember,
-              };
-            }
+          if (linkedMember.status === "active") {
+            return {
+              status: "active_member",
+              memberData: linkedMember,
+            };
+          }
+          
+          if (linkedMember.status === "pending_activation") {
+            return {
+              status: "pending_activation",
+              memberData: linkedMember,
+            };
           }
         }
       }

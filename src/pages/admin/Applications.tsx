@@ -178,10 +178,36 @@ export default function Applications() {
         const firstName = nameParts[0] || "";
         const lastName = nameParts.slice(1).join(" ") || "";
         
-        // Look up user_id by email - first try profiles, then auth.users via edge function
-        let userId: string | null = null;
+        // Check if member already exists for this email (prevent duplicates)
+        const { data: existingMember } = await supabase
+          .from("members")
+          .select("id, email, status, membership_type")
+          .ilike("email", application.email)
+          .maybeSingle();
         
-        // Try profiles table first
+        if (existingMember) {
+          console.log("Member already exists for:", application.email, "status:", existingMember.status);
+          toast.warning(`Member record already exists for ${application.email} (status: ${existingMember.status}). Skipping creation.`);
+          // Still send approval email if needed
+          try {
+            await supabase.functions.invoke("send-email", {
+              body: {
+                type: "application_approved",
+                to: application.email,
+                data: {
+                  name: firstName,
+                  activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+                },
+              },
+            });
+          } catch (emailError) {
+            console.error("Failed to send approval email:", emailError);
+          }
+          return;
+        }
+        
+        // Look up user_id by email
+        let userId: string | null = null;
         const { data: profileData } = await supabase
           .from("profiles")
           .select("user_id")
@@ -377,6 +403,8 @@ export default function Applications() {
       // Create member records and send approval emails for bulk approvals
       if (status === "approved") {
         const approvedApps = applications.filter(app => ids.includes(app.id));
+        let skippedCount = 0;
+        
         for (const app of approvedApps) {
           const now = new Date();
           const activationDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -385,15 +413,42 @@ export default function Applications() {
           const firstName = nameParts[0] || "";
           const lastName = nameParts.slice(1).join(" ") || "";
           
+          // Check if member already exists for this email (prevent duplicates)
+          const { data: existingMember } = await supabase
+            .from("members")
+            .select("id, email, status")
+            .ilike("email", app.email)
+            .maybeSingle();
+          
+          if (existingMember) {
+            console.log("Bulk: Member already exists for:", app.email);
+            skippedCount++;
+            // Still send email
+            try {
+              await supabase.functions.invoke("send-email", {
+                body: {
+                  type: "application_approved",
+                  to: app.email,
+                  data: {
+                    name: firstName,
+                    activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+                  },
+                },
+              });
+            } catch (emailError) {
+              console.error(`Failed to send approval email to ${app.email}:`, emailError);
+            }
+            continue;
+          }
+          
           // Look up user_id by email
           const { data: userData } = await supabase
             .from("profiles")
             .select("user_id")
-            .eq("email", app.email)
+            .ilike("email", app.email)
             .maybeSingle();
           
           // Create member record
-          // Note: Using type assertion because new columns may not be in types.ts yet
           try {
             await supabase
               .from("members")
@@ -427,6 +482,10 @@ export default function Applications() {
           } catch (emailError) {
             console.error(`Failed to send approval email to ${app.email}:`, emailError);
           }
+        }
+        
+        if (skippedCount > 0) {
+          toast.warning(`${skippedCount} member(s) already existed and were skipped.`);
         }
       }
     },

@@ -1061,6 +1061,22 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      link_member_by_email: {
+        Args: never
+        Returns: {
+          activated_at: string
+          activation_deadline: string
+          approved_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          member_id: string
+          membership_type: string
+          status: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       app_role:
