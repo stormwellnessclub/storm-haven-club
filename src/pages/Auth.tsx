@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { z } from "zod";
 import logo from "@/assets/storm-logo.png";
+import { clearAuthStorage } from "@/lib/authStorage";
+import { supabase } from "@/integrations/supabase/client";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -257,7 +259,22 @@ export default function Auth() {
             </p>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-border text-center">
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={async () => {
+                clearAuthStorage();
+                await supabase.auth.signOut();
+                window.location.reload();
+              }}
+              className="text-muted-foreground text-xs hover:text-foreground transition-colors inline-flex items-center gap-1"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Having trouble signing in? Reset session
+            </button>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-border text-center">
             <p className="text-muted-foreground text-xs">
               By creating an account, you agree to our Terms of Service and Privacy Policy.
               <br />

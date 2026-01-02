@@ -1,51 +1,74 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useCallback } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
 import { ActivationRequired } from "./ActivationRequired";
+import { SessionRepair } from "./SessionRepair";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { clearAuthStorage } from "@/lib/authStorage";
 
 interface ProtectedMemberRouteProps {
   children: ReactNode;
 }
 
+type SessionState = "validating" | "valid" | "invalid" | "needs_repair";
+
 export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
-  const { user, loading: authLoading, signOut } = useAuth();
-  const [validatingSession, setValidatingSession] = useState(true);
-  const [sessionValid, setSessionValid] = useState(false);
+  const { user, session, loading: authLoading, signOut } = useAuth();
+  const [sessionState, setSessionState] = useState<SessionState>("validating");
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
 
-  // Validate session on mount
-  useEffect(() => {
-    const validateSession = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error || !user) {
-        // Session invalid - try refresh
-        const { error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError) {
-          // Refresh failed - sign out
-          await signOut();
-          setSessionValid(false);
-        } else {
-          setSessionValid(true);
-        }
-      } else {
-        setSessionValid(true);
+  const validateSession = useCallback(async () => {
+    setSessionState("validating");
+    
+    try {
+      // Check if we have a session
+      if (!session) {
+        setSessionState("invalid");
+        return;
       }
-      setValidatingSession(false);
-    };
 
+      // Validate the session with the server
+      const { data: { user: validatedUser }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !validatedUser) {
+        // Session is invalid - try to refresh
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          // Refresh failed - show repair screen instead of silent redirect
+          setSessionState("needs_repair");
+          return;
+        }
+        
+        // Re-validate after refresh
+        const { data: { user: revalidatedUser }, error: revalidateError } = await supabase.auth.getUser();
+        
+        if (revalidateError || !revalidatedUser) {
+          setSessionState("needs_repair");
+          return;
+        }
+      }
+      
+      setSessionState("valid");
+    } catch (error) {
+      console.error("Session validation error:", error);
+      setSessionState("needs_repair");
+    }
+  }, [session]);
+
+  // Validate session when auth loading completes
+  useEffect(() => {
     if (!authLoading) {
       validateSession();
     }
-  }, [authLoading, signOut]);
+  }, [authLoading, validateSession]);
 
-  // Show loading while auth or session validation is in progress
-  if (authLoading || validatingSession) {
+  // Show loading while auth is being determined
+  if (authLoading || sessionState === "validating") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -53,8 +76,13 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
     );
   }
 
+  // Show session repair screen if session is broken but recoverable
+  if (sessionState === "needs_repair") {
+    return <SessionRepair onRetry={validateSession} />;
+  }
+
   // Redirect to auth if not logged in or session invalid
-  if (!user || !sessionValid) {
+  if (!user || sessionState === "invalid") {
     return <Navigate to="/auth" replace />;
   }
 
