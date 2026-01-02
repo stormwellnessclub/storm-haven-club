@@ -83,6 +83,10 @@ interface CreditAdjustment {
     last_name: string;
     member_id: string;
   };
+  staff?: {
+    first_name: string;
+    last_name: string;
+  };
 }
 
 export default function MemberCreditsAdmin() {
@@ -162,10 +166,20 @@ export default function MemberCreditsAdmin() {
 
       const membersMap = new Map((membersData || []).map((m) => [m.id, m]));
 
+      // Get staff info (from profiles table) for each adjustment
+      const staffIds = [...new Set((adjustments || []).map((a) => a.adjusted_by))];
+      const { data: staffData } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name")
+        .in("user_id", staffIds);
+
+      const staffMap = new Map((staffData || []).map((s) => [s.user_id, s]));
+
       return (adjustments || []).map((adj) => ({
         ...adj,
         adjustment_type: adj.adjustment_type as "add" | "remove",
         member: membersMap.get(adj.member_id),
+        staff: staffMap.get(adj.adjusted_by),
       })) as CreditAdjustment[];
     },
   });
@@ -575,6 +589,7 @@ export default function MemberCreditsAdmin() {
                         <TableHead>Credit Type</TableHead>
                         <TableHead className="text-center">Change</TableHead>
                         <TableHead className="text-center">Balance</TableHead>
+                        <TableHead>Adjusted By</TableHead>
                         <TableHead>Reason</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -616,7 +631,14 @@ export default function MemberCreditsAdmin() {
                           <TableCell className="text-center font-mono text-sm">
                             {adj.previous_balance} → {adj.new_balance}
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                          <TableCell className="text-sm">
+                            {adj.staff ? (
+                              <span>{adj.staff.first_name} {adj.staff.last_name}</span>
+                            ) : (
+                              <span className="text-muted-foreground">System</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="max-w-[150px] truncate text-sm text-muted-foreground">
                             {adj.reason || "—"}
                           </TableCell>
                         </TableRow>
