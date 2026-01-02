@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,14 +30,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Loader2, Plus, Minus, Coins, History, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
-import { format } from "date-fns";
+import { Search, Loader2, Plus, Minus, Coins, History, ArrowUpCircle, ArrowDownCircle, CalendarIcon, X } from "lucide-react";
+import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { toast } from "sonner";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
+import { cn } from "@/lib/utils";
 
 interface MemberWithCredits {
   id: string;
@@ -86,6 +93,13 @@ export default function MemberCreditsAdmin() {
   const [creditType, setCreditType] = useState<CreditType>("class");
   const [amount, setAmount] = useState("1");
   const [reason, setReason] = useState("");
+
+  // History filters
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyDateFrom, setHistoryDateFrom] = useState<Date | undefined>();
+  const [historyDateTo, setHistoryDateTo] = useState<Date | undefined>();
+  const [historyCreditType, setHistoryCreditType] = useState<string>("all");
+  const [historyAdjustmentType, setHistoryAdjustmentType] = useState<string>("all");
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -230,6 +244,51 @@ export default function MemberCreditsAdmin() {
       member.member_id?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Filter adjustment history
+  const filteredHistory = useMemo(() => {
+    return adjustmentHistory.filter((adj) => {
+      // Member search filter
+      if (historySearch) {
+        const searchLower = historySearch.toLowerCase();
+        const memberMatch = adj.member && (
+          adj.member.first_name?.toLowerCase().includes(searchLower) ||
+          adj.member.last_name?.toLowerCase().includes(searchLower) ||
+          adj.member.member_id?.toLowerCase().includes(searchLower)
+        );
+        if (!memberMatch) return false;
+      }
+
+      // Date range filter
+      if (historyDateFrom || historyDateTo) {
+        const adjDate = new Date(adj.created_at);
+        if (historyDateFrom && adjDate < startOfDay(historyDateFrom)) return false;
+        if (historyDateTo && adjDate > endOfDay(historyDateTo)) return false;
+      }
+
+      // Credit type filter
+      if (historyCreditType !== "all" && adj.credit_type !== historyCreditType) {
+        return false;
+      }
+
+      // Adjustment type filter
+      if (historyAdjustmentType !== "all" && adj.adjustment_type !== historyAdjustmentType) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [adjustmentHistory, historySearch, historyDateFrom, historyDateTo, historyCreditType, historyAdjustmentType]);
+
+  const clearHistoryFilters = () => {
+    setHistorySearch("");
+    setHistoryDateFrom(undefined);
+    setHistoryDateTo(undefined);
+    setHistoryCreditType("all");
+    setHistoryAdjustmentType("all");
+  };
+
+  const hasActiveFilters = historySearch || historyDateFrom || historyDateTo || historyCreditType !== "all" || historyAdjustmentType !== "all";
+
   const handleAdjustCredits = () => {
     if (!selectedMember) return;
     
@@ -370,11 +429,129 @@ export default function MemberCreditsAdmin() {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-6">
+          {/* History Filters */}
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[200px] max-w-[300px]">
+              <Label className="text-xs text-muted-foreground mb-1 block">Search Member</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Name or member ID..."
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  className="pl-10 h-9"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">From Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal h-9",
+                      !historyDateFrom && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {historyDateFrom ? format(historyDateFrom, "MMM d, yyyy") : "Start"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={historyDateFrom}
+                    onSelect={setHistoryDateFrom}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">To Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal h-9",
+                      !historyDateTo && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {historyDateTo ? format(historyDateTo, "MMM d, yyyy") : "End"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={historyDateTo}
+                    onSelect={setHistoryDateTo}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Credit Type</Label>
+              <Select value={historyCreditType} onValueChange={setHistoryCreditType}>
+                <SelectTrigger className="w-[140px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="class">Class</SelectItem>
+                  <SelectItem value="red_light">Red Light</SelectItem>
+                  <SelectItem value="dry_cryo">Dry Cryo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Action</Label>
+              <Select value={historyAdjustmentType} onValueChange={setHistoryAdjustmentType}>
+                <SelectTrigger className="w-[120px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="add">Added</SelectItem>
+                  <SelectItem value="remove">Removed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearHistoryFilters}
+                className="h-9"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Recent Credit Adjustments
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Credit Adjustments
+                </div>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {filteredHistory.length} {filteredHistory.length === 1 ? "record" : "records"}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -382,9 +559,11 @@ export default function MemberCreditsAdmin() {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : adjustmentHistory.length === 0 ? (
+              ) : filteredHistory.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No credit adjustments have been made yet.
+                  {hasActiveFilters 
+                    ? "No adjustments match your filters." 
+                    : "No credit adjustments have been made yet."}
                 </div>
               ) : (
                 <ScrollArea className="h-[500px]">
@@ -400,7 +579,7 @@ export default function MemberCreditsAdmin() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {adjustmentHistory.map((adj) => (
+                      {filteredHistory.map((adj) => (
                         <TableRow key={adj.id}>
                           <TableCell className="text-sm">
                             {format(new Date(adj.created_at), "MMM d, yyyy h:mm a")}
