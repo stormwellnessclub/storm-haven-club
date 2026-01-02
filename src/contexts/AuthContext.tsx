@@ -28,12 +28,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Validate session with getUser() - this actually checks the JWT server-side
+    const validateSession = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error || !user) {
+        // Session is invalid or expired - clear it
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      
+      // Session is valid, get the full session object
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-    });
+    };
+
+    validateSession();
 
     return () => subscription.unsubscribe();
   }, []);
