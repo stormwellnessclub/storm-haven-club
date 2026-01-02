@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/storm-logo-gold.png";
 
 const footerLinks = {
   services: [
@@ -33,7 +33,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <img src={logo} alt="Storm Wellness Club" className="h-10 w-auto brightness-0 invert mb-6" />
+            <img src={logo} alt="Storm Wellness Club" className="h-10 w-auto mb-6" />
             <p className="text-primary-foreground/70 text-sm leading-relaxed">
               An exclusive wellness sanctuary where luxury meets performance. 
               Experience the storm of transformation.
@@ -123,8 +123,8 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="mailto:contact@stormfitnessandwellness.com" className="hover:text-primary-foreground transition-colors">
-                  contact@stormfitnessandwellness.com
+                <a href="mailto:admin@stormwellnessclub.com" className="hover:text-primary-foreground transition-colors">
+                  admin@stormwellnessclub.com
                 </a>
               </li>
             </ul>
@@ -141,6 +141,9 @@ export function Footer() {
             </Link>
             <Link to="/terms" className="text-xs text-primary-foreground/50 hover:text-primary-foreground transition-colors">
               Terms of Service
+            </Link>
+            <Link to="/faq" className="text-xs text-primary-foreground/50 hover:text-primary-foreground transition-colors">
+              FAQ
             </Link>
           </div>
         </div>

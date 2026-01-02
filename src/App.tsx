@@ -27,6 +27,7 @@ import Schedule from "./pages/Schedule";
 import MyBookings from "./pages/MyBookings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/admin/Dashboard";
 import Members from "./pages/admin/Members";
@@ -71,6 +72,7 @@ const App = () => (
             <Route path="/my-bookings" element={<MyBookings />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/faq" element={<FAQ />} />
             
             {/* Member Portal Routes - Protected */}
             <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
