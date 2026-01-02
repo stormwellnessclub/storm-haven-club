@@ -12,6 +12,7 @@ const footerLinks = {
     { label: "Apply Now", href: "/apply" },
     { label: "Class Passes", href: "/class-passes" },
     { label: "Member Amenities", href: "/amenities" },
+    { label: "FAQ", href: "/faq" },
   ],
 };
 
@@ -141,9 +142,6 @@ export function Footer() {
             </Link>
             <Link to="/terms" className="text-xs text-primary-foreground/50 hover:text-primary-foreground transition-colors">
               Terms of Service
-            </Link>
-            <Link to="/faq" className="text-xs text-primary-foreground/50 hover:text-primary-foreground transition-colors">
-              FAQ
             </Link>
           </div>
         </div>
