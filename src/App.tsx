@@ -28,6 +28,7 @@ import MyBookings from "./pages/MyBookings";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/admin/Dashboard";
 import Members from "./pages/admin/Members";
+import MemberCreditsAdmin from "./pages/admin/MemberCredits";
 import CheckIn from "./pages/admin/CheckIn";
 import Applications from "./pages/admin/Applications";
 import Appointments from "./pages/admin/Appointments";
@@ -80,6 +81,7 @@ const App = () => (
             <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />
             <Route path="/admin/check-in" element={<ProtectedAdminRoute><CheckIn /></ProtectedAdminRoute>} />
             <Route path="/admin/members" element={<ProtectedAdminRoute><Members /></ProtectedAdminRoute>} />
+            <Route path="/admin/member-credits" element={<ProtectedAdminRoute><MemberCreditsAdmin /></ProtectedAdminRoute>} />
             <Route path="/admin/applications" element={<ProtectedAdminRoute><Applications /></ProtectedAdminRoute>} />
             <Route path="/admin/appointments" element={<ProtectedAdminRoute><Appointments /></ProtectedAdminRoute>} />
             <Route path="/admin/payments" element={<ProtectedAdminRoute><Payments /></ProtectedAdminRoute>} />
