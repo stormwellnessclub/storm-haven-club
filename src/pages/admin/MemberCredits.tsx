@@ -104,9 +104,13 @@ export default function MemberCreditsAdmin() {
   const [historyCreditType, setHistoryCreditType] = useState<string>("all");
   const [historyAdjustmentType, setHistoryAdjustmentType] = useState<string>("all");
 
-  // Pagination state
+  // Pagination state - History
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(25);
+
+  // Pagination state - Credits
+  const [creditsPage, setCreditsPage] = useState(1);
+  const [creditsPageSize, setCreditsPageSize] = useState<number>(25);
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -261,6 +265,39 @@ export default function MemberCreditsAdmin() {
       member.member_id?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Credits table pagination
+  const paginatedMembers = useMemo(() => {
+    const startIndex = (creditsPage - 1) * creditsPageSize;
+    const endIndex = startIndex + creditsPageSize;
+    return filteredMembers.slice(startIndex, endIndex);
+  }, [filteredMembers, creditsPage, creditsPageSize]);
+
+  const creditsTotalPages = Math.ceil(filteredMembers.length / creditsPageSize);
+  const creditsStartRecord = filteredMembers.length === 0 ? 0 : (creditsPage - 1) * creditsPageSize + 1;
+  const creditsEndRecord = Math.min(creditsPage * creditsPageSize, filteredMembers.length);
+
+  // Reset credits page when search changes
+  useEffect(() => {
+    setCreditsPage(1);
+  }, [searchQuery, creditsPageSize]);
+
+  // Generate page numbers for credits table
+  const getCreditsPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    if (creditsTotalPages <= 7) {
+      for (let i = 1; i <= creditsTotalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (creditsPage > 3) pages.push("ellipsis");
+      for (let i = Math.max(2, creditsPage - 1); i <= Math.min(creditsTotalPages - 1, creditsPage + 1); i++) {
+        pages.push(i);
+      }
+      if (creditsPage < creditsTotalPages - 2) pages.push("ellipsis");
+      pages.push(creditsTotalPages);
+    }
+    return pages;
+  };
+
   // Filter adjustment history
   const filteredHistory = useMemo(() => {
     return adjustmentHistory.filter((adj) => {
@@ -387,27 +424,50 @@ export default function MemberCreditsAdmin() {
 
         <TabsContent value="credits" className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search members..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[200px] max-w-md">
+              <Label className="text-xs text-muted-foreground mb-1 block">Search</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search members..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-9"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Per Page</Label>
+              <Select value={creditsPageSize.toString()} onValueChange={(v) => setCreditsPageSize(parseInt(v))}>
+                <SelectTrigger className="w-[80px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Credits Table */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Coins className="h-5 w-5" />
-                Active Member Credits ({filteredMembers.length})
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Coins className="h-5 w-5" />
+                  Active Member Credits
+                </div>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {filteredMembers.length === 0 
+                    ? "0 members" 
+                    : `Showing ${creditsStartRecord}-${creditsEndRecord} of ${filteredMembers.length}`}
+                </span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -417,62 +477,111 @@ export default function MemberCreditsAdmin() {
                   {searchQuery ? "No members match your search." : "No active members with credits."}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Member</TableHead>
-                      <TableHead>Tier</TableHead>
-                      <TableHead className="text-center">Class Credits</TableHead>
-                      <TableHead className="text-center">Red Light</TableHead>
-                      <TableHead className="text-center">Dry Cryo</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMembers.map((member) => (
-                      <TableRow key={member.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">
-                              {member.first_name} {member.last_name}
-                            </p>
-                            <p className="text-sm text-muted-foreground">{member.member_id}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{member.membership_type}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center font-mono">
-                          {getCreditDisplay(member, "class")}
-                        </TableCell>
-                        <TableCell className="text-center font-mono">
-                          {getCreditDisplay(member, "red_light")}
-                        </TableCell>
-                        <TableCell className="text-center font-mono">
-                          {getCreditDisplay(member, "dry_cryo")}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Member</TableHead>
+                          <TableHead>Tier</TableHead>
+                          <TableHead className="text-center">Class Credits</TableHead>
+                          <TableHead className="text-center">Red Light</TableHead>
+                          <TableHead className="text-center">Dry Cryo</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedMembers.map((member) => (
+                          <TableRow key={member.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">
+                                  {member.first_name} {member.last_name}
+                                </p>
+                                <p className="text-sm text-muted-foreground">{member.member_id}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{member.membership_type}</Badge>
+                            </TableCell>
+                            <TableCell className="text-center font-mono">
+                              {getCreditDisplay(member, "class")}
+                            </TableCell>
+                            <TableCell className="text-center font-mono">
+                              {getCreditDisplay(member, "red_light")}
+                            </TableCell>
+                            <TableCell className="text-center font-mono">
+                              {getCreditDisplay(member, "dry_cryo")}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openAdjustDialog(member, "add")}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openAdjustDialog(member, "remove")}
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {creditsTotalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCreditsPage((p) => Math.max(1, p - 1))}
+                        disabled={creditsPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        {getCreditsPageNumbers().map((page, index) =>
+                          page === "ellipsis" ? (
+                            <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
+                              ...
+                            </span>
+                          ) : (
                             <Button
-                              variant="outline"
+                              key={page}
+                              variant={creditsPage === page ? "default" : "outline"}
                               size="sm"
-                              onClick={() => openAdjustDialog(member, "add")}
+                              onClick={() => setCreditsPage(page)}
+                              className="w-9"
                             >
-                              <Plus className="h-4 w-4" />
+                              {page}
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openAdjustDialog(member, "remove")}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          )
+                        )}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCreditsPage((p) => Math.min(creditsTotalPages, p + 1))}
+                        disabled={creditsPage === creditsTotalPages}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
