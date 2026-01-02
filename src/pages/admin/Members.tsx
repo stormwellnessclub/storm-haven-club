@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { MemberDetailSheet } from "@/components/admin/MemberDetailSheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -64,7 +66,10 @@ const formatStatus = (status: string) => {
 };
 
 export default function Members() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMember, setSelectedMember] = useState<typeof members[0] | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const { data: members = [], isLoading, error } = useQuery({
     queryKey: ["admin-members"],
@@ -86,6 +91,15 @@ export default function Members() {
       member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.member_id?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleViewProfile = (member: typeof members[0]) => {
+    setSelectedMember(member);
+    setIsSheetOpen(true);
+  };
+
+  const handleCheckIn = (member: typeof members[0]) => {
+    navigate(`/admin/check-in?member=${member.member_id}`);
+  };
 
   return (
     <AdminLayout title="Members">
@@ -183,12 +197,17 @@ export default function Members() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View Profile</DropdownMenuItem>
-                            <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                            <DropdownMenuItem>Check In</DropdownMenuItem>
-                            <DropdownMenuItem>View Payment History</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              Suspend Membership
+                            <DropdownMenuItem onClick={() => handleViewProfile(member)}>
+                              View Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewProfile(member)}>
+                              Edit Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleCheckIn(member)}>
+                              Check In
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewProfile(member)}>
+                              View Payment History
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -200,6 +219,12 @@ export default function Members() {
             )}
           </CardContent>
         </Card>
+
+        <MemberDetailSheet
+          member={selectedMember}
+          open={isSheetOpen}
+          onOpenChange={setIsSheetOpen}
+        />
       </div>
     </AdminLayout>
   );

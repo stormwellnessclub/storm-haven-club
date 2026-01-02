@@ -151,6 +151,18 @@ serve(async (req) => {
 
         const customerId = await getOrCreateCustomer();
         
+        // Save stripe_customer_id to member record
+        const { error: updateError } = await supabase
+          .from('members')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', memberId);
+        
+        if (updateError) {
+          logStep("Warning: Failed to save stripe_customer_id", { error: updateError.message });
+        } else {
+          logStep("Saved stripe_customer_id to member", { memberId, customerId });
+        }
+        
         // Calculate billing anchor date from start date
         const startDateObj = new Date(startDate);
         const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
@@ -223,6 +235,20 @@ serve(async (req) => {
 
         const customerId = await getOrCreateCustomer();
 
+        // Save stripe_customer_id to member record if user is a member
+        if (isVerifiedMember && memberData) {
+          const { error: updateError } = await supabase
+            .from('members')
+            .update({ stripe_customer_id: customerId })
+            .eq('user_id', user.id);
+          
+          if (updateError) {
+            logStep("Warning: Failed to save stripe_customer_id", { error: updateError.message });
+          } else {
+            logStep("Saved stripe_customer_id to member", { userId: user.id, customerId });
+          }
+        }
+
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           line_items: [{ price: priceId, quantity: 1 }],
@@ -248,6 +274,19 @@ serve(async (req) => {
 
       case 'customer_portal': {
         const customerId = await getOrCreateCustomer();
+        
+        // Save stripe_customer_id to member record
+        const { error: updateError } = await supabase
+          .from('members')
+          .update({ stripe_customer_id: customerId })
+          .eq('user_id', user.id);
+        
+        if (updateError) {
+          logStep("Warning: Failed to save stripe_customer_id", { error: updateError.message });
+        } else {
+          logStep("Saved stripe_customer_id to member", { userId: user.id, customerId });
+        }
+        
         const origin = req.headers.get('origin') || 'https://stormwellnessclub.com';
 
         const portalSession = await stripe.billingPortal.sessions.create({
