@@ -1,20 +1,45 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { useUserMembership, getMembershipTierBenefits } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { IdCard, Check, Calendar, FileCheck, Crown } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { IdCard, Check, FileCheck, Crown, CreditCard, Loader2, ExternalLink } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { toast } from "sonner";
 
 export default function MemberMembership() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { profile, isLoading: profileLoading } = useUserProfile();
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
 
   const isLoading = membershipLoading || profileLoading;
+
+  const handleManageBilling = async () => {
+    setIsPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "customer_portal" },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      } else {
+        throw new Error("No portal URL returned");
+      }
+    } catch (error) {
+      console.error("Portal error:", error);
+      toast.error("Failed to open billing portal. Please try again.");
+    } finally {
+      setIsPortalLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -63,12 +88,19 @@ export default function MemberMembership() {
               <div>
                 <p className="text-sm opacity-80 mb-1">Storm Wellness Club</p>
                 <h2 className="text-3xl font-bold mb-2">{membership.membership_type}</h2>
-                <Badge 
-                  variant={membership.status === "active" ? "secondary" : "outline"}
-                  className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30"
-                >
-                  {membership.status.charAt(0).toUpperCase() + membership.status.slice(1)}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={membership.status === "active" ? "secondary" : "outline"}
+                    className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30"
+                  >
+                    {membership.status.charAt(0).toUpperCase() + membership.status.slice(1)}
+                  </Badge>
+                  {membership.is_founding_member && (
+                    <Badge className="bg-accent/80 text-accent-foreground border-accent">
+                      Founding Member
+                    </Badge>
+                  )}
+                </div>
               </div>
               <Crown className="h-12 w-12 opacity-50" />
             </div>
@@ -92,15 +124,48 @@ export default function MemberMembership() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Renewal Date</p>
+                <p className="text-sm text-muted-foreground">Billing</p>
                 <p className="text-lg">
-                  {membership.membership_end_date 
-                    ? format(parseISO(membership.membership_end_date), "MMMM d, yyyy")
-                    : "Auto-renewing"
-                  }
+                  {membership.billing_type === 'annual' ? 'Annual (Prepaid)' : 'Monthly'}
                 </p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Billing Management */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-accent" />
+              <CardTitle>Billing & Subscription</CardTitle>
+            </div>
+            <CardDescription>
+              Manage your payment methods, view invoices, and update your subscription
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={handleManageBilling} 
+              disabled={isPortalLoading}
+              className="w-full sm:w-auto"
+            >
+              {isPortalLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Opening...
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Manage Billing
+                </>
+              )}
+            </Button>
+            <p className="text-sm text-muted-foreground mt-3">
+              Opens Stripe Customer Portal in a new tab where you can update payment methods, 
+              view invoices, and manage your subscription.
+            </p>
           </CardContent>
         </Card>
 

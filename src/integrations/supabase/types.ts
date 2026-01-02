@@ -730,11 +730,15 @@ export type Database = {
         Row: {
           activated_at: string | null
           activation_deadline: string | null
+          annual_fee_subscription_id: string | null
           approved_at: string | null
+          billing_type: string | null
           created_at: string | null
           email: string
           first_name: string
+          gender: string | null
           id: string
+          is_founding_member: boolean | null
           last_name: string
           member_id: string
           membership_end_date: string | null
@@ -743,17 +747,23 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
           activated_at?: string | null
           activation_deadline?: string | null
+          annual_fee_subscription_id?: string | null
           approved_at?: string | null
+          billing_type?: string | null
           created_at?: string | null
           email: string
           first_name: string
+          gender?: string | null
           id?: string
+          is_founding_member?: boolean | null
           last_name: string
           member_id: string
           membership_end_date?: string | null
@@ -762,17 +772,23 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           activated_at?: string | null
           activation_deadline?: string | null
+          annual_fee_subscription_id?: string | null
           approved_at?: string | null
+          billing_type?: string | null
           created_at?: string | null
           email?: string
           first_name?: string
+          gender?: string | null
           id?: string
+          is_founding_member?: boolean | null
           last_name?: string
           member_id?: string
           membership_end_date?: string | null
@@ -781,6 +797,8 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }

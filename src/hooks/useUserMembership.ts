@@ -17,6 +17,12 @@ export interface UserMembership {
   user_id: string | null;
   created_at: string | null;
   updated_at: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  annual_fee_subscription_id: string | null;
+  billing_type: string | null;
+  is_founding_member: boolean | null;
+  gender: string | null;
 }
 
 export function useUserMembership() {
