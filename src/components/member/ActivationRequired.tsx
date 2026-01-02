@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { format, addDays, isAfter, isBefore, startOfDay } from "date-fns";
-import { Calendar, Clock, CheckCircle, Loader2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Calendar, Clock, CheckCircle, Loader2, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import stormLogo from "@/assets/storm-logo-gold.png";
-import { getCreditsToCreate } from "@/lib/memberCredits";
 
 interface MemberData {
   id: string;
@@ -25,6 +24,8 @@ interface MemberData {
   first_name: string;
   last_name: string;
   email: string;
+  gender?: string | null;
+  is_founding_member?: boolean | null;
 }
 
 interface ActivationRequiredProps {
@@ -34,9 +35,12 @@ interface ActivationRequiredProps {
 export function ActivationRequired({ memberData }: ActivationRequiredProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const [gender, setGender] = useState<string>(memberData.gender || "female");
+  const [isFoundingMember, setIsFoundingMember] = useState<boolean>(
+    memberData.is_founding_member || false
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const { session } = useAuth();
 
   const deadlineDate = memberData.activation_deadline 
     ? new Date(memberData.activation_deadline) 
@@ -45,76 +49,80 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
   const today = startOfDay(new Date());
   const daysRemaining = Math.max(0, Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
 
-  const activateMutation = useMutation({
-    mutationFn: async (startDate: Date) => {
-      const { error } = await supabase
-        .from("members")
-        .update({
-          status: "active",
-          membership_start_date: format(startDate, "yyyy-MM-dd"),
-          activated_at: new Date().toISOString(),
-        })
-        .eq("id", memberData.id);
+  // Pricing based on tier and gender
+  const getPricing = () => {
+    const tier = memberData.membership_type.toLowerCase().replace(' membership', '');
+    const isMen = gender === 'male';
+    
+    const monthlyPrices: Record<string, { women: number; men: number }> = {
+      silver: { women: 200, men: 120 },
+      gold: { women: 250, men: 155 },
+      platinum: { women: 350, men: 175 },
+      diamond: { women: 500, men: 0 },
+    };
+    
+    const annualPrices: Record<string, { women: number; men: number }> = {
+      silver: { women: 2400, men: 1440 },
+      gold: { women: 3000, men: 1860 },
+      platinum: { women: 4200, men: 2100 },
+      diamond: { women: 6000, men: 0 },
+    };
+    
+    const annualFees = { women: 300, men: 175 };
+    
+    const monthlyPrice = isMen ? monthlyPrices[tier]?.men : monthlyPrices[tier]?.women;
+    const annualPrice = isMen ? annualPrices[tier]?.men : annualPrices[tier]?.women;
+    const annualFee = isMen ? annualFees.men : annualFees.women;
+    
+    return { monthlyPrice, annualPrice, annualFee };
+  };
 
-      if (error) throw error;
+  const { monthlyPrice, annualPrice, annualFee } = getPricing();
 
-      // Create credits based on membership tier
-      if (user) {
-        const creditsToCreate = getCreditsToCreate(
-          memberData.membership_type,
-          user.id,
-          memberData.id,
-          startDate
-        );
-
-        if (creditsToCreate.length > 0) {
-          const { error: creditsError } = await supabase
-            .from("member_credits")
-            .insert(creditsToCreate);
-
-          if (creditsError) {
-            console.error("Failed to create credits:", creditsError);
-            // Don't throw - activation succeeded, just log the error
-          }
-        }
-      }
-
-      // Send activation confirmation email
-      try {
-        await supabase.functions.invoke("send-email", {
-          body: {
-            type: "membership_activated",
-            to: memberData.email,
-            data: {
-              name: memberData.first_name,
-              startDate: format(startDate, "MMMM d, yyyy"),
-              membershipType: memberData.membership_type,
-            },
-          },
-        });
-      } catch (emailError) {
-        console.error("Failed to send activation email:", emailError);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["application-status"] });
-      toast.success("Membership activated! Welcome to Storm Wellness Club.");
-      setTimeout(() => {
-        navigate("/member", { replace: true });
-      }, 500);
-    },
-    onError: (error) => {
-      console.error("Activation error:", error);
-      toast.error("Failed to activate membership. Please try again.");
-    },
-  });
-
-  const handleActivate = () => {
+  const handleActivate = async () => {
     if (!selectedDate) {
       toast.error("Please select a start date");
       return;
     }
-    activateMutation.mutate(selectedDate);
+
+    if (!session?.access_token) {
+      toast.error("Please log in to continue");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const origin = window.location.origin;
+      
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_activation_checkout",
+          tier: memberData.membership_type,
+          gender: gender,
+          isFoundingMember: isFoundingMember,
+          startDate: format(selectedDate, "yyyy-MM-dd"),
+          memberId: memberData.id,
+          successUrl: `${origin}/member?activation=success`,
+          cancelUrl: `${origin}/member?activation=cancelled`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error("Failed to start checkout. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   // Date validation for calendar
@@ -122,6 +130,10 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
     const dateStart = startOfDay(date);
     return isBefore(dateStart, today) || isAfter(dateStart, deadlineDate);
   };
+
+  // Check if Diamond is available for men
+  const isDiamondTier = memberData.membership_type.toLowerCase().includes('diamond');
+  const diamondMenBlocked = isDiamondTier && gender === 'male';
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -146,18 +158,56 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
               <span className="font-semibold">{daysRemaining} days remaining</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Please select your start date by {format(deadlineDate, "MMMM d, yyyy")}
+              Please complete activation by {format(deadlineDate, "MMMM d, yyyy")}
             </p>
           </div>
 
-          {/* Instructions */}
-          <div className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              Choose when you'd like your membership to begin. Your billing will start on the date you select.
-            </p>
-            <p>
-              If no date is selected by the deadline, your membership will automatically begin on {format(deadlineDate, "MMMM d, yyyy")}.
-            </p>
+          {/* Gender Selection */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Select Pricing</label>
+            <RadioGroup value={gender} onValueChange={setGender} className="flex gap-4">
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="female" id="female" />
+                <Label htmlFor="female">Women's Rates</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="male" id="male" disabled={isDiamondTier} />
+                <Label htmlFor="male" className={isDiamondTier ? "text-muted-foreground" : ""}>
+                  Men's Rates {isDiamondTier && "(N/A)"}
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* Billing Type Selection */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Billing Option</label>
+            <RadioGroup 
+              value={isFoundingMember ? "annual" : "monthly"} 
+              onValueChange={(v) => setIsFoundingMember(v === "annual")}
+              className="space-y-3"
+            >
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-accent/50 transition-colors">
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="monthly" id="monthly" />
+                  <div>
+                    <Label htmlFor="monthly" className="font-medium">Monthly Billing</Label>
+                    <p className="text-sm text-muted-foreground">Pay month-to-month</p>
+                  </div>
+                </div>
+                <span className="font-semibold">${monthlyPrice}/mo</span>
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-lg border border-accent/30 bg-accent/5 hover:border-accent/50 transition-colors">
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="annual" id="annual" />
+                  <div>
+                    <Label htmlFor="annual" className="font-medium">Founding Member</Label>
+                    <p className="text-sm text-muted-foreground">Pay full year upfront</p>
+                  </div>
+                </div>
+                <span className="font-semibold">${annualPrice}/yr</span>
+              </div>
+            </RadioGroup>
           </div>
 
           {/* Date Picker */}
@@ -192,8 +242,8 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
             </Popover>
           </div>
 
-          {/* Membership Details */}
-          <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+          {/* Payment Summary */}
+          <div className="bg-secondary/50 rounded-lg p-4 space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Member ID</span>
               <span className="font-medium">{memberData.member_id}</span>
@@ -208,6 +258,24 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
                 <span className="font-medium text-accent">{format(selectedDate, "MMMM d, yyyy")}</span>
               </div>
             )}
+            <div className="border-t border-border pt-3 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {isFoundingMember ? "Annual Membership" : "Monthly Membership"}
+                </span>
+                <span className="font-medium">
+                  ${isFoundingMember ? annualPrice : monthlyPrice}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Annual Fee (yearly)</span>
+                <span className="font-medium">${annualFee}</span>
+              </div>
+              <div className="flex justify-between font-semibold pt-2 border-t border-border">
+                <span>Today's Total</span>
+                <span>${(isFoundingMember ? annualPrice : monthlyPrice) + annualFee}</span>
+              </div>
+            </div>
           </div>
 
           {/* Activate Button */}
@@ -215,23 +283,23 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
             className="w-full"
             size="lg"
             onClick={handleActivate}
-            disabled={!selectedDate || activateMutation.isPending}
+            disabled={!selectedDate || isLoading || diamondMenBlocked}
           >
-            {activateMutation.isPending ? (
+            {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Activating...
+                Redirecting to checkout...
               </>
             ) : (
               <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Activate Membership
+                <CreditCard className="mr-2 h-4 w-4" />
+                Continue to Payment
               </>
             )}
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            By activating, you confirm that billing will begin on your selected start date.
+            You'll be redirected to our secure payment processor to complete your membership activation.
           </p>
         </CardContent>
       </Card>
