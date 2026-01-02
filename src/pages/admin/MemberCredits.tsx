@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,9 +39,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Loader2, Plus, Minus, Coins, History, ArrowUpCircle, ArrowDownCircle, CalendarIcon, X } from "lucide-react";
-import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
+import { Search, Loader2, Plus, Minus, Coins, History, ArrowUpCircle, ArrowDownCircle, CalendarIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
 import { cn } from "@/lib/utils";
@@ -104,6 +103,10 @@ export default function MemberCreditsAdmin() {
   const [historyDateTo, setHistoryDateTo] = useState<Date | undefined>();
   const [historyCreditType, setHistoryCreditType] = useState<string>("all");
   const [historyAdjustmentType, setHistoryAdjustmentType] = useState<string>("all");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(25);
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -293,6 +296,22 @@ export default function MemberCreditsAdmin() {
     });
   }, [adjustmentHistory, historySearch, historyDateFrom, historyDateTo, historyCreditType, historyAdjustmentType]);
 
+  // Pagination calculations
+  const paginatedHistory = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredHistory.slice(startIndex, endIndex);
+  }, [filteredHistory, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredHistory.length / pageSize);
+  const startRecord = filteredHistory.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endRecord = Math.min(currentPage * pageSize, filteredHistory.length);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [historySearch, historyDateFrom, historyDateTo, historyCreditType, historyAdjustmentType, pageSize]);
+
   const clearHistoryFilters = () => {
     setHistorySearch("");
     setHistoryDateFrom(undefined);
@@ -302,6 +321,23 @@ export default function MemberCreditsAdmin() {
   };
 
   const hasActiveFilters = historySearch || historyDateFrom || historyDateTo || historyCreditType !== "all" || historyAdjustmentType !== "all";
+
+  // Generate page numbers with ellipsis
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push("ellipsis");
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push("ellipsis");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   const handleAdjustCredits = () => {
     if (!selectedMember) return;
@@ -543,6 +579,20 @@ export default function MemberCreditsAdmin() {
               </Select>
             </div>
 
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Per Page</Label>
+              <Select value={pageSize.toString()} onValueChange={(v) => setPageSize(parseInt(v))}>
+                <SelectTrigger className="w-[80px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {hasActiveFilters && (
               <Button
                 variant="ghost"
@@ -564,11 +614,13 @@ export default function MemberCreditsAdmin() {
                   Credit Adjustments
                 </div>
                 <span className="text-sm font-normal text-muted-foreground">
-                  {filteredHistory.length} {filteredHistory.length === 1 ? "record" : "records"}
+                  {filteredHistory.length === 0 
+                    ? "0 records" 
+                    : `Showing ${startRecord}-${endRecord} of ${filteredHistory.length}`}
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               {isHistoryLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -580,72 +632,119 @@ export default function MemberCreditsAdmin() {
                     : "No credit adjustments have been made yet."}
                 </div>
               ) : (
-                <ScrollArea className="h-[500px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Credit Type</TableHead>
-                        <TableHead className="text-center">Change</TableHead>
-                        <TableHead className="text-center">Balance</TableHead>
-                        <TableHead>Adjusted By</TableHead>
-                        <TableHead>Reason</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredHistory.map((adj) => (
-                        <TableRow key={adj.id}>
-                          <TableCell className="text-sm">
-                            {format(new Date(adj.created_at), "MMM d, yyyy h:mm a")}
-                          </TableCell>
-                          <TableCell>
-                            {adj.member ? (
-                              <div>
-                                <p className="font-medium">
-                                  {adj.member.first_name} {adj.member.last_name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">{adj.member.member_id}</p>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">Unknown</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {CREDIT_TYPE_LABELS[adj.credit_type as CreditType] || adj.credit_type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              {adj.adjustment_type === "add" ? (
-                                <ArrowUpCircle className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <ArrowDownCircle className="h-4 w-4 text-red-500" />
-                              )}
-                              <span className={adj.adjustment_type === "add" ? "text-green-600" : "text-red-600"}>
-                                {adj.adjustment_type === "add" ? "+" : "-"}{adj.amount}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center font-mono text-sm">
-                            {adj.previous_balance} → {adj.new_balance}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {adj.staff ? (
-                              <span>{adj.staff.first_name} {adj.staff.last_name}</span>
-                            ) : (
-                              <span className="text-muted-foreground">System</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="max-w-[150px] truncate text-sm text-muted-foreground">
-                            {adj.reason || "—"}
-                          </TableCell>
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Member</TableHead>
+                          <TableHead>Credit Type</TableHead>
+                          <TableHead className="text-center">Change</TableHead>
+                          <TableHead className="text-center">Balance</TableHead>
+                          <TableHead>Adjusted By</TableHead>
+                          <TableHead>Reason</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedHistory.map((adj) => (
+                          <TableRow key={adj.id}>
+                            <TableCell className="text-sm">
+                              {format(new Date(adj.created_at), "MMM d, yyyy h:mm a")}
+                            </TableCell>
+                            <TableCell>
+                              {adj.member ? (
+                                <div>
+                                  <p className="font-medium">
+                                    {adj.member.first_name} {adj.member.last_name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{adj.member.member_id}</p>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Unknown</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {CREDIT_TYPE_LABELS[adj.credit_type as CreditType] || adj.credit_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {adj.adjustment_type === "add" ? (
+                                  <ArrowUpCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <ArrowDownCircle className="h-4 w-4 text-red-500" />
+                                )}
+                                <span className={adj.adjustment_type === "add" ? "text-green-600" : "text-red-600"}>
+                                  {adj.adjustment_type === "add" ? "+" : "-"}{adj.amount}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center font-mono text-sm">
+                              {adj.previous_balance} → {adj.new_balance}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {adj.staff ? (
+                                <span>{adj.staff.first_name} {adj.staff.last_name}</span>
+                              ) : (
+                                <span className="text-muted-foreground">System</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-[150px] truncate text-sm text-muted-foreground">
+                              {adj.reason || "—"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        {getPageNumbers().map((page, index) =>
+                          page === "ellipsis" ? (
+                            <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
+                              ...
+                            </span>
+                          ) : (
+                            <Button
+                              key={page}
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(page)}
+                              className="w-9"
+                            >
+                              {page}
+                            </Button>
+                          )
+                        )}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
