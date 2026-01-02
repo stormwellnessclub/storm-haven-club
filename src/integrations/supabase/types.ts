@@ -47,6 +47,13 @@ export type Database = {
             foreignKeyName: "check_ins_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_ins_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -119,6 +126,13 @@ export type Database = {
             foreignKeyName: "class_bookings_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -166,6 +180,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "class_credits_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "class_credits_member_id_fkey"
             columns: ["member_id"]
@@ -225,6 +246,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "class_passes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "class_passes_member_id_fkey"
             columns: ["member_id"]
@@ -552,6 +580,13 @@ export type Database = {
             foreignKeyName: "credit_adjustments_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_adjustments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -717,6 +752,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "member_credits_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "member_credits_member_id_fkey"
             columns: ["member_id"]
@@ -1007,6 +1049,70 @@ export type Database = {
       }
     }
     Views: {
+      booking_check_in_view: {
+        Row: {
+          booked_at: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          checked_in_at: string | null
+          created_at: string | null
+          id: string | null
+          member_id: string | null
+          session_id: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          booked_at?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          checked_in_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          member_id?: string | null
+          session_id?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          booked_at?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          checked_in_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          member_id?: string | null
+          session_id?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_bookings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instructor_public_profiles: {
         Row: {
           bio: string | null
@@ -1040,6 +1146,39 @@ export type Database = {
           photo_url?: string | null
           specialties?: string[] | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      member_check_in_view: {
+        Row: {
+          first_name: string | null
+          id: string | null
+          last_name: string | null
+          member_id: string | null
+          membership_type: string | null
+          photo_url: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          member_id?: string | null
+          membership_type?: string | null
+          photo_url?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          member_id?: string | null
+          membership_type?: string | null
+          photo_url?: string | null
+          status?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
