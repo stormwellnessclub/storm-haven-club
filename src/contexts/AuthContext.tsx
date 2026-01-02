@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { clearAuthStorage } from "@/lib/authStorage";
 
 interface AuthContextType {
   user: User | null;
@@ -28,26 +29,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Validate session with getUser() - this actually checks the JWT server-side
-    const validateSession = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error || !user) {
-        // Session is invalid or expired - clear it
+    // Initialize auth state
+    const initializeAuth = async () => {
+      try {
+        // First try to get existing session from storage
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        
+        if (!existingSession) {
+          // No session in storage - user is logged out
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        // Session exists - validate it with the server
+        const { data: { user: validatedUser }, error } = await supabase.auth.getUser();
+        
+        if (error || !validatedUser) {
+          // Session is invalid/expired - clear everything
+          console.warn("Invalid session detected, clearing auth storage");
+          clearAuthStorage();
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        // Session is valid
+        setSession(existingSession);
+        setUser(validatedUser);
+        setLoading(false);
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+        // On any error, clear and reset
+        clearAuthStorage();
         setSession(null);
         setUser(null);
         setLoading(false);
-        return;
       }
-      
-      // Session is valid, get the full session object
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
     };
 
-    validateSession();
+    initializeAuth();
 
     return () => subscription.unsubscribe();
   }, []);
