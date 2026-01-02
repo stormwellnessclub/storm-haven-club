@@ -13,18 +13,24 @@ const footerLinks = {
     { label: "Class Passes", href: "/class-passes" },
     { label: "Member Amenities", href: "/amenities" },
   ],
-  info: [
-    { label: "About Us", href: "/about" },
-    { label: "Contact", href: "/contact" },
-    { label: "FAQ", href: "/faq" },
-  ],
 };
+
+const clubHours = [
+  { days: "Monday - Thursday", hours: "5:30 AM - 11:00 PM" },
+  { days: "Friday", hours: "5:30 AM - 8:00 PM" },
+  { days: "Saturday - Sunday", hours: "7:00 AM - 7:00 PM" },
+];
+
+const kidsCareHours = [
+  { days: "Monday - Friday", hours: "8:00 AM - 8:00 PM" },
+  { days: "Saturday - Sunday", hours: "8:00 AM - 5:00 PM" },
+];
 
 export function Footer() {
   return (
     <footer className="bg-primary text-primary-foreground">
       <div className="container mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
           {/* Brand */}
           <div className="lg:col-span-1">
             <img src={logo} alt="Storm Wellness Club" className="h-10 w-auto brightness-0 invert mb-6" />
@@ -72,23 +78,53 @@ export function Footer() {
             </ul>
           </div>
 
+          {/* Hours */}
+          <div>
+            <h4 className="text-xs uppercase tracking-widest font-semibold mb-6 text-gold-light">
+              Hours
+            </h4>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-primary-foreground/50 mb-2">Club Hours</p>
+                <ul className="space-y-1 text-sm text-primary-foreground/70">
+                  {clubHours.map((item) => (
+                    <li key={item.days} className="flex justify-between gap-4">
+                      <span>{item.days}</span>
+                      <span className="text-primary-foreground/90">{item.hours}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-primary-foreground/50 mb-2">Kids Care</p>
+                <ul className="space-y-1 text-sm text-primary-foreground/70">
+                  {kidsCareHours.map((item) => (
+                    <li key={item.days} className="flex justify-between gap-4">
+                      <span>{item.days}</span>
+                      <span className="text-primary-foreground/90">{item.hours}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+
           {/* Contact */}
           <div>
             <h4 className="text-xs uppercase tracking-widest font-semibold mb-6 text-gold-light">
               Contact
             </h4>
             <ul className="space-y-3 text-sm text-primary-foreground/70">
-              <li>123 Wellness Boulevard</li>
-              <li>Suite 100</li>
-              <li>City, State 12345</li>
+              <li>18340 Middlebelt Rd</li>
+              <li>Livonia, MI 48127</li>
               <li className="pt-2">
-                <a href="tel:+1234567890" className="hover:text-primary-foreground transition-colors">
-                  (123) 456-7890
+                <a href="tel:+13132865070" className="hover:text-primary-foreground transition-colors">
+                  (313) 286-5070
                 </a>
               </li>
               <li>
-                <a href="mailto:info@stormwellness.com" className="hover:text-primary-foreground transition-colors">
-                  info@stormwellness.com
+                <a href="mailto:contact@stormfitnessandwellness.com" className="hover:text-primary-foreground transition-colors">
+                  contact@stormfitnessandwellness.com
                 </a>
               </li>
             </ul>
