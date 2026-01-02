@@ -197,13 +197,24 @@ serve(async (req) => {
       }
 
       case 'create_class_pass_checkout': {
-        const { category, passType, isMember, successUrl, cancelUrl } = body;
+        const { category, passType, successUrl, cancelUrl } = body;
 
         if (!category || !passType || !successUrl || !cancelUrl) {
           throw new Error("Missing required fields for class pass checkout");
         }
 
-        const memberStatus = isMember ? 'member' : 'nonMember';
+        // Server-side membership verification - DO NOT trust client-provided isMember
+        const { data: memberData } = await supabase
+          .from('members')
+          .select('status')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        const isVerifiedMember = !!memberData;
+        logStep("Membership verified server-side", { userId: user.id, isVerifiedMember });
+
+        const memberStatus = isVerifiedMember ? 'member' : 'nonMember';
         const priceId = STRIPE_PRODUCTS.classPasses[category][passType][memberStatus];
 
         if (!priceId) {
@@ -223,7 +234,7 @@ serve(async (req) => {
             user_id: user.id,
             category,
             pass_type: passType,
-            is_member: String(isMember),
+            is_member: String(isVerifiedMember),
           },
         });
 
