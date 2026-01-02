@@ -35,93 +35,112 @@ export function useApplicationStatus() {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["application-status", user?.id, user?.email],
+    queryKey: ["application-status", user?.id],
     queryFn: async (): Promise<ApplicationStatusResult> => {
-      if (!user?.email) {
+      if (!user) {
         return { status: "no_application" };
       }
 
-      // First check if user has a membership record
+      // First check if user is already an active member (linked by user_id)
       const { data: memberData, error: memberError } = await supabase
         .from("members")
-        .select("id, member_id, membership_type, status, approved_at, activation_deadline, activated_at, first_name, last_name, email")
+        .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (memberError) {
-        console.error("Error checking member status:", memberError);
+        console.error("Error fetching member data:", memberError);
         throw memberError;
       }
 
+      // If member found and linked, check their status
       if (memberData) {
-        // Check if member is pending activation (approved but hasn't chosen start date)
-        if (memberData.status === "pending_activation") {
-          return {
-            status: "pending_activation",
-            memberData: {
-              id: memberData.id,
-              member_id: memberData.member_id,
-              membership_type: memberData.membership_type,
-              status: memberData.status,
-              approved_at: memberData.approved_at,
-              activation_deadline: memberData.activation_deadline,
-              activated_at: memberData.activated_at,
-              first_name: memberData.first_name,
-              last_name: memberData.last_name,
-              email: memberData.email,
-            },
-          };
-        }
-        
-        // Active member
         if (memberData.status === "active") {
           return {
             status: "active_member",
-            memberData: {
-              id: memberData.id,
-              member_id: memberData.member_id,
-              membership_type: memberData.membership_type,
-              status: memberData.status,
-              approved_at: memberData.approved_at,
-              activation_deadline: memberData.activation_deadline,
-              activated_at: memberData.activated_at,
-              first_name: memberData.first_name,
-              last_name: memberData.last_name,
-              email: memberData.email,
-            },
+            memberData,
+          };
+        }
+        
+        if (memberData.status === "pending_activation") {
+          return {
+            status: "pending_activation",
+            memberData,
           };
         }
       }
 
-      // If no active membership, check for pending application by email
-      const { data: applicationData, error: applicationError } = await supabase
-        .from("membership_applications")
-        .select("full_name, membership_plan, created_at, status")
-        .eq("email", user.email)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // No member found by user_id - try to find and auto-link by email
+      if (!memberData && user.email) {
+        const { data: unlinkedMember, error: unlinkedError } = await supabase
+          .from("members")
+          .select("*")
+          .ilike("email", user.email)
+          .is("user_id", null)
+          .maybeSingle();
 
-      if (applicationError) {
-        console.error("Error checking application status:", applicationError);
-        throw applicationError;
+        if (unlinkedError) {
+          console.error("Error checking for unlinked member:", unlinkedError);
+        }
+
+        // Found an unlinked member with matching email - try to link it
+        if (unlinkedMember) {
+          console.log("Found unlinked member, attempting to link:", unlinkedMember.email);
+          
+          const { data: linkedMember, error: linkError } = await supabase
+            .from("members")
+            .update({ user_id: user.id })
+            .eq("id", unlinkedMember.id)
+            .select()
+            .single();
+
+          if (linkError) {
+            console.error("Failed to auto-link member:", linkError);
+            // Continue to check for pending application
+          } else if (linkedMember) {
+            console.log("Successfully auto-linked member:", linkedMember.email);
+            
+            if (linkedMember.status === "active") {
+              return {
+                status: "active_member",
+                memberData: linkedMember,
+              };
+            }
+            
+            if (linkedMember.status === "pending_activation") {
+              return {
+                status: "pending_activation",
+                memberData: linkedMember,
+              };
+            }
+          }
+        }
       }
 
-      if (applicationData && applicationData.status === "pending") {
+      // Check for pending application by email
+      const { data: applicationData, error: appError } = await supabase
+        .from("membership_applications")
+        .select("*")
+        .ilike("email", user.email || "")
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (appError) {
+        console.error("Error fetching application:", appError);
+      }
+
+      if (applicationData) {
         return {
           status: "pending_application",
-          applicationData: {
-            full_name: applicationData.full_name,
-            membership_plan: applicationData.membership_plan,
-            created_at: applicationData.created_at,
-            status: applicationData.status,
-          },
+          applicationData,
         };
       }
 
+      // No member record or pending application found
       return { status: "no_application" };
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    retry: 2,
   });
 }

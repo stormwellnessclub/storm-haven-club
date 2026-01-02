@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
 import { ActivationRequired } from "./ActivationRequired";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ProtectedMemberRouteProps {
   children: ReactNode;
@@ -12,7 +13,7 @@ interface ProtectedMemberRouteProps {
 
 export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { data: applicationStatus, isLoading: statusLoading } = useApplicationStatus();
+  const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
 
   // Show loading while auth is being determined
   if (authLoading) {
@@ -34,6 +35,23 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />
         <p className="text-muted-foreground">Checking membership status...</p>
+      </div>
+    );
+  }
+
+  // Show error state with retry option
+  if (error) {
+    console.error("ProtectedMemberRoute error:", error);
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <AlertCircle className="w-12 h-12 text-destructive" />
+        <h2 className="text-xl font-semibold">Something went wrong</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          We couldn't load your membership information. Please try again.
+        </p>
+        <Button onClick={() => refetch()} variant="outline">
+          Try Again
+        </Button>
       </div>
     );
   }

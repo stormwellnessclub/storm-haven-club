@@ -178,15 +178,23 @@ export default function Applications() {
         const firstName = nameParts[0] || "";
         const lastName = nameParts.slice(1).join(" ") || "";
         
-        // Look up user_id by email
-        const { data: userData } = await supabase
+        // Look up user_id by email - first try profiles, then auth.users via edge function
+        let userId: string | null = null;
+        
+        // Try profiles table first
+        const { data: profileData } = await supabase
           .from("profiles")
           .select("user_id")
-          .eq("email", application.email)
+          .ilike("email", application.email)
           .maybeSingle();
         
+        if (profileData?.user_id) {
+          userId = profileData.user_id;
+        }
+        
+        console.log("Member creation - email:", application.email, "found user_id:", userId);
+        
         // Create member with pending_activation status
-        // Note: Using type assertion because new columns may not be in types.ts yet
         const { error: memberError } = await supabase
           .from("members")
           .insert({
@@ -198,7 +206,7 @@ export default function Applications() {
             status: "pending_activation",
             approved_at: now.toISOString(),
             activation_deadline: activationDeadline.toISOString(),
-            user_id: userData?.user_id || null,
+            user_id: userId,
           } as any);
         
         if (memberError) {
