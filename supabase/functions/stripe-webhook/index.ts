@@ -32,6 +32,12 @@ serve(async (req) => {
     return new Response("Configuration error", { status: 500 });
   }
 
+  // SECURITY: Webhook signature verification is MANDATORY
+  if (!webhookSecret) {
+    console.error("STRIPE_WEBHOOK_SECRET is not configured - webhook verification is required");
+    return new Response("Configuration error: webhook secret required", { status: 500 });
+  }
+
   const stripe = new Stripe(stripeSecretKey, { apiVersion: '2025-08-27.basil' });
   
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -42,17 +48,18 @@ serve(async (req) => {
     const body = await req.text();
     let event: Stripe.Event;
 
-    // Verify webhook signature if secret is configured
-    if (webhookSecret) {
-      const signature = req.headers.get('stripe-signature');
-      if (!signature) {
-        throw new Error("Missing stripe-signature header");
-      }
+    // Verify webhook signature (mandatory)
+    const signature = req.headers.get('stripe-signature');
+    if (!signature) {
+      console.error("Missing stripe-signature header");
+      return new Response("Missing signature", { status: 400 });
+    }
+    
+    try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } else {
-      // For testing without signature verification
-      event = JSON.parse(body);
-      logStep("WARNING: Webhook signature verification disabled");
+    } catch (signatureError) {
+      console.error("Webhook signature verification failed:", signatureError);
+      return new Response("Invalid signature", { status: 401 });
     }
 
     logStep(`Received event: ${event.type}`, { eventId: event.id });
