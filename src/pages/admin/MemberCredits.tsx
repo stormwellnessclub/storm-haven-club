@@ -111,6 +111,7 @@ export default function MemberCreditsAdmin() {
   // Pagination state - Credits
   const [creditsPage, setCreditsPage] = useState(1);
   const [creditsPageSize, setCreditsPageSize] = useState<number>(25);
+  const [creditsCreditTypeFilter, setCreditsCreditTypeFilter] = useState<string>("all");
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -257,13 +258,29 @@ export default function MemberCreditsAdmin() {
     },
   });
 
-  const filteredMembers = members.filter(
-    (member) =>
-      member.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.member_id?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredMembers = useMemo(() => {
+    return members.filter((member) => {
+      // Search filter
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery || 
+        member.first_name?.toLowerCase().includes(searchLower) ||
+        member.last_name?.toLowerCase().includes(searchLower) ||
+        member.email?.toLowerCase().includes(searchLower) ||
+        member.member_id?.toLowerCase().includes(searchLower);
+
+      if (!matchesSearch) return false;
+
+      // Credit type filter - show members who have the selected credit type with remaining credits
+      if (creditsCreditTypeFilter !== "all") {
+        const hasCredit = member.credits.some(
+          (c) => c.credit_type === creditsCreditTypeFilter && c.credits_remaining > 0
+        );
+        if (!hasCredit) return false;
+      }
+
+      return true;
+    });
+  }, [members, searchQuery, creditsCreditTypeFilter]);
 
   // Credits table pagination
   const paginatedMembers = useMemo(() => {
@@ -276,10 +293,10 @@ export default function MemberCreditsAdmin() {
   const creditsStartRecord = filteredMembers.length === 0 ? 0 : (creditsPage - 1) * creditsPageSize + 1;
   const creditsEndRecord = Math.min(creditsPage * creditsPageSize, filteredMembers.length);
 
-  // Reset credits page when search changes
+  // Reset credits page when filters change
   useEffect(() => {
     setCreditsPage(1);
-  }, [searchQuery, creditsPageSize]);
+  }, [searchQuery, creditsPageSize, creditsCreditTypeFilter]);
 
   // Generate page numbers for credits table
   const getCreditsPageNumbers = () => {
@@ -438,6 +455,20 @@ export default function MemberCreditsAdmin() {
               </div>
             </div>
             <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Credit Type</Label>
+              <Select value={creditsCreditTypeFilter} onValueChange={setCreditsCreditTypeFilter}>
+                <SelectTrigger className="w-[140px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="class">Class</SelectItem>
+                  <SelectItem value="red_light">Red Light</SelectItem>
+                  <SelectItem value="dry_cryo">Dry Cryo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label className="text-xs text-muted-foreground mb-1 block">Per Page</Label>
               <Select value={creditsPageSize.toString()} onValueChange={(v) => setCreditsPageSize(parseInt(v))}>
                 <SelectTrigger className="w-[80px] h-9">
@@ -450,6 +481,20 @@ export default function MemberCreditsAdmin() {
                 </SelectContent>
               </Select>
             </div>
+            {(searchQuery || creditsCreditTypeFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setCreditsCreditTypeFilter("all");
+                }}
+                className="h-9"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
           </div>
 
           {/* Credits Table */}
