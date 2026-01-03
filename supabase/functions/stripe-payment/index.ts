@@ -62,6 +62,7 @@ interface PaymentRequest {
   amount?: number;
   description?: string;
   stripeCustomerId?: string; // Direct customer ID for applications
+  applicationId?: string; // For tracking application charges
   // For application setup (unauthenticated)
   applicantEmail?: string;
   applicantName?: string;
@@ -497,7 +498,7 @@ serve(async (req) => {
       }
 
       case 'charge_saved_card': {
-        const { memberId, stripeCustomerId: directCustomerId, applicantName, amount, description } = body;
+        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description } = body;
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
@@ -515,6 +516,7 @@ serve(async (req) => {
         let customerName: string;
         let memberIdForLog: string | null = null;
         let userIdForLog: string | null = null;
+        let applicationIdForLog: string | null = applicationId || null;
 
         if (directCustomerId) {
           // Direct customer ID provided (for applications without member record yet)
@@ -593,8 +595,9 @@ serve(async (req) => {
           customerName,
         });
 
-        // Record the charge in manual_charges table only if we have a member
+        // Record the charge in manual_charges table
         if (memberIdForLog && userIdForLog) {
+          // Member charge
           const { error: insertError } = await supabase
             .from('manual_charges')
             .insert({
@@ -610,8 +613,27 @@ serve(async (req) => {
           if (insertError) {
             logStep("Warning: Failed to record manual charge", { error: insertError.message });
           }
+        } else if (applicationIdForLog) {
+          // Application charge (before member record exists)
+          const { error: insertError } = await supabase
+            .from('manual_charges')
+            .insert({
+              application_id: applicationIdForLog,
+              user_id: user.id, // Use the admin's user_id since applicant doesn't have one yet
+              amount: amount,
+              description: description,
+              stripe_payment_intent_id: paymentIntent.id,
+              status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
+              charged_by: user.id,
+            });
+
+          if (insertError) {
+            logStep("Warning: Failed to record application charge", { error: insertError.message });
+          } else {
+            logStep("Recorded application charge", { applicationId: applicationIdForLog });
+          }
         } else {
-          logStep("Skipping manual_charges insert - no member record (application charge)");
+          logStep("Skipping manual_charges insert - no member or application ID");
         }
 
         return new Response(

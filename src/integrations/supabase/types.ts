@@ -714,11 +714,12 @@ export type Database = {
       manual_charges: {
         Row: {
           amount: number
+          application_id: string | null
           charged_by: string
           created_at: string
           description: string
           id: string
-          member_id: string
+          member_id: string | null
           status: string
           stripe_payment_intent_id: string | null
           updated_at: string
@@ -726,11 +727,12 @@ export type Database = {
         }
         Insert: {
           amount: number
+          application_id?: string | null
           charged_by: string
           created_at?: string
           description: string
           id?: string
-          member_id: string
+          member_id?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           updated_at?: string
@@ -738,17 +740,25 @@ export type Database = {
         }
         Update: {
           amount?: number
+          application_id?: string | null
           charged_by?: string
           created_at?: string
           description?: string
           id?: string
-          member_id?: string
+          member_id?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "manual_charges_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "membership_applications"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "manual_charges_member_id_fkey"
             columns: ["member_id"]

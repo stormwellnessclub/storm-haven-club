@@ -46,6 +46,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ChargeHistory } from "@/components/ChargeHistory";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -423,6 +424,7 @@ export default function Applications() {
           action: "charge_saved_card",
           stripeCustomerId: chargeTarget.stripe_customer_id,
           applicantName: chargeTarget.full_name,
+          applicationId: chargeTarget.id,
           amount: Math.round(amountNum * 100), // Convert to cents
           description: chargeDescription,
         },
@@ -1163,6 +1165,11 @@ export default function Applications() {
                       )}
                       Save Notes
                     </Button>
+                  </div>
+
+                  {/* Charge History */}
+                  <div className="pt-4 border-t">
+                    <ChargeHistory applicationId={selectedApplication.id} />
                   </div>
 
                   {/* Annual Fee Actions */}
