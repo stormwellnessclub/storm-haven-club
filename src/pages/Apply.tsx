@@ -13,12 +13,15 @@ import { supabase } from "@/integrations/supabase/client";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
 // Draft persistence for form data across redirects
-const DRAFT_STORAGE_KEY = "storm_apply_draft_v1";
+// Uses BOTH localStorage and sessionStorage for mobile redirect resilience
+const DRAFT_STORAGE_KEY = "storm_apply_draft_v2";
+const DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface DraftData {
   formData: typeof initialFormData;
   stripeCustomerId: string | null;
   savedAt: number;
+  source?: "local" | "session";
 }
 
 const initialFormData = {
@@ -52,37 +55,77 @@ const initialFormData = {
   submissionConfirmation: false,
 };
 
+// Save to BOTH storages for maximum reliability on mobile
 const saveDraft = (formData: typeof initialFormData, stripeCustomerId: string | null) => {
+  const draft: DraftData = { formData, stripeCustomerId, savedAt: Date.now() };
+  const json = JSON.stringify(draft);
+  
   try {
-    const draft: DraftData = { formData, stripeCustomerId, savedAt: Date.now() };
-    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    sessionStorage.setItem(DRAFT_STORAGE_KEY, json);
   } catch (e) {
-    console.warn("Failed to save draft:", e);
+    console.warn("[Draft] sessionStorage save failed:", e);
+  }
+  
+  try {
+    localStorage.setItem(DRAFT_STORAGE_KEY, json);
+  } catch (e) {
+    console.warn("[Draft] localStorage save failed:", e);
   }
 };
 
+// Load from sessionStorage first, fallback to localStorage
 const loadDraft = (): DraftData | null => {
+  let draft: DraftData | null = null;
+  let source: "session" | "local" | null = null;
+
+  // Try sessionStorage first
   try {
     const stored = sessionStorage.getItem(DRAFT_STORAGE_KEY);
-    if (!stored) return null;
-    const draft = JSON.parse(stored) as DraftData;
-    // Expire drafts older than 24 hours
-    if (Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) {
-      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
-      return null;
+    if (stored) {
+      draft = JSON.parse(stored) as DraftData;
+      source = "session";
     }
-    return draft;
   } catch (e) {
-    console.warn("Failed to load draft:", e);
+    console.warn("[Draft] sessionStorage load failed:", e);
+  }
+
+  // Fallback to localStorage if sessionStorage empty/failed
+  if (!draft) {
+    try {
+      const stored = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (stored) {
+        draft = JSON.parse(stored) as DraftData;
+        source = "local";
+      }
+    } catch (e) {
+      console.warn("[Draft] localStorage load failed:", e);
+    }
+  }
+
+  if (!draft) return null;
+
+  // Expire drafts older than 24 hours
+  if (Date.now() - draft.savedAt > DRAFT_EXPIRY_MS) {
+    clearDraft();
     return null;
   }
+
+  draft.source = source || undefined;
+  console.log(`[Draft] Loaded from ${source}Storage, saved ${Math.round((Date.now() - draft.savedAt) / 1000 / 60)} min ago`);
+  return draft;
 };
 
+// Clear from BOTH storages
 const clearDraft = () => {
   try {
     sessionStorage.removeItem(DRAFT_STORAGE_KEY);
   } catch (e) {
-    console.warn("Failed to clear draft:", e);
+    console.warn("[Draft] sessionStorage clear failed:", e);
+  }
+  try {
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch (e) {
+    console.warn("[Draft] localStorage clear failed:", e);
   }
 };
 
@@ -147,16 +190,14 @@ export default function Apply() {
     
     if (setupSuccess === "true" && customerId) {
       setStripeCustomerId(customerId);
-      // Immediately persist the customer ID along with current form data
-      const draft = loadDraft();
-      if (draft) {
-        saveDraft(draft.formData, customerId);
-      }
+      // Persist customer ID with CURRENT form state (not just draft, handles fresh tab case)
+      // Use formData from state which should already be restored from draft
+      saveDraft(formData, customerId);
       toast.success("Payment method saved successfully!");
       // Clear URL params without reload
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [searchParams]);
+  }, [searchParams, formData]);
 
   // Autosave draft with debounce
   useEffect(() => {
