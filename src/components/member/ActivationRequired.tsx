@@ -30,6 +30,7 @@ interface MemberData {
   gender?: string | null;
   is_founding_member?: boolean | null;
   annual_fee_paid_at?: string | null;
+  locked_start_date?: string | null;
 }
 
 interface ActivationRequiredProps {
@@ -37,7 +38,13 @@ interface ActivationRequiredProps {
 }
 
 export function ActivationRequired({ memberData }: ActivationRequiredProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  // Check if start date is locked by admin
+  const hasLockedDate = !!memberData.locked_start_date;
+  const lockedDate = hasLockedDate ? new Date(memberData.locked_start_date!) : null;
+  
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    lockedDate || undefined
+  );
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [gender, setGender] = useState<string>(memberData.gender || "female");
   const [isFoundingMember, setIsFoundingMember] = useState<boolean>(
@@ -216,16 +223,18 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Countdown Banner */}
-          <div className="bg-accent/10 border border-accent/20 rounded-lg p-4 text-center">
-            <div className="flex items-center justify-center gap-2 text-accent mb-1">
-              <Clock className="h-5 w-5" />
-              <span className="font-semibold">{daysRemaining} days remaining</span>
+          {/* Countdown Banner - hide if date is locked */}
+          {!hasLockedDate && (
+            <div className="bg-accent/10 border border-accent/20 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center gap-2 text-accent mb-1">
+                <Clock className="h-5 w-5" />
+                <span className="font-semibold">{daysRemaining} days remaining</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Please complete activation by {format(deadlineDate, "MMMM d, yyyy")}
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Please complete activation by {format(deadlineDate, "MMMM d, yyyy")}
-            </p>
-          </div>
+          )}
 
           {/* Gender Selection */}
           <div className="space-y-3">
@@ -275,36 +284,54 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
             </RadioGroup>
           </div>
 
-          {/* Date Picker */}
+          {/* Date Picker or Locked Date Display */}
           <div className="space-y-3">
-            <label className="text-sm font-medium">Select Start Date</label>
-            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "Choose a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="center">
-                <CalendarComponent
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => {
-                    setSelectedDate(date);
-                    setIsCalendarOpen(false);
-                  }}
-                  disabled={isDateDisabled}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+            <label className="text-sm font-medium">
+              {hasLockedDate ? "Your Membership Start Date" : "Select Start Date"}
+            </label>
+            {hasLockedDate && lockedDate ? (
+              <div className="p-4 rounded-lg bg-accent/10 border border-accent/30">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-accent/20 flex items-center justify-center">
+                    <Calendar className="h-5 w-5 text-accent" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-lg">{format(lockedDate, "MMMM d, yyyy")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your start date has been set by the club
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "Choose a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      setSelectedDate(date);
+                      setIsCalendarOpen(false);
+                    }}
+                    disabled={isDateDisabled}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
 
           {/* Annual Fee Already Paid Notice */}

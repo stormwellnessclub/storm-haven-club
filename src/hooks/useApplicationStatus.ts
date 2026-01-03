@@ -29,6 +29,10 @@ export interface ApplicationStatusResult {
     first_name: string;
     last_name: string;
     email: string;
+    gender?: string | null;
+    is_founding_member?: boolean | null;
+    annual_fee_paid_at?: string | null;
+    locked_start_date?: string | null;
   };
   unlinkedMemberData?: {
     id: string;

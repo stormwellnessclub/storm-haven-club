@@ -940,6 +940,7 @@ export type Database = {
           id: string
           is_founding_member: boolean | null
           last_name: string
+          locked_start_date: string | null
           member_id: string
           membership_end_date: string | null
           membership_start_date: string
@@ -966,6 +967,7 @@ export type Database = {
           id?: string
           is_founding_member?: boolean | null
           last_name: string
+          locked_start_date?: string | null
           member_id: string
           membership_end_date?: string | null
           membership_start_date?: string
@@ -992,6 +994,7 @@ export type Database = {
           id?: string
           is_founding_member?: boolean | null
           last_name?: string
+          locked_start_date?: string | null
           member_id?: string
           membership_end_date?: string | null
           membership_start_date?: string
