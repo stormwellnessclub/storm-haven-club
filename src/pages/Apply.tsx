@@ -13,10 +13,10 @@ import { supabase } from "@/integrations/supabase/client";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
 const membershipPlans = [
-  { value: "silver", label: "Silver Membership – $200.00" },
-  { value: "gold", label: "Gold Membership – $250.00" },
-  { value: "platinum", label: "Platinum Membership – $350.00" },
-  { value: "diamond", label: "Diamond Membership – $500.00" },
+  { value: "Silver Membership", label: "Silver Membership – $200.00" },
+  { value: "Gold Membership", label: "Gold Membership – $250.00" },
+  { value: "Platinum Membership", label: "Platinum Membership – $350.00" },
+  { value: "Diamond Membership", label: "Diamond Membership – $500.00" },
 ];
 
 const wellnessGoals = [
