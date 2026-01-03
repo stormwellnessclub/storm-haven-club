@@ -44,7 +44,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription';
   // For activation checkout
   tier?: string;
   gender?: string;
@@ -55,6 +55,9 @@ interface PaymentRequest {
   category?: 'pilatesCycling' | 'otherClasses';
   passType?: 'single' | 'tenPack';
   isMember?: boolean;
+  // For freeze fee
+  freezeId?: string;
+  freezeFeeAmount?: number;
   // General
   subscriptionId?: string;
   successUrl?: string;
@@ -265,6 +268,49 @@ serve(async (req) => {
         });
 
         logStep("Class pass checkout created", { sessionId: session.id, url: session.url });
+
+        return new Response(
+          JSON.stringify({ sessionId: session.id, url: session.url }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_freeze_fee_checkout': {
+        const { freezeId, freezeFeeAmount, successUrl, cancelUrl } = body;
+
+        if (!freezeId || !freezeFeeAmount || !successUrl || !cancelUrl) {
+          throw new Error("Missing required fields for freeze fee checkout");
+        }
+
+        const customerId = await getOrCreateCustomer();
+
+        // Create one-time payment for freeze fee
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: [
+            {
+              price_data: {
+                currency: 'usd',
+                product_data: {
+                  name: 'Membership Freeze Fee',
+                  description: `Freeze fee for membership hold`,
+                },
+                unit_amount: freezeFeeAmount * 100, // Convert to cents
+              },
+              quantity: 1,
+            },
+          ],
+          mode: 'payment',
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: cancelUrl,
+          metadata: {
+            type: 'freeze_fee',
+            user_id: user.id,
+            freeze_id: freezeId,
+          },
+        });
+
+        logStep("Freeze fee checkout created", { sessionId: session.id, url: session.url, freezeId });
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),

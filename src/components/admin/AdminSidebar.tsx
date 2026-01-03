@@ -18,6 +18,7 @@ import {
   UserCog,
   CalendarDays,
   Mail,
+  Snowflake,
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,6 +54,7 @@ const quickAccessItems: MenuItem[] = [
 const managementItems: MenuItem[] = [
   { title: "Members", url: "/admin/members", icon: Users, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
   { title: "Member Credits", url: "/admin/member-credits", icon: CreditCard, requiredRoles: ['super_admin', 'admin', 'manager'] },
+  { title: "Freeze Requests", url: "/admin/freeze-requests", icon: Snowflake, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Applications", url: "/admin/applications", icon: FileText, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
   { title: "Appointments", url: "/admin/appointments", icon: Calendar, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk', 'spa_staff'] },
   { title: "Payments", url: "/admin/payments", icon: CreditCard, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },

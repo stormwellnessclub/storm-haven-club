@@ -195,6 +195,58 @@ serve(async (req) => {
           }
 
           logStep("Class pass created", { userId, category, passType, classes: config.classes });
+
+        } else if (metadata.type === 'freeze_fee') {
+          // Handle freeze fee payment
+          const freezeId = metadata.freeze_id;
+
+          if (!freezeId) {
+            throw new Error("Missing freeze_id in metadata");
+          }
+
+          // Get the freeze request to get member_id
+          const { data: freezeData, error: fetchError } = await supabase
+            .from('member_freezes')
+            .select('member_id, actual_start_date')
+            .eq('id', freezeId)
+            .single();
+
+          if (fetchError) {
+            logStep("Error fetching freeze request", { error: fetchError });
+            throw fetchError;
+          }
+
+          // Update freeze request to paid and active
+          const { error: freezeUpdateError } = await supabase
+            .from('member_freezes')
+            .update({
+              fee_paid: true,
+              stripe_payment_intent_id: session.payment_intent as string,
+              status: 'active',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', freezeId);
+
+          if (freezeUpdateError) {
+            logStep("Error updating freeze request", { error: freezeUpdateError });
+            throw freezeUpdateError;
+          }
+
+          // Update member status to frozen
+          const { error: memberUpdateError } = await supabase
+            .from('members')
+            .update({
+              status: 'frozen',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', freezeData.member_id);
+
+          if (memberUpdateError) {
+            logStep("Error updating member status", { error: memberUpdateError });
+            throw memberUpdateError;
+          }
+
+          logStep("Freeze fee payment processed", { freezeId, memberId: freezeData.member_id });
         }
         break;
       }
