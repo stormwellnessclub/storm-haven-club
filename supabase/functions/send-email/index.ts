@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated';
+  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request';
   to: string;
   data: Record<string, any>;
 }
@@ -473,6 +473,47 @@ serve(async (req) => {
                 <a href="${BASE_URL}/member/bookings" style="${emailStyles.button}">View My Bookings</a>
               </div>
               <p style="${emailStyles.muted}">Please arrive 5-10 minutes early to check in. Remember, cancellations must be made at least 24 hours in advance to avoid forfeiting your credit.</p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'payment_update_request':
+        subject = 'Action Required: Update Your Payment Information - Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thank you for your interest in joining Storm Wellness Club!
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                To complete your membership application, we need your payment information on file. This allows us to process your annual membership fee and set up your billing.
+              </p>
+              
+              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">
+                  Please click the button below to securely add your payment method.
+                </p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/apply" style="${emailStyles.button}">Add Payment Information</a>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you have any questions, please don't hesitate to reach out to us.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
+                <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
             </div>
             ${getEmailFooter()}
           </div>
