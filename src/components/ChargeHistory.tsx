@@ -41,6 +41,10 @@ interface Charge {
   status: string;
   created_at: string;
   stripe_payment_intent_id: string | null;
+  refund_notes: string | null;
+  refund_method: string | null;
+  refunded_at: string | null;
+  refunded_by: string | null;
 }
 
 export function ChargeHistory({ 
@@ -78,7 +82,7 @@ export function ChargeHistory({
     queryFn: async () => {
       let query = supabase
         .from("manual_charges")
-        .select("id, amount, description, status, created_at, stripe_payment_intent_id")
+        .select("id, amount, description, status, created_at, stripe_payment_intent_id, refund_notes, refund_method, refunded_at, refunded_by")
         .order("created_at", { ascending: false });
       
       if (applicationId) {
@@ -281,63 +285,87 @@ export function ChargeHistory({
         {charges.map((charge) => (
           <div
             key={charge.id}
-            className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border gap-2"
+            className="p-3 rounded-lg bg-secondary/50 border space-y-2"
           >
-            <div className="space-y-1 min-w-0 flex-1">
-              <p className="font-medium text-sm truncate">{charge.description}</p>
-              <p className="text-xs text-muted-foreground">
-                {format(parseISO(charge.created_at), "MMM d, yyyy 'at' h:mm a")}
-              </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="space-y-1 min-w-0 flex-1">
+                <p className="font-medium text-sm truncate">{charge.description}</p>
+                <p className="text-xs text-muted-foreground">
+                  {format(parseISO(charge.created_at), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="font-semibold">
+                  ${(charge.amount / 100).toFixed(2)}
+                </span>
+                {getStatusBadge(charge.status)}
+                {isAdmin && charge.status === "succeeded" && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setRefundingCharge(charge)}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Refund ${(charge.amount / 100).toFixed(2)}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {isAdmin && charge.status === "succeeded" && recipientEmail && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2"
+                          onClick={() => handleResendReceipt(charge)}
+                          disabled={resendingId === charge.id}
+                        >
+                          {resendingId === charge.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Mail className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Send receipt to {recipientEmail}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="font-semibold">
-                ${(charge.amount / 100).toFixed(2)}
-              </span>
-              {getStatusBadge(charge.status)}
-              {isAdmin && charge.status === "succeeded" && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setRefundingCharge(charge)}
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Refund ${(charge.amount / 100).toFixed(2)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              {isAdmin && charge.status === "succeeded" && recipientEmail && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2"
-                        onClick={() => handleResendReceipt(charge)}
-                        disabled={resendingId === charge.id}
-                      >
-                        {resendingId === charge.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Mail className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Send receipt to {recipientEmail}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+            
+            {/* Refund Details - shown for refunded/partially refunded charges */}
+            {(charge.status === "refunded" || charge.status === "partially_refunded") && (
+              <div className="mt-2 pt-2 border-t border-border/50 text-xs space-y-1">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <RotateCcw className="h-3 w-3" />
+                  <span>
+                    Refunded {charge.refunded_at ? format(parseISO(charge.refunded_at), "MMM d, yyyy") : ""}
+                    {charge.refund_method && (
+                      <span className="ml-1">
+                        via {charge.refund_method === "stripe" ? "Stripe" : charge.refund_method === "check" ? "Check" : "Other"}
+                      </span>
+                    )}
+                  </span>
+                </div>
+                {charge.refund_notes && (
+                  <p className="text-muted-foreground italic pl-5">
+                    "{charge.refund_notes}"
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
