@@ -87,7 +87,9 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
   const [isSaving, setIsSaving] = useState(false);
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showReactivateDialog, setShowReactivateDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReactivating, setIsReactivating] = useState(false);
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
@@ -189,6 +191,35 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
       setIsDeleting(false);
     }
   };
+
+  const handleReactivate = async () => {
+    if (!member) return;
+    
+    setIsReactivating(true);
+    try {
+      const { error } = await supabase
+        .from("members")
+        .update({ 
+          status: "active",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      toast.success("Membership reactivated successfully");
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      setShowReactivateDialog(false);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error reactivating member:", error);
+      toast.error("Failed to reactivate membership");
+    } finally {
+      setIsReactivating(false);
+    }
+  };
+
+  const canReactivate = member && ["suspended", "cancelled", "inactive", "frozen", "expired"].includes(member.status);
 
   if (!member) return null;
 
@@ -398,7 +429,17 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                   : "—"}</p>
               </div>
 
-              {member.status !== "suspended" && member.status !== "cancelled" && (
+              {canReactivate && (
+                <Button 
+                  variant="default" 
+                  className="w-full mt-4"
+                  onClick={() => setShowReactivateDialog(true)}
+                >
+                  Reactivate Membership
+                </Button>
+              )}
+
+              {member.status !== "suspended" && member.status !== "cancelled" && member.status === "active" && (
                 <Button 
                   variant="destructive" 
                   className="w-full mt-4"
@@ -459,6 +500,28 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
             >
               {isDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showReactivateDialog} onOpenChange={setShowReactivateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reactivate Membership?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reactivate the membership for {member.first_name} {member.last_name}. 
+              They will regain access to club facilities based on their membership tier.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isReactivating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleReactivate}
+              disabled={isReactivating}
+            >
+              {isReactivating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Reactivate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
