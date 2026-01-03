@@ -1,15 +1,22 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, CheckCircle, Clock, XCircle } from "lucide-react";
+import { DollarSign, CheckCircle, Clock, XCircle, Mail, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { toast } from "sonner";
 
 interface ChargeHistoryProps {
   applicationId?: string;
   memberId?: string;
   showTitle?: boolean;
   maxItems?: number;
+  // Admin props for resend functionality
+  isAdmin?: boolean;
+  recipientEmail?: string;
+  recipientName?: string;
 }
 
 interface Charge {
@@ -21,7 +28,17 @@ interface Charge {
   stripe_payment_intent_id: string | null;
 }
 
-export function ChargeHistory({ applicationId, memberId, showTitle = true, maxItems }: ChargeHistoryProps) {
+export function ChargeHistory({ 
+  applicationId, 
+  memberId, 
+  showTitle = true, 
+  maxItems,
+  isAdmin = false,
+  recipientEmail,
+  recipientName,
+}: ChargeHistoryProps) {
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
   const { data: charges, isLoading } = useQuery({
     queryKey: ["charge-history", applicationId, memberId],
     queryFn: async () => {
@@ -48,6 +65,39 @@ export function ChargeHistory({ applicationId, memberId, showTitle = true, maxIt
     },
     enabled: !!(applicationId || memberId),
   });
+
+  const handleResendReceipt = async (charge: Charge) => {
+    if (!recipientEmail || !recipientName) {
+      toast.error("Recipient information not available");
+      return;
+    }
+
+    setResendingId(charge.id);
+    try {
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "charge_confirmation",
+          to: recipientEmail,
+          data: {
+            name: recipientName,
+            description: charge.description,
+            amount: (charge.amount / 100).toFixed(2),
+            date: format(parseISO(charge.created_at), "MMMM d, yyyy"),
+            cardBrand: "Card",
+            cardLast4: "****",
+          },
+        },
+      });
+
+      if (error) throw error;
+      toast.success(`Receipt resent to ${recipientEmail}`);
+    } catch (err: any) {
+      console.error("Failed to resend receipt:", err);
+      toast.error(err.message || "Failed to resend receipt");
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -107,19 +157,35 @@ export function ChargeHistory({ applicationId, memberId, showTitle = true, maxIt
         {charges.map((charge) => (
           <div
             key={charge.id}
-            className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border"
+            className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border gap-2"
           >
-            <div className="space-y-1">
-              <p className="font-medium text-sm">{charge.description}</p>
+            <div className="space-y-1 min-w-0 flex-1">
+              <p className="font-medium text-sm truncate">{charge.description}</p>
               <p className="text-xs text-muted-foreground">
                 {format(parseISO(charge.created_at), "MMM d, yyyy 'at' h:mm a")}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <span className="font-semibold">
                 ${(charge.amount / 100).toFixed(2)}
               </span>
               {getStatusBadge(charge.status)}
+              {isAdmin && charge.status === "succeeded" && recipientEmail && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2"
+                  onClick={() => handleResendReceipt(charge)}
+                  disabled={resendingId === charge.id}
+                  title="Resend receipt email"
+                >
+                  {resendingId === charge.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Mail className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         ))}
