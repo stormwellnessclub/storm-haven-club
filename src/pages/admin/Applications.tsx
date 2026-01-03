@@ -259,6 +259,7 @@ export default function Applications() {
       suppressEmail = false,
       autoActivate = false,
       startDate,
+      lockedStartDate,
     }: { 
       id: string; 
       status: string; 
@@ -266,6 +267,7 @@ export default function Applications() {
       suppressEmail?: boolean;
       autoActivate?: boolean;
       startDate?: Date;
+      lockedStartDate?: Date;
     }) => {
       const { error } = await supabase
         .from("membership_applications")
@@ -276,7 +278,9 @@ export default function Applications() {
       // Create member record when status is approved
       if (status === "approved" && application) {
         const now = new Date();
-        const activationDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+        const activationDeadline = lockedStartDate 
+          ? new Date(lockedStartDate.getTime()) // Deadline is the locked date itself
+          : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
         
         const firstName = application.first_name || application.full_name.trim().split(" ")[0] || "";
         const lastName = application.last_name || application.full_name.trim().split(" ").slice(1).join(" ") || "";
@@ -296,14 +300,14 @@ export default function Applications() {
           // Still send email if not suppressed and not auto-activating
           if (!suppressEmail && !autoActivate) {
             try {
+              const emailType = lockedStartDate ? "application_approved_locked_date" : "application_approved";
               await supabase.functions.invoke("send-email", {
                 body: {
-                  type: "application_approved",
+                  type: emailType,
                   to: application.email,
-                  data: {
-                    name: firstName,
-                    activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
-                  },
+                  data: lockedStartDate 
+                    ? { name: firstName, lockedStartDate: format(lockedStartDate, "MMMM d, yyyy") }
+                    : { name: firstName, activationDeadline: format(activationDeadline, "MMMM d, yyyy") },
                 },
               });
             } catch (emailError) {
@@ -331,26 +335,33 @@ export default function Applications() {
         const activatedAt = autoActivate ? now.toISOString() : null;
         const annualFeePaidAt = autoActivate && application.annual_fee_status === "paid" ? now.toISOString() : null;
         
-        // Create member record
+        // Create member record - include locked_start_date if provided
+        const memberInsertData: any = {
+          first_name: firstName,
+          last_name: lastName,
+          email: application.email,
+          phone: application.phone,
+          membership_type: normalizeTierName(application.membership_plan),
+          status: memberStatus,
+          approved_at: now.toISOString(),
+          activation_deadline: autoActivate ? null : activationDeadline.toISOString(),
+          activated_at: activatedAt,
+          membership_start_date: membershipStartDate,
+          user_id: userId,
+          is_founding_member: application.founding_member?.toLowerCase() === "yes",
+          gender: gender,
+          stripe_customer_id: application.stripe_customer_id || null,
+          annual_fee_paid_at: annualFeePaidAt,
+        };
+        
+        // Add locked_start_date if provided (for locked mode)
+        if (lockedStartDate && !autoActivate) {
+          memberInsertData.locked_start_date = format(lockedStartDate, "yyyy-MM-dd");
+        }
+        
         const { error: memberError } = await supabase
           .from("members")
-          .insert({
-            first_name: firstName,
-            last_name: lastName,
-            email: application.email,
-            phone: application.phone,
-            membership_type: normalizeTierName(application.membership_plan),
-            status: memberStatus,
-            approved_at: now.toISOString(),
-            activation_deadline: autoActivate ? null : activationDeadline.toISOString(),
-            activated_at: activatedAt,
-            membership_start_date: membershipStartDate,
-            user_id: userId,
-            is_founding_member: application.founding_member?.toLowerCase() === "yes",
-            gender: gender,
-            stripe_customer_id: application.stripe_customer_id || null,
-            annual_fee_paid_at: annualFeePaidAt,
-          } as any);
+          .insert(memberInsertData);
         
         if (memberError) {
           console.error("Failed to create member record:", memberError);
@@ -369,6 +380,18 @@ export default function Applications() {
                     name: firstName,
                     membershipType: application.membership_plan,
                     startDate: format(startDate || now, "MMMM d, yyyy"),
+                  },
+                },
+              });
+            } else if (lockedStartDate) {
+              // Send locked date email
+              await supabase.functions.invoke("send-email", {
+                body: {
+                  type: "application_approved_locked_date",
+                  to: application.email,
+                  data: {
+                    name: firstName,
+                    lockedStartDate: format(lockedStartDate, "MMMM d, yyyy"),
                   },
                 },
               });
@@ -391,11 +414,13 @@ export default function Applications() {
         }
       }
     },
-    onSuccess: (_, { status, suppressEmail, autoActivate }) => {
+    onSuccess: (_, { status, suppressEmail, autoActivate, lockedStartDate }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
       if (status === "approved") {
         if (autoActivate) {
           toast.success("Application approved & member auto-activated");
+        } else if (lockedStartDate) {
+          toast.success("Application approved with locked start date & email sent");
         } else if (suppressEmail) {
           toast.success("Application approved (email suppressed), member created");
         } else {
@@ -467,13 +492,13 @@ export default function Applications() {
     setShowSingleActivationDialog(true);
   };
 
-  const handleSingleActivation = async (config: { startDate: Date; chargeAnnualFee: boolean }) => {
+  const handleSingleActivation = async (config: { mode: "immediate" | "locked"; startDate: Date; chargeAnnualFee: boolean }) => {
     if (!singleActivationTarget) return;
     
     setIsSingleActivating(true);
     try {
-      // If we need to charge the annual fee first
-      if (config.chargeAnnualFee && singleActivationTarget.stripe_customer_id) {
+      // If we need to charge the annual fee first (only for immediate mode with card on file)
+      if (config.chargeAnnualFee && singleActivationTarget.stripe_customer_id && config.mode === "immediate") {
         const { data, error } = await supabase.functions.invoke("stripe-payment", {
           body: {
             action: "charge_saved_card",
@@ -522,17 +547,28 @@ export default function Applications() {
       // Update the application's annual_fee_status to reflect current state for the mutation
       const updatedApp = {
         ...singleActivationTarget,
-        annual_fee_status: config.chargeAnnualFee ? "paid" : singleActivationTarget.annual_fee_status,
+        annual_fee_status: config.chargeAnnualFee && config.mode === "immediate" ? "paid" : singleActivationTarget.annual_fee_status,
       };
 
-      // Now approve and auto-activate the member
-      await updateStatusMutation.mutateAsync({
-        id: singleActivationTarget.id,
-        status: "approved",
-        application: updatedApp,
-        autoActivate: true,
-        startDate: config.startDate,
-      });
+      if (config.mode === "immediate") {
+        // Immediate activation - member becomes active now
+        await updateStatusMutation.mutateAsync({
+          id: singleActivationTarget.id,
+          status: "approved",
+          application: updatedApp,
+          autoActivate: true,
+          startDate: config.startDate,
+        });
+      } else {
+        // Locked mode - member must complete activation themselves
+        await updateStatusMutation.mutateAsync({
+          id: singleActivationTarget.id,
+          status: "approved",
+          application: updatedApp,
+          autoActivate: false,
+          lockedStartDate: config.startDate,
+        });
+      }
 
       setShowSingleActivationDialog(false);
       setSingleActivationTarget(null);

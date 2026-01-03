@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation';
+  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date';
   to: string;
   data: Record<string, any>;
 }
@@ -569,6 +569,58 @@ serve(async (req) => {
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Thank you,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'application_approved_locked_date':
+        subject = `Your Membership is Approved - Starting ${data.lockedStartDate}!`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Great news! Your application to Storm Wellness Club has been approved.
+              </p>
+              
+              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 25px 0; text-align: center;">
+                <p style="margin: 0 0 10px 0; color: #065f46; font-size: 14px;">Your membership begins on</p>
+                <p style="margin: 0; font-size: 24px; font-weight: 700; color: #065f46;">${data.lockedStartDate}</p>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                To complete your membership setup, please sign in to your member portal to:
+              </p>
+              
+              <ul style="color: #374151; line-height: 2; margin: 20px 0;">
+                <li>Add your payment information for your membership subscription</li>
+                <li>Complete your profile</li>
+                <li>Sign your membership agreement</li>
+              </ul>
+              
+              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">
+                  ⏰ Please complete your setup before your start date to ensure uninterrupted access.
+                </p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Complete Your Setup</a>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We look forward to welcoming you to Storm Wellness Club!
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
+                <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
               </div>
             </div>
             ${getEmailFooter()}
