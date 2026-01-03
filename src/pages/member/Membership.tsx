@@ -8,9 +8,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUserMembership, getMembershipTierBenefits } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
-import { IdCard, Check, FileCheck, Crown, CreditCard, Loader2, ExternalLink } from "lucide-react";
+import { IdCard, Check, FileCheck, Crown, CreditCard, Loader2, ExternalLink, Receipt } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
+import { ChargeHistory } from "@/components/ChargeHistory";
 
 export default function MemberMembership() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
@@ -166,6 +167,22 @@ export default function MemberMembership() {
               Opens Stripe Customer Portal in a new tab where you can update payment methods, 
               view invoices, and manage your subscription.
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Charge History */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-accent" />
+              <CardTitle>Payment History</CardTitle>
+            </div>
+            <CardDescription>
+              Manual charges and fees processed on your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChargeHistory memberId={membership.id} showTitle={false} />
           </CardContent>
         </Card>
 
