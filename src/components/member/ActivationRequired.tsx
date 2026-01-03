@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, addDays, isAfter, isBefore, startOfDay } from "date-fns";
-import { Calendar, Clock, Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { Calendar, Clock, Loader2, CreditCard, AlertCircle, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,11 +8,13 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import { secureInvoke } from "@/lib/secureSupabaseCall";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MemberData {
   id: string;
@@ -27,6 +29,7 @@ interface MemberData {
   email: string;
   gender?: string | null;
   is_founding_member?: boolean | null;
+  annual_fee_paid_at?: string | null;
 }
 
 interface ActivationRequiredProps {
@@ -41,8 +44,58 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
     memberData.is_founding_member || false
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [annualFeeAlreadyPaid, setAnnualFeeAlreadyPaid] = useState<boolean>(false);
+  const [checkingFeeStatus, setCheckingFeeStatus] = useState(true);
   const { session } = useAuth();
   const navigate = useNavigate();
+
+  // Check if annual fee was already paid (via member record or application)
+  useEffect(() => {
+    const checkAnnualFeeStatus = async () => {
+      setCheckingFeeStatus(true);
+      try {
+        // First check member's annual_fee_paid_at field
+        if (memberData.annual_fee_paid_at) {
+          setAnnualFeeAlreadyPaid(true);
+          setCheckingFeeStatus(false);
+          return;
+        }
+        
+        // Check if there's an application with paid annual fee status
+        const { data: applicationData } = await supabase
+          .from("membership_applications")
+          .select("annual_fee_status")
+          .ilike("email", memberData.email)
+          .eq("annual_fee_status", "paid")
+          .maybeSingle();
+        
+        if (applicationData) {
+          setAnnualFeeAlreadyPaid(true);
+          setCheckingFeeStatus(false);
+          return;
+        }
+        
+        // Check for manual charges with "Annual" in description
+        const { data: chargeData } = await supabase
+          .from("manual_charges")
+          .select("id, description")
+          .eq("status", "succeeded")
+          .ilike("description", "%annual%fee%")
+          .or(`member_id.eq.${memberData.id}`)
+          .limit(1);
+        
+        if (chargeData && chargeData.length > 0) {
+          setAnnualFeeAlreadyPaid(true);
+        }
+      } catch (err) {
+        console.error("Error checking annual fee status:", err);
+      } finally {
+        setCheckingFeeStatus(false);
+      }
+    };
+    
+    checkAnnualFeeStatus();
+  }, [memberData]);
 
   const deadlineDate = memberData.activation_deadline 
     ? new Date(memberData.activation_deadline) 
@@ -107,6 +160,7 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
           isFoundingMember: isFoundingMember,
           startDate: format(selectedDate, "yyyy-MM-dd"),
           memberId: memberData.id,
+          skipAnnualFee: annualFeeAlreadyPaid, // Skip annual fee if already paid
           successUrl: `${origin}/member?activation=success`,
           cancelUrl: `${origin}/member?activation=cancelled`,
         },
@@ -253,6 +307,16 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
             </Popover>
           </div>
 
+          {/* Annual Fee Already Paid Notice */}
+          {annualFeeAlreadyPaid && !checkingFeeStatus && (
+            <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-700 dark:text-green-400">
+                Your annual membership fee has already been processed. Only your membership dues will be charged today.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Payment Summary */}
           <div className="bg-secondary/50 rounded-lg p-4 space-y-3">
             <div className="flex justify-between text-sm">
@@ -278,13 +342,28 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
                   ${isFoundingMember ? annualPrice : monthlyPrice}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Annual Fee (yearly)</span>
-                <span className="font-medium">${annualFee}</span>
-              </div>
+              {annualFeeAlreadyPaid ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground line-through">Annual Fee (yearly)</span>
+                  <span className="font-medium text-green-600">
+                    <CheckCircle className="inline h-3 w-3 mr-1" />
+                    Paid
+                  </span>
+                </div>
+              ) : (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Annual Fee (yearly)</span>
+                  <span className="font-medium">${annualFee}</span>
+                </div>
+              )}
               <div className="flex justify-between font-semibold pt-2 border-t border-border">
                 <span>Today's Total</span>
-                <span>${(isFoundingMember ? annualPrice : monthlyPrice) + annualFee}</span>
+                <span>
+                  ${annualFeeAlreadyPaid 
+                    ? (isFoundingMember ? annualPrice : monthlyPrice) 
+                    : (isFoundingMember ? annualPrice : monthlyPrice) + annualFee
+                  }
+                </span>
               </div>
             </div>
           </div>
@@ -294,12 +373,17 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
             className="w-full"
             size="lg"
             onClick={handleActivate}
-            disabled={!selectedDate || isLoading || diamondMenBlocked}
+            disabled={!selectedDate || isLoading || diamondMenBlocked || checkingFeeStatus}
           >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Redirecting to checkout...
+              </>
+            ) : checkingFeeStatus ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Checking payment status...
               </>
             ) : (
               <>

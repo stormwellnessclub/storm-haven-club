@@ -929,6 +929,7 @@ export type Database = {
         Row: {
           activated_at: string | null
           activation_deadline: string | null
+          annual_fee_paid_at: string | null
           annual_fee_subscription_id: string | null
           approved_at: string | null
           billing_type: string | null
@@ -954,6 +955,7 @@ export type Database = {
         Insert: {
           activated_at?: string | null
           activation_deadline?: string | null
+          annual_fee_paid_at?: string | null
           annual_fee_subscription_id?: string | null
           approved_at?: string | null
           billing_type?: string | null
@@ -979,6 +981,7 @@ export type Database = {
         Update: {
           activated_at?: string | null
           activation_deadline?: string | null
+          annual_fee_paid_at?: string | null
           annual_fee_subscription_id?: string | null
           approved_at?: string | null
           billing_type?: string | null

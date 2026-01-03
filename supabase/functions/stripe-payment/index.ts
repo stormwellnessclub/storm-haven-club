@@ -51,6 +51,7 @@ interface PaymentRequest {
   isFoundingMember?: boolean;
   startDate?: string;
   memberId?: string;
+  skipAnnualFee?: boolean; // Skip annual fee if already paid
   // For class pass
   category?: 'pilatesCycling' | 'otherClasses';
   passType?: 'single' | 'tenPack';
@@ -198,7 +199,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'create_activation_checkout': {
-        const { tier, gender, isFoundingMember, startDate, memberId, successUrl, cancelUrl } = body;
+        const { tier, gender, isFoundingMember, startDate, memberId, skipAnnualFee, successUrl, cancelUrl } = body;
         
         if (!tier || !gender || !startDate || !memberId || !successUrl || !cancelUrl) {
           throw new Error("Missing required fields for activation checkout");
@@ -207,7 +208,7 @@ serve(async (req) => {
         const normalizedTier = tier.toLowerCase().replace(' membership', '') as keyof typeof STRIPE_PRODUCTS.memberships;
         const normalizedGender = (gender.toLowerCase() === 'male' || gender.toLowerCase() === 'men') ? 'men' : 'women';
         
-        logStep("Normalized checkout params", { normalizedTier, normalizedGender, isFoundingMember });
+        logStep("Normalized checkout params", { normalizedTier, normalizedGender, isFoundingMember, skipAnnualFee });
 
         // Get membership price based on founding member status
         const membershipPrices = STRIPE_PRODUCTS.memberships[normalizedTier];
@@ -222,8 +223,8 @@ serve(async (req) => {
           throw new Error(`Membership not available for ${gender} at ${tier} tier`);
         }
 
-        // Get annual fee price
-        const annualFeePriceId = STRIPE_PRODUCTS.annualFee[normalizedGender];
+        // Get annual fee price (only if not skipping)
+        const annualFeePriceId = skipAnnualFee ? null : STRIPE_PRODUCTS.annualFee[normalizedGender];
 
         const customerId = await getOrCreateCustomer();
         
@@ -243,13 +244,22 @@ serve(async (req) => {
         const startDateObj = new Date(startDate);
         const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
 
-        // Create checkout session with both subscriptions
+        // Build line items - conditionally include annual fee
+        const lineItems: { price: string; quantity: number }[] = [
+          { price: membershipPriceId, quantity: 1 },
+        ];
+        
+        if (annualFeePriceId) {
+          lineItems.push({ price: annualFeePriceId, quantity: 1 });
+          logStep("Including annual fee in checkout", { annualFeePriceId });
+        } else {
+          logStep("Skipping annual fee - already paid");
+        }
+
+        // Create checkout session with subscriptions
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
-          line_items: [
-            { price: membershipPriceId, quantity: 1 },
-            { price: annualFeePriceId, quantity: 1 },
-          ],
+          line_items: lineItems,
           mode: 'subscription',
           subscription_data: {
             billing_cycle_anchor: billingAnchor,
@@ -261,6 +271,7 @@ serve(async (req) => {
               gender: normalizedGender,
               is_founding_member: String(isFoundingMember),
               start_date: startDate,
+              annual_fee_skipped: String(skipAnnualFee || false),
             },
           },
           success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
@@ -273,10 +284,11 @@ serve(async (req) => {
             gender: normalizedGender,
             is_founding_member: String(isFoundingMember),
             start_date: startDate,
+            annual_fee_skipped: String(skipAnnualFee || false),
           },
         });
 
-        logStep("Checkout session created", { sessionId: session.id, url: session.url });
+        logStep("Checkout session created", { sessionId: session.id, url: session.url, skipAnnualFee });
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),

@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -47,6 +47,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChargeHistory } from "@/components/ChargeHistory";
+import { BatchActivationDialog, BatchActivationConfig } from "@/components/admin/BatchActivationDialog";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -175,6 +176,10 @@ export default function Applications() {
   const [isCharging, setIsCharging] = useState(false);
   const [isRequestingPayment, setIsRequestingPayment] = useState(false);
   
+  // Batch activation dialog state
+  const [showBatchActivationDialog, setShowBatchActivationDialog] = useState(false);
+  const [isBatchActivating, setIsBatchActivating] = useState(false);
+  
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading, isError, error, refetch } = useQuery({
@@ -239,25 +244,39 @@ export default function Applications() {
     },
   });
 
+  // Enhanced approval mutation with email control and auto-activation options
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status, application }: { id: string; status: string; application?: Application }) => {
+    mutationFn: async ({ 
+      id, 
+      status, 
+      application,
+      suppressEmail = false,
+      autoActivate = false,
+      startDate,
+    }: { 
+      id: string; 
+      status: string; 
+      application?: Application;
+      suppressEmail?: boolean;
+      autoActivate?: boolean;
+      startDate?: Date;
+    }) => {
       const { error } = await supabase
         .from("membership_applications")
         .update({ status })
         .eq("id", id);
       if (error) throw error;
       
-      // Create member record and send approval email when status is approved
+      // Create member record when status is approved
       if (status === "approved" && application) {
         const now = new Date();
         const activationDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
         
-        // Use first_name/last_name fields if available, fallback to parsing full_name
         const firstName = application.first_name || application.full_name.trim().split(" ")[0] || "";
         const lastName = application.last_name || application.full_name.trim().split(" ").slice(1).join(" ") || "";
         const gender = application.gender || "Women";
         
-        // Check if member already exists for this email (prevent duplicates)
+        // Check if member already exists for this email
         const { data: existingMember } = await supabase
           .from("members")
           .select("id, email, status, membership_type")
@@ -267,20 +286,23 @@ export default function Applications() {
         if (existingMember) {
           console.log("Member already exists for:", application.email, "status:", existingMember.status);
           toast.warning(`Member record already exists for ${application.email} (status: ${existingMember.status}). Skipping creation.`);
-          // Still send approval email if needed
-          try {
-            await supabase.functions.invoke("send-email", {
-              body: {
-                type: "application_approved",
-                to: application.email,
-                data: {
-                  name: firstName,
-                  activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+          
+          // Still send email if not suppressed and not auto-activating
+          if (!suppressEmail && !autoActivate) {
+            try {
+              await supabase.functions.invoke("send-email", {
+                body: {
+                  type: "application_approved",
+                  to: application.email,
+                  data: {
+                    name: firstName,
+                    activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+                  },
                 },
-              },
-            });
-          } catch (emailError) {
-            console.error("Failed to send approval email:", emailError);
+              });
+            } catch (emailError) {
+              console.error("Failed to send approval email:", emailError);
+            }
           }
           return;
         }
@@ -297,9 +319,13 @@ export default function Applications() {
           userId = profileData.user_id;
         }
         
-        console.log("Member creation - email:", application.email, "found user_id:", userId);
+        // Determine member status and dates based on autoActivate
+        const memberStatus = autoActivate ? "active" : "pending_activation";
+        const membershipStartDate = autoActivate && startDate ? format(startDate, "yyyy-MM-dd") : format(now, "yyyy-MM-dd");
+        const activatedAt = autoActivate ? now.toISOString() : null;
+        const annualFeePaidAt = autoActivate && application.annual_fee_status === "paid" ? now.toISOString() : null;
         
-        // Create member with pending_activation status
+        // Create member record
         const { error: memberError } = await supabase
           .from("members")
           .insert({
@@ -308,40 +334,70 @@ export default function Applications() {
             email: application.email,
             phone: application.phone,
             membership_type: normalizeTierName(application.membership_plan),
-            status: "pending_activation",
+            status: memberStatus,
             approved_at: now.toISOString(),
-            activation_deadline: activationDeadline.toISOString(),
+            activation_deadline: autoActivate ? null : activationDeadline.toISOString(),
+            activated_at: activatedAt,
+            membership_start_date: membershipStartDate,
             user_id: userId,
             is_founding_member: application.founding_member?.toLowerCase() === "yes",
             gender: gender,
             stripe_customer_id: application.stripe_customer_id || null,
+            annual_fee_paid_at: annualFeePaidAt,
           } as any);
         
         if (memberError) {
           console.error("Failed to create member record:", memberError);
-          // Don't throw - application status is updated, member creation is secondary
         }
         
-        // Send approval email with 7-day activation notice
-        try {
-          await supabase.functions.invoke("send-email", {
-            body: {
-              type: "application_approved",
-              to: application.email,
-              data: {
-                name: firstName,
-                activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
-              },
-            },
-          });
-        } catch (emailError) {
-          console.error("Failed to send approval email:", emailError);
+        // Send appropriate email based on options
+        if (!suppressEmail) {
+          try {
+            if (autoActivate) {
+              // Send welcome email for auto-activated members
+              await supabase.functions.invoke("send-email", {
+                body: {
+                  type: "membership_activated",
+                  to: application.email,
+                  data: {
+                    name: firstName,
+                    membershipType: application.membership_plan,
+                    startDate: format(startDate || now, "MMMM d, yyyy"),
+                  },
+                },
+              });
+            } else {
+              // Send approval email with activation instructions
+              await supabase.functions.invoke("send-email", {
+                body: {
+                  type: "application_approved",
+                  to: application.email,
+                  data: {
+                    name: firstName,
+                    activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+                  },
+                },
+              });
+            }
+          } catch (emailError) {
+            console.error("Failed to send email:", emailError);
+          }
         }
       }
     },
-    onSuccess: (_, { status }) => {
+    onSuccess: (_, { status, suppressEmail, autoActivate }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
-      toast.success(status === "approved" ? "Application approved, member created & email sent" : "Application status updated");
+      if (status === "approved") {
+        if (autoActivate) {
+          toast.success("Application approved & member auto-activated");
+        } else if (suppressEmail) {
+          toast.success("Application approved (email suppressed), member created");
+        } else {
+          toast.success("Application approved, member created & email sent");
+        }
+      } else {
+        toast.success("Application status updated");
+      }
       setSelectedApplication(null);
     },
     onError: () => {
@@ -593,14 +649,22 @@ export default function Applications() {
   const approvedCount = applications.filter((a) => a.status === "approved").length;
 
   const bulkUpdateMutation = useMutation({
-    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+    mutationFn: async ({ 
+      ids, 
+      status,
+      suppressEmail = false,
+    }: { 
+      ids: string[]; 
+      status: string;
+      suppressEmail?: boolean;
+    }) => {
       const { error } = await supabase
         .from("membership_applications")
         .update({ status })
         .in("id", ids);
       if (error) throw error;
       
-      // Create member records and send approval emails for bulk approvals
+      // Create member records and optionally send approval emails for bulk approvals
       if (status === "approved") {
         const approvedApps = applications.filter(app => ids.includes(app.id));
         let skippedCount = 0;
@@ -609,12 +673,11 @@ export default function Applications() {
           const now = new Date();
           const activationDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
           
-          // Use first_name/last_name fields if available, fallback to parsing full_name
           const firstName = app.first_name || app.full_name.trim().split(" ")[0] || "";
           const lastName = app.last_name || app.full_name.trim().split(" ").slice(1).join(" ") || "";
           const gender = app.gender || "Women";
           
-          // Check if member already exists for this email (prevent duplicates)
+          // Check if member already exists
           const { data: existingMember } = await supabase
             .from("members")
             .select("id, email, status")
@@ -624,20 +687,22 @@ export default function Applications() {
           if (existingMember) {
             console.log("Bulk: Member already exists for:", app.email);
             skippedCount++;
-            // Still send email
-            try {
-              await supabase.functions.invoke("send-email", {
-                body: {
-                  type: "application_approved",
-                  to: app.email,
-                  data: {
-                    name: firstName,
-                    activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+            // Send email only if not suppressed
+            if (!suppressEmail) {
+              try {
+                await supabase.functions.invoke("send-email", {
+                  body: {
+                    type: "application_approved",
+                    to: app.email,
+                    data: {
+                      name: firstName,
+                      activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+                    },
                   },
-                },
-              });
-            } catch (emailError) {
-              console.error(`Failed to send approval email to ${app.email}:`, emailError);
+                });
+              } catch (emailError) {
+                console.error(`Failed to send approval email to ${app.email}:`, emailError);
+              }
             }
             continue;
           }
@@ -671,20 +736,22 @@ export default function Applications() {
             console.error(`Failed to create member for ${app.email}:`, memberError);
           }
           
-          // Send approval email
-          try {
-            await supabase.functions.invoke("send-email", {
-              body: {
-                type: "application_approved",
-                to: app.email,
-                data: {
-                  name: firstName,
-                  activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+          // Send approval email only if not suppressed
+          if (!suppressEmail) {
+            try {
+              await supabase.functions.invoke("send-email", {
+                body: {
+                  type: "application_approved",
+                  to: app.email,
+                  data: {
+                    name: firstName,
+                    activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+                  },
                 },
-              },
-            });
-          } catch (emailError) {
-            console.error(`Failed to send approval email to ${app.email}:`, emailError);
+              });
+            } catch (emailError) {
+              console.error(`Failed to send approval email to ${app.email}:`, emailError);
+            }
           }
         }
         
@@ -693,17 +760,114 @@ export default function Applications() {
         }
       }
     },
-    onSuccess: (_, { ids, status }) => {
+    onSuccess: (_, { ids, status, suppressEmail }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
-      toast.success(status === "approved" 
-        ? `${ids.length} application(s) approved, members created & emails sent` 
-        : `${ids.length} application(s) marked as ${status}`);
+      if (status === "approved") {
+        if (suppressEmail) {
+          toast.success(`${ids.length} application(s) approved, members created (emails suppressed)`);
+        } else {
+          toast.success(`${ids.length} application(s) approved, members created & emails sent`);
+        }
+      } else {
+        toast.success(`${ids.length} application(s) marked as ${status}`);
+      }
       setSelectedIds(new Set());
     },
     onError: () => {
       toast.error("Failed to update applications");
     },
   });
+
+  // Batch auto-activation handler
+  const handleBatchAutoActivate = async (config: BatchActivationConfig) => {
+    setIsBatchActivating(true);
+    
+    try {
+      const { startDate, chargeUnpaidAnnualFees, applicationsToActivate, skippedApplications } = config;
+      let successCount = 0;
+      let chargedCount = 0;
+      let failedCharges: string[] = [];
+      
+      for (const app of applicationsToActivate) {
+        const needsCharge = app.annual_fee_status !== "paid" && app.stripe_customer_id && chargeUnpaidAnnualFees;
+        
+        // Charge annual fee if needed
+        if (needsCharge) {
+          try {
+            const gender = app.gender?.toLowerCase();
+            const annualFeeAmount = (gender === "men" || gender === "male") ? 175 : 300;
+            
+            const { data, error } = await supabase.functions.invoke("stripe-payment", {
+              body: {
+                action: "charge_saved_card",
+                stripeCustomerId: app.stripe_customer_id,
+                applicantName: app.full_name,
+                applicationId: app.id,
+                amount: annualFeeAmount * 100, // cents
+                description: "Annual Membership Fee",
+              },
+            });
+            
+            if (error || data?.error) {
+              console.error("Failed to charge annual fee for:", app.email, error || data?.error);
+              failedCharges.push(app.full_name);
+              continue; // Skip this application
+            }
+            
+            // Update application annual fee status
+            await supabase
+              .from("membership_applications")
+              .update({ annual_fee_status: "paid" })
+              .eq("id", app.id);
+            
+            chargedCount++;
+          } catch (chargeErr) {
+            console.error("Charge error for:", app.email, chargeErr);
+            failedCharges.push(app.full_name);
+            continue;
+          }
+        }
+        
+        // Now approve and auto-activate
+        try {
+          await updateStatusMutation.mutateAsync({
+            id: app.id,
+            status: "approved",
+            application: app,
+            suppressEmail: false, // Send welcome email
+            autoActivate: true,
+            startDate: startDate,
+          });
+          successCount++;
+        } catch (err) {
+          console.error("Failed to auto-activate:", app.email, err);
+        }
+      }
+      
+      // Show results
+      if (successCount > 0) {
+        toast.success(`Successfully activated ${successCount} member(s)`);
+      }
+      if (chargedCount > 0) {
+        toast.info(`Charged annual fee for ${chargedCount} member(s)`);
+      }
+      if (failedCharges.length > 0) {
+        toast.error(`Failed to charge: ${failedCharges.join(", ")}`);
+      }
+      if (skippedApplications.length > 0) {
+        toast.warning(`${skippedApplications.length} application(s) skipped (no card or unpaid)`);
+      }
+      
+      setShowBatchActivationDialog(false);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+    } catch (err) {
+      console.error("Batch activation error:", err);
+      toast.error("Failed to complete batch activation");
+    } finally {
+      setIsBatchActivating(false);
+    }
+  };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -731,9 +895,13 @@ export default function Applications() {
     setPendingBulkAction(status);
   };
 
-  const confirmBulkAction = () => {
+  const confirmBulkAction = (suppressEmail = false) => {
     if (pendingBulkAction) {
-      bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), status: pendingBulkAction });
+      bulkUpdateMutation.mutate({ 
+        ids: Array.from(selectedIds), 
+        status: pendingBulkAction,
+        suppressEmail 
+      });
       setPendingBulkAction(null);
     }
   };
@@ -889,10 +1057,32 @@ export default function Applications() {
               <div className="flex items-center gap-4 flex-wrap">
                 <span className="text-sm font-medium">{selectedIds.size} selected</span>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleBulkAction("approved")} disabled={bulkUpdateMutation.isPending}>
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Approve All
-                  </Button>
+                  {/* Approve dropdown with options */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" disabled={bulkUpdateMutation.isPending}>
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approve
+                        <ChevronDown className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => handleBulkAction("approved")}>
+                        <Send className="h-4 w-4 mr-2" />
+                        Approve & Send Email
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setPendingBulkAction("approved_no_email");
+                      }}>
+                        <MailX className="h-4 w-4 mr-2" />
+                        Approve (No Email)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowBatchActivationDialog(true)}>
+                        <Zap className="h-4 w-4 mr-2" />
+                        Approve & Auto-Activate
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button size="sm" variant="destructive" onClick={() => handleBulkAction("rejected")} disabled={bulkUpdateMutation.isPending}>
                     <XCircle className="h-4 w-4 mr-1" />
                     Reject All
@@ -910,18 +1100,48 @@ export default function Applications() {
           </Card>
         )}
 
+        {/* Batch Activation Dialog */}
+        <BatchActivationDialog
+          open={showBatchActivationDialog}
+          onOpenChange={setShowBatchActivationDialog}
+          applications={applications.filter(app => selectedIds.has(app.id) && app.status === "pending")}
+          onConfirm={handleBatchAutoActivate}
+          isLoading={isBatchActivating}
+        />
+
         {/* Bulk Action Confirmation Dialog */}
         <AlertDialog open={!!pendingBulkAction} onOpenChange={() => setPendingBulkAction(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Bulk Action</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to mark {selectedIds.size} application(s) as <strong>{pendingBulkAction}</strong>? This action cannot be undone.
+                {pendingBulkAction === "approved_no_email" ? (
+                  <>
+                    Are you sure you want to approve {selectedIds.size} application(s) <strong>without sending emails</strong>?
+                    Members will be created with "pending_activation" status.
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to mark {selectedIds.size} application(s) as <strong>{pendingBulkAction}</strong>? 
+                    This action cannot be undone.
+                  </>
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmBulkAction}>
+              <AlertDialogAction onClick={() => {
+                if (pendingBulkAction === "approved_no_email") {
+                  bulkUpdateMutation.mutate({ 
+                    ids: Array.from(selectedIds), 
+                    status: "approved",
+                    suppressEmail: true 
+                  });
+                  setPendingBulkAction(null);
+                } else {
+                  confirmBulkAction(false);
+                }
+              }}>
                 Confirm
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -1021,10 +1241,21 @@ export default function Applications() {
                             </DropdownMenuItem>
                           )}
                           {app.status !== "approved" && (
-                            <DropdownMenuItem className="text-green-600" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app })}>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Approve
-                            </DropdownMenuItem>
+                            <>
+                              <DropdownMenuItem 
+                                className="text-green-600" 
+                                onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app })}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Approve & Send Email
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, suppressEmail: true })}
+                              >
+                                <MailX className="h-4 w-4 mr-2" />
+                                Approve (No Email)
+                              </DropdownMenuItem>
+                            </>
                           )}
                           {app.status !== "rejected" && (
                             <DropdownMenuItem className="text-destructive" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "rejected" })}>
@@ -1274,10 +1505,32 @@ export default function Applications() {
                     <p className="text-sm text-muted-foreground mb-3">Update Application Status</p>
                     <div className="flex gap-2 flex-wrap">
                       {selectedApplication.status !== "approved" && (
-                        <Button size="sm" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "approved", application: selectedApplication })}>
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
+                        <>
+                          <Button 
+                            size="sm" 
+                            onClick={() => updateStatusMutation.mutate({ 
+                              id: selectedApplication.id, 
+                              status: "approved", 
+                              application: selectedApplication 
+                            })}
+                          >
+                            <Send className="h-4 w-4 mr-1" />
+                            Approve & Send Email
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => updateStatusMutation.mutate({ 
+                              id: selectedApplication.id, 
+                              status: "approved", 
+                              application: selectedApplication,
+                              suppressEmail: true 
+                            })}
+                          >
+                            <MailX className="h-4 w-4 mr-1" />
+                            Approve (No Email)
+                          </Button>
+                        </>
                       )}
                       {selectedApplication.status !== "rejected" && (
                         <Button size="sm" variant="destructive" onClick={() => updateStatusMutation.mutate({ id: selectedApplication.id, status: "rejected" })}>
