@@ -1384,11 +1384,15 @@ export type Database = {
         Returns: {
           activated_at: string
           activation_deadline: string
+          annual_fee_paid_at: string
           approved_at: string
           email: string
           first_name: string
+          gender: string
           id: string
+          is_founding_member: boolean
           last_name: string
+          locked_start_date: string
           member_id: string
           membership_type: string
           status: string
