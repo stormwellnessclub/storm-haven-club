@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DollarSign, CheckCircle, Clock, XCircle, Mail, Loader2, RotateCcw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -57,15 +58,18 @@ export function ChargeHistory({
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
   const [refundMethod, setRefundMethod] = useState<RefundMethod>("stripe");
+  const [refundNotes, setRefundNotes] = useState("");
 
   // Reset refund form when dialog opens/closes
   useEffect(() => {
     if (refundingCharge) {
       setRefundAmount((refundingCharge.amount / 100).toFixed(2));
       setRefundMethod(refundingCharge.stripe_payment_intent_id ? "stripe" : "other");
+      setRefundNotes("");
     } else {
       setRefundAmount("");
       setRefundMethod("stripe");
+      setRefundNotes("");
     }
   }, [refundingCharge]);
 
@@ -163,6 +167,8 @@ export function ChargeHistory({
             chargeId: refundingCharge.id,
             paymentIntentId: refundingCharge.stripe_payment_intent_id,
             refundAmount: isPartialRefund ? amountInCents : undefined,
+            refundNotes: refundNotes.trim() || undefined,
+            refundMethodType: refundMethod,
           },
         });
 
@@ -173,10 +179,16 @@ export function ChargeHistory({
       } else {
         // Manual refund (check/other) - just update the database
         const newStatus = isPartialRefund ? "partially_refunded" : "refunded";
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { error } = await supabase
           .from("manual_charges")
           .update({ 
             status: newStatus,
+            refund_method: refundMethod,
+            refund_notes: refundNotes.trim() || null,
+            refunded_at: new Date().toISOString(),
+            refunded_by: user?.id || null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", refundingCharge.id);
@@ -400,6 +412,22 @@ export function ChargeHistory({
                 Note: This will only mark the charge as refunded. You must process the actual refund manually.
               </p>
             )}
+
+            {/* Refund Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="refund-notes">Refund Notes (optional)</Label>
+              <Textarea
+                id="refund-notes"
+                placeholder="Reason for refund, reference number, etc."
+                value={refundNotes}
+                onChange={(e) => setRefundNotes(e.target.value)}
+                rows={2}
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {refundNotes.length}/500
+              </p>
+            </div>
           </div>
 
           <DialogFooter>

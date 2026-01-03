@@ -70,6 +70,8 @@ interface PaymentRequest {
   chargeId?: string;
   paymentIntentId?: string;
   refundAmount?: number;
+  refundNotes?: string;
+  refundMethodType?: string;
   // General
   subscriptionId?: string;
   successUrl?: string;
@@ -653,7 +655,7 @@ serve(async (req) => {
       }
 
       case 'refund_charge': {
-        const { chargeId, paymentIntentId, refundAmount } = body;
+        const { chargeId, paymentIntentId, refundAmount, refundNotes, refundMethodType } = body;
 
         if (!chargeId || !paymentIntentId) {
           throw new Error("Charge ID and Payment Intent ID are required");
@@ -670,7 +672,7 @@ serve(async (req) => {
           throw new Error("Unauthorized: Admin access required");
         }
 
-        logStep("Processing refund", { chargeId, paymentIntentId, refundAmount });
+        logStep("Processing refund", { chargeId, paymentIntentId, refundAmount, refundNotes });
 
         // Create refund in Stripe
         const refundParams: { payment_intent: string; amount?: number } = {
@@ -690,11 +692,15 @@ serve(async (req) => {
           amount: refund.amount 
         });
 
-        // Update the charge status in manual_charges table
+        // Update the charge status in manual_charges table with refund details
         const { error: updateError } = await supabase
           .from('manual_charges')
           .update({ 
             status: refundAmount ? 'partially_refunded' : 'refunded',
+            refund_method: refundMethodType || 'stripe',
+            refund_notes: refundNotes || null,
+            refunded_at: new Date().toISOString(),
+            refunded_by: user.id,
             updated_at: new Date().toISOString(),
           })
           .eq('id', chargeId);

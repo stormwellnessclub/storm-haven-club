@@ -720,6 +720,10 @@ export type Database = {
           description: string
           id: string
           member_id: string | null
+          refund_method: string | null
+          refund_notes: string | null
+          refunded_at: string | null
+          refunded_by: string | null
           status: string
           stripe_payment_intent_id: string | null
           updated_at: string
@@ -733,6 +737,10 @@ export type Database = {
           description: string
           id?: string
           member_id?: string | null
+          refund_method?: string | null
+          refund_notes?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           updated_at?: string
@@ -746,6 +754,10 @@ export type Database = {
           description?: string
           id?: string
           member_id?: string | null
+          refund_method?: string | null
+          refund_notes?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           updated_at?: string
