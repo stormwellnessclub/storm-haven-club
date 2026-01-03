@@ -1265,6 +1265,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_link_member_to_user: {
+        Args: { _member_id: string; _user_email: string }
+        Returns: boolean
+      }
       current_user_email: { Args: never; Returns: string }
       has_any_role: {
         Args: {
