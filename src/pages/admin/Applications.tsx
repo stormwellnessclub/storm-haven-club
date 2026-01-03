@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2 } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -88,6 +88,7 @@ type Application = {
   services_interested: string[];
   annual_fee_status: string;
   notes: string | null;
+  stripe_customer_id: string | null;
 };
 
 const getStatusBadge = (status: string) => {
@@ -303,6 +304,7 @@ export default function Applications() {
             user_id: userId,
             is_founding_member: application.founding_member?.toLowerCase() === "yes",
             gender: gender,
+            stripe_customer_id: application.stripe_customer_id || null,
           } as any);
         
         if (memberError) {
@@ -540,6 +542,7 @@ export default function Applications() {
                 user_id: userData?.user_id || null,
                 is_founding_member: app.founding_member?.toLowerCase() === "yes",
                 gender: gender,
+                stripe_customer_id: app.stripe_customer_id || null,
               } as any);
           } catch (memberError) {
             console.error(`Failed to create member for ${app.email}:`, memberError);
@@ -820,6 +823,7 @@ export default function Applications() {
                   <TableHead>Applicant</TableHead>
                   <TableHead>Membership</TableHead>
                   <TableHead>Founding Member</TableHead>
+                  <TableHead>Card</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Annual Fee ($300)</TableHead>
                   <TableHead>Submitted</TableHead>
@@ -848,6 +852,18 @@ export default function Applications() {
                       {app.founding_member?.toLowerCase() === "yes" && (
                         <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
                           Founding
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {app.stripe_customer_id ? (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                          <CreditCard className="h-3 w-3 mr-1" />
+                          On File
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          None
                         </Badge>
                       )}
                     </TableCell>
