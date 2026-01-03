@@ -768,6 +768,87 @@ export type Database = {
           },
         ]
       }
+      member_freezes: {
+        Row: {
+          actual_end_date: string | null
+          actual_start_date: string | null
+          created_at: string | null
+          duration_months: number
+          fee_paid: boolean | null
+          freeze_fee_total: number
+          freeze_year: number
+          id: string
+          member_id: string
+          reason: string | null
+          rejection_reason: string | null
+          requested_end_date: string
+          requested_start_date: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
+          created_at?: string | null
+          duration_months: number
+          fee_paid?: boolean | null
+          freeze_fee_total?: number
+          freeze_year?: number
+          id?: string
+          member_id: string
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_end_date: string
+          requested_start_date: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
+          created_at?: string | null
+          duration_months?: number
+          fee_paid?: boolean | null
+          freeze_fee_total?: number
+          freeze_year?: number
+          id?: string
+          member_id?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_end_date?: string
+          requested_start_date?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_freezes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_freezes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           activated_at: string | null

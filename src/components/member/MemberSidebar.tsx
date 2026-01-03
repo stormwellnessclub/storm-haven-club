@@ -9,6 +9,7 @@ import {
   MessageCircle,
   LogOut,
   Home,
+  Snowflake,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +39,7 @@ const memberMenuItems: MenuItem[] = [
   { title: "My Credits", url: "/member/credits", icon: CreditCard },
   { title: "My Membership", url: "/member/membership", icon: IdCard },
   { title: "My Bookings", url: "/member/bookings", icon: Calendar },
+  { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
   { title: "Waivers", url: "/member/waivers", icon: FileCheck },
   { title: "Support", url: "/member/support", icon: MessageCircle },
 ];

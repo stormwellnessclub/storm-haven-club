@@ -16,6 +16,7 @@ import MemberMembership from "@/pages/member/Membership";
 import MemberBookings from "@/pages/member/Bookings";
 import MemberWaivers from "@/pages/member/Waivers";
 import MemberSupport from "@/pages/member/Support";
+import MemberFreezeRequest from "@/pages/member/FreezeRequest";
 import Index from "./pages/Index";
 import Classes from "./pages/Classes";
 import Spa from "./pages/Spa";
@@ -49,6 +50,7 @@ import ClassTypes from "./pages/admin/ClassTypes";
 import Instructors from "./pages/admin/Instructors";
 import ClassSchedules from "./pages/admin/ClassSchedules";
 import EmailManagement from "./pages/admin/EmailManagement";
+import FreezeRequests from "./pages/admin/FreezeRequests";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +90,7 @@ const App = () => (
               <Route path="/member/bookings" element={<ProtectedMemberRoute><MemberBookings /></ProtectedMemberRoute>} />
               <Route path="/member/waivers" element={<ProtectedMemberRoute><MemberWaivers /></ProtectedMemberRoute>} />
               <Route path="/member/support" element={<ProtectedMemberRoute><MemberSupport /></ProtectedMemberRoute>} />
+              <Route path="/member/freeze" element={<ProtectedMemberRoute><MemberFreezeRequest /></ProtectedMemberRoute>} />
               
               {/* Admin Routes - Protected by Role */}
               <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />
@@ -107,6 +110,7 @@ const App = () => (
               <Route path="/admin/staff-roles" element={<ProtectedAdminRoute><StaffRoles /></ProtectedAdminRoute>} />
               <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
               <Route path="/admin/emails" element={<ProtectedAdminRoute><EmailManagement /></ProtectedAdminRoute>} />
+              <Route path="/admin/freeze-requests" element={<ProtectedAdminRoute><FreezeRequests /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
