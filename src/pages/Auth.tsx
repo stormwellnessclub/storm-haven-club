@@ -8,8 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { z } from "zod";
 import logo from "@/assets/storm-logo.png";
-import { clearAuthStorage } from "@/lib/authStorage";
+import { clearAuthStorage, hasAuthData } from "@/lib/authStorage";
 import { supabase } from "@/integrations/supabase/client";
+import { isJwtError, forceAuthReset } from "@/lib/jwtErrorHandler";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -23,18 +24,60 @@ export default function Auth() {
   const [lastName, setLastName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCleaningSession, setIsCleaningSession] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { user, signUp, signIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Check for and clean corrupted sessions on mount
+  useEffect(() => {
+    const checkAndCleanSession = async () => {
+      try {
+        // Check if there's auth data in storage
+        if (hasAuthData()) {
+          // Try to validate the session
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError && isJwtError(sessionError)) {
+            console.warn("[Auth] Corrupted session detected, cleaning up");
+            await forceAuthReset();
+            setIsCleaningSession(false);
+            return;
+          }
+          
+          if (session) {
+            // Session exists, validate with server
+            const { error: userError } = await supabase.auth.getUser();
+            
+            if (userError && isJwtError(userError)) {
+              console.warn("[Auth] Invalid JWT detected, cleaning up");
+              await forceAuthReset();
+              setIsCleaningSession(false);
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        // If any error occurs during validation, clean up to be safe
+        if (isJwtError(error)) {
+          await forceAuthReset();
+        }
+      }
+      
+      setIsCleaningSession(false);
+    };
+    
+    checkAndCleanSession();
+  }, []);
+
   // Redirect if already logged in
   useEffect(() => {
-    if (user) {
+    if (!isCleaningSession && user) {
       navigate("/member");
     }
-  }, [user, navigate]);
+  }, [user, navigate, isCleaningSession]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -143,6 +186,15 @@ export default function Auth() {
       setIsLoading(false);
     }
   };
+
+  // Show loading while cleaning corrupted sessions
+  if (isCleaningSession) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Preparing...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">

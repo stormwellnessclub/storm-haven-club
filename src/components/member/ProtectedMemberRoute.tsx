@@ -9,6 +9,7 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { clearAuthStorage } from "@/lib/authStorage";
+import { isJwtError, handleJwtError } from "@/lib/jwtErrorHandler";
 
 interface ProtectedMemberRouteProps {
   children: ReactNode;
@@ -34,12 +35,50 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
       // Validate the session with the server
       const { data: { user: validatedUser }, error: userError } = await supabase.auth.getUser();
       
-      if (userError || !validatedUser) {
-        // Session is invalid - try to refresh
+      if (userError) {
+        // Check for JWT-specific errors
+        if (isJwtError(userError)) {
+          console.warn("[ProtectedMemberRoute] JWT error detected:", userError);
+          
+          // Clear storage BEFORE attempting refresh
+          clearAuthStorage();
+          
+          // Try to refresh
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError) {
+            console.warn("[ProtectedMemberRoute] Refresh failed after JWT error:", refreshError);
+            
+            // Handle the refresh error and redirect to auth
+            await handleJwtError(refreshError, { redirect: false });
+            setSessionState("invalid");
+            return;
+          }
+          
+          // Refresh succeeded - revalidate
+          const { data: { user: revalidatedUser }, error: revalidateError } = await supabase.auth.getUser();
+          
+          if (revalidateError || !revalidatedUser) {
+            setSessionState("invalid");
+            return;
+          }
+          
+          setSessionState("valid");
+          return;
+        }
+        
+        // Non-JWT error - try standard refresh
         const { error: refreshError } = await supabase.auth.refreshSession();
         
         if (refreshError) {
-          // Refresh failed - show repair screen instead of silent redirect
+          // Check if refresh error is JWT-related
+          if (isJwtError(refreshError)) {
+            await handleJwtError(refreshError, { redirect: false });
+            setSessionState("invalid");
+            return;
+          }
+          
+          // Show repair screen for recoverable errors
           setSessionState("needs_repair");
           return;
         }
@@ -48,14 +87,30 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
         const { data: { user: revalidatedUser }, error: revalidateError } = await supabase.auth.getUser();
         
         if (revalidateError || !revalidatedUser) {
+          if (isJwtError(revalidateError)) {
+            await handleJwtError(revalidateError, { redirect: false });
+            setSessionState("invalid");
+            return;
+          }
           setSessionState("needs_repair");
           return;
         }
+      } else if (!validatedUser) {
+        setSessionState("needs_repair");
+        return;
       }
       
       setSessionState("valid");
     } catch (error) {
-      console.error("Session validation error:", error);
+      console.error("[ProtectedMemberRoute] Session validation error:", error);
+      
+      // Handle JWT errors in catch block
+      if (isJwtError(error)) {
+        await handleJwtError(error, { redirect: false });
+        setSessionState("invalid");
+        return;
+      }
+      
       setSessionState("needs_repair");
     }
   }, [session]);
