@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { format, addDays, isAfter, isBefore, startOfDay } from "date-fns";
-import { Calendar, Clock, CheckCircle, Loader2, CreditCard } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Calendar, Clock, Loader2, CreditCard, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import stormLogo from "@/assets/storm-logo-gold.png";
+import { secureInvoke } from "@/lib/secureSupabaseCall";
+import { useNavigate } from "react-router-dom";
 
 interface MemberData {
   id: string;
@@ -41,6 +42,7 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
   );
   const [isLoading, setIsLoading] = useState(false);
   const { session } = useAuth();
+  const navigate = useNavigate();
 
   const deadlineDate = memberData.activation_deadline 
     ? new Date(memberData.activation_deadline) 
@@ -87,6 +89,7 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
 
     if (!session?.access_token) {
       toast.error("Please log in to continue");
+      navigate("/auth");
       return;
     }
 
@@ -95,7 +98,8 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
     try {
       const origin = window.location.origin;
       
-      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+      // Use secureInvoke for better session handling
+      const result = await secureInvoke<{ url?: string }>("stripe-payment", {
         body: {
           action: "create_activation_checkout",
           tier: memberData.membership_type,
@@ -108,13 +112,20 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
         },
       });
 
-      if (error) {
-        throw error;
+      // Handle auth failure
+      if (result.authFailed) {
+        toast.error("Your session expired. Please sign in again.");
+        navigate("/auth");
+        return;
       }
 
-      if (data?.url) {
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (result.data?.url) {
         // Redirect to Stripe Checkout
-        window.location.href = data.url;
+        window.location.href = result.data.url;
       } else {
         throw new Error("No checkout URL returned");
       }
