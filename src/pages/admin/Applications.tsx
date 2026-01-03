@@ -785,9 +785,11 @@ export default function Applications() {
                       <Badge variant="outline">{formatTierDisplay(app.membership_plan)}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={app.founding_member === "Yes" ? "default" : "secondary"}>
-                        {app.founding_member}
-                      </Badge>
+                      {app.founding_member?.toLowerCase() === "yes" && (
+                        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+                          Founding
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>{getStatusBadge(app.status)}</TableCell>
                     <TableCell>{getAnnualFeeBadge(app.annual_fee_status)}</TableCell>
@@ -863,9 +865,13 @@ export default function Applications() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Founding Member</p>
-                      <Badge variant={selectedApplication.founding_member === "Yes" ? "default" : "secondary"}>
-                        {selectedApplication.founding_member}
-                      </Badge>
+                      {selectedApplication.founding_member?.toLowerCase() === "yes" ? (
+                        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+                          Founding
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">No</span>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
