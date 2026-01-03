@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import {
   Dialog,
@@ -24,6 +24,7 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFormComplete, setIsFormComplete] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,13 +79,14 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
           options={{
             layout: "tabs",
           }}
+          onChange={(event) => setIsFormComplete(event.complete)}
         />
       </div>
       <div className="flex justify-end gap-3 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button type="submit" disabled={!stripe || isSubmitting}>
+        <Button type="submit" disabled={!stripe || isSubmitting || !isFormComplete}>
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -131,10 +133,14 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
     }
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen && !clientSecret) {
+  // Fetch client secret when modal opens
+  useEffect(() => {
+    if (open && !clientSecret && !isLoading && !error) {
       fetchClientSecret();
     }
+  }, [open]);
+
+  const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       // Reset state when closing
       setClientSecret(null);
