@@ -44,7 +44,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge';
   // For activation checkout
   tier?: string;
   gender?: string;
@@ -66,6 +66,10 @@ interface PaymentRequest {
   // For application setup (unauthenticated)
   applicantEmail?: string;
   applicantName?: string;
+  // For refund_charge
+  chargeId?: string;
+  paymentIntentId?: string;
+  refundAmount?: number;
   // General
   subscriptionId?: string;
   successUrl?: string;
@@ -643,6 +647,70 @@ serve(async (req) => {
             status: paymentIntent.status,
             cardBrand,
             cardLast4,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'refund_charge': {
+        const { chargeId, paymentIntentId, refundAmount } = body;
+
+        if (!chargeId || !paymentIntentId) {
+          throw new Error("Charge ID and Payment Intent ID are required");
+        }
+
+        // Verify the admin has permission (they're already authenticated)
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!roleData || roleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Processing refund", { chargeId, paymentIntentId, refundAmount });
+
+        // Create refund in Stripe
+        const refundParams: { payment_intent: string; amount?: number } = {
+          payment_intent: paymentIntentId,
+        };
+
+        // If refundAmount is provided, use it (partial refund), otherwise full refund
+        if (refundAmount && refundAmount > 0) {
+          refundParams.amount = refundAmount;
+        }
+
+        const refund = await stripe.refunds.create(refundParams);
+
+        logStep("Refund created", { 
+          refundId: refund.id, 
+          status: refund.status, 
+          amount: refund.amount 
+        });
+
+        // Update the charge status in manual_charges table
+        const { error: updateError } = await supabase
+          .from('manual_charges')
+          .update({ 
+            status: refundAmount ? 'partially_refunded' : 'refunded',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', chargeId);
+
+        if (updateError) {
+          logStep("Warning: Failed to update charge status", { error: updateError.message });
+        } else {
+          logStep("Charge status updated to refunded", { chargeId });
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true,
+            refundId: refund.id,
+            status: refund.status,
+            amount: refund.amount,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
