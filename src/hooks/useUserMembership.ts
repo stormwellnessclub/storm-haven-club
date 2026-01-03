@@ -23,6 +23,7 @@ export interface UserMembership {
   billing_type: string | null;
   is_founding_member: boolean | null;
   gender: string | null;
+  annual_fee_paid_at: string | null;
 }
 
 export function useUserMembership() {
