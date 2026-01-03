@@ -1,23 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DollarSign, CheckCircle, Clock, XCircle, Mail, Loader2, RotateCcw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
+
+type RefundMethod = "stripe" | "check" | "other";
 
 interface ChargeHistoryProps {
   applicationId?: string;
@@ -52,6 +55,19 @@ export function ChargeHistory({
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [refundingCharge, setRefundingCharge] = useState<Charge | null>(null);
   const [isRefunding, setIsRefunding] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundMethod, setRefundMethod] = useState<RefundMethod>("stripe");
+
+  // Reset refund form when dialog opens/closes
+  useEffect(() => {
+    if (refundingCharge) {
+      setRefundAmount((refundingCharge.amount / 100).toFixed(2));
+      setRefundMethod(refundingCharge.stripe_payment_intent_id ? "stripe" : "other");
+    } else {
+      setRefundAmount("");
+      setRefundMethod("stripe");
+    }
+  }, [refundingCharge]);
 
   const { data: charges, isLoading } = useQuery({
     queryKey: ["charge-history", applicationId, memberId],
@@ -114,25 +130,63 @@ export function ChargeHistory({
   };
 
   const handleRefund = async () => {
-    if (!refundingCharge || !refundingCharge.stripe_payment_intent_id) {
-      toast.error("Cannot refund: missing payment information");
+    if (!refundingCharge) {
+      toast.error("No charge selected for refund");
       return;
     }
 
+    const amountInCents = Math.round(parseFloat(refundAmount) * 100);
+    if (isNaN(amountInCents) || amountInCents <= 0) {
+      toast.error("Please enter a valid refund amount");
+      return;
+    }
+
+    if (amountInCents > refundingCharge.amount) {
+      toast.error("Refund amount cannot exceed original charge");
+      return;
+    }
+
+    const isPartialRefund = amountInCents < refundingCharge.amount;
+
     setIsRefunding(true);
     try {
-      const { data, error } = await supabase.functions.invoke("stripe-payment", {
-        body: {
-          action: "refund_charge",
-          chargeId: refundingCharge.id,
-          paymentIntentId: refundingCharge.stripe_payment_intent_id,
-        },
-      });
+      if (refundMethod === "stripe") {
+        // Process refund through Stripe
+        if (!refundingCharge.stripe_payment_intent_id) {
+          toast.error("Cannot process Stripe refund: missing payment information");
+          return;
+        }
 
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Refund failed");
+        const { data, error } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "refund_charge",
+            chargeId: refundingCharge.id,
+            paymentIntentId: refundingCharge.stripe_payment_intent_id,
+            refundAmount: isPartialRefund ? amountInCents : undefined,
+          },
+        });
 
-      toast.success(`Refunded $${(refundingCharge.amount / 100).toFixed(2)} successfully`);
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || "Refund failed");
+
+        toast.success(`Refunded $${refundAmount} via Stripe successfully`);
+      } else {
+        // Manual refund (check/other) - just update the database
+        const newStatus = isPartialRefund ? "partially_refunded" : "refunded";
+        const { error } = await supabase
+          .from("manual_charges")
+          .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", refundingCharge.id);
+
+        if (error) throw error;
+
+        const methodLabel = refundMethod === "check" ? "check" : "other method";
+        toast.success(`Marked as refunded via ${methodLabel} ($${refundAmount})`);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["charge-history", applicationId, memberId] });
     } catch (err: any) {
       console.error("Failed to process refund:", err);
@@ -228,7 +282,7 @@ export function ChargeHistory({
                 ${(charge.amount / 100).toFixed(2)}
               </span>
               {getStatusBadge(charge.status)}
-              {isAdmin && charge.status === "succeeded" && charge.stripe_payment_intent_id && (
+              {isAdmin && charge.status === "succeeded" && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -276,23 +330,86 @@ export function ChargeHistory({
         ))}
       </div>
 
-      {/* Refund Confirmation Dialog */}
-      <AlertDialog open={!!refundingCharge} onOpenChange={(open) => !open && setRefundingCharge(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Refund</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to refund <strong>${refundingCharge ? (refundingCharge.amount / 100).toFixed(2) : '0.00'}</strong> for "{refundingCharge?.description}"?
-              <br /><br />
-              This action cannot be undone. The funds will be returned to the customer's original payment method.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRefunding}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+      {/* Refund Dialog */}
+      <Dialog open={!!refundingCharge} onOpenChange={(open) => !open && setRefundingCharge(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Process Refund</DialogTitle>
+            <DialogDescription>
+              Refund for "{refundingCharge?.description}"
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Refund Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="refund-amount">Refund Amount</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  id="refund-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={refundingCharge ? (refundingCharge.amount / 100) : 0}
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  className="pl-7"
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Original charge: ${refundingCharge ? (refundingCharge.amount / 100).toFixed(2) : '0.00'}
+              </p>
+            </div>
+
+            {/* Refund Method */}
+            <div className="space-y-2">
+              <Label>Refund Method</Label>
+              <RadioGroup value={refundMethod} onValueChange={(v) => setRefundMethod(v as RefundMethod)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem 
+                    value="stripe" 
+                    id="method-stripe" 
+                    disabled={!refundingCharge?.stripe_payment_intent_id}
+                  />
+                  <Label htmlFor="method-stripe" className="font-normal cursor-pointer">
+                    Stripe (refund to original card)
+                    {!refundingCharge?.stripe_payment_intent_id && (
+                      <span className="text-xs text-muted-foreground ml-1">(unavailable)</span>
+                    )}
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="check" id="method-check" />
+                  <Label htmlFor="method-check" className="font-normal cursor-pointer">
+                    Check (manual refund)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="other" id="method-other" />
+                  <Label htmlFor="method-other" className="font-normal cursor-pointer">
+                    Other (cash, credit, etc.)
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {refundMethod !== "stripe" && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 p-2 rounded">
+                Note: This will only mark the charge as refunded. You must process the actual refund manually.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundingCharge(null)} disabled={isRefunding}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
               onClick={handleRefund}
-              disabled={isRefunding}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isRefunding || !refundAmount || parseFloat(refundAmount) <= 0}
             >
               {isRefunding ? (
                 <>
@@ -300,12 +417,12 @@ export function ChargeHistory({
                   Processing...
                 </>
               ) : (
-                "Refund"
+                `Refund $${refundAmount || '0.00'}`
               )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
