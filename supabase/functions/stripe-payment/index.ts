@@ -133,12 +133,17 @@ serve(async (req) => {
         logStep("Created new Stripe customer", { customerId });
       }
 
+      // Build success URL safely to avoid malformed query strings
+      const successUrlObj = new URL(successUrl);
+      successUrlObj.searchParams.set('setup_success', 'true');
+      successUrlObj.searchParams.set('customer_id', customerId);
+
       // Create SetupIntent Checkout session (saves card without charging)
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: 'setup',
         payment_method_types: ['card'],
-        success_url: `${successUrl}?setup_success=true&customer_id=${customerId}`,
+        success_url: successUrlObj.toString(),
         cancel_url: cancelUrl,
         metadata: {
           type: 'application_card_setup',

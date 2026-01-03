@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,80 @@ import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
+
+// Draft persistence for form data across redirects
+const DRAFT_STORAGE_KEY = "storm_apply_draft_v1";
+
+interface DraftData {
+  formData: typeof initialFormData;
+  stripeCustomerId: string | null;
+  savedAt: number;
+}
+
+const initialFormData = {
+  firstName: "",
+  lastName: "",
+  dateOfBirth: "",
+  gender: "",
+  address: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  country: "United States of America (USA)",
+  email: "",
+  phone: "",
+  membershipPlan: "",
+  wellnessGoals: [] as string[],
+  otherGoals: "",
+  servicesInterested: [] as string[],
+  otherServices: "",
+  previousMember: "",
+  motivations: [] as string[],
+  otherMotivation: "",
+  lifestyleIntegration: "",
+  holisticWellness: "",
+  referredByMember: "",
+  foundingMember: "",
+  creditCardAuth: false,
+  paymentAcknowledged: false,
+  oneYearCommitment: false,
+  authAcknowledgment: false,
+  submissionConfirmation: false,
+};
+
+const saveDraft = (formData: typeof initialFormData, stripeCustomerId: string | null) => {
+  try {
+    const draft: DraftData = { formData, stripeCustomerId, savedAt: Date.now() };
+    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch (e) {
+    console.warn("Failed to save draft:", e);
+  }
+};
+
+const loadDraft = (): DraftData | null => {
+  try {
+    const stored = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!stored) return null;
+    const draft = JSON.parse(stored) as DraftData;
+    // Expire drafts older than 24 hours
+    if (Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) {
+      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      return null;
+    }
+    return draft;
+  } catch (e) {
+    console.warn("Failed to load draft:", e);
+    return null;
+  }
+};
+
+const clearDraft = () => {
+  try {
+    sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch (e) {
+    console.warn("Failed to clear draft:", e);
+  }
+};
 
 const membershipPlans = [
   { value: "Silver Membership", label: "Silver Membership – $200.00" },
@@ -48,36 +122,23 @@ export default function Apply() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingCard, setIsSavingCard] = useState(false);
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    dateOfBirth: "",
-    gender: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    country: "United States of America (USA)",
-    email: "",
-    phone: "",
-    membershipPlan: "",
-    wellnessGoals: [] as string[],
-    otherGoals: "",
-    servicesInterested: [] as string[],
-    otherServices: "",
-    previousMember: "",
-    motivations: [] as string[],
-    otherMotivation: "",
-    lifestyleIntegration: "",
-    holisticWellness: "",
-    referredByMember: "",
-    foundingMember: "",
-    creditCardAuth: false,
-    paymentAcknowledged: false,
-    oneYearCommitment: false,
-    authAcknowledgment: false,
-    submissionConfirmation: false,
-  });
+  const [formData, setFormData] = useState(initialFormData);
+  const isInitialized = useRef(false);
+
+  // Load draft on mount (before checking URL params)
+  useEffect(() => {
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+    
+    const draft = loadDraft();
+    if (draft) {
+      setFormData(draft.formData);
+      if (draft.stripeCustomerId) {
+        setStripeCustomerId(draft.stripeCustomerId);
+      }
+      console.log("[Apply] Restored draft from sessionStorage");
+    }
+  }, []);
 
   // Check for successful card setup on return from Stripe
   useEffect(() => {
@@ -86,11 +147,28 @@ export default function Apply() {
     
     if (setupSuccess === "true" && customerId) {
       setStripeCustomerId(customerId);
+      // Immediately persist the customer ID along with current form data
+      const draft = loadDraft();
+      if (draft) {
+        saveDraft(draft.formData, customerId);
+      }
       toast.success("Payment method saved successfully!");
       // Clear URL params without reload
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [searchParams]);
+
+  // Autosave draft with debounce
+  useEffect(() => {
+    // Don't save if form hasn't been touched
+    if (!isInitialized.current) return;
+    
+    const timeoutId = setTimeout(() => {
+      saveDraft(formData, stripeCustomerId);
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [formData, stripeCustomerId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -126,14 +204,18 @@ export default function Apply() {
 
     setIsSavingCard(true);
 
+    // Save draft immediately before redirecting
+    saveDraft(formData, stripeCustomerId);
+    console.log("[Apply] Saved draft before payment redirect");
+
     try {
       const response = await supabase.functions.invoke("stripe-payment", {
         body: {
           action: "create_application_setup",
           applicantEmail: formData.email,
           applicantName: `${formData.firstName} ${formData.lastName}`,
-          successUrl: window.location.href,
-          cancelUrl: window.location.href,
+          successUrl: window.location.origin + window.location.pathname,
+          cancelUrl: window.location.origin + window.location.pathname,
         },
       });
 
@@ -262,6 +344,8 @@ export default function Apply() {
         return;
       }
 
+      // Clear draft on successful submission
+      clearDraft();
       // Show success message
       setIsSubmitted(true);
     } catch (error) {
