@@ -31,6 +31,48 @@ export interface ApplicationStatusResult {
   };
 }
 
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper function to attempt member linking with retries
+async function attemptMemberLink(maxRetries: number = 3): Promise<{
+  success: boolean;
+  linkedMember?: any;
+  error?: any;
+}> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`[useApplicationStatus] Link attempt ${attempt}/${maxRetries}`);
+    
+    const { data: linkedResult, error: linkError } = await supabase
+      .rpc("link_member_by_email");
+
+    if (!linkError && linkedResult && linkedResult.length > 0) {
+      console.log("[useApplicationStatus] Successfully linked member:", linkedResult[0].email);
+      return { success: true, linkedMember: linkedResult[0] };
+    }
+
+    if (linkError) {
+      console.warn(`[useApplicationStatus] Link attempt ${attempt} failed:`, linkError.message);
+      
+      // If it's an auth error, try refreshing the session
+      if (linkError.message?.includes("jwt") || linkError.code === "PGRST301") {
+        console.log("[useApplicationStatus] Auth error detected, refreshing session...");
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          console.error("[useApplicationStatus] Session refresh failed:", refreshError);
+        }
+      }
+    }
+
+    // Wait before retrying (except on last attempt)
+    if (attempt < maxRetries) {
+      await delay(500 * attempt); // Exponential backoff: 500ms, 1000ms, 1500ms
+    }
+  }
+
+  return { success: false, error: "All link attempts failed" };
+}
+
 export function useApplicationStatus() {
   const { user } = useAuth();
 
@@ -49,7 +91,7 @@ export function useApplicationStatus() {
         .maybeSingle();
 
       if (memberError) {
-        console.error("Error fetching member data:", memberError);
+        console.error("[useApplicationStatus] Error fetching member data:", memberError);
         throw memberError;
       }
 
@@ -70,19 +112,14 @@ export function useApplicationStatus() {
         }
       }
 
-      // No member found by user_id - try to auto-link using secure RPC function
+      // No member found by user_id - try to auto-link using secure RPC function with retry
       if (!memberData && user.email) {
-        console.log("No linked member found, attempting auto-link via RPC for:", user.email);
+        console.log("[useApplicationStatus] No linked member found, attempting auto-link for:", user.email);
         
-        const { data: linkedResult, error: linkError } = await supabase
-          .rpc("link_member_by_email");
-
-        if (linkError) {
-          console.error("Error calling link_member_by_email RPC:", linkError);
-          // Continue to check for pending application
-        } else if (linkedResult && linkedResult.length > 0) {
-          const linkedMember = linkedResult[0];
-          console.log("Successfully linked member via RPC:", linkedMember.email, "status:", linkedMember.status);
+        const linkResult = await attemptMemberLink(3);
+        
+        if (linkResult.success && linkResult.linkedMember) {
+          const linkedMember = linkResult.linkedMember;
           
           if (linkedMember.status === "active") {
             return {
@@ -97,6 +134,22 @@ export function useApplicationStatus() {
               memberData: linkedMember,
             };
           }
+        } else {
+          console.warn("[useApplicationStatus] Auto-link failed after retries, checking for unlinked member by email...");
+          
+          // Fallback: Check if there's a member record with matching email that just hasn't been linked yet
+          // This helps diagnose the issue even if we can't fix it automatically
+          const { data: unlinkedMember } = await supabase
+            .from("members")
+            .select("id, email, status, first_name, last_name")
+            .ilike("email", user.email)
+            .is("user_id", null)
+            .maybeSingle();
+            
+          if (unlinkedMember) {
+            console.warn("[useApplicationStatus] Found unlinked member record:", unlinkedMember.email, 
+              "- Admin may need to manually link this account");
+          }
         }
       }
 
@@ -109,7 +162,7 @@ export function useApplicationStatus() {
         .maybeSingle();
 
       if (appError) {
-        console.error("Error fetching application:", appError);
+        console.error("[useApplicationStatus] Error fetching application:", appError);
       }
 
       if (applicationData) {

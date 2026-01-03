@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -160,6 +160,7 @@ export default function Applications() {
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [pendingBulkAction, setPendingBulkAction] = useState<string | null>(null);
   const [planFilter, setPlanFilter] = useState<string>("all");
+  const [memberLinkStatus, setMemberLinkStatus] = useState<{ hasUser: boolean; hasMember: boolean; memberLinked: boolean } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading, isError, error, refetch } = useQuery({
@@ -174,6 +175,54 @@ export default function Applications() {
     },
     enabled: !!user,
     retry: 2,
+  });
+
+  // Check member link status when viewing an approved application
+  const checkMemberLinkStatus = async (email: string) => {
+    setMemberLinkStatus(null);
+    
+    // Check if there's a user account with this email
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .ilike("email", email)
+      .maybeSingle();
+    
+    // Check if there's a member record for this email
+    const { data: member } = await supabase
+      .from("members")
+      .select("id, user_id, email")
+      .ilike("email", email)
+      .maybeSingle();
+    
+    setMemberLinkStatus({
+      hasUser: !!profile?.user_id,
+      hasMember: !!member,
+      memberLinked: !!member?.user_id,
+    });
+  };
+
+  const linkMemberMutation = useMutation({
+    mutationFn: async ({ memberId, email }: { memberId: string; email: string }) => {
+      const { data, error } = await supabase
+        .rpc("admin_link_member_to_user", {
+          _member_id: memberId,
+          _user_email: email,
+        });
+      if (error) throw error;
+      if (!data) throw new Error("User account not found for this email");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+      toast.success("Member linked to user account");
+      if (selectedApplication) {
+        checkMemberLinkStatus(selectedApplication.email);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to link member");
+    },
   });
 
   const updateStatusMutation = useMutation({
@@ -321,6 +370,11 @@ export default function Applications() {
   const handleOpenApplication = (app: Application) => {
     setSelectedApplication(app);
     setNotesValue(app.notes || "");
+    setMemberLinkStatus(null);
+    // Check link status for approved applications
+    if (app.status === "approved") {
+      checkMemberLinkStatus(app.email);
+    }
   };
 
   const handleExportCSV = () => {
@@ -975,6 +1029,67 @@ export default function Applications() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Member Link Status (for approved applications) */}
+                  {selectedApplication.status === "approved" && memberLinkStatus && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm text-muted-foreground mb-3">Member Account Status</p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          {memberLinkStatus.hasUser ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span>User account {memberLinkStatus.hasUser ? "exists" : "not created yet"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {memberLinkStatus.hasMember ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span>Member record {memberLinkStatus.hasMember ? "exists" : "not created"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {memberLinkStatus.memberLinked ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-amber-500" />
+                          )}
+                          <span>Account linked: {memberLinkStatus.memberLinked ? "Yes" : "No"}</span>
+                        </div>
+                      </div>
+                      {memberLinkStatus.hasUser && memberLinkStatus.hasMember && !memberLinkStatus.memberLinked && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-3"
+                          onClick={async () => {
+                            // Get member ID first
+                            const { data: member } = await supabase
+                              .from("members")
+                              .select("id")
+                              .ilike("email", selectedApplication.email)
+                              .maybeSingle();
+                            if (member) {
+                              linkMemberMutation.mutate({ memberId: member.id, email: selectedApplication.email });
+                            } else {
+                              toast.error("Member record not found");
+                            }
+                          }}
+                          disabled={linkMemberMutation.isPending}
+                        >
+                          {linkMemberMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <Link2 className="h-4 w-4 mr-1" />
+                          )}
+                          Link Member to User Account
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Application Status Actions */}
                   <div className="pt-4 border-t">
