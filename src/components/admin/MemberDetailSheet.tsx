@@ -31,7 +31,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2 } from "lucide-react";
+import { useUserRoles } from "@/hooks/useUserRoles";
 
 interface Member {
   id: string;
@@ -81,9 +82,12 @@ const formatStatus = (status: string) => {
 
 export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSheetProps) {
   const queryClient = useQueryClient();
+  const { isSuperAdmin } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
@@ -159,6 +163,30 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
     } catch (error) {
       console.error("Error suspending member:", error);
       toast.error("Failed to suspend membership");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!member) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("members")
+        .delete()
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      toast.success("Member deleted permanently");
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error deleting member:", error);
+      toast.error("Failed to delete member");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -379,6 +407,17 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                   Suspend Membership
                 </Button>
               )}
+
+              {isSuperAdmin() && (
+                <Button 
+                  variant="destructive" 
+                  className="w-full mt-2"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Member Permanently
+                </Button>
+              )}
             </TabsContent>
           </Tabs>
         </SheetContent>
@@ -397,6 +436,29 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleSuspend} className="bg-destructive text-destructive-foreground">
               Suspend
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Member Permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {member.first_name} {member.last_name} and all their 
+              associated records (bookings, credits, check-ins). This action CANNOT be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete} 
+              className="bg-destructive text-destructive-foreground"
+              disabled={isDeleting}
+            >
+              {isDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
