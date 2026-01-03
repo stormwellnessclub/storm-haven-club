@@ -10,6 +10,7 @@ import {
   LogOut,
   Home,
   Snowflake,
+  Wallet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +39,7 @@ const memberMenuItems: MenuItem[] = [
   { title: "My Profile", url: "/member/profile", icon: User },
   { title: "My Credits", url: "/member/credits", icon: CreditCard },
   { title: "My Membership", url: "/member/membership", icon: IdCard },
+  { title: "Payment Methods", url: "/member/payment-methods", icon: Wallet },
   { title: "My Bookings", url: "/member/bookings", icon: Calendar },
   { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
   { title: "Waivers", url: "/member/waivers", icon: FileCheck },
