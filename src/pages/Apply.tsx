@@ -407,6 +407,24 @@ export default function Apply() {
         return;
       }
 
+      // Send confirmation email (fire and forget, don't block submission)
+      supabase.functions.invoke('send-email', {
+        body: {
+          type: 'application_submitted',
+          to: formData.email,
+          data: {
+            name: `${formData.firstName} ${formData.lastName}`,
+            membershipPlan: formData.membershipPlan,
+          },
+        },
+      }).then(({ error: emailError }) => {
+        if (emailError) {
+          console.error("Failed to send confirmation email:", emailError);
+        } else {
+          console.log("Application confirmation email sent");
+        }
+      });
+
       // Clear draft on successful submission
       clearDraft();
       // Show success message
