@@ -44,7 +44,9 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method';
+  // For detach_payment_method
+  paymentMethodId?: string;
   // For activation checkout
   tier?: string;
   gender?: string;
@@ -730,6 +732,86 @@ serve(async (req) => {
             status: refund.status,
             amount: refund.amount,
           }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_setup_intent': {
+        const { memberId } = body;
+        
+        logStep("Creating SetupIntent for inline card form", { userId: user.id, memberId });
+
+        const customerId = await getOrCreateCustomer();
+        
+        // Save stripe_customer_id to member record if we have a memberId
+        if (memberId) {
+          const { error: updateError } = await supabase
+            .from('members')
+            .update({ stripe_customer_id: customerId })
+            .eq('id', memberId);
+          
+          if (updateError) {
+            logStep("Warning: Failed to save stripe_customer_id", { error: updateError.message });
+          } else {
+            logStep("Saved stripe_customer_id to member", { memberId, customerId });
+          }
+        } else {
+          // Try to update by user_id
+          const { error: updateError } = await supabase
+            .from('members')
+            .update({ stripe_customer_id: customerId })
+            .eq('user_id', user.id);
+          
+          if (updateError) {
+            logStep("Warning: Failed to save stripe_customer_id by user_id", { error: updateError.message });
+          }
+        }
+        
+        // Create SetupIntent for saving a card
+        const setupIntent = await stripe.setupIntents.create({
+          customer: customerId,
+          payment_method_types: ['card'],
+          metadata: {
+            user_id: user.id,
+            member_id: memberId || '',
+          },
+        });
+
+        logStep("SetupIntent created", { setupIntentId: setupIntent.id, customerId });
+
+        return new Response(
+          JSON.stringify({ 
+            clientSecret: setupIntent.client_secret,
+            customerId,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'detach_payment_method': {
+        const { paymentMethodId } = body;
+        
+        if (!paymentMethodId) {
+          throw new Error("Payment method ID required");
+        }
+
+        logStep("Detaching payment method", { paymentMethodId, userId: user.id });
+
+        // Verify the user owns this payment method
+        const customerId = await getOrCreateCustomer();
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+        
+        if (paymentMethod.customer !== customerId) {
+          throw new Error("Unauthorized: Payment method does not belong to this user");
+        }
+
+        // Detach the payment method
+        await stripe.paymentMethods.detach(paymentMethodId);
+
+        logStep("Payment method detached", { paymentMethodId });
+
+        return new Response(
+          JSON.stringify({ success: true }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }

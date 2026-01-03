@@ -6,9 +6,20 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { supabase } from "@/integrations/supabase/client";
-import { CreditCard, Plus, ExternalLink, Loader2, AlertCircle } from "lucide-react";
+import { CreditCard, Plus, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import { AddCardModal } from "@/components/member/AddCardModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface PaymentMethod {
   id: string;
@@ -19,7 +30,6 @@ interface PaymentMethod {
 }
 
 const getCardBrandIcon = (brand: string) => {
-  // Return appropriate styling based on card brand
   const brandColors: Record<string, string> = {
     visa: "bg-blue-500/10 text-blue-600 border-blue-500/30",
     mastercard: "bg-orange-500/10 text-orange-600 border-orange-500/30",
@@ -32,7 +42,9 @@ const getCardBrandIcon = (brand: string) => {
 
 export default function MemberPaymentMethods() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
-  const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
+  const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
+  const [cardToDelete, setCardToDelete] = useState<PaymentMethod | null>(null);
 
   const { data: paymentMethodsData, isLoading: paymentMethodsLoading, refetch } = useQuery({
     queryKey: ["member-payment-methods", membership?.id],
@@ -52,27 +64,33 @@ export default function MemberPaymentMethods() {
     enabled: !!membership?.id,
   });
 
-  const handleManagePaymentMethods = async () => {
-    setIsPortalLoading(true);
+  const handleAddCardSuccess = () => {
+    refetch();
+  };
+
+  const handleDeleteCard = async () => {
+    if (!cardToDelete) return;
+
+    setDeletingCardId(cardToDelete.id);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-payment", {
-        body: { action: "customer_portal" },
+        body: { 
+          action: "detach_payment_method",
+          paymentMethodId: cardToDelete.id,
+        },
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      if (data?.url) {
-        window.open(data.url, "_blank");
-        // Refetch payment methods when user returns
-        setTimeout(() => refetch(), 3000);
-      } else {
-        throw new Error("No portal URL returned");
-      }
+      toast.success("Card removed successfully");
+      refetch();
     } catch (error) {
-      console.error("Portal error:", error);
-      toast.error("Failed to open payment portal. Please try again.");
+      console.error("Delete error:", error);
+      toast.error("Failed to remove card. Please try again.");
     } finally {
-      setIsPortalLoading(false);
+      setDeletingCardId(null);
+      setCardToDelete(null);
     }
   };
 
@@ -119,22 +137,12 @@ export default function MemberPaymentMethods() {
                 <CardTitle>Saved Payment Methods</CardTitle>
               </div>
               <Button 
-                onClick={handleManagePaymentMethods} 
-                disabled={isPortalLoading}
+                onClick={() => setIsAddCardModalOpen(true)}
                 variant="outline"
                 size="sm"
               >
-                {isPortalLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Opening...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add / Manage
-                  </>
-                )}
+                <Plus className="mr-2 h-4 w-4" />
+                Add Card
               </Button>
             </div>
             <CardDescription>
@@ -151,18 +159,9 @@ export default function MemberPaymentMethods() {
                 <p className="text-muted-foreground mb-4">
                   You don't have any saved payment methods yet.
                 </p>
-                <Button onClick={handleManagePaymentMethods} disabled={isPortalLoading}>
-                  {isPortalLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Opening...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Payment Method
-                    </>
-                  )}
+                <Button onClick={() => setIsAddCardModalOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Payment Method
                 </Button>
               </div>
             ) : (
@@ -191,6 +190,19 @@ export default function MemberPaymentMethods() {
                         </p>
                       </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => setCardToDelete(method)}
+                      disabled={deletingCardId === method.id}
+                    >
+                      {deletingCardId === method.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -202,19 +214,49 @@ export default function MemberPaymentMethods() {
         <Card className="bg-secondary/30">
           <CardContent className="py-4">
             <div className="flex items-start gap-3">
-              <ExternalLink className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
               <div className="text-sm text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">Managing Payment Methods</p>
+                <p className="font-medium text-foreground mb-1">About Payment Methods</p>
                 <p>
-                  Click "Add / Manage" to open the secure Stripe Customer Portal where you can 
-                  add new cards, remove existing ones, or set a different default payment method.
                   Your saved cards are used for membership billing and any purchases you make.
+                  The first card in the list is your default payment method. You can add new 
+                  cards or remove existing ones at any time.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Card Modal */}
+      <AddCardModal
+        open={isAddCardModalOpen}
+        onOpenChange={setIsAddCardModalOpen}
+        onSuccess={handleAddCardSuccess}
+        memberId={membership.id}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!cardToDelete} onOpenChange={(open) => !open && setCardToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Payment Method</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove the {cardToDelete?.brand} card ending in {cardToDelete?.last4}? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteCard}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove Card
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MemberLayout>
   );
 }
