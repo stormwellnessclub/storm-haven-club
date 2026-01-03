@@ -159,50 +159,72 @@ const motivations = [
   "Specific services (e.g., spa, personal training)",
 ];
 
+// Load draft ONCE at module init for synchronous hydration
+const getInitialDraft = (): DraftData | null => {
+  try {
+    return loadDraft();
+  } catch {
+    return null;
+  }
+};
+
 export default function Apply() {
   const [searchParams] = useSearchParams();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingCard, setIsSavingCard] = useState(false);
-  const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
-  const [formData, setFormData] = useState(initialFormData);
-  const isInitialized = useRef(false);
-
-  // Load draft on mount (before checking URL params)
-  useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-    
-    const draft = loadDraft();
-    if (draft) {
-      setFormData(draft.formData);
-      if (draft.stripeCustomerId) {
-        setStripeCustomerId(draft.stripeCustomerId);
-      }
-      console.log("[Apply] Restored draft from sessionStorage");
+  
+  // Use lazy initializers to hydrate from draft BEFORE any effects run
+  const [formData, setFormData] = useState(() => {
+    const draft = getInitialDraft();
+    if (draft?.formData) {
+      console.log("[Apply] Hydrated formData from draft");
+      return draft.formData;
     }
+    return initialFormData;
+  });
+  
+  const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(() => {
+    const draft = getInitialDraft();
+    if (draft?.stripeCustomerId) {
+      console.log("[Apply] Hydrated stripeCustomerId from draft:", draft.stripeCustomerId);
+      return draft.stripeCustomerId;
+    }
+    return null;
+  });
+  
+  const isHydrated = useRef(false);
+  const formDataRef = useRef(formData);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+  
+  // Mark as hydrated after first render
+  useEffect(() => {
+    isHydrated.current = true;
   }, []);
 
   // Check for successful card setup on return from Stripe
+  // CRITICAL: Do NOT depend on formData - use ref to avoid overwriting with stale state
   useEffect(() => {
     const setupSuccess = searchParams.get("setup_success");
     const customerId = searchParams.get("customer_id");
     
     if (setupSuccess === "true" && customerId) {
       setStripeCustomerId(customerId);
-      // Persist customer ID with CURRENT form state (not just draft, handles fresh tab case)
-      // Use formData from state which should already be restored from draft
-      saveDraft(formData, customerId);
+      // Use formDataRef to get current form state without adding formData as dependency
+      saveDraft(formDataRef.current, customerId);
       toast.success("Payment method saved successfully!");
       // Clear URL params without reload
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [searchParams, formData]);
+  }, [searchParams]);
 
-  // Autosave draft with debounce
+  // Autosave draft with debounce (only after hydration)
   useEffect(() => {
-    // Don't save if form hasn't been touched
-    if (!isInitialized.current) return;
+    if (!isHydrated.current) return;
     
     const timeoutId = setTimeout(() => {
       saveDraft(formData, stripeCustomerId);
