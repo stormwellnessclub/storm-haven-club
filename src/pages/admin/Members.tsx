@@ -47,18 +47,30 @@ const getStatusColor = (status: string) => {
 };
 
 const getMembershipColor = (membership: string) => {
-  switch (membership?.toLowerCase()) {
-    case "diamond":
-      return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
-    case "platinum":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
-    case "gold":
-      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
-    case "silver":
-      return "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300";
-    default:
-      return "bg-secondary text-secondary-foreground";
+  const lowerMembership = membership?.toLowerCase() || "";
+  if (lowerMembership.includes("diamond")) {
+    return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
   }
+  if (lowerMembership.includes("platinum")) {
+    return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+  }
+  if (lowerMembership.includes("gold")) {
+    return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
+  }
+  if (lowerMembership.includes("silver")) {
+    return "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300";
+  }
+  return "bg-secondary text-secondary-foreground";
+};
+
+// Normalize tier name for display
+const normalizeTierDisplay = (membership: string): string => {
+  const lower = membership?.toLowerCase() || "";
+  if (lower.includes("diamond")) return "Diamond";
+  if (lower.includes("platinum")) return "Platinum";
+  if (lower.includes("gold")) return "Gold";
+  if (lower.includes("silver")) return "Silver";
+  return membership;
 };
 
 const formatStatus = (status: string) => {
@@ -175,9 +187,16 @@ export default function Members() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getMembershipColor(member.membership_type)}>
-                          {member.membership_type}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getMembershipColor(member.membership_type)}>
+                            {normalizeTierDisplay(member.membership_type)}
+                          </Badge>
+                          {member.is_founding_member && (
+                            <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+                              Founding
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={getStatusColor(member.status)}>

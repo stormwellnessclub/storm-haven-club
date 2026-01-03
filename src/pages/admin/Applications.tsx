@@ -46,6 +46,22 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+// Normalize membership tier from any format to consistent display name
+function normalizeTierName(rawPlan: string): string {
+  const lowerPlan = rawPlan.toLowerCase();
+  if (lowerPlan.includes("silver") || lowerPlan === "silver") return "Silver";
+  if (lowerPlan.includes("gold") || lowerPlan === "gold") return "Gold";
+  if (lowerPlan.includes("platinum") || lowerPlan === "platinum") return "Platinum";
+  if (lowerPlan.includes("diamond") || lowerPlan === "diamond") return "Diamond";
+  return rawPlan.split(" –")[0].split(" Membership")[0]; // Fallback
+}
+
+// Format tier for display with "Membership" suffix
+function formatTierDisplay(rawPlan: string): string {
+  const tier = normalizeTierName(rawPlan);
+  return `${tier} Membership`;
+}
 import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 
 type Application = {
@@ -228,11 +244,12 @@ export default function Applications() {
             last_name: lastName,
             email: application.email,
             phone: application.phone,
-            membership_type: application.membership_plan.split(" –")[0], // Extract tier name
+            membership_type: normalizeTierName(application.membership_plan),
             status: "pending_activation",
             approved_at: now.toISOString(),
             activation_deadline: activationDeadline.toISOString(),
             user_id: userId,
+            is_founding_member: application.founding_member?.toLowerCase() === "yes",
           } as any);
         
         if (memberError) {
@@ -457,11 +474,12 @@ export default function Applications() {
                 last_name: lastName,
                 email: app.email,
                 phone: app.phone,
-                membership_type: app.membership_plan.split(" –")[0],
+                membership_type: normalizeTierName(app.membership_plan),
                 status: "pending_activation",
                 approved_at: now.toISOString(),
                 activation_deadline: activationDeadline.toISOString(),
                 user_id: userData?.user_id || null,
+                is_founding_member: app.founding_member?.toLowerCase() === "yes",
               } as any);
           } catch (memberError) {
             console.error(`Failed to create member for ${app.email}:`, memberError);
@@ -764,7 +782,7 @@ export default function Applications() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{app.membership_plan.split(" –")[0]}</Badge>
+                      <Badge variant="outline">{formatTierDisplay(app.membership_plan)}</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={app.founding_member === "Yes" ? "default" : "secondary"}>
