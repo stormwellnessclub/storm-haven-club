@@ -739,7 +739,9 @@ serve(async (req) => {
       case 'create_setup_intent': {
         const { memberId } = body;
         
-        logStep("Creating SetupIntent for inline card form", { userId: user.id, memberId });
+        // Determine Stripe mode from secret key prefix
+        const stripeMode = stripeSecretKey.startsWith('sk_test') ? 'test' : 'live';
+        logStep("Creating SetupIntent for inline card form", { userId: user.id, memberId, stripeMode });
 
         const customerId = await getOrCreateCustomer();
         
@@ -777,12 +779,13 @@ serve(async (req) => {
           },
         });
 
-        logStep("SetupIntent created", { setupIntentId: setupIntent.id, customerId });
+        logStep("SetupIntent created", { setupIntentId: setupIntent.id, customerId, stripeMode });
 
         return new Response(
           JSON.stringify({ 
             clientSecret: setupIntent.client_secret,
             customerId,
+            stripeMode,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );

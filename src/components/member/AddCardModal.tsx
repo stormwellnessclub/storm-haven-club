@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard, CheckCircle } from "lucide-react";
+import { Loader2, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { StripeProvider } from "@/components/StripeProvider";
@@ -25,6 +25,8 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormComplete, setIsFormComplete] = useState(false);
+  const [isElementReady, setIsElementReady] = useState(false);
+  const [elementError, setElementError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,19 +76,41 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="min-h-[200px]">
+      <div className="min-h-[200px] relative">
+        {!isElementReady && !elementError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-accent" />
+              <p className="text-sm text-muted-foreground">Loading secure card form...</p>
+            </div>
+          </div>
+        )}
+        {elementError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
+            <div className="text-center p-4">
+              <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
+              <p className="text-sm text-destructive mb-2">{elementError}</p>
+              <p className="text-xs text-muted-foreground">Please try again or contact support.</p>
+            </div>
+          </div>
+        )}
         <PaymentElement 
           options={{
             layout: "tabs",
           }}
           onChange={(event) => setIsFormComplete(event.complete)}
+          onReady={() => setIsElementReady(true)}
+          onLoadError={(error) => {
+            console.error("PaymentElement load error:", error);
+            setElementError("Failed to load payment form. Please refresh and try again.");
+          }}
         />
       </div>
       <div className="flex justify-end gap-3 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button type="submit" disabled={!stripe || isSubmitting || !isFormComplete}>
+        <Button type="submit" disabled={!stripe || isSubmitting || !isFormComplete || !isElementReady}>
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -106,6 +130,7 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
 
 export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCardModalProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [stripeMode, setStripeMode] = useState<'test' | 'live'>('live');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -125,6 +150,7 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
       if (data?.error) throw new Error(data.error);
 
       setClientSecret(data.clientSecret);
+      setStripeMode(data.stripeMode || 'live');
     } catch (err) {
       console.error("Failed to create setup intent:", err);
       setError(err instanceof Error ? err.message : "Failed to initialize card form");
@@ -144,6 +170,7 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
     if (!newOpen) {
       // Reset state when closing
       setClientSecret(null);
+      setStripeMode('live');
       setError(null);
     }
     onOpenChange(newOpen);
@@ -180,6 +207,7 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
 
         {error && (
           <div className="py-8 text-center">
+            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
             <p className="text-destructive mb-4">{error}</p>
             <Button variant="outline" onClick={fetchClientSecret}>
               Try Again
@@ -188,7 +216,7 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
         )}
 
         {clientSecret && !isLoading && !error && (
-          <StripeProvider clientSecret={clientSecret}>
+          <StripeProvider clientSecret={clientSecret} stripeMode={stripeMode}>
             <CardForm onSuccess={handleSuccess} onCancel={handleCancel} />
           </StripeProvider>
         )}
