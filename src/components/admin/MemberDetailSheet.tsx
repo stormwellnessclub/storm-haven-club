@@ -42,6 +42,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { ChargeHistory } from "@/components/ChargeHistory";
 
 interface Member {
   id: string;
@@ -479,6 +480,14 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                       <DollarSign className="h-4 w-4 mr-2" />
                       Charge Saved Card
                     </Button>
+                    <div className="mt-4">
+                      <ChargeHistory 
+                        memberId={member.id}
+                        isAdmin={true}
+                        recipientEmail={member.email}
+                        recipientName={member.first_name}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">No payment method on file</p>
