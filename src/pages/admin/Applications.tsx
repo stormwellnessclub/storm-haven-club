@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -165,6 +165,15 @@ export default function Applications() {
   const [pendingBulkAction, setPendingBulkAction] = useState<string | null>(null);
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [memberLinkStatus, setMemberLinkStatus] = useState<{ hasUser: boolean; hasMember: boolean; memberLinked: boolean } | null>(null);
+  
+  // Charge dialog state
+  const [showChargeDialog, setShowChargeDialog] = useState(false);
+  const [chargeTarget, setChargeTarget] = useState<Application | null>(null);
+  const [chargeAmount, setChargeAmount] = useState("300");
+  const [chargeDescription, setChargeDescription] = useState("Annual Membership Fee");
+  const [isCharging, setIsCharging] = useState(false);
+  const [isRequestingPayment, setIsRequestingPayment] = useState(false);
+  
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading, isError, error, refetch } = useQuery({
@@ -380,6 +389,93 @@ export default function Applications() {
     // Check link status for approved applications
     if (app.status === "approved") {
       checkMemberLinkStatus(app.email);
+    }
+  };
+
+  const openChargeDialog = (app: Application) => {
+    setChargeTarget(app);
+    setChargeAmount("300");
+    setChargeDescription("Annual Membership Fee");
+    setShowChargeDialog(true);
+  };
+
+  const handleChargeApplicationCard = async () => {
+    if (!chargeTarget?.stripe_customer_id) {
+      toast.error("No payment method on file");
+      return;
+    }
+
+    const amountNum = parseFloat(chargeAmount);
+    if (isNaN(amountNum) || amountNum < 0.50) {
+      toast.error("Minimum charge amount is $0.50");
+      return;
+    }
+
+    if (!chargeDescription.trim()) {
+      toast.error("Description is required");
+      return;
+    }
+
+    setIsCharging(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "charge_saved_card",
+          stripeCustomerId: chargeTarget.stripe_customer_id,
+          applicantName: chargeTarget.full_name,
+          amount: Math.round(amountNum * 100), // Convert to cents
+          description: chargeDescription,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.success) {
+        toast.success(`Successfully charged $${amountNum.toFixed(2)} to ${chargeTarget.full_name}'s card`);
+        
+        // Update annual fee status if this was an annual fee charge
+        if (chargeDescription.toLowerCase().includes("annual") && chargeDescription.toLowerCase().includes("fee")) {
+          await supabase
+            .from("membership_applications")
+            .update({ annual_fee_status: "paid" })
+            .eq("id", chargeTarget.id);
+          queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+        }
+        
+        setShowChargeDialog(false);
+        setChargeTarget(null);
+      } else {
+        throw new Error("Charge was not successful");
+      }
+    } catch (err: any) {
+      console.error("Charge error:", err);
+      toast.error(err.message || "Failed to charge card");
+    } finally {
+      setIsCharging(false);
+    }
+  };
+
+  const handleRequestPaymentInfo = async (app: Application) => {
+    setIsRequestingPayment(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "payment_update_request",
+          to: app.email,
+          data: {
+            name: app.first_name || app.full_name.split(" ")[0],
+          },
+        },
+      });
+
+      if (error) throw error;
+      toast.success(`Payment request email sent to ${app.email}`);
+    } catch (err: any) {
+      console.error("Email error:", err);
+      toast.error(err.message || "Failed to send email");
+    } finally {
+      setIsRequestingPayment(false);
     }
   };
 
@@ -882,6 +978,21 @@ export default function Applications() {
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
+                          {app.stripe_customer_id && (
+                            <DropdownMenuItem onClick={() => openChargeDialog(app)}>
+                              <DollarSign className="h-4 w-4 mr-2" />
+                              Charge Card
+                            </DropdownMenuItem>
+                          )}
+                          {!app.stripe_customer_id && (
+                            <DropdownMenuItem 
+                              onClick={() => handleRequestPaymentInfo(app)}
+                              disabled={isRequestingPayment}
+                            >
+                              <Mail className="h-4 w-4 mr-2" />
+                              Request Payment Info
+                            </DropdownMenuItem>
+                          )}
                           {app.status !== "approved" && (
                             <DropdownMenuItem className="text-green-600" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app })}>
                               <CheckCircle className="h-4 w-4 mr-2" />
@@ -1148,6 +1259,63 @@ export default function Applications() {
                 </div>
               </ScrollArea>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Charge Card Dialog */}
+        <Dialog open={showChargeDialog} onOpenChange={setShowChargeDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Charge Card</DialogTitle>
+              <DialogDescription>
+                Charge {chargeTarget?.full_name}'s saved card
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Applicant</label>
+                <p className="text-sm text-muted-foreground">{chargeTarget?.full_name} ({chargeTarget?.email})</p>
+              </div>
+              <div>
+                <label htmlFor="charge-amount" className="text-sm font-medium">Amount ($)</label>
+                <Input
+                  id="charge-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.50"
+                  value={chargeAmount}
+                  onChange={(e) => setChargeAmount(e.target.value)}
+                  placeholder="300.00"
+                />
+              </div>
+              <div>
+                <label htmlFor="charge-description" className="text-sm font-medium">Description</label>
+                <Input
+                  id="charge-description"
+                  value={chargeDescription}
+                  onChange={(e) => setChargeDescription(e.target.value)}
+                  placeholder="Annual Membership Fee"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setShowChargeDialog(false)} disabled={isCharging}>
+                  Cancel
+                </Button>
+                <Button onClick={handleChargeApplicationCard} disabled={isCharging}>
+                  {isCharging ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Charging...
+                    </>
+                  ) : (
+                    <>
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Charge ${parseFloat(chargeAmount || "0").toFixed(2)}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

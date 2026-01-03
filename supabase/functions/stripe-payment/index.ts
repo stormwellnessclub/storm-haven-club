@@ -58,9 +58,10 @@ interface PaymentRequest {
   // For freeze fee
   freezeId?: string;
   freezeFeeAmount?: number;
-  // For charge_saved_card
+  // For charge_saved_card (either memberId OR stripeCustomerId required)
   amount?: number;
   description?: string;
+  stripeCustomerId?: string; // Direct customer ID for applications
   // For application setup (unauthenticated)
   applicantEmail?: string;
   applicantName?: string;
@@ -496,33 +497,57 @@ serve(async (req) => {
       }
 
       case 'charge_saved_card': {
-        const { memberId, amount, description } = body;
+        const { memberId, stripeCustomerId: directCustomerId, applicantName, amount, description } = body;
 
-        if (!memberId || !amount || !description) {
-          throw new Error("Member ID, amount, and description are required");
+        if (!amount || !description) {
+          throw new Error("Amount and description are required");
+        }
+
+        if (!memberId && !directCustomerId) {
+          throw new Error("Either memberId or stripeCustomerId is required");
         }
 
         if (amount < 50) {
           throw new Error("Minimum charge amount is $0.50");
         }
 
-        // Get member's stripe_customer_id
-        const { data: memberData, error: memberError } = await supabase
-          .from('members')
-          .select('stripe_customer_id, first_name, last_name, user_id')
-          .eq('id', memberId)
-          .single();
+        let customerId: string;
+        let customerName: string;
+        let memberIdForLog: string | null = null;
+        let userIdForLog: string | null = null;
 
-        if (memberError || !memberData) {
-          throw new Error("Member not found");
-        }
+        if (directCustomerId) {
+          // Direct customer ID provided (for applications without member record yet)
+          customerId = directCustomerId;
+          customerName = applicantName || 'Applicant';
+          logStep("Using direct stripeCustomerId for charge", { customerId, customerName });
+        } else if (memberId) {
+          // Look up from members table (existing behavior)
+          const { data: memberData, error: memberError } = await supabase
+            .from('members')
+            .select('stripe_customer_id, first_name, last_name, user_id')
+            .eq('id', memberId)
+            .single();
 
-        if (!memberData.stripe_customer_id) {
-          throw new Error("Member has no payment method on file");
+          if (memberError || !memberData) {
+            throw new Error("Member not found");
+          }
+
+          if (!memberData.stripe_customer_id) {
+            throw new Error("Member has no payment method on file");
+          }
+
+          customerId = memberData.stripe_customer_id;
+          customerName = `${memberData.first_name} ${memberData.last_name}`;
+          memberIdForLog = memberId;
+          userIdForLog = memberData.user_id;
+          logStep("Found member stripe customer", { customerId, customerName, memberId });
+        } else {
+          throw new Error("Either memberId or stripeCustomerId is required");
         }
 
         // Get the customer's default payment method
-        const customer = await stripe.customers.retrieve(memberData.stripe_customer_id);
+        const customer = await stripe.customers.retrieve(customerId);
         
         if (customer.deleted) {
           throw new Error("Stripe customer has been deleted");
@@ -530,13 +555,13 @@ serve(async (req) => {
 
         // List payment methods and use the first one
         const paymentMethods = await stripe.paymentMethods.list({
-          customer: memberData.stripe_customer_id,
+          customer: customerId,
           type: 'card',
           limit: 1,
         });
 
         if (paymentMethods.data.length === 0) {
-          throw new Error("No payment method on file for this member");
+          throw new Error("No payment method on file");
         }
 
         const paymentMethodId = paymentMethods.data[0].id;
@@ -545,15 +570,16 @@ serve(async (req) => {
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amount, // Already in cents
           currency: 'usd',
-          customer: memberData.stripe_customer_id,
+          customer: customerId,
           payment_method: paymentMethodId,
           off_session: true,
           confirm: true,
           description: description,
           metadata: {
             type: 'manual_charge',
-            member_id: memberId,
+            member_id: memberIdForLog || 'application',
             charged_by: user.id,
+            customer_name: customerName,
           },
         });
 
@@ -561,23 +587,28 @@ serve(async (req) => {
           paymentIntentId: paymentIntent.id, 
           status: paymentIntent.status,
           amount,
+          customerName,
         });
 
-        // Record the charge in manual_charges table
-        const { error: insertError } = await supabase
-          .from('manual_charges')
-          .insert({
-            member_id: memberId,
-            user_id: memberData.user_id,
-            amount: amount,
-            description: description,
-            stripe_payment_intent_id: paymentIntent.id,
-            status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
-            charged_by: user.id,
-          });
+        // Record the charge in manual_charges table only if we have a member
+        if (memberIdForLog && userIdForLog) {
+          const { error: insertError } = await supabase
+            .from('manual_charges')
+            .insert({
+              member_id: memberIdForLog,
+              user_id: userIdForLog,
+              amount: amount,
+              description: description,
+              stripe_payment_intent_id: paymentIntent.id,
+              status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
+              charged_by: user.id,
+            });
 
-        if (insertError) {
-          logStep("Warning: Failed to record manual charge", { error: insertError.message });
+          if (insertError) {
+            logStep("Warning: Failed to record manual charge", { error: insertError.message });
+          }
+        } else {
+          logStep("Skipping manual_charges insert - no member record (application charge)");
         }
 
         return new Response(
