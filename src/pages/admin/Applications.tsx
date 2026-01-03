@@ -434,6 +434,31 @@ export default function Applications() {
       if (data?.success) {
         toast.success(`Successfully charged $${amountNum.toFixed(2)} to ${chargeTarget.full_name}'s card`);
         
+        // Send charge confirmation email
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              type: "charge_confirmation",
+              to: chargeTarget.email,
+              data: {
+                name: chargeTarget.first_name || chargeTarget.full_name.split(" ")[0],
+                description: chargeDescription,
+                amount: amountNum.toFixed(2),
+                date: new Date().toLocaleDateString("en-US", { 
+                  year: "numeric", 
+                  month: "long", 
+                  day: "numeric" 
+                }),
+                cardBrand: data.cardBrand || "Card",
+                cardLast4: data.cardLast4 || "****",
+              },
+            },
+          });
+        } catch (emailErr) {
+          console.error("Failed to send confirmation email:", emailErr);
+          // Don't fail the charge if email fails
+        }
+        
         // Update annual fee status if this was an annual fee charge
         if (chargeDescription.toLowerCase().includes("annual") && chargeDescription.toLowerCase().includes("fee")) {
           await supabase

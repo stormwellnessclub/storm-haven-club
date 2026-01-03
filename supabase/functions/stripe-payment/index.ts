@@ -564,7 +564,10 @@ serve(async (req) => {
           throw new Error("No payment method on file");
         }
 
-        const paymentMethodId = paymentMethods.data[0].id;
+        const paymentMethod = paymentMethods.data[0];
+        const paymentMethodId = paymentMethod.id;
+        const cardBrand = paymentMethod.card?.brand ? paymentMethod.card.brand.charAt(0).toUpperCase() + paymentMethod.card.brand.slice(1) : 'Card';
+        const cardLast4 = paymentMethod.card?.last4 || '****';
 
         // Create and confirm a payment intent
         const paymentIntent = await stripe.paymentIntents.create({
@@ -616,6 +619,8 @@ serve(async (req) => {
             success: paymentIntent.status === 'succeeded',
             paymentIntentId: paymentIntent.id,
             status: paymentIntent.status,
+            cardBrand,
+            cardLast4,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
