@@ -46,8 +46,10 @@ export default function Apply() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     dateOfBirth: "",
+    gender: "",
     address: "",
     city: "",
     state: "",
@@ -96,8 +98,8 @@ export default function Apply() {
     e.preventDefault();
     
     // Validate required fields
-    if (!formData.fullName || !formData.dateOfBirth || !formData.address || 
-        !formData.city || !formData.state || !formData.zipCode || !formData.country ||
+    if (!formData.firstName || !formData.lastName || !formData.dateOfBirth || !formData.gender ||
+        !formData.address || !formData.city || !formData.state || !formData.zipCode || !formData.country ||
         !formData.email || !formData.phone || !formData.membershipPlan ||
         formData.wellnessGoals.length === 0 || formData.servicesInterested.length === 0 ||
         !formData.referredByMember || !formData.foundingMember ||
@@ -109,7 +111,9 @@ export default function Apply() {
 
     // Validate input lengths for security
     const maxLengths: Record<string, number> = {
-      fullName: 100,
+      firstName: 50,
+      lastName: 50,
+      gender: 10,
       address: 200,
       city: 100,
       state: 50,
@@ -153,8 +157,11 @@ export default function Apply() {
     try {
       // Save application to database (without credit card details for security)
       const { error } = await supabase.from("membership_applications").insert({
-        full_name: formData.fullName,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        full_name: `${formData.firstName} ${formData.lastName}`,
         date_of_birth: formData.dateOfBirth,
+        gender: formData.gender,
         address: formData.address,
         city: formData.city,
         state: formData.state,
@@ -280,17 +287,31 @@ export default function Apply() {
               <h2 className="font-serif text-2xl mb-6 text-accent">Personal Information</h2>
               
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="fullName">Full Name *</Label>
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    placeholder="Your Name"
-                    className="mt-1"
-                    required
-                  />
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name *</Label>
+                    <Input
+                      id="firstName"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      placeholder="First Name"
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      placeholder="Last Name"
+                      className="mt-1"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -304,6 +325,40 @@ export default function Apply() {
                     className="mt-1"
                     required
                   />
+                </div>
+
+                <div>
+                  <Label className="mb-3 block">Gender *</Label>
+                  <div className="flex gap-6">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        id="gender-women"
+                        name="gender"
+                        value="Women"
+                        checked={formData.gender === "Women"}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 accent-accent"
+                      />
+                      <Label htmlFor="gender-women" className="font-normal cursor-pointer">
+                        Women
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        id="gender-men"
+                        name="gender"
+                        value="Men"
+                        checked={formData.gender === "Men"}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 accent-accent"
+                      />
+                      <Label htmlFor="gender-men" className="font-normal cursor-pointer">
+                        Men
+                      </Label>
+                    </div>
+                  </div>
                 </div>
 
                 <div>

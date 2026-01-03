@@ -938,10 +938,13 @@ export type Database = {
           credit_card_auth: boolean
           date_of_birth: string
           email: string
+          first_name: string
           founding_member: string
           full_name: string
+          gender: string
           holistic_wellness: string | null
           id: string
+          last_name: string
           lifestyle_integration: string | null
           membership_plan: string
           motivations: string[] | null
@@ -972,10 +975,13 @@ export type Database = {
           credit_card_auth?: boolean
           date_of_birth: string
           email: string
+          first_name: string
           founding_member: string
           full_name: string
+          gender: string
           holistic_wellness?: string | null
           id?: string
+          last_name: string
           lifestyle_integration?: string | null
           membership_plan: string
           motivations?: string[] | null
@@ -1006,10 +1012,13 @@ export type Database = {
           credit_card_auth?: boolean
           date_of_birth?: string
           email?: string
+          first_name?: string
           founding_member?: string
           full_name?: string
+          gender?: string
           holistic_wellness?: string | null
           id?: string
+          last_name?: string
           lifestyle_integration?: string | null
           membership_plan?: string
           motivations?: string[] | null

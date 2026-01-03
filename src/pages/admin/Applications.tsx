@@ -67,6 +67,9 @@ import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 type Application = {
   id: string;
   full_name: string;
+  first_name: string;
+  last_name: string;
+  gender: string;
   email: string;
   phone: string;
   membership_plan: string;
@@ -238,10 +241,10 @@ export default function Applications() {
         const now = new Date();
         const activationDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
         
-        // Parse full name into first/last
-        const nameParts = application.full_name.trim().split(" ");
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || "";
+        // Use first_name/last_name fields if available, fallback to parsing full_name
+        const firstName = application.first_name || application.full_name.trim().split(" ")[0] || "";
+        const lastName = application.last_name || application.full_name.trim().split(" ").slice(1).join(" ") || "";
+        const gender = application.gender || "Women";
         
         // Check if member already exists for this email (prevent duplicates)
         const { data: existingMember } = await supabase
@@ -299,6 +302,7 @@ export default function Applications() {
             activation_deadline: activationDeadline.toISOString(),
             user_id: userId,
             is_founding_member: application.founding_member?.toLowerCase() === "yes",
+            gender: gender,
           } as any);
         
         if (memberError) {
@@ -480,9 +484,10 @@ export default function Applications() {
           const now = new Date();
           const activationDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
           
-          const nameParts = app.full_name.trim().split(" ");
-          const firstName = nameParts[0] || "";
-          const lastName = nameParts.slice(1).join(" ") || "";
+          // Use first_name/last_name fields if available, fallback to parsing full_name
+          const firstName = app.first_name || app.full_name.trim().split(" ")[0] || "";
+          const lastName = app.last_name || app.full_name.trim().split(" ").slice(1).join(" ") || "";
+          const gender = app.gender || "Women";
           
           // Check if member already exists for this email (prevent duplicates)
           const { data: existingMember } = await supabase
@@ -534,6 +539,7 @@ export default function Applications() {
                 activation_deadline: activationDeadline.toISOString(),
                 user_id: userData?.user_id || null,
                 is_founding_member: app.founding_member?.toLowerCase() === "yes",
+                gender: gender,
               } as any);
           } catch (memberError) {
             console.error(`Failed to create member for ${app.email}:`, memberError);
@@ -902,8 +908,12 @@ export default function Applications() {
                 <div className="space-y-6 pr-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Full Name</p>
-                      <p className="font-medium">{selectedApplication.full_name}</p>
+                      <p className="text-sm text-muted-foreground">First Name</p>
+                      <p className="font-medium">{selectedApplication.first_name || selectedApplication.full_name?.split(" ")[0] || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Last Name</p>
+                      <p className="font-medium">{selectedApplication.last_name || selectedApplication.full_name?.split(" ").slice(1).join(" ") || "-"}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Email</p>
@@ -912,6 +922,10 @@ export default function Applications() {
                     <div>
                       <p className="text-sm text-muted-foreground">Phone</p>
                       <p className="font-medium">{selectedApplication.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Gender</p>
+                      <p className="font-medium">{selectedApplication.gender || "-"}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Membership Plan</p>
