@@ -711,6 +711,60 @@ export type Database = {
         }
         Relationships: []
       }
+      manual_charges: {
+        Row: {
+          amount: number
+          charged_by: string
+          created_at: string
+          description: string
+          id: string
+          member_id: string
+          status: string
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          charged_by: string
+          created_at?: string
+          description: string
+          id?: string
+          member_id: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          charged_by?: string
+          created_at?: string
+          description?: string
+          id?: string
+          member_id?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_charges_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_charges_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_credits: {
         Row: {
           created_at: string
