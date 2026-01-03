@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, CheckCircle, Clock, XCircle, Mail, Loader2 } from "lucide-react";
+import { DollarSign, CheckCircle, Clock, XCircle, Mail, Loader2, RotateCcw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 
@@ -38,7 +48,10 @@ export function ChargeHistory({
   recipientEmail,
   recipientName,
 }: ChargeHistoryProps) {
+  const queryClient = useQueryClient();
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [refundingCharge, setRefundingCharge] = useState<Charge | null>(null);
+  const [isRefunding, setIsRefunding] = useState(false);
 
   const { data: charges, isLoading } = useQuery({
     queryKey: ["charge-history", applicationId, memberId],
@@ -100,6 +113,36 @@ export function ChargeHistory({
     }
   };
 
+  const handleRefund = async () => {
+    if (!refundingCharge || !refundingCharge.stripe_payment_intent_id) {
+      toast.error("Cannot refund: missing payment information");
+      return;
+    }
+
+    setIsRefunding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "refund_charge",
+          chargeId: refundingCharge.id,
+          paymentIntentId: refundingCharge.stripe_payment_intent_id,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Refund failed");
+
+      toast.success(`Refunded $${(refundingCharge.amount / 100).toFixed(2)} successfully`);
+      queryClient.invalidateQueries({ queryKey: ["charge-history", applicationId, memberId] });
+    } catch (err: any) {
+      console.error("Failed to process refund:", err);
+      toast.error(err.message || "Failed to process refund");
+    } finally {
+      setIsRefunding(false);
+      setRefundingCharge(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -141,6 +184,20 @@ export function ChargeHistory({
             Failed
           </Badge>
         );
+      case "refunded":
+        return (
+          <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+            <RotateCcw className="h-3 w-3 mr-1" />
+            Refunded
+          </Badge>
+        );
+      case "partially_refunded":
+        return (
+          <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+            <RotateCcw className="h-3 w-3 mr-1" />
+            Partial Refund
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -171,6 +228,25 @@ export function ChargeHistory({
                 ${(charge.amount / 100).toFixed(2)}
               </span>
               {getStatusBadge(charge.status)}
+              {isAdmin && charge.status === "succeeded" && charge.stripe_payment_intent_id && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setRefundingCharge(charge)}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Refund ${(charge.amount / 100).toFixed(2)}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               {isAdmin && charge.status === "succeeded" && recipientEmail && (
                 <TooltipProvider>
                   <Tooltip>
@@ -199,6 +275,37 @@ export function ChargeHistory({
           </div>
         ))}
       </div>
+
+      {/* Refund Confirmation Dialog */}
+      <AlertDialog open={!!refundingCharge} onOpenChange={(open) => !open && setRefundingCharge(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Refund</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to refund <strong>${refundingCharge ? (refundingCharge.amount / 100).toFixed(2) : '0.00'}</strong> for "{refundingCharge?.description}"?
+              <br /><br />
+              This action cannot be undone. The funds will be returned to the customer's original payment method.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRefunding}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRefund}
+              disabled={isRefunding}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isRefunding ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Refund"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
