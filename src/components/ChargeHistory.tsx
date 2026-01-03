@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { DollarSign, CheckCircle, Clock, XCircle, Mail, Loader2, RotateCcw, Download } from "lucide-react";
+import { DollarSign, CheckCircle, Clock, XCircle, Mail, Loader2, RotateCcw, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+const ITEMS_PER_PAGE = 10;
 import {
   Dialog,
   DialogContent,
@@ -63,6 +65,7 @@ export function ChargeHistory({
   const [refundAmount, setRefundAmount] = useState("");
   const [refundMethod, setRefundMethod] = useState<RefundMethod>("stripe");
   const [refundNotes, setRefundNotes] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Reset refund form when dialog opens/closes
   useEffect(() => {
@@ -103,6 +106,26 @@ export function ChargeHistory({
     },
     enabled: !!(applicationId || memberId),
   });
+
+  // Reset to page 1 when data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [applicationId, memberId]);
+
+  // Calculate pagination
+  const totalItems = charges?.length ?? 0;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedCharges = charges?.slice(startIndex, endIndex) ?? [];
+
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+  };
 
   const handleResendReceipt = async (charge: Charge) => {
     if (!recipientEmail || !recipientName) {
@@ -344,7 +367,7 @@ export function ChargeHistory({
         </div>
       )}
       <div className="space-y-2">
-        {charges.map((charge) => (
+        {paginatedCharges.map((charge) => (
           <div
             key={charge.id}
             className="p-3 rounded-lg bg-secondary/50 border space-y-2"
@@ -431,6 +454,35 @@ export function ChargeHistory({
           </div>
         ))}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className="gap-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className="gap-1"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {/* Refund Dialog */}
       <Dialog open={!!refundingCharge} onOpenChange={(open) => !open && setRefundingCharge(null)}>
