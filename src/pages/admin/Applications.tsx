@@ -48,6 +48,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { BatchActivationDialog, BatchActivationConfig } from "@/components/admin/BatchActivationDialog";
+import { SingleActivationDialog } from "@/components/admin/SingleActivationDialog";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -179,6 +180,11 @@ export default function Applications() {
   // Batch activation dialog state
   const [showBatchActivationDialog, setShowBatchActivationDialog] = useState(false);
   const [isBatchActivating, setIsBatchActivating] = useState(false);
+  
+  // Single activation dialog state
+  const [showSingleActivationDialog, setShowSingleActivationDialog] = useState(false);
+  const [singleActivationTarget, setSingleActivationTarget] = useState<Application | null>(null);
+  const [isSingleActivating, setIsSingleActivating] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -454,6 +460,88 @@ export default function Applications() {
     setChargeAmount("300");
     setChargeDescription("Annual Membership Fee");
     setShowChargeDialog(true);
+  };
+
+  const openSingleActivationDialog = (app: Application) => {
+    setSingleActivationTarget(app);
+    setShowSingleActivationDialog(true);
+  };
+
+  const handleSingleActivation = async (config: { startDate: Date; chargeAnnualFee: boolean }) => {
+    if (!singleActivationTarget) return;
+    
+    setIsSingleActivating(true);
+    try {
+      // If we need to charge the annual fee first
+      if (config.chargeAnnualFee && singleActivationTarget.stripe_customer_id) {
+        const { data, error } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "charge_saved_card",
+            stripeCustomerId: singleActivationTarget.stripe_customer_id,
+            applicantName: singleActivationTarget.full_name,
+            applicationId: singleActivationTarget.id,
+            amount: 30000, // $300 in cents
+            description: "Annual Membership Fee",
+          },
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        // Update annual fee status
+        await supabase
+          .from("membership_applications")
+          .update({ annual_fee_status: "paid" })
+          .eq("id", singleActivationTarget.id);
+
+        // Send charge confirmation email
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              type: "charge_confirmation",
+              to: singleActivationTarget.email,
+              data: {
+                name: singleActivationTarget.first_name || singleActivationTarget.full_name.split(" ")[0],
+                description: "Annual Membership Fee",
+                amount: "300.00",
+                date: new Date().toLocaleDateString("en-US", { 
+                  year: "numeric", 
+                  month: "long", 
+                  day: "numeric" 
+                }),
+                cardBrand: data.cardBrand || "Card",
+                cardLast4: data.cardLast4 || "****",
+              },
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send charge confirmation email:", emailError);
+        }
+      }
+
+      // Update the application's annual_fee_status to reflect current state for the mutation
+      const updatedApp = {
+        ...singleActivationTarget,
+        annual_fee_status: config.chargeAnnualFee ? "paid" : singleActivationTarget.annual_fee_status,
+      };
+
+      // Now approve and auto-activate the member
+      await updateStatusMutation.mutateAsync({
+        id: singleActivationTarget.id,
+        status: "approved",
+        application: updatedApp,
+        autoActivate: true,
+        startDate: config.startDate,
+      });
+
+      setShowSingleActivationDialog(false);
+      setSingleActivationTarget(null);
+    } catch (error: any) {
+      console.error("Single activation error:", error);
+      toast.error(error.message || "Failed to activate member");
+    } finally {
+      setIsSingleActivating(false);
+    }
   };
 
   const handleChargeApplicationCard = async () => {
@@ -1255,6 +1343,13 @@ export default function Applications() {
                                 <MailX className="h-4 w-4 mr-2" />
                                 Approve (No Email)
                               </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-primary"
+                                onClick={() => openSingleActivationDialog(app)}
+                              >
+                                <Zap className="h-4 w-4 mr-2" />
+                                Approve & Auto-Activate
+                              </DropdownMenuItem>
                             </>
                           )}
                           {app.status !== "rejected" && (
@@ -1608,6 +1703,15 @@ export default function Applications() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Single Activation Dialog */}
+        <SingleActivationDialog
+          open={showSingleActivationDialog}
+          onOpenChange={setShowSingleActivationDialog}
+          application={singleActivationTarget}
+          onConfirm={handleSingleActivation}
+          isLoading={isSingleActivating}
+        />
       </div>
     </AdminLayout>
   );
