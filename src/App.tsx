@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SessionMonitor } from "@/components/SessionMonitor";
 import { ProtectedAdminRoute } from "@/components/admin/ProtectedAdminRoute";
 import { ProtectedMemberRoute } from "@/components/member/ProtectedMemberRoute";
 import MemberDashboard from "@/pages/member/Dashboard";
@@ -59,6 +60,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <SessionMonitor />
             <ScrollToTop />
             <Routes>
               {/* Public Routes */}
