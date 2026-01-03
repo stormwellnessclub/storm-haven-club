@@ -7,6 +7,7 @@ export type ApplicationStatus =
   | "active_member"           // Has approved membership and activated
   | "pending_activation"      // Approved but needs to choose start date
   | "pending_application"     // Application submitted, awaiting review
+  | "unlinked_member"         // Member exists with matching email but not linked
   | "no_application";         // No application on file
 
 export interface ApplicationStatusResult {
@@ -28,6 +29,13 @@ export interface ApplicationStatusResult {
     first_name: string;
     last_name: string;
     email: string;
+  };
+  unlinkedMemberData?: {
+    id: string;
+    email: string;
+    status: string;
+    first_name: string;
+    last_name: string;
   };
 }
 
@@ -137,8 +145,7 @@ export function useApplicationStatus() {
         } else {
           console.warn("[useApplicationStatus] Auto-link failed after retries, checking for unlinked member by email...");
           
-          // Fallback: Check if there's a member record with matching email that just hasn't been linked yet
-          // This helps diagnose the issue even if we can't fix it automatically
+          // Check if there's a member record with matching email that just hasn't been linked yet
           const { data: unlinkedMember } = await supabase
             .from("members")
             .select("id, email, status, first_name, last_name")
@@ -146,9 +153,13 @@ export function useApplicationStatus() {
             .is("user_id", null)
             .maybeSingle();
             
-          if (unlinkedMember) {
-            console.warn("[useApplicationStatus] Found unlinked member record:", unlinkedMember.email, 
-              "- Admin may need to manually link this account");
+          if (unlinkedMember && ['pending_activation', 'active'].includes(unlinkedMember.status)) {
+            console.warn("[useApplicationStatus] Found unlinked member record:", unlinkedMember.email);
+            // Return special status so UI can prompt user to fix
+            return {
+              status: "unlinked_member",
+              unlinkedMemberData: unlinkedMember,
+            };
           }
         }
       }

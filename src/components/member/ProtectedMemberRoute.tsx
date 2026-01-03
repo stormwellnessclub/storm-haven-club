@@ -5,6 +5,7 @@ import { useApplicationStatus } from "@/hooks/useApplicationStatus";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
 import { ActivationRequired } from "./ActivationRequired";
 import { SessionRepair } from "./SessionRepair";
+import { UnlinkedMemberFix } from "./UnlinkedMemberFix";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -171,6 +172,11 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   // Show "Application Under Review" view for pending applications
   if (applicationStatus?.status === "pending_application" && applicationStatus.applicationData) {
     return <ApplicationUnderReview applicationData={applicationStatus.applicationData} />;
+  }
+
+  // Show "Unlinked Member Fix" for members that couldn't be auto-linked
+  if (applicationStatus?.status === "unlinked_member" && applicationStatus.unlinkedMemberData) {
+    return <UnlinkedMemberFix memberData={applicationStatus.unlinkedMemberData} onSuccess={() => refetch()} />;
   }
 
   // Show "Activation Required" view for approved members who haven't chosen start date

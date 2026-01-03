@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -120,6 +120,16 @@ export default function Auth() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Try to link member after auth success (belt-and-suspenders with server trigger)
+  const attemptMemberLink = useCallback(async () => {
+    try {
+      await supabase.rpc("link_member_by_email");
+    } catch (e) {
+      // Silent fail - server trigger should handle this
+      console.log("[Auth] Member link attempt completed");
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -149,6 +159,8 @@ export default function Auth() {
             });
           }
         } else {
+          // Attempt member link after signup (server trigger does this too)
+          await attemptMemberLink();
           toast({
             title: "Welcome to Storm Wellness Club!",
             description: "Your account has been created successfully.",
@@ -173,6 +185,8 @@ export default function Auth() {
             });
           }
         } else {
+          // Attempt member link after sign-in
+          await attemptMemberLink();
           navigate("/member");
         }
       }
