@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request';
+  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation';
   to: string;
   data: Record<string, any>;
 }
@@ -513,6 +513,62 @@ serve(async (req) => {
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
                 <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'charge_confirmation':
+        subject = `Payment Receipt - Storm Wellness Club`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Payment Confirmation</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Dear ${data.name},
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                This email confirms that your payment has been successfully processed.
+              </p>
+              
+              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #065f46;">Receipt Details</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Description</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.description}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Amount</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; font-size: 18px; color: #065f46;">$${data.amount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Payment Method</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.cardBrand} •••• ${data.cardLast4}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="font-size: 14px; color: #6b7280; margin-bottom: 20px;">
+                Please keep this email as your receipt for your records.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you have any questions about this charge, please don't hesitate to contact us.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Thank you,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
               </div>
             </div>
             ${getEmailFooter()}
