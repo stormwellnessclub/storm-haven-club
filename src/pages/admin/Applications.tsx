@@ -1169,7 +1169,12 @@ export default function Applications() {
 
                   {/* Charge History */}
                   <div className="pt-4 border-t">
-                    <ChargeHistory applicationId={selectedApplication.id} />
+                    <ChargeHistory 
+                      applicationId={selectedApplication.id} 
+                      isAdmin={true}
+                      recipientEmail={selectedApplication.email}
+                      recipientName={selectedApplication.first_name || selectedApplication.full_name.split(" ")[0]}
+                    />
                   </div>
 
                   {/* Annual Fee Actions */}
