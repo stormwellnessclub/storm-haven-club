@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useUserCredits } from "@/hooks/useUserCredits";
-import { useUpcomingBookings } from "@/hooks/useBooking";
+import { useUpcomingBookings, Booking } from "@/hooks/useBooking";
 import {
   CreditCard,
   Calendar,
@@ -16,7 +16,7 @@ import {
   ArrowRight,
   Ticket,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 
 export default function MemberDashboard() {
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -208,23 +208,34 @@ export default function MemberDashboard() {
               </div>
             ) : upcomingBookings && upcomingBookings.length > 0 ? (
               <div className="space-y-3">
-                {upcomingBookings.slice(0, 3).map((booking: any) => (
-                  <div
-                    key={booking.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
-                  >
-                    <div>
-                      <p className="font-medium">{booking.class_sessions?.class_types?.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(booking.class_sessions?.session_date), "EEEE, MMM d")} at{" "}
-                        {booking.class_sessions?.start_time?.slice(0, 5)}
-                      </p>
+                {upcomingBookings.slice(0, 3).map((booking: Booking) => {
+                  const sessionDate = booking.session?.session_date 
+                    ? parseISO(booking.session.session_date) 
+                    : null;
+                  const formattedDate = sessionDate && isValid(sessionDate) 
+                    ? format(sessionDate, "EEEE, MMM d") 
+                    : "Date TBA";
+                  const formattedTime = booking.session?.start_time?.slice(0, 5) || "Time TBA";
+                  
+                  return (
+                    <div
+                      key={booking.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {booking.session?.class_type?.name || "Class"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {formattedDate} at {formattedTime}
+                        </p>
+                      </div>
+                      <Badge variant="outline">
+                        {booking.session?.room || "Studio"}
+                      </Badge>
                     </div>
-                    <Badge variant="outline">
-                      {booking.class_sessions?.room || "Studio"}
-                    </Badge>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
