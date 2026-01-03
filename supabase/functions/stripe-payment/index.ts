@@ -44,7 +44,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup';
   // For activation checkout
   tier?: string;
   gender?: string;
@@ -61,6 +61,9 @@ interface PaymentRequest {
   // For charge_saved_card
   amount?: number;
   description?: string;
+  // For application setup (unauthenticated)
+  applicantEmail?: string;
+  applicantName?: string;
   // General
   subscriptionId?: string;
   successUrl?: string;
@@ -97,7 +100,61 @@ serve(async (req) => {
     const { action } = body;
     logStep(`Processing action: ${action}`, body);
 
-    // Get user from auth header
+    // Handle unauthenticated action: create_application_setup
+    if (action === 'create_application_setup') {
+      const { applicantEmail, applicantName, successUrl, cancelUrl } = body;
+
+      if (!applicantEmail || !applicantName || !successUrl || !cancelUrl) {
+        throw new Error("Missing required fields for application setup");
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(applicantEmail)) {
+        throw new Error("Invalid email format");
+      }
+
+      logStep("Creating application setup for", { email: applicantEmail, name: applicantName });
+
+      // Check if customer already exists
+      const customers = await stripe.customers.list({ email: applicantEmail, limit: 1 });
+      let customerId: string;
+      
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        logStep("Found existing Stripe customer", { customerId });
+      } else {
+        const customer = await stripe.customers.create({
+          email: applicantEmail,
+          name: applicantName,
+          metadata: { source: 'membership_application' }
+        });
+        customerId = customer.id;
+        logStep("Created new Stripe customer", { customerId });
+      }
+
+      // Create SetupIntent Checkout session (saves card without charging)
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: 'setup',
+        payment_method_types: ['card'],
+        success_url: `${successUrl}?setup_success=true&customer_id=${customerId}`,
+        cancel_url: cancelUrl,
+        metadata: {
+          type: 'application_card_setup',
+          applicant_email: applicantEmail,
+        },
+      });
+
+      logStep("SetupIntent checkout session created", { sessionId: session.id, customerId });
+
+      return new Response(
+        JSON.stringify({ sessionId: session.id, url: session.url, customerId }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    // All other actions require authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       throw new Error("Authorization required");

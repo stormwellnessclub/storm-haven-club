@@ -1014,6 +1014,7 @@ export type Database = {
           services_interested: string[]
           state: string
           status: string
+          stripe_customer_id: string | null
           submission_confirmation: boolean
           updated_at: string
           wellness_goals: string[]
@@ -1051,6 +1052,7 @@ export type Database = {
           services_interested?: string[]
           state: string
           status?: string
+          stripe_customer_id?: string | null
           submission_confirmation?: boolean
           updated_at?: string
           wellness_goals?: string[]
@@ -1088,6 +1090,7 @@ export type Database = {
           services_interested?: string[]
           state?: string
           status?: string
+          stripe_customer_id?: string | null
           submission_confirmation?: boolean
           updated_at?: string
           wellness_goals?: string[]

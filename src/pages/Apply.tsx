@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,8 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Check, ArrowRight, ExternalLink, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Check, ArrowRight, ExternalLink, Loader2, CreditCard } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
@@ -43,8 +43,11 @@ const motivations = [
 ];
 
 export default function Apply() {
+  const [searchParams] = useSearchParams();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingCard, setIsSavingCard] = useState(false);
+  const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -76,6 +79,19 @@ export default function Apply() {
     submissionConfirmation: false,
   });
 
+  // Check for successful card setup on return from Stripe
+  useEffect(() => {
+    const setupSuccess = searchParams.get("setup_success");
+    const customerId = searchParams.get("customer_id");
+    
+    if (setupSuccess === "true" && customerId) {
+      setStripeCustomerId(customerId);
+      toast.success("Payment method saved successfully!");
+      // Clear URL params without reload
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [searchParams]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -94,6 +110,50 @@ export default function Apply() {
     }));
   };
 
+  const handleSavePaymentMethod = async () => {
+    // Validate required fields for card setup
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+      toast.error("Please fill in your name and email first");
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsSavingCard(true);
+
+    try {
+      const response = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_application_setup",
+          applicantEmail: formData.email,
+          applicantName: `${formData.firstName} ${formData.lastName}`,
+          successUrl: window.location.href,
+          cancelUrl: window.location.href,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to create payment session");
+      }
+
+      const { url } = response.data;
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (error) {
+      console.error("Error creating payment setup:", error);
+      toast.error("Failed to open payment setup. Please try again.");
+      setIsSavingCard(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -106,6 +166,12 @@ export default function Apply() {
         !formData.creditCardAuth || !formData.paymentAcknowledged || !formData.oneYearCommitment ||
         !formData.authAcknowledgment || !formData.submissionConfirmation) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Validate payment method is saved
+    if (!stripeCustomerId) {
+      toast.error("Please save your payment method before submitting");
       return;
     }
 
@@ -155,7 +221,7 @@ export default function Apply() {
     setIsSubmitting(true);
 
     try {
-      // Save application to database (without credit card details for security)
+      // Save application to database with stripe_customer_id
       const { error } = await supabase.from("membership_applications").insert({
         first_name: formData.firstName,
         last_name: formData.lastName,
@@ -186,6 +252,7 @@ export default function Apply() {
         one_year_commitment: formData.oneYearCommitment,
         auth_acknowledgment: formData.authAcknowledgment,
         submission_confirmation: formData.submissionConfirmation,
+        stripe_customer_id: stripeCustomerId,
       });
 
       if (error) {
@@ -750,16 +817,57 @@ export default function Apply() {
               <div className="space-y-4">
                 <div className="p-4 bg-secondary/50 rounded-sm mb-4">
                   <p className="text-sm text-muted-foreground">
-                    <strong className="text-foreground">Secure Payment Process</strong>
+                    <strong className="text-foreground">Secure Payment Setup</strong>
                     <br /><br />
-                    For your security, we do not collect credit card information during the application process. 
-                    Once your membership application is approved, you will receive a secure payment link via email 
-                    to complete your initiation fee payment through our encrypted payment processor. No charges 
-                    will be made until your membership is approved and you authorize the payment.
+                    To complete your application, please save a payment method. Your card will be securely 
+                    stored with our payment processor and will only be charged upon approval of your membership 
+                    when you activate it. No charges will be made until you authorize the payment.
                   </p>
                 </div>
 
-                <div className="flex items-start gap-3">
+                {/* Card Save Button / Status */}
+                {stripeCustomerId ? (
+                  <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-sm flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                      <Check className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-green-700 dark:text-green-400">Payment Method Saved</p>
+                      <p className="text-sm text-muted-foreground">Your card has been securely saved for future billing.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Click the button below to securely add your payment method. You'll be redirected to our 
+                      secure payment processor and returned here to complete your application.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="gold"
+                      onClick={handleSavePaymentMethod}
+                      disabled={isSavingCard || !formData.firstName || !formData.lastName || !formData.email}
+                      className="w-full sm:w-auto"
+                    >
+                      {isSavingCard ? (
+                        <>
+                          <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                          Opening Payment Setup...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 w-4 h-4" />
+                          Add Payment Method
+                        </>
+                      )}
+                    </Button>
+                    {(!formData.firstName || !formData.lastName || !formData.email) && (
+                      <p className="text-xs text-amber-600">Please fill in your name and email above first.</p>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-start gap-3 mt-4">
                   <Checkbox
                     id="creditCardAuth"
                     checked={formData.creditCardAuth}
@@ -767,7 +875,7 @@ export default function Apply() {
                     required
                   />
                   <Label htmlFor="creditCardAuth" className="font-normal cursor-pointer text-sm">
-                    I understand that I will receive a secure payment link upon approval of my membership application. *
+                    I authorize Storm Fitness and Wellness Center to charge my saved payment method upon membership activation. *
                   </Label>
                 </div>
 
@@ -779,7 +887,7 @@ export default function Apply() {
                     required
                   />
                   <Label htmlFor="paymentAcknowledged" className="font-normal cursor-pointer text-sm">
-                    I acknowledge that the initiation fee will be due upon approval and I agree to complete payment via the secure link provided. *
+                    I acknowledge that the initiation fee will be charged upon activation and I agree to the billing terms. *
                   </Label>
                 </div>
               </div>
