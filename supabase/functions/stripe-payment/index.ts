@@ -44,7 +44,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods';
   // For activation checkout
   tier?: string;
   gender?: string;
@@ -58,6 +58,9 @@ interface PaymentRequest {
   // For freeze fee
   freezeId?: string;
   freezeFeeAmount?: number;
+  // For charge_saved_card
+  amount?: number;
+  description?: string;
   // General
   subscriptionId?: string;
   successUrl?: string;
@@ -256,6 +259,9 @@ serve(async (req) => {
           customer: customerId,
           line_items: [{ price: priceId, quantity: 1 }],
           mode: 'payment',
+          payment_intent_data: {
+            setup_future_usage: 'off_session',
+          },
           success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: cancelUrl,
           metadata: {
@@ -301,6 +307,9 @@ serve(async (req) => {
             },
           ],
           mode: 'payment',
+          payment_intent_data: {
+            setup_future_usage: 'off_session',
+          },
           success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: cancelUrl,
           metadata: {
@@ -374,6 +383,147 @@ serve(async (req) => {
         
         return new Response(
           JSON.stringify({ success: true, subscription }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'list_payment_methods': {
+        const { memberId } = body;
+        
+        if (!memberId) {
+          throw new Error("Member ID required");
+        }
+
+        // Get member's stripe_customer_id
+        const { data: memberData, error: memberError } = await supabase
+          .from('members')
+          .select('stripe_customer_id, first_name, last_name')
+          .eq('id', memberId)
+          .single();
+
+        if (memberError || !memberData?.stripe_customer_id) {
+          return new Response(
+            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // List payment methods for the customer
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: memberData.stripe_customer_id,
+          type: 'card',
+        });
+
+        const formattedMethods = paymentMethods.data.map((pm: { id: string; card?: { brand?: string; last4?: string; exp_month?: number; exp_year?: number } }) => ({
+          id: pm.id,
+          brand: pm.card?.brand,
+          last4: pm.card?.last4,
+          expMonth: pm.card?.exp_month,
+          expYear: pm.card?.exp_year,
+        }));
+
+        logStep("Payment methods listed", { memberId, count: formattedMethods.length });
+
+        return new Response(
+          JSON.stringify({ 
+            paymentMethods: formattedMethods, 
+            hasPaymentMethod: formattedMethods.length > 0 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'charge_saved_card': {
+        const { memberId, amount, description } = body;
+
+        if (!memberId || !amount || !description) {
+          throw new Error("Member ID, amount, and description are required");
+        }
+
+        if (amount < 50) {
+          throw new Error("Minimum charge amount is $0.50");
+        }
+
+        // Get member's stripe_customer_id
+        const { data: memberData, error: memberError } = await supabase
+          .from('members')
+          .select('stripe_customer_id, first_name, last_name, user_id')
+          .eq('id', memberId)
+          .single();
+
+        if (memberError || !memberData) {
+          throw new Error("Member not found");
+        }
+
+        if (!memberData.stripe_customer_id) {
+          throw new Error("Member has no payment method on file");
+        }
+
+        // Get the customer's default payment method
+        const customer = await stripe.customers.retrieve(memberData.stripe_customer_id);
+        
+        if (customer.deleted) {
+          throw new Error("Stripe customer has been deleted");
+        }
+
+        // List payment methods and use the first one
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: memberData.stripe_customer_id,
+          type: 'card',
+          limit: 1,
+        });
+
+        if (paymentMethods.data.length === 0) {
+          throw new Error("No payment method on file for this member");
+        }
+
+        const paymentMethodId = paymentMethods.data[0].id;
+
+        // Create and confirm a payment intent
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount, // Already in cents
+          currency: 'usd',
+          customer: memberData.stripe_customer_id,
+          payment_method: paymentMethodId,
+          off_session: true,
+          confirm: true,
+          description: description,
+          metadata: {
+            type: 'manual_charge',
+            member_id: memberId,
+            charged_by: user.id,
+          },
+        });
+
+        logStep("Payment intent created", { 
+          paymentIntentId: paymentIntent.id, 
+          status: paymentIntent.status,
+          amount,
+        });
+
+        // Record the charge in manual_charges table
+        const { error: insertError } = await supabase
+          .from('manual_charges')
+          .insert({
+            member_id: memberId,
+            user_id: memberData.user_id,
+            amount: amount,
+            description: description,
+            stripe_payment_intent_id: paymentIntent.id,
+            status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
+            charged_by: user.id,
+          });
+
+        if (insertError) {
+          logStep("Warning: Failed to record manual charge", { error: insertError.message });
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: paymentIntent.status === 'succeeded',
+            paymentIntentId: paymentIntent.id,
+            status: paymentIntent.status,
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }

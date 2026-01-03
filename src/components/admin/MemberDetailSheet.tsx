@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -30,8 +31,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2 } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 
 interface Member {
@@ -88,8 +97,12 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showReactivateDialog, setShowReactivateDialog] = useState(false);
+  const [showChargeDialog, setShowChargeDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReactivating, setIsReactivating] = useState(false);
+  const [isCharging, setIsCharging] = useState(false);
+  const [chargeAmount, setChargeAmount] = useState("");
+  const [chargeDescription, setChargeDescription] = useState("");
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
@@ -216,6 +229,47 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
       toast.error("Failed to reactivate membership");
     } finally {
       setIsReactivating(false);
+    }
+  };
+
+  const handleChargeCard = async () => {
+    if (!member) return;
+    
+    const amountInCents = Math.round(parseFloat(chargeAmount) * 100);
+    
+    if (isNaN(amountInCents) || amountInCents < 50) {
+      toast.error("Minimum charge amount is $0.50");
+      return;
+    }
+
+    if (!chargeDescription.trim()) {
+      toast.error("Please enter a description for the charge");
+      return;
+    }
+
+    setIsCharging(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-payment', {
+        body: {
+          action: 'charge_saved_card',
+          memberId: member.id,
+          amount: amountInCents,
+          description: chargeDescription.trim(),
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Charge failed");
+
+      toast.success(`Successfully charged $${chargeAmount} to ${member.first_name}'s card`);
+      setShowChargeDialog(false);
+      setChargeAmount("");
+      setChargeDescription("");
+    } catch (error) {
+      console.error("Error charging card:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to charge card");
+    } finally {
+      setIsCharging(false);
     }
   };
 
@@ -407,7 +461,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                   Payment Information
                 </p>
                 {member.stripe_customer_id ? (
-                  <div className="text-sm space-y-1">
+                  <div className="text-sm space-y-2">
                     <p className="text-muted-foreground">
                       Stripe Customer: <span className="font-mono text-xs">{member.stripe_customer_id}</span>
                     </p>
@@ -416,6 +470,15 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                         Subscription: <span className="font-mono text-xs">{member.stripe_subscription_id}</span>
                       </p>
                     )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-2"
+                      onClick={() => setShowChargeDialog(true)}
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Charge Saved Card
+                    </Button>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">No payment method on file</p>
@@ -526,6 +589,54 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showChargeDialog} onOpenChange={setShowChargeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Charge Saved Card</DialogTitle>
+            <DialogDescription>
+              Charge {member.first_name} {member.last_name}'s saved payment method for an off-cycle purchase (café, late fees, etc.)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="chargeAmount">Amount (USD)</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="chargeAmount"
+                  type="number"
+                  step="0.01"
+                  min="0.50"
+                  placeholder="0.00"
+                  value={chargeAmount}
+                  onChange={(e) => setChargeAmount(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="chargeDescription">Description</Label>
+              <Textarea
+                id="chargeDescription"
+                placeholder="e.g., Café purchase, Late cancellation fee, Guest pass"
+                value={chargeDescription}
+                onChange={(e) => setChargeDescription(e.target.value)}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChargeDialog(false)} disabled={isCharging}>
+              Cancel
+            </Button>
+            <Button onClick={handleChargeCard} disabled={isCharging}>
+              {isCharging && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Charge ${chargeAmount || "0.00"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
