@@ -247,6 +247,31 @@ serve(async (req) => {
           }
 
           logStep("Freeze fee payment processed", { freezeId, memberId: freezeData.member_id });
+
+        } else if (metadata.type === 'annual_fee_payment') {
+          // Handle annual fee payment
+          const memberId = metadata.member_id;
+          const userId = metadata.user_id;
+
+          if (!memberId) {
+            throw new Error("Missing member_id in annual fee metadata");
+          }
+
+          // Update member record with annual fee payment date
+          const { error: updateError } = await supabase
+            .from('members')
+            .update({
+              annual_fee_paid_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', memberId);
+
+          if (updateError) {
+            logStep("Error updating annual fee payment", { error: updateError });
+            throw updateError;
+          }
+
+          logStep("Annual fee payment processed", { memberId, userId });
         }
         break;
       }

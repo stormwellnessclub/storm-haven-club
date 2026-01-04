@@ -44,7 +44,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices';
   // For detach_payment_method
   paymentMethodId?: string;
   // For activation checkout
@@ -404,6 +404,73 @@ serve(async (req) => {
         });
 
         logStep("Freeze fee checkout created", { sessionId: session.id, url: session.url, freezeId });
+
+        return new Response(
+          JSON.stringify({ sessionId: session.id, url: session.url }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'pay_annual_fee': {
+        const { memberId, successUrl, cancelUrl } = body;
+
+        if (!memberId || !successUrl || !cancelUrl) {
+          throw new Error("Missing required fields for annual fee payment");
+        }
+
+        // Get member record to determine gender for pricing
+        const { data: member, error: memberError } = await supabase
+          .from('members')
+          .select('id, gender, stripe_customer_id, first_name, last_name, email, annual_fee_paid_at')
+          .eq('id', memberId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (memberError || !member) {
+          throw new Error("Member record not found or unauthorized");
+        }
+
+        logStep("Found member for annual fee payment", { memberId: member.id, gender: member.gender });
+
+        // Determine gender for pricing
+        const normalizedGender = (member.gender?.toLowerCase() === 'male' || member.gender?.toLowerCase() === 'men') ? 'men' : 'women';
+        const annualFeePriceId = STRIPE_PRODUCTS.annualFee[normalizedGender];
+
+        if (!annualFeePriceId) {
+          throw new Error(`Annual fee price not found for gender: ${member.gender}`);
+        }
+
+        // Get or create customer
+        let customerId = member.stripe_customer_id;
+        if (!customerId) {
+          customerId = await getOrCreateCustomer();
+          // Save to member record
+          await supabase
+            .from('members')
+            .update({ stripe_customer_id: customerId })
+            .eq('id', memberId);
+          logStep("Created and saved Stripe customer", { customerId });
+        }
+
+        // Create one-time payment for annual fee (not subscription - just immediate charge)
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: [{ price: annualFeePriceId, quantity: 1 }],
+          mode: 'payment',
+          payment_intent_data: {
+            setup_future_usage: 'off_session',
+          },
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}&annual_fee_paid=true`,
+          cancel_url: cancelUrl,
+          metadata: {
+            type: 'annual_fee_payment',
+            member_id: memberId,
+            user_id: user.id,
+            gender: normalizedGender,
+          },
+        });
+
+        logStep("Annual fee checkout session created", { sessionId: session.id, url: session.url, memberId, gender: normalizedGender });
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),
