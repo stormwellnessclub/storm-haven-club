@@ -22,8 +22,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2 } from "lucide-react";
+import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
+import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
@@ -199,9 +200,19 @@ export default function Members() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className={getStatusColor(member.status)}>
-                          {formatStatus(member.status)}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className={getStatusColor(member.status)}>
+                            {formatStatus(member.status)}
+                          </Badge>
+                          {checkMemberPaymentStatus({
+                            status: member.status,
+                            annual_fee_paid_at: member.annual_fee_paid_at,
+                          }).hasPaymentIssues && (
+                            <span title="Payment issue">
+                              <AlertTriangle className="h-4 w-4 text-red-500" />
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {member.membership_start_date
