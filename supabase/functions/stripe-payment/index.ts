@@ -44,7 +44,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices';
   // For detach_payment_method
   paymentMethodId?: string;
   // For activation checkout
@@ -815,6 +815,39 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'list_invoices': {
+        const { memberId } = body;
+        
+        logStep("Listing invoices", { userId: user.id, memberId });
+
+        const customerId = await getOrCreateCustomer();
+        
+        // List invoices for this customer
+        const invoices = await stripe.invoices.list({
+          customer: customerId,
+          limit: 10,
+        });
+
+        const formattedInvoices = invoices.data.map((invoice: Stripe.Invoice) => ({
+          id: invoice.id,
+          number: invoice.number,
+          created: invoice.created,
+          status: invoice.status,
+          amount_paid: invoice.amount_paid,
+          amount_due: invoice.amount_due,
+          currency: invoice.currency,
+          invoice_pdf: invoice.invoice_pdf,
+          hosted_invoice_url: invoice.hosted_invoice_url,
+        }));
+
+        logStep("Invoices retrieved", { count: formattedInvoices.length });
+
+        return new Response(
+          JSON.stringify({ invoices: formattedInvoices }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
