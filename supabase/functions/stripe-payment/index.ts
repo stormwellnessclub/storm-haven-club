@@ -44,9 +44,10 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices';
-  // For detach_payment_method
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname';
+  // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
+  nickname?: string;
   // For activation checkout
   tier?: string;
   gender?: string;
@@ -554,10 +555,16 @@ serve(async (req) => {
 
         if (memberError || !memberData?.stripe_customer_id) {
           return new Response(
-            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
+            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false, defaultPaymentMethodId: null }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
           );
         }
+
+        // Get customer to find default payment method
+        const customer = await stripe.customers.retrieve(memberData.stripe_customer_id);
+        const defaultPaymentMethodId = !customer.deleted 
+          ? customer.invoice_settings?.default_payment_method as string | null
+          : null;
 
         // List payment methods for the customer
         const paymentMethods = await stripe.paymentMethods.list({
@@ -565,20 +572,27 @@ serve(async (req) => {
           type: 'card',
         });
 
-        const formattedMethods = paymentMethods.data.map((pm: { id: string; card?: { brand?: string; last4?: string; exp_month?: number; exp_year?: number } }) => ({
+        const formattedMethods = paymentMethods.data.map((pm: { 
+          id: string; 
+          card?: { brand?: string; last4?: string; exp_month?: number; exp_year?: number };
+          metadata?: Record<string, string>;
+        }) => ({
           id: pm.id,
           brand: pm.card?.brand,
           last4: pm.card?.last4,
           expMonth: pm.card?.exp_month,
           expYear: pm.card?.exp_year,
+          nickname: pm.metadata?.nickname || null,
+          isDefault: pm.id === defaultPaymentMethodId,
         }));
 
-        logStep("Payment methods listed", { memberId, count: formattedMethods.length });
+        logStep("Payment methods listed", { memberId, count: formattedMethods.length, defaultPaymentMethodId });
 
         return new Response(
           JSON.stringify({ 
             paymentMethods: formattedMethods, 
-            hasPaymentMethod: formattedMethods.length > 0 
+            hasPaymentMethod: formattedMethods.length > 0,
+            defaultPaymentMethodId,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
@@ -915,6 +929,84 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ invoices: formattedInvoices }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'set_default_payment_method': {
+        const { paymentMethodId, memberId } = body;
+        
+        if (!paymentMethodId) {
+          throw new Error("Payment method ID required");
+        }
+
+        logStep("Setting default payment method", { paymentMethodId, userId: user.id, memberId });
+
+        // Get member's stripe customer ID
+        const { data: memberData, error: memberError } = await supabase
+          .from('members')
+          .select('stripe_customer_id')
+          .eq('id', memberId)
+          .single();
+
+        if (memberError || !memberData?.stripe_customer_id) {
+          throw new Error("Member not found or has no Stripe customer");
+        }
+
+        const customerId = memberData.stripe_customer_id;
+
+        // Verify the payment method belongs to this customer
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+        
+        if (paymentMethod.customer !== customerId) {
+          throw new Error("Unauthorized: Payment method does not belong to this user");
+        }
+
+        // Update customer's default payment method for invoices/subscriptions
+        await stripe.customers.update(customerId, {
+          invoice_settings: {
+            default_payment_method: paymentMethodId,
+          },
+        });
+
+        logStep("Default payment method updated", { paymentMethodId, customerId });
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'update_payment_method_nickname': {
+        const { paymentMethodId, nickname } = body;
+        
+        if (!paymentMethodId) {
+          throw new Error("Payment method ID required");
+        }
+
+        logStep("Updating payment method nickname", { paymentMethodId, nickname, userId: user.id });
+
+        // Get the payment method to verify ownership
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+        
+        // Verify the user owns this payment method by checking customer
+        const customerId = await getOrCreateCustomer();
+        if (paymentMethod.customer !== customerId) {
+          throw new Error("Unauthorized: Payment method does not belong to this user");
+        }
+
+        // Update the payment method metadata with the nickname
+        await stripe.paymentMethods.update(paymentMethodId, {
+          metadata: {
+            ...paymentMethod.metadata,
+            nickname: nickname || '',
+          },
+        });
+
+        logStep("Payment method nickname updated", { paymentMethodId, nickname });
+
+        return new Response(
+          JSON.stringify({ success: true }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
