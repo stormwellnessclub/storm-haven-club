@@ -24,13 +24,14 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFormComplete, setIsFormComplete] = useState(false);
   const [isElementReady, setIsElementReady] = useState(false);
   const [elementError, setElementError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
 
     if (!stripe || !elements) {
       return;
@@ -39,6 +40,14 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
     setIsSubmitting(true);
 
     try {
+      // Explicitly validate the form first
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setValidationError(submitError.message || "Please complete the form");
+        setIsSubmitting(false);
+        return;
+      }
+
       const { error } = await stripe.confirmSetup({
         elements,
         redirect: "if_required",
@@ -75,8 +84,9 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="min-h-[200px] relative">
+    <form onSubmit={handleSubmit} className="flex flex-col">
+      {/* Scrollable content area */}
+      <div className="min-h-[200px] max-h-[50vh] overflow-y-auto relative">
         {!isElementReady && !elementError && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
             <div className="text-center">
@@ -94,23 +104,31 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
             </div>
           </div>
         )}
-        <PaymentElement 
-          options={{
-            layout: "tabs",
-          }}
-          onChange={(event) => setIsFormComplete(event.complete)}
-          onReady={() => setIsElementReady(true)}
-          onLoadError={(error) => {
-            console.error("PaymentElement load error:", error);
-            setElementError("Failed to load payment form. Please refresh and try again.");
-          }}
-        />
+        <div tabIndex={-1}>
+          <PaymentElement 
+            options={{
+              layout: "tabs",
+            }}
+            onReady={() => setIsElementReady(true)}
+            onLoadError={(error) => {
+              console.error("PaymentElement load error:", error);
+              setElementError("Failed to load payment form. Please refresh and try again.");
+            }}
+          />
+        </div>
       </div>
-      <div className="flex justify-end gap-3 pt-4 border-t">
+      
+      {/* Validation error display */}
+      {validationError && (
+        <p className="text-sm text-destructive mt-2">{validationError}</p>
+      )}
+      
+      {/* Sticky footer - always visible */}
+      <div className="sticky bottom-0 bg-background pt-4 mt-4 border-t flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button type="submit" disabled={!stripe || isSubmitting || !isFormComplete || !isElementReady}>
+        <Button type="submit" disabled={!stripe || !elements || isSubmitting || !isElementReady}>
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -130,7 +148,6 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
 
 export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCardModalProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [stripeMode, setStripeMode] = useState<'test' | 'live'>('live');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -150,7 +167,6 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
       if (data?.error) throw new Error(data.error);
 
       setClientSecret(data.clientSecret);
-      setStripeMode(data.stripeMode || 'live');
     } catch (err) {
       console.error("Failed to create setup intent:", err);
       setError(err instanceof Error ? err.message : "Failed to initialize card form");
@@ -170,7 +186,6 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
     if (!newOpen) {
       // Reset state when closing
       setClientSecret(null);
-      setStripeMode('live');
       setError(null);
     }
     onOpenChange(newOpen);
@@ -187,8 +202,8 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-accent" />
             Add Payment Method
@@ -216,7 +231,7 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
         )}
 
         {clientSecret && !isLoading && !error && (
-          <StripeProvider clientSecret={clientSecret} stripeMode={stripeMode}>
+          <StripeProvider clientSecret={clientSecret}>
             <CardForm onSuccess={handleSuccess} onCancel={handleCancel} />
           </StripeProvider>
         )}

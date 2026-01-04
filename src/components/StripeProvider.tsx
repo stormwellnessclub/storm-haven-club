@@ -1,31 +1,18 @@
-import { loadStripe, Stripe } from '@stripe/stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import { useMemo } from 'react';
 
-// Stripe publishable keys - test and live modes
-const STRIPE_PUBLISHABLE_KEYS = {
-  test: 'pk_test_51Se7DULyZrsSqLhsrs55WIACkSQNKMKTZ6hOKUWtIymBa05ZHrpDigyFYZyj5MGZUvfasUrRpUFDCZCtJzPnElPv00UZnFfqy4',
-  live: 'pk_live_51Se7DULyZrsSqLhsrs55WIACkSQNKMKTZ6hOKUWtIymBa05ZHrpDigyFYZyj5MGZUvfasUrRpUFDCZCtJzPnElPv00UZnFfqy4',
-};
+// Live Stripe publishable key
+const STRIPE_PUBLISHABLE_KEY = 'pk_live_51Se7DULyZrsSqLhsrs55WIACkSQNKMKTZ6hOKUWtIymBa05ZHrpDigyFYZyj5MGZUvfasUrRpUFDCZCtJzPnElPv00UZnFfqy4';
 
-// Cache stripe instances by mode
-const stripePromiseCache: { test?: Promise<Stripe | null>; live?: Promise<Stripe | null> } = {};
-
-function getStripePromise(mode: 'test' | 'live'): Promise<Stripe | null> {
-  if (!stripePromiseCache[mode]) {
-    stripePromiseCache[mode] = loadStripe(STRIPE_PUBLISHABLE_KEYS[mode]);
-  }
-  return stripePromiseCache[mode]!;
-}
+// Single cached stripe instance
+const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 interface StripeProviderProps {
   children: React.ReactNode;
   clientSecret: string;
-  stripeMode?: 'test' | 'live';
 }
 
-export const StripeProvider = ({ children, clientSecret, stripeMode = 'live' }: StripeProviderProps) => {
-  const stripePromise = useMemo(() => getStripePromise(stripeMode), [stripeMode]);
+export const StripeProvider = ({ children, clientSecret }: StripeProviderProps) => {
 
   const options = {
     clientSecret,
@@ -49,5 +36,4 @@ export const StripeProvider = ({ children, clientSecret, stripeMode = 'live' }: 
   );
 };
 
-// Export default live stripe promise for backward compatibility
-export const stripePromise = getStripePromise('live');
+export { stripePromise };
