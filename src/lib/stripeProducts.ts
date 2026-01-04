@@ -72,6 +72,31 @@ export const STRIPE_PRODUCTS = {
   },
 } as const;
 
+// Pricing data (in dollars)
+const MEMBERSHIP_PRICES = {
+  silver: {
+    monthly: { women: 200, men: 120 },
+    annual: { women: 2400, men: 1440 },
+  },
+  gold: {
+    monthly: { women: 250, men: 155 },
+    annual: { women: 3000, men: 1860 },
+  },
+  platinum: {
+    monthly: { women: 350, men: 175 },
+    annual: { women: 4200, men: 2100 },
+  },
+  diamond: {
+    monthly: { women: 500, men: null },
+    annual: { women: 6000, men: null },
+  },
+} as const;
+
+const ANNUAL_FEE_AMOUNTS = {
+  women: 300,
+  men: 175,
+} as const;
+
 // Type helpers
 export type MembershipTier = 'silver' | 'gold' | 'platinum' | 'diamond';
 export type BillingType = 'monthly' | 'annual';
@@ -79,6 +104,25 @@ export type Gender = 'women' | 'men';
 export type ClassPassCategory = 'pilatesCycling' | 'otherClasses';
 export type ClassPassType = 'single' | 'tenPack';
 export type MemberStatus = 'member' | 'nonMember';
+
+// Helper function to get membership price amount
+export function getMembershipPrice(
+  tier: MembershipTier,
+  billingType: BillingType,
+  gender: Gender
+): { amount: number; interval: string } | null {
+  const price = MEMBERSHIP_PRICES[tier]?.[billingType]?.[gender];
+  if (price === null || price === undefined) return null;
+  return {
+    amount: price,
+    interval: billingType === 'annual' ? 'year' : 'month',
+  };
+}
+
+// Helper function to get annual fee amount
+export function getAnnualFeeAmount(gender: Gender): number {
+  return ANNUAL_FEE_AMOUNTS[gender];
+}
 
 // Helper function to get membership price ID
 export function getMembershipPriceId(

@@ -10,12 +10,37 @@ import { IdCard, Check, FileCheck, Crown, Receipt } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { InlineBillingSection } from "@/components/member/InlineBillingSection";
+import { BillingSummary } from "@/components/member/BillingSummary";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function MemberMembership() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { profile, isLoading: profileLoading } = useUserProfile();
-
   const isLoading = membershipLoading || profileLoading;
+
+  // Fetch next billing date from subscription
+  const { data: subscriptionData } = useQuery({
+    queryKey: ["member-subscription-summary", membership?.stripe_subscription_id],
+    queryFn: async () => {
+      if (!membership?.stripe_subscription_id) return null;
+      
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: { 
+          action: "get_subscription",
+          subscriptionId: membership.stripe_subscription_id,
+        },
+      });
+
+      if (error) throw error;
+      return data?.subscription as { current_period_end: number } | null;
+    },
+    enabled: !!membership?.stripe_subscription_id,
+  });
+
+  const nextBillingDate = subscriptionData?.current_period_end 
+    ? new Date(subscriptionData.current_period_end * 1000) 
+    : null;
 
   if (isLoading) {
     return (
@@ -108,6 +133,16 @@ export default function MemberMembership() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Billing Summary - Compact Overview */}
+        <BillingSummary
+          membershipType={membership.membership_type}
+          billingType={membership.billing_type}
+          gender={membership.gender}
+          annualFeePaidAt={membership.annual_fee_paid_at}
+          isFoundingMember={membership.is_founding_member || false}
+          nextBillingDate={nextBillingDate}
+        />
 
         {/* Inline Billing Section */}
         <InlineBillingSection
