@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import {
   Dialog,
@@ -8,6 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Loader2, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +22,14 @@ interface AddCardModalProps {
   memberId: string;
 }
 
-function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
+interface CardFormProps {
+  onSuccess: () => void;
+  onCancel: () => void;
+  nickname: string;
+  onNicknameChange: (value: string) => void;
+}
+
+function CardForm({ onSuccess, onCancel, nickname, onNicknameChange }: CardFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,7 +57,7 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
         return;
       }
 
-      const { error } = await stripe.confirmSetup({
+      const { error, setupIntent } = await stripe.confirmSetup({
         elements,
         redirect: "if_required",
         confirmParams: {
@@ -59,6 +68,21 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
       if (error) {
         toast.error(error.message || "Failed to save card");
       } else {
+        // If nickname provided, update the payment method metadata
+        if (nickname.trim() && setupIntent?.payment_method) {
+          try {
+            await supabase.functions.invoke("stripe-payment", {
+              body: {
+                action: "update_payment_method_nickname",
+                paymentMethodId: setupIntent.payment_method,
+                nickname: nickname.trim(),
+              },
+            });
+          } catch (err) {
+            console.warn("Failed to save card nickname:", err);
+          }
+        }
+        
         setIsComplete(true);
         toast.success("Card added successfully!");
         setTimeout(() => {
@@ -85,6 +109,24 @@ function CardForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: ()
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col">
+      {/* Nickname field */}
+      <div className="mb-4">
+        <Label htmlFor="card-nickname" className="text-sm font-medium">
+          Card Nickname <span className="text-muted-foreground">(optional)</span>
+        </Label>
+        <Input
+          id="card-nickname"
+          value={nickname}
+          onChange={(e) => onNicknameChange(e.target.value)}
+          placeholder="e.g., Personal Card, Business Visa"
+          className="mt-1.5"
+          maxLength={50}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          A label to help you identify this card
+        </p>
+      </div>
+
       {/* Scrollable content area */}
       <div className="min-h-[200px] max-h-[50vh] overflow-y-auto relative">
         {!isElementReady && !elementError && (
@@ -150,6 +192,8 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nickname, setNickname] = useState("");
+  const setupIntentKeyRef = useRef(0);
 
   const fetchClientSecret = async () => {
     setIsLoading(true);
@@ -167,6 +211,7 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
       if (data?.error) throw new Error(data.error);
 
       setClientSecret(data.clientSecret);
+      setupIntentKeyRef.current += 1; // Force new key to remount StripeProvider
     } catch (err) {
       console.error("Failed to create setup intent:", err);
       setError(err instanceof Error ? err.message : "Failed to initialize card form");
@@ -184,14 +229,19 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Reset state when closing
+      // Reset ALL state immediately when closing
       setClientSecret(null);
       setError(null);
+      setNickname("");
     }
     onOpenChange(newOpen);
   };
 
   const handleSuccess = () => {
+    // Reset state before calling parent handlers
+    setClientSecret(null);
+    setError(null);
+    setNickname("");
     onSuccess();
     onOpenChange(false);
   };
@@ -231,8 +281,13 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
         )}
 
         {clientSecret && !isLoading && !error && (
-          <StripeProvider clientSecret={clientSecret}>
-            <CardForm onSuccess={handleSuccess} onCancel={handleCancel} />
+          <StripeProvider key={`stripe-${setupIntentKeyRef.current}`} clientSecret={clientSecret}>
+            <CardForm 
+              onSuccess={handleSuccess} 
+              onCancel={handleCancel}
+              nickname={nickname}
+              onNicknameChange={setNickname}
+            />
           </StripeProvider>
         )}
       </DialogContent>
