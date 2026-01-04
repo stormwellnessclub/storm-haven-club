@@ -27,9 +27,10 @@ interface CardFormProps {
   onCancel: () => void;
   nickname: string;
   onNicknameChange: (value: string) => void;
+  memberId: string;
 }
 
-function CardForm({ onSuccess, onCancel, nickname, onNicknameChange }: CardFormProps) {
+function CardForm({ onSuccess, onCancel, nickname, onNicknameChange, memberId }: CardFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,18 +69,44 @@ function CardForm({ onSuccess, onCancel, nickname, onNicknameChange }: CardFormP
       if (error) {
         toast.error(error.message || "Failed to save card");
       } else {
+        const paymentMethodId = setupIntent?.payment_method;
+        
         // If nickname provided, update the payment method metadata
-        if (nickname.trim() && setupIntent?.payment_method) {
+        if (nickname.trim() && paymentMethodId) {
           try {
             await supabase.functions.invoke("stripe-payment", {
               body: {
                 action: "update_payment_method_nickname",
-                paymentMethodId: setupIntent.payment_method,
+                paymentMethodId,
                 nickname: nickname.trim(),
               },
             });
           } catch (err) {
             console.warn("Failed to save card nickname:", err);
+          }
+        }
+        
+        // Check if there's already a default card - only set as default if none exists
+        if (paymentMethodId) {
+          try {
+            const { data: pmData } = await supabase.functions.invoke("stripe-payment", {
+              body: { action: "list_payment_methods", memberId }
+            });
+            
+            const hasExistingDefault = pmData?.paymentMethods?.some((pm: { isDefault: boolean }) => pm.isDefault);
+            
+            // Only set as default if this is the first card (no existing default)
+            if (!hasExistingDefault) {
+              await supabase.functions.invoke("stripe-payment", {
+                body: { 
+                  action: "set_default_payment_method",
+                  paymentMethodId,
+                  memberId
+                }
+              });
+            }
+          } catch (err) {
+            console.warn("Failed to check/set default payment method:", err);
           }
         }
         
@@ -287,6 +314,7 @@ export function AddCardModal({ open, onOpenChange, onSuccess, memberId }: AddCar
               onCancel={handleCancel}
               nickname={nickname}
               onNicknameChange={setNickname}
+              memberId={memberId}
             />
           </StripeProvider>
         )}
