@@ -27,7 +27,7 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   const { user, session, loading: authLoading, signOut } = useAuth();
   const [sessionState, setSessionState] = useState<SessionState>("validating");
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
-  const { hasPaymentIssues, isLoading: paymentStatusLoading } = usePaymentStatus();
+  const { hasBlockingIssues, isLoading: paymentStatusLoading } = usePaymentStatus();
   const location = useLocation();
 
   const validateSession = useCallback(async () => {
@@ -191,9 +191,9 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
     return <ActivationRequired memberData={applicationStatus.memberData} />;
   }
 
-  // Show payment required alert for members with payment issues
-  // But allow access to payment-related pages so they can fix it
-  if (hasPaymentIssues && !paymentStatusLoading) {
+  // Show payment required alert for members with blocking payment issues (monthly dues past due)
+  // Annual fee overdue shows a non-blocking notice instead (handled in MemberLayout)
+  if (hasBlockingIssues && !paymentStatusLoading) {
     const isPaymentAllowedPath = PAYMENT_ALLOWED_PATHS.some(path => 
       location.pathname.startsWith(path)
     );
