@@ -1,49 +1,18 @@
-import { AlertTriangle, CreditCard, Calendar } from "lucide-react";
+import { AlertTriangle, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserMembership } from "@/hooks/useUserMembership";
-import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
-import { format, addYears } from "date-fns";
-import { getAnnualFeeAmount, normalizeGender, Gender } from "@/lib/stripeProducts";
 
+// This component is only shown when monthly dues are past due (blocking issue)
+// Annual fee overdue uses the non-blocking AnnualFeeNotice banner instead
 export function PaymentRequiredAlert() {
   const { data: membership } = useUserMembership();
-  const { isAnnualFeeOverdue, isDuesPastDue, annualFeeExpiresAt } = usePaymentStatus();
-  const [isLoadingAnnualFee, setIsLoadingAnnualFee] = useState(false);
   const [isLoadingPortal, setIsLoadingPortal] = useState(false);
 
   if (!membership) return null;
-
-  const gender = normalizeGender(membership.gender) as Gender;
-  const annualFeeAmount = getAnnualFeeAmount(gender);
-
-  const handlePayAnnualFee = async () => {
-    setIsLoadingAnnualFee(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("stripe-payment", {
-        body: {
-          action: "pay_annual_fee",
-          memberId: membership.id,
-          successUrl: `${window.location.origin}/member/membership`,
-          cancelUrl: `${window.location.origin}/member/membership`,
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error("Error creating annual fee checkout:", err);
-      toast.error("Failed to start payment. Please try again.");
-    } finally {
-      setIsLoadingAnnualFee(false);
-    }
-  };
 
   const handleUpdatePaymentMethod = async () => {
     setIsLoadingPortal(true);
@@ -78,65 +47,34 @@ export function PaymentRequiredAlert() {
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           <p className="text-muted-foreground">
-            Your membership is currently on hold due to outstanding payments.
-            Please resolve the following to restore full access:
+            Your membership is currently on hold because your last payment failed.
+            Please update your payment method to restore full access.
           </p>
 
-          <div className="space-y-4">
-            {isAnnualFeeOverdue && (
-              <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg space-y-3">
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-destructive" />
-                  <div>
-                    <p className="font-semibold">Annual Membership Fee</p>
-                    <p className="text-sm text-muted-foreground">
-                      {annualFeeExpiresAt
-                        ? `Expired on ${format(annualFeeExpiresAt, "MMMM d, yyyy")}`
-                        : "Payment required to continue membership"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold">${annualFeeAmount}</span>
-                  <Button
-                    onClick={handlePayAnnualFee}
-                    disabled={isLoadingAnnualFee}
-                    size="sm"
-                  >
-                    {isLoadingAnnualFee ? "Loading..." : "Pay Now"}
-                  </Button>
-                </div>
+          <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg space-y-3">
+            <div className="flex items-center gap-3">
+              <CreditCard className="h-5 w-5 text-destructive" />
+              <div>
+                <p className="font-semibold">Monthly Dues Past Due</p>
+                <p className="text-sm text-muted-foreground">
+                  Your last payment failed. Please update your payment method.
+                </p>
               </div>
-            )}
-
-            {isDuesPastDue && (
-              <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg space-y-3">
-                <div className="flex items-center gap-3">
-                  <CreditCard className="h-5 w-5 text-destructive" />
-                  <div>
-                    <p className="font-semibold">Monthly Dues Past Due</p>
-                    <p className="text-sm text-muted-foreground">
-                      Your last payment failed. Please update your payment method.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleUpdatePaymentMethod}
-                    disabled={isLoadingPortal}
-                    size="sm"
-                    variant="outline"
-                  >
-                    {isLoadingPortal ? "Loading..." : "Update Payment Method"}
-                  </Button>
-                </div>
-              </div>
-            )}
+            </div>
+            <div className="flex justify-end">
+              <Button
+                onClick={handleUpdatePaymentMethod}
+                disabled={isLoadingPortal}
+              >
+                {isLoadingPortal ? "Loading..." : "Update Payment Method"}
+              </Button>
+            </div>
           </div>
 
           <div className="pt-4 border-t">
             <p className="text-sm text-muted-foreground text-center">
-              Once payment is received, your full membership access will be restored.
+              Once your payment method is updated and payment is processed,
+              your full membership access will be restored.
               If you need assistance, please contact our front desk.
             </p>
           </div>
