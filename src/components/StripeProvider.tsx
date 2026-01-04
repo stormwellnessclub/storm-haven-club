@@ -4,8 +4,8 @@ import { useMemo } from 'react';
 
 // Stripe publishable keys - test and live modes
 const STRIPE_PUBLISHABLE_KEYS = {
-  test: 'pk_test_51ScjCYLyZrsSqLhsVj2v99AJpk9o9EL4G0X8M2g4t6K6s9xN8JZ8s9F3D2W1P0Q9R8T7Y6U5I4O3P2A1S0D9F8G7H', // Replace with actual test key if needed
-  live: 'pk_live_51ScjCYLyZrsSqLhsQu3CYIl3ufWrJWU8FQMjMXjZu3HXJm0cz9WMkPGQmQJNYLNRNp37YE4eV7ZfH8LMQXiN5Lwx00Y2b6T95l',
+  test: 'pk_test_51Se7DULyZrsSqLhsrs55WIACkSQNKMKTZ6hOKUWtIymBa05ZHrpDigyFYZyj5MGZUvfasUrRpUFDCZCtJzPnElPv00UZnFfqy4',
+  live: 'pk_live_51Se7DULyZrsSqLhsrs55WIACkSQNKMKTZ6hOKUWtIymBa05ZHrpDigyFYZyj5MGZUvfasUrRpUFDCZCtJzPnElPv00UZnFfqy4',
 };
 
 // Cache stripe instances by mode
