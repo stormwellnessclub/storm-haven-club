@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,40 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserMembership, getMembershipTierBenefits } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { supabase } from "@/integrations/supabase/client";
-import { IdCard, Check, FileCheck, Crown, CreditCard, Loader2, ExternalLink, Receipt } from "lucide-react";
+import { IdCard, Check, FileCheck, Crown, Receipt } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { toast } from "sonner";
 import { ChargeHistory } from "@/components/ChargeHistory";
+import { InlineBillingSection } from "@/components/member/InlineBillingSection";
 
 export default function MemberMembership() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { profile, isLoading: profileLoading } = useUserProfile();
-  const [isPortalLoading, setIsPortalLoading] = useState(false);
 
   const isLoading = membershipLoading || profileLoading;
-
-  const handleManageBilling = async () => {
-    setIsPortalLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("stripe-payment", {
-        body: { action: "customer_portal" },
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      } else {
-        throw new Error("No portal URL returned");
-      }
-    } catch (error) {
-      console.error("Portal error:", error);
-      toast.error("Failed to open billing portal. Please try again.");
-    } finally {
-      setIsPortalLoading(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -134,41 +109,13 @@ export default function MemberMembership() {
           </CardContent>
         </Card>
 
-        {/* Billing Management */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-accent" />
-              <CardTitle>Billing & Subscription</CardTitle>
-            </div>
-            <CardDescription>
-              Manage your payment methods, view invoices, and update your subscription
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              onClick={handleManageBilling} 
-              disabled={isPortalLoading}
-              className="w-full sm:w-auto"
-            >
-              {isPortalLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Opening...
-                </>
-              ) : (
-                <>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Manage Billing
-                </>
-              )}
-            </Button>
-            <p className="text-sm text-muted-foreground mt-3">
-              Opens Stripe Customer Portal in a new tab where you can update payment methods, 
-              view invoices, and manage your subscription.
-            </p>
-          </CardContent>
-        </Card>
+        {/* Inline Billing Section */}
+        <InlineBillingSection
+          memberId={membership.id}
+          membershipType={membership.membership_type}
+          stripeSubscriptionId={membership.stripe_subscription_id}
+          billingType={membership.billing_type}
+        />
 
         {/* Charge History */}
         <Card>
