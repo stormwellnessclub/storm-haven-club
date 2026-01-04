@@ -27,6 +27,8 @@ export function PaymentRequiredAlert() {
         body: {
           action: "pay_annual_fee",
           memberId: membership.id,
+          successUrl: `${window.location.origin}/member/membership`,
+          cancelUrl: `${window.location.origin}/member/membership`,
         },
       });
 
