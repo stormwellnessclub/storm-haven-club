@@ -14,12 +14,15 @@ import {
   User,
   CreditCard,
   Calendar,
-  Loader2
+  Loader2,
+  ShieldAlert,
+  DollarSign
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addYears, isBefore } from "date-fns";
+import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 
 type MemberStatus = "active" | "past_due" | "frozen" | "expired" | "cancelled";
 
@@ -34,6 +37,7 @@ interface Member {
   status: MemberStatus;
   membership_end_date: string | null;
   photo_url: string | null;
+  annual_fee_paid_at: string | null;
 }
 
 interface CheckInRecord {
@@ -57,6 +61,15 @@ export default function CheckIn() {
   const [recentCheckIns, setRecentCheckIns] = useState<CheckInRecord[]>([]);
   const [todayStats, setTodayStats] = useState({ total: 0, currentlyIn: 0 });
   const [memberCheckInCount, setMemberCheckInCount] = useState(0);
+  const [isOverriding, setIsOverriding] = useState(false);
+
+  // Get payment status for selected member
+  const memberPaymentStatus = selectedMember 
+    ? checkMemberPaymentStatus({
+        status: selectedMember.status,
+        annual_fee_paid_at: selectedMember.annual_fee_paid_at,
+      })
+    : null;
 
   // Fetch recent check-ins on mount
   useEffect(() => {
@@ -156,24 +169,38 @@ export default function CheckIn() {
     setMemberCheckInCount(count || 0);
   };
 
-  const handleCheckIn = async () => {
+  const handleCheckIn = async (override: boolean = false) => {
     if (!selectedMember || !user) return;
 
-    setIsCheckingIn(true);
+    if (override) {
+      setIsOverriding(true);
+    } else {
+      setIsCheckingIn(true);
+    }
+
+    const notes = override 
+      ? `OVERRIDE: Payment issue - checked in by admin (${user.email})`
+      : null;
 
     const { error } = await supabase.from("check_ins").insert({
       member_id: selectedMember.id,
       checked_in_by: user.id,
+      notes,
     });
 
     setIsCheckingIn(false);
+    setIsOverriding(false);
 
     if (error) {
       toast.error("Check-in failed");
       return;
     }
 
-    toast.success(`${selectedMember.first_name} ${selectedMember.last_name} checked in!`);
+    if (override) {
+      toast.warning(`${selectedMember.first_name} ${selectedMember.last_name} checked in with OVERRIDE. Payment issue noted.`);
+    } else {
+      toast.success(`${selectedMember.first_name} ${selectedMember.last_name} checked in!`);
+    }
     setMemberCheckInCount((prev) => prev + 1);
     fetchRecentCheckIns();
     fetchTodayStats();
@@ -192,12 +219,12 @@ export default function CheckIn() {
         };
       case "past_due":
         return {
-          icon: AlertTriangle,
-          label: "Payment Past Due",
-          badge: <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">Past Due</Badge>,
-          bgClass: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",
-          iconClass: "text-amber-600",
-          canCheckIn: true,
+          icon: ShieldAlert,
+          label: "Payment Required - Cannot Check In",
+          badge: <Badge className="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">Past Due</Badge>,
+          bgClass: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
+          iconClass: "text-red-600",
+          canCheckIn: false,
         };
       case "frozen":
         return {
@@ -380,23 +407,65 @@ export default function CheckIn() {
                     </div>
                   </div>
 
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={handleCheckIn}
-                    disabled={isCheckingIn || !getStatusConfig(selectedMember.status).canCheckIn}
-                  >
-                    {isCheckingIn ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <UserCheck className="h-4 w-4 mr-2" />
-                    )}
-                    Check In Member
-                  </Button>
+                  {/* Payment Issue Alert for members with payment problems */}
+                  {memberPaymentStatus?.hasPaymentIssues && (
+                    <div className="p-4 bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-lg space-y-3">
+                      <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
+                        <ShieldAlert className="h-5 w-5" />
+                        Cannot Check In - Payment Required
+                      </div>
+                      <div className="text-sm space-y-1 text-red-600 dark:text-red-400">
+                        {memberPaymentStatus.isDuesPastDue && (
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            Monthly dues past due
+                          </div>
+                        )}
+                        {memberPaymentStatus.isAnnualFeeOverdue && (
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            Annual fee expired
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="w-full border-red-300 text-red-700 hover:bg-red-200 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/50"
+                        onClick={() => handleCheckIn(true)}
+                        disabled={isOverriding}
+                      >
+                        {isOverriding ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 mr-2" />
+                        )}
+                        Override Check-In (Admin)
+                      </Button>
+                      <p className="text-xs text-center text-red-600 dark:text-red-400">
+                        Override will be logged for accountability
+                      </p>
+                    </div>
+                  )}
 
-                  {!getStatusConfig(selectedMember.status).canCheckIn && (
+                  {!memberPaymentStatus?.hasPaymentIssues && (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={() => handleCheckIn(false)}
+                      disabled={isCheckingIn || !getStatusConfig(selectedMember.status).canCheckIn}
+                    >
+                      {isCheckingIn ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <UserCheck className="h-4 w-4 mr-2" />
+                      )}
+                      Check In Member
+                    </Button>
+                  )}
+
+                  {!getStatusConfig(selectedMember.status).canCheckIn && !memberPaymentStatus?.hasPaymentIssues && (
                     <p className="text-sm text-center text-destructive">
-                      Cannot check in - membership is {selectedMember.status}
+                      Cannot check in - membership is {selectedMember.status.replace("_", " ")}
                     </p>
                   )}
                 </div>
