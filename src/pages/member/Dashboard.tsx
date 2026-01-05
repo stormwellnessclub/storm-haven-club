@@ -13,7 +13,7 @@ import { useMemberPoints } from "@/hooks/useMemberPoints";
 import { useMemberAchievements } from "@/hooks/useAchievements";
 import { useWorkoutLogs } from "@/hooks/useWorkoutLogs";
 import { useHabits, useHabitStreaks } from "@/hooks/useHabits";
-import { useHabitLogs } from "@/hooks/useHabitLogs";
+import { useHabitLogs, useCreateHabitLog } from "@/hooks/useHabitLogs";
 import { useMemberGoals } from "@/hooks/useMemberGoals";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import { format, parseISO, isValid, startOfToday } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useCreateHabitLog, useHabitLogs } from "@/hooks/useHabitLogs";
 import { Habit } from "@/hooks/useHabits";
 
 export default function MemberDashboard() {
