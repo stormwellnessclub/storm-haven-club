@@ -18,6 +18,12 @@ import MemberWaivers from "@/pages/member/Waivers";
 import MemberSupport from "@/pages/member/Support";
 import MemberFreezeRequest from "@/pages/member/FreezeRequest";
 import MemberPaymentMethods from "@/pages/member/PaymentMethods";
+import HealthScore from "@/pages/member/HealthScore";
+import Achievements from "@/pages/member/Achievements";
+import Workouts from "@/pages/member/Workouts";
+import Habits from "@/pages/member/Habits";
+import Goals from "@/pages/member/Goals";
+import FitnessProfile from "@/pages/member/FitnessProfile";
 import Index from "./pages/Index";
 import Classes from "./pages/Classes";
 import Spa from "./pages/Spa";
@@ -95,6 +101,12 @@ const App = () => (
               <Route path="/member/waivers" element={<ProtectedMemberRoute><MemberWaivers /></ProtectedMemberRoute>} />
               <Route path="/member/support" element={<ProtectedMemberRoute><MemberSupport /></ProtectedMemberRoute>} />
               <Route path="/member/freeze" element={<ProtectedMemberRoute><MemberFreezeRequest /></ProtectedMemberRoute>} />
+              <Route path="/member/health-score" element={<ProtectedMemberRoute><HealthScore /></ProtectedMemberRoute>} />
+              <Route path="/member/achievements" element={<ProtectedMemberRoute><Achievements /></ProtectedMemberRoute>} />
+              <Route path="/member/workouts" element={<ProtectedMemberRoute><Workouts /></ProtectedMemberRoute>} />
+              <Route path="/member/habits" element={<ProtectedMemberRoute><Habits /></ProtectedMemberRoute>} />
+              <Route path="/member/goals" element={<ProtectedMemberRoute><Goals /></ProtectedMemberRoute>} />
+              <Route path="/member/fitness-profile" element={<ProtectedMemberRoute><FitnessProfile /></ProtectedMemberRoute>} />
               
               {/* Admin Routes - Protected by Role */}
               <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />

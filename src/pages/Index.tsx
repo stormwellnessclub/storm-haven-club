@@ -14,6 +14,12 @@ import aellaLogo from "@/assets/aella-logo.jpg";
 import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
 import bodyTreatments from "@/assets/body-treatments.jpg";
 import sauna from "@/assets/sauna.jpg";
+// Brand imagery
+import scienceSoulBranding from "@/assets/brand/science-soul-branding.jpg";
+import marbleStaircase from "@/assets/interiors/marble-staircase.jpg";
+import avocadoToast from "@/assets/food/avocado-toast.jpg";
+import cafeHeroImage from "@/assets/food/matcha-latte.jpg";
+import marbleTexture from "@/assets/textures/marble-texture.jpg";
 
 const classStudios = [{
   icon: CircleDot,
@@ -84,7 +90,7 @@ export default function Index() {
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
-          <img src={gymArea2} alt="Storm Wellness Club Interior" className="w-full h-full object-cover" />
+          <img src={marbleStaircase} alt="Storm Wellness Club Interior" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-charcoal/40 via-charcoal/50 to-charcoal/80" />
         </div>
         
@@ -179,8 +185,11 @@ export default function Index() {
       </section>
 
       {/* Aella Spa Section */}
-      <section className="py-24 bg-gradient-to-b from-secondary/20 via-secondary/30 to-secondary/20">
-        <div className="container mx-auto px-6">
+      <section className="relative py-24 bg-gradient-to-b from-secondary/20 via-secondary/30 to-secondary/20 overflow-hidden">
+        <div className="absolute inset-0 opacity-5">
+          <img src={marbleTexture} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="relative z-10 container mx-auto px-6">
           <div className="text-center mb-16">
             <img src={aellaLogo} alt="Aella" className="h-24 w-auto mx-auto mb-2 mix-blend-multiply" />
             <p className="text-accent text-sm uppercase tracking-widest mb-6">by Storm Wellness Club</p>
@@ -232,8 +241,11 @@ export default function Index() {
       </section>
 
       {/* Membership Benefits */}
-      <section className="py-24 bg-primary text-primary-foreground">
-        <div className="container mx-auto px-6">
+      <section className="relative py-24 bg-primary text-primary-foreground overflow-hidden">
+        <div className="absolute inset-0 opacity-5">
+          <img src={marbleTexture} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="relative z-10 container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
               <img src={sauna} alt="Infrared Sauna" className="rounded-sm shadow-2xl" />
@@ -293,21 +305,47 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Café Preview */}
-      <section className="py-24 bg-background">
-        <div className="container mx-auto px-6">
-          <div className="max-w-3xl mx-auto text-center">
-            <p className="text-accent text-sm uppercase tracking-widest mb-4">The Storm Café</p>
-            <h2 className="heading-section mb-6">Nourish From Within</h2>
-            <p className="text-muted-foreground mb-8 leading-relaxed">
-              Support your wellness journey with our curated menu of fresh juices, smoothies, 
-              and health-forward cuisine designed to fuel your transformation.
+      {/* Wellness Philosophy - Science & Soul */}
+      <section className="relative py-32 bg-primary text-primary-foreground overflow-hidden">
+        <div className="absolute inset-0">
+          <img src={scienceSoulBranding} alt="A blend of science & soul" className="w-full h-full object-cover opacity-30" />
+          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/90 via-charcoal/80 to-charcoal/90" />
+        </div>
+        <div className="relative z-10 container mx-auto px-6 text-center">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-gold-light text-sm uppercase tracking-widest mb-6">Our Philosophy</p>
+            <h2 className="heading-section text-primary-foreground mb-8">
+              A Blend of Science & Soul
+            </h2>
+            <p className="text-primary-foreground/80 text-lg leading-relaxed max-w-2xl mx-auto">
+              At Storm Wellness Club, we believe in the harmonious integration of evidence-based wellness 
+              practices with the deeper, intuitive understanding of the human spirit. Our approach combines 
+              cutting-edge science with mindful, soulful practices to create transformative experiences.
             </p>
-            <Link to="/cafe">
-              <Button variant="outline" size="lg">
-                View Menu & Order <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Café Preview */}
+      <section className="relative py-24 bg-background overflow-hidden">
+        <div className="container mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="relative h-96 rounded-sm overflow-hidden">
+              <img src={avocadoToast} alt="Fresh, healthy cuisine at Storm Café" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <p className="text-accent text-sm uppercase tracking-widest mb-4">The Storm Café</p>
+              <h2 className="heading-section mb-6">Nourish From Within</h2>
+              <p className="text-muted-foreground mb-8 leading-relaxed">
+                Support your wellness journey with our curated menu of fresh juices, smoothies, 
+                and health-forward cuisine designed to fuel your transformation.
+              </p>
+              <Link to="/cafe">
+                <Button variant="outline" size="lg">
+                  View Menu & Order <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </section>

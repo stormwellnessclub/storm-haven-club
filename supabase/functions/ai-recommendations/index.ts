@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface RecommendationRequest {
-  type: 'class_recommendations' | 'fitness_tips' | 'schedule_optimization';
+  type: 'class_recommendations' | 'fitness_tips' | 'schedule_optimization' | 'workout_generation';
   preferences?: Record<string, any>;
 }
 
@@ -60,12 +60,24 @@ serve(async (req) => {
     console.log(`Processing AI recommendation type: ${type} for user: ${userId}`);
 
     // Validate request type
-    const validTypes = ['class_recommendations', 'fitness_tips', 'schedule_optimization'];
+    const validTypes = ['class_recommendations', 'fitness_tips', 'schedule_optimization', 'workout_generation'];
     if (!type || !validTypes.includes(type)) {
       return new Response(
         JSON.stringify({ error: "Invalid recommendation type" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
+    }
+
+    // Get member_id for this user
+    let memberId = null;
+    const { data: member } = await supabase
+      .from('members')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (member) {
+      memberId = member.id;
     }
 
     // Get user's booking history using authenticated userId
@@ -92,6 +104,18 @@ serve(async (req) => {
       .from('class_types')
       .select('*')
       .eq('is_active', true);
+
+    // Get fitness profile for workout generation
+    let fitnessProfile = null;
+    if (memberId) {
+      const { data: profile } = await supabase
+        .from('member_fitness_profiles')
+        .select('*')
+        .eq('member_id', memberId)
+        .maybeSingle();
+      
+      fitnessProfile = profile;
+    }
 
     let systemPrompt = '';
     let userPrompt = '';
@@ -133,6 +157,49 @@ serve(async (req) => {
           Preferences: ${JSON.stringify(preferences || {})}
           
           Suggest an optimal weekly workout schedule based on their patterns and preferences.
+        `;
+        break;
+
+      case 'workout_generation':
+        if (!memberId) {
+          return new Response(
+            JSON.stringify({ error: "Member profile required for workout generation" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
+
+        systemPrompt = `You are a personal trainer and fitness coach at Storm Wellness Club. Generate personalized workout plans based on member goals, fitness level, available equipment, and time constraints. Return workouts in JSON format with exercises including sets, reps, weight (if applicable), duration, and rest periods. Be specific, safe, and progressive.`;
+        userPrompt = `
+          Member Fitness Profile:
+          - Fitness Level: ${fitnessProfile?.fitness_level || 'Not specified'}
+          - Primary Goal: ${fitnessProfile?.primary_goal || 'Not specified'}
+          - Secondary Goals: ${JSON.stringify(fitnessProfile?.secondary_goals || [])}
+          - Available Equipment: ${JSON.stringify(fitnessProfile?.available_equipment || [])}
+          - Available Time: ${fitnessProfile?.available_time_minutes || 30} minutes
+          - Workout Preferences: ${JSON.stringify(fitnessProfile?.workout_preferences || {})}
+          - Injuries/Limitations: ${JSON.stringify(fitnessProfile?.injuries_limitations || [])}
+          
+          Recent Workout History: ${userHistory ? JSON.stringify(userHistory.slice(0, 5).map((b: any) => b.class_sessions?.class_types?.name)) : 'No recent workouts'}
+          
+          Generate a complete workout plan in this JSON format:
+          {
+            "workout_name": "Descriptive workout name",
+            "workout_type": "strength|cardio|hiit|yoga|pilates|mixed",
+            "duration_minutes": ${fitnessProfile?.available_time_minutes || 30},
+            "difficulty": "beginner|intermediate|advanced",
+            "exercises": [
+              {
+                "name": "Exercise name",
+                "sets": 3,
+                "reps": "10-12",
+                "weight": "bodyweight|or specific weight",
+                "duration_seconds": null or number,
+                "rest_seconds": 60,
+                "notes": "Form cues or modifications"
+              }
+            ],
+            "reasoning": "Brief explanation of why this workout suits the member's goals and profile"
+          }
         `;
         break;
 
@@ -180,6 +247,74 @@ serve(async (req) => {
     const recommendation = aiData.choices?.[0]?.message?.content;
 
     console.log("AI recommendation generated successfully for user:", userId);
+
+    // For workout generation, parse JSON and save to database
+    if (type === 'workout_generation' && memberId) {
+      try {
+        // Extract JSON from response (may have markdown code blocks)
+        let workoutData = recommendation;
+        if (workoutData.includes('```json')) {
+          workoutData = workoutData.split('```json')[1].split('```')[0].trim();
+        } else if (workoutData.includes('```')) {
+          workoutData = workoutData.split('```')[1].split('```')[0].trim();
+        }
+        
+        const workoutJson = JSON.parse(workoutData);
+        
+        // Save to ai_workouts table
+        const { data: savedWorkout, error: saveError } = await supabase
+          .from('ai_workouts')
+          .insert({
+            member_id: memberId,
+            workout_name: workoutJson.workout_name,
+            workout_type: workoutJson.workout_type,
+            duration_minutes: workoutJson.duration_minutes,
+            difficulty: workoutJson.difficulty,
+            exercises: workoutJson.exercises,
+            ai_reasoning: workoutJson.reasoning
+          })
+          .select()
+          .single();
+
+        if (saveError) {
+          console.error("Error saving workout:", saveError);
+          // Still return the workout even if save fails
+          return new Response(
+            JSON.stringify({ 
+              type,
+              workout: workoutJson,
+              saved: false,
+              error: "Failed to save workout to database",
+              generatedAt: new Date().toISOString()
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            type,
+            workout: workoutJson,
+            workout_id: savedWorkout.id,
+            saved: true,
+            generatedAt: new Date().toISOString()
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      } catch (parseError) {
+        console.error("Error parsing workout JSON:", parseError);
+        // Return raw response if parsing fails
+        return new Response(
+          JSON.stringify({ 
+            type,
+            recommendation,
+            error: "Failed to parse workout data",
+            generatedAt: new Date().toISOString()
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+    }
 
     return new Response(
       JSON.stringify({ 

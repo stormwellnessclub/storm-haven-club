@@ -40,9 +40,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
+import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
+import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
+import { useMemberActivities } from "@/hooks/useMemberActivities";
+import { useQuery } from "@tanstack/react-query";
 
 interface Member {
   id: string;
@@ -290,9 +294,12 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
           </SheetHeader>
 
           <Tabs defaultValue="profile" className="mt-6">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="membership">Membership</TabsTrigger>
+              <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="space-y-4 mt-4">
@@ -532,6 +539,19 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                 </Button>
               )}
             </TabsContent>
+
+            <TabsContent value="notes" className="space-y-4 mt-4">
+              <MemberNotesSection memberId={member.id} />
+              <MemberTagsSection memberId={member.id} />
+            </TabsContent>
+
+            <TabsContent value="activity" className="space-y-4 mt-4">
+              <MemberActivityTimeline memberId={member.id} />
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-4 mt-4">
+              <MemberAnalytics memberId={member.id} />
+            </TabsContent>
           </Tabs>
         </SheetContent>
       </Sheet>
@@ -647,5 +667,435 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// Member Notes Section Component
+function MemberNotesSection({ memberId }: { memberId: string }) {
+  const { data: notes, isLoading } = useMemberNotes(memberId);
+  const createNote = useCreateMemberNote();
+  const updateNote = useUpdateMemberNote();
+  const deleteNote = useDeleteMemberNote();
+  const [isAdding, setIsAdding] = useState(false);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  const handleCreateNote = async () => {
+    if (!newNoteText.trim()) return;
+    await createNote.mutateAsync({
+      member_id: memberId,
+      note_text: newNoteText.trim(),
+      is_internal: true,
+    });
+    setNewNoteText("");
+    setIsAdding(false);
+  };
+
+  const handleUpdateNote = async (id: string) => {
+    if (!editText.trim()) return;
+    await updateNote.mutateAsync({ id, note_text: editText.trim() });
+    setEditingId(null);
+    setEditText("");
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    if (confirm("Are you sure you want to delete this note?")) {
+      await deleteNote.mutateAsync({ id, memberId });
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          Notes
+        </h3>
+        <Button size="sm" onClick={() => setIsAdding(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Note
+        </Button>
+      </div>
+
+      {isAdding && (
+        <Card>
+          <CardContent className="pt-6">
+            <Textarea
+              placeholder="Enter note..."
+              value={newNoteText}
+              onChange={(e) => setNewNoteText(e.target.value)}
+              rows={3}
+            />
+            <div className="flex gap-2 mt-2">
+              <Button size="sm" onClick={handleCreateNote} disabled={createNote.isPending}>
+                Save
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setIsAdding(false); setNewNoteText(""); }}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="space-y-2">
+        {notes && notes.length > 0 ? (
+          notes.map((note) => (
+            <Card key={note.id}>
+              <CardContent className="pt-6">
+                {editingId === note.id ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={3}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => handleUpdateNote(note.id)} disabled={updateNote.isPending}>
+                        Save
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setEditingId(null); setEditText(""); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm whitespace-pre-wrap">{note.note_text}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(note.created_at), "MMM d, yyyy h:mm a")}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => { setEditingId(note.id); setEditText(note.note_text); }}>
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteNote(note.id)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">No notes yet</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Member Tags Section Component
+function MemberTagsSection({ memberId }: { memberId: string }) {
+  const { data: tags, isLoading } = useMemberTags(memberId);
+  const createTag = useCreateMemberTag();
+  const deleteTag = useDeleteMemberTag();
+  const [newTag, setNewTag] = useState("");
+
+  const handleAddTag = async () => {
+    if (!newTag.trim()) return;
+    await createTag.mutateAsync({
+      member_id: memberId,
+      tag: newTag.trim(),
+    });
+    setNewTag("");
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Tag className="h-5 w-5" />
+          Tags
+        </h3>
+      </div>
+
+      <div className="flex gap-2">
+        <Input
+          placeholder="Add tag..."
+          value={newTag}
+          onChange={(e) => setNewTag(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+        />
+        <Button onClick={handleAddTag} disabled={createTag.isPending || !newTag.trim()}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {tags && tags.length > 0 ? (
+          tags.map((tag) => (
+            <Badge key={tag.id} variant="secondary" className="gap-2">
+              {tag.tag}
+              <button
+                onClick={() => deleteTag.mutate({ id: tag.id, memberId })}
+                className="hover:bg-destructive/20 rounded-full p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">No tags yet</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Member Activity Timeline Component
+function MemberActivityTimeline({ memberId }: { memberId: string }) {
+  const { data: activities, isLoading } = useMemberActivities(memberId);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'class_attended': return '🏋️';
+      case 'spa_service': return '💆';
+      case 'cafe_order': return '☕';
+      case 'kids_care_booking': return '👶';
+      case 'workout_logged': return '💪';
+      default: return '📝';
+    }
+  };
+
+  const getActivityDescription = (activity: any) => {
+    const data = activity.activity_data || {};
+    switch (activity.activity_type) {
+      case 'class_attended':
+        return `Attended ${data.class_name || 'class'} on ${data.session_date || ''}`;
+      case 'spa_service':
+        return `Spa service: ${data.service_name || ''}`;
+      case 'cafe_order':
+        return `Cafe order: $${data.total_amount || 0}`;
+      case 'kids_care_booking':
+        return `Kids care: ${data.child_name || ''}`;
+      case 'workout_logged':
+        return `Workout: ${data.workout_type || ''}`;
+      default:
+        return activity.activity_type;
+    }
+  };
+
+  // Group activities by date
+  const groupedActivities = (activities || []).reduce((acc, activity) => {
+    const date = format(new Date(activity.created_at), "yyyy-MM-dd");
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(activity);
+    return acc;
+  }, {} as Record<string, typeof activities>);
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold flex items-center gap-2">
+        <Activity className="h-5 w-5" />
+        Activity Timeline
+      </h3>
+
+      {Object.keys(groupedActivities).length > 0 ? (
+        <div className="space-y-6">
+          {Object.entries(groupedActivities)
+            .sort((a, b) => b[0].localeCompare(a[0]))
+            .map(([date, dateActivities]) => (
+              <div key={date}>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                  {format(new Date(date), "EEEE, MMMM d, yyyy")}
+                </h4>
+                <div className="space-y-2">
+                  {dateActivities
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .map((activity) => (
+                      <Card key={activity.id}>
+                        <CardContent className="pt-6">
+                          <div className="flex items-start gap-3">
+                            <span className="text-2xl">{getActivityIcon(activity.activity_type)}</span>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">
+                                {getActivityDescription(activity)}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(activity.created_at), "h:mm a")}
+                              </p>
+                              {activity.points_earned > 0 && (
+                                <Badge variant="outline" className="mt-2">
+                                  +{activity.points_earned} points
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              </div>
+            ))}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground text-center py-4">No activities yet</p>
+      )}
+    </div>
+  );
+}
+
+// Member Analytics Component
+function MemberAnalytics({ memberId }: { memberId: string }) {
+  const { data: ltv, isLoading: ltvLoading } = useQuery({
+    queryKey: ["member-ltv", memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("calculate_member_ltv", {
+        p_member_id: memberId,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+
+  const { data: churnRisk, isLoading: churnLoading } = useQuery({
+    queryKey: ["member-churn-risk", memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("calculate_churn_risk", {
+        p_member_id: memberId,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+
+  const { data: engagementScore, isLoading: engagementLoading } = useQuery({
+    queryKey: ["member-engagement", memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("calculate_engagement_score", {
+        p_member_id: memberId,
+        p_days: 30,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+
+  const { data: attendancePattern, isLoading: attendanceLoading } = useQuery({
+    queryKey: ["member-attendance-pattern", memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_member_attendance_pattern", {
+        p_member_id: memberId,
+        p_days: 30,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  const { data: serviceUtilization, isLoading: utilizationLoading } = useQuery({
+    queryKey: ["member-service-utilization", memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_member_service_utilization", {
+        p_member_id: memberId,
+        p_days: 30,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  const isLoading = ltvLoading || churnLoading || engagementLoading || attendanceLoading || utilizationLoading;
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold flex items-center gap-2">
+        <BarChart3 className="h-5 w-5" />
+        Analytics
+      </h3>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Lifetime Value</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">${Number(ltv || 0).toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Total revenue generated</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Churn Risk</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-2xl font-bold ${(churnRisk || 0) > 50 ? 'text-destructive' : (churnRisk || 0) > 25 ? 'text-amber-600' : 'text-success'}`}>
+              {churnRisk || 0}%
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Risk of cancellation</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Engagement Score</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{engagementScore || 0}/100</p>
+            <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Attendance (30 days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{attendancePattern?.total_classes || 0}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {attendancePattern?.avg_classes_per_week || 0} avg/week
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Service Utilization (30 days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div>
+                <p className="text-xl font-bold">{serviceUtilization?.classes_attended || 0}</p>
+                <p className="text-xs text-muted-foreground">Classes</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold">{serviceUtilization?.spa_services || 0}</p>
+                <p className="text-xs text-muted-foreground">Spa</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold">{serviceUtilization?.cafe_orders || 0}</p>
+                <p className="text-xs text-muted-foreground">Cafe</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold">{serviceUtilization?.workouts_logged || 0}</p>
+                <p className="text-xs text-muted-foreground">Workouts</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

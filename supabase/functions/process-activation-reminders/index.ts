@@ -153,9 +153,29 @@ serve(async (req) => {
         else if (daysSinceApproval >= 7) {
           console.log(`Auto-activating membership for ${member.email}`);
           
+          // Check current status to prevent race condition with manual activation
+          const { data: currentMember, error: checkError } = await supabase
+            .from('members')
+            .select('id, status')
+            .eq('id', member.id)
+            .single();
+
+          if (checkError) {
+            console.error(`Failed to check member status for ${member.email}:`, checkError);
+            results.errors++;
+            continue;
+          }
+
+          // Only auto-activate if still pending (prevent conflict with manual activation)
+          if (currentMember?.status !== 'pending_activation') {
+            console.log(`Member ${member.email} is no longer pending activation (current status: ${currentMember?.status}), skipping auto-activation`);
+            continue;
+          }
+          
           const today = new Date();
           const startDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
           
+          // Use optimistic update: only update if status is still pending_activation
           const { error: updateError } = await supabase
             .from('members')
             .update({
@@ -163,11 +183,24 @@ serve(async (req) => {
               membership_start_date: startDate,
               activated_at: now.toISOString(),
             })
-            .eq('id', member.id);
+            .eq('id', member.id)
+            .eq('status', 'pending_activation'); // Only update if still pending
 
           if (updateError) {
             console.error(`Failed to auto-activate ${member.email}:`, updateError);
             results.errors++;
+            continue;
+          }
+
+          // Verify the update succeeded (handles case where another process activated it)
+          const { data: updatedMember, error: verifyError } = await supabase
+            .from('members')
+            .select('status')
+            .eq('id', member.id)
+            .single();
+
+          if (verifyError || updatedMember?.status !== 'active') {
+            console.log(`Member ${member.email} was not activated (may have been activated by another process)`);
             continue;
           }
 

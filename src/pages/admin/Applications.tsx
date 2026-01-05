@@ -49,6 +49,8 @@ import { toast } from "sonner";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { BatchActivationDialog, BatchActivationConfig } from "@/components/admin/BatchActivationDialog";
 import { SingleActivationDialog } from "@/components/admin/SingleActivationDialog";
+import { useApplicationStatusHistory } from "@/hooks/useApplicationStatusHistory";
+import { History } from "lucide-react";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -98,28 +100,28 @@ const getStatusBadge = (status: string) => {
   switch (status) {
     case "pending":
       return (
-        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+        <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">
           <Clock className="h-3 w-3 mr-1" />
           Pending
         </Badge>
       );
     case "approved":
       return (
-        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+        <Badge className="bg-muted/20 text-muted-foreground dark:bg-muted/30 dark:text-muted-foreground">
           <CheckCircle className="h-3 w-3 mr-1" />
           Approved
         </Badge>
       );
     case "rejected":
       return (
-        <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+        <Badge className="bg-destructive/20 text-destructive-foreground dark:bg-destructive/30 dark:text-destructive-foreground">
           <XCircle className="h-3 w-3 mr-1" />
           Rejected
         </Badge>
       );
     case "cancelled":
       return (
-        <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
+        <Badge className="bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground">
           <Ban className="h-3 w-3 mr-1" />
           Cancelled
         </Badge>
@@ -133,14 +135,14 @@ const getAnnualFeeBadge = (status: string) => {
   switch (status) {
     case "paid":
       return (
-        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+        <Badge className="bg-muted/20 text-muted-foreground dark:bg-muted/30 dark:text-muted-foreground">
           <DollarSign className="h-3 w-3 mr-1" />
           Paid
         </Badge>
       );
     case "failed":
       return (
-        <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+        <Badge className="bg-destructive/20 text-destructive-foreground dark:bg-destructive/30 dark:text-destructive-foreground">
           <AlertCircle className="h-3 w-3 mr-1" />
           Failed
         </Badge>
@@ -148,7 +150,7 @@ const getAnnualFeeBadge = (status: string) => {
     case "pending":
     default:
       return (
-        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+        <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">
           <Clock className="h-3 w-3 mr-1" />
           Pending
         </Badge>
@@ -413,6 +415,26 @@ export default function Applications() {
           }
         }
       }
+      
+      // Handle application rejection with email notification
+      if (status === "rejected" && application && !suppressEmail) {
+        const firstName = application.first_name || application.full_name.trim().split(" ")[0] || "";
+        
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              type: "application_rejected",
+              to: application.email,
+              data: {
+                name: firstName,
+              },
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send rejection email:", emailError);
+          // Don't throw - status update succeeded, email is secondary
+        }
+      }
     },
     onSuccess: (_, { status, suppressEmail, autoActivate, lockedStartDate }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
@@ -425,6 +447,12 @@ export default function Applications() {
           toast.success("Application approved (email suppressed), member created");
         } else {
           toast.success("Application approved, member created & email sent");
+        }
+      } else if (status === "rejected") {
+        if (suppressEmail) {
+          toast.success("Application rejected (email suppressed)");
+        } else {
+          toast.success("Application rejected & email sent");
         }
       } else {
         toast.success("Application status updated");
@@ -1077,7 +1105,7 @@ export default function Applications() {
                   <p className="text-sm text-muted-foreground">Pending Review</p>
                   <p className="text-3xl font-bold">{pendingCount}</p>
                 </div>
-                <Clock className="h-8 w-8 text-amber-500" />
+                <Clock className="h-8 w-8 text-accent" />
               </div>
             </CardContent>
           </Card>
@@ -1088,7 +1116,7 @@ export default function Applications() {
                   <p className="text-sm text-muted-foreground">Approved</p>
                   <p className="text-3xl font-bold">{approvedCount}</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-500" />
+                <CheckCircle className="h-8 w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -1317,14 +1345,14 @@ export default function Applications() {
                     </TableCell>
                     <TableCell>
                       {app.founding_member?.toLowerCase() === "yes" && (
-                        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+                        <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">
                           Founding
                         </Badge>
                       )}
                     </TableCell>
                     <TableCell>
                       {app.stripe_customer_id ? (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                        <Badge className="bg-muted/20 text-muted-foreground dark:bg-muted/30 dark:text-muted-foreground">
                           <CreditCard className="h-3 w-3 mr-1" />
                           On File
                         </Badge>
@@ -1367,7 +1395,7 @@ export default function Applications() {
                           {app.status !== "approved" && (
                             <>
                               <DropdownMenuItem 
-                                className="text-green-600" 
+                                className="text-muted-foreground" 
                                 onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app })}
                               >
                                 <Send className="h-4 w-4 mr-2" />
@@ -1395,7 +1423,7 @@ export default function Applications() {
                             </DropdownMenuItem>
                           )}
                           {app.status !== "cancelled" && (
-                            <DropdownMenuItem className="text-gray-600" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "cancelled" })}>
+                            <DropdownMenuItem className="text-muted-foreground" onClick={() => updateStatusMutation.mutate({ id: app.id, status: "cancelled" })}>
                               <Ban className="h-4 w-4 mr-2" />
                               Cancel
                             </DropdownMenuItem>
@@ -1450,7 +1478,7 @@ export default function Applications() {
                     <div>
                       <p className="text-sm text-muted-foreground">Founding Member</p>
                       {selectedApplication.founding_member?.toLowerCase() === "yes" ? (
-                        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+                        <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">
                           Founding
                         </Badge>
                       ) : (
@@ -1529,6 +1557,9 @@ export default function Applications() {
                     </Button>
                   </div>
 
+                  {/* Status History */}
+                  <ApplicationStatusHistorySection applicationId={selectedApplication.id} />
+
                   {/* Charge History */}
                   <div className="pt-4 border-t">
                     <ChargeHistory 
@@ -1577,7 +1608,7 @@ export default function Applications() {
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center gap-2">
                           {memberLinkStatus.hasUser ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <CheckCircle className="h-4 w-4 text-muted-foreground" />
                           ) : (
                             <XCircle className="h-4 w-4 text-muted-foreground" />
                           )}
@@ -1585,7 +1616,7 @@ export default function Applications() {
                         </div>
                         <div className="flex items-center gap-2">
                           {memberLinkStatus.hasMember ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <CheckCircle className="h-4 w-4 text-muted-foreground" />
                           ) : (
                             <XCircle className="h-4 w-4 text-muted-foreground" />
                           )}
@@ -1593,9 +1624,9 @@ export default function Applications() {
                         </div>
                         <div className="flex items-center gap-2">
                           {memberLinkStatus.memberLinked ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <CheckCircle className="h-4 w-4 text-muted-foreground" />
                           ) : (
-                            <XCircle className="h-4 w-4 text-amber-500" />
+                            <XCircle className="h-4 w-4 text-accent" />
                           )}
                           <span>Account linked: {memberLinkStatus.memberLinked ? "Yes" : "No"}</span>
                         </div>
@@ -1750,5 +1781,74 @@ export default function Applications() {
         />
       </div>
     </AdminLayout>
+  );
+}
+
+// Application Status History Component
+function ApplicationStatusHistorySection({ applicationId }: { applicationId: string }) {
+  const { data: history, isLoading } = useApplicationStatusHistory(applicationId);
+
+  if (isLoading) {
+    return (
+      <div className="pt-4 border-t">
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!history || history.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="pt-4 border-t">
+      <div className="flex items-center gap-2 mb-3">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Status History</p>
+      </div>
+      <div className="space-y-2">
+        {history.map((item, idx) => (
+          <div key={item.id} className="flex items-start gap-3 text-sm">
+            <div className="flex flex-col items-center mt-1">
+              {idx !== history.length - 1 && (
+                <div className="w-0.5 h-full bg-border min-h-[24px]" />
+              )}
+              <div className={`w-2 h-2 rounded-full ${
+                item.new_status === 'approved' ? 'bg-success' :
+                item.new_status === 'rejected' ? 'bg-destructive' :
+                item.new_status === 'cancelled' ? 'bg-muted' :
+                'bg-accent'
+              }`} />
+            </div>
+            <div className="flex-1 pb-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={
+                  item.new_status === 'approved' ? 'bg-success/10 text-success border-success/30' :
+                  item.new_status === 'rejected' ? 'bg-destructive/10 text-destructive border-destructive/30' :
+                  item.new_status === 'cancelled' ? 'bg-muted text-muted-foreground' :
+                  'bg-accent/10 text-accent border-accent/30'
+                }>
+                  {item.new_status}
+                </Badge>
+                {item.old_status && (
+                  <>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-xs text-muted-foreground">{item.old_status}</span>
+                  </>
+                )}
+              </div>
+              {item.notes && (
+                <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                {format(new Date(item.created_at), "MMM d, yyyy 'at' h:mm a")}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -37,11 +37,11 @@ import {
 } from "@/hooks/useAdminFreezeRequests";
 
 const statusColors: Record<string, string> = {
-  pending: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-  approved: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-  active: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-  completed: "bg-green-500/10 text-green-600 border-green-500/20",
-  rejected: "bg-red-500/10 text-red-600 border-red-500/20",
+  pending: "bg-accent/10 text-accent border-accent/20",
+  approved: "bg-secondary/10 text-secondary-foreground border-secondary/20",
+  active: "bg-accent/10 text-accent border-accent/20",
+  completed: "bg-muted/20 text-muted-foreground border-muted/20",
+  rejected: "bg-destructive/10 text-destructive-foreground border-destructive/20",
   cancelled: "bg-muted text-muted-foreground border-border",
 };
 
@@ -213,7 +213,7 @@ export default function FreezeRequests() {
                               <div>
                                 <p className="font-medium">${request.freeze_fee_total}</p>
                                 {request.fee_paid && (
-                                  <Badge variant="outline" className="text-green-600 border-green-500/20 bg-green-500/10">
+                                  <Badge variant="outline" className="text-muted-foreground border-muted/20 bg-muted/20">
                                     Paid
                                   </Badge>
                                 )}

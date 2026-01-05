@@ -3,8 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Coffee, Search, CreditCard, Plus, Minus, ShoppingCart, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Coffee, Search, CreditCard, Plus, Minus, ShoppingCart, User, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useAdminCafeOrders, useUpdateCafeOrderStatus } from "@/hooks/useAdminCafeOrders";
+import { useCreateCafeOrder, CafeOrderItem } from "@/hooks/useCafeOrder";
+import { format } from "date-fns";
 
 const menuItems = [
   { id: 1, name: 'Espresso', price: 4.50, category: 'Coffee' },
@@ -30,6 +35,11 @@ export default function CafePOS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [memberSearch, setMemberSearch] = useState('');
   const [selectedMember, setSelectedMember] = useState<{ name: string; cardOnFile: boolean } | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  
+  const { data: orders, isLoading: ordersLoading } = useAdminCafeOrders({ status: statusFilter });
+  const updateStatus = useUpdateCafeOrderStatus();
+  const createOrder = useCreateCafeOrder();
 
   const addToCart = (item: typeof menuItems[0]) => {
     setCart(prev => {
@@ -56,6 +66,48 @@ export default function CafePOS() {
     setMemberSearch('');
   };
 
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0) return;
+
+    const orderItems: CafeOrderItem[] = cart.map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      category: menuItems.find(m => m.id === item.id)?.category || 'Other',
+    }));
+
+    try {
+      await createOrder.mutateAsync({
+        orderItems,
+        paymentMethod: selectedMember?.cardOnFile ? "member_account" : "card",
+      });
+      clearCart();
+    } catch (error) {
+      console.error("Failed to place order:", error);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-amber-500/10 text-amber-600 border-amber-500/30';
+      case 'preparing':
+        return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
+      case 'ready':
+        return 'bg-green-500/10 text-green-600 border-green-500/30';
+      case 'completed':
+        return 'bg-muted text-muted-foreground border-border';
+      case 'cancelled':
+        return 'bg-destructive/10 text-destructive border-destructive/30';
+      default:
+        return 'bg-muted text-muted-foreground border-border';
+    }
+  };
+
+  const pendingOrders = orders?.filter(o => ['pending', 'preparing', 'ready'].includes(o.status)) || [];
+  const recentOrders = orders?.slice(0, 20) || [];
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -66,7 +118,155 @@ export default function CafePOS() {
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <Tabs defaultValue="orders" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="orders">Order Queue</TabsTrigger>
+            <TabsTrigger value="pos">POS Terminal</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="orders" className="space-y-4">
+            <div className="flex gap-2">
+              <Button 
+                variant={statusFilter === undefined ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter(undefined)}
+              >
+                All
+              </Button>
+              <Button 
+                variant={statusFilter === "pending" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("pending")}
+              >
+                Pending
+              </Button>
+              <Button 
+                variant={statusFilter === "preparing" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("preparing")}
+              >
+                Preparing
+              </Button>
+              <Button 
+                variant={statusFilter === "ready" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("ready")}
+              >
+                Ready
+              </Button>
+              <Button 
+                variant={statusFilter === "completed" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("completed")}
+              >
+                Completed
+              </Button>
+            </div>
+
+            {ordersLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {recentOrders.map((order) => (
+                  <Card key={order.id}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">
+                          Order #{order.id.slice(0, 8)}
+                        </CardTitle>
+                        <Badge className={getStatusColor(order.status)}>
+                          {order.status}
+                        </Badge>
+                      </div>
+                      <CardDescription>
+                        {order.member ? (
+                          `${order.member.first_name} ${order.member.last_name}`
+                        ) : (
+                          order.user?.email || 'Guest'
+                        )}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-1">
+                        {(order.order_items as any[]).map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span>{item.quantity}x {item.name}</span>
+                            <span>${(item.price * item.quantity).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="border-t pt-2">
+                        <div className="flex justify-between font-semibold">
+                          <span>Total</span>
+                          <span>${Number(order.total_amount).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      {order.estimated_ready_at && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          Ready: {format(new Date(order.estimated_ready_at), "h:mm a")}
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(order.created_at), "MMM d, h:mm a")}
+                      </div>
+                      {['pending', 'preparing', 'ready'].includes(order.status) && (
+                        <div className="flex gap-2 pt-2">
+                          {order.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateStatus.mutate({ orderId: order.id, status: 'preparing' })}
+                              className="flex-1"
+                            >
+                              Start Preparing
+                            </Button>
+                          )}
+                          {order.status === 'preparing' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateStatus.mutate({ orderId: order.id, status: 'ready' })}
+                              className="flex-1"
+                            >
+                              Mark Ready
+                            </Button>
+                          )}
+                          {order.status === 'ready' && (
+                            <Button
+                              size="sm"
+                              onClick={() => updateStatus.mutate({ orderId: order.id, status: 'completed' })}
+                              className="flex-1"
+                            >
+                              Complete
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => updateStatus.mutate({ orderId: order.id, status: 'cancelled' })}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+                {recentOrders.length === 0 && (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    <Coffee className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No orders found</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="pos">
+            <div className="grid gap-6 lg:grid-cols-3">
           {/* Menu Items */}
           <div className="lg:col-span-2 space-y-4">
             <Card>
@@ -185,21 +385,31 @@ export default function CafePOS() {
 
             {/* Payment Buttons */}
             <div className="space-y-2">
-              <Button className="w-full" disabled={cart.length === 0}>
-                <CreditCard className="h-4 w-4 mr-2" />
-                Pay with Card
+              <Button 
+                className="w-full" 
+                disabled={cart.length === 0 || createOrder.isPending}
+                onClick={handlePlaceOrder}
+              >
+                {createOrder.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    {selectedMember?.cardOnFile ? 'Charge Card on File' : 'Place Order'}
+                  </>
+                )}
               </Button>
-              {selectedMember?.cardOnFile && (
-                <Button variant="outline" className="w-full" disabled={cart.length === 0}>
-                  Charge Card on File
-                </Button>
-              )}
               <Button variant="ghost" className="w-full" onClick={clearCart}>
                 Clear Cart
               </Button>
             </div>
           </div>
         </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
   );

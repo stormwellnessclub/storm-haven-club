@@ -5,13 +5,38 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// Validate environment variables
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  const missingVars: string[] = [];
+  if (!SUPABASE_URL) missingVars.push('VITE_SUPABASE_URL');
+  if (!SUPABASE_PUBLISHABLE_KEY) missingVars.push('VITE_SUPABASE_PUBLISHABLE_KEY');
+  
+  const errorMessage = `Missing required environment variables: ${missingVars.join(', ')}\n\n` +
+    `Please create a .env file in the project root with the following variables:\n` +
+    `VITE_SUPABASE_URL=your_supabase_project_url\n` +
+    `VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_public_key\n\n` +
+    `See .env.example for reference.`;
+  
+  if (import.meta.env.DEV) {
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  } else {
+    // In production, log error but don't throw to avoid breaking the app
+    console.error(errorMessage);
+  }
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+export const supabase = createClient<Database>(
+  SUPABASE_URL || '', 
+  SUPABASE_PUBLISHABLE_KEY || '', 
+  {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    }
   }
-});
+);

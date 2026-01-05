@@ -11,6 +11,12 @@ import {
   Home,
   Snowflake,
   Wallet,
+  Activity,
+  Trophy,
+  Dumbbell,
+  CheckCircle2,
+  Target,
+  Settings,
 } from "lucide-react";
 import {
   Sidebar,
@@ -44,6 +50,15 @@ const memberMenuItems: MenuItem[] = [
   { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
   { title: "Waivers", url: "/member/waivers", icon: FileCheck },
   { title: "Support", url: "/member/support", icon: MessageCircle },
+];
+
+const wellnessMenuItems: MenuItem[] = [
+  { title: "Health Score", url: "/member/health-score", icon: Activity },
+  { title: "Achievements", url: "/member/achievements", icon: Trophy },
+  { title: "Workouts", url: "/member/workouts", icon: Dumbbell },
+  { title: "Habits", url: "/member/habits", icon: CheckCircle2 },
+  { title: "Goals", url: "/member/goals", icon: Target },
+  { title: "Fitness Profile", url: "/member/fitness-profile", icon: Settings },
 ];
 
 export function MemberSidebar() {
@@ -96,6 +111,30 @@ export function MemberSidebar() {
                     tooltip={item.title}
                   >
                     <NavLink to={item.url} end={item.url === "/member"}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
+            Health & Wellness
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {wellnessMenuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.url)}
+                    tooltip={item.title}
+                  >
+                    <NavLink to={item.url}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </NavLink>

@@ -1,9 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, ShoppingBag } from "lucide-react";
+import { Plus, Minus, ShoppingBag, Loader2, CreditCard, User } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCreateCafeOrder } from "@/hooks/useCafeOrder";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+// Food imagery
+import matchaLatte from "@/assets/food/matcha-latte.jpg";
+import coffeeLatteArt from "@/assets/food/coffee-latte-art.jpg";
+import avocadoToast from "@/assets/food/avocado-toast.jpg";
+import cucumberSalad from "@/assets/food/cucumber-salad.jpg";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface MenuItem {
   id: number;
@@ -13,6 +36,7 @@ interface MenuItem {
   category: string;
   calories?: number;
   dietary?: string[];
+  image?: string;
 }
 
 const menuItems: MenuItem[] = [
@@ -100,6 +124,7 @@ const menuItems: MenuItem[] = [
     category: "Light Bites",
     calories: 340,
     dietary: ["Vegan"],
+    image: avocadoToast,
   },
   {
     id: 10,
@@ -119,6 +144,7 @@ const menuItems: MenuItem[] = [
     category: "Drinks",
     calories: 140,
     dietary: ["Vegan", "GF"],
+    image: matchaLatte,
   },
   {
     id: 12,
@@ -128,6 +154,7 @@ const menuItems: MenuItem[] = [
     category: "Drinks",
     calories: 5,
     dietary: ["Vegan", "GF"],
+    image: coffeeLatteArt,
   },
 ];
 
@@ -138,8 +165,15 @@ interface CartItem extends MenuItem {
 }
 
 export default function Cafe() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const createOrder = useCreateCafeOrder();
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "member_account">("card");
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const filteredItems = selectedCategory === "All"
     ? menuItems
@@ -175,15 +209,131 @@ export default function Cafe() {
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  const handlePlaceOrder = async () => {
+    if (!user) {
+      toast.error("Please sign in to place an order");
+      navigate("/auth");
+      return;
+    }
+
+    if (cart.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    setShowPaymentDialog(true);
+  };
+
+  const handleConfirmOrder = async () => {
+    if (cart.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    setIsProcessingPayment(true);
+
+    try {
+      let paymentIntentId: string | undefined;
+
+      // Convert cart items to order items format
+      const orderItems = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        category: item.category,
+      }));
+
+      const totalAmountCents = Math.round(cartTotal * 100);
+
+      // Process payment based on method
+      if (paymentMethod === "card" && selectedPaymentMethodId) {
+        // Charge saved card
+        const { data: memberData } = await supabase
+          .from("members")
+          .select("id, stripe_customer_id")
+          .eq("user_id", user!.id)
+          .maybeSingle();
+
+        const customerId = memberData?.stripe_customer_id;
+
+        if (!customerId) {
+          throw new Error("No payment method on file. Please add a payment method first.");
+        }
+
+        const { data: chargeData, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "charge_saved_card",
+            amount: totalAmountCents,
+            description: `Cafe Order - ${orderItems.map(i => i.name).join(", ")}`,
+            stripeCustomerId: customerId,
+            paymentMethodId: selectedPaymentMethodId,
+          },
+        });
+
+        if (chargeError) throw chargeError;
+        if (chargeData?.error) throw new Error(chargeData.error);
+
+        paymentIntentId = chargeData?.paymentIntentId || chargeData?.id;
+      } else if (paymentMethod === "member_account") {
+        // Member account charging - just create order without payment intent
+        // Payment will be charged to member account
+        paymentIntentId = undefined;
+      } else {
+        throw new Error("Please select a payment method");
+      }
+
+      // Create order
+      await createOrder.mutateAsync({
+        orderItems,
+        paymentMethod: paymentMethod === "member_account" ? "member_account" : "card",
+        paymentIntentId,
+      });
+
+      // Clear cart
+      setCart([]);
+      setShowPaymentDialog(false);
+      setPaymentMethod("card");
+      setSelectedPaymentMethodId(null);
+    } catch (error: any) {
+      console.error("Failed to process order:", error);
+      toast.error(error.message || "Failed to process order. Please try again.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Fetch saved payment methods for card selection
+  const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
+  
+  useEffect(() => {
+    if (user && showPaymentDialog && paymentMethod === "card") {
+      supabase.functions.invoke("stripe-payment", {
+        body: { action: "list_payment_methods" },
+      }).then(({ data, error }) => {
+        if (!error && data?.paymentMethods) {
+          setSavedPaymentMethods(data.paymentMethods);
+          if (data.paymentMethods.length > 0) {
+            setSelectedPaymentMethodId(data.paymentMethods[0].id);
+          }
+        }
+      });
+    }
+  }, [user, showPaymentDialog, paymentMethod]);
+
   return (
     <Layout>
       {/* Hero */}
-      <section className="pt-32 pb-16 bg-secondary/30">
-        <div className="container mx-auto px-6">
+      <section className="relative pt-32 pb-16 min-h-[60vh] flex items-center overflow-hidden">
+        <div className="absolute inset-0">
+          <img src={matchaLatte} alt="Storm Café" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-charcoal/90 via-charcoal/70 to-charcoal/50" />
+        </div>
+        <div className="relative z-10 container mx-auto px-6">
           <div className="max-w-3xl">
-            <p className="text-accent text-sm uppercase tracking-widest mb-4">The Storm Café</p>
-            <h1 className="heading-display mb-6">Nourish From Within</h1>
-            <p className="text-muted-foreground text-lg leading-relaxed">
+            <p className="text-gold-light text-sm uppercase tracking-widest mb-4">The Storm Café</p>
+            <h1 className="heading-display text-primary-foreground mb-6">Nourish From Within</h1>
+            <p className="text-primary-foreground/80 text-lg leading-relaxed">
               Fuel your wellness journey with our carefully curated menu of fresh juices, 
               smoothies, health bowls, and clean eating options.
             </p>
@@ -225,16 +375,27 @@ export default function Cafe() {
             <div className="lg:col-span-2">
               <div className="grid md:grid-cols-2 gap-4">
                 {filteredItems.map((item) => (
-                  <div key={item.id} className="card-luxury p-5">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-serif text-lg">{item.name}</h3>
-                        <p className="text-xs text-muted-foreground">{item.category}</p>
+                  <div key={item.id} className="card-luxury overflow-hidden group">
+                    {item.image && (
+                      <div className="relative h-48 overflow-hidden">
+                        <img 
+                          src={item.image} 
+                          alt={item.name} 
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
                       </div>
-                      <span className="text-accent font-semibold">${item.price.toFixed(2)}</span>
-                    </div>
-                    
-                    <p className="text-muted-foreground text-sm mb-3">{item.description}</p>
+                    )}
+                    <div className="p-5">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-serif text-lg">{item.name}</h3>
+                          <p className="text-xs text-muted-foreground">{item.category}</p>
+                        </div>
+                        <span className="text-accent font-semibold">${item.price.toFixed(2)}</span>
+                      </div>
+                      
+                      <p className="text-muted-foreground text-sm mb-3">{item.description}</p>
                     
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -254,6 +415,7 @@ export default function Cafe() {
                       >
                         <Plus className="w-4 h-4" />
                       </Button>
+                    </div>
                     </div>
                   </div>
                 ))}
@@ -311,9 +473,26 @@ export default function Cafe() {
                       </div>
                     </div>
                     
-                    <Button className="w-full" size="lg">
-                      Place Order
+                    <Button 
+                      className="w-full" 
+                      size="lg"
+                      onClick={handlePlaceOrder}
+                      disabled={!user || createOrder.isPending}
+                    >
+                      {createOrder.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        "Place Order"
+                      )}
                     </Button>
+                    {!user && (
+                      <p className="text-xs text-muted-foreground text-center mt-2">
+                        <a href="/auth" className="text-accent hover:underline">Sign in</a> to place an order
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -321,6 +500,100 @@ export default function Cafe() {
           </div>
         </div>
       </section>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Your Order</DialogTitle>
+            <DialogDescription>
+              Review your order and select a payment method
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Payment Method</label>
+              <Select value={paymentMethod} onValueChange={(value: "card" | "member_account") => setPaymentMethod(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="card">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" />
+                      Credit/Debit Card
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="member_account">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      Charge to Member Account
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {paymentMethod === "card" && savedPaymentMethods.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select Card</label>
+                <Select value={selectedPaymentMethodId || ""} onValueChange={setSelectedPaymentMethodId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a card" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {savedPaymentMethods.map((pm) => (
+                      <SelectItem key={pm.id} value={pm.id}>
+                        {pm.card?.brand?.toUpperCase()} •••• {pm.card?.last4} (Expires {pm.card?.exp_month}/{pm.card?.exp_year})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {paymentMethod === "card" && savedPaymentMethods.length === 0 && (
+              <div className="p-4 bg-muted/50 border border-muted rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  No saved payment methods found. Please add a payment method in your{" "}
+                  <a href="/member/payment-methods" className="underline font-medium">member portal</a>.
+                </p>
+              </div>
+            )}
+
+            <div className="border-t pt-4">
+              <div className="flex justify-between items-center text-lg font-semibold">
+                <span>Total</span>
+                <span className="text-accent">${cartTotal.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowPaymentDialog(false)}
+              disabled={isProcessingPayment}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmOrder}
+              disabled={isProcessingPayment || (paymentMethod === "card" && !selectedPaymentMethodId)}
+            >
+              {isProcessingPayment ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                `Pay $${cartTotal.toFixed(2)}`
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

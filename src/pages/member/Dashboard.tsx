@@ -8,6 +8,14 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { useUpcomingBookings, Booking } from "@/hooks/useBooking";
+import { useHealthScore, useHealthScoreHistory } from "@/hooks/useHealthScore";
+import { useMemberPoints } from "@/hooks/useMemberPoints";
+import { useMemberAchievements } from "@/hooks/useAchievements";
+import { useWorkoutLogs } from "@/hooks/useWorkoutLogs";
+import { useHabits, useHabitStreaks } from "@/hooks/useHabits";
+import { useHabitLogs } from "@/hooks/useHabitLogs";
+import { useMemberGoals } from "@/hooks/useMemberGoals";
+import { Progress } from "@/components/ui/progress";
 import {
   CreditCard,
   Calendar,
@@ -15,16 +23,40 @@ import {
   IdCard,
   ArrowRight,
   Ticket,
+  Activity,
+  Trophy,
+  Dumbbell,
+  CheckCircle2,
+  Target,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
-import { format, parseISO, isValid } from "date-fns";
+import { format, parseISO, isValid, startOfToday } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useCreateHabitLog, useHabitLogs } from "@/hooks/useHabitLogs";
+import { Habit } from "@/hooks/useHabits";
 
 export default function MemberDashboard() {
   const { profile, isLoading: profileLoading } = useUserProfile();
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { data: credits, isLoading: creditsLoading } = useUserCredits();
   const { data: upcomingBookings, isLoading: bookingsLoading } = useUpcomingBookings();
+  
+  // Health & Wellness Data
+  const { data: healthScore, isLoading: healthScoreLoading } = useHealthScore(undefined, 30);
+  const { data: healthScoreHistory } = useHealthScoreHistory(undefined, 2);
+  const { data: memberPoints, isLoading: pointsLoading } = useMemberPoints();
+  const { data: achievements, isLoading: achievementsLoading } = useMemberAchievements();
+  const { data: recentWorkouts, isLoading: workoutsLoading } = useWorkoutLogs(undefined, 3);
+  const { data: habits, isLoading: habitsLoading } = useHabits();
+  const { data: activeGoals, isLoading: goalsLoading } = useMemberGoals(undefined, "active");
 
   const isLoading = profileLoading || membershipLoading || creditsLoading;
+  
+  // Calculate health score trend
+  const healthTrend = healthScoreHistory && healthScoreHistory.length >= 2
+    ? healthScoreHistory[0].overall_score - healthScoreHistory[1].overall_score
+    : 0;
 
   return (
     <MemberLayout title="Dashboard">
@@ -126,6 +158,227 @@ export default function MemberDashboard() {
                     {upcomingBookings?.length || 0}
                   </div>
                   <p className="text-xs text-muted-foreground">booked classes</p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Health & Wellness Overview */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {/* Health Score Widget */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Health Score</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {healthScoreLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : healthScore ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="text-3xl font-bold">{healthScore.overall_score}</div>
+                    <div className="text-sm text-muted-foreground">/ 100</div>
+                    {healthTrend !== 0 && (
+                      <div className={`flex items-center gap-1 ${healthTrend > 0 ? 'text-success' : 'text-destructive'}`}>
+                        {healthTrend > 0 ? (
+                          <TrendingUp className="h-4 w-4" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4" />
+                        )}
+                        <span className="text-xs">{Math.abs(healthTrend)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <Progress value={healthScore.overall_score} className="mt-2" />
+                  <div className="mt-3 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Activity</span>
+                      <span>{healthScore.activity_score}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Consistency</span>
+                      <span>{healthScore.consistency_score}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Goals</span>
+                      <span>{healthScore.goal_progress_score}</span>
+                    </div>
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="w-full mt-3">
+                    <Link to="/member/health-score">
+                      View Details <ArrowRight className="h-3 w-3 ml-2" />
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <div className="text-muted-foreground text-sm">No data available</div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Achievements & Points Widget */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Achievements</CardTitle>
+              <Trophy className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {pointsLoading || achievementsLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="text-3xl font-bold">{memberPoints?.total_points || 0}</div>
+                    <div className="text-sm text-muted-foreground">points</div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Current Streak</span>
+                      <span className="font-medium">{memberPoints?.current_streak_days || 0} days</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Achievements</span>
+                      <span className="font-medium">{achievements?.length || 0} unlocked</span>
+                    </div>
+                    {achievements && achievements.length > 0 && (
+                      <div className="pt-2 border-t">
+                        <p className="text-xs text-muted-foreground mb-1">Recent:</p>
+                        <p className="text-xs font-medium truncate">
+                          {achievements[0]?.achievement?.name || "—"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="w-full mt-3">
+                    <Link to="/member/achievements">
+                      View All <ArrowRight className="h-3 w-3 ml-2" />
+                    </Link>
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Workouts Widget */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Recent Workouts</CardTitle>
+              <Dumbbell className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {workoutsLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : recentWorkouts && recentWorkouts.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    {recentWorkouts.slice(0, 2).map((workout) => (
+                      <div key={workout.id} className="flex items-center justify-between text-sm">
+                        <span className="truncate">{workout.workout_type}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(workout.performed_at), "MMM d")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="w-full mt-3">
+                    <Link to="/member/workouts">
+                      {recentWorkouts.length >= 3 ? "View All" : "Log Workout"} <ArrowRight className="h-3 w-3 ml-2" />
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground mb-3">No workouts logged yet</p>
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link to="/member/workouts">
+                      Log Workout <ArrowRight className="h-3 w-3 ml-2" />
+                    </Link>
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Habits Widget */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Today's Habits</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {habitsLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : habits && habits.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    {habits.slice(0, 3).map((habit) => (
+                      <HabitCheckbox key={habit.id} habit={habit} />
+                    ))}
+                  </div>
+                  {habits.length > 3 && (
+                    <Button asChild variant="outline" size="sm" className="w-full mt-3">
+                      <Link to="/member/habits">
+                        View All ({habits.length}) <ArrowRight className="h-3 w-3 ml-2" />
+                      </Link>
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground mb-3">No habits set up yet</p>
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link to="/member/habits">
+                      Create Habit <ArrowRight className="h-3 w-3 ml-2" />
+                    </Link>
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Goals Widget */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Active Goals</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {goalsLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : activeGoals && activeGoals.length > 0 ? (
+                <>
+                  <div className="space-y-3">
+                    {activeGoals.slice(0, 2).map((goal) => {
+                      const progress = goal.target_value && goal.target_value > 0
+                        ? (goal.current_value / goal.target_value) * 100
+                        : 0;
+                      return (
+                        <div key={goal.id}>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="truncate">{goal.title}</span>
+                            <span>{Math.min(progress, 100).toFixed(0)}%</span>
+                          </div>
+                          <Progress value={Math.min(progress, 100)} className="h-1.5" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="w-full mt-3">
+                    <Link to="/member/goals">
+                      {activeGoals.length > 2 ? `View All (${activeGoals.length})` : "View Goals"} <ArrowRight className="h-3 w-3 ml-2" />
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground mb-3">No active goals</p>
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link to="/member/goals">
+                      Create Goal <ArrowRight className="h-3 w-3 ml-2" />
+                    </Link>
+                  </Button>
                 </>
               )}
             </CardContent>
@@ -250,5 +503,42 @@ export default function MemberDashboard() {
         </Card>
       </div>
     </MemberLayout>
+  );
+}
+
+// Habit Checkbox Component
+function HabitCheckbox({ habit }: { habit: Habit }) {
+  const today = format(startOfToday(), "yyyy-MM-dd");
+  const { data: todayLogs } = useHabitLogs(habit.id, undefined, {
+    start: startOfToday(),
+    end: startOfToday(),
+  });
+  const createLog = useCreateHabitLog();
+  const isChecked = todayLogs && todayLogs.length > 0;
+
+  const handleToggle = async () => {
+    if (isChecked) {
+      // For simplicity, we'll just show a message - full deletion can be done on habits page
+      return;
+    } else {
+      await createLog.mutateAsync({
+        habit_id: habit.id,
+        logged_value: habit.target_value || 1,
+        logged_date: today,
+      });
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <Checkbox
+        checked={!!isChecked}
+        onCheckedChange={handleToggle}
+        disabled={createLog.isPending}
+      />
+      <label className="flex-1 cursor-pointer" onClick={handleToggle}>
+        {habit.name}
+      </label>
+    </div>
   );
 }

@@ -4,11 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Clock, Star, Users, Info } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 import sauna from "@/assets/sauna.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
 import aellaLogo from "@/assets/aella-logo.png";
+// Wellness imagery
+import saunaInterior from "@/assets/wellness/sauna-interior.jpg";
+import fracturedIce from "@/assets/wellness/fractured-ice.jpg";
 
 interface SpaService {
   id: number;
@@ -439,16 +445,20 @@ const spaServices: SpaService[] = [
 const categories = ["All", "Facials", "Massage", "Body Rituals", "Body Wraps", "Recovery"];
 
 const memberDiscounts = [
-  { tier: "Silver", discount: "5% OFF", color: "bg-gray-400" },
-  { tier: "Gold", discount: "8% OFF", color: "bg-amber-500" },
-  { tier: "Platinum", discount: "10% OFF", color: "bg-slate-300" },
-  { tier: "Diamond", discount: "12% OFF", color: "bg-cyan-300" },
+  { tier: "Silver", discount: "5% OFF", color: "bg-warm-gray" },
+  { tier: "Gold", discount: "8% OFF", color: "bg-gold" },
+  { tier: "Platinum", discount: "10% OFF", color: "bg-muted" },
+  { tier: "Diamond", discount: "12% OFF", color: "bg-accent" },
 ];
 
 export default function Spa() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
   const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || "All");
+  const [selectedService, setSelectedService] = useState<SpaService | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   useEffect(() => {
     if (categoryFromUrl && categories.includes(categoryFromUrl)) {
@@ -467,7 +477,7 @@ export default function Spa() {
       {/* Hero */}
       <section className="relative pt-20 min-h-[70vh] flex items-center">
         <div className="absolute inset-0">
-          <img src={sauna} alt="Aella Spa" className="w-full h-full object-cover" />
+          <img src={treatmentRoom} alt="Aella Spa" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-charcoal/90 via-charcoal/70 to-charcoal/40" />
         </div>
         <div className="relative z-10 container mx-auto px-6 py-24">
@@ -573,7 +583,18 @@ export default function Spa() {
                       )}
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      if (!user) {
+                        navigate("/auth");
+                        return;
+                      }
+                      setSelectedService(service);
+                      setShowBookingModal(true);
+                    }}
+                  >
                     Book Now
                   </Button>
                 </div>
@@ -645,6 +666,16 @@ export default function Spa() {
           </div>
         </div>
       </section>
+
+      {/* Booking Modal */}
+      <SpaBookingModal
+        service={selectedService}
+        open={showBookingModal}
+        onOpenChange={(open) => {
+          setShowBookingModal(open);
+          if (!open) setSelectedService(null);
+        }}
+      />
     </Layout>
   );
 }

@@ -36,6 +36,11 @@ import pilates from "@/assets/pilates.jpg";
 import redLightTherapy from "@/assets/red-light-therapy.jpg";
 import zerobodyCryo from "@/assets/zerobody-cryo.jpg";
 import strengthSculpt from "@/assets/strength-sculpt.jpg";
+// Brand imagery
+import woodenLockers from "@/assets/interiors/wooden-lockers-gold.jpg";
+import saunaInterior from "@/assets/wellness/sauna-interior.jpg";
+import fracturedIce from "@/assets/wellness/fractured-ice.jpg";
+import marbleTexture from "@/assets/textures/marble-texture.jpg";
 
 // Recovery Suite amenities - open access (no booking needed)
 const recoveryAmenities = [
@@ -43,6 +48,7 @@ const recoveryAmenities = [
     icon: Flame,
     title: "Infrared Sauna",
     description: "Deep heat therapy for detoxification and muscle recovery.",
+    image: saunaInterior,
   },
   {
     icon: Wind,
@@ -53,6 +59,7 @@ const recoveryAmenities = [
     icon: Droplets,
     title: "Cold Plunge Pool",
     description: "Cold therapy to boost circulation and reduce inflammation.",
+    image: fracturedIce,
   },
   {
     icon: Waves,
@@ -215,7 +222,7 @@ export default function Amenities() {
       {/* Hero - Full bleed */}
       <section className="relative min-h-[70vh] flex items-center">
         <div className="absolute inset-0">
-          <img src={lockerRoom} alt="Storm Wellness Club Members Only" className="w-full h-full object-cover" />
+          <img src={woodenLockers} alt="Storm Wellness Club Members Only" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-charcoal/95 via-charcoal/80 to-charcoal/50" />
         </div>
         <div className="relative z-10 container mx-auto px-6 py-32">
@@ -252,12 +259,28 @@ export default function Amenities() {
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {recoveryAmenities.map((amenity, index) => (
-              <div key={index} className="group text-center">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-secondary/50 flex items-center justify-center transition-all duration-300 group-hover:bg-accent/10 group-hover:scale-110">
-                  <amenity.icon className="w-8 h-8 text-accent" />
+              <div key={index} className="group">
+                {amenity.image ? (
+                  <div className="relative h-64 mb-6 rounded-sm overflow-hidden">
+                    <img 
+                      src={amenity.image} 
+                      alt={amenity.title} 
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 via-transparent to-transparent" />
+                    <div className="absolute top-4 left-4 w-12 h-12 rounded-full bg-primary/80 backdrop-blur-sm flex items-center justify-center">
+                      <amenity.icon className="w-6 h-6 text-gold-light" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-secondary/50 flex items-center justify-center transition-all duration-300 group-hover:bg-accent/10 group-hover:scale-110">
+                    <amenity.icon className="w-8 h-8 text-accent" />
+                  </div>
+                )}
+                <div className="text-center">
+                  <h3 className="font-serif text-xl mb-3">{amenity.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{amenity.description}</p>
                 </div>
-                <h3 className="font-serif text-xl mb-3">{amenity.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{amenity.description}</p>
               </div>
             ))}
           </div>
@@ -265,7 +288,10 @@ export default function Amenities() {
       </section>
 
       {/* Premium Experiences - Booking Required */}
-      <section className="py-24 bg-primary text-primary-foreground">
+      <section className="relative py-24 bg-primary text-primary-foreground overflow-hidden">
+        <div className="absolute inset-0 opacity-5">
+          <img src={marbleTexture} alt="" className="w-full h-full object-cover" />
+        </div>
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
             <p className="text-gold-light text-sm uppercase tracking-[0.2em] mb-4">Reservation Required</p>
@@ -305,8 +331,8 @@ export default function Amenities() {
             <div className="group relative overflow-hidden rounded-sm">
               <div className="aspect-[4/3]">
                 <img 
-                  src={zerobodyCryo} 
-                  alt="Starpool ZeroBody" 
+                  src={fracturedIce} 
+                  alt="Starpool ZeroBody - Cold Therapy" 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                 />
               </div>
@@ -407,8 +433,11 @@ export default function Amenities() {
       </section>
 
       {/* Membership Tiers */}
-      <section className="py-24 bg-background">
-        <div className="container mx-auto px-6">
+      <section className="relative py-24 bg-background overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.02]">
+          <img src={marbleTexture} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="relative z-10 container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
             <p className="text-accent text-sm uppercase tracking-[0.2em] mb-4">Membership</p>
             <h2 className="text-4xl md:text-5xl font-serif mb-6">Your Wellness Journey</h2>

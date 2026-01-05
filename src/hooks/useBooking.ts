@@ -152,6 +152,13 @@ export function useBookClass() {
 
       const currentUserId = authSession.user.id;
 
+      // Look up member_id for this user (if they're a member)
+      const { data: memberData } = await supabase
+        .from("members")
+        .select("id")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+
       // Get session details to check availability and advance booking limit
       const { data: session, error: sessionError } = await supabase
         .from("class_sessions")
@@ -191,6 +198,7 @@ export function useBookClass() {
       const bookingData: any = {
         session_id: sessionId,
         user_id: currentUserId,
+        member_id: memberData?.id || null, // Populate member_id if user is a member
         status: "confirmed",
         payment_method: paymentMethod,
       };

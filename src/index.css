@@ -6,104 +6,112 @@
 
 @layer base {
   :root {
-    /* Storm Wellness Club - Luxury Warm Palette */
-    --background: 38 30% 96%;
-    --foreground: 30 15% 15%;
+    /* Storm Wellness Club - Brand Guidelines Palette */
+    /* Smoked Umber (#1C170F) → Primary/Charcoal */
+    /* Limestone Haze (#DEDACE) → Background/Cream */
+    /* Still Sand (#C1B19C) → Secondary */
+    /* Golden Dune (#F0DFC4) → Accent/Gold */
+    /* Clay Veil (#88766B) → Muted */
+    /* Earth Smoke (#6C5D3E) → Muted Foreground */
+    /* Silver Drift (#C7C6C6) → Warm Gray */
 
-    --card: 38 25% 98%;
-    --card-foreground: 30 15% 15%;
+    --background: 48 16% 84%; /* Limestone Haze */
+    --foreground: 38 30% 8%; /* Smoked Umber */
 
-    --popover: 38 25% 98%;
-    --popover-foreground: 30 15% 15%;
+    --card: 48 16% 86%; /* Limestone Haze - slightly lighter */
+    --card-foreground: 38 30% 8%; /* Smoked Umber */
 
-    --primary: 30 12% 18%;
-    --primary-foreground: 38 30% 96%;
+    --popover: 48 16% 86%;
+    --popover-foreground: 38 30% 8%;
 
-    --secondary: 38 20% 92%;
-    --secondary-foreground: 30 15% 20%;
+    --primary: 38 30% 8%; /* Smoked Umber */
+    --primary-foreground: 48 16% 84%; /* Limestone Haze */
 
-    --muted: 35 15% 90%;
-    --muted-foreground: 30 10% 45%;
+    --secondary: 38 20% 68%; /* Still Sand */
+    --secondary-foreground: 38 30% 8%; /* Smoked Umber */
 
-    --accent: 38 55% 55%;
-    --accent-foreground: 30 15% 12%;
+    --muted: 25 13% 48%; /* Clay Veil */
+    --muted-foreground: 38 27% 33%; /* Earth Smoke */
 
-    --destructive: 0 84% 60%;
+    --accent: 38 55% 85%; /* Golden Dune */
+    --accent-foreground: 38 30% 8%; /* Smoked Umber */
+
+    --destructive: 0 84% 60%; /* Keep minimal red for errors */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 35 20% 88%;
-    --input: 35 20% 88%;
-    --ring: 38 55% 55%;
+    --border: 38 20% 68%; /* Still Sand */
+    --input: 38 20% 68%;
+    --ring: 38 55% 85%; /* Golden Dune */
 
     --radius: 0.25rem;
 
-    /* Custom tokens */
-    --gold: 38 65% 50%;
-    --gold-light: 40 60% 75%;
-    --charcoal: 30 12% 18%;
-    --cream: 38 30% 96%;
-    --cream-dark: 38 25% 90%;
-    --warm-gray: 30 10% 45%;
+    /* Custom brand tokens */
+    --gold: 38 55% 85%; /* Golden Dune */
+    --gold-light: 38 55% 90%; /* Golden Dune - lighter */
+    --charcoal: 38 30% 8%; /* Smoked Umber */
+    --cream: 48 16% 84%; /* Limestone Haze */
+    --cream-dark: 38 20% 68%; /* Still Sand */
+    --warm-gray: 0 1% 78%; /* Silver Drift */
 
-    /* Gradients */
-    --gradient-gold: linear-gradient(135deg, hsl(38 65% 50%), hsl(40 60% 60%));
-    --gradient-dark: linear-gradient(180deg, hsl(30 12% 18%), hsl(30 15% 25%));
-    --gradient-cream: linear-gradient(180deg, hsl(38 30% 96%), hsl(38 25% 92%));
-    --gradient-hero: linear-gradient(180deg, transparent 0%, hsl(30 12% 18% / 0.7) 100%);
+    /* Gradients using brand colors */
+    --gradient-gold: linear-gradient(135deg, hsl(38 55% 85%), hsl(38 55% 90%));
+    --gradient-dark: linear-gradient(180deg, hsl(38 30% 8%), hsl(38 27% 33%));
+    --gradient-cream: linear-gradient(180deg, hsl(48 16% 84%), hsl(38 20% 68%));
+    --gradient-hero: linear-gradient(180deg, transparent 0%, hsl(38 30% 8% / 0.7) 100%);
 
-    /* Shadows */
-    --shadow-soft: 0 4px 20px hsl(30 15% 15% / 0.08);
-    --shadow-card: 0 2px 12px hsl(30 15% 15% / 0.06);
-    --shadow-gold: 0 4px 24px hsl(38 65% 50% / 0.25);
+    /* Shadows using brand colors */
+    --shadow-soft: 0 4px 20px hsl(38 30% 8% / 0.08);
+    --shadow-card: 0 2px 12px hsl(38 30% 8% / 0.06);
+    --shadow-gold: 0 4px 24px hsl(38 55% 85% / 0.25);
 
     /* Sidebar */
-    --sidebar-background: 38 25% 98%;
-    --sidebar-foreground: 30 15% 15%;
-    --sidebar-primary: 30 12% 18%;
-    --sidebar-primary-foreground: 38 30% 96%;
-    --sidebar-accent: 38 20% 92%;
-    --sidebar-accent-foreground: 30 15% 20%;
-    --sidebar-border: 35 20% 88%;
-    --sidebar-ring: 38 55% 55%;
+    --sidebar-background: 48 16% 86%;
+    --sidebar-foreground: 38 30% 8%;
+    --sidebar-primary: 38 30% 8%;
+    --sidebar-primary-foreground: 48 16% 84%;
+    --sidebar-accent: 38 20% 68%;
+    --sidebar-accent-foreground: 38 30% 8%;
+    --sidebar-border: 38 20% 68%;
+    --sidebar-ring: 38 55% 85%;
   }
 
   .dark {
-    --background: 30 15% 10%;
-    --foreground: 38 25% 92%;
+    --background: 38 30% 8%; /* Smoked Umber - dark mode background */
+    --foreground: 48 16% 84%; /* Limestone Haze - dark mode foreground */
 
-    --card: 30 12% 14%;
-    --card-foreground: 38 25% 92%;
+    --card: 38 27% 15%; /* Earth Smoke - dark mode card */
+    --card-foreground: 48 16% 84%;
 
-    --popover: 30 12% 14%;
-    --popover-foreground: 38 25% 92%;
+    --popover: 38 27% 15%;
+    --popover-foreground: 48 16% 84%;
 
-    --primary: 38 30% 92%;
-    --primary-foreground: 30 15% 10%;
+    --primary: 48 16% 84%; /* Limestone Haze - inverted in dark */
+    --primary-foreground: 38 30% 8%;
 
-    --secondary: 30 10% 20%;
-    --secondary-foreground: 38 25% 92%;
+    --secondary: 38 20% 25%; /* Still Sand - darker for dark mode */
+    --secondary-foreground: 48 16% 84%;
 
-    --muted: 30 10% 25%;
-    --muted-foreground: 38 15% 60%;
+    --muted: 25 13% 30%; /* Clay Veil - darker */
+    --muted-foreground: 0 1% 65%; /* Silver Drift - darker */
 
-    --accent: 38 55% 55%;
-    --accent-foreground: 30 15% 10%;
+    --accent: 38 55% 75%; /* Golden Dune - slightly darker */
+    --accent-foreground: 38 30% 8%;
 
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 10% 22%;
-    --input: 30 10% 22%;
-    --ring: 38 55% 55%;
+    --border: 38 20% 25%;
+    --input: 38 20% 25%;
+    --ring: 38 55% 75%;
 
-    --sidebar-background: 30 15% 10%;
-    --sidebar-foreground: 38 25% 92%;
-    --sidebar-primary: 38 30% 92%;
-    --sidebar-primary-foreground: 30 15% 10%;
-    --sidebar-accent: 30 10% 20%;
-    --sidebar-accent-foreground: 38 25% 92%;
-    --sidebar-border: 30 10% 22%;
-    --sidebar-ring: 38 55% 55%;
+    --sidebar-background: 38 30% 8%;
+    --sidebar-foreground: 48 16% 84%;
+    --sidebar-primary: 48 16% 84%;
+    --sidebar-primary-foreground: 38 30% 8%;
+    --sidebar-accent: 38 20% 25%;
+    --sidebar-accent-foreground: 48 16% 84%;
+    --sidebar-border: 38 20% 25%;
+    --sidebar-ring: 38 55% 75%;
   }
 }
 

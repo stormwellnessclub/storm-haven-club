@@ -3,28 +3,45 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus } from "@/hooks/useAdminSpaAppointments";
+import { format, parse } from "date-fns";
 
 const timeSlots = [
-  "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-  "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"
+  "08:00", "09:00", "10:00", "11:00", "12:00",
+  "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"
 ];
 
-const mockAppointments = [
-  { id: "1", member: "Lisa Thompson", service: "Therapeutic Massage", time: "10:00 AM", provider: "Maria S.", duration: 60 },
-  { id: "2", member: "David Brown", service: "Personal Training", time: "11:00 AM", provider: "Jake M.", duration: 60 },
-  { id: "3", member: "Jennifer Lee", service: "Facial Treatment", time: "1:00 PM", provider: "Sophie K.", duration: 90 },
-  { id: "4", member: "Robert Garcia", service: "Reformer Pilates", time: "2:00 PM", provider: "Anna B.", duration: 55 },
-  { id: "5", member: "Sarah Johnson", service: "Deep Tissue Massage", time: "3:00 PM", provider: "Maria S.", duration: 60 },
-  { id: "6", member: "Michael Chen", service: "Cycling Class", time: "5:00 PM", provider: "Tom R.", duration: 45 },
-];
+const getServiceColor = (category: string) => {
+  if (category.includes("Massage")) return "bg-purple-500/10 text-purple-600 border-purple-500/30";
+  if (category.includes("Facial")) return "bg-pink-500/10 text-pink-600 border-pink-500/30";
+  if (category.includes("Recovery")) return "bg-blue-500/10 text-blue-600 border-blue-500/30";
+  if (category.includes("Body")) return "bg-amber-500/10 text-amber-600 border-amber-500/30";
+  return "bg-muted text-muted-foreground border-border";
+};
 
-const getServiceColor = (service: string) => {
-  if (service.includes("Massage")) return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
-  if (service.includes("Training")) return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
-  if (service.includes("Facial") || service.includes("Treatment")) return "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300";
-  if (service.includes("Pilates") || service.includes("Class") || service.includes("Cycling")) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-  return "bg-secondary text-secondary-foreground";
+const formatTime = (time: string) => {
+  try {
+    const parsed = parse(time, "HH:mm:ss", new Date());
+    return format(parsed, "h:mm a");
+  } catch {
+    return time;
+  }
+};
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'confirmed':
+      return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
+    case 'completed':
+      return 'bg-success/10 text-success border-success/30';
+    case 'cancelled':
+      return 'bg-destructive/10 text-destructive border-destructive/30';
+    case 'no_show':
+      return 'bg-muted text-muted-foreground border-border';
+    default:
+      return 'bg-muted text-muted-foreground border-border';
+  }
 };
 
 export default function Appointments() {
@@ -45,6 +62,30 @@ export default function Appointments() {
     setSelectedDate(newDate);
   };
 
+  const { data: appointments, isLoading } = useAdminSpaAppointments({ 
+    appointmentDate: selectedDate 
+  });
+  const updateStatus = useUpdateSpaAppointmentStatus();
+
+  const appointmentsForDate = appointments?.filter(apt => {
+    const aptDate = new Date(apt.appointment_date);
+    return aptDate.toDateString() === selectedDate.toDateString();
+  }) || [];
+
+  const getAppointmentForSlot = (slot: string) => {
+    return appointmentsForDate.find(apt => {
+      const aptTime = apt.appointment_time.split(':').slice(0, 2).join(':');
+      return aptTime === slot;
+    });
+  };
+
+  const stats = {
+    total: appointmentsForDate.length,
+    completed: appointmentsForDate.filter(a => a.status === 'completed').length,
+    upcoming: appointmentsForDate.filter(a => ['confirmed'].includes(a.status)).length,
+    cancelled: appointmentsForDate.filter(a => a.status === 'cancelled').length,
+  };
+
   return (
     <AdminLayout title="Appointments">
       <div className="space-y-6">
@@ -58,7 +99,7 @@ export default function Appointments() {
               <div className="text-center">
                 <h2 className="text-xl font-semibold">{formatDate(selectedDate)}</h2>
                 <p className="text-sm text-muted-foreground">
-                  {mockAppointments.length} appointments scheduled
+                  {stats.total} appointments scheduled
                 </p>
               </div>
               <Button variant="outline" size="icon" onClick={() => navigateDate("next")}>
@@ -82,48 +123,94 @@ export default function Appointments() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {timeSlots.map((slot) => {
-                  const appointment = mockAppointments.find((a) => a.time === slot);
-                  return (
-                    <div
-                      key={slot}
-                      className={`flex items-stretch gap-4 p-3 rounded-lg border ${
-                        appointment ? "bg-card" : "bg-secondary/30"
-                      }`}
-                    >
-                      <div className="w-20 text-sm font-medium text-muted-foreground">
-                        {slot}
-                      </div>
-                      {appointment ? (
-                        <div className="flex-1 flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">{appointment.member}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge className={getServiceColor(appointment.service)}>
-                                {appointment.service}
-                              </Badge>
-                              <span className="text-sm text-muted-foreground">
-                                {appointment.duration} min
-                              </span>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {timeSlots.map((slot) => {
+                    const appointment = getAppointmentForSlot(slot);
+                    return (
+                      <div
+                        key={slot}
+                        className={`flex items-stretch gap-4 p-3 rounded-lg border ${
+                          appointment ? "bg-card" : "bg-secondary/30"
+                        }`}
+                      >
+                        <div className="w-20 text-sm font-medium text-muted-foreground">
+                          {formatTime(slot + ":00")}
+                        </div>
+                        {appointment ? (
+                          <div className="flex-1 flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="font-medium">
+                                {appointment.member 
+                                  ? `${appointment.member.first_name} ${appointment.member.last_name}`
+                                  : appointment.user?.email || 'Guest'}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge className={getServiceColor(appointment.service_category)}>
+                                  {appointment.service_name}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground">
+                                  {appointment.duration_minutes} min
+                                </span>
+                                <Badge variant="outline" className={getStatusColor(appointment.status)}>
+                                  {appointment.status}
+                                </Badge>
+                              </div>
+                              {appointment.member_notes && (
+                                <p className="text-xs text-muted-foreground mt-1 italic">
+                                  {appointment.member_notes}
+                                </p>
+                              )}
                             </div>
+                            {appointment.staff && (
+                              <div className="text-right">
+                                <p className="text-sm text-muted-foreground">with</p>
+                                <p className="font-medium">{appointment.staff.full_name || 'TBD'}</p>
+                              </div>
+                            )}
+                            {['confirmed'].includes(appointment.status) && (
+                              <div className="flex gap-2 ml-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateStatus.mutate({ 
+                                    appointmentId: appointment.id, 
+                                    status: 'completed' 
+                                  })}
+                                >
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Complete
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => updateStatus.mutate({ 
+                                    appointmentId: appointment.id, 
+                                    status: 'cancelled' 
+                                  })}
+                                >
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">with</p>
-                            <p className="font-medium">{appointment.provider}</p>
+                        ) : (
+                          <div className="flex-1 flex items-center">
+                            <span className="text-sm text-muted-foreground italic">
+                              Available
+                            </span>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="flex-1 flex items-center">
-                          <span className="text-sm text-muted-foreground italic">
-                            Available
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -139,19 +226,19 @@ export default function Appointments() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center p-3 bg-secondary/50 rounded-lg">
                   <span className="text-sm">Total Appointments</span>
-                  <span className="font-bold">{mockAppointments.length}</span>
+                  <span className="font-bold">{stats.total}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-secondary/50 rounded-lg">
                   <span className="text-sm">Completed</span>
-                  <span className="font-bold text-green-600">2</span>
+                  <span className="font-bold text-success">{stats.completed}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-secondary/50 rounded-lg">
                   <span className="text-sm">Upcoming</span>
-                  <span className="font-bold text-blue-600">4</span>
+                  <span className="font-bold text-blue-600">{stats.upcoming}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-secondary/50 rounded-lg">
                   <span className="text-sm">Cancellations</span>
-                  <span className="font-bold text-red-600">0</span>
+                  <span className="font-bold text-destructive">{stats.cancelled}</span>
                 </div>
               </CardContent>
             </Card>
@@ -165,22 +252,29 @@ export default function Appointments() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {["Maria S.", "Jake M.", "Sophie K.", "Anna B.", "Tom R."].map((staff) => (
-                    <div
-                      key={staff}
-                      className="flex items-center justify-between py-2 border-b last:border-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
-                          {staff.charAt(0)}
+                  {appointmentsForDate
+                    .filter(apt => apt.staff)
+                    .map((apt) => (
+                      <div
+                        key={apt.staff!.id}
+                        className="flex items-center justify-between py-2 border-b last:border-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
+                            {apt.staff!.full_name?.charAt(0) || '?'}
+                          </div>
+                          <span className="font-medium text-sm">{apt.staff!.full_name}</span>
                         </div>
-                        <span className="font-medium text-sm">{staff}</span>
+                        <Badge variant="outline" className="text-success border-success">
+                          Active
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="text-green-600 border-green-600">
-                        Available
-                      </Badge>
-                    </div>
-                  ))}
+                    ))}
+                  {appointmentsForDate.filter(apt => apt.staff).length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No staff assignments
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>

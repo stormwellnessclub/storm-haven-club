@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date';
+  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date';
   to: string;
   data: Record<string, any>;
 }
@@ -134,6 +134,44 @@ serve(async (req) => {
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
                 <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'application_rejected':
+        subject = 'Application Update - Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thank you for your interest in Storm Wellness Club. After careful review of your application, we are unable to proceed with your membership request at this time.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We appreciate you taking the time to apply, and we encourage you to explore our public services and facilities. We offer spa services, cafe amenities, and various wellness programs that are available without membership.
+              </p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/spa" style="${emailStyles.buttonSecondary}">Explore Our Spa</a>
+                <a href="${BASE_URL}/cafe" style="${emailStyles.buttonSecondary}">Visit Our Cafe</a>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you have any questions or would like to discuss this decision further, please don't hesitate to reach out to us.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Best regards,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+                <p style="color: #6b7280; margin: 0;">
+                  <a href="${BASE_URL}/member/support" style="${emailStyles.link}">Contact Support</a>
+                </p>
               </div>
             </div>
             ${getEmailFooter()}

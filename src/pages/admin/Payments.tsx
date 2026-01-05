@@ -88,13 +88,13 @@ const mockPayments = [
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "paid":
-      return <Badge className="bg-green-100 text-green-800">Paid</Badge>;
+      return <Badge className="bg-muted/20 text-muted-foreground">Paid</Badge>;
     case "failed":
-      return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+      return <Badge className="bg-destructive/20 text-destructive-foreground">Failed</Badge>;
     case "refunded":
-      return <Badge className="bg-amber-100 text-amber-800">Refunded</Badge>;
+      return <Badge className="bg-accent/20 text-accent-foreground">Refunded</Badge>;
     case "pending":
-      return <Badge className="bg-blue-100 text-blue-800">Pending</Badge>;
+      return <Badge className="bg-secondary/20 text-secondary-foreground">Pending</Badge>;
     default:
       return null;
   }
@@ -127,7 +127,7 @@ export default function Payments() {
                   <p className="text-sm text-muted-foreground">Revenue Today</p>
                   <p className="text-2xl font-bold">${totalRevenue.toLocaleString()}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-green-500" />
+                <DollarSign className="h-8 w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -138,7 +138,7 @@ export default function Payments() {
                   <p className="text-sm text-muted-foreground">Monthly Revenue</p>
                   <p className="text-2xl font-bold">$48,250</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-blue-500" />
+                <TrendingUp className="h-8 w-8 text-secondary-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -160,7 +160,7 @@ export default function Payments() {
                   <p className="text-sm text-muted-foreground">Failed Payments</p>
                   <p className="text-2xl font-bold">{failedCount}</p>
                 </div>
-                <AlertTriangle className="h-8 w-8 text-red-500" />
+                <AlertTriangle className="h-8 w-8 text-destructive" />
               </div>
             </CardContent>
           </Card>

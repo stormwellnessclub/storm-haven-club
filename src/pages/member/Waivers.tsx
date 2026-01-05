@@ -48,12 +48,12 @@ export default function MemberWaivers() {
                 <CardTitle>Liability Waiver</CardTitle>
               </div>
               {profile?.waiver_signed ? (
-                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/30">
                   <Check className="h-3 w-3 mr-1" />
                   Signed
                 </Badge>
               ) : (
-                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
                   <AlertCircle className="h-3 w-3 mr-1" />
                   Required
                 </Badge>
@@ -99,8 +99,8 @@ export default function MemberWaivers() {
             </ScrollArea>
 
             {profile?.waiver_signed ? (
-              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
-                <div className="flex items-center gap-2 text-green-600">
+              <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Check className="h-5 w-5" />
                   <span className="font-medium">Waiver Signed</span>
                 </div>
@@ -131,12 +131,12 @@ export default function MemberWaivers() {
                 <CardTitle>Membership Agreement</CardTitle>
               </div>
               {profile?.membership_agreement_signed ? (
-                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/30">
                   <Check className="h-3 w-3 mr-1" />
                   Signed
                 </Badge>
               ) : (
-                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
                   <AlertCircle className="h-3 w-3 mr-1" />
                   Required
                 </Badge>
@@ -188,8 +188,8 @@ export default function MemberWaivers() {
             </ScrollArea>
 
             {profile?.membership_agreement_signed ? (
-              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
-                <div className="flex items-center gap-2 text-green-600">
+              <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Check className="h-5 w-5" />
                   <span className="font-medium">Agreement Signed</span>
                 </div>

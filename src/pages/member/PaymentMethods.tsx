@@ -34,10 +34,10 @@ interface PaymentMethod {
 
 const getCardBrandIcon = (brand: string) => {
   const brandColors: Record<string, string> = {
-    visa: "bg-blue-500/10 text-blue-600 border-blue-500/30",
-    mastercard: "bg-orange-500/10 text-orange-600 border-orange-500/30",
-    amex: "bg-green-500/10 text-green-600 border-green-500/30",
-    discover: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+    visa: "bg-secondary/10 text-secondary-foreground border-secondary/30",
+    mastercard: "bg-accent/10 text-accent border-accent/30",
+    amex: "bg-muted/20 text-muted-foreground border-muted/30",
+    discover: "bg-accent/10 text-accent border-accent/30",
     default: "bg-secondary text-foreground border-border",
   };
   return brandColors[brand.toLowerCase()] || brandColors.default;

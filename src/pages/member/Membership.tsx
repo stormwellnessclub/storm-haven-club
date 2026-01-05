@@ -206,8 +206,8 @@ export default function MemberMembership() {
               <div className="flex items-center gap-3">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
                   profile?.membership_agreement_signed 
-                    ? "bg-green-500/20 text-green-600" 
-                    : "bg-amber-500/20 text-amber-600"
+                    ? "bg-muted/20 text-muted-foreground" 
+                    : "bg-accent/20 text-accent"
                 }`}>
                   <FileCheck className="h-4 w-4" />
                 </div>
@@ -221,7 +221,7 @@ export default function MemberMembership() {
                 </div>
               </div>
               {profile?.membership_agreement_signed ? (
-                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/30">
                   Signed
                 </Badge>
               ) : (
@@ -235,8 +235,8 @@ export default function MemberMembership() {
               <div className="flex items-center gap-3">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
                   profile?.waiver_signed 
-                    ? "bg-green-500/20 text-green-600" 
-                    : "bg-amber-500/20 text-amber-600"
+                    ? "bg-muted/20 text-muted-foreground" 
+                    : "bg-accent/20 text-accent"
                 }`}>
                   <FileCheck className="h-4 w-4" />
                 </div>
@@ -250,7 +250,7 @@ export default function MemberMembership() {
                 </div>
               </div>
               {profile?.waiver_signed ? (
-                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/30">
                   Signed
                 </Badge>
               ) : (

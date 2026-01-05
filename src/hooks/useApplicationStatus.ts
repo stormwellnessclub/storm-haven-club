@@ -150,41 +150,50 @@ export function useApplicationStatus() {
           console.warn("[useApplicationStatus] Auto-link failed after retries, checking for unlinked member by email...");
           
           // Check if there's a member record with matching email that just hasn't been linked yet
-          const { data: unlinkedMember } = await supabase
-            .from("members")
-            .select("id, email, status, first_name, last_name")
-            .ilike("email", user.email)
-            .is("user_id", null)
-            .maybeSingle();
+          // IMPORTANT: Validate exact email match to prevent security issues
+          if (user.email) {
+            const { data: unlinkedMember } = await supabase
+              .from("members")
+              .select("id, email, status, first_name, last_name")
+              .ilike("email", user.email)
+              .is("user_id", null)
+              .maybeSingle();
             
-          if (unlinkedMember && ['pending_activation', 'active'].includes(unlinkedMember.status)) {
-            console.warn("[useApplicationStatus] Found unlinked member record:", unlinkedMember.email);
-            // Return special status so UI can prompt user to fix
-            return {
-              status: "unlinked_member",
-              unlinkedMemberData: unlinkedMember,
-            };
+            // Verify exact email match (case-insensitive) before returning unlinked member
+            if (unlinkedMember && 
+                unlinkedMember.email?.toLowerCase() === user.email.toLowerCase() &&
+                ['pending_activation', 'active'].includes(unlinkedMember.status)) {
+              console.warn("[useApplicationStatus] Found unlinked member record:", unlinkedMember.email);
+              // Return special status so UI can prompt user to fix
+              return {
+                status: "unlinked_member",
+                unlinkedMemberData: unlinkedMember,
+              };
+            }
           }
         }
       }
 
-      // Check for pending application by email
-      const { data: applicationData, error: appError } = await supabase
-        .from("membership_applications")
-        .select("*")
-        .ilike("email", user.email || "")
-        .eq("status", "pending")
-        .maybeSingle();
+      // Check for pending application by email (with exact match validation)
+      if (user.email) {
+        const { data: applicationData, error: appError } = await supabase
+          .from("membership_applications")
+          .select("*")
+          .ilike("email", user.email)
+          .eq("status", "pending")
+          .maybeSingle();
 
-      if (appError) {
-        console.error("[useApplicationStatus] Error fetching application:", appError);
-      }
+        if (appError) {
+          console.error("[useApplicationStatus] Error fetching application:", appError);
+        }
 
-      if (applicationData) {
-        return {
-          status: "pending_application",
-          applicationData,
-        };
+        // Validate that application email exactly matches user email (case-insensitive)
+        if (applicationData && applicationData.email?.toLowerCase() === user.email.toLowerCase()) {
+          return {
+            status: "pending_application",
+            applicationData,
+          };
+        }
       }
 
       // No member record or pending application found

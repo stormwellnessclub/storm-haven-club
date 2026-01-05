@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,8 @@ import {
   Calendar,
   Lock
 } from "lucide-react";
+import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 const features = [
   {
@@ -49,6 +52,9 @@ const ageGroups = [
 ];
 
 export default function KidsCare() {
+  const { user } = useAuth();
+  const [showBookingModal, setShowBookingModal] = useState(false);
+
   return (
     <Layout>
       {/* Hero */}
@@ -153,10 +159,25 @@ export default function KidsCare() {
               Walk-ins accepted based on availability.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" disabled>
-                <Lock className="w-4 h-4 mr-2" />
-                Login to Book
-              </Button>
+              {user ? (
+                <Button 
+                  size="lg" 
+                  onClick={() => setShowBookingModal(true)}
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Book Kids Care Session
+                </Button>
+              ) : (
+                <Button 
+                  size="lg" 
+                  onClick={() => {
+                    window.location.href = "/auth";
+                  }}
+                >
+                  <Lock className="w-4 h-4 mr-2" />
+                  Login to Book
+                </Button>
+              )}
               <Link to="/class-passes">
                 <Button variant="outline" size="lg">
                   Purchase Kids Care Pass
@@ -205,6 +226,12 @@ export default function KidsCare() {
           </div>
         </div>
       </section>
+
+      {/* Booking Modal */}
+      <KidsCareBookingModal
+        open={showBookingModal}
+        onOpenChange={setShowBookingModal}
+      />
     </Layout>
   );
 }
