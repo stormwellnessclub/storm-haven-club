@@ -20,7 +20,6 @@ import {
 // Updated images
 import reformerPilates from "@/assets/reformer-pilates.jpg";
 import reformerPilates2 from "@/assets/reformer-pilates-2.jpg";
-import pilates from "@/assets/reformer-pilates-2.jpg";
 import cycling from "@/assets/cycling.jpg";
 import cycling2 from "@/assets/cycling-2.jpg";
 import aerobicsStudio from "@/assets/aerobics-studio.jpg";
@@ -83,7 +82,7 @@ const classes: ClassItem[] = [
     spots: 8,
     time: "8:00 AM",
     day: "Mon-Fri",
-    image: pilates,
+    image: reformerPilates,
     description: "Advanced reformer workout for experienced practitioners.",
     icon: CircleDot,
   },
@@ -125,7 +124,7 @@ const classes: ClassItem[] = [
     spots: 8,
     time: "11:00 AM",
     day: "Mon-Fri, Sat, Sun",
-    image: pilates,
+    image: reformerPilates2,
     description: "Perfect for beginners learning reformer fundamentals.",
     icon: CircleDot,
   },
@@ -167,7 +166,7 @@ const classes: ClassItem[] = [
     spots: 8,
     time: "6:00 PM",
     day: "Tue",
-    image: pilates,
+    image: reformerPilates,
     description: "Evening heated reformer session.",
     icon: CircleDot,
   },
