@@ -47,20 +47,36 @@ export function useAIWorkouts(memberId?: string, limit?: number) {
         targetMemberId = member.id;
       }
 
-      let query = supabase
-        .from("ai_workouts")
-        .select("*")
-        .eq("member_id", targetMemberId)
-        .order("generated_at", { ascending: false });
+      try {
+        let query = supabase
+          .from("ai_workouts")
+          .select("*")
+          .eq("member_id", targetMemberId)
+          .order("generated_at", { ascending: false });
 
-      if (limit) {
-        query = query.limit(limit);
+        if (limit) {
+          query = query.limit(limit);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          // Table might not exist yet - return empty array
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("ai_workouts table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
+        return (data || []) as AIWorkout[];
+      } catch (error: any) {
+        // Handle table not existing gracefully
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("ai_workouts table not found, returning empty array");
+          return [];
+        }
+        throw error;
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return (data || []) as AIWorkout[];
     },
     enabled: !!user && (!!memberId || !!user.id),
   });
@@ -105,15 +121,27 @@ export function useUpdateAIWorkout() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<AIWorkout> }) => {
-      const { data: workout, error } = await supabase
-        .from("ai_workouts")
-        .update(data)
-        .eq("id", id)
-        .select()
-        .single();
+      try {
+        const { data: workout, error } = await supabase
+          .from("ai_workouts")
+          .update(data)
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return workout as AIWorkout;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("AI Workouts feature is not yet available. Please check back later.");
+          }
+          throw error;
+        }
+        return workout as AIWorkout;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("AI Workouts feature is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ai-workouts"] });
@@ -130,18 +158,30 @@ export function useCompleteAIWorkout() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data: workout, error } = await supabase
-        .from("ai_workouts")
-        .update({
-          is_completed: true,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .select()
-        .single();
+      try {
+        const { data: workout, error } = await supabase
+          .from("ai_workouts")
+          .update({
+            is_completed: true,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return workout as AIWorkout;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("AI Workouts feature is not yet available. Please check back later.");
+          }
+          throw error;
+        }
+        return workout as AIWorkout;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("AI Workouts feature is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ai-workouts"] });
@@ -158,12 +198,24 @@ export function useDeleteAIWorkout() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("ai_workouts")
-        .delete()
-        .eq("id", id);
+      try {
+        const { error } = await supabase
+          .from("ai_workouts")
+          .delete()
+          .eq("id", id);
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("AI Workouts feature is not yet available. Please check back later.");
+          }
+          throw error;
+        }
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("AI Workouts feature is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ai-workouts"] });

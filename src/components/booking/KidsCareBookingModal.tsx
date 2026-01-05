@@ -364,11 +364,20 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                       <SelectValue placeholder="Select end time" />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedStartTime && getAvailableEndTimes(selectedStartTime).map((time) => (
-                        <SelectItem key={time} value={time}>
-                          {time} ({format(parse(time, "HH:mm", new Date()).getTime() - parse(selectedStartTime, "HH:mm", new Date()).getTime(), "h:mm", { unit: "hour" })})
-                        </SelectItem>
-                      ))}
+                      {selectedStartTime && getAvailableEndTimes(selectedStartTime).map((time) => {
+                        const startTime = parse(selectedStartTime, "HH:mm", new Date());
+                        const endTime = parse(time, "HH:mm", new Date());
+                        const durationMs = endTime.getTime() - startTime.getTime();
+                        const durationHours = durationMs / (1000 * 60 * 60);
+                        const hours = Math.floor(durationHours);
+                        const minutes = Math.round((durationHours - hours) * 60);
+                        const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+                        return (
+                          <SelectItem key={time} value={time}>
+                            {time} ({durationText})
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   {selectedStartTime && selectedEndTime && (

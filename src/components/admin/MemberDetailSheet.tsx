@@ -40,6 +40,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
@@ -957,58 +958,98 @@ function MemberAnalytics({ memberId }: { memberId: string }) {
   const { data: ltv, isLoading: ltvLoading } = useQuery({
     queryKey: ["member-ltv", memberId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("calculate_member_ltv", {
-        p_member_id: memberId,
-      });
-      if (error) throw error;
-      return data as number;
+      try {
+        const { data, error } = await supabase.rpc("calculate_member_ltv", {
+          p_member_id: memberId,
+        });
+        if (error) {
+          console.warn("calculate_member_ltv RPC not available:", error);
+          return 0;
+        }
+        return (data as number) || 0;
+      } catch (error) {
+        console.warn("Failed to calculate LTV:", error);
+        return 0;
+      }
     },
   });
 
   const { data: churnRisk, isLoading: churnLoading } = useQuery({
     queryKey: ["member-churn-risk", memberId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("calculate_churn_risk", {
-        p_member_id: memberId,
-      });
-      if (error) throw error;
-      return data as number;
+      try {
+        const { data, error } = await supabase.rpc("calculate_churn_risk", {
+          p_member_id: memberId,
+        });
+        if (error) {
+          console.warn("calculate_churn_risk RPC not available:", error);
+          return 0;
+        }
+        return (data as number) || 0;
+      } catch (error) {
+        console.warn("Failed to calculate churn risk:", error);
+        return 0;
+      }
     },
   });
 
   const { data: engagementScore, isLoading: engagementLoading } = useQuery({
     queryKey: ["member-engagement", memberId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("calculate_engagement_score", {
-        p_member_id: memberId,
-        p_days: 30,
-      });
-      if (error) throw error;
-      return data as number;
+      try {
+        const { data, error } = await supabase.rpc("calculate_engagement_score", {
+          p_member_id: memberId,
+          p_days: 30,
+        });
+        if (error) {
+          console.warn("calculate_engagement_score RPC not available:", error);
+          return 0;
+        }
+        return (data as number) || 0;
+      } catch (error) {
+        console.warn("Failed to calculate engagement score:", error);
+        return 0;
+      }
     },
   });
 
   const { data: attendancePattern, isLoading: attendanceLoading } = useQuery({
     queryKey: ["member-attendance-pattern", memberId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_member_attendance_pattern", {
-        p_member_id: memberId,
-        p_days: 30,
-      });
-      if (error) throw error;
-      return data as any;
+      try {
+        const { data, error } = await supabase.rpc("get_member_attendance_pattern", {
+          p_member_id: memberId,
+          p_days: 30,
+        });
+        if (error) {
+          console.warn("get_member_attendance_pattern RPC not available:", error);
+          return { total_classes: 0, avg_classes_per_week: 0 };
+        }
+        return (data as any) || { total_classes: 0, avg_classes_per_week: 0 };
+      } catch (error) {
+        console.warn("Failed to get attendance pattern:", error);
+        return { total_classes: 0, avg_classes_per_week: 0 };
+      }
     },
   });
 
   const { data: serviceUtilization, isLoading: utilizationLoading } = useQuery({
     queryKey: ["member-service-utilization", memberId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_member_service_utilization", {
-        p_member_id: memberId,
-        p_days: 30,
-      });
-      if (error) throw error;
-      return data as any;
+      try {
+        const { data, error } = await supabase.rpc("get_member_service_utilization", {
+          p_member_id: memberId,
+          p_days: 30,
+        });
+        if (error) {
+          console.warn("get_member_service_utilization RPC not available:", error);
+          return { classes_attended: 0, spa_services: 0, cafe_orders: 0, workouts_logged: 0 };
+        }
+        return (data as any) || { classes_attended: 0, spa_services: 0, cafe_orders: 0, workouts_logged: 0 };
+      } catch (error) {
+        console.warn("Failed to get service utilization:", error);
+        return { classes_attended: 0, spa_services: 0, cafe_orders: 0, workouts_logged: 0 };
+      }
     },
   });
 
