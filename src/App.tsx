@@ -59,6 +59,8 @@ import Instructors from "./pages/admin/Instructors";
 import ClassSchedules from "./pages/admin/ClassSchedules";
 import EmailManagement from "./pages/admin/EmailManagement";
 import FreezeRequests from "./pages/admin/FreezeRequests";
+import Equipment from "./pages/admin/Equipment";
+import Agreements from "./pages/admin/Agreements";
 import DesignSystem from "./pages/DesignSystem";
 
 const queryClient = new QueryClient();
@@ -129,6 +131,8 @@ const App = () => (
               <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
               <Route path="/admin/emails" element={<ProtectedAdminRoute><EmailManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/freeze-requests" element={<ProtectedAdminRoute><FreezeRequests /></ProtectedAdminRoute>} />
+              <Route path="/admin/equipment" element={<ProtectedAdminRoute><Equipment /></ProtectedAdminRoute>} />
+              <Route path="/admin/agreements" element={<ProtectedAdminRoute><Agreements /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

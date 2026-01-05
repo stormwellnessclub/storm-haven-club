@@ -107,6 +107,7 @@ serve(async (req) => {
 
     // Get fitness profile for workout generation
     let fitnessProfile = null;
+    let equipmentDetails = null;
     if (memberId) {
       const { data: profile } = await supabase
         .from('member_fitness_profiles')
@@ -115,6 +116,17 @@ serve(async (req) => {
         .maybeSingle();
       
       fitnessProfile = profile;
+
+      // Fetch equipment details if equipment_ids exist
+      if (profile?.equipment_ids && profile.equipment_ids.length > 0) {
+        const { data: equipment } = await supabase
+          .from('equipment')
+          .select('id, name, category, description, image_url, technogym_id, technogym_exercise_id')
+          .in('id', profile.equipment_ids)
+          .eq('is_active', true);
+        
+        equipmentDetails = equipment || [];
+      }
     }
 
     let systemPrompt = '';
@@ -168,20 +180,32 @@ serve(async (req) => {
           );
         }
 
-        systemPrompt = `You are a personal trainer and fitness coach at Storm Wellness Club. Generate personalized workout plans based on member goals, fitness level, available equipment, and time constraints. Return workouts in JSON format with exercises including sets, reps, weight (if applicable), duration, and rest periods. Be specific, safe, and progressive.`;
+        systemPrompt = `You are a personal trainer and fitness coach at Storm Wellness Club. Generate personalized workout plans based on member goals, fitness level, available equipment, and time constraints. Return workouts in JSON format with exercises including sets, reps, weight (if applicable), duration, and rest periods. Be specific, safe, and progressive. Use the equipment details provided to create realistic, equipment-specific exercises.`;
+        
+        // Format equipment details for AI prompt
+        const equipmentList = equipmentDetails?.map((eq: any) => ({
+          name: eq.name,
+          category: eq.category,
+          description: eq.description,
+          technogym_id: eq.technogym_id,
+        })) || [];
+        
+        const equipmentText = equipmentList.length > 0 
+          ? `\n          Available Equipment Details:\n          ${equipmentList.map((eq: any) => `- ${eq.name} (${eq.category}): ${eq.description || 'No description'}${eq.technogym_id ? ` [Technogym ID: ${eq.technogym_id}]` : ''}`).join('\n          ')}`
+          : `\n          Available Equipment: ${JSON.stringify(fitnessProfile?.available_equipment || [])}`;
+        
         userPrompt = `
           Member Fitness Profile:
           - Fitness Level: ${fitnessProfile?.fitness_level || 'Not specified'}
           - Primary Goal: ${fitnessProfile?.primary_goal || 'Not specified'}
-          - Secondary Goals: ${JSON.stringify(fitnessProfile?.secondary_goals || [])}
-          - Available Equipment: ${JSON.stringify(fitnessProfile?.available_equipment || [])}
+          - Secondary Goals: ${JSON.stringify(fitnessProfile?.secondary_goals || [])}${equipmentText}
           - Available Time: ${fitnessProfile?.available_time_minutes || 30} minutes
           - Workout Preferences: ${JSON.stringify(fitnessProfile?.workout_preferences || {})}
           - Injuries/Limitations: ${JSON.stringify(fitnessProfile?.injuries_limitations || [])}
           
           Recent Workout History: ${userHistory ? JSON.stringify(userHistory.slice(0, 5).map((b: any) => b.class_sessions?.class_types?.name)) : 'No recent workouts'}
           
-          Generate a complete workout plan in this JSON format:
+          Generate a complete workout plan in this JSON format. Use the specific equipment names provided when creating exercises. If Technogym IDs are available, reference them when appropriate:
           {
             "workout_name": "Descriptive workout name",
             "workout_type": "strength|cardio|hiit|yoga|pilates|mixed",

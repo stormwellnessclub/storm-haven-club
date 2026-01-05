@@ -115,6 +115,7 @@ export default function FitnessProfile() {
         primary_goal: profile.primary_goal || "",
         secondary_goals: profile.secondary_goals || [],
         available_equipment: profile.available_equipment || [],
+        equipment_ids: (profile as any).equipment_ids || [],
         available_time_minutes: profile.available_time_minutes || 30,
         workout_preferences: profile.workout_preferences || {
           frequency: "",
@@ -129,10 +130,16 @@ export default function FitnessProfile() {
 
   const onSubmit = async (data: FitnessProfileFormData) => {
     try {
+      // Convert equipment_ids to array of UUIDs if needed
+      const submitData = {
+        ...data,
+        equipment_ids: data.equipment_ids || [],
+      };
+      
       if (profile) {
-        await updateProfile.mutateAsync({ data });
+        await updateProfile.mutateAsync({ data: submitData });
       } else {
-        await createProfile.mutateAsync(data);
+        await createProfile.mutateAsync(submitData);
       }
     } catch (error) {
       // Error handled by hook
@@ -307,25 +314,64 @@ export default function FitnessProfile() {
                 <div>
                   <Label className="text-base">Available Equipment</Label>
                   <FormDescription className="mb-3">
-                    Select all equipment you have access to
+                    Select all equipment you have access to. Images help identify equipment.
                   </FormDescription>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {EQUIPMENT_OPTIONS.map((equipment) => {
-                      const checked = form.watch("available_equipment")?.includes(equipment) || false;
-                      return (
-                        <div key={equipment} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`equipment-${equipment}`}
-                            checked={checked}
-                            onCheckedChange={() => toggleArrayItem("available_equipment", equipment)}
-                          />
-                          <Label htmlFor={`equipment-${equipment}`} className="cursor-pointer font-normal text-sm">
-                            {equipment}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {equipmentLoading ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                      {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <Skeleton key={i} className="h-24 w-full" />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                      {allEquipment?.map((equipment) => {
+                        const checked = form.watch("equipment_ids")?.includes(equipment.id) || false;
+                        return (
+                          <div
+                            key={equipment.id}
+                            className={cn(
+                              "relative border-2 rounded-lg p-3 cursor-pointer transition-all",
+                              checked
+                                ? "border-accent bg-accent/10"
+                                : "border-border hover:border-accent/50"
+                            )}
+                            onClick={() => toggleArrayItem("equipment_ids", equipment.id)}
+                          >
+                            {equipment.image_url && (
+                              <div className="aspect-square mb-2 rounded overflow-hidden bg-muted">
+                                <img
+                                  src={equipment.image_url}
+                                  alt={equipment.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`equipment-${equipment.id}`}
+                                checked={checked}
+                                onCheckedChange={() => toggleArrayItem("equipment_ids", equipment.id)}
+                              />
+                              <Label
+                                htmlFor={`equipment-${equipment.id}`}
+                                className="cursor-pointer font-normal text-sm flex-1"
+                              >
+                                {equipment.name}
+                              </Label>
+                            </div>
+                            {equipment.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{equipment.description}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {(!allEquipment || allEquipment.length === 0) && (
+                        <p className="text-sm text-muted-foreground col-span-full">
+                          No equipment available. Please contact support.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <FormField

@@ -11,6 +11,7 @@ export interface FitnessProfile {
   primary_goal: string | null;
   secondary_goals: string[];
   available_equipment: string[];
+  equipment_ids?: string[]; // UUID array for equipment
   available_time_minutes: number;
   workout_preferences: Record<string, any>;
   injuries_limitations: string[];
@@ -22,6 +23,7 @@ export interface UpdateFitnessProfileData {
   primary_goal?: string;
   secondary_goals?: string[];
   available_equipment?: string[];
+  equipment_ids?: string[]; // UUID array for equipment
   available_time_minutes?: number;
   workout_preferences?: Record<string, any>;
   injuries_limitations?: string[];
@@ -78,18 +80,25 @@ export function useCreateFitnessProfile() {
 
       if (!member) throw new Error("Member not found");
 
+      const insertData: any = {
+        ...data,
+        member_id: member.id,
+        user_id: user.id,
+        secondary_goals: data.secondary_goals || [],
+        available_equipment: data.available_equipment || [],
+        workout_preferences: data.workout_preferences || {},
+        injuries_limitations: data.injuries_limitations || [],
+        available_time_minutes: data.available_time_minutes || 30,
+      };
+      
+      // Include equipment_ids if provided
+      if (data.equipment_ids !== undefined) {
+        insertData.equipment_ids = data.equipment_ids;
+      }
+
       const { data: profile, error } = await supabase
         .from("member_fitness_profiles")
-        .insert({
-          ...data,
-          member_id: member.id,
-          user_id: user.id,
-          secondary_goals: data.secondary_goals || [],
-          available_equipment: data.available_equipment || [],
-          workout_preferences: data.workout_preferences || {},
-          injuries_limitations: data.injuries_limitations || [],
-          available_time_minutes: data.available_time_minutes || 30,
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -127,9 +136,15 @@ export function useUpdateFitnessProfile() {
         targetMemberId = member.id;
       }
 
+      const updateData: any = { ...data };
+      // Ensure equipment_ids is included if provided
+      if (data.equipment_ids !== undefined) {
+        updateData.equipment_ids = data.equipment_ids;
+      }
+
       const { data: profile, error } = await supabase
         .from("member_fitness_profiles")
-        .update(data)
+        .update(updateData)
         .eq("member_id", targetMemberId)
         .select()
         .single();

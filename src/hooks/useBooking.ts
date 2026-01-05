@@ -142,33 +142,6 @@ export function useBookClass() {
 
   return useMutation({
     mutationFn: async ({ sessionId, paymentMethod, passId }: BookClassParams) => {
-      // Check if using a guest pass and if guest pass agreement is signed
-      if (paymentMethod === "pass" && passId) {
-        const { data: pass, error: passError } = await supabase
-          .from("class_passes")
-          .select("pass_type")
-          .eq("id", passId)
-          .single();
-
-        if (!passError && pass) {
-          const isGuestPass = pass.pass_type?.toLowerCase().includes("guest") || 
-                             pass.pass_type?.toLowerCase().includes("day") ||
-                             pass.pass_type === "guest_pass";
-          
-          if (isGuestPass) {
-            // Check if user has signed guest pass agreement
-            const { data: profile, error: profileError } = await supabase
-              .from("profiles")
-              .select("guest_pass_agreement_signed")
-              .eq("user_id", currentUserId)
-              .single();
-
-            if (!profileError && profile && !profile.guest_pass_agreement_signed) {
-              throw new Error("Guest Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
-            }
-          }
-        }
-      }
       // Validate and refresh session to ensure JWT is current for RLS
       const { data: { session: authSession }, error: sessionRefreshError } = 
         await supabase.auth.getSession();
@@ -179,26 +152,14 @@ export function useBookClass() {
 
       const currentUserId = authSession.user.id;
 
-      // Look up member_id for this user (if they're a member)
-      const { data: memberData } = await supabase
-        .from("members")
-        .select("id")
-        .eq("user_id", currentUserId)
-        .maybeSingle();
-
-      // Get session details to check availability and advance booking limit
+      // Get session details to check advance booking limit
       const { data: session, error: sessionError } = await supabase
         .from("class_sessions")
-        .select("*, class_type:class_types(*)")
+        .select("session_date, class_type:class_types(*)")
         .eq("id", sessionId)
         .single();
 
       if (sessionError) throw sessionError;
-
-      // Check if session is full
-      if (session.current_enrollment >= session.max_capacity) {
-        throw new Error("This class is full");
-      }
 
       // Check advance booking limit (3 weeks for members, 2 weeks for non-members)
       const sessionDate = parseISO(session.session_date);
@@ -208,33 +169,53 @@ export function useBookClass() {
         throw new Error("Cannot book more than 3 weeks in advance");
       }
 
-      // Check for existing booking
-      const { data: existingBooking } = await supabase
-        .from("class_bookings")
-        .select("id")
-        .eq("session_id", sessionId)
-        .eq("user_id", currentUserId)
-        .eq("status", "confirmed")
-        .single();
+      // Validate agreements for pass-based bookings
+      if (paymentMethod === "pass" && passId) {
+        const { data: pass, error: passError } = await supabase
+          .from("class_passes")
+          .select("pass_type")
+          .eq("id", passId)
+          .single();
 
-      if (existingBooking) {
-        throw new Error("You have already booked this class");
+        if (passError) throw passError;
+        if (!pass) throw new Error("Invalid pass");
+
+        const isGuestPass = pass.pass_type?.toLowerCase().includes("guest") || 
+                           pass.pass_type?.toLowerCase().includes("day") ||
+                           pass.pass_type === "guest_pass";
+        
+        const isSingleClassPass = pass.pass_type?.toLowerCase().includes("single") ||
+                                  pass.pass_type === "single_class_pass";
+        
+        if (isGuestPass || isSingleClassPass) {
+          // Check if user has signed the required agreement
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("guest_pass_agreement_signed, single_class_pass_agreement_signed")
+            .eq("user_id", currentUserId)
+            .single();
+
+          if (profileError) throw profileError;
+          
+          if (isGuestPass && (!profile || !profile.guest_pass_agreement_signed)) {
+            throw new Error("Guest Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
+          }
+          
+          if (isSingleClassPass && (!profile || !profile.single_class_pass_agreement_signed)) {
+            throw new Error("Single Class Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
+          }
+        }
       }
 
-      // Create booking
-      const bookingData: any = {
-        session_id: sessionId,
-        user_id: currentUserId,
-        member_id: memberData?.id || null, // Populate member_id if user is a member
-        status: "confirmed",
-        payment_method: paymentMethod,
-      };
+      // Prepare variables for atomic booking function
+      let memberCreditId: string | null = null;
+      let passIdToUse: string | null = passId || null;
 
-      // Handle credit deduction for member credits
+      // Find credit ID if using credits payment
       if (paymentMethod === "credits") {
         const { data: credit, error: creditError } = await supabase
           .from("member_credits")
-          .select("id, credits_remaining")
+          .select("id")
           .eq("user_id", currentUserId)
           .eq("credit_type", "class")
           .gt("expires_at", new Date().toISOString())
@@ -246,78 +227,33 @@ export function useBookClass() {
         if (creditError) throw creditError;
         if (!credit) throw new Error("No available class credits");
 
-        // Deduct the credit
-        const { error: deductError } = await supabase
-          .from("member_credits")
-          .update({ credits_remaining: credit.credits_remaining - 1 })
-          .eq("id", credit.id);
-
-        if (deductError) throw deductError;
-
-        bookingData.member_credit_id = credit.id;
-        bookingData.credits_used = 1;
-      } 
-      // Handle class pass deduction
-      else if (paymentMethod === "pass" && passId) {
-        const { data: pass, error: passError } = await supabase
-          .from("class_passes")
-          .select("id, classes_remaining, pass_type")
-          .eq("id", passId)
-          .single();
-
-        if (passError) throw passError;
-        if (!pass || pass.classes_remaining <= 0) {
-          throw new Error("This pass has no remaining classes");
-        }
-
-        // Check if using a guest pass and if guest pass agreement is signed
-        const isGuestPass = pass.pass_type?.toLowerCase().includes("guest") || 
-                           pass.pass_type?.toLowerCase().includes("day") ||
-                           pass.pass_type === "guest_pass";
-        
-        if (isGuestPass) {
-          // Check if user has signed guest pass agreement
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("guest_pass_agreement_signed")
-            .eq("user_id", user.id)
-            .single();
-
-          if (profileError) throw profileError;
-          if (!profile || !profile.guest_pass_agreement_signed) {
-            throw new Error("Guest Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
-          }
-        }
-
-        // Check if using a single class pass and if single class pass agreement is signed
-        const isSingleClassPass = pass.pass_type?.toLowerCase().includes("single") ||
-                                  pass.pass_type === "single_class_pass";
-        
-        if (isSingleClassPass) {
-          // Check if user has signed single class pass agreement
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("single_class_pass_agreement_signed")
-            .eq("user_id", user.id)
-            .single();
-
-          if (profileError) throw profileError;
-          if (!profile || !profile.single_class_pass_agreement_signed) {
-            throw new Error("Single Class Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
-          }
-        }
-
-        // Deduct from pass
-        const { error: deductError } = await supabase
-          .from("class_passes")
-          .update({ classes_remaining: pass.classes_remaining - 1 })
-          .eq("id", passId);
-
-        if (deductError) throw deductError;
-
-        bookingData.pass_id = passId;
-        bookingData.credits_used = 1;
+        memberCreditId = credit.id;
       }
+
+      // Use atomic booking function to prevent race conditions
+      const { data: bookingResult, error: bookingFunctionError } = await supabase
+        .rpc("create_atomic_class_booking", {
+          _session_id: sessionId,
+          _user_id: currentUserId,
+          _payment_method: paymentMethod,
+          _member_credit_id: memberCreditId,
+          _pass_id: passIdToUse,
+        });
+
+      if (bookingFunctionError) throw bookingFunctionError;
+
+      if (!bookingResult?.success) {
+        throw new Error(bookingResult?.error || "Failed to create booking");
+      }
+
+      // Get the created booking for return value and email
+      const { data: booking, error: fetchBookingError } = await supabase
+        .from("class_bookings")
+        .select("*")
+        .eq("id", bookingResult.booking_id)
+        .single();
+
+      if (fetchBookingError) throw fetchBookingError;
 
       // Check if user is claiming from waitlist (has 'notified' status for this session)
       const { data: waitlistEntry } = await supabase
@@ -326,17 +262,9 @@ export function useBookClass() {
         .eq("session_id", sessionId)
         .eq("user_id", currentUserId)
         .eq("status", "notified")
-        .single();
+        .maybeSingle();
 
       const isWaitlistClaim = !!waitlistEntry;
-
-      const { data, error } = await supabase
-        .from("class_bookings")
-        .insert(bookingData)
-        .select()
-        .single();
-
-      if (error) throw error;
 
       // If claiming from waitlist, update the waitlist entry to 'claimed'
       if (isWaitlistClaim && waitlistEntry) {
@@ -397,7 +325,7 @@ export function useBookClass() {
         // Don't throw - booking succeeded, email is secondary
       }
 
-      return data;
+      return booking;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
@@ -442,14 +370,14 @@ export function useCancelBooking() {
 
       if (bookingError) throw bookingError;
 
-      // Check 24-hour cancellation policy
+      // Check 12-hour cancellation policy
       const sessionDateTime = new Date(
         `${booking.session.session_date}T${booking.session.start_time}`
       );
       const hoursUntilClass = differenceInHours(sessionDateTime, new Date());
 
       let forfeitCredit = false;
-      if (hoursUntilClass < 24) {
+      if (hoursUntilClass < 12) {
         forfeitCredit = true;
       }
 
@@ -468,7 +396,7 @@ export function useCancelBooking() {
 
       if (error) throw error;
 
-      // Refund credit/pass if cancelled more than 24 hours in advance
+      // Refund credit/pass if cancelled more than 12 hours in advance
       if (!forfeitCredit) {
         if (booking.member_credit_id) {
           // Refund member credit
@@ -553,7 +481,7 @@ export function useCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["user-credits"] });
       
       if (data.forfeitCredit) {
-        toast.warning("Class cancelled. Credit/pass forfeited due to late cancellation (less than 24 hours before class).");
+        toast.warning("Class cancelled. Credit/pass forfeited due to late cancellation (less than 12 hours before class).");
       } else {
         toast.success("Class cancelled successfully. Credit/pass refunded.");
       }
