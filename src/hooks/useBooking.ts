@@ -142,6 +142,33 @@ export function useBookClass() {
 
   return useMutation({
     mutationFn: async ({ sessionId, paymentMethod, passId }: BookClassParams) => {
+      // Check if using a guest pass and if guest pass agreement is signed
+      if (paymentMethod === "pass" && passId) {
+        const { data: pass, error: passError } = await supabase
+          .from("class_passes")
+          .select("pass_type")
+          .eq("id", passId)
+          .single();
+
+        if (!passError && pass) {
+          const isGuestPass = pass.pass_type?.toLowerCase().includes("guest") || 
+                             pass.pass_type?.toLowerCase().includes("day") ||
+                             pass.pass_type === "guest_pass";
+          
+          if (isGuestPass) {
+            // Check if user has signed guest pass agreement
+            const { data: profile, error: profileError } = await supabase
+              .from("profiles")
+              .select("guest_pass_agreement_signed")
+              .eq("user_id", currentUserId)
+              .single();
+
+            if (!profileError && profile && !profile.guest_pass_agreement_signed) {
+              throw new Error("Guest Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
+            }
+          }
+        }
+      }
       // Validate and refresh session to ensure JWT is current for RLS
       const { data: { session: authSession }, error: sessionRefreshError } = 
         await supabase.auth.getSession();
@@ -234,13 +261,50 @@ export function useBookClass() {
       else if (paymentMethod === "pass" && passId) {
         const { data: pass, error: passError } = await supabase
           .from("class_passes")
-          .select("id, classes_remaining")
+          .select("id, classes_remaining, pass_type")
           .eq("id", passId)
           .single();
 
         if (passError) throw passError;
         if (!pass || pass.classes_remaining <= 0) {
           throw new Error("This pass has no remaining classes");
+        }
+
+        // Check if using a guest pass and if guest pass agreement is signed
+        const isGuestPass = pass.pass_type?.toLowerCase().includes("guest") || 
+                           pass.pass_type?.toLowerCase().includes("day") ||
+                           pass.pass_type === "guest_pass";
+        
+        if (isGuestPass) {
+          // Check if user has signed guest pass agreement
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("guest_pass_agreement_signed")
+            .eq("user_id", user.id)
+            .single();
+
+          if (profileError) throw profileError;
+          if (!profile || !profile.guest_pass_agreement_signed) {
+            throw new Error("Guest Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
+          }
+        }
+
+        // Check if using a single class pass and if single class pass agreement is signed
+        const isSingleClassPass = pass.pass_type?.toLowerCase().includes("single") ||
+                                  pass.pass_type === "single_class_pass";
+        
+        if (isSingleClassPass) {
+          // Check if user has signed single class pass agreement
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("single_class_pass_agreement_signed")
+            .eq("user_id", user.id)
+            .single();
+
+          if (profileError) throw profileError;
+          if (!profile || !profile.single_class_pass_agreement_signed) {
+            throw new Error("Single Class Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
+          }
         }
 
         // Deduct from pass

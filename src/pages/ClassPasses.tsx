@@ -28,10 +28,13 @@ const otherClassesPricing: PricingTier[] = [
 
 export default function ClassPasses() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: membership } = useUserMembership();
+  const { profile } = useUserProfile();
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
 
   const isMember = membership?.status === 'active';
+  const needsAgreement = !profile?.single_class_pass_agreement_signed;
 
   const handlePurchase = async (
     category: 'pilatesCycling' | 'otherClasses',
@@ -39,6 +42,13 @@ export default function ClassPasses() {
   ) => {
     if (!user) {
       toast.error("Please sign in to purchase class passes");
+      return;
+    }
+
+    // Check if single class pass and agreement is required
+    if (passType === 'single' && needsAgreement) {
+      toast.error("Please sign the Single Class Pass Agreement before purchasing");
+      navigate("/member/waivers");
       return;
     }
 

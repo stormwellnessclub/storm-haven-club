@@ -3,23 +3,123 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useAgreements } from "@/hooks/useAgreements";
+import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
+import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
 import { FileCheck, Check, AlertCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
+interface AgreementCardProps {
+  agreementType: string;
+  title: string;
+  description: string;
+  isSigned: boolean;
+  signedAt: string | null;
+  pdfUrls: string[];
+  onSign: () => void;
+  isSigning: boolean;
+  required?: boolean;
+}
+
+function AgreementCard({
+  title,
+  description,
+  isSigned,
+  signedAt,
+  pdfUrls,
+  onSign,
+  isSigning,
+  required = true,
+}: AgreementCardProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-accent" />
+            <CardTitle>{title}</CardTitle>
+          </div>
+          {isSigned ? (
+            <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/30">
+              <Check className="h-3 w-3 mr-1" />
+              <span>Signed</span>
+            </Badge>
+          ) : required ? (
+            <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              <span>Required</span>
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-secondary text-secondary-foreground">
+              <span>Optional</span>
+            </Badge>
+          )}
+        </div>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <AgreementPDFViewer
+          pdfUrl={pdfUrls}
+          title={title}
+          height="500px"
+          showControls={true}
+        />
+
+        {isSigned ? (
+          <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Check className="h-5 w-5" />
+              <span className="font-medium">Agreement Signed</span>
+            </div>
+            {signedAt && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Signed on {format(parseISO(signedAt), "MMMM d, yyyy 'at' h:mm a")}
+              </p>
+            )}
+          </div>
+        ) : (
+          <Button onClick={onSign} disabled={isSigning} className="w-full">
+            {isSigning ? "Signing..." : "I Agree - Sign Agreement"}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function MemberWaivers() {
-  const { 
-    profile, 
-    isLoading, 
-    signWaiver, 
+  const {
+    profile,
+    isLoading: profileLoading,
+    signWaiver,
     isSigningWaiver,
     signMembershipAgreement,
-    isSigningAgreement 
+    isSigningAgreement,
+    signKidsCareAgreement,
+    isSigningKidsCareAgreement,
+    signClassPackageAgreement,
+    isSigningClassPackageAgreement,
+    signGuestPassAgreement,
+    isSigningGuestPassAgreement,
+    signPrivateEventAgreement,
+    isSigningPrivateEventAgreement,
+    signSingleClassPassAgreement,
+    isSigningSingleClassPassAgreement,
   } = useUserProfile();
 
-  if (isLoading) {
+  const { data: kidsCarePasses } = useKidsCarePasses();
+  const hasKidsCareAccess = (kidsCarePasses && kidsCarePasses.length > 0) || false;
+
+  // Fetch all agreements
+  const { data: liabilityWaivers, isLoading: agreementsLoading } = useAgreements("liability_waiver");
+  const { data: membershipAgreements } = useAgreements("membership_agreement");
+  const { data: kidsCareAgreements } = useAgreements("kids_care");
+  const { data: guestPassAgreements } = useAgreements("guest_pass");
+  const { data: privateEventAgreements } = useAgreements("private_event");
+  const { data: singleClassPassAgreements } = useAgreements("single_class_pass");
+
+  if (profileLoading || agreementsLoading) {
     return (
       <MemberLayout title="Waivers & Agreements">
         <div className="space-y-6">
@@ -30,9 +130,15 @@ export default function MemberWaivers() {
     );
   }
 
+  // Get PDF URLs for each agreement type
+  const getPdfUrls = (agreements: any[] | undefined) => {
+    if (!agreements || agreements.length === 0) return [];
+    return agreements.map((a) => a.pdf_url).filter(Boolean);
+  };
+
   return (
     <MemberLayout title="Waivers & Agreements">
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6 max-w-4xl">
         <div className="mb-6">
           <p className="text-muted-foreground">
             Please review and sign the required waivers and agreements to participate in classes and use club facilities.
@@ -40,176 +146,97 @@ export default function MemberWaivers() {
         </div>
 
         {/* Liability Waiver */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileCheck className="h-5 w-5 text-accent" />
-                <CardTitle>Liability Waiver</CardTitle>
-              </div>
-              {profile?.waiver_signed ? (
-                <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/30">
-                  <Check className="h-3 w-3 mr-1" />
-                  Signed
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Required
-                </Badge>
-              )}
-            </div>
-            <CardDescription>
-              Required for participation in fitness classes and use of equipment
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <ScrollArea className="h-48 rounded-md border p-4 bg-secondary/30">
-              <div className="prose prose-sm max-w-none text-muted-foreground">
-                <h4 className="text-foreground font-semibold mb-2">Release and Waiver of Liability</h4>
-                <p className="mb-3">
-                  In consideration of being allowed to participate in any activities offered by Storm Wellness Club 
-                  ("the Club"), including but not limited to fitness classes, use of exercise equipment, spa services, 
-                  and other wellness programs, I hereby agree to the following:
-                </p>
-                <p className="mb-3">
-                  <strong>1. Assumption of Risk:</strong> I understand that physical exercise and fitness activities 
-                  carry inherent risks of injury. I voluntarily assume full responsibility for any risks of loss, 
-                  property damage, or personal injury that may be sustained as a result of participating in Club activities.
-                </p>
-                <p className="mb-3">
-                  <strong>2. Release of Liability:</strong> I release and hold harmless Storm Wellness Club, its 
-                  officers, directors, employees, instructors, and agents from any and all liability, claims, demands, 
-                  and causes of action arising from my participation in Club activities.
-                </p>
-                <p className="mb-3">
-                  <strong>3. Medical Clearance:</strong> I confirm that I am physically fit and have obtained medical 
-                  clearance to participate in exercise activities, or I voluntarily choose to participate without 
-                  such clearance, fully understanding the potential risks involved.
-                </p>
-                <p className="mb-3">
-                  <strong>4. Rules and Regulations:</strong> I agree to abide by all rules and regulations of the 
-                  Club and to follow the instructions of staff and instructors.
-                </p>
-                <p>
-                  By signing below, I acknowledge that I have read this waiver, understand its terms, and agree 
-                  to be bound by it.
-                </p>
-              </div>
-            </ScrollArea>
-
-            {profile?.waiver_signed ? (
-              <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Check className="h-5 w-5" />
-                  <span className="font-medium">Waiver Signed</span>
-                </div>
-                {profile.waiver_signed_at && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Signed on {format(parseISO(profile.waiver_signed_at), "MMMM d, yyyy 'at' h:mm a")}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <Button 
-                onClick={() => signWaiver()} 
-                disabled={isSigningWaiver}
-                className="w-full"
-              >
-                {isSigningWaiver ? "Signing..." : "I Agree - Sign Waiver"}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        {liabilityWaivers && liabilityWaivers.length > 0 && (
+          <AgreementCard
+            agreementType="liability_waiver"
+            title="Liability Waiver"
+            description="Required for participation in fitness classes and use of equipment"
+            isSigned={profile?.waiver_signed || false}
+            signedAt={profile?.waiver_signed_at || null}
+            pdfUrls={getPdfUrls(liabilityWaivers)}
+            onSign={() => signWaiver()}
+            isSigning={isSigningWaiver}
+            required={true}
+          />
+        )}
 
         {/* Membership Agreement */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileCheck className="h-5 w-5 text-accent" />
-                <CardTitle>Membership Agreement</CardTitle>
-              </div>
-              {profile?.membership_agreement_signed ? (
-                <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/30">
-                  <Check className="h-3 w-3 mr-1" />
-                  Signed
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Required
-                </Badge>
-              )}
-            </div>
-            <CardDescription>
-              Terms and conditions of your membership
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <ScrollArea className="h-48 rounded-md border p-4 bg-secondary/30">
-              <div className="prose prose-sm max-w-none text-muted-foreground">
-                <h4 className="text-foreground font-semibold mb-2">Membership Terms and Conditions</h4>
-                <p className="mb-3">
-                  This Membership Agreement ("Agreement") is entered into between Storm Wellness Club ("the Club") 
-                  and the undersigned member ("Member").
-                </p>
-                <p className="mb-3">
-                  <strong>1. Membership Term:</strong> Membership is provided on a month-to-month or annual basis 
-                  as selected. Annual memberships require a 12-month commitment.
-                </p>
-                <p className="mb-3">
-                  <strong>2. Membership Dues:</strong> Monthly dues are due on the billing date each month. 
-                  Annual memberships are billed in full at the time of enrollment or may be financed through 
-                  monthly payments.
-                </p>
-                <p className="mb-3">
-                  <strong>3. Cancellation Policy:</strong> Members may cancel their membership by providing 
-                  30 days written notice. Annual memberships are subject to early termination fees.
-                </p>
-                <p className="mb-3">
-                  <strong>4. Club Access:</strong> Membership provides access to Club facilities during operating 
-                  hours. The Club reserves the right to modify hours and close for holidays or maintenance.
-                </p>
-                <p className="mb-3">
-                  <strong>5. Guest Policy:</strong> Members may bring guests as allowed by their membership tier. 
-                  All guests must sign a waiver and abide by Club rules.
-                </p>
-                <p className="mb-3">
-                  <strong>6. Code of Conduct:</strong> Members agree to conduct themselves in a respectful and 
-                  appropriate manner at all times. The Club reserves the right to terminate membership for 
-                  violations of the code of conduct.
-                </p>
-                <p>
-                  By signing below, I acknowledge that I have read this Agreement, understand its terms, and 
-                  agree to be bound by it.
-                </p>
-              </div>
-            </ScrollArea>
+        {membershipAgreements && membershipAgreements.length > 0 && (
+          <AgreementCard
+            agreementType="membership_agreement"
+            title="Membership Agreement"
+            description="Terms and conditions of your membership"
+            isSigned={profile?.membership_agreement_signed || false}
+            signedAt={profile?.membership_agreement_signed_at || null}
+            pdfUrls={getPdfUrls(membershipAgreements)}
+            onSign={() => signMembershipAgreement()}
+            isSigning={isSigningAgreement}
+            required={true}
+          />
+        )}
 
-            {profile?.membership_agreement_signed ? (
-              <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Check className="h-5 w-5" />
-                  <span className="font-medium">Agreement Signed</span>
-                </div>
-                {profile.membership_agreement_signed_at && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Signed on {format(parseISO(profile.membership_agreement_signed_at), "MMMM d, yyyy 'at' h:mm a")}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <Button 
-                onClick={() => signMembershipAgreement()} 
-                disabled={isSigningAgreement}
-                className="w-full"
-              >
-                {isSigningAgreement ? "Signing..." : "I Agree - Sign Agreement"}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        {/* Kids Care Agreement - Show for all members (they may want to sign before purchasing pass) */}
+        {kidsCareAgreements && kidsCareAgreements.length > 0 && (
+          <AgreementCard
+            agreementType="kids_care"
+            title="Kids Care Agreement"
+            description="Required for booking Kids Care services. Please review both documents."
+            isSigned={profile?.kids_care_agreement_signed || false}
+            signedAt={profile?.kids_care_agreement_signed_at || null}
+            pdfUrls={getPdfUrls(kidsCareAgreements)}
+            onSign={() => signKidsCareAgreement()}
+            isSigning={isSigningKidsCareAgreement}
+            required={true}
+          />
+        )}
+
+        {/* Guest Pass Agreement */}
+        {guestPassAgreements && guestPassAgreements.length > 0 && (
+          <AgreementCard
+            agreementType="guest_pass"
+            title="Guest Pass Agreement"
+            description="Required for guest pass purchases. Please review both documents."
+            isSigned={profile?.guest_pass_agreement_signed || false}
+            signedAt={profile?.guest_pass_agreement_signed_at || null}
+            pdfUrls={getPdfUrls(guestPassAgreements)}
+            onSign={() => signGuestPassAgreement()}
+            isSigning={isSigningGuestPassAgreement}
+            required={false}
+          />
+        )}
+
+        {/* Private Event Agreement */}
+        {privateEventAgreements && privateEventAgreements.length > 0 && (
+          <AgreementCard
+            agreementType="private_event"
+            title="Private Event Agreement"
+            description="Required for booking private events"
+            isSigned={profile?.private_event_agreement_signed || false}
+            signedAt={profile?.private_event_agreement_signed_at || null}
+            pdfUrls={getPdfUrls(privateEventAgreements)}
+            onSign={() => signPrivateEventAgreement()}
+            isSigning={isSigningPrivateEventAgreement}
+            required={false}
+          />
+        )}
+
+        {/* Single Class Pass Agreement */}
+        {singleClassPassAgreements && singleClassPassAgreements.length > 0 && (
+          <AgreementCard
+            agreementType="single_class_pass"
+            title="Single Class Pass Agreement"
+            description="Required for single class pass purchases. Please review both documents."
+            isSigned={profile?.single_class_pass_agreement_signed || false}
+            signedAt={profile?.single_class_pass_agreement_signed_at || null}
+            pdfUrls={getPdfUrls(singleClassPassAgreements)}
+            onSign={() => signSingleClassPassAgreement()}
+            isSigning={isSigningSingleClassPassAgreement}
+            required={false}
+          />
+        )}
+
+        {/* Class Package Agreement - Only show if needed (for non-members) */}
+        {/* Note: This might need conditional display based on member status */}
       </div>
     </MemberLayout>
   );

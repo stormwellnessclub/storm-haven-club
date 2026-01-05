@@ -29,8 +29,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useFitnessProfile, useCreateFitnessProfile, useUpdateFitnessProfile } from "@/hooks/useFitnessProfile";
+import { useAllEquipment } from "@/hooks/useEquipment";
 import { Activity, Save, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 const FITNESS_LEVELS = [
   { value: "beginner", label: "Beginner" },
@@ -64,25 +66,12 @@ const SECONDARY_GOAL_OPTIONS = [
   "Athletic Performance",
 ];
 
-const EQUIPMENT_OPTIONS = [
-  "Home Gym",
-  "Dumbbells",
-  "Barbell",
-  "Resistance Bands",
-  "Yoga Mat",
-  "Kettlebells",
-  "Cardio Machine",
-  "Pull-up Bar",
-  "Medicine Ball",
-  "Foam Roller",
-  "None",
-];
-
 const fitnessProfileSchema = z.object({
   fitness_level: z.enum(["beginner", "intermediate", "advanced"]).optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   secondary_goals: z.array(z.string()).default([]),
-  available_equipment: z.array(z.string()).default([]),
+  available_equipment: z.array(z.string()).default([]), // Keep for backward compatibility
+  equipment_ids: z.array(z.string().uuid()).default([]), // New: equipment IDs
   available_time_minutes: z.number().min(10).max(300).default(30),
   workout_preferences: z.object({
     frequency: z.string().optional(),
@@ -96,6 +85,7 @@ type FitnessProfileFormData = z.infer<typeof fitnessProfileSchema>;
 
 export default function FitnessProfile() {
   const { data: profile, isLoading } = useFitnessProfile();
+  const { data: allEquipment, isLoading: equipmentLoading } = useAllEquipment();
   const createProfile = useCreateFitnessProfile();
   const updateProfile = useUpdateFitnessProfile();
 
@@ -158,7 +148,7 @@ export default function FitnessProfile() {
     form.setValue("injuries_limitations", injuries);
   };
 
-  const toggleArrayItem = (field: "secondary_goals" | "available_equipment", value: string) => {
+  const toggleArrayItem = (field: "secondary_goals" | "available_equipment" | "equipment_ids", value: string) => {
     const current = form.getValues(field) || [];
     const updated = current.includes(value)
       ? current.filter((item) => item !== value)

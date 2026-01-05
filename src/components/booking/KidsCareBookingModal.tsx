@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useBookKidsCare, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
   const navigate = useNavigate();
   const bookKidsCare = useBookKidsCare();
   const { data: availablePasses, isLoading: passesLoading } = useKidsCarePasses();
+  const { profile } = useUserProfile();
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedStartTime, setSelectedStartTime] = useState<string>("");
@@ -82,6 +84,21 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
   const handleBook = async () => {
     if (!user) {
       navigate("/auth");
+      onOpenChange(false);
+      return;
+    }
+
+    // Check agreements and service form
+    if (!profile?.kids_care_agreement_signed) {
+      toast.error("Please sign the Kids Care Agreement first. Go to Waivers & Agreements page.");
+      navigate("/member/waivers");
+      onOpenChange(false);
+      return;
+    }
+
+    if (!profile?.kids_care_service_form_completed) {
+      toast.error("Please complete the Kids Care Service Form first.");
+      navigate("/member/kids-care-service-form");
       onOpenChange(false);
       return;
     }
@@ -165,6 +182,23 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
             Reserve a supervised kids care session. Maximum 2 hours per child per day.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Agreement Status Alert */}
+        {profile && (!profile.kids_care_agreement_signed || !profile.kids_care_service_form_completed) && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="space-y-1">
+                {!profile.kids_care_agreement_signed && (
+                  <p>• Please sign the Kids Care Agreement on the <Button variant="link" className="h-auto p-0 underline font-semibold" onClick={() => { navigate("/member/waivers"); onOpenChange(false); }}>Waivers & Agreements</Button> page.</p>
+                )}
+                {!profile.kids_care_service_form_completed && (
+                  <p>• Please complete the <Button variant="link" className="h-auto p-0 underline font-semibold" onClick={() => { navigate("/member/kids-care-service-form"); onOpenChange(false); }}>Kids Care Service Form</Button>.</p>
+                )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {!user ? (
           <Alert>

@@ -23,6 +23,18 @@ export interface UserProfile {
   waiver_signed_at: string | null;
   membership_agreement_signed: boolean;
   membership_agreement_signed_at: string | null;
+  kids_care_agreement_signed: boolean;
+  kids_care_agreement_signed_at: string | null;
+  kids_care_service_form_completed: boolean;
+  kids_care_service_form_completed_at: string | null;
+  class_package_agreement_signed: boolean;
+  class_package_agreement_signed_at: string | null;
+  guest_pass_agreement_signed: boolean;
+  guest_pass_agreement_signed_at: string | null;
+  private_event_agreement_signed: boolean;
+  private_event_agreement_signed_at: string | null;
+  single_class_pass_agreement_signed: boolean;
+  single_class_pass_agreement_signed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +56,18 @@ export interface UpdateProfileData {
   waiver_signed_at?: string | null;
   membership_agreement_signed?: boolean;
   membership_agreement_signed_at?: string | null;
+  kids_care_agreement_signed?: boolean;
+  kids_care_agreement_signed_at?: string | null;
+  kids_care_service_form_completed?: boolean;
+  kids_care_service_form_completed_at?: string | null;
+  class_package_agreement_signed?: boolean;
+  class_package_agreement_signed_at?: string | null;
+  guest_pass_agreement_signed?: boolean;
+  guest_pass_agreement_signed_at?: string | null;
+  private_event_agreement_signed?: boolean;
+  private_event_agreement_signed_at?: string | null;
+  single_class_pass_agreement_signed?: boolean;
+  single_class_pass_agreement_signed_at?: string | null;
 }
 
 export function useUserProfile() {
@@ -147,6 +171,174 @@ export function useUserProfile() {
     },
   });
 
+  // Kids Care Agreement (both PDFs must be viewed/signed)
+  const signKidsCareAgreementMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          kids_care_agreement_signed: true,
+          kids_care_agreement_signed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
+      toast.success("Kids Care agreement signed successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to sign Kids Care agreement: " + error.message);
+    },
+  });
+
+  // Class Package Agreement
+  const signClassPackageAgreementMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          class_package_agreement_signed: true,
+          class_package_agreement_signed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
+      toast.success("Class Package agreement signed successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to sign agreement: " + error.message);
+    },
+  });
+
+  // Guest Pass Agreement
+  const signGuestPassAgreementMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          guest_pass_agreement_signed: true,
+          guest_pass_agreement_signed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
+      toast.success("Guest Pass agreement signed successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to sign agreement: " + error.message);
+    },
+  });
+
+  // Private Event Agreement
+  const signPrivateEventAgreementMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          private_event_agreement_signed: true,
+          private_event_agreement_signed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
+      toast.success("Private Event agreement signed successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to sign agreement: " + error.message);
+    },
+  });
+
+  // Single Class Pass Agreement
+  const signSingleClassPassAgreementMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          single_class_pass_agreement_signed: true,
+          single_class_pass_agreement_signed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
+      toast.success("Single Class Pass agreement signed successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to sign agreement: " + error.message);
+    },
+  });
+
+  // Complete Kids Care Service Form
+  const completeKidsCareServiceFormMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          kids_care_service_form_completed: true,
+          kids_care_service_form_completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
+      toast.success("Kids Care service form completed successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to complete form: " + error.message);
+    },
+  });
+
   return {
     profile: profileQuery.data,
     isLoading: profileQuery.isLoading,
@@ -157,5 +349,17 @@ export function useUserProfile() {
     isSigningWaiver: signWaiverMutation.isPending,
     signMembershipAgreement: signMembershipAgreementMutation.mutate,
     isSigningAgreement: signMembershipAgreementMutation.isPending,
+    signKidsCareAgreement: signKidsCareAgreementMutation.mutate,
+    isSigningKidsCareAgreement: signKidsCareAgreementMutation.isPending,
+    signClassPackageAgreement: signClassPackageAgreementMutation.mutate,
+    isSigningClassPackageAgreement: signClassPackageAgreementMutation.isPending,
+    signGuestPassAgreement: signGuestPassAgreementMutation.mutate,
+    isSigningGuestPassAgreement: signGuestPassAgreementMutation.isPending,
+    signPrivateEventAgreement: signPrivateEventAgreementMutation.mutate,
+    isSigningPrivateEventAgreement: signPrivateEventAgreementMutation.isPending,
+    signSingleClassPassAgreement: signSingleClassPassAgreementMutation.mutate,
+    isSigningSingleClassPassAgreement: signSingleClassPassAgreementMutation.isPending,
+    completeKidsCareServiceForm: completeKidsCareServiceFormMutation.mutate,
+    isCompletingKidsCareServiceForm: completeKidsCareServiceFormMutation.isPending,
   };
 }

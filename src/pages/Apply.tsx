@@ -9,6 +9,9 @@ import { toast } from "sonner";
 import { Check, ArrowRight, ExternalLink, Loader2, CreditCard } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
+import { useAgreements } from "@/hooks/useAgreements";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
@@ -50,6 +53,7 @@ const initialFormData = {
   foundingMember: "",
   creditCardAuth: false,
   paymentAcknowledged: false,
+  membershipAgreementSigned: false,
   oneYearCommitment: false,
   authAcknowledgment: false,
   submissionConfirmation: false,
@@ -167,6 +171,52 @@ const getInitialDraft = (): DraftData | null => {
     return null;
   }
 };
+
+interface MembershipAgreementSectionProps {
+  isSigned: boolean;
+  onCheckboxChange: (checked: boolean) => void;
+}
+
+function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAgreementSectionProps) {
+  const { data: membershipAgreements } = useAgreements("membership_agreement");
+  
+  const getPdfUrls = () => {
+    if (!membershipAgreements || membershipAgreements.length === 0) return [];
+    return membershipAgreements.map((a) => a.pdf_url).filter(Boolean);
+  };
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle>Membership Agreement</CardTitle>
+        <CardDescription>
+          Please review and agree to the Membership Agreement before submitting your application.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {membershipAgreements && membershipAgreements.length > 0 && (
+          <AgreementPDFViewer
+            pdfUrl={getPdfUrls()}
+            title="Membership Agreement"
+            height="500px"
+            showControls={true}
+          />
+        )}
+        <div className="flex items-start gap-3 p-4 rounded-lg border bg-secondary/30">
+          <Checkbox
+            id="membershipAgreement"
+            checked={isSigned}
+            onCheckedChange={onCheckboxChange}
+            required
+          />
+          <Label htmlFor="membershipAgreement" className="font-normal cursor-pointer text-sm leading-relaxed">
+            I have read, understand, and agree to the Membership Agreement terms and conditions stated above. *
+          </Label>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Apply() {
   const [searchParams] = useSearchParams();
@@ -308,8 +358,8 @@ export default function Apply() {
         !formData.email || !formData.phone || !formData.membershipPlan ||
         formData.wellnessGoals.length === 0 || formData.servicesInterested.length === 0 ||
         !formData.referredByMember || !formData.foundingMember ||
-        !formData.creditCardAuth || !formData.paymentAcknowledged || !formData.oneYearCommitment ||
-        !formData.authAcknowledgment || !formData.submissionConfirmation) {
+        !formData.creditCardAuth || !formData.paymentAcknowledged || !formData.membershipAgreementSigned ||
+        !formData.oneYearCommitment || !formData.authAcknowledgment || !formData.submissionConfirmation) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -397,6 +447,7 @@ export default function Apply() {
         one_year_commitment: formData.oneYearCommitment,
         auth_acknowledgment: formData.authAcknowledgment,
         submission_confirmation: formData.submissionConfirmation,
+        membership_agreement_signed: formData.membershipAgreementSigned,
         stripe_customer_id: stripeCustomerId,
       });
 
@@ -1063,6 +1114,11 @@ export default function Apply() {
               <h2 className="font-serif text-2xl mb-6 text-accent">Agreements</h2>
               
               <div className="space-y-6">
+                {/* Membership Agreement */}
+                <MembershipAgreementSection
+                  isSigned={formData.membershipAgreementSigned}
+                  onCheckboxChange={(checked) => handleCheckboxChange("membershipAgreementSigned", checked as boolean)}
+                />
                 <div>
                   <p className="text-sm text-muted-foreground mb-3">
                     <strong className="text-foreground">One-Year Membership Commitment</strong>

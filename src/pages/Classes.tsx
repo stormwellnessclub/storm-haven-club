@@ -20,7 +20,7 @@ import {
 // Updated images
 import reformerPilates from "@/assets/reformer-pilates.jpg";
 import reformerPilates2 from "@/assets/reformer-pilates-2.jpg";
-import pilates from "@/assets/pilates.jpg";
+import pilates from "@/assets/reformer-pilates-2.jpg";
 import cycling from "@/assets/cycling.jpg";
 import cycling2 from "@/assets/cycling-2.jpg";
 import aerobicsStudio from "@/assets/aerobics-studio.jpg";
