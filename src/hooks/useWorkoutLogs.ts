@@ -12,16 +12,9 @@ export interface WorkoutLog {
   duration_minutes: number | null;
   calories_burned: number | null;
   notes: string | null;
-  exercises: Array<{
-    name: string;
-    sets?: number;
-    reps?: string;
-    weight?: string;
-    duration_seconds?: number;
-    rest_seconds?: number;
-    notes?: string;
-  }>;
+  logged_at: string;
   performed_at: string;
+  exercises: any[];
   created_at: string;
   updated_at: string;
 }
@@ -32,8 +25,9 @@ export interface CreateWorkoutLogData {
   duration_minutes?: number;
   calories_burned?: number;
   notes?: string;
-  exercises?: WorkoutLog["exercises"];
+  logged_at?: string;
   performed_at?: string;
+  exercises?: any[];
 }
 
 export function useWorkoutLogs(memberId?: string, limit?: number) {
@@ -57,11 +51,11 @@ export function useWorkoutLogs(memberId?: string, limit?: number) {
         targetMemberId = member.id;
       }
 
-      let query = supabase
-        .from("workout_logs")
+      let query = (supabase
+        .from("workout_logs" as any)
         .select("*")
         .eq("member_id", targetMemberId)
-        .order("performed_at", { ascending: false });
+        .order("logged_at", { ascending: false }) as any);
 
       if (limit) {
         query = query.limit(limit);
@@ -70,7 +64,13 @@ export function useWorkoutLogs(memberId?: string, limit?: number) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return (data || []) as WorkoutLog[];
+      return (data || []).map((w: any) => ({
+        ...w,
+        performed_at: w.logged_at,
+        workout_name: w.workout_type,
+        exercises: [],
+        updated_at: w.created_at,
+      })) as WorkoutLog[];
     },
     enabled: !!user && (!!memberId || !!user.id),
   });
@@ -93,20 +93,30 @@ export function useCreateWorkoutLog() {
 
       if (!member) throw new Error("Member not found");
 
-      const { data: workout, error } = await supabase
-        .from("workout_logs")
+      const loggedAt = data.performed_at || data.logged_at || new Date().toISOString();
+
+      const { data: workout, error } = await (supabase
+        .from("workout_logs" as any)
         .insert({
-          ...data,
+          workout_type: data.workout_name || data.workout_type,
           member_id: member.id,
           user_id: user.id,
-          exercises: data.exercises || [],
-          performed_at: data.performed_at || new Date().toISOString(),
-        })
+          duration_minutes: data.duration_minutes,
+          calories_burned: data.calories_burned,
+          notes: data.notes,
+          logged_at: loggedAt,
+        } as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return workout as WorkoutLog;
+      return {
+        ...workout,
+        performed_at: workout.logged_at,
+        workout_name: workout.workout_type,
+        exercises: data.exercises || [],
+        updated_at: workout.created_at,
+      } as WorkoutLog;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workout-logs"] });
@@ -124,15 +134,30 @@ export function useUpdateWorkoutLog() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateWorkoutLogData> }) => {
-      const { data: workout, error } = await supabase
-        .from("workout_logs")
-        .update(data)
+      const updateData: any = {};
+      if (data.workout_type !== undefined) updateData.workout_type = data.workout_type;
+      if (data.workout_name !== undefined) updateData.workout_type = data.workout_name;
+      if (data.duration_minutes !== undefined) updateData.duration_minutes = data.duration_minutes;
+      if (data.calories_burned !== undefined) updateData.calories_burned = data.calories_burned;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+      if (data.logged_at !== undefined) updateData.logged_at = data.logged_at;
+      if (data.performed_at !== undefined) updateData.logged_at = data.performed_at;
+
+      const { data: workout, error } = await (supabase
+        .from("workout_logs" as any)
+        .update(updateData)
         .eq("id", id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return workout as WorkoutLog;
+      return {
+        ...workout,
+        performed_at: workout.logged_at,
+        workout_name: workout.workout_type,
+        exercises: [],
+        updated_at: workout.created_at,
+      } as WorkoutLog;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workout-logs"] });
@@ -149,10 +174,10 @@ export function useDeleteWorkoutLog() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("workout_logs")
+      const { error } = await (supabase
+        .from("workout_logs" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id) as any);
 
       if (error) throw error;
     },
@@ -165,6 +190,3 @@ export function useDeleteWorkoutLog() {
     },
   });
 }
-
-
-

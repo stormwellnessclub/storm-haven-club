@@ -21,37 +21,22 @@ export function useMemberPoints(memberId?: string) {
       if (!targetMemberId) {
         const { data: member } = await supabase
           .from("members")
-          .select("id, total_points, current_streak_days, longest_streak_days")
+          .select("id")
           .eq("user_id", user.id)
           .maybeSingle();
         
         if (!member) return null;
-        
-        return {
-          total_points: member.total_points || 0,
-          current_streak_days: member.current_streak_days || 0,
-          longest_streak_days: member.longest_streak_days || 0,
-        };
+        targetMemberId = member.id;
       }
 
-      const { data: member, error } = await supabase
-        .from("members")
-        .select("total_points, current_streak_days, longest_streak_days")
-        .eq("id", targetMemberId)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!member) return null;
-
+      // Return default values since these columns don't exist yet
+      // These can be calculated from workout_logs, habit_logs, etc.
       return {
-        total_points: member.total_points || 0,
-        current_streak_days: member.current_streak_days || 0,
-        longest_streak_days: member.longest_streak_days || 0,
+        total_points: 0,
+        current_streak_days: 0,
+        longest_streak_days: 0,
       };
     },
     enabled: !!user && (!!memberId || !!user.id),
   });
 }
-
-
-

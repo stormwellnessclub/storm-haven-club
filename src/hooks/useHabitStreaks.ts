@@ -33,10 +33,10 @@ export function useHabitStreaks(habitId?: string, memberId?: string) {
         targetMemberId = member.id;
       }
 
-      let query = supabase
-        .from("habit_streaks")
+      let query = (supabase
+        .from("habit_streaks" as any)
         .select("*")
-        .eq("member_id", targetMemberId);
+        .eq("member_id", targetMemberId) as any);
 
       if (habitId) {
         query = query.eq("habit_id", habitId);
@@ -72,12 +72,12 @@ export function useHabitStreak(habitId: string, memberId?: string) {
         targetMemberId = member.id;
       }
 
-      const { data, error } = await supabase
-        .from("habit_streaks")
+      const { data, error } = await (supabase
+        .from("habit_streaks" as any)
         .select("*")
         .eq("habit_id", habitId)
         .eq("member_id", targetMemberId)
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (error) throw error;
       return data as HabitStreak | null;
@@ -85,6 +85,3 @@ export function useHabitStreak(habitId: string, memberId?: string) {
     enabled: !!user && !!habitId && (!!memberId || !!user.id),
   });
 }
-
-
-

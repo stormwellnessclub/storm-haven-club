@@ -6,24 +6,25 @@ import { toast } from "sonner";
 export interface MemberGoal {
   id: string;
   member_id: string;
+  user_id: string;
   goal_type: string;
   title: string;
   description: string | null;
-  target_value: number | null;
+  target_value: number;
   current_value: number;
   unit: string | null;
   start_date: string;
   target_date: string | null;
-  status: "active" | "completed" | "paused" | "cancelled";
+  status: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateGoalData {
   goal_type: string;
-  title: string;
+  title?: string;
   description?: string;
-  target_value?: number;
+  target_value: number;
   current_value?: number;
   unit?: string;
   start_date?: string;
@@ -51,11 +52,11 @@ export function useMemberGoals(memberId?: string, status?: string) {
         targetMemberId = member.id;
       }
 
-      let query = supabase
-        .from("member_goals")
+      let query = (supabase
+        .from("member_goals" as any)
         .select("*")
         .eq("member_id", targetMemberId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any);
 
       if (status) {
         query = query.eq("status", status);
@@ -64,7 +65,11 @@ export function useMemberGoals(memberId?: string, status?: string) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return (data || []) as MemberGoal[];
+      return (data || []).map((g: any) => ({
+        ...g,
+        title: g.goal_type,
+        description: null,
+      })) as MemberGoal[];
     },
     enabled: !!user && (!!memberId || !!user.id),
   });
@@ -87,20 +92,28 @@ export function useCreateGoal() {
 
       if (!member) throw new Error("Member not found");
 
-      const { data: goal, error } = await supabase
-        .from("member_goals")
+      const { data: goal, error } = await (supabase
+        .from("member_goals" as any)
         .insert({
-          ...data,
+          goal_type: data.title || data.goal_type,
+          target_value: data.target_value,
           member_id: member.id,
+          user_id: user.id,
           current_value: data.current_value || 0,
+          unit: data.unit,
           status: "active",
           start_date: data.start_date || new Date().toISOString().split("T")[0],
-        })
+          target_date: data.target_date,
+        } as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return goal as MemberGoal;
+      return {
+        ...goal,
+        title: goal.goal_type,
+        description: null,
+      } as MemberGoal;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["member-goals"] });
@@ -117,15 +130,28 @@ export function useUpdateGoal() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateGoalData & { status?: string }> }) => {
-      const { data: goal, error } = await supabase
-        .from("member_goals")
-        .update(data)
+      const updateData: any = { ...data };
+      if (data.title !== undefined) {
+        updateData.goal_type = data.title;
+        delete updateData.title;
+      }
+      if (data.description !== undefined) {
+        delete updateData.description;
+      }
+      
+      const { data: goal, error } = await (supabase
+        .from("member_goals" as any)
+        .update(updateData)
         .eq("id", id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return goal as MemberGoal;
+      return {
+        ...goal,
+        title: goal.goal_type,
+        description: null,
+      } as MemberGoal;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["member-goals"] });
@@ -144,10 +170,10 @@ export function useDeleteGoal() {
   return useMutation({
     mutationFn: async (id: string) => {
       // Soft delete by setting status to cancelled
-      const { error } = await supabase
-        .from("member_goals")
-        .update({ status: "cancelled" })
-        .eq("id", id);
+      const { error } = await (supabase
+        .from("member_goals" as any)
+        .update({ status: "cancelled" } as any)
+        .eq("id", id) as any);
 
       if (error) throw error;
     },
@@ -160,6 +186,3 @@ export function useDeleteGoal() {
     },
   });
 }
-
-
-

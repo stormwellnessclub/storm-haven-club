@@ -24,11 +24,11 @@ export function useMemberTags(memberId: string) {
     queryFn: async (): Promise<MemberTag[]> => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from("member_tags")
+      const { data, error } = await (supabase
+        .from("member_tags" as any)
         .select("*")
         .eq("member_id", memberId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any);
 
       if (error) throw error;
       return (data || []) as MemberTag[];
@@ -45,14 +45,14 @@ export function useCreateMemberTag() {
     mutationFn: async (data: CreateTagData) => {
       if (!user) throw new Error("You must be signed in");
 
-      const { data: tag, error } = await supabase
-        .from("member_tags")
+      const { data: tag, error } = await (supabase
+        .from("member_tags" as any)
         .insert({
           ...data,
           created_by: user.id,
-        })
+        } as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return tag as MemberTag;
@@ -72,10 +72,10 @@ export function useDeleteMemberTag() {
 
   return useMutation({
     mutationFn: async ({ id, memberId }: { id: string; memberId: string }) => {
-      const { error } = await supabase
-        .from("member_tags")
+      const { error } = await (supabase
+        .from("member_tags" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id) as any);
 
       if (error) throw error;
     },
@@ -88,6 +88,3 @@ export function useDeleteMemberTag() {
     },
   });
 }
-
-
-

@@ -746,6 +746,168 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_milestones: {
+        Row: {
+          achieved_at: string | null
+          created_at: string | null
+          goal_id: string
+          id: string
+          milestone_label: string
+          milestone_value: number
+        }
+        Insert: {
+          achieved_at?: string | null
+          created_at?: string | null
+          goal_id: string
+          id?: string
+          milestone_label: string
+          milestone_value: number
+        }
+        Update: {
+          achieved_at?: string | null
+          created_at?: string | null
+          goal_id?: string
+          id?: string
+          milestone_label?: string
+          milestone_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "member_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goal_progress_logs: {
+        Row: {
+          created_at: string | null
+          goal_id: string
+          id: string
+          logged_at: string | null
+          notes: string | null
+          progress_value: number
+        }
+        Insert: {
+          created_at?: string | null
+          goal_id: string
+          id?: string
+          logged_at?: string | null
+          notes?: string | null
+          progress_value: number
+        }
+        Update: {
+          created_at?: string | null
+          goal_id?: string
+          id?: string
+          logged_at?: string | null
+          notes?: string | null
+          progress_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_progress_logs_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "member_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habit_logs: {
+        Row: {
+          count: number | null
+          created_at: string | null
+          habit_id: string
+          id: string
+          logged_at: string | null
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          count?: number | null
+          created_at?: string | null
+          habit_id: string
+          id?: string
+          logged_at?: string | null
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          count?: number | null
+          created_at?: string | null
+          habit_id?: string
+          id?: string
+          logged_at?: string | null
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_logs_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habits: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          frequency: string | null
+          id: string
+          is_active: boolean | null
+          member_id: string
+          name: string
+          target_count: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          member_id: string
+          name: string
+          target_count?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          member_id?: string
+          name?: string
+          target_count?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habits_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "habits_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instructors: {
         Row: {
           bio: string | null
@@ -860,6 +1022,57 @@ export type Database = {
           },
           {
             foreignKeyName: "manual_charges_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_achievements: {
+        Row: {
+          achievement_name: string
+          achievement_type: string
+          created_at: string | null
+          description: string | null
+          earned_at: string | null
+          id: string
+          member_id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          achievement_name: string
+          achievement_type: string
+          created_at?: string | null
+          description?: string | null
+          earned_at?: string | null
+          id?: string
+          member_id: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          achievement_name?: string
+          achievement_type?: string
+          created_at?: string | null
+          description?: string | null
+          earned_at?: string | null
+          id?: string
+          member_id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_achievements_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_achievements_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
@@ -1061,6 +1274,111 @@ export type Database = {
           },
           {
             foreignKeyName: "member_freezes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_goals: {
+        Row: {
+          created_at: string | null
+          current_value: number | null
+          goal_type: string
+          id: string
+          member_id: string
+          start_date: string | null
+          status: string | null
+          target_date: string | null
+          target_value: number
+          unit: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_value?: number | null
+          goal_type: string
+          id?: string
+          member_id: string
+          start_date?: string | null
+          status?: string | null
+          target_date?: string | null
+          target_value: number
+          unit?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_value?: number | null
+          goal_type?: string
+          id?: string
+          member_id?: string
+          start_date?: string | null
+          status?: string | null
+          target_date?: string | null
+          target_value?: number
+          unit?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_goals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_goals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_health_scores: {
+        Row: {
+          calculated_at: string | null
+          components: Json | null
+          created_at: string | null
+          id: string
+          member_id: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          calculated_at?: string | null
+          components?: Json | null
+          created_at?: string | null
+          id?: string
+          member_id: string
+          score: number
+          user_id: string
+        }
+        Update: {
+          calculated_at?: string | null
+          components?: Json | null
+          created_at?: string | null
+          id?: string
+          member_id?: string
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_health_scores_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_health_scores_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
@@ -1371,6 +1689,57 @@ export type Database = {
         }
         Relationships: []
       }
+      workout_logs: {
+        Row: {
+          calories_burned: number | null
+          created_at: string | null
+          duration_minutes: number | null
+          id: string
+          logged_at: string | null
+          member_id: string
+          notes: string | null
+          user_id: string
+          workout_type: string
+        }
+        Insert: {
+          calories_burned?: number | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          logged_at?: string | null
+          member_id: string
+          notes?: string | null
+          user_id: string
+          workout_type: string
+        }
+        Update: {
+          calories_burned?: number | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          logged_at?: string | null
+          member_id?: string
+          notes?: string | null
+          user_id?: string
+          workout_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       booking_check_in_view: {
@@ -1512,6 +1881,12 @@ export type Database = {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
       }
+      calculate_health_score: { Args: { _member_id: string }; Returns: number }
+      check_and_award_achievements: {
+        Args: { _member_id: string }
+        Returns: undefined
+      }
+      check_goal_milestones: { Args: { _goal_id: string }; Returns: undefined }
       create_atomic_class_booking: {
         Args: {
           _member_credit_id?: string
