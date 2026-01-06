@@ -33,27 +33,23 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkoutLogs, useCreateWorkoutLog, useUpdateWorkoutLog, useDeleteWorkoutLog, WorkoutLog, CreateWorkoutLogData } from "@/hooks/useWorkoutLogs";
-import { useAIWorkouts, useGenerateAIWorkout, useCompleteAIWorkout, useDeleteAIWorkout, AIWorkout } from "@/hooks/useAIWorkouts";
+import { useAIWorkouts, useGenerateAIWorkout, useCompleteAIWorkout, useDeleteAIWorkout, AIWorkout, WorkoutPreferences } from "@/hooks/useAIWorkouts";
 import { useFitnessProfile } from "@/hooks/useFitnessProfile";
-import { useExercises, ExerciseDBExercise } from "@/hooks/useExerciseDB";
-import { exerciseDBClient } from "@/lib/exercisedb";
+import { GenerateWorkoutModal } from "@/components/member/GenerateWorkoutModal";
+import { ExerciseCard } from "@/components/member/ExerciseCard";
 import {
   Dumbbell,
   Plus,
-  Calendar,
   Clock,
-  TrendingUp,
   Sparkles,
   Edit2,
   Trash2,
   CheckCircle2,
   Loader2,
-  Zap,
   Settings,
   Info,
 } from "lucide-react";
 import { format } from "date-fns";
-import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -72,6 +68,7 @@ const WORKOUT_TYPES = [
 
 export default function Workouts() {
   const [showLogDialog, setShowLogDialog] = useState(false);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<WorkoutLog | null>(null);
   const [formData, setFormData] = useState<CreateWorkoutLogData>({
     workout_type: "",
@@ -166,9 +163,10 @@ export default function Workouts() {
     }
   };
 
-  const handleGenerateAIWorkout = async () => {
+  const handleGenerateAIWorkout = async (preferences: WorkoutPreferences) => {
     try {
-      await generateAIWorkout.mutateAsync();
+      await generateAIWorkout.mutateAsync(preferences);
+      setShowGenerateModal(false);
     } catch (error) {
       // Error handled by hook
     }
@@ -317,18 +315,9 @@ export default function Workouts() {
             </Dialog>
 
             {fitnessProfile ? (
-              <Button variant="outline" onClick={handleGenerateAIWorkout} disabled={generateAIWorkout.isPending}>
-                {generateAIWorkout.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate AI Workout
-                  </>
-                )}
+              <Button variant="outline" onClick={() => setShowGenerateModal(true)}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate AI Workout
               </Button>
             ) : (
               <Button variant="outline" asChild>
@@ -340,6 +329,14 @@ export default function Workouts() {
             )}
           </div>
         </div>
+
+        {/* Generate Workout Modal */}
+        <GenerateWorkoutModal
+          open={showGenerateModal}
+          onOpenChange={setShowGenerateModal}
+          onGenerate={handleGenerateAIWorkout}
+          isGenerating={generateAIWorkout.isPending}
+        />
 
         {/* Statistics */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -521,7 +518,7 @@ export default function Workouts() {
                           <p className="text-sm font-medium">Exercises:</p>
                           <div className="grid gap-3 md:grid-cols-2">
                             {workout.exercises.map((exercise, idx) => (
-                              <ExerciseCard key={idx} exercise={exercise} />
+                              <ExerciseCard key={idx} exercise={exercise} index={idx} />
                             ))}
                           </div>
                         </div>
@@ -564,20 +561,10 @@ export default function Workouts() {
                     <Button
                       variant="outline"
                       className="mt-4"
-                      onClick={handleGenerateAIWorkout}
-                      disabled={generateAIWorkout.isPending}
+                      onClick={() => setShowGenerateModal(true)}
                     >
-                      {generateAIWorkout.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Generate Workout
-                        </>
-                      )}
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate Workout
                     </Button>
                   ) : (
                     <div className="mt-4 space-y-3">
@@ -605,89 +592,3 @@ export default function Workouts() {
     </MemberLayout>
   );
 }
-
-// Exercise Card Component with ExerciseDB integration
-function ExerciseCard({ exercise }: { exercise: AIWorkout['exercises'][0] }) {
-  const [exerciseDBData, setExerciseDBData] = React.useState<ExerciseDBExercise | null>(null);
-  const [loadingExercise, setLoadingExercise] = React.useState(false);
-
-  React.useEffect(() => {
-    // Try to find matching exercise in ExerciseDB by name
-    // Use search instead of fetching all exercises for better performance
-    if (exercise.name && exerciseDBClient.isConfigured()) {
-      setLoadingExercise(true);
-      // Search for exercises with similar name
-      exerciseDBClient.searchExercises({}, 100).then((exercises) => {
-        const match = exercises.find(
-          (ex) => ex.name.toLowerCase() === exercise.name.toLowerCase() ||
-                  ex.name.toLowerCase().includes(exercise.name.toLowerCase()) ||
-                  exercise.name.toLowerCase().includes(ex.name.toLowerCase())
-        );
-        setExerciseDBData(match || null);
-        setLoadingExercise(false);
-      }).catch(() => {
-        // If search fails, try a targeted search by body part or equipment
-        setLoadingExercise(false);
-      });
-    }
-  }, [exercise.name]);
-
-  return (
-    <div className="p-3 bg-secondary/50 rounded-lg border hover:bg-secondary/70 transition-colors">
-      <div className="flex gap-3">
-        {exerciseDBData?.gifUrl && (
-          <div className="flex-shrink-0">
-            <img
-              src={exerciseDBData.gifUrl}
-              alt={exercise.name}
-              className="w-20 h-20 object-cover rounded border"
-              loading="lazy"
-            />
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm">{exercise.name}</div>
-          {exerciseDBData && (
-            <div className="text-xs text-muted-foreground mt-1">
-              {exerciseDBData.target && (
-                <Badge variant="outline" className="mr-1 text-[10px]">
-                  {exerciseDBData.target}
-                </Badge>
-              )}
-              {exerciseDBData.bodyPart && (
-                <Badge variant="outline" className="mr-1 text-[10px]">
-                  {exerciseDBData.bodyPart}
-                </Badge>
-              )}
-            </div>
-          )}
-          <div className="text-xs text-muted-foreground mt-2 space-y-1">
-            {exercise.sets && <div>Sets: {exercise.sets}</div>}
-            {exercise.reps && <div>Reps: {exercise.reps}</div>}
-            {exercise.weight && <div>Weight: {exercise.weight}</div>}
-            {exercise.duration_seconds && <div>Duration: {exercise.duration_seconds}s</div>}
-            {exercise.rest_seconds && <div>Rest: {exercise.rest_seconds}s</div>}
-          </div>
-          {exercise.notes && (
-            <div className="text-xs text-muted-foreground mt-2 italic">
-              {exercise.notes}
-            </div>
-          )}
-          {exerciseDBData?.instructions && exerciseDBData.instructions.length > 0 && (
-            <details className="mt-2">
-              <summary className="text-xs text-accent cursor-pointer hover:underline">
-                View Instructions
-              </summary>
-              <ol className="mt-2 space-y-1 text-xs text-muted-foreground list-decimal list-inside">
-                {exerciseDBData.instructions.slice(0, 3).map((instruction, i) => (
-                  <li key={i}>{instruction}</li>
-                ))}
-              </ol>
-            </details>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
