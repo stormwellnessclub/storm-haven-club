@@ -3,6 +3,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+export interface WorkoutPreferences {
+  workoutType: string;
+  targetBodyParts: string[];
+  duration: number;
+  intensity: string;
+}
+
+export interface AIWorkoutExercise {
+  name: string;
+  sets?: number;
+  reps?: string;
+  weight?: string;
+  duration?: string;
+  rest?: string;
+  notes?: string;
+  equipment?: string;
+  targetMuscle?: string;
+  bodyPart?: string;
+  instructions?: string[];
+}
+
 export interface AIWorkout {
   id: string;
   member_id: string;
@@ -10,15 +31,7 @@ export interface AIWorkout {
   workout_type: string;
   duration_minutes: number | null;
   difficulty: string | null;
-  exercises: Array<{
-    name: string;
-    sets?: number;
-    reps?: string;
-    weight?: string;
-    duration_seconds?: number;
-    rest_seconds?: number;
-    notes?: string;
-  }>;
+  exercises: AIWorkoutExercise[];
   ai_reasoning: string | null;
   generated_at: string;
   is_completed: boolean;
@@ -86,7 +99,7 @@ export function useGenerateAIWorkout() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (preferences: WorkoutPreferences) => {
       if (!user) throw new Error("You must be signed in");
 
       const token = (await supabase.auth.getSession()).data.session?.access_token;
@@ -95,6 +108,12 @@ export function useGenerateAIWorkout() {
       const response = await supabase.functions.invoke("ai-recommendations", {
         body: {
           type: "workout_generation",
+          preferences: {
+            workoutType: preferences.workoutType,
+            targetBodyParts: preferences.targetBodyParts,
+            duration: preferences.duration,
+            intensity: preferences.intensity,
+          },
         },
         headers: {
           Authorization: `Bearer ${token}`,
