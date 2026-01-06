@@ -1945,7 +1945,12 @@ export type Database = {
         | "cafe_staff"
         | "childcare_staff"
       booking_status: "confirmed" | "cancelled" | "no_show" | "completed"
-      class_category: "pilates_cycling" | "other"
+      class_category:
+        | "pilates_cycling"
+        | "other"
+        | "reformer"
+        | "cycling"
+        | "aerobics"
       conversation_status: "open" | "in_progress" | "resolved" | "closed"
       credit_type: "class" | "red_light" | "dry_cryo"
       message_sender_type: "member" | "staff"
@@ -2094,7 +2099,13 @@ export const Constants = {
         "childcare_staff",
       ],
       booking_status: ["confirmed", "cancelled", "no_show", "completed"],
-      class_category: ["pilates_cycling", "other"],
+      class_category: [
+        "pilates_cycling",
+        "other",
+        "reformer",
+        "cycling",
+        "aerobics",
+      ],
       conversation_status: ["open", "in_progress", "resolved", "closed"],
       credit_type: ["class", "red_light", "dry_cryo"],
       message_sender_type: ["member", "staff"],

@@ -42,9 +42,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
 
   const bookClass = useBookClass();
-  const { data: creditsData, isLoading: creditsLoading } = useAvailableCreditsForCategory(
-    session?.class_type.category || "other"
-  );
+  const category = session?.class_type.category || "aerobics";
+  const { data: creditsData, isLoading: creditsLoading } = useAvailableCreditsForCategory(category);
 
   if (!session) return null;
 
