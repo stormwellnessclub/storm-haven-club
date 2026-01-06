@@ -39,7 +39,7 @@ interface ClassType {
   id: string;
   name: string;
   description: string | null;
-  category: "reformer" | "cycling" | "aerobics";
+  category: "reformer" | "cycling" | "aerobics" | "other" | "pilates_cycling";
   duration_minutes: number;
   max_capacity: number;
   is_heated: boolean;
@@ -55,7 +55,7 @@ export default function ClassTypes() {
   // Form state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<"reformer" | "cycling" | "aerobics">("aerobics");
+  const [category, setCategory] = useState<"reformer" | "cycling" | "aerobics" | "other" | "pilates_cycling">("aerobics");
   const [durationMinutes, setDurationMinutes] = useState(50);
   const [maxCapacity, setMaxCapacity] = useState(20);
   const [isHeated, setIsHeated] = useState(false);
@@ -75,7 +75,7 @@ export default function ClassTypes() {
       toast.error("Failed to load class types");
       console.error(error);
     } else {
-      setClassTypes(data || []);
+      setClassTypes((data || []) as unknown as ClassType[]);
     }
     setLoading(false);
   }
@@ -112,7 +112,7 @@ export default function ClassTypes() {
     const classTypeData = {
       name: name.trim(),
       description: description.trim() || null,
-      category,
+      category: category as any,
       duration_minutes: durationMinutes,
       max_capacity: maxCapacity,
       is_heated: isHeated,
@@ -200,7 +200,7 @@ export default function ClassTypes() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="category">Category</Label>
-                    <Select value={category} onValueChange={(v) => setCategory(v as "reformer" | "cycling" | "aerobics")}>
+                    <Select value={category} onValueChange={(v) => setCategory(v as "reformer" | "cycling" | "aerobics" | "other" | "pilates_cycling")}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -208,6 +208,7 @@ export default function ClassTypes() {
                         <SelectItem value="reformer">Reformer Studio</SelectItem>
                         <SelectItem value="cycling">Cycling Studio</SelectItem>
                         <SelectItem value="aerobics">Aerobics Studio</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

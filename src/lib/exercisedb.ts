@@ -37,13 +37,11 @@ class ExerciseDBClient {
   private cacheTTL: number = 24 * 60 * 60 * 1000; // 24 hours
 
   constructor() {
-    // Try both environment variable names
+    // Use browser environment variables only (VITE_ prefixed)
     this.apiKey = 
-      Deno.env.get("EXERCISEDB_API_KEY") || 
-      Deno.env.get("RAPIDAPI_KEY") ||
-      (typeof window !== "undefined" ? 
-        (import.meta.env?.VITE_EXERCISEDB_API_KEY || import.meta.env?.VITE_RAPIDAPI_KEY) : 
-        null
+      (typeof window !== "undefined" 
+        ? (import.meta.env?.VITE_EXERCISEDB_API_KEY || import.meta.env?.VITE_RAPIDAPI_KEY) 
+        : null
       );
   }
 

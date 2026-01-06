@@ -35,8 +35,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkoutLogs, useCreateWorkoutLog, useUpdateWorkoutLog, useDeleteWorkoutLog, WorkoutLog, CreateWorkoutLogData } from "@/hooks/useWorkoutLogs";
 import { useAIWorkouts, useGenerateAIWorkout, useCompleteAIWorkout, useDeleteAIWorkout, AIWorkout } from "@/hooks/useAIWorkouts";
 import { useFitnessProfile } from "@/hooks/useFitnessProfile";
-import { ExerciseDBExercise } from "@/hooks/useExerciseDB";
-import { exerciseDBClient } from "@/lib/exercisedb";
 import { useExercises, ExerciseDBExercise } from "@/hooks/useExerciseDB";
 import { exerciseDBClient } from "@/lib/exercisedb";
 import {

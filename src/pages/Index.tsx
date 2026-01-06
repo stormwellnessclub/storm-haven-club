@@ -16,7 +16,7 @@ import bodyTreatments from "@/assets/body-treatments.jpg";
 import sauna from "@/assets/sauna.jpg";
 // Brand imagery
 import scienceSoulBranding from "@/assets/brand/science-soul-branding.jpg";
-import mainLobby from "@/assets/main-lobby.JPEG";
+import mainLobby from "@/assets/main-lobby.jpeg";
 import avocadoToast from "@/assets/food/avocado-toast.jpg";
 import cafeHeroImage from "@/assets/food/matcha-latte.jpg";
 import marbleTexture from "@/assets/textures/marble-texture.jpg";
