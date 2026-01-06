@@ -30,20 +30,33 @@ export function useAgreements(agreementType?: string) {
   return useQuery({
     queryKey: ["agreements", agreementType],
     queryFn: async (): Promise<Agreement[]> => {
-      let query = supabase
-        .from("agreements")
-        .select("*")
-        .eq("is_active", true)
-        .order("display_order", { ascending: true });
+      try {
+        let query = (supabase.from as any)("agreements")
+          .select("*")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true });
 
-      if (agreementType) {
-        query = query.eq("agreement_type", agreementType);
+        if (agreementType) {
+          query = query.eq("agreement_type", agreementType);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("agreements table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
+        return (data || []) as Agreement[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("agreements table not found, returning empty array");
+          return [];
+        }
+        throw error;
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return (data || []) as Agreement[];
     },
   });
 }
@@ -52,19 +65,32 @@ export function useForms(formType?: string) {
   return useQuery({
     queryKey: ["forms", formType],
     queryFn: async (): Promise<Form[]> => {
-      let query = supabase
-        .from("forms")
-        .select("*")
-        .eq("is_active", true);
+      try {
+        let query = (supabase.from as any)("forms")
+          .select("*")
+          .eq("is_active", true);
 
-      if (formType) {
-        query = query.eq("form_type", formType);
+        if (formType) {
+          query = query.eq("form_type", formType);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("forms table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
+        return (data || []) as Form[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("forms table not found, returning empty array");
+          return [];
+        }
+        throw error;
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return (data || []) as Form[];
     },
   });
 }

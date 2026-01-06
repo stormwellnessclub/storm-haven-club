@@ -32,20 +32,33 @@ export function useMemberActivities(memberId?: string, limit?: number) {
         targetMemberId = member.id;
       }
 
-      let query = supabase
-        .from("member_activities")
-        .select("*")
-        .eq("member_id", targetMemberId)
-        .order("created_at", { ascending: false });
+      try {
+        let query = (supabase.from as any)("member_activities")
+          .select("*")
+          .eq("member_id", targetMemberId)
+          .order("created_at", { ascending: false });
 
-      if (limit) {
-        query = query.limit(limit);
+        if (limit) {
+          query = query.limit(limit);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("member_activities table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
+        return (data || []) as MemberActivity[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("member_activities table not found, returning empty array");
+          return [];
+        }
+        throw error;
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return (data || []) as MemberActivity[];
     },
     enabled: !!user,
   });

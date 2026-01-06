@@ -2,12 +2,10 @@ import { ReactNode, useEffect, useState, useCallback } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
-import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
 import { ActivationRequired } from "./ActivationRequired";
 import { SessionRepair } from "./SessionRepair";
 import { UnlinkedMemberFix } from "./UnlinkedMemberFix";
-import { PaymentRequiredAlert } from "./PaymentRequiredAlert";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,14 +18,10 @@ interface ProtectedMemberRouteProps {
 
 type SessionState = "validating" | "valid" | "invalid" | "needs_repair";
 
-// Pages that should still be accessible when payment is required
-const PAYMENT_ALLOWED_PATHS = ["/member/payment-methods", "/member/membership"];
-
 export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   const { user, session, loading: authLoading, signOut } = useAuth();
   const [sessionState, setSessionState] = useState<SessionState>("validating");
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
-  const { hasBlockingIssues, isLoading: paymentStatusLoading } = usePaymentStatus();
   const location = useLocation();
 
   const validateSession = useCallback(async () => {
@@ -191,17 +185,8 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
     return <ActivationRequired memberData={applicationStatus.memberData} />;
   }
 
-  // Show payment required alert for members with blocking payment issues (monthly dues past due)
-  // Annual fee overdue shows a non-blocking notice instead (handled in MemberLayout)
-  if (hasBlockingIssues && !paymentStatusLoading) {
-    const isPaymentAllowedPath = PAYMENT_ALLOWED_PATHS.some(path => 
-      location.pathname.startsWith(path)
-    );
-    
-    if (!isPaymentAllowedPath) {
-      return <PaymentRequiredAlert />;
-    }
-  }
+  // Payment notices are shown in MemberLayout (non-blocking)
+  // Members can always access the portal regardless of payment status
 
   // For active members or users without applications, show the member portal
   return <>{children}</>;

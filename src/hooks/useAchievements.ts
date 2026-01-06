@@ -25,14 +25,27 @@ export function useAchievements() {
   return useQuery({
     queryKey: ["achievements"],
     queryFn: async (): Promise<Achievement[]> => {
-      const { data, error } = await supabase
-        .from("achievements")
-        .select("*")
-        .eq("is_active", true)
-        .order("points_reward", { ascending: false });
+      try {
+        const { data, error } = await (supabase.from as any)("achievements")
+          .select("*")
+          .eq("is_active", true)
+          .order("points_reward", { ascending: false });
 
-      if (error) throw error;
-      return (data || []) as Achievement[];
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("achievements table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
+        return (data || []) as Achievement[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("achievements table not found, returning empty array");
+          return [];
+        }
+        throw error;
+      }
     },
   });
 }
@@ -58,21 +71,34 @@ export function useMemberAchievements(memberId?: string) {
         targetMemberId = member.id;
       }
 
-      const { data, error } = await supabase
-        .from("member_achievements")
-        .select(`
-          *,
-          achievement:achievements(*)
-        `)
-        .eq("member_id", targetMemberId)
-        .order("earned_at", { ascending: false });
+      try {
+        const { data, error } = await (supabase.from as any)("member_achievements")
+          .select(`
+            *,
+            achievement:achievements(*)
+          `)
+          .eq("member_id", targetMemberId)
+          .order("earned_at", { ascending: false });
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("member_achievements table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
 
-      return (data || []).map((item: any) => ({
-        ...item,
-        achievement: Array.isArray(item.achievement) ? item.achievement[0] : item.achievement,
-      })) as MemberAchievement[];
+        return (data || []).map((item: any) => ({
+          ...item,
+          achievement: Array.isArray(item.achievement) ? item.achievement[0] : item.achievement,
+        })) as MemberAchievement[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("member_achievements table not found, returning empty array");
+          return [];
+        }
+        throw error;
+      }
     },
     enabled: !!user && (!!memberId || !!user.id),
   });
@@ -98,12 +124,26 @@ export function useCheckAchievements() {
         targetMemberId = member.id;
       }
 
-      const { data, error } = await supabase.rpc("check_and_award_achievements", {
-        p_member_id: targetMemberId,
-      });
+      try {
+        const { data, error } = await (supabase.rpc as any)("check_and_award_achievements", {
+          p_member_id: targetMemberId,
+        });
 
-      if (error) throw error;
-      return data;
+        if (error) {
+          if (error.code === "42883" || error.message?.includes("does not exist")) {
+            console.warn("check_and_award_achievements RPC not available:", error);
+            return null;
+          }
+          throw error;
+        }
+        return data;
+      } catch (error: any) {
+        if (error?.code === "42883" || error?.message?.includes("does not exist")) {
+          console.warn("check_and_award_achievements RPC not available:", error);
+          return null;
+        }
+        throw error;
+      }
     },
   });
 }

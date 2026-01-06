@@ -11,8 +11,8 @@ export interface PaymentStatusResult {
   isAnnualFeeOverdue: boolean;
   isDuesPastDue: boolean;
   hasPaymentIssues: boolean;
-  hasBlockingIssues: boolean; // Monthly dues - blocks portal access
-  hasNonBlockingIssues: boolean; // Annual fee - shows notice only
+  hasBlockingIssues: boolean; // Always false - payment blocking disabled
+  hasNonBlockingIssues: boolean; // Both annual fee and monthly dues show notices
   annualFeeExpiresAt: Date | null;
   isLoading: boolean;
 }
@@ -83,8 +83,8 @@ export function usePaymentStatus(): PaymentStatusResult {
       isAnnualFeeOverdue,
       isDuesPastDue,
       hasPaymentIssues: issues.length > 0,
-      hasBlockingIssues: isDuesPastDue, // Only monthly dues blocks portal
-      hasNonBlockingIssues: isAnnualFeeOverdue, // Annual fee shows notice
+      hasBlockingIssues: false, // Payment blocking disabled - members can always access portal
+      hasNonBlockingIssues: isAnnualFeeOverdue || isDuesPastDue, // Both show notices in portal
       annualFeeExpiresAt,
       isLoading: false,
     };

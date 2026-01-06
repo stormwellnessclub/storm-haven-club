@@ -32,7 +32,6 @@ import gymArea1 from "@/assets/gym-area-1.jpg";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
-import pilates from "@/assets/pilates.jpg";
 import redLightTherapy from "@/assets/red-light-therapy.jpg";
 import zerobodyCryo from "@/assets/zerobody-cryo.jpg";
 import strengthSculpt from "@/assets/strength-sculpt.jpg";
@@ -104,7 +103,7 @@ const signatureClasses = [
     icon: Activity,
     title: "Mat Pilates",
     description: "Core-focused bodyweight training. Develop stability and control through mindful movement.",
-    image: pilates,
+    image: reformerPilates,
   },
   {
     icon: Dumbbell,

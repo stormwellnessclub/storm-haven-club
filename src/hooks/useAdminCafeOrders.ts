@@ -32,39 +32,52 @@ export function useAdminCafeOrders(filters?: AdminCafeOrdersFilters) {
     queryFn: async (): Promise<AdminCafeOrder[]> => {
       if (!user) return [];
 
-      let query = supabase
-        .from("cafe_orders")
-        .select(`
-          *,
-          member:members(id, first_name, last_name, email)
-        `)
-        .order("created_at", { ascending: false });
+      try {
+        let query = (supabase.from as any)("cafe_orders")
+          .select(`
+            *,
+            member:members(id, first_name, last_name, email)
+          `)
+          .order("created_at", { ascending: false });
 
-      if (filters?.status) {
-        query = query.eq("status", filters.status);
+        if (filters?.status) {
+          query = query.eq("status", filters.status);
+        }
+
+        if (filters?.memberId) {
+          query = query.eq("member_id", filters.memberId);
+        }
+
+        if (filters?.dateFrom) {
+          query = query.gte("created_at", filters.dateFrom.toISOString());
+        }
+
+        if (filters?.dateTo) {
+          query = query.lte("created_at", filters.dateTo.toISOString());
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("cafe_orders table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
+
+        return (data || []).map((order: any) => ({
+          ...order,
+          member: order.member ? (Array.isArray(order.member) ? order.member[0] : order.member) : null,
+          user: null, // User info can be fetched separately if needed
+        })) as AdminCafeOrder[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("cafe_orders table not found, returning empty array");
+          return [];
+        }
+        throw error;
       }
-
-      if (filters?.memberId) {
-        query = query.eq("member_id", filters.memberId);
-      }
-
-      if (filters?.dateFrom) {
-        query = query.gte("created_at", filters.dateFrom.toISOString());
-      }
-
-      if (filters?.dateTo) {
-        query = query.lte("created_at", filters.dateTo.toISOString());
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return (data || []).map((order: any) => ({
-        ...order,
-        member: order.member ? (Array.isArray(order.member) ? order.member[0] : order.member) : null,
-        user: null, // User info can be fetched separately if needed
-      })) as AdminCafeOrder[];
     },
     enabled: !!user,
   });
@@ -87,16 +100,27 @@ export function useUpdateCafeOrderStatus() {
         updateData.completed_at = new Date().toISOString();
       }
 
-      const { data, error } = await supabase
-        .from("cafe_orders")
-        .update(updateData)
-        .eq("id", orderId)
-        .select()
-        .single();
+      try {
+        const { data, error } = await (supabase.from as any)("cafe_orders")
+          .update(updateData)
+          .eq("id", orderId)
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("Cafe ordering is not yet available. Please check back later.");
+          }
+          throw error;
+        }
 
-      return data as CafeOrder;
+        return data as CafeOrder;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("Cafe ordering is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-cafe-orders"] });

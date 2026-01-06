@@ -38,49 +38,62 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
     queryFn: async (): Promise<AdminSpaAppointment[]> => {
       if (!user) return [];
 
-      let query = supabase
-        .from("spa_appointments")
-        .select(`
-          *,
-          member:members(id, first_name, last_name, email)
-        `)
-        .order("appointment_date", { ascending: true })
-        .order("appointment_time", { ascending: true });
+      try {
+        let query = (supabase.from as any)("spa_appointments")
+          .select(`
+            *,
+            member:members(id, first_name, last_name, email)
+          `)
+          .order("appointment_date", { ascending: true })
+          .order("appointment_time", { ascending: true });
 
-      if (filters?.status) {
-        query = query.eq("status", filters.status);
+        if (filters?.status) {
+          query = query.eq("status", filters.status);
+        }
+
+        if (filters?.memberId) {
+          query = query.eq("member_id", filters.memberId);
+        }
+
+        if (filters?.staffId) {
+          query = query.eq("staff_id", filters.staffId);
+        }
+
+        if (filters?.appointmentDate) {
+          query = query.eq("appointment_date", filters.appointmentDate.toISOString().split("T")[0]);
+        }
+
+        if (filters?.dateFrom) {
+          query = query.gte("appointment_date", filters.dateFrom.toISOString().split("T")[0]);
+        }
+
+        if (filters?.dateTo) {
+          query = query.lte("appointment_date", filters.dateTo.toISOString().split("T")[0]);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("spa_appointments table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
+
+        return (data || []).map((apt: any) => ({
+          ...apt,
+          member: apt.member ? (Array.isArray(apt.member) ? apt.member[0] : apt.member) : null,
+          user: null, // User info can be fetched separately if needed
+          staff: null, // Staff info can be fetched separately if needed
+        })) as AdminSpaAppointment[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("spa_appointments table not found, returning empty array");
+          return [];
+        }
+        throw error;
       }
-
-      if (filters?.memberId) {
-        query = query.eq("member_id", filters.memberId);
-      }
-
-      if (filters?.staffId) {
-        query = query.eq("staff_id", filters.staffId);
-      }
-
-      if (filters?.appointmentDate) {
-        query = query.eq("appointment_date", filters.appointmentDate.toISOString().split("T")[0]);
-      }
-
-      if (filters?.dateFrom) {
-        query = query.gte("appointment_date", filters.dateFrom.toISOString().split("T")[0]);
-      }
-
-      if (filters?.dateTo) {
-        query = query.lte("appointment_date", filters.dateTo.toISOString().split("T")[0]);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return (data || []).map((apt: any) => ({
-        ...apt,
-        member: apt.member ? (Array.isArray(apt.member) ? apt.member[0] : apt.member) : null,
-        user: null, // User info can be fetched separately if needed
-        staff: null, // Staff info can be fetched separately if needed
-      })) as AdminSpaAppointment[];
     },
     enabled: !!user,
   });
@@ -119,16 +132,27 @@ export function useUpdateSpaAppointmentStatus() {
         updateData.staff_notes = staffNotes;
       }
 
-      const { data, error } = await supabase
-        .from("spa_appointments")
-        .update(updateData)
-        .eq("id", appointmentId)
-        .select()
-        .single();
+      try {
+        const { data, error } = await (supabase.from as any)("spa_appointments")
+          .update(updateData)
+          .eq("id", appointmentId)
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("Spa appointments are not yet available. Please check back later.");
+          }
+          throw error;
+        }
 
-      return data as SpaAppointment;
+        return data as SpaAppointment;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("Spa appointments are not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });

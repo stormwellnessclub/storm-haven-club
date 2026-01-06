@@ -7,12 +7,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export function AnnualFeeNotice() {
-  const { isAnnualFeeOverdue, isLoading: paymentLoading } = usePaymentStatus();
+  const { isAnnualFeeOverdue, isDuesPastDue, isLoading: paymentLoading } = usePaymentStatus();
   const { data: membership } = useUserMembership();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
 
-  if (paymentLoading || !isAnnualFeeOverdue || isDismissed) {
+  const hasPaymentIssues = isAnnualFeeOverdue || isDuesPastDue;
+
+  if (paymentLoading || !hasPaymentIssues || isDismissed) {
     return null;
   }
 
@@ -42,32 +44,92 @@ export function AnnualFeeNotice() {
     }
   };
 
+  const handleUpdatePaymentMethod = async () => {
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "customer_portal",
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (err) {
+      console.error("Error opening customer portal:", err);
+      toast.error("Failed to open billing portal. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Determine message and actions based on what's overdue
+  const getMessage = () => {
+    if (isAnnualFeeOverdue && isDuesPastDue) {
+      return "Payment required: Annual fee and monthly dues are overdue. Please update your payment method to continue your membership benefits.";
+    } else if (isAnnualFeeOverdue) {
+      return "Your annual fee is required to continue your membership benefits.";
+    } else if (isDuesPastDue) {
+      return "Monthly dues payment required. Please update your payment method to continue your membership benefits.";
+    }
+    return "";
+  };
+
+  const getActionButton = () => {
+    if (isDuesPastDue && isAnnualFeeOverdue) {
+      return (
+        <Button
+          onClick={handleUpdatePaymentMethod}
+          disabled={isProcessing}
+          size="sm"
+          variant="outline"
+          className="border-amber-600 text-amber-700 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-400 dark:hover:bg-amber-950"
+        >
+          {isProcessing ? "Loading..." : "Update Payment Method"}
+        </Button>
+      );
+    } else if (isAnnualFeeOverdue) {
+      return (
+        <Button
+          onClick={handlePayAnnualFee}
+          disabled={isProcessing}
+          size="sm"
+          variant="outline"
+          className="border-amber-600 text-amber-700 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-400 dark:hover:bg-amber-950"
+        >
+          {isProcessing ? "Processing..." : "Pay Annual Fee"}
+        </Button>
+      );
+    } else if (isDuesPastDue) {
+      return (
+        <Button
+          onClick={handleUpdatePaymentMethod}
+          disabled={isProcessing}
+          size="sm"
+          variant="outline"
+          className="border-amber-600 text-amber-700 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-400 dark:hover:bg-amber-950"
+        >
+          {isProcessing ? "Loading..." : "Update Payment Method"}
+        </Button>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-3">
       <div className="flex items-center justify-between gap-4 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
-          <p className="text-sm text-amber-700 dark:text-amber-300">
-            <span className="font-medium">Annual membership renewal due.</span>{" "}
-            Your annual fee is required to continue your membership benefits.
+        <div className="flex items-start gap-3 flex-1">
+          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            {getMessage()}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={handlePayAnnualFee}
-            disabled={isProcessing}
-            className="bg-amber-600 hover:bg-amber-700 text-white"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Processing...
-              </>
-            ) : (
-              "Renew Now"
-            )}
-          </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {getActionButton()}
           <Button
             size="sm"
             variant="ghost"

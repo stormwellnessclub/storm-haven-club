@@ -53,24 +53,35 @@ export function useCreateCafeOrder() {
         .maybeSingle();
 
       // Create order
-      const { data, error } = await supabase
-        .from("cafe_orders")
-        .insert({
-          user_id: user.id,
-          member_id: memberData?.id || null,
-          order_items: orderItems,
-          total_amount: totalAmount,
-          status: "pending",
-          payment_method: paymentMethod,
-          payment_intent_id: paymentIntentId || null,
-          estimated_ready_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
-        })
-        .select()
-        .single();
+      try {
+        const { data, error } = await (supabase.from as any)("cafe_orders")
+          .insert({
+            user_id: user.id,
+            member_id: memberData?.id || null,
+            order_items: orderItems,
+            total_amount: totalAmount,
+            status: "pending",
+            payment_method: paymentMethod,
+            payment_intent_id: paymentIntentId || null,
+            estimated_ready_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
+          })
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("Cafe ordering is not yet available. Please check back later.");
+          }
+          throw error;
+        }
 
-      return data as CafeOrder;
+        return data as CafeOrder;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("Cafe ordering is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cafe-orders"] });
@@ -90,15 +101,28 @@ export function useMyCafeOrders() {
     queryFn: async (): Promise<CafeOrder[]> => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from("cafe_orders")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      try {
+        const { data, error } = await (supabase.from as any)("cafe_orders")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("cafe_orders table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
 
-      return (data || []) as CafeOrder[];
+        return (data || []) as CafeOrder[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("cafe_orders table not found, returning empty array");
+          return [];
+        }
+        throw error;
+      }
     },
     enabled: !!user,
   });
@@ -109,19 +133,30 @@ export function useCancelCafeOrder() {
 
   return useMutation({
     mutationFn: async (orderId: string) => {
-      const { data, error } = await supabase
-        .from("cafe_orders")
-        .update({
-          status: "cancelled",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId)
-        .select()
-        .single();
+      try {
+        const { data, error } = await (supabase.from as any)("cafe_orders")
+          .update({
+            status: "cancelled",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId)
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("Cafe ordering is not yet available. Please check back later.");
+          }
+          throw error;
+        }
 
-      return data as CafeOrder;
+        return data as CafeOrder;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("Cafe ordering is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cafe-orders"] });
