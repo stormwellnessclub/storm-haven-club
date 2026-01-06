@@ -48,9 +48,7 @@ export function useAIWorkouts(memberId?: string, limit?: number) {
       }
 
       try {
-        // @ts-expect-error - Table may not exist in all database instances
-        let query = supabase
-          .from("ai_workouts")
+        let query = (supabase.from as any)("ai_workouts")
           .select("*")
           .eq("member_id", targetMemberId)
           .order("generated_at", { ascending: false });
@@ -123,9 +121,7 @@ export function useUpdateAIWorkout() {
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<AIWorkout> }) => {
       try {
-        // @ts-expect-error - Table may not exist in all database instances
-        const { data: workout, error } = await supabase
-          .from("ai_workouts")
+        const { data: workout, error } = await (supabase.from as any)("ai_workouts")
           .update(data)
           .eq("id", id)
           .select()
@@ -161,9 +157,7 @@ export function useCompleteAIWorkout() {
   return useMutation({
     mutationFn: async (id: string) => {
       try {
-        // @ts-expect-error - Table may not exist in all database instances
-        const { data: workout, error } = await supabase
-          .from("ai_workouts")
+        const { data: workout, error } = await (supabase.from as any)("ai_workouts")
           .update({
             is_completed: true,
             completed_at: new Date().toISOString(),
@@ -202,9 +196,7 @@ export function useDeleteAIWorkout() {
   return useMutation({
     mutationFn: async (id: string) => {
       try {
-        // @ts-expect-error - Table may not exist in all database instances
-        const { error } = await supabase
-          .from("ai_workouts")
+        const { error } = await (supabase.from as any)("ai_workouts")
           .delete()
           .eq("id", id);
 

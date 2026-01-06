@@ -959,8 +959,7 @@ function MemberAnalytics({ memberId }: { memberId: string }) {
     queryKey: ["member-ltv", memberId],
     queryFn: async () => {
       try {
-        // @ts-expect-error - RPC function may not exist in all database instances
-        const { data, error } = await supabase.rpc("calculate_member_ltv", {
+        const { data, error } = await (supabase.rpc as any)("calculate_member_ltv", {
           p_member_id: memberId,
         });
         if (error) {
@@ -979,8 +978,7 @@ function MemberAnalytics({ memberId }: { memberId: string }) {
     queryKey: ["member-churn-risk", memberId],
     queryFn: async () => {
       try {
-        // @ts-expect-error - RPC function may not exist in all database instances
-        const { data, error } = await supabase.rpc("calculate_churn_risk", {
+        const { data, error } = await (supabase.rpc as any)("calculate_churn_risk", {
           p_member_id: memberId,
         });
         if (error) {
@@ -999,8 +997,7 @@ function MemberAnalytics({ memberId }: { memberId: string }) {
     queryKey: ["member-engagement", memberId],
     queryFn: async () => {
       try {
-        // @ts-expect-error - RPC function may not exist in all database instances
-        const { data, error } = await supabase.rpc("calculate_engagement_score", {
+        const { data, error } = await (supabase.rpc as any)("calculate_engagement_score", {
           p_member_id: memberId,
           p_days: 30,
         });
@@ -1020,8 +1017,7 @@ function MemberAnalytics({ memberId }: { memberId: string }) {
     queryKey: ["member-attendance-pattern", memberId],
     queryFn: async () => {
       try {
-        // @ts-expect-error - RPC function may not exist in all database instances
-        const { data, error } = await supabase.rpc("get_member_attendance_pattern", {
+        const { data, error } = await (supabase.rpc as any)("get_member_attendance_pattern", {
           p_member_id: memberId,
           p_days: 30,
         });
@@ -1041,8 +1037,7 @@ function MemberAnalytics({ memberId }: { memberId: string }) {
     queryKey: ["member-service-utilization", memberId],
     queryFn: async () => {
       try {
-        // @ts-expect-error - RPC function may not exist in all database instances
-        const { data, error } = await supabase.rpc("get_member_service_utilization", {
+        const { data, error } = await (supabase.rpc as any)("get_member_service_utilization", {
           p_member_id: memberId,
           p_days: 30,
         });
