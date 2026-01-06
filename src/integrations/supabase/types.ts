@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_workouts: {
+        Row: {
+          ai_reasoning: string | null
+          completed_at: string | null
+          created_at: string | null
+          difficulty: string | null
+          duration_minutes: number | null
+          exercises: Json | null
+          generated_at: string | null
+          id: string
+          is_completed: boolean | null
+          member_id: string
+          workout_name: string
+          workout_type: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          difficulty?: string | null
+          duration_minutes?: number | null
+          exercises?: Json | null
+          generated_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          member_id: string
+          workout_name: string
+          workout_type: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          difficulty?: string | null
+          duration_minutes?: number | null
+          exercises?: Json | null
+          generated_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          member_id?: string
+          workout_name?: string
+          workout_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_workouts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_workouts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       application_status_history: {
         Row: {
           application_id: string
