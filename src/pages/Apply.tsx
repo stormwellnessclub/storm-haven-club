@@ -240,8 +240,12 @@ function ApplicationPaymentForm({
     e.preventDefault();
     setError(null);
 
+    console.log("[Apply] Payment form submit - stripe:", !!stripe, "elements:", !!elements);
+
     if (!stripe || !elements) {
-      setError("Payment form not ready. Please wait...");
+      const msg = `Payment form not ready. Stripe: ${!!stripe}, Elements: ${!!elements}`;
+      console.error("[Apply]", msg);
+      setError(msg);
       return;
     }
 
@@ -290,6 +294,21 @@ function ApplicationPaymentForm({
     }
   };
 
+  console.log("[Apply] ApplicationPaymentForm render - clientSecret:", !!clientSecret, "isElementReady:", isElementReady, "stripe:", !!stripe, "elements:", !!elements);
+
+  if (!clientSecret) {
+    return (
+      <Card className="mt-4">
+        <CardContent className="p-6">
+          <div className="text-center text-destructive">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            <p>Payment form configuration error. Please try again.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="mt-4">
       <CardHeader>
@@ -316,21 +335,26 @@ function ApplicationPaymentForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isElementReady && (
-            <div className="flex items-center justify-center py-8">
+          {!isElementReady && !error && (
+            <div className="flex items-center justify-center py-8 min-h-[200px]">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-accent" />
                 <p className="text-sm text-muted-foreground">Loading secure payment form...</p>
+                <p className="text-xs text-muted-foreground mt-2">If this takes too long, please refresh the page</p>
               </div>
             </div>
           )}
 
-          <div className={isElementReady ? "" : "opacity-0 absolute"}>
+          <div className={isElementReady ? "" : "opacity-0 absolute pointer-events-none"} style={{ minHeight: isElementReady ? 'auto' : '200px' }}>
             <PaymentElement
-              onReady={() => setIsElementReady(true)}
+              onReady={() => {
+                console.log("[Apply] PaymentElement is ready");
+                setIsElementReady(true);
+              }}
               onLoadError={(error) => {
-                console.error("PaymentElement load error:", error);
-                setError("Failed to load payment form. Please refresh and try again.");
+                console.error("[Apply] PaymentElement load error:", error);
+                setError(`Failed to load payment form: ${error.message || "Unknown error"}. Please refresh and try again.`);
+                setIsElementReady(false);
               }}
               options={{
                 layout: "tabs",
@@ -500,18 +524,22 @@ export default function Apply() {
         throw new Error(data.error || "Payment setup failed");
       }
 
+      console.log("[Apply] Payment setup response:", data);
+      
       if (!data.clientSecret) {
-        console.error("Response data:", data);
+        console.error("No client secret in response data:", data);
         throw new Error("No client secret returned from payment service");
       }
 
       // Store client secret and customer ID, then show embedded payment form
+      console.log("[Apply] Setting up embedded payment form with client secret");
       setPaymentClientSecret(data.clientSecret);
       if (data.customerId) {
         setStripeCustomerId(data.customerId);
       }
       setShowPaymentForm(true);
       setIsSavingCard(false);
+      console.log("[Apply] Payment form should now be visible");
     } catch (error) {
       console.error("Error creating payment setup:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to open payment setup. Please try again.";
