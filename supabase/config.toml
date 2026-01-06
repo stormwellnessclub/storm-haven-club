@@ -18,7 +18,7 @@ verify_jwt = false
 
 [functions.ai-recommendations]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 
 [functions.receive-email]
 enabled = true
@@ -30,7 +30,7 @@ verify_jwt = false
 
 [functions.notify-waitlist]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 
 [functions.process-expired-waitlist]
 enabled = true
