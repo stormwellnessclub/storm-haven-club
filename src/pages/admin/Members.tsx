@@ -22,9 +22,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle } from "lucide-react";
+import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle, DollarSign, ShoppingBag } from "lucide-react";
+import { SellMembershipPackage } from "@/components/admin/SellMembershipPackage";
+import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { format } from "date-fns";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
@@ -83,6 +86,10 @@ export default function Members() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState<typeof members[0] | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [showMembershipDialog, setShowMembershipDialog] = useState(false);
+  const [showClassPackageDialog, setShowClassPackageDialog] = useState(false);
+  const [foundingMemberFilter, setFoundingMemberFilter] = useState<boolean | null>(null);
+  const [billingTypeFilter, setBillingTypeFilter] = useState<string>("all");
 
   const { data: members = [], isLoading, error } = useQuery({
     queryKey: ["admin-members"],
@@ -97,13 +104,26 @@ export default function Members() {
     },
   });
 
-  const filteredMembers = members.filter(
-    (member) =>
-      member.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.member_id?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredMembers = members.filter((member) => {
+    // Search filter
+    const matchesSearch = !searchQuery ||
+      member.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.member_id.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Founding member filter
+    const matchesFounding = foundingMemberFilter === null || 
+      (foundingMemberFilter === true && member.is_founding_member === true) ||
+      (foundingMemberFilter === false && member.is_founding_member !== true);
+
+    // Billing type filter
+    const matchesBilling = billingTypeFilter === "all" ||
+      (billingTypeFilter === "monthly" && (member.billing_type === "monthly" || !member.billing_type)) ||
+      (billingTypeFilter === "annual" && member.billing_type === "annual");
+
+    return matchesSearch && matchesFounding && matchesBilling;
+  });
 
   const handleViewProfile = (member: typeof members[0]) => {
     setSelectedMember(member);
@@ -129,15 +149,47 @@ export default function Members() {
             />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
+            <Button variant="outline" onClick={() => setShowMembershipDialog(true)}>
+              <DollarSign className="h-4 w-4 mr-2" />
+              Process Payment
+            </Button>
+            <Button variant="outline" onClick={() => setShowClassPackageDialog(true)}>
+              <ShoppingBag className="h-4 w-4 mr-2" />
+              Sell Package
             </Button>
             <Button>
               <UserPlus className="h-4 w-4 mr-2" />
               Add Member
             </Button>
           </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-4">
+          <Select value={foundingMemberFilter === null ? "all" : foundingMemberFilter ? "founding" : "regular"} onValueChange={(v) => {
+            if (v === "all") setFoundingMemberFilter(null);
+            else setFoundingMemberFilter(v === "founding");
+          }}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Member Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Members</SelectItem>
+              <SelectItem value="founding">Founding Members</SelectItem>
+              <SelectItem value="regular">Regular Members</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={billingTypeFilter} onValueChange={setBillingTypeFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Billing Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Billing Types</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="annual">Annual</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Members Table */}
@@ -230,8 +282,19 @@ export default function Members() {
                             <DropdownMenuItem onClick={() => handleViewProfile(member)}>
                               View Profile
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleViewProfile(member)}>
-                              Edit Details
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedMember(member);
+                              setShowMembershipDialog(true);
+                            }}>
+                              <DollarSign className="h-4 w-4 mr-2" />
+                              Process Payment
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedMember(member);
+                              setShowClassPackageDialog(true);
+                            }}>
+                              <ShoppingBag className="h-4 w-4 mr-2" />
+                              Sell Package
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleCheckIn(member)}>
                               Check In
@@ -254,6 +317,18 @@ export default function Members() {
           member={selectedMember}
           open={isSheetOpen}
           onOpenChange={setIsSheetOpen}
+        />
+
+        <SellMembershipPackage
+          open={showMembershipDialog}
+          onOpenChange={setShowMembershipDialog}
+          memberId={selectedMember?.id}
+          memberEmail={selectedMember?.email}
+        />
+        <SellClassPackage
+          open={showClassPackageDialog}
+          onOpenChange={setShowClassPackageDialog}
+          userId={selectedMember?.user_id}
         />
       </div>
     </AdminLayout>

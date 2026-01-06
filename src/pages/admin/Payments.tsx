@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -26,7 +27,11 @@ import {
   AlertTriangle,
   CreditCard,
   RefreshCcw,
+  ShoppingBag,
+  UserPlus,
 } from "lucide-react";
+import { SellMembershipPackage } from "@/components/admin/SellMembershipPackage";
+import { SellClassPackage } from "@/components/admin/SellClassPackage";
 
 const mockPayments = [
   {
@@ -102,6 +107,8 @@ const getStatusBadge = (status: string) => {
 
 export default function Payments() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showMembershipDialog, setShowMembershipDialog] = useState(false);
+  const [showClassPackageDialog, setShowClassPackageDialog] = useState(false);
 
   const filteredPayments = mockPayments.filter(
     (payment) =>
@@ -118,6 +125,25 @@ export default function Payments() {
   return (
     <AdminLayout title="Payments">
       <div className="space-y-6">
+        {/* Action Buttons */}
+        <div className="flex gap-4">
+          <Button onClick={() => setShowMembershipDialog(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Sell Membership
+          </Button>
+          <Button variant="outline" onClick={() => setShowClassPackageDialog(true)}>
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Sell Class Package
+          </Button>
+        </div>
+
+        <Tabs defaultValue="transactions" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+            <TabsTrigger value="process">Process Payment</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="transactions" className="space-y-4">
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
@@ -240,7 +266,51 @@ export default function Payments() {
             </Table>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="process" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Process Payment</CardTitle>
+                <CardDescription>
+                  Choose to create a payment link or process payment directly.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card className="p-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setShowMembershipDialog(true)}>
+                    <div className="flex items-center gap-3">
+                      <UserPlus className="h-8 w-8 text-primary" />
+                      <div>
+                        <h3 className="font-semibold">Membership Payment</h3>
+                        <p className="text-sm text-muted-foreground">Process membership activation</p>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card className="p-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setShowClassPackageDialog(true)}>
+                    <div className="flex items-center gap-3">
+                      <ShoppingBag className="h-8 w-8 text-primary" />
+                      <div>
+                        <h3 className="font-semibold">Class Package</h3>
+                        <p className="text-sm text-muted-foreground">Sell class packages</p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
+
+      <SellMembershipPackage
+        open={showMembershipDialog}
+        onOpenChange={setShowMembershipDialog}
+      />
+      <SellClassPackage
+        open={showClassPackageDialog}
+        onOpenChange={setShowClassPackageDialog}
+      />
     </AdminLayout>
   );
 }

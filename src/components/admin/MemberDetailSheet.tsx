@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
@@ -65,6 +65,7 @@ interface Member {
   is_founding_member: boolean | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  annual_fee_paid_at: string | null;
   created_at: string | null;
 }
 
@@ -288,16 +289,51 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Member Details
-            </SheetTitle>
+            <div className="flex items-center justify-between">
+              <SheetTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Member Details
+              </SheetTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {/* Will be handled by parent component */}}
+                  title="Process Payment"
+                >
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  Process
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {/* Will be handled by parent component */}}
+                  title="Sell Package"
+                >
+                  <ShoppingBag className="h-4 w-4 mr-1" />
+                  Sell
+                </Button>
+                {member.status === "pending_activation" && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {/* Will be handled by parent component */}}
+                    title="Activate Membership"
+                  >
+                    <PlayCircle className="h-4 w-4 mr-1" />
+                    Activate
+                  </Button>
+                )}
+              </div>
+            </div>
           </SheetHeader>
 
           <Tabs defaultValue="profile" className="mt-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="membership">Membership</TabsTrigger>
+              <TabsTrigger value="contract">Contract</TabsTrigger>
+              <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -539,6 +575,254 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                   Delete Member Permanently
                 </Button>
               )}
+            </TabsContent>
+
+            <TabsContent value="contract" className="space-y-4 mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Membership Contract</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="contract_membership_type">Membership Type</Label>
+                      <Select 
+                        value={member.membership_type} 
+                        onValueChange={async (value) => {
+                          try {
+                            await supabase.from("members").update({ membership_type: value }).eq("id", member.id);
+                            toast.success("Membership type updated");
+                            queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                          } catch (error) {
+                            toast.error("Failed to update membership type");
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Silver">Silver</SelectItem>
+                          <SelectItem value="Gold">Gold</SelectItem>
+                          <SelectItem value="Platinum">Platinum</SelectItem>
+                          <SelectItem value="Diamond">Diamond</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="contract_billing_type">Billing Type</Label>
+                      <Select 
+                        value={member.billing_type || "monthly"} 
+                        onValueChange={async (value) => {
+                          try {
+                            await supabase.from("members").update({ billing_type: value }).eq("id", member.id);
+                            toast.success("Billing type updated");
+                            queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                          } catch (error) {
+                            toast.error("Failed to update billing type");
+                          }
+                        }}
+                        disabled={member.is_founding_member === true}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="annual">Annual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {member.is_founding_member && (
+                        <p className="text-xs text-muted-foreground mt-1">Founding members are always annual</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="contract_founding"
+                      checked={member.is_founding_member || false}
+                      onChange={async (e) => {
+                        try {
+                          const isFounding = e.target.checked;
+                          await supabase.from("members").update({ 
+                            is_founding_member: isFounding,
+                            billing_type: isFounding ? "annual" : (member.billing_type || "monthly")
+                          }).eq("id", member.id);
+                          toast.success(`Member marked as ${isFounding ? "founding" : "regular"}`);
+                          queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                        } catch (error) {
+                          toast.error("Failed to update founding member status");
+                        }
+                      }}
+                      className="rounded"
+                    />
+                    <Label htmlFor="contract_founding" className="cursor-pointer">Founding Member</Label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Start Date</Label>
+                      <Input
+                        type="date"
+                        value={member.membership_start_date ? format(new Date(member.membership_start_date), "yyyy-MM-dd") : ""}
+                        onChange={async (e) => {
+                          try {
+                            await supabase.from("members").update({ 
+                              membership_start_date: e.target.value 
+                            }).eq("id", member.id);
+                            toast.success("Start date updated");
+                            queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                          } catch (error) {
+                            toast.error("Failed to update start date");
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label>End Date (Optional)</Label>
+                      <Input
+                        type="date"
+                        value={member.membership_end_date ? format(new Date(member.membership_end_date), "yyyy-MM-dd") : ""}
+                        onChange={async (e) => {
+                          try {
+                            await supabase.from("members").update({ 
+                              membership_end_date: e.target.value || null
+                            }).eq("id", member.id);
+                            toast.success("End date updated");
+                            queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                          } catch (error) {
+                            toast.error("Failed to update end date");
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="payments" className="space-y-4 mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Payment Management</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {member.stripe_customer_id ? (
+                    <>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Stripe Customer ID</p>
+                        <p className="text-sm font-mono text-muted-foreground break-all">{member.stripe_customer_id}</p>
+                        {member.stripe_subscription_id && (
+                          <>
+                            <p className="text-sm font-medium mt-4">Stripe Subscription ID</p>
+                            <p className="text-sm font-mono text-muted-foreground break-all">{member.stripe_subscription_id}</p>
+                          </>
+                        )}
+                      </div>
+                      
+                      <div className="pt-4 border-t">
+                        <ChargeHistory 
+                          memberId={member.id}
+                          isAdmin={true}
+                          recipientEmail={member.email}
+                          recipientName={member.first_name}
+                        />
+                      </div>
+
+                      <div className="pt-4 border-t">
+                        <p className="text-sm font-medium mb-3">Subscription Management</p>
+                        <div className="space-y-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={async () => {
+                              try {
+                                const { data, error } = await supabase.functions.invoke("stripe-payment", {
+                                  body: {
+                                    action: "pause_subscription",
+                                    subscriptionId: member.stripe_subscription_id,
+                                  },
+                                });
+                                if (error) throw error;
+                                toast.success("Subscription paused");
+                                queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                              } catch (error) {
+                                toast.error("Failed to pause subscription");
+                              }
+                            }}
+                            disabled={!member.stripe_subscription_id}
+                          >
+                            Pause Subscription
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={async () => {
+                              try {
+                                const { data, error } = await supabase.functions.invoke("stripe-payment", {
+                                  body: {
+                                    action: "cancel_subscription",
+                                    subscriptionId: member.stripe_subscription_id,
+                                  },
+                                });
+                                if (error) throw error;
+                                toast.success("Subscription cancelled");
+                                queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                              } catch (error) {
+                                toast.error("Failed to cancel subscription");
+                              }
+                            }}
+                            disabled={!member.stripe_subscription_id}
+                          >
+                            Cancel Subscription
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t">
+                        <p className="text-sm font-medium mb-2">Annual Fee Status</p>
+                        {member.annual_fee_paid_at ? (
+                          <p className="text-sm text-muted-foreground">
+                            Paid on {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
+                          </p>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-amber-600">Not paid</p>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const { data, error } = await supabase.functions.invoke("stripe-payment", {
+                                    body: {
+                                      action: "charge_annual_fee",
+                                      memberId: member.id,
+                                      customerId: member.stripe_customer_id,
+                                    },
+                                  });
+                                  if (error) throw error;
+                                  toast.success("Annual fee charged");
+                                  queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                                } catch (error) {
+                                  toast.error("Failed to charge annual fee");
+                                }
+                              }}
+                            >
+                              Charge Annual Fee
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No payment method on file</p>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="notes" className="space-y-4 mt-4">

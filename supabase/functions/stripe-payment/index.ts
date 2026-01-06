@@ -7,6 +7,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Credit allocations by tier (matching webhook)
+const TIER_CREDITS: Record<string, { class: number; red_light: number; dry_cryo: number }> = {
+  silver: { class: 0, red_light: 0, dry_cryo: 0 },
+  gold: { class: 0, red_light: 4, dry_cryo: 2 },
+  platinum: { class: 0, red_light: 6, dry_cryo: 4 },
+  diamond: { class: 10, red_light: 10, dry_cryo: 6 },
+};
+
 // Stripe Price IDs - matching src/lib/stripeProducts.ts
 const STRIPE_PRODUCTS = {
   memberships: {
@@ -44,7 +52,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -56,9 +64,10 @@ interface PaymentRequest {
   memberId?: string;
   skipAnnualFee?: boolean; // Skip annual fee if already paid
   // For class pass
-  category?: 'pilatesCycling' | 'otherClasses';
+  category?: 'pilatesCycling' | 'otherClasses' | 'reformer' | 'cycling' | 'aerobics';
   passType?: 'single' | 'tenPack';
   isMember?: boolean;
+  userId?: string;
   // For freeze fee
   freezeId?: string;
   freezeFeeAmount?: number;
@@ -80,6 +89,10 @@ interface PaymentRequest {
   subscriptionId?: string;
   successUrl?: string;
   cancelUrl?: string;
+  // For create_subscription_from_payment
+  paymentMethodId?: string;
+  billingType?: 'monthly' | 'annual';
+  customerId?: string;
 }
 
 const logStep = (step: string, details?: unknown) => {
@@ -145,28 +158,26 @@ serve(async (req) => {
         logStep("Created new Stripe customer", { customerId });
       }
 
-      // Build success URL safely to avoid malformed query strings
-      const successUrlObj = new URL(successUrl);
-      successUrlObj.searchParams.set('setup_success', 'true');
-      successUrlObj.searchParams.set('customer_id', customerId);
-
-      // Create SetupIntent Checkout session (saves card without charging)
-      const session = await stripe.checkout.sessions.create({
+      // Create SetupIntent for embedded payment (stays in-app)
+      const setupIntent = await stripe.setupIntents.create({
         customer: customerId,
-        mode: 'setup',
         payment_method_types: ['card'],
-        success_url: successUrlObj.toString(),
-        cancel_url: cancelUrl,
         metadata: {
           type: 'application_card_setup',
           applicant_email: applicantEmail,
+          applicant_name: applicantName,
+          source: 'membership_application',
         },
       });
 
-      logStep("SetupIntent checkout session created", { sessionId: session.id, customerId });
+      logStep("Setup intent created", { setupIntentId: setupIntent.id, customerId });
 
       return new Response(
-        JSON.stringify({ sessionId: session.id, url: session.url, customerId }),
+        JSON.stringify({ 
+          clientSecret: setupIntent.client_secret,
+          setupIntentId: setupIntent.id,
+          customerId: customerId,
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
@@ -1007,6 +1018,512 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_membership_payment_link':
+      case 'process_membership_payment': {
+        // Same logic as create_activation_checkout but can be called by admin
+        const { tier, gender, isFoundingMember, startDate, memberId, skipAnnualFee, successUrl, cancelUrl } = body;
+        
+        if (!tier || !gender || !startDate || !memberId) {
+          throw new Error("Missing required fields for membership payment");
+        }
+
+        const normalizedTier = tier.toLowerCase().replace(' membership', '') as keyof typeof STRIPE_PRODUCTS.memberships;
+        const normalizedGender = (gender.toLowerCase() === 'male' || gender.toLowerCase() === 'men') ? 'men' : 'women';
+        
+        const membershipPrices = STRIPE_PRODUCTS.memberships[normalizedTier];
+        if (!membershipPrices) {
+          throw new Error(`Invalid membership tier: ${tier}`);
+        }
+
+        const billingType = isFoundingMember ? 'annual' : 'monthly';
+        const membershipPriceId = membershipPrices[billingType][normalizedGender];
+        
+        if (!membershipPriceId) {
+          throw new Error(`Membership not available for ${gender} at ${tier} tier`);
+        }
+
+        const annualFeePriceId = skipAnnualFee ? null : STRIPE_PRODUCTS.annualFee[normalizedGender];
+
+        // Get member to find customer ID
+        const { data: memberData } = await supabase
+          .from('members')
+          .select('user_id, stripe_customer_id')
+          .eq('id', memberId)
+          .single();
+
+        if (!memberData) throw new Error("Member not found");
+
+        let customerId = memberData.stripe_customer_id;
+        if (!customerId) {
+          // Get or create customer
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, full_name')
+            .eq('user_id', memberData.user_id)
+            .single();
+          
+          if (!profile) throw new Error("User profile not found");
+
+          const customer = await stripe.customers.create({
+            email: profile.email,
+            name: profile.full_name,
+            metadata: { member_id: memberId, user_id: memberData.user_id },
+          });
+          
+          customerId = customer.id;
+          
+          // Save to member record
+          await supabase
+            .from('members')
+            .update({ stripe_customer_id: customerId })
+            .eq('id', memberId);
+        }
+
+        const startDateObj = new Date(startDate);
+        const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
+
+        const lineItems: { price: string; quantity: number }[] = [
+          { price: membershipPriceId, quantity: 1 },
+        ];
+        
+        if (annualFeePriceId) {
+          lineItems.push({ price: annualFeePriceId, quantity: 1 });
+        }
+
+        // For founding members paying annual upfront, charge 12 months
+        if (isFoundingMember && billingType === 'annual') {
+          // For annual upfront, we'll charge once and set up annual subscription
+          const session = await stripe.checkout.sessions.create({
+            customer: customerId,
+            line_items: lineItems,
+            mode: 'subscription',
+            subscription_data: {
+              billing_cycle_anchor: billingAnchor,
+              proration_behavior: 'none',
+              metadata: {
+                member_id: memberId,
+                user_id: memberData.user_id,
+                tier: normalizedTier,
+                gender: normalizedGender,
+                is_founding_member: String(isFoundingMember),
+                start_date: startDate,
+              },
+            },
+            success_url: successUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member?payment=success`,
+            cancel_url: cancelUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member?payment=cancelled`,
+            metadata: {
+              type: 'membership_activation',
+              member_id: memberId,
+              user_id: memberData.user_id,
+              tier: normalizedTier,
+              gender: normalizedGender,
+              is_founding_member: String(isFoundingMember),
+              start_date: startDate,
+            },
+          });
+
+          return new Response(
+            JSON.stringify({ sessionId: session.id, url: session.url, success: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        } else {
+          // Regular subscription flow
+          const session = await stripe.checkout.sessions.create({
+            customer: customerId,
+            line_items: lineItems,
+            mode: 'subscription',
+            subscription_data: {
+              billing_cycle_anchor: billingAnchor,
+              proration_behavior: 'none',
+              metadata: {
+                member_id: memberId,
+                user_id: memberData.user_id,
+                tier: normalizedTier,
+                gender: normalizedGender,
+                is_founding_member: String(isFoundingMember),
+                start_date: startDate,
+              },
+            },
+            success_url: successUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member?payment=success`,
+            cancel_url: cancelUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member?payment=cancelled`,
+            metadata: {
+              type: 'membership_activation',
+              member_id: memberId,
+              user_id: memberData.user_id,
+              tier: normalizedTier,
+              gender: normalizedGender,
+              is_founding_member: String(isFoundingMember),
+              start_date: startDate,
+            },
+          });
+
+          return new Response(
+            JSON.stringify({ sessionId: session.id, url: session.url, success: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+      }
+
+      case 'create_class_pass_link':
+      case 'process_class_pass': {
+        // Similar to create_class_pass_checkout but for admin use
+        const { category, passType, userId, isMember, successUrl, cancelUrl } = body;
+        
+        if (!category || !passType || !userId) {
+          throw new Error("Missing required fields for class pass");
+        }
+
+        // Map category names
+        let mappedCategory = category;
+        if (category === 'pilatesCycling') mappedCategory = 'reformer';
+        if (category === 'otherClasses') mappedCategory = 'aerobics';
+
+        const passConfig = STRIPE_PRODUCTS.classPasses[mappedCategory as keyof typeof STRIPE_PRODUCTS.classPasses];
+        if (!passConfig) {
+          throw new Error(`Invalid category: ${category}`);
+        }
+
+        const priceId = passConfig[passType]?.[isMember ? 'member' : 'nonMember'];
+        if (!priceId) {
+          throw new Error(`Price not found for ${category} ${passType} ${isMember ? 'member' : 'non-member'}`);
+        }
+
+        // Get or create customer
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('user_id', userId)
+          .single();
+
+        if (!profile) throw new Error("User profile not found");
+
+        let customer = await stripe.customers.list({ email: profile.email, limit: 1 });
+        let customerId: string;
+        
+        if (customer.data.length > 0) {
+          customerId = customer.data[0].id;
+        } else {
+          const newCustomer = await stripe.customers.create({
+            email: profile.email,
+            name: profile.full_name,
+            metadata: { user_id: userId },
+          });
+          customerId = newCustomer.id;
+        }
+
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: [{ price: priceId, quantity: 1 }],
+          mode: 'payment',
+          success_url: successUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member/credits?purchase=success`,
+          cancel_url: cancelUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/class-passes?purchase=cancelled`,
+          metadata: {
+            type: 'class_pass',
+            user_id: userId,
+            category: mappedCategory,
+            pass_type: passType,
+            is_member: String(isMember),
+          },
+        });
+
+        return new Response(
+          JSON.stringify({ sessionId: session.id, url: session.url, success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'charge_annual_fee': {
+        const { memberId, customerId } = body;
+        
+        if (!memberId || !customerId) {
+          throw new Error("Missing memberId or customerId");
+        }
+
+        // Get member to determine gender
+        const { data: member } = await supabase
+          .from('members')
+          .select('gender')
+          .eq('id', memberId)
+          .single();
+
+        if (!member) throw new Error("Member not found");
+
+        const normalizedGender = (member.gender?.toLowerCase() === 'male' || member.gender?.toLowerCase() === 'men') ? 'men' : 'women';
+        const annualFeePriceId = STRIPE_PRODUCTS.annualFee[normalizedGender];
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: annualFeePriceId ? 0 : (normalizedGender === 'men' ? 17500 : 30000), // cents
+          currency: 'usd',
+          customer: customerId,
+          metadata: {
+            type: 'annual_fee_payment',
+            member_id: memberId,
+          },
+        });
+
+        // If price ID exists, use checkout instead
+        if (annualFeePriceId) {
+          const session = await stripe.checkout.sessions.create({
+            customer: customerId,
+            line_items: [{ price: annualFeePriceId, quantity: 1 }],
+            mode: 'payment',
+            success_url: `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member?payment=success`,
+            cancel_url: `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member?payment=cancelled`,
+            metadata: {
+              type: 'annual_fee_payment',
+              member_id: memberId,
+            },
+          });
+
+          return new Response(
+            JSON.stringify({ sessionId: session.id, url: session.url, success: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ paymentIntentId: paymentIntent.id, success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'pause_subscription': {
+        const { subscriptionId } = body;
+        if (!subscriptionId) throw new Error("Missing subscriptionId");
+
+        const subscription = await stripe.subscriptions.update(subscriptionId, {
+          pause_collection: {
+            behavior: 'keep_as_draft',
+          },
+        });
+
+        return new Response(
+          JSON.stringify({ subscription, success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'resume_subscription': {
+        const { subscriptionId } = body;
+        if (!subscriptionId) throw new Error("Missing subscriptionId");
+
+        const subscription = await stripe.subscriptions.update(subscriptionId, {
+          pause_collection: null,
+        });
+
+        return new Response(
+          JSON.stringify({ subscription, success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'update_subscription_billing': {
+        const { subscriptionId, billingType } = body;
+        if (!subscriptionId || !billingType) {
+          throw new Error("Missing subscriptionId or billingType");
+        }
+
+        // Get current subscription
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        
+        // Update to new billing interval
+        const updated = await stripe.subscriptions.update(subscriptionId, {
+          items: [{
+            id: subscription.items.data[0].id,
+            price: subscription.items.data[0].price.id, // Keep same price but update interval
+          }],
+          billing_cycle_anchor: 'unchanged',
+          proration_behavior: 'always_invoice',
+        });
+
+        return new Response(
+          JSON.stringify({ subscription: updated, success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_subscription_payment_intent': {
+        // Create payment intent for embedded subscription payment (stays in-app)
+        const { tier, gender, isFoundingMember, startDate, memberId, skipAnnualFee } = body;
+        
+        if (!tier || !gender || !startDate || !memberId) {
+          throw new Error("Missing required fields for subscription payment");
+        }
+
+        const normalizedTier = tier.toLowerCase().replace(' membership', '') as keyof typeof STRIPE_PRODUCTS.memberships;
+        const normalizedGender = (gender.toLowerCase() === 'male' || gender.toLowerCase() === 'men') ? 'men' : 'women';
+        
+        const membershipPrices = STRIPE_PRODUCTS.memberships[normalizedTier];
+        if (!membershipPrices) {
+          throw new Error(`Invalid membership tier: ${tier}`);
+        }
+
+        const billingType = isFoundingMember ? 'annual' : 'monthly';
+        const membershipPriceId = membershipPrices[billingType][normalizedGender];
+        
+        if (!membershipPriceId) {
+          throw new Error(`Membership not available for ${gender} at ${tier} tier`);
+        }
+
+        const annualFeePriceId = skipAnnualFee ? null : STRIPE_PRODUCTS.annualFee[normalizedGender];
+
+        // Get customer ID
+        const customerId = await getOrCreateCustomer();
+
+        // Save stripe_customer_id to member record
+        await supabase
+          .from('members')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', memberId);
+
+        // Calculate total amount for payment intent
+        const price = await stripe.prices.retrieve(membershipPriceId);
+        let amount = price.unit_amount || 0;
+        
+        if (annualFeePriceId) {
+          const feePrice = await stripe.prices.retrieve(annualFeePriceId);
+          amount += feePrice.unit_amount || 0;
+        }
+
+        // Create payment intent
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount,
+          currency: 'usd',
+          customer: customerId,
+          setup_future_usage: 'off_session', // Save payment method for subscription
+          metadata: {
+            type: 'membership_activation',
+            member_id: memberId,
+            user_id: user.id,
+            tier: normalizedTier,
+            gender: normalizedGender,
+            is_founding_member: String(isFoundingMember),
+            start_date: startDate,
+            skip_annual_fee: String(skipAnnualFee || false),
+          },
+        });
+
+        logStep("Payment intent created for subscription", { 
+          paymentIntentId: paymentIntent.id, 
+          memberId,
+          amount: amount / 100 
+        });
+
+        return new Response(
+          JSON.stringify({ 
+            clientSecret: paymentIntent.client_secret,
+            paymentIntentId: paymentIntent.id,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_subscription_from_payment': {
+        // Create subscription after payment is confirmed (for embedded payment flow)
+        const { memberId, tier, gender, isFoundingMember, startDate, skipAnnualFee, paymentMethodId, paymentIntentId } = body;
+        
+        if (!memberId || !paymentMethodId || !tier || !gender || !startDate) {
+          throw new Error("Missing required fields for subscription creation");
+        }
+
+        const normalizedTier = tier.toLowerCase().replace(' membership', '') as keyof typeof STRIPE_PRODUCTS.memberships;
+        const normalizedGender = (gender.toLowerCase() === 'male' || gender.toLowerCase() === 'men') ? 'men' : 'women';
+        
+        const membershipPrices = STRIPE_PRODUCTS.memberships[normalizedTier];
+        if (!membershipPrices) {
+          throw new Error(`Invalid membership tier: ${tier}`);
+        }
+
+        const billingType = isFoundingMember ? 'annual' : 'monthly';
+        const membershipPriceId = membershipPrices[billingType][normalizedGender];
+        
+        if (!membershipPriceId) {
+          throw new Error(`Membership not available for ${gender} at ${tier} tier`);
+        }
+
+        // Get customer ID from member
+        const { data: memberData } = await supabase
+          .from('members')
+          .select('stripe_customer_id, user_id')
+          .eq('id', memberId)
+          .single();
+
+        if (!memberData?.stripe_customer_id) {
+          throw new Error("Member has no Stripe customer ID");
+        }
+
+        const startDateObj = new Date(startDate);
+        const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
+
+        // Create subscription with saved payment method
+        const subscription = await stripe.subscriptions.create({
+          customer: memberData.stripe_customer_id,
+          items: [{ price: membershipPriceId }],
+          default_payment_method: paymentMethodId,
+          billing_cycle_anchor: billingAnchor,
+          proration_behavior: 'none',
+          metadata: {
+            member_id: memberId,
+            user_id: memberData.user_id,
+            tier: normalizedTier,
+            gender: normalizedGender,
+            is_founding_member: String(isFoundingMember),
+            start_date: startDate,
+            annual_fee_skipped: String(skipAnnualFee || false),
+            payment_intent_id: paymentIntentId || '',
+          },
+        });
+
+        // Update member record
+        await supabase
+          .from('members')
+          .update({
+            status: 'active',
+            stripe_subscription_id: subscription.id,
+            billing_type: billingType,
+            is_founding_member: isFoundingMember,
+            gender: normalizedGender,
+            activated_at: new Date().toISOString(),
+            membership_start_date: startDate,
+            annual_fee_paid_at: skipAnnualFee ? null : new Date().toISOString(),
+          })
+          .eq('id', memberId);
+
+        // Create initial credits (webhook will also do this, but doing it here ensures it happens)
+        const credits = TIER_CREDITS[normalizedTier] || TIER_CREDITS.silver;
+        const cycleStart = new Date(startDate);
+        const cycleEnd = new Date(cycleStart);
+        cycleEnd.setMonth(cycleEnd.getMonth() + 1);
+        const expiresAt = new Date(cycleEnd);
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        const creditTypes = ['class', 'red_light', 'dry_cryo'] as const;
+        for (const creditType of creditTypes) {
+          const creditAmount = credits[creditType];
+          if (creditAmount > 0) {
+            await supabase
+              .from('member_credits')
+              .insert({
+                member_id: memberId,
+                user_id: memberData.user_id,
+                credit_type: creditType,
+                credits_total: creditAmount,
+                credits_remaining: creditAmount,
+                cycle_start: cycleStart.toISOString().split('T')[0],
+                cycle_end: cycleEnd.toISOString().split('T')[0],
+                expires_at: expiresAt.toISOString(),
+              });
+          }
+        }
+
+        logStep("Subscription created from payment", { subscriptionId: subscription.id, memberId });
+
+        return new Response(
+          JSON.stringify({ subscription, success: true }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }

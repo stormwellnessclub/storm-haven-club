@@ -15,6 +15,12 @@ import stormLogo from "@/assets/storm-logo-gold.png";
 import { secureInvoke } from "@/lib/secureSupabaseCall";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { StripeProvider } from "@/components/StripeProvider";
+import { MembershipActivationPayment } from "./MembershipActivationPayment";
+import { StripeProvider } from "@/components/StripeProvider";
+import { MembershipActivationPayment } from "./MembershipActivationPayment";
+import { StripeProvider } from "@/components/StripeProvider";
+import { MembershipActivationPayment } from "./MembershipActivationPayment";
 
 interface MemberData {
   id: string;
@@ -51,6 +57,9 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
     memberData.is_founding_member || false
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [annualFeeAlreadyPaid, setAnnualFeeAlreadyPaid] = useState<boolean>(false);
   const [checkingFeeStatus, setCheckingFeeStatus] = useState(true);
   const { session } = useAuth();
@@ -156,20 +165,36 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
     setIsLoading(true);
 
     try {
-      const origin = window.location.origin;
+      // Calculate total amount
+      const { monthlyPrice, annualPrice, annualFee } = getPricing();
+      let totalAmount = 0;
       
-      // Use secureInvoke for better session handling
-      const result = await secureInvoke<{ url?: string }>("stripe-payment", {
+      if (isFoundingMember) {
+        // Founding members pay annual upfront
+        totalAmount = annualPrice;
+        if (!annualFeeAlreadyPaid) {
+          totalAmount += annualFee;
+        }
+      } else {
+        // Regular members pay monthly + annual fee if not paid
+        totalAmount = monthlyPrice;
+        if (!annualFeeAlreadyPaid) {
+          totalAmount += annualFee;
+        }
+      }
+      
+      setPaymentAmount(totalAmount);
+
+      // Create payment intent for embedded payment
+      const result = await secureInvoke<{ clientSecret?: string; error?: string }>("stripe-payment", {
         body: {
-          action: "create_activation_checkout",
+          action: "create_subscription_payment_intent",
           tier: memberData.membership_type,
           gender: gender,
           isFoundingMember: isFoundingMember,
           startDate: format(selectedDate, "yyyy-MM-dd"),
           memberId: memberData.id,
-          skipAnnualFee: annualFeeAlreadyPaid, // Skip annual fee if already paid
-          successUrl: `${origin}/member?activation=success`,
-          cancelUrl: `${origin}/member?activation=cancelled`,
+          skipAnnualFee: annualFeeAlreadyPaid,
         },
       });
 
@@ -180,21 +205,39 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
         return;
       }
 
-      if (result.error) {
-        throw result.error;
+      if (result.error || result.data?.error) {
+        throw new Error(result.error || result.data?.error || "Failed to initialize payment");
       }
 
-      if (result.data?.url) {
-        // Redirect to Stripe Checkout
-        window.location.href = result.data.url;
+      if (result.data?.clientSecret) {
+        // Show embedded payment form
+        setPaymentClientSecret(result.data.clientSecret);
+        setShowPaymentForm(true);
+        setIsLoading(false);
       } else {
-        throw new Error("No checkout URL returned");
+        throw new Error("No payment client secret returned");
       }
-    } catch (error) {
-      console.error("Checkout error:", error);
-      toast.error("Failed to start checkout. Please try again.");
+    } catch (error: any) {
+      console.error("Payment initialization error:", error);
+      toast.error(error.message || "Failed to initialize payment. Please try again.");
       setIsLoading(false);
     }
+  };
+
+  const handlePaymentSuccess = async () => {
+    setShowPaymentForm(false);
+    setPaymentClientSecret(null);
+    toast.success("Payment successful! Your membership is being activated...");
+    // Refresh page to show updated status
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPaymentForm(false);
+    setPaymentClientSecret(null);
+    setIsLoading(false);
   };
 
   // Date validation for calendar
@@ -395,34 +438,55 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
             </div>
           </div>
 
-          {/* Activate Button */}
-          <Button
-            className="w-full"
-            size="lg"
-            onClick={handleActivate}
-            disabled={!selectedDate || isLoading || diamondMenBlocked || checkingFeeStatus}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Redirecting to checkout...
-              </>
-            ) : checkingFeeStatus ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Checking payment status...
-              </>
-            ) : (
-              <>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Continue to Payment
-              </>
-            )}
-          </Button>
+          {/* Payment Form or Activate Button */}
+          {!showPaymentForm ? (
+            <>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleActivate}
+                disabled={!selectedDate || isLoading || diamondMenBlocked || checkingFeeStatus}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Preparing payment...
+                  </>
+                ) : checkingFeeStatus ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking payment status...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Continue to Payment
+                  </>
+                )}
+              </Button>
 
-          <p className="text-xs text-center text-muted-foreground">
-            You'll be redirected to our secure payment processor to complete your membership activation.
-          </p>
+              <p className="text-xs text-center text-muted-foreground">
+                Secure payment processing - stay on this page
+              </p>
+            </>
+          ) : paymentClientSecret ? (
+            <div className="space-y-4">
+              <StripeProvider clientSecret={paymentClientSecret}>
+                <MembershipActivationPayment
+                  memberId={memberData.id}
+                  tier={memberData.membership_type}
+                  gender={gender}
+                  isFoundingMember={isFoundingMember}
+                  startDate={format(selectedDate!, "yyyy-MM-dd")}
+                  skipAnnualFee={annualFeeAlreadyPaid}
+                  amount={paymentAmount}
+                  clientSecret={paymentClientSecret || undefined}
+                  onSuccess={handlePaymentSuccess}
+                  onCancel={handlePaymentCancel}
+                />
+              </StripeProvider>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>

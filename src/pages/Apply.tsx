@@ -6,12 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Check, ArrowRight, ExternalLink, Loader2, CreditCard } from "lucide-react";
+import { Check, ArrowRight, ExternalLink, Loader2, CreditCard, AlertCircle, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
 import { useAgreements } from "@/hooks/useAgreements";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StripeProvider } from "@/components/StripeProvider";
+import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
@@ -218,11 +220,164 @@ function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAg
   );
 }
 
+// Payment Form Component for Application
+function ApplicationPaymentForm({ 
+  clientSecret, 
+  onSuccess, 
+  onCancel 
+}: { 
+  clientSecret: string; 
+  onSuccess: (customerId: string) => void;
+  onCancel: () => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isElementReady, setIsElementReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!stripe || !elements) {
+      setError("Payment form not ready. Please wait...");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Validate the form first
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setError(submitError.message || "Please complete the payment form");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Confirm setup intent
+      const { error: confirmError, setupIntent } = await stripe.confirmSetup({
+        elements,
+        clientSecret,
+        redirect: "if_required",
+        confirmParams: {
+          return_url: window.location.href,
+        },
+      });
+
+      if (confirmError) {
+        setError(confirmError.message || "Failed to save payment method. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (setupIntent?.customer && typeof setupIntent.customer === 'string') {
+        onSuccess(setupIntent.customer);
+      } else {
+        // Fallback: get customer ID from setup intent metadata or retrieve it
+        const setupIntentDetails = await stripe.setupIntents.retrieve(setupIntent.id);
+        if (setupIntentDetails.customer && typeof setupIntentDetails.customer === 'string') {
+          onSuccess(setupIntentDetails.customer);
+        } else {
+          throw new Error("Could not retrieve customer ID");
+        }
+      }
+    } catch (err: any) {
+      console.error("Payment setup error:", err);
+      setError(err.message || "Failed to save payment method. Please try again.");
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Payment Information
+            </CardTitle>
+            <CardDescription>
+              Securely add your payment method. No charges will be made until you activate your membership.
+            </CardDescription>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isElementReady && (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-accent" />
+                <p className="text-sm text-muted-foreground">Loading secure payment form...</p>
+              </div>
+            </div>
+          )}
+
+          <div className={isElementReady ? "" : "opacity-0 absolute"}>
+            <PaymentElement
+              onReady={() => setIsElementReady(true)}
+              onLoadError={(error) => {
+                console.error("PaymentElement load error:", error);
+                setError("Failed to load payment form. Please refresh and try again.");
+              }}
+              options={{
+                layout: "tabs",
+              }}
+            />
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!stripe || !elements || isSubmitting || !isElementReady}
+              variant="gold"
+              className="flex-1"
+            >
+              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save Payment Method
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Apply() {
   const [searchParams] = useSearchParams();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingCard, setIsSavingCard] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
   
   // Use lazy initializers to hydrate from draft BEFORE any effects run
   const [formData, setFormData] = useState(() => {
@@ -317,9 +472,9 @@ export default function Apply() {
 
     setIsSavingCard(true);
 
-    // Save draft immediately before redirecting
+    // Save draft immediately
     saveDraft(formData, stripeCustomerId);
-    console.log("[Apply] Saved draft before payment redirect");
+    console.log("[Apply] Saved draft before payment setup");
 
     try {
       const { data, error } = await supabase.functions.invoke("stripe-payment", {
@@ -334,7 +489,7 @@ export default function Apply() {
 
       if (error) {
         console.error("Payment setup error:", error);
-        throw new Error(error.message || "Failed to create payment session");
+        throw new Error(error.message || "Failed to create payment setup");
       }
 
       if (!data) {
@@ -345,12 +500,18 @@ export default function Apply() {
         throw new Error(data.error || "Payment setup failed");
       }
 
-      if (!data.url) {
+      if (!data.clientSecret) {
         console.error("Response data:", data);
-        throw new Error("No checkout URL returned from payment service");
+        throw new Error("No client secret returned from payment service");
       }
 
-      window.location.href = data.url;
+      // Store client secret and customer ID, then show embedded payment form
+      setPaymentClientSecret(data.clientSecret);
+      if (data.customerId) {
+        setStripeCustomerId(data.customerId);
+      }
+      setShowPaymentForm(true);
+      setIsSavingCard(false);
     } catch (error) {
       console.error("Error creating payment setup:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to open payment setup. Please try again.";
@@ -1052,7 +1213,7 @@ export default function Apply() {
                 </div>
 
                 {/* Card Save Button / Status */}
-                {stripeCustomerId ? (
+                {stripeCustomerId && !showPaymentForm ? (
                   <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-sm flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
                       <Check className="w-5 h-5 text-green-600" />
@@ -1062,11 +1223,28 @@ export default function Apply() {
                       <p className="text-sm text-muted-foreground">Your card has been securely saved for future billing.</p>
                     </div>
                   </div>
+                ) : showPaymentForm && paymentClientSecret ? (
+                  <StripeProvider clientSecret={paymentClientSecret}>
+                    <ApplicationPaymentForm
+                      clientSecret={paymentClientSecret}
+                      onSuccess={(customerId) => {
+                        setStripeCustomerId(customerId);
+                        setShowPaymentForm(false);
+                        setPaymentClientSecret(null);
+                        toast.success("Payment method saved successfully!");
+                        saveDraft(formData, customerId);
+                      }}
+                      onCancel={() => {
+                        setShowPaymentForm(false);
+                        setPaymentClientSecret(null);
+                        setIsSavingCard(false);
+                      }}
+                    />
+                  </StripeProvider>
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
-                      Click the button below to securely add your payment method. You'll be redirected to our 
-                      secure payment processor and returned here to complete your application.
+                      Click the button below to securely add your payment method. The payment form will appear here.
                     </p>
                     <Button
                       type="button"
@@ -1078,7 +1256,7 @@ export default function Apply() {
                       {isSavingCard ? (
                         <>
                           <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                          Opening Payment Setup...
+                          Preparing Payment Form...
                         </>
                       ) : (
                         <>
