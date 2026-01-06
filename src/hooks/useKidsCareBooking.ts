@@ -178,8 +178,8 @@ export function useBookKidsCare() {
       // For now, we'll allow booking and let staff manage capacity at check-in
 
       // Create booking
-      const { data, error } = await supabase
-        .from("kids_care_bookings")
+      const { data, error } = await (supabase
+        .from("kids_care_bookings" as any)
         .insert({
           member_id: memberData.id,
           user_id: user.id,
@@ -194,9 +194,9 @@ export function useBookKidsCare() {
           age_group: ageGroup,
           special_instructions: params.specialInstructions || null,
           parent_notes: params.parentNotes || null,
-        })
+        } as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
 

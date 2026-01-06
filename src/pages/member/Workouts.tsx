@@ -29,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkoutLogs, useCreateWorkoutLog, useUpdateWorkoutLog, useDeleteWorkoutLog, WorkoutLog, CreateWorkoutLogData } from "@/hooks/useWorkoutLogs";
 import { useAIWorkouts, useGenerateAIWorkout, useCompleteAIWorkout, useDeleteAIWorkout, AIWorkout } from "@/hooks/useAIWorkouts";
@@ -549,7 +550,7 @@ export default function Workouts() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleDeleteAIWorkout.mutate(workout.id)}
+                          onClick={() => deleteAIWorkout.mutate(workout.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete

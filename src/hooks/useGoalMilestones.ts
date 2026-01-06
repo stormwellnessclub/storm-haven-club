@@ -26,11 +26,11 @@ export function useGoalMilestones(goalId: string) {
     queryFn: async (): Promise<GoalMilestone[]> => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from("goal_milestones")
+      const { data, error } = await (supabase
+        .from("goal_milestones" as any)
         .select("*")
         .eq("goal_id", goalId)
-        .order("milestone_value", { ascending: true });
+        .order("milestone_value", { ascending: true }) as any);
 
       if (error) throw error;
       return (data || []) as GoalMilestone[];
@@ -47,17 +47,17 @@ export function useCreateMilestone() {
     mutationFn: async (data: CreateMilestoneData) => {
       if (!user) throw new Error("You must be signed in");
 
-      const { data: milestone, error } = await supabase
-        .from("goal_milestones")
-        .insert(data)
+      const { data: milestone, error } = await (supabase
+        .from("goal_milestones" as any)
+        .insert(data as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
 
       // Check if milestone is already achieved
-      await supabase.rpc("check_goal_milestones", {
-        p_goal_id: data.goal_id,
+      await (supabase.rpc as any)("check_goal_milestones", {
+        _goal_id: data.goal_id,
       });
 
       return milestone as GoalMilestone;
@@ -77,10 +77,10 @@ export function useDeleteMilestone() {
 
   return useMutation({
     mutationFn: async ({ id, goalId }: { id: string; goalId: string }) => {
-      const { error } = await supabase
-        .from("goal_milestones")
+      const { error } = await (supabase
+        .from("goal_milestones" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id) as any);
 
       if (error) throw error;
     },
@@ -99,8 +99,8 @@ export function useCheckGoalMilestones() {
 
   return useMutation({
     mutationFn: async (goalId: string) => {
-      const { data, error } = await supabase.rpc("check_goal_milestones", {
-        p_goal_id: goalId,
+      const { data, error } = await (supabase.rpc as any)("check_goal_milestones", {
+        _goal_id: goalId,
       });
 
       if (error) throw error;
@@ -112,6 +112,3 @@ export function useCheckGoalMilestones() {
     },
   });
 }
-
-
-

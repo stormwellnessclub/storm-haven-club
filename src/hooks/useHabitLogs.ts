@@ -7,16 +7,20 @@ import { format } from "date-fns";
 export interface HabitLog {
   id: string;
   habit_id: string;
-  member_id: string;
-  logged_value: number;
+  user_id: string;
+  logged_at: string;
   logged_date: string;
+  logged_value: number;
+  count: number;
   notes: string | null;
   created_at: string;
 }
 
 export interface CreateHabitLogData {
   habit_id: string;
+  count?: number;
   logged_value?: number;
+  logged_at?: string;
   logged_date?: string;
   notes?: string;
 }
@@ -29,24 +33,11 @@ export function useHabitLogs(habitId?: string, memberId?: string, dateRange?: { 
     queryFn: async (): Promise<HabitLog[]> => {
       if (!user) return [];
 
-      // Get member_id if not provided
-      let targetMemberId = memberId;
-      if (!targetMemberId) {
-        const { data: member } = await supabase
-          .from("members")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        
-        if (!member) return [];
-        targetMemberId = member.id;
-      }
-
-      let query = supabase
-        .from("habit_logs")
+      let query = (supabase
+        .from("habit_logs" as any)
         .select("*")
-        .eq("member_id", targetMemberId)
-        .order("logged_date", { ascending: false });
+        .eq("user_id", user.id)
+        .order("logged_at", { ascending: false }) as any);
 
       if (habitId) {
         query = query.eq("habit_id", habitId);
@@ -54,16 +45,20 @@ export function useHabitLogs(habitId?: string, memberId?: string, dateRange?: { 
 
       if (dateRange) {
         query = query
-          .gte("logged_date", format(dateRange.start, "yyyy-MM-dd"))
-          .lte("logged_date", format(dateRange.end, "yyyy-MM-dd"));
+          .gte("logged_at", format(dateRange.start, "yyyy-MM-dd"))
+          .lte("logged_at", format(dateRange.end, "yyyy-MM-dd"));
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
-      return (data || []) as HabitLog[];
+      return (data || []).map((log: any) => ({
+        ...log,
+        logged_date: log.logged_at,
+        logged_value: log.count || 1,
+      })) as HabitLog[];
     },
-    enabled: !!user && (!!memberId || !!user.id),
+    enabled: !!user,
   });
 }
 
@@ -75,30 +70,29 @@ export function useCreateHabitLog() {
     mutationFn: async (data: CreateHabitLogData) => {
       if (!user) throw new Error("You must be signed in");
 
-      // Get member_id
-      const { data: member } = await supabase
-        .from("members")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const logDate = data.logged_date || data.logged_at || format(new Date(), "yyyy-MM-dd");
+      const logValue = data.logged_value || data.count || 1;
 
-      if (!member) throw new Error("Member not found");
-
-      const { data: log, error } = await supabase
-        .from("habit_logs")
+      const { data: log, error } = await (supabase
+        .from("habit_logs" as any)
         .insert({
-          ...data,
-          member_id: member.id,
-          logged_value: data.logged_value || 1,
-          logged_date: data.logged_date || format(new Date(), "yyyy-MM-dd"),
-        })
+          habit_id: data.habit_id,
+          user_id: user.id,
+          count: logValue,
+          logged_at: logDate,
+          notes: data.notes,
+        } as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return log as HabitLog;
+      return {
+        ...log,
+        logged_date: log.logged_at,
+        logged_value: log.count || 1,
+      } as HabitLog;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["habit-streaks"] });
       toast.success("Habit logged successfully");
@@ -114,15 +108,26 @@ export function useUpdateHabitLog() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateHabitLogData> }) => {
-      const { data: log, error } = await supabase
-        .from("habit_logs")
-        .update(data)
+      const updateData: any = {};
+      if (data.count !== undefined) updateData.count = data.count;
+      if (data.logged_value !== undefined) updateData.count = data.logged_value;
+      if (data.logged_at !== undefined) updateData.logged_at = data.logged_at;
+      if (data.logged_date !== undefined) updateData.logged_at = data.logged_date;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+
+      const { data: log, error } = await (supabase
+        .from("habit_logs" as any)
+        .update(updateData)
         .eq("id", id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return log as HabitLog;
+      return {
+        ...log,
+        logged_date: log.logged_at,
+        logged_value: log.count || 1,
+      } as HabitLog;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habit-logs"] });
@@ -140,10 +145,10 @@ export function useDeleteHabitLog() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("habit_logs")
+      const { error } = await (supabase
+        .from("habit_logs" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id) as any);
 
       if (error) throw error;
     },
@@ -157,6 +162,3 @@ export function useDeleteHabitLog() {
     },
   });
 }
-
-
-

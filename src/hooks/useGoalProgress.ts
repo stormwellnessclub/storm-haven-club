@@ -26,11 +26,11 @@ export function useGoalProgress(goalId: string) {
     queryFn: async (): Promise<GoalProgressLog[]> => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from("goal_progress_logs")
+      const { data, error } = await (supabase
+        .from("goal_progress_logs" as any)
         .select("*")
         .eq("goal_id", goalId)
-        .order("logged_at", { ascending: false });
+        .order("logged_at", { ascending: false }) as any);
 
       if (error) throw error;
       return (data || []) as GoalProgressLog[];
@@ -47,21 +47,20 @@ export function useLogGoalProgress() {
     mutationFn: async (data: CreateProgressLogData) => {
       if (!user) throw new Error("You must be signed in");
 
-      const { data: log, error } = await supabase
-        .from("goal_progress_logs")
+      const { data: log, error } = await (supabase
+        .from("goal_progress_logs" as any)
         .insert({
           ...data,
           logged_at: data.logged_at || new Date().toISOString(),
-        })
+        } as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
 
-      // Check milestones (triggered automatically by database trigger)
-      // But we can also manually trigger if needed
-      await supabase.rpc("check_goal_milestones", {
-        p_goal_id: data.goal_id,
+      // Check milestones
+      await (supabase.rpc as any)("check_goal_milestones", {
+        _goal_id: data.goal_id,
       });
 
       return log as GoalProgressLog;
@@ -83,12 +82,12 @@ export function useUpdateGoalProgress() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateProgressLogData> }) => {
-      const { data: log, error } = await supabase
-        .from("goal_progress_logs")
-        .update(data)
+      const { data: log, error } = await (supabase
+        .from("goal_progress_logs" as any)
+        .update(data as any)
         .eq("id", id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return log as GoalProgressLog;
@@ -109,10 +108,10 @@ export function useDeleteGoalProgress() {
 
   return useMutation({
     mutationFn: async ({ id, goalId }: { id: string; goalId: string }) => {
-      const { error } = await supabase
-        .from("goal_progress_logs")
+      const { error } = await (supabase
+        .from("goal_progress_logs" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id) as any);
 
       if (error) throw error;
     },
@@ -126,6 +125,3 @@ export function useDeleteGoalProgress() {
     },
   });
 }
-
-
-

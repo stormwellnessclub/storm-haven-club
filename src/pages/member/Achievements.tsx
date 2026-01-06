@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export default function Achievements() {
   const { data: allAchievements, isLoading: allLoading } = useAchievements();
-  const { data: memberAchievements, isLoading: memberLoading } = useMemberAchievements();
+  const { data: memberAchievements, isLoading: memberLoading } = useMemberAchievements(undefined);
   const { data: memberPoints } = useMemberPoints();
   const checkAchievements = useCheckAchievements();
   const queryClient = useQueryClient();
@@ -28,7 +28,7 @@ export default function Achievements() {
   const unearned = allAchievements?.filter(a => !earnedIds.has(a.id)) || [];
 
   const handleCheckAchievements = async () => {
-    await checkAchievements.mutateAsync();
+    await checkAchievements.mutateAsync(undefined);
     queryClient.invalidateQueries({ queryKey: ["member-achievements"] });
     queryClient.invalidateQueries({ queryKey: ["member-points"] });
   };

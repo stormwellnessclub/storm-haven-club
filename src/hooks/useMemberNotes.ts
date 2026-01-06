@@ -27,11 +27,11 @@ export function useMemberNotes(memberId: string) {
     queryFn: async (): Promise<MemberNote[]> => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from("member_notes")
+      const { data, error } = await (supabase
+        .from("member_notes" as any)
         .select("*")
         .eq("member_id", memberId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any);
 
       if (error) throw error;
       return (data || []) as MemberNote[];
@@ -48,15 +48,15 @@ export function useCreateMemberNote() {
     mutationFn: async (data: CreateNoteData) => {
       if (!user) throw new Error("You must be signed in");
 
-      const { data: note, error } = await supabase
-        .from("member_notes")
+      const { data: note, error } = await (supabase
+        .from("member_notes" as any)
         .insert({
           ...data,
           created_by: user.id,
           is_internal: data.is_internal ?? true,
-        })
+        } as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return note as MemberNote;
@@ -76,12 +76,12 @@ export function useUpdateMemberNote() {
 
   return useMutation({
     mutationFn: async ({ id, note_text }: { id: string; note_text: string }) => {
-      const { data, error } = await supabase
-        .from("member_notes")
-        .update({ note_text })
+      const { data, error } = await (supabase
+        .from("member_notes" as any)
+        .update({ note_text } as any)
         .eq("id", id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as MemberNote;
@@ -101,10 +101,10 @@ export function useDeleteMemberNote() {
 
   return useMutation({
     mutationFn: async ({ id, memberId }: { id: string; memberId: string }) => {
-      const { error } = await supabase
-        .from("member_notes")
+      const { error } = await (supabase
+        .from("member_notes" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id) as any);
 
       if (error) throw error;
     },
@@ -117,6 +117,3 @@ export function useDeleteMemberNote() {
     },
   });
 }
-
-
-

@@ -5,11 +5,13 @@ import { toast } from "sonner";
 
 export interface Habit {
   id: string;
-  member_id: string | null;
+  member_id: string;
+  user_id: string;
   name: string;
   description: string | null;
   category: string | null;
   frequency: string;
+  target_count: number;
   target_value: number;
   unit: string | null;
   color: string | null;
@@ -24,17 +26,18 @@ export interface CreateHabitData {
   description?: string;
   category?: string;
   frequency?: string;
+  target_count?: number;
   target_value?: number;
   unit?: string;
   color?: string;
   icon?: string;
 }
 
-export function useHabits(memberId?: string, includeSystem: boolean = true) {
+export function useHabits(memberId?: string) {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["habits", memberId || user?.id, includeSystem],
+    queryKey: ["habits", memberId || user?.id],
     queryFn: async (): Promise<Habit[]> => {
       if (!user) return [];
 
@@ -51,22 +54,22 @@ export function useHabits(memberId?: string, includeSystem: boolean = true) {
         targetMemberId = member.id;
       }
 
-      let query = supabase
-        .from("habits")
+      const { data, error } = await (supabase
+        .from("habits" as any)
         .select("*")
+        .eq("member_id", targetMemberId)
         .eq("is_active", true)
-        .order("created_at", { ascending: false });
-
-      if (includeSystem) {
-        query = query.or(`member_id.eq.${targetMemberId},member_id.is.null`);
-      } else {
-        query = query.eq("member_id", targetMemberId);
-      }
-
-      const { data, error } = await query;
+        .order("created_at", { ascending: false }) as any);
 
       if (error) throw error;
-      return (data || []) as Habit[];
+      return (data || []).map((h: any) => ({
+        ...h,
+        target_value: h.target_count || 1,
+        unit: h.unit || null,
+        category: h.category || null,
+        color: h.color || null,
+        icon: h.icon || null,
+      })) as Habit[];
     },
     enabled: !!user && (!!memberId || !!user.id),
   });
@@ -89,20 +92,27 @@ export function useCreateHabit() {
 
       if (!member) throw new Error("Member not found");
 
-      const { data: habit, error } = await supabase
-        .from("habits")
+      const { data: habit, error } = await (supabase
+        .from("habits" as any)
         .insert({
-          ...data,
+          name: data.name,
+          description: data.description,
           member_id: member.id,
+          user_id: user.id,
           frequency: data.frequency || "daily",
-          target_value: data.target_value || 1,
+          target_count: data.target_value || data.target_count || 1,
           is_active: true,
-        })
+        } as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return habit as Habit;
+      return {
+        ...habit,
+        target_value: habit.target_count || 1,
+        unit: data.unit || null,
+        category: data.category || null,
+      } as Habit;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habits"] });
@@ -119,15 +129,23 @@ export function useUpdateHabit() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateHabitData> }) => {
-      const { data: habit, error } = await supabase
-        .from("habits")
-        .update(data)
+      const updateData: any = { ...data };
+      if (data.target_value !== undefined) {
+        updateData.target_count = data.target_value;
+      }
+      
+      const { data: habit, error } = await (supabase
+        .from("habits" as any)
+        .update(updateData)
         .eq("id", id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return habit as Habit;
+      return {
+        ...habit,
+        target_value: habit.target_count || 1,
+      } as Habit;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habits"] });
@@ -145,10 +163,10 @@ export function useDeleteHabit() {
   return useMutation({
     mutationFn: async (id: string) => {
       // Soft delete by setting is_active to false
-      const { error } = await supabase
-        .from("habits")
-        .update({ is_active: false })
-        .eq("id", id);
+      const { error } = await (supabase
+        .from("habits" as any)
+        .update({ is_active: false } as any)
+        .eq("id", id) as any);
 
       if (error) throw error;
     },
@@ -162,5 +180,5 @@ export function useDeleteHabit() {
   });
 }
 
-
-
+// Re-export useHabitStreaks from the proper module
+export { useHabitStreaks } from "./useHabitStreaks";
