@@ -50,11 +50,11 @@ export function useFitnessProfile(memberId?: string) {
         targetMemberId = member.id;
       }
 
-      const { data, error } = await supabase
-        .from("member_fitness_profiles")
+      const { data, error } = await (supabase
+        .from("member_fitness_profiles" as any)
         .select("*")
         .eq("member_id", targetMemberId)
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (error) throw error;
       return data as FitnessProfile | null;
@@ -96,11 +96,11 @@ export function useCreateFitnessProfile() {
         insertData.equipment_ids = data.equipment_ids;
       }
 
-      const { data: profile, error } = await supabase
-        .from("member_fitness_profiles")
+      const { data: profile, error } = await (supabase
+        .from("member_fitness_profiles" as any)
         .insert(insertData)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return profile as FitnessProfile;
@@ -142,12 +142,12 @@ export function useUpdateFitnessProfile() {
         updateData.equipment_ids = data.equipment_ids;
       }
 
-      const { data: profile, error } = await supabase
-        .from("member_fitness_profiles")
+      const { data: profile, error } = await (supabase
+        .from("member_fitness_profiles" as any)
         .update(updateData)
         .eq("member_id", targetMemberId)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return profile as FitnessProfile;

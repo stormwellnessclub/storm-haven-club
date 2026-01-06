@@ -23,11 +23,11 @@ export function useApplicationStatusHistory(applicationId: string) {
     queryFn: async (): Promise<ApplicationStatusHistory[]> => {
       if (!user || !applicationId) return [];
 
-      const { data, error } = await supabase
-        .from("application_status_history")
+      const { data, error } = await (supabase
+        .from("application_status_history" as any)
         .select("*")
         .eq("application_id", applicationId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any);
 
       if (error) throw error;
 

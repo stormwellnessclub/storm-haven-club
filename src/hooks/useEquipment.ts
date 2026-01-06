@@ -20,12 +20,12 @@ export function useEquipment(category?: string) {
   return useQuery({
     queryKey: ["equipment", category],
     queryFn: async (): Promise<Equipment[]> => {
-      let query = supabase
-        .from("equipment")
+      let query = (supabase
+        .from("equipment" as any)
         .select("*")
         .eq("is_active", true)
         .order("display_order", { ascending: true })
-        .order("name", { ascending: true });
+        .order("name", { ascending: true }) as any);
 
       if (category) {
         query = query.eq("category", category);
@@ -52,11 +52,11 @@ export function useCreateEquipment() {
 
   return useMutation({
     mutationFn: async (equipment: Omit<Equipment, "id" | "created_at" | "updated_at">) => {
-      const { data, error } = await supabase
-        .from("equipment")
-        .insert(equipment)
+      const { data, error } = await (supabase
+        .from("equipment" as any)
+        .insert(equipment as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as Equipment;
@@ -76,15 +76,15 @@ export function useUpdateEquipment() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Equipment> & { id: string }) => {
-      const { data, error } = await supabase
-        .from("equipment")
+      const { data, error } = await (supabase
+        .from("equipment" as any)
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as Equipment;
@@ -105,12 +105,12 @@ export function useDeleteEquipment() {
   return useMutation({
     mutationFn: async (id: string) => {
       // Soft delete by setting is_active to false
-      const { data, error } = await supabase
-        .from("equipment")
+      const { data, error } = await (supabase
+        .from("equipment" as any)
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq("id", id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as Equipment;

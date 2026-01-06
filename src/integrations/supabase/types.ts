@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_status_history: {
+        Row: {
+          application_id: string
+          changed_by: string | null
+          created_at: string | null
+          id: string
+          new_status: string
+          notes: string | null
+          old_status: string | null
+        }
+        Insert: {
+          application_id: string
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          new_status: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          application_id?: string
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          new_status?: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_status_history_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "membership_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       check_ins: {
         Row: {
           checked_in_at: string
@@ -666,6 +704,48 @@ export type Database = {
           },
         ]
       }
+      equipment: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          technogym_exercise_id: string | null
+          technogym_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          technogym_exercise_id?: string | null
+          technogym_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          technogym_exercise_id?: string | null
+          technogym_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       instructors: {
         Row: {
           bio: string | null
@@ -839,6 +919,69 @@ export type Database = {
             foreignKeyName: "member_credits_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_fitness_profiles: {
+        Row: {
+          available_equipment: string[] | null
+          available_time_minutes: number | null
+          created_at: string | null
+          equipment_ids: string[] | null
+          fitness_level: string | null
+          id: string
+          injuries_limitations: string[] | null
+          member_id: string
+          primary_goal: string | null
+          secondary_goals: string[] | null
+          updated_at: string | null
+          user_id: string
+          workout_preferences: Json | null
+        }
+        Insert: {
+          available_equipment?: string[] | null
+          available_time_minutes?: number | null
+          created_at?: string | null
+          equipment_ids?: string[] | null
+          fitness_level?: string | null
+          id?: string
+          injuries_limitations?: string[] | null
+          member_id: string
+          primary_goal?: string | null
+          secondary_goals?: string[] | null
+          updated_at?: string | null
+          user_id: string
+          workout_preferences?: Json | null
+        }
+        Update: {
+          available_equipment?: string[] | null
+          available_time_minutes?: number | null
+          created_at?: string | null
+          equipment_ids?: string[] | null
+          fitness_level?: string | null
+          id?: string
+          injuries_limitations?: string[] | null
+          member_id?: string
+          primary_goal?: string | null
+          secondary_goals?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+          workout_preferences?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_fitness_profiles_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_fitness_profiles_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1138,11 +1281,13 @@ export type Database = {
           emergency_contact_phone: string | null
           first_name: string
           fitness_goals: string | null
+          guest_pass_agreement_signed: boolean | null
           id: string
           last_name: string
           membership_agreement_signed: boolean
           membership_agreement_signed_at: string | null
           phone: string | null
+          single_class_pass_agreement_signed: boolean | null
           state: string | null
           updated_at: string
           user_id: string
@@ -1161,11 +1306,13 @@ export type Database = {
           emergency_contact_phone?: string | null
           first_name: string
           fitness_goals?: string | null
+          guest_pass_agreement_signed?: boolean | null
           id?: string
           last_name: string
           membership_agreement_signed?: boolean
           membership_agreement_signed_at?: string | null
           phone?: string | null
+          single_class_pass_agreement_signed?: boolean | null
           state?: string | null
           updated_at?: string
           user_id: string
@@ -1184,11 +1331,13 @@ export type Database = {
           emergency_contact_phone?: string | null
           first_name?: string
           fitness_goals?: string | null
+          guest_pass_agreement_signed?: boolean | null
           id?: string
           last_name?: string
           membership_agreement_signed?: boolean
           membership_agreement_signed_at?: string | null
           phone?: string | null
+          single_class_pass_agreement_signed?: boolean | null
           state?: string | null
           updated_at?: string
           user_id?: string
@@ -1362,6 +1511,16 @@ export type Database = {
       admin_link_member_to_user: {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
+      }
+      create_atomic_class_booking: {
+        Args: {
+          _member_credit_id?: string
+          _pass_id?: string
+          _payment_method: string
+          _session_id: string
+          _user_id: string
+        }
+        Returns: Json
       }
       current_user_email: { Args: never; Returns: string }
       has_any_role: {
