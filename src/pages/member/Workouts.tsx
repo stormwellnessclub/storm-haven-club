@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as React from "react";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkoutLogs, useCreateWorkoutLog, useUpdateWorkoutLog, useDeleteWorkoutLog, WorkoutLog, CreateWorkoutLogData } from "@/hooks/useWorkoutLogs";
 import { useAIWorkouts, useGenerateAIWorkout, useCompleteAIWorkout, useDeleteAIWorkout, AIWorkout } from "@/hooks/useAIWorkouts";
 import { useFitnessProfile } from "@/hooks/useFitnessProfile";
+import { ExerciseDBExercise } from "@/hooks/useExerciseDB";
+import { exerciseDBClient } from "@/lib/exercisedb";
+import { useExercises, ExerciseDBExercise } from "@/hooks/useExerciseDB";
+import { exerciseDBClient } from "@/lib/exercisedb";
 import {
   Dumbbell,
   Plus,
@@ -514,19 +519,11 @@ export default function Workouts() {
                     </CardHeader>
                     <CardContent>
                       {workout.exercises && workout.exercises.length > 0 && (
-                        <div className="space-y-2 mb-4">
+                        <div className="space-y-3 mb-4">
                           <p className="text-sm font-medium">Exercises:</p>
-                          <div className="grid gap-2 md:grid-cols-2">
+                          <div className="grid gap-3 md:grid-cols-2">
                             {workout.exercises.map((exercise, idx) => (
-                              <div key={idx} className="p-2 bg-secondary/50 rounded text-sm">
-                                <div className="font-medium">{exercise.name}</div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {exercise.sets && `Sets: ${exercise.sets} `}
-                                  {exercise.reps && `Reps: ${exercise.reps} `}
-                                  {exercise.weight && `Weight: ${exercise.weight} `}
-                                  {exercise.duration_seconds && `Duration: ${exercise.duration_seconds}s`}
-                                </div>
-                              </div>
+                              <ExerciseCard key={idx} exercise={exercise} />
                             ))}
                           </div>
                         </div>
@@ -608,6 +605,91 @@ export default function Workouts() {
         </Tabs>
       </div>
     </MemberLayout>
+  );
+}
+
+// Exercise Card Component with ExerciseDB integration
+function ExerciseCard({ exercise }: { exercise: AIWorkout['exercises'][0] }) {
+  const [exerciseDBData, setExerciseDBData] = React.useState<ExerciseDBExercise | null>(null);
+  const [loadingExercise, setLoadingExercise] = React.useState(false);
+
+  React.useEffect(() => {
+    // Try to find matching exercise in ExerciseDB by name
+    // Use search instead of fetching all exercises for better performance
+    if (exercise.name && exerciseDBClient.isConfigured()) {
+      setLoadingExercise(true);
+      // Search for exercises with similar name
+      exerciseDBClient.searchExercises({}, 100).then((exercises) => {
+        const match = exercises.find(
+          (ex) => ex.name.toLowerCase() === exercise.name.toLowerCase() ||
+                  ex.name.toLowerCase().includes(exercise.name.toLowerCase()) ||
+                  exercise.name.toLowerCase().includes(ex.name.toLowerCase())
+        );
+        setExerciseDBData(match || null);
+        setLoadingExercise(false);
+      }).catch(() => {
+        // If search fails, try a targeted search by body part or equipment
+        setLoadingExercise(false);
+      });
+    }
+  }, [exercise.name]);
+
+  return (
+    <div className="p-3 bg-secondary/50 rounded-lg border hover:bg-secondary/70 transition-colors">
+      <div className="flex gap-3">
+        {exerciseDBData?.gifUrl && (
+          <div className="flex-shrink-0">
+            <img
+              src={exerciseDBData.gifUrl}
+              alt={exercise.name}
+              className="w-20 h-20 object-cover rounded border"
+              loading="lazy"
+            />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm">{exercise.name}</div>
+          {exerciseDBData && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {exerciseDBData.target && (
+                <Badge variant="outline" className="mr-1 text-[10px]">
+                  {exerciseDBData.target}
+                </Badge>
+              )}
+              {exerciseDBData.bodyPart && (
+                <Badge variant="outline" className="mr-1 text-[10px]">
+                  {exerciseDBData.bodyPart}
+                </Badge>
+              )}
+            </div>
+          )}
+          <div className="text-xs text-muted-foreground mt-2 space-y-1">
+            {exercise.sets && <div>Sets: {exercise.sets}</div>}
+            {exercise.reps && <div>Reps: {exercise.reps}</div>}
+            {exercise.weight && <div>Weight: {exercise.weight}</div>}
+            {exercise.duration_seconds && <div>Duration: {exercise.duration_seconds}s</div>}
+            {exercise.rest_seconds && <div>Rest: {exercise.rest_seconds}s</div>}
+          </div>
+          {exercise.notes && (
+            <div className="text-xs text-muted-foreground mt-2 italic">
+              {exercise.notes}
+            </div>
+          )}
+          {exerciseDBData?.instructions && exerciseDBData.instructions.length > 0 && (
+            <details className="mt-2">
+              <summary className="text-xs text-accent cursor-pointer hover:underline">
+                View Instructions
+              </summary>
+              <ol className="mt-2 space-y-1 text-xs text-muted-foreground list-decimal list-inside">
+                {exerciseDBData.instructions.slice(0, 3).map((instruction, i) => (
+                  <li key={i}>{instruction}</li>
+                ))}
+              </ol>
+            </details>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

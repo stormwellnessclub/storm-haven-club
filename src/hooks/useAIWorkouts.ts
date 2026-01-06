@@ -51,7 +51,7 @@ export function useAIWorkouts(memberId?: string, limit?: number) {
         let query = (supabase.from as any)("ai_workouts")
           .select("*")
           .eq("member_id", targetMemberId)
-          .order("generated_at", { ascending: false });
+          .order("created_at", { ascending: false });
 
         if (limit) {
           query = query.limit(limit);

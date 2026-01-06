@@ -26,7 +26,7 @@ export interface Booking {
     class_type: {
       id: string;
       name: string;
-      category: "pilates_cycling" | "other";
+      category: "reformer" | "cycling" | "aerobics";
       is_heated: boolean;
     };
     instructor: {
@@ -231,16 +231,30 @@ export function useBookClass() {
       }
 
       // Use atomic booking function to prevent race conditions
-      const { data: bookingResult, error: bookingFunctionError } = await (supabase
-        .rpc("create_atomic_class_booking" as any, {
+      let bookingResult: any;
+      try {
+        const { data, error: bookingFunctionError } = await (supabase.rpc as any)("create_atomic_class_booking", {
           _session_id: sessionId,
           _user_id: currentUserId,
           _payment_method: paymentMethod,
           _member_credit_id: memberCreditId,
           _pass_id: passIdToUse,
-        }) as any);
+        });
 
-      if (bookingFunctionError) throw bookingFunctionError;
+        if (bookingFunctionError) {
+          if (bookingFunctionError.code === "42883" || bookingFunctionError.message?.includes("does not exist")) {
+            throw new Error("Class booking system is temporarily unavailable. Please try again later.");
+          }
+          throw bookingFunctionError;
+        }
+
+        bookingResult = data;
+      } catch (error: any) {
+        if (error?.code === "42883" || error?.message?.includes("does not exist")) {
+          throw new Error("Class booking system is temporarily unavailable. Please try again later.");
+        }
+        throw error;
+      }
 
       const result = bookingResult as { success: boolean; error?: string; booking_id?: string };
       if (!result?.success) {

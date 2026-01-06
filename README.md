@@ -71,3 +71,20 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Environment Variables
+
+### ExerciseDB API Integration
+
+To enable ExerciseDB API integration for workout generation:
+
+1. Get a RapidAPI key from: https://rapidapi.com/justin-WFnsXH_t6/api/exercisedb
+2. Add to your environment variables (Lovable: Project Settings > Environment Variables, or local `.env`):
+   - `EXERCISEDB_API_KEY` - Your RapidAPI key for ExerciseDB
+   - OR `RAPIDAPI_KEY` - Alternative name (both are supported)
+
+**Note for Edge Functions**: The ExerciseDB API key must also be added to your Supabase project's edge function environment variables:
+- Supabase Dashboard > Edge Functions > Settings > Environment Variables
+- Add `EXERCISEDB_API_KEY` or `RAPIDAPI_KEY` with your RapidAPI key
+
+The ExerciseDB API provides access to 11,000+ structured exercises with equipment, muscle groups, instructions, and images, which enhances the AI workout generation with real exercise data.

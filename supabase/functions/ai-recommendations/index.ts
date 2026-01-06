@@ -108,6 +108,7 @@ serve(async (req) => {
     // Get fitness profile for workout generation
     let fitnessProfile = null;
     let equipmentDetails = null;
+    let workoutLogs = null;
     if (memberId) {
       const { data: profile } = await supabase
         .from('member_fitness_profiles')
@@ -127,6 +128,16 @@ serve(async (req) => {
         
         equipmentDetails = equipment || [];
       }
+
+      // Fetch user's workout logs for personalization
+      const { data: logs } = await supabase
+        .from('workout_logs')
+        .select('workout_type, workout_name, duration_minutes, exercises, performed_at')
+        .eq('member_id', memberId)
+        .order('performed_at', { ascending: false })
+        .limit(10);
+      
+      workoutLogs = logs || [];
     }
 
     let systemPrompt = '';
@@ -180,7 +191,96 @@ serve(async (req) => {
           );
         }
 
-        systemPrompt = `You are a personal trainer and fitness coach at Storm Wellness Club. Generate personalized workout plans based on member goals, fitness level, available equipment, and time constraints. Return workouts in JSON format with exercises including sets, reps, weight (if applicable), duration, and rest periods. Be specific, safe, and progressive. Use the equipment details provided to create realistic, equipment-specific exercises.`;
+        systemPrompt = `You are a personal trainer and fitness coach at Storm Wellness Club. Generate personalized workout plans based on member goals, fitness level, available equipment, and time constraints. Return workouts in JSON format with exercises including sets, reps, weight (if applicable), duration, and rest periods. Be specific, safe, and progressive. Use the ExerciseDB exercise data provided when creating exercises - match exercise names exactly from the provided list when possible.`;
+        
+        // Fetch ExerciseDB exercises based on equipment and goals
+        let exercisedbExercises: any[] = [];
+        const exercisedbApiKey = Deno.env.get('EXERCISEDB_API_KEY') || Deno.env.get('RAPIDAPI_KEY');
+        
+        if (exercisedbApiKey && equipmentDetails && equipmentDetails.length > 0) {
+          try {
+            // Map equipment categories to ExerciseDB equipment types
+            const equipmentMapping: Record<string, string> = {
+              'cardio': 'body weight',
+              'strength': 'body weight',
+              'free_weights': 'dumbbell',
+              'machines': 'leverage machine',
+              'functional': 'body weight',
+              'accessories': 'body weight',
+              'recovery': 'body weight',
+            };
+
+            // Get unique equipment types
+            const equipmentTypes = [...new Set(
+              equipmentDetails.map((eq: any) => {
+                const mapped = equipmentMapping[eq.category?.toLowerCase()] || 'body weight';
+                return mapped.toLowerCase().replace(/\s+/g, '');
+              })
+            )];
+
+            // Fetch exercises for each equipment type (limit to avoid too many requests)
+            for (const equipType of equipmentTypes.slice(0, 3)) {
+              try {
+                const response = await fetch(
+                  `https://exercisedb.p.rapidapi.com/exercises/equipment/${equipType}`,
+                  {
+                    headers: {
+                      'X-RapidAPI-Key': exercisedbApiKey,
+                      'X-RapidAPI-Host': 'exercisedb.p.rapidapi.com',
+                    },
+                  }
+                );
+
+                if (response.ok) {
+                  const exercises = await response.json();
+                  exercisedbExercises = [...exercisedbExercises, ...(exercises.slice(0, 20))];
+                }
+              } catch (error) {
+                console.error(`Error fetching ExerciseDB exercises for ${equipType}:`, error);
+              }
+            }
+
+            // Also fetch by target muscles if we have goal information
+            if (fitnessProfile?.primary_goal) {
+              const goalMapping: Record<string, string> = {
+                'weight_loss': 'cardio',
+                'muscle_gain': 'pectorals',
+                'strength': 'pectorals',
+                'endurance': 'cardio',
+                'flexibility': 'stretch',
+              };
+
+              const targetMuscle = goalMapping[fitnessProfile.primary_goal.toLowerCase()] || 'pectorals';
+              try {
+                const response = await fetch(
+                  `https://exercisedb.p.rapidapi.com/exercises/target/${targetMuscle}`,
+                  {
+                    headers: {
+                      'X-RapidAPI-Key': exercisedbApiKey,
+                      'X-RapidAPI-Host': 'exercisedb.p.rapidapi.com',
+                    },
+                  }
+                );
+
+                if (response.ok) {
+                  const exercises = await response.json();
+                  exercisedbExercises = [...exercisedbExercises, ...(exercises.slice(0, 15))];
+                }
+              } catch (error) {
+                console.error(`Error fetching ExerciseDB exercises for target ${targetMuscle}:`, error);
+              }
+            }
+
+            // Remove duplicates
+            const uniqueExercises = Array.from(
+              new Map(exercisedbExercises.map((ex: any) => [ex.id, ex])).values()
+            );
+            exercisedbExercises = uniqueExercises.slice(0, 50); // Limit to 50 exercises
+          } catch (error) {
+            console.error("Error fetching ExerciseDB exercises:", error);
+            // Continue without ExerciseDB data if it fails
+          }
+        }
         
         // Format equipment details for AI prompt
         const equipmentList = equipmentDetails?.map((eq: any) => ({
@@ -194,6 +294,21 @@ serve(async (req) => {
           ? `\n          Available Equipment Details:\n          ${equipmentList.map((eq: any) => `- ${eq.name} (${eq.category}): ${eq.description || 'No description'}${eq.technogym_id ? ` [Technogym ID: ${eq.technogym_id}]` : ''}`).join('\n          ')}`
           : `\n          Available Equipment: ${JSON.stringify(fitnessProfile?.available_equipment || [])}`;
         
+        // Format ExerciseDB exercises for AI prompt
+        const exercisedbText = exercisedbExercises.length > 0
+          ? `\n\n          EXERCISE DATABASE (ExerciseDB) - Use these exact exercise names when possible:\n          ${exercisedbExercises.map((ex: any) => 
+              `- ${ex.name} (Target: ${ex.target}, Body Part: ${ex.bodyPart}, Equipment: ${ex.equipment}${ex.instructions && ex.instructions.length > 0 ? `, Instructions: ${ex.instructions.slice(0, 2).join('; ')}` : ''})`
+            ).join('\n          ')}\n          
+          IMPORTANT: When creating exercises in the workout, use the exact exercise names from the ExerciseDB list above when they match your workout plan. Include the exercise instructions and target muscles.`
+          : '';
+        
+        // Format workout history
+        const workoutHistoryText = workoutLogs && workoutLogs.length > 0
+          ? `\n          Recent Workout Logs:\n          ${workoutLogs.map((log: any) => 
+              `- ${log.workout_name || log.workout_type} (${log.workout_type}, ${log.duration_minutes || '?'} min, ${new Date(log.performed_at).toLocaleDateString()})`
+            ).join('\n          ')}\n          Use this history to avoid repetition and build progression.`
+          : '          No previous workout logs found.';
+        
         userPrompt = `
           Member Fitness Profile:
           - Fitness Level: ${fitnessProfile?.fitness_level || 'Not specified'}
@@ -203,9 +318,11 @@ serve(async (req) => {
           - Workout Preferences: ${JSON.stringify(fitnessProfile?.workout_preferences || {})}
           - Injuries/Limitations: ${JSON.stringify(fitnessProfile?.injuries_limitations || [])}
           
-          Recent Workout History: ${userHistory ? JSON.stringify(userHistory.slice(0, 5).map((b: any) => b.class_sessions?.class_types?.name)) : 'No recent workouts'}
+          ${workoutHistoryText}
           
-          Generate a complete workout plan in this JSON format. Use the specific equipment names provided when creating exercises. If Technogym IDs are available, reference them when appropriate:
+          Recent Class Bookings: ${userHistory ? JSON.stringify(userHistory.slice(0, 5).map((b: any) => b.class_sessions?.class_types?.name)) : 'No recent class bookings'}${exercisedbText}
+          
+          Generate a complete workout plan in this JSON format. When creating exercises, prefer using exact exercise names from the ExerciseDB list provided above. Include exercise instructions and form cues:
           {
             "workout_name": "Descriptive workout name",
             "workout_type": "strength|cardio|hiit|yoga|pilates|mixed",
@@ -213,13 +330,13 @@ serve(async (req) => {
             "difficulty": "beginner|intermediate|advanced",
             "exercises": [
               {
-                "name": "Exercise name",
+                "name": "Exercise name (use exact name from ExerciseDB when available)",
                 "sets": 3,
                 "reps": "10-12",
                 "weight": "bodyweight|or specific weight",
                 "duration_seconds": null or number,
                 "rest_seconds": 60,
-                "notes": "Form cues or modifications"
+                "notes": "Form cues, instructions, or modifications"
               }
             ],
             "reasoning": "Brief explanation of why this workout suits the member's goals and profile"

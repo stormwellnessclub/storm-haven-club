@@ -50,14 +50,27 @@ export function useFitnessProfile(memberId?: string) {
         targetMemberId = member.id;
       }
 
-      const { data, error } = await (supabase
-        .from("member_fitness_profiles" as any)
-        .select("*")
-        .eq("member_id", targetMemberId)
-        .maybeSingle() as any);
+      try {
+        const { data, error } = await (supabase.from as any)("member_fitness_profiles")
+          .select("*")
+          .eq("member_id", targetMemberId)
+          .maybeSingle();
 
-      if (error) throw error;
-      return data as FitnessProfile | null;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("member_fitness_profiles table not found, returning null");
+            return null;
+          }
+          throw error;
+        }
+        return data as FitnessProfile | null;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("member_fitness_profiles table not found, returning null");
+          return null;
+        }
+        throw error;
+      }
     },
     enabled: !!user && (!!memberId || !!user.id),
   });
@@ -96,14 +109,25 @@ export function useCreateFitnessProfile() {
         insertData.equipment_ids = data.equipment_ids;
       }
 
-      const { data: profile, error } = await (supabase
-        .from("member_fitness_profiles" as any)
-        .insert(insertData)
-        .select()
-        .single() as any);
+      try {
+        const { data: profile, error } = await (supabase.from as any)("member_fitness_profiles")
+          .insert(insertData)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return profile as FitnessProfile;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("Fitness profile feature is not yet available. Please check back later.");
+          }
+          throw error;
+        }
+        return profile as FitnessProfile;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("Fitness profile feature is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fitness-profile"] });
@@ -142,15 +166,26 @@ export function useUpdateFitnessProfile() {
         updateData.equipment_ids = data.equipment_ids;
       }
 
-      const { data: profile, error } = await (supabase
-        .from("member_fitness_profiles" as any)
-        .update(updateData)
-        .eq("member_id", targetMemberId)
-        .select()
-        .single() as any);
+      try {
+        const { data: profile, error } = await (supabase.from as any)("member_fitness_profiles")
+          .update(updateData)
+          .eq("member_id", targetMemberId)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return profile as FitnessProfile;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("Fitness profile feature is not yet available. Please check back later.");
+          }
+          throw error;
+        }
+        return profile as FitnessProfile;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("Fitness profile feature is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fitness-profile"] });

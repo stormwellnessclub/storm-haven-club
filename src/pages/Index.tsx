@@ -16,7 +16,7 @@ import bodyTreatments from "@/assets/body-treatments.jpg";
 import sauna from "@/assets/sauna.jpg";
 // Brand imagery
 import scienceSoulBranding from "@/assets/brand/science-soul-branding.jpg";
-import marbleStaircase from "@/assets/interiors/marble-staircase.jpg";
+import mainLobby from "@/assets/main-lobby.JPEG";
 import avocadoToast from "@/assets/food/avocado-toast.jpg";
 import cafeHeroImage from "@/assets/food/matcha-latte.jpg";
 import marbleTexture from "@/assets/textures/marble-texture.jpg";
@@ -88,10 +88,10 @@ const lifestyleAmenities = [
 export default function Index() {
   return <Layout>
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-primary">
         <div className="absolute inset-0">
-          <img src={marbleStaircase} alt="Storm Wellness Club Interior" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/40 via-charcoal/50 to-charcoal/80" />
+          <img src={mainLobby} alt="Storm Wellness Club Interior" className="w-full h-full object-cover opacity-20" />
+          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/70 via-charcoal/80 to-charcoal/90" />
         </div>
         
         <div className="relative z-10 container mx-auto px-6 text-center">

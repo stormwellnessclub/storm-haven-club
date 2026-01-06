@@ -5,7 +5,7 @@ import { CreditType } from "@/lib/memberCredits";
 
 export interface ClassPass {
   id: string;
-  category: "pilates_cycling" | "other";
+  category: "reformer" | "cycling" | "aerobics";
   pass_type: string;
   classes_total: number;
   classes_remaining: number;
@@ -118,7 +118,7 @@ export function useUserCredits() {
   });
 }
 
-export function useAvailableCreditsForCategory(category: "pilates_cycling" | "other") {
+export function useAvailableCreditsForCategory(category: "reformer" | "cycling" | "aerobics") {
   const { data: creditsData, ...rest } = useUserCredits();
 
   const availablePasses = creditsData?.classPasses.filter(

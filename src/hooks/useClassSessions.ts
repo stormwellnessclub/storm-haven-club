@@ -14,7 +14,7 @@ export interface ClassSession {
   class_type: {
     id: string;
     name: string;
-    category: "pilates_cycling" | "other";
+    category: "reformer" | "cycling" | "aerobics";
     description: string | null;
     duration_minutes: number;
     is_heated: boolean;
@@ -30,7 +30,7 @@ export interface ClassSession {
 
 interface UseClassSessionsOptions {
   weekOffset?: number;
-  category?: "pilates_cycling" | "other" | "all";
+  category?: "reformer" | "cycling" | "aerobics" | "all";
   isHeated?: boolean | "all";
 }
 

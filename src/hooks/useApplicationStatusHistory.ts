@@ -23,15 +23,28 @@ export function useApplicationStatusHistory(applicationId: string) {
     queryFn: async (): Promise<ApplicationStatusHistory[]> => {
       if (!user || !applicationId) return [];
 
-      const { data, error } = await (supabase
-        .from("application_status_history" as any)
-        .select("*")
-        .eq("application_id", applicationId)
-        .order("created_at", { ascending: false }) as any);
+      try {
+        const { data, error } = await (supabase.from as any)("application_status_history")
+          .select("*")
+          .eq("application_id", applicationId)
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("application_status_history table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
 
-      return (data || []) as ApplicationStatusHistory[];
+        return (data || []) as ApplicationStatusHistory[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("application_status_history table not found, returning empty array");
+          return [];
+        }
+        throw error;
+      }
     },
     enabled: !!user && !!applicationId,
   });

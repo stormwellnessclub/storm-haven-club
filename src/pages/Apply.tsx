@@ -322,7 +322,7 @@ export default function Apply() {
     console.log("[Apply] Saved draft before payment redirect");
 
     try {
-      const response = await supabase.functions.invoke("stripe-payment", {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
         body: {
           action: "create_application_setup",
           applicantEmail: formData.email,
@@ -332,19 +332,29 @@ export default function Apply() {
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || "Failed to create payment session");
+      if (error) {
+        console.error("Payment setup error:", error);
+        throw new Error(error.message || "Failed to create payment session");
       }
 
-      const { url } = response.data;
-      if (url) {
-        window.location.href = url;
-      } else {
-        throw new Error("No checkout URL returned");
+      if (!data) {
+        throw new Error("No response data received");
       }
+
+      if (data.error) {
+        throw new Error(data.error || "Payment setup failed");
+      }
+
+      if (!data.url) {
+        console.error("Response data:", data);
+        throw new Error("No checkout URL returned from payment service");
+      }
+
+      window.location.href = data.url;
     } catch (error) {
       console.error("Error creating payment setup:", error);
-      toast.error("Failed to open payment setup. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to open payment setup. Please try again.";
+      toast.error(errorMessage);
       setIsSavingCard(false);
     }
   };

@@ -39,7 +39,7 @@ interface ClassType {
   id: string;
   name: string;
   description: string | null;
-  category: "pilates_cycling" | "other";
+  category: "reformer" | "cycling" | "aerobics";
   duration_minutes: number;
   max_capacity: number;
   is_heated: boolean;
@@ -55,7 +55,7 @@ export default function ClassTypes() {
   // Form state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<"pilates_cycling" | "other">("other");
+  const [category, setCategory] = useState<"reformer" | "cycling" | "aerobics">("aerobics");
   const [durationMinutes, setDurationMinutes] = useState(50);
   const [maxCapacity, setMaxCapacity] = useState(20);
   const [isHeated, setIsHeated] = useState(false);
@@ -83,7 +83,7 @@ export default function ClassTypes() {
   function resetForm() {
     setName("");
     setDescription("");
-    setCategory("other");
+    setCategory("aerobics");
     setDurationMinutes(50);
     setMaxCapacity(20);
     setIsHeated(false);
@@ -200,13 +200,14 @@ export default function ClassTypes() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="category">Category</Label>
-                    <Select value={category} onValueChange={(v) => setCategory(v as "pilates_cycling" | "other")}>
+                    <Select value={category} onValueChange={(v) => setCategory(v as "reformer" | "cycling" | "aerobics")}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pilates_cycling">Pilates & Cycling</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="reformer">Reformer Studio</SelectItem>
+                        <SelectItem value="cycling">Cycling Studio</SelectItem>
+                        <SelectItem value="aerobics">Aerobics Studio</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -288,7 +289,8 @@ export default function ClassTypes() {
                       <TableCell className="font-medium">{classType.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {classType.category === "pilates_cycling" ? "Pilates & Cycling" : "Other"}
+                          {classType.category === "reformer" ? "Reformer Studio" : 
+                           classType.category === "cycling" ? "Cycling Studio" : "Aerobics Studio"}
                         </Badge>
                       </TableCell>
                       <TableCell>{classType.duration_minutes} min</TableCell>

@@ -20,21 +20,34 @@ export function useEquipment(category?: string) {
   return useQuery({
     queryKey: ["equipment", category],
     queryFn: async (): Promise<Equipment[]> => {
-      let query = (supabase
-        .from("equipment" as any)
-        .select("*")
-        .eq("is_active", true)
-        .order("display_order", { ascending: true })
-        .order("name", { ascending: true }) as any);
+      try {
+        let query = (supabase.from as any)("equipment")
+          .select("*")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true })
+          .order("name", { ascending: true });
 
-      if (category) {
-        query = query.eq("category", category);
+        if (category) {
+          query = query.eq("category", category);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn("equipment table not found, returning empty array");
+            return [];
+          }
+          throw error;
+        }
+        return (data || []) as Equipment[];
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn("equipment table not found, returning empty array");
+          return [];
+        }
+        throw error;
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return (data || []) as Equipment[];
     },
   });
 }
@@ -52,14 +65,25 @@ export function useCreateEquipment() {
 
   return useMutation({
     mutationFn: async (equipment: Omit<Equipment, "id" | "created_at" | "updated_at">) => {
-      const { data, error } = await (supabase
-        .from("equipment" as any)
-        .insert(equipment as any)
-        .select()
-        .single() as any);
+      try {
+        const { data, error } = await (supabase.from as any)("equipment")
+          .insert(equipment)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data as Equipment;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("Equipment feature is not yet available. Please check back later.");
+          }
+          throw error;
+        }
+        return data as Equipment;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("Equipment feature is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
@@ -76,18 +100,29 @@ export function useUpdateEquipment() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Equipment> & { id: string }) => {
-      const { data, error } = await (supabase
-        .from("equipment" as any)
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .select()
-        .single() as any);
+      try {
+        const { data, error } = await (supabase.from as any)("equipment")
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data as Equipment;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("Equipment feature is not yet available. Please check back later.");
+          }
+          throw error;
+        }
+        return data as Equipment;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("Equipment feature is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
@@ -105,15 +140,26 @@ export function useDeleteEquipment() {
   return useMutation({
     mutationFn: async (id: string) => {
       // Soft delete by setting is_active to false
-      const { data, error } = await (supabase
-        .from("equipment" as any)
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .select()
-        .single() as any);
+      try {
+        const { data, error } = await (supabase.from as any)("equipment")
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data as Equipment;
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            throw new Error("Equipment feature is not yet available. Please check back later.");
+          }
+          throw error;
+        }
+        return data as Equipment;
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          throw new Error("Equipment feature is not yet available. Please check back later.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });

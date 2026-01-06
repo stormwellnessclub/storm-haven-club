@@ -33,11 +33,10 @@ export function useHabitLogs(habitId?: string, memberId?: string, dateRange?: { 
     queryFn: async (): Promise<HabitLog[]> => {
       if (!user) return [];
 
-      let query = (supabase
-        .from("habit_logs" as any)
+      let query = (supabase.from as any)("habit_logs")
         .select("*")
         .eq("user_id", user.id)
-        .order("logged_at", { ascending: false }) as any);
+        .order("logged_at", { ascending: false });
 
       if (habitId) {
         query = query.eq("habit_id", habitId);
@@ -49,14 +48,28 @@ export function useHabitLogs(habitId?: string, memberId?: string, dateRange?: { 
           .lte("logged_at", format(dateRange.end, "yyyy-MM-dd"));
       }
 
-      const { data, error } = await query;
+      try {
+        const { data, error } = await query;
 
-      if (error) throw error;
-      return (data || []).map((log: any) => ({
-        ...log,
-        logged_date: log.logged_at,
-        logged_value: log.count || 1,
-      })) as HabitLog[];
+        if (error) {
+          if (error.code === "42P01") {
+            console.warn("Database table 'habit_logs' not found. Returning empty array.");
+            return [];
+          }
+          throw error;
+        }
+        return (data || []).map((log: any) => ({
+          ...log,
+          logged_date: log.logged_at,
+          logged_value: log.count || 1,
+        })) as HabitLog[];
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.warn("Database table 'habit_logs' not found. Returning empty array.");
+          return [];
+        }
+        throw error;
+      }
     },
     enabled: !!user,
   });
@@ -73,24 +86,37 @@ export function useCreateHabitLog() {
       const logDate = data.logged_date || data.logged_at || format(new Date(), "yyyy-MM-dd");
       const logValue = data.logged_value || data.count || 1;
 
-      const { data: log, error } = await (supabase
-        .from("habit_logs" as any)
-        .insert({
-          habit_id: data.habit_id,
-          user_id: user.id,
-          count: logValue,
-          logged_at: logDate,
-          notes: data.notes,
-        } as any)
-        .select()
-        .single() as any);
+      try {
+        const { data: log, error } = await (supabase.from as any)("habit_logs")
+          .insert({
+            habit_id: data.habit_id,
+            user_id: user.id,
+            count: logValue,
+            logged_at: logDate,
+            notes: data.notes,
+          })
+          .select()
+          .single();
 
-      if (error) throw error;
-      return {
-        ...log,
-        logged_date: log.logged_at,
-        logged_value: log.count || 1,
-      } as HabitLog;
+        if (error) {
+          if (error.code === "42P01") {
+            console.error("Database table 'habit_logs' not found. Cannot create habit log.");
+            throw new Error("Habit logging system is temporarily unavailable.");
+          }
+          throw error;
+        }
+        return {
+          ...log,
+          logged_date: log.logged_at,
+          logged_value: log.count || 1,
+        } as HabitLog;
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.error("Database table 'habit_logs' not found. Cannot create habit log.");
+          throw new Error("Habit logging system is temporarily unavailable.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habit-logs"] });
@@ -115,19 +141,32 @@ export function useUpdateHabitLog() {
       if (data.logged_date !== undefined) updateData.logged_at = data.logged_date;
       if (data.notes !== undefined) updateData.notes = data.notes;
 
-      const { data: log, error } = await (supabase
-        .from("habit_logs" as any)
-        .update(updateData)
-        .eq("id", id)
-        .select()
-        .single() as any);
+      try {
+        const { data: log, error } = await (supabase.from as any)("habit_logs")
+          .update(updateData)
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return {
-        ...log,
-        logged_date: log.logged_at,
-        logged_value: log.count || 1,
-      } as HabitLog;
+        if (error) {
+          if (error.code === "42P01") {
+            console.error("Database table 'habit_logs' not found. Cannot update habit log.");
+            throw new Error("Habit logging system is temporarily unavailable.");
+          }
+          throw error;
+        }
+        return {
+          ...log,
+          logged_date: log.logged_at,
+          logged_value: log.count || 1,
+        } as HabitLog;
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.error("Database table 'habit_logs' not found. Cannot update habit log.");
+          throw new Error("Habit logging system is temporarily unavailable.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habit-logs"] });
@@ -145,12 +184,25 @@ export function useDeleteHabitLog() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase
-        .from("habit_logs" as any)
-        .delete()
-        .eq("id", id) as any);
+      try {
+        const { error } = await (supabase.from as any)("habit_logs")
+          .delete()
+          .eq("id", id);
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01") {
+            console.error("Database table 'habit_logs' not found. Cannot delete habit log.");
+            throw new Error("Habit logging system is temporarily unavailable.");
+          }
+          throw error;
+        }
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.error("Database table 'habit_logs' not found. Cannot delete habit log.");
+          throw new Error("Habit logging system is temporarily unavailable.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habit-logs"] });

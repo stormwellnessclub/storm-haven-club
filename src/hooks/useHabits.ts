@@ -54,22 +54,35 @@ export function useHabits(memberId?: string) {
         targetMemberId = member.id;
       }
 
-      const { data, error } = await (supabase
-        .from("habits" as any)
-        .select("*")
-        .eq("member_id", targetMemberId)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false }) as any);
+      try {
+        const { data, error } = await (supabase.from as any)("habits")
+          .select("*")
+          .eq("member_id", targetMemberId)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return (data || []).map((h: any) => ({
-        ...h,
-        target_value: h.target_count || 1,
-        unit: h.unit || null,
-        category: h.category || null,
-        color: h.color || null,
-        icon: h.icon || null,
-      })) as Habit[];
+        if (error) {
+          if (error.code === "42P01") {
+            console.warn("Database table 'habits' not found. Returning empty array.");
+            return [];
+          }
+          throw error;
+        }
+        return (data || []).map((h: any) => ({
+          ...h,
+          target_value: h.target_count || 1,
+          unit: h.unit || null,
+          category: h.category || null,
+          color: h.color || null,
+          icon: h.icon || null,
+        })) as Habit[];
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.warn("Database table 'habits' not found. Returning empty array.");
+          return [];
+        }
+        throw error;
+      }
     },
     enabled: !!user && (!!memberId || !!user.id),
   });
@@ -92,27 +105,44 @@ export function useCreateHabit() {
 
       if (!member) throw new Error("Member not found");
 
-      const { data: habit, error } = await (supabase
-        .from("habits" as any)
-        .insert({
-          name: data.name,
-          description: data.description,
-          member_id: member.id,
-          user_id: user.id,
-          frequency: data.frequency || "daily",
-          target_count: data.target_value || data.target_count || 1,
-          is_active: true,
-        } as any)
-        .select()
-        .single() as any);
+      try {
+        const { data: habit, error } = await (supabase.from as any)("habits")
+          .insert({
+            name: data.name,
+            description: data.description,
+            member_id: member.id,
+            user_id: user.id,
+            frequency: data.frequency || "daily",
+            target_count: data.target_value || data.target_count || 1,
+            is_active: true,
+            unit: data.unit || null,
+            category: data.category || null,
+            color: data.color || null,
+            icon: data.icon || null,
+          })
+          .select()
+          .single();
 
-      if (error) throw error;
-      return {
-        ...habit,
-        target_value: habit.target_count || 1,
-        unit: data.unit || null,
-        category: data.category || null,
-      } as Habit;
+        if (error) {
+          if (error.code === "42P01") {
+            console.error("Database table 'habits' not found. Cannot create habit.");
+            throw new Error("Habit system is temporarily unavailable.");
+          }
+          throw error;
+        }
+        return {
+          ...habit,
+          target_value: habit.target_count || 1,
+          unit: habit.unit || null,
+          category: habit.category || null,
+        } as Habit;
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.error("Database table 'habits' not found. Cannot create habit.");
+          throw new Error("Habit system is temporarily unavailable.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habits"] });
@@ -134,18 +164,31 @@ export function useUpdateHabit() {
         updateData.target_count = data.target_value;
       }
       
-      const { data: habit, error } = await (supabase
-        .from("habits" as any)
-        .update(updateData)
-        .eq("id", id)
-        .select()
-        .single() as any);
+      try {
+        const { data: habit, error } = await (supabase.from as any)("habits")
+          .update(updateData)
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return {
-        ...habit,
-        target_value: habit.target_count || 1,
-      } as Habit;
+        if (error) {
+          if (error.code === "42P01") {
+            console.error("Database table 'habits' not found. Cannot update habit.");
+            throw new Error("Habit system is temporarily unavailable.");
+          }
+          throw error;
+        }
+        return {
+          ...habit,
+          target_value: habit.target_count || 1,
+        } as Habit;
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.error("Database table 'habits' not found. Cannot update habit.");
+          throw new Error("Habit system is temporarily unavailable.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habits"] });
@@ -162,13 +205,26 @@ export function useDeleteHabit() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // Soft delete by setting is_active to false
-      const { error } = await (supabase
-        .from("habits" as any)
-        .update({ is_active: false } as any)
-        .eq("id", id) as any);
+      try {
+        // Soft delete by setting is_active to false
+        const { error } = await (supabase.from as any)("habits")
+          .update({ is_active: false })
+          .eq("id", id);
 
-      if (error) throw error;
+        if (error) {
+          if (error.code === "42P01") {
+            console.error("Database table 'habits' not found. Cannot delete habit.");
+            throw new Error("Habit system is temporarily unavailable.");
+          }
+          throw error;
+        }
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.error("Database table 'habits' not found. Cannot delete habit.");
+          throw new Error("Habit system is temporarily unavailable.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habits"] });

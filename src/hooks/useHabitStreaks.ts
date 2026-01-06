@@ -33,19 +33,32 @@ export function useHabitStreaks(habitId?: string, memberId?: string) {
         targetMemberId = member.id;
       }
 
-      let query = (supabase
-        .from("habit_streaks" as any)
+      let query = (supabase.from as any)("habit_streaks")
         .select("*")
-        .eq("member_id", targetMemberId) as any);
+        .eq("member_id", targetMemberId);
 
       if (habitId) {
         query = query.eq("habit_id", habitId);
       }
 
-      const { data, error } = await query;
+      try {
+        const { data, error } = await query;
 
-      if (error) throw error;
-      return (data || []) as HabitStreak[];
+        if (error) {
+          if (error.code === "42P01") {
+            console.warn("Database table 'habit_streaks' not found. Returning empty array.");
+            return [];
+          }
+          throw error;
+        }
+        return (data || []) as HabitStreak[];
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.warn("Database table 'habit_streaks' not found. Returning empty array.");
+          return [];
+        }
+        throw error;
+      }
     },
     enabled: !!user && (!!memberId || !!user.id),
   });
@@ -72,15 +85,28 @@ export function useHabitStreak(habitId: string, memberId?: string) {
         targetMemberId = member.id;
       }
 
-      const { data, error } = await (supabase
-        .from("habit_streaks" as any)
-        .select("*")
-        .eq("habit_id", habitId)
-        .eq("member_id", targetMemberId)
-        .maybeSingle() as any);
+      try {
+        const { data, error } = await (supabase.from as any)("habit_streaks")
+          .select("*")
+          .eq("habit_id", habitId)
+          .eq("member_id", targetMemberId)
+          .maybeSingle();
 
-      if (error) throw error;
-      return data as HabitStreak | null;
+        if (error) {
+          if (error.code === "42P01") {
+            console.warn("Database table 'habit_streaks' not found. Returning null.");
+            return null;
+          }
+          throw error;
+        }
+        return data as HabitStreak | null;
+      } catch (error: any) {
+        if (error.code === "42P01") {
+          console.warn("Database table 'habit_streaks' not found. Returning null.");
+          return null;
+        }
+        throw error;
+      }
     },
     enabled: !!user && !!habitId && (!!memberId || !!user.id),
   });
