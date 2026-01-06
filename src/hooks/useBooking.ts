@@ -189,19 +189,19 @@ export function useBookClass() {
         
         if (isGuestPass || isSingleClassPass) {
           // Check if user has signed the required agreement
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile, error: profileError } = await (supabase
             .from("profiles")
             .select("guest_pass_agreement_signed, single_class_pass_agreement_signed")
             .eq("user_id", currentUserId)
-            .single();
+            .single() as any);
 
           if (profileError) throw profileError;
           
-          if (isGuestPass && (!profile || !profile.guest_pass_agreement_signed)) {
+          if (isGuestPass && (!profile || !(profile as any).guest_pass_agreement_signed)) {
             throw new Error("Guest Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
           }
           
-          if (isSingleClassPass && (!profile || !profile.single_class_pass_agreement_signed)) {
+          if (isSingleClassPass && (!profile || !(profile as any).single_class_pass_agreement_signed)) {
             throw new Error("Single Class Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
           }
         }
@@ -231,26 +231,27 @@ export function useBookClass() {
       }
 
       // Use atomic booking function to prevent race conditions
-      const { data: bookingResult, error: bookingFunctionError } = await supabase
-        .rpc("create_atomic_class_booking", {
+      const { data: bookingResult, error: bookingFunctionError } = await (supabase
+        .rpc("create_atomic_class_booking" as any, {
           _session_id: sessionId,
           _user_id: currentUserId,
           _payment_method: paymentMethod,
           _member_credit_id: memberCreditId,
           _pass_id: passIdToUse,
-        });
+        }) as any);
 
       if (bookingFunctionError) throw bookingFunctionError;
 
-      if (!bookingResult?.success) {
-        throw new Error(bookingResult?.error || "Failed to create booking");
+      const result = bookingResult as { success: boolean; error?: string; booking_id?: string };
+      if (!result?.success) {
+        throw new Error(result?.error || "Failed to create booking");
       }
 
       // Get the created booking for return value and email
       const { data: booking, error: fetchBookingError } = await supabase
         .from("class_bookings")
         .select("*")
-        .eq("id", bookingResult.booking_id)
+        .eq("id", result.booking_id!)
         .single();
 
       if (fetchBookingError) throw fetchBookingError;
