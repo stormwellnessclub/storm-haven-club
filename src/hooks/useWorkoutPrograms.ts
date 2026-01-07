@@ -4,6 +4,14 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Json } from "@/integrations/supabase/types";
 
+export interface ProgramPreferences {
+  programType: string;
+  daysPerWeek: number;
+  durationWeeks: number;
+  splitType: string;
+  targetBodyParts: string[];
+}
+
 export interface WorkoutProgram {
   id: string;
   member_id: string;
@@ -288,6 +296,45 @@ export function useDeleteProgram() {
     },
     onError: (error) => {
       toast.error("Failed to delete program: " + error.message);
+    },
+  });
+}
+
+export function useGenerateProgram() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (preferences: ProgramPreferences) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await supabase.functions.invoke("ai-recommendations", {
+        body: {
+          type: "program_generation",
+          preferences,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to generate program");
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workout-programs", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["active-program", user?.id] });
+      toast.success("4-week program generated successfully!");
+    },
+    onError: (error) => {
+      toast.error("Failed to generate program: " + error.message);
     },
   });
 }

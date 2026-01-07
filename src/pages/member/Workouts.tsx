@@ -34,9 +34,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkoutLogs, useCreateWorkoutLog, useUpdateWorkoutLog, useDeleteWorkoutLog, WorkoutLog, CreateWorkoutLogData } from "@/hooks/useWorkoutLogs";
 import { useAIWorkouts, useGenerateAIWorkout, useCompleteAIWorkout, useDeleteAIWorkout, AIWorkout, WorkoutPreferences } from "@/hooks/useAIWorkouts";
-import { useWorkoutPrograms } from "@/hooks/useWorkoutPrograms";
+import { useWorkoutPrograms, useGenerateProgram } from "@/hooks/useWorkoutPrograms";
 import { useFitnessProfile } from "@/hooks/useFitnessProfile";
 import { GenerateWorkoutModal } from "@/components/member/GenerateWorkoutModal";
+import { GenerateProgramModal, ProgramPreferences } from "@/components/member/GenerateProgramModal";
 import { ExerciseCard } from "@/components/member/ExerciseCard";
 import { ProgramDashboard } from "@/components/member/ProgramDashboard";
 import {
@@ -72,6 +73,7 @@ const WORKOUT_TYPES = [
 export default function Workouts() {
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showProgramModal, setShowProgramModal] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<WorkoutLog | null>(null);
   const [formData, setFormData] = useState<CreateWorkoutLogData>({
     workout_type: "",
@@ -93,6 +95,7 @@ export default function Workouts() {
   const generateAIWorkout = useGenerateAIWorkout();
   const completeAIWorkout = useCompleteAIWorkout();
   const deleteAIWorkout = useDeleteAIWorkout();
+  const generateProgram = useGenerateProgram();
 
   // Get active program
   const activeProgram = programs?.find(p => p.is_active);
@@ -174,6 +177,15 @@ export default function Workouts() {
     try {
       await generateAIWorkout.mutateAsync(preferences);
       setShowGenerateModal(false);
+    } catch (error) {
+      // Error handled by hook
+    }
+  };
+
+  const handleGenerateProgram = async (preferences: ProgramPreferences) => {
+    try {
+      await generateProgram.mutateAsync(preferences);
+      setShowProgramModal(false);
     } catch (error) {
       // Error handled by hook
     }
@@ -345,6 +357,14 @@ export default function Workouts() {
           isGenerating={generateAIWorkout.isPending}
         />
 
+        {/* Generate Program Modal */}
+        <GenerateProgramModal
+          open={showProgramModal}
+          onOpenChange={setShowProgramModal}
+          onGenerate={handleGenerateProgram}
+          isGenerating={generateProgram.isPending}
+        />
+
         {/* Statistics */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
@@ -414,7 +434,7 @@ export default function Workouts() {
                     Create a structured 4-week workout program tailored to your goals
                   </p>
                   {fitnessProfile ? (
-                    <Button onClick={() => setShowGenerateModal(true)}>
+                    <Button onClick={() => setShowProgramModal(true)}>
                       <Sparkles className="h-4 w-4 mr-2" />
                       Generate 4-Week Program
                     </Button>
