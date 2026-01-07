@@ -336,7 +336,7 @@ export default function Workouts() {
             {fitnessProfile ? (
               <Button variant="outline" onClick={() => setShowGenerateModal(true)}>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Generate AI Workout
+                Generate Custom Workout
               </Button>
             ) : (
               <Button variant="outline" asChild>
@@ -424,7 +424,10 @@ export default function Workouts() {
                 <Skeleton className="h-24 w-full" />
               </div>
             ) : activeProgram ? (
-              <ProgramDashboard program={activeProgram} />
+              <ProgramDashboard 
+                program={activeProgram} 
+                onRegenerateProgram={() => setShowProgramModal(true)}
+              />
             ) : (
               <Card>
                 <CardContent className="py-12 text-center">

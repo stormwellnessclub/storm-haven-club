@@ -10,7 +10,8 @@ import {
   ChevronRight, 
   Trophy,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { 
   useProgramWorkouts, 
@@ -35,9 +36,10 @@ import {
 interface ProgramDashboardProps {
   program: WorkoutProgram;
   onProgramDeleted?: () => void;
+  onRegenerateProgram?: () => void;
 }
 
-export function ProgramDashboard({ program, onProgramDeleted }: ProgramDashboardProps) {
+export function ProgramDashboard({ program, onProgramDeleted, onRegenerateProgram }: ProgramDashboardProps) {
   const [currentWeek, setCurrentWeek] = useState(program.current_week || 1);
   const { data: workouts = [], isLoading } = useProgramWorkouts(program.id);
   const completeWorkout = useCompleteProgramWorkout();
@@ -148,27 +150,54 @@ export function ProgramDashboard({ program, onProgramDeleted }: ProgramDashboard
               </div>
             )}
             
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Program?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete "{program.program_name}" and all its workouts. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteProgram} className="bg-destructive text-destructive-foreground">
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <div className="flex gap-2">
+              {/* Start New Program Button */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <RefreshCw className="h-4 w-4" />
+                    New Program
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Start a New Program?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will replace your current program "{program.program_name}" with a new one. Your current progress will be saved but the program will be deactivated.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => onRegenerateProgram?.()}>
+                      Start New Program
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Delete Button */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Program?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete "{program.program_name}" and all its workouts. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteProgram} className="bg-destructive text-destructive-foreground">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </CardContent>
       </Card>
