@@ -335,39 +335,48 @@ function ApplicationPaymentForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isElementReady && !error && (
-            <div className="flex items-center justify-center py-8 min-h-[200px]">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-accent" />
-                <p className="text-sm text-muted-foreground">Loading secure payment form...</p>
-                <p className="text-xs text-muted-foreground mt-2">If this takes too long, please refresh the page</p>
+          {/* Scrollable content area - matches AddCardModal pattern */}
+          <div className="min-h-[300px] relative">
+            {!isElementReady && !error && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-accent" />
+                  <p className="text-sm text-muted-foreground">Loading secure payment form...</p>
+                </div>
               </div>
+            )}
+            {error && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
+                <div className="text-center p-4">
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
+                  <p className="text-sm text-destructive mb-2">{error}</p>
+                  <Button variant="outline" onClick={() => {
+                    setError(null);
+                    setIsElementReady(false);
+                  }}>
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            )}
+            <div tabIndex={-1}>
+              <PaymentElement
+                options={{
+                  layout: "tabs",
+                }}
+                onReady={() => {
+                  console.log("[Apply] PaymentElement is ready");
+                  setIsElementReady(true);
+                }}
+                onLoadError={(error) => {
+                  console.error("[Apply] PaymentElement load error:", error);
+                  setError(`Failed to load payment form: ${error.message || "Unknown error"}. Please refresh and try again.`);
+                  setIsElementReady(false);
+                }}
+              />
             </div>
-          )}
-
-          <div className={isElementReady ? "" : "opacity-0 absolute pointer-events-none"} style={{ minHeight: isElementReady ? 'auto' : '200px' }}>
-            <PaymentElement
-              onReady={() => {
-                console.log("[Apply] PaymentElement is ready");
-                setIsElementReady(true);
-              }}
-              onLoadError={(error) => {
-                console.error("[Apply] PaymentElement load error:", error);
-                setError(`Failed to load payment form: ${error.message || "Unknown error"}. Please refresh and try again.`);
-                setIsElementReady(false);
-              }}
-              options={{
-                layout: "tabs",
-              }}
-            />
           </div>
 
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-              <AlertCircle className="h-4 w-4 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
 
           <div className="flex gap-3 pt-4">
             <Button
