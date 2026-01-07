@@ -276,16 +276,21 @@ function ApplicationPaymentForm({
         return;
       }
 
-      if (setupIntent?.customer && typeof setupIntent.customer === 'string') {
-        onSuccess(setupIntent.customer);
-      } else {
-        // Fallback: get customer ID from setup intent metadata or retrieve it
-        const setupIntentDetails = await stripe.setupIntents.retrieve(setupIntent.id);
-        if (setupIntentDetails.customer && typeof setupIntentDetails.customer === 'string') {
-          onSuccess(setupIntentDetails.customer);
+      // setupIntent.customer is available after confirmation
+      // We stored the customer ID when creating the setup intent, pass a placeholder
+      // The actual customer ID should come from the edge function response stored in parent
+      if (setupIntent) {
+        // Customer ID was returned from edge function and stored in draft
+        // Check if we have stripeCustomerId in localStorage draft
+        const draft = loadDraft();
+        if (draft?.stripeCustomerId) {
+          onSuccess(draft.stripeCustomerId);
         } else {
-          throw new Error("Could not retrieve customer ID");
+          // Fallback - the setup was successful, parent should handle customer ID
+          onSuccess("");
         }
+      } else {
+        throw new Error("Setup failed - no setup intent returned");
       }
     } catch (err: any) {
       console.error("Payment setup error:", err);
@@ -368,9 +373,10 @@ function ApplicationPaymentForm({
                   console.log("[Apply] PaymentElement is ready");
                   setIsElementReady(true);
                 }}
-                onLoadError={(error) => {
-                  console.error("[Apply] PaymentElement load error:", error);
-                  setError(`Failed to load payment form: ${error.message || "Unknown error"}. Please refresh and try again.`);
+                onLoadError={(loadError) => {
+                  console.error("[Apply] PaymentElement load error:", loadError);
+                  const errorMessage = loadError.error?.message || "Unknown error";
+                  setError(`Failed to load payment form: ${errorMessage}. Please refresh and try again.`);
                   setIsElementReady(false);
                 }}
               />

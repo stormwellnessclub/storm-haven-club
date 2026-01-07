@@ -63,8 +63,8 @@ interface PaymentRequest {
   startDate?: string;
   memberId?: string;
   skipAnnualFee?: boolean; // Skip annual fee if already paid
-  // For class pass
-  category?: 'pilatesCycling' | 'otherClasses' | 'reformer' | 'cycling' | 'aerobics';
+  // For class pass - only support pilatesCycling and otherClasses
+  category?: 'pilatesCycling' | 'otherClasses';
   passType?: 'single' | 'tenPack';
   isMember?: boolean;
   userId?: string;
@@ -90,7 +90,6 @@ interface PaymentRequest {
   successUrl?: string;
   cancelUrl?: string;
   // For create_subscription_from_payment
-  paymentMethodId?: string;
   billingType?: 'monthly' | 'annual';
   customerId?: string;
 }
@@ -1177,12 +1176,11 @@ serve(async (req) => {
           throw new Error("Missing required fields for class pass");
         }
 
-        // Map category names
-        let mappedCategory = category;
-        if (category === 'pilatesCycling') mappedCategory = 'reformer';
-        if (category === 'otherClasses') mappedCategory = 'aerobics';
+        // Map category names to classPasses keys
+        let passCategory: 'pilatesCycling' | 'otherClasses' = category as 'pilatesCycling' | 'otherClasses';
+        // Category already matches classPasses keys (pilatesCycling or otherClasses)
 
-        const passConfig = STRIPE_PRODUCTS.classPasses[mappedCategory as keyof typeof STRIPE_PRODUCTS.classPasses];
+        const passConfig = STRIPE_PRODUCTS.classPasses[passCategory];
         if (!passConfig) {
           throw new Error(`Invalid category: ${category}`);
         }
@@ -1224,7 +1222,7 @@ serve(async (req) => {
           metadata: {
             type: 'class_pass',
             user_id: userId,
-            category: mappedCategory,
+            category: passCategory,
             pass_type: passType,
             is_member: String(isMember),
           },

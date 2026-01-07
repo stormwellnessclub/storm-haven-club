@@ -14,6 +14,7 @@ interface MembershipActivationPaymentProps {
   startDate: string;
   skipAnnualFee: boolean;
   amount: number; // Total amount in dollars
+  clientSecret?: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
