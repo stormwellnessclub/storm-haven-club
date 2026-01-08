@@ -26,20 +26,20 @@ export default function Terms() {
       <div className="container mx-auto px-6 py-16">
         <div className="max-w-4xl mx-auto prose prose-lg prose-neutral dark:prose-invert">
           <p className="lead text-xl text-muted-foreground mb-12">
-            Please read these terms carefully before using Storm Fitness & Wellness Club facilities and services.
+            Please read these terms carefully before using Storm Wellness Club facilities and services.
           </p>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">1. Acceptance of Terms</h2>
             <p>
-              By accessing, registering for, or using any services, facilities, or programs provided by Storm Fitness & Wellness Club ("Storm," "we," "us," or "our"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, you must not use our services or facilities.
+              By accessing, registering for, or using any services, facilities, or programs provided by Storm Wellness Club ("Storm," "we," "us," or "our"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, you must not use our services or facilities.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">2. Parties and Entities</h2>
             <p>
-              <strong>Operating Entity:</strong> Storm Fitness & Wellness Club is owned and operated by SR & D Development LLC ("SR & D Development"). SR & D Development manages all services, memberships, and transactions related to Storm.
+              <strong>Operating Entity:</strong> Storm Wellness Club is owned and operated by SR & D Development LLC ("SR & D Development"). SR & D Development manages all services, memberships, and transactions related to Storm.
             </p>
             <p>
               <strong>User:</strong> "You" or "User" refers to any individual using Storm's services or facilities, including members, guests, and pass holders.
@@ -194,11 +194,11 @@ export default function Terms() {
             <h2 className="text-2xl font-display font-semibold mb-4">20. Contact</h2>
             <p>For questions about these Terms:</p>
             <address className="not-italic">
-              <strong>Storm Fitness & Wellness Club</strong><br />
+              <strong>Storm Wellness Club</strong><br />
               Operated by SR & D Development LLC<br />
               18340 Middlebelt Rd<br />
               Livonia, MI 48127<br />
-              Email: <a href="mailto:contact@stormfitnessandwellness.com" className="text-gold hover:text-gold-light">contact@stormfitnessandwellness.com</a><br />
+              Email: <a href="mailto:contact@stormwellnessclub.com" className="text-gold hover:text-gold-light">contact@stormwellnessclub.com</a><br />
               Phone: <a href="tel:+13132865070" className="text-gold hover:text-gold-light">(313) 286-5070</a>
             </address>
           </section>
