@@ -38,6 +38,7 @@ interface Member {
   membership_end_date: string | null;
   photo_url: string | null;
   annual_fee_paid_at: string | null;
+  stripe_subscription_id: string | null;
 }
 
 interface CheckInRecord {
@@ -68,6 +69,7 @@ export default function CheckIn() {
     ? checkMemberPaymentStatus({
         status: selectedMember.status,
         annual_fee_paid_at: selectedMember.annual_fee_paid_at,
+        stripe_subscription_id: selectedMember.stripe_subscription_id,
       })
     : null;
 
@@ -421,10 +423,16 @@ export default function CheckIn() {
                             Monthly dues past due
                           </div>
                         )}
-                        {memberPaymentStatus.isAnnualFeeOverdue && (
+                        {!memberPaymentStatus.isInitiationFeePaid && (
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
-                            Annual fee expired
+                            Initiation fee unpaid
+                          </div>
+                        )}
+                        {!memberPaymentStatus.hasActiveSubscription && memberPaymentStatus.isInitiationFeePaid && (
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            No active subscription
                           </div>
                         )}
                       </div>

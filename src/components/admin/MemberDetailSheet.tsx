@@ -41,13 +41,14 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
 import { useMemberActivities } from "@/hooks/useMemberActivities";
 import { useQuery } from "@tanstack/react-query";
+import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 
 interface Member {
   id: string;
@@ -464,6 +465,74 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
             </TabsContent>
 
             <TabsContent value="membership" className="space-y-4 mt-4">
+              {/* Payment Status Panel */}
+              {(() => {
+                const paymentStatus = checkMemberPaymentStatus({
+                  status: member.status,
+                  annual_fee_paid_at: member.annual_fee_paid_at,
+                  stripe_subscription_id: member.stripe_subscription_id,
+                });
+                
+                if (paymentStatus.hasPaymentIssues) {
+                  return (
+                    <Card className="border-destructive/50 bg-destructive/5">
+                      <CardContent className="pt-4">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                          <div className="space-y-2 flex-1">
+                            <p className="font-semibold text-destructive">Payment Issues — Benefits Frozen</p>
+                            <div className="text-sm space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span>Initiation Fee:</span>
+                                {paymentStatus.isInitiationFeePaid ? (
+                                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Paid
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="destructive">Unpaid</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span>Subscription:</span>
+                                {paymentStatus.hasActiveSubscription ? (
+                                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Active
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="destructive">Not Started</Badge>
+                                )}
+                              </div>
+                              {paymentStatus.isDuesPastDue && (
+                                <div className="flex items-center justify-between">
+                                  <span>Dues Status:</span>
+                                  <Badge variant="destructive">Past Due</Badge>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+                
+                return (
+                  <Card className="border-green-500/50 bg-green-50/50 dark:bg-green-950/20">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <div>
+                          <p className="font-semibold text-green-700 dark:text-green-400">All Payments Current</p>
+                          <p className="text-sm text-muted-foreground">Member benefits are active</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
               <div>
                 <p className="text-sm text-muted-foreground">Membership Type</p>
                 <p className="text-lg font-medium">{member.membership_type}</p>

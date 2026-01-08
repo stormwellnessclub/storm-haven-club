@@ -2,18 +2,20 @@ import { useMemo } from "react";
 import { useUserMembership } from "./useUserMembership";
 import { addYears, isBefore } from "date-fns";
 
-export type PaymentIssue = "annual_fee_overdue" | "dues_past_due";
-export type PaymentStatus = "current" | "annual_fee_overdue" | "dues_past_due" | "both_overdue";
+export type PaymentIssue = "initiation_fee_unpaid" | "dues_past_due" | "no_subscription";
+export type PaymentStatus = "current" | "initiation_fee_unpaid" | "no_subscription" | "dues_past_due" | "multiple_issues";
 
 export interface PaymentStatusResult {
   status: PaymentStatus;
   issues: PaymentIssue[];
-  isAnnualFeeOverdue: boolean;
+  isInitiationFeePaid: boolean;
+  hasActiveSubscription: boolean;
+  isFullyPaid: boolean;
   isDuesPastDue: boolean;
   hasPaymentIssues: boolean;
-  hasBlockingIssues: boolean; // Always false - payment blocking disabled
-  hasNonBlockingIssues: boolean; // Both annual fee and monthly dues show notices
-  annualFeeExpiresAt: Date | null;
+  hasBlockingIssues: boolean;
+  hasNonBlockingIssues: boolean;
+  initiationFeeExpiresAt: Date | null;
   isLoading: boolean;
 }
 
@@ -25,54 +27,55 @@ export function usePaymentStatus(): PaymentStatusResult {
       return {
         status: "current" as PaymentStatus,
         issues: [],
-        isAnnualFeeOverdue: false,
+        isInitiationFeePaid: false,
+        hasActiveSubscription: false,
+        isFullyPaid: false,
         isDuesPastDue: false,
         hasPaymentIssues: false,
         hasBlockingIssues: false,
         hasNonBlockingIssues: false,
-        annualFeeExpiresAt: null,
+        initiationFeeExpiresAt: null,
         isLoading,
       };
     }
 
     const issues: PaymentIssue[] = [];
     
+    // Check if initiation fee has been paid
+    const isInitiationFeePaid = !!membership.annual_fee_paid_at;
+    if (!isInitiationFeePaid) {
+      issues.push("initiation_fee_unpaid");
+    }
+
+    // Check if subscription is active
+    const hasActiveSubscription = !!membership.stripe_subscription_id;
+    if (!hasActiveSubscription && membership.status !== "pending_activation") {
+      issues.push("no_subscription");
+    }
+
     // Check if membership status is past_due (from Stripe webhook)
     const isDuesPastDue = membership.status === "past_due";
     if (isDuesPastDue) {
       issues.push("dues_past_due");
     }
 
-    // Check annual fee status
-    // Annual fee is due if:
-    // 1. Member is active/past_due (not pending_activation) AND
-    // 2. annual_fee_paid_at is null OR more than 1 year ago
-    let isAnnualFeeOverdue = false;
-    let annualFeeExpiresAt: Date | null = null;
-
-    const isActiveMember = ["active", "past_due", "frozen"].includes(membership.status);
-    
-    if (isActiveMember) {
-      if (!membership.annual_fee_paid_at) {
-        // No annual fee ever paid for an active member
-        isAnnualFeeOverdue = true;
-      } else {
-        // Calculate expiration date (1 year from payment)
-        annualFeeExpiresAt = addYears(new Date(membership.annual_fee_paid_at), 1);
-        isAnnualFeeOverdue = isBefore(annualFeeExpiresAt, new Date());
-      }
+    // Calculate initiation fee expiration (for display purposes)
+    let initiationFeeExpiresAt: Date | null = null;
+    if (membership.annual_fee_paid_at) {
+      initiationFeeExpiresAt = addYears(new Date(membership.annual_fee_paid_at), 1);
     }
 
-    if (isAnnualFeeOverdue) {
-      issues.push("annual_fee_overdue");
-    }
+    // Member is fully paid if initiation fee is paid AND has active subscription
+    const isFullyPaid = isInitiationFeePaid && hasActiveSubscription && !isDuesPastDue;
 
     // Determine overall status
     let status: PaymentStatus = "current";
-    if (isAnnualFeeOverdue && isDuesPastDue) {
-      status = "both_overdue";
-    } else if (isAnnualFeeOverdue) {
-      status = "annual_fee_overdue";
+    if (issues.length > 1) {
+      status = "multiple_issues";
+    } else if (!isInitiationFeePaid) {
+      status = "initiation_fee_unpaid";
+    } else if (!hasActiveSubscription) {
+      status = "no_subscription";
     } else if (isDuesPastDue) {
       status = "dues_past_due";
     }
@@ -80,12 +83,14 @@ export function usePaymentStatus(): PaymentStatusResult {
     return {
       status,
       issues,
-      isAnnualFeeOverdue,
+      isInitiationFeePaid,
+      hasActiveSubscription,
+      isFullyPaid,
       isDuesPastDue,
       hasPaymentIssues: issues.length > 0,
-      hasBlockingIssues: false, // Payment blocking disabled - members can always access portal
-      hasNonBlockingIssues: isAnnualFeeOverdue || isDuesPastDue, // Both show notices in portal
-      annualFeeExpiresAt,
+      hasBlockingIssues: !isInitiationFeePaid || !hasActiveSubscription,
+      hasNonBlockingIssues: isDuesPastDue,
+      initiationFeeExpiresAt,
       isLoading: false,
     };
   }, [membership, isLoading]);
@@ -95,24 +100,24 @@ export function usePaymentStatus(): PaymentStatusResult {
 export function checkMemberPaymentStatus(member: {
   status: string;
   annual_fee_paid_at: string | null;
-}): { isAnnualFeeOverdue: boolean; isDuesPastDue: boolean; hasPaymentIssues: boolean } {
+  stripe_subscription_id?: string | null;
+}): { 
+  isInitiationFeePaid: boolean; 
+  hasActiveSubscription: boolean;
+  isDuesPastDue: boolean; 
+  hasPaymentIssues: boolean;
+  isFullyPaid: boolean;
+} {
   const isDuesPastDue = member.status === "past_due";
-  
-  let isAnnualFeeOverdue = false;
-  const isActiveMember = ["active", "past_due", "frozen"].includes(member.status);
-  
-  if (isActiveMember) {
-    if (!member.annual_fee_paid_at) {
-      isAnnualFeeOverdue = true;
-    } else {
-      const annualFeeExpiresAt = addYears(new Date(member.annual_fee_paid_at), 1);
-      isAnnualFeeOverdue = isBefore(annualFeeExpiresAt, new Date());
-    }
-  }
+  const isInitiationFeePaid = !!member.annual_fee_paid_at;
+  const hasActiveSubscription = !!member.stripe_subscription_id;
+  const isFullyPaid = isInitiationFeePaid && hasActiveSubscription && !isDuesPastDue;
 
   return {
-    isAnnualFeeOverdue,
+    isInitiationFeePaid,
+    hasActiveSubscription,
     isDuesPastDue,
-    hasPaymentIssues: isAnnualFeeOverdue || isDuesPastDue,
+    hasPaymentIssues: !isInitiationFeePaid || !hasActiveSubscription || isDuesPastDue,
+    isFullyPaid,
   };
 }
