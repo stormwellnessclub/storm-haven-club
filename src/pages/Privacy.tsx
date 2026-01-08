@@ -26,13 +26,13 @@ export default function Privacy() {
       <div className="container mx-auto px-6 py-16">
         <div className="max-w-4xl mx-auto prose prose-lg prose-neutral dark:prose-invert">
           <p className="lead text-xl text-muted-foreground mb-12">
-            This Privacy Policy describes how Storm Fitness & Wellness Club collects, uses, and protects your personal information.
+            This Privacy Policy describes how Storm Wellness Club collects, uses, and protects your personal information.
           </p>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">1. Parties and Scope</h2>
             <p>
-              <strong>Operating Entity:</strong> Storm Fitness & Wellness Club ("Storm," "we," "us," or "our") is owned and operated by SR & D Development LLC ("SR & D Development"). This Privacy Policy applies to all services, facilities, and programs offered by Storm.
+              <strong>Operating Entity:</strong> Storm Wellness Club ("Storm," "we," "us," or "our") is owned and operated by SR & D Development LLC ("SR & D Development"). This Privacy Policy applies to all services, facilities, and programs offered by Storm.
             </p>
             <p>
               <strong>User:</strong> "You" or "User" refers to any individual who accesses our website, uses our services, or provides personal information to us.
@@ -162,11 +162,11 @@ export default function Privacy() {
             <h2 className="text-2xl font-display font-semibold mb-4">15. Contact Information</h2>
             <p>For questions or concerns about this Privacy Policy or our data practices:</p>
             <address className="not-italic">
-              <strong>Storm Fitness & Wellness Club</strong><br />
+              <strong>Storm Wellness Club</strong><br />
               Operated by SR & D Development LLC<br />
               18340 Middlebelt Rd<br />
               Livonia, MI 48127<br />
-              Email: <a href="mailto:contact@stormfitnessandwellness.com" className="text-gold hover:text-gold-light">contact@stormfitnessandwellness.com</a><br />
+              Email: <a href="mailto:contact@stormwellnessclub.com" className="text-gold hover:text-gold-light">contact@stormwellnessclub.com</a><br />
               Phone: <a href="tel:+13132865070" className="text-gold hover:text-gold-light">(313) 286-5070</a>
             </address>
           </section>

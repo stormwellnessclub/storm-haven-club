@@ -385,7 +385,7 @@ export function PaymentSectionEnhanced({
               onCheckedChange={(checked) => onCheckboxChange("creditCardAuth", checked as boolean)}
             />
             <Label htmlFor="creditCardAuth" className="font-normal cursor-pointer text-sm leading-relaxed">
-              I authorize Storm Fitness and Wellness Center to charge my saved payment method upon membership activation. *
+              I authorize Storm Wellness Club to charge my saved payment method upon membership activation. *
             </Label>
           </div>
         </div>

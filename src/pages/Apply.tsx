@@ -936,7 +936,7 @@ export default function Apply() {
               <h2 className="font-serif text-2xl mb-6 text-accent">Motivation for Joining</h2>
               
               <div>
-                <Label className="mb-3 block">Why have you chosen Storm Fitness and Wellness Center for your wellness journey? (Select all that apply)</Label>
+                <Label className="mb-3 block">Why have you chosen Storm Wellness Club for your wellness journey? (Select all that apply)</Label>
                 <div className="space-y-2">
                   {motivations.map((motivation) => (
                     <div key={motivation} className="flex items-center gap-3">
@@ -1123,7 +1123,7 @@ export default function Apply() {
                   <p className="text-sm text-muted-foreground mb-3">
                     <strong className="text-foreground">One-Year Membership Commitment</strong>
                     <br /><br />
-                    Please note that all memberships at Storm Fitness and Wellness Center require a minimum 
+                    Please note that all memberships at Storm Wellness Club require a minimum 
                     commitment of one year. This commitment ensures that members fully experience the transformative 
                     benefits of our wellness community. Your membership will commence upon the opening of our new 
                     facility and extend for at least one year, providing you with continuous access to our exclusive 
@@ -1147,9 +1147,9 @@ export default function Apply() {
                     <strong className="text-foreground">Authorization and Acknowledgment of Initiation Fee and Membership Commitment</strong>
                     <br /><br />
                     By submitting this application, I understand and agree that, upon approval of my membership at 
-                    Storm Fitness and Wellness Center, the initiation fee as outlined in the membership details will 
-                    be charged to the credit card provided in this application. I hereby authorize Storm Fitness and 
-                    Wellness Center to process this charge upon the confirmation of my membership acceptance. Additionally, 
+                    Storm Wellness Club, the initiation fee as outlined in the membership details will 
+                    be charged to the credit card provided in this application. I hereby authorize Storm Wellness 
+                    Club to process this charge upon the confirmation of my membership acceptance. Additionally, 
                     I acknowledge that all memberships require a one-year commitment, starting from the opening of the 
                     new facility.
                   </p>
