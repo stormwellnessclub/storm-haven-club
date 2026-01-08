@@ -16,7 +16,7 @@ export interface MemberBenefitsStatus {
   /** Whether any benefits are frozen */
   hasFrozenBenefits: boolean;
   /** Reason for frozen benefits, if applicable */
-  frozenReason: "pending_activation" | "past_due" | "frozen" | "cancelled" | null;
+  frozenReason: "pending_activation" | "past_due" | "frozen" | "cancelled" | "initiation_fee_unpaid" | "no_subscription" | null;
   /** Is the membership fully active with all benefits */
   isFullyActive: boolean;
   /** Loading state */
@@ -30,10 +30,12 @@ export interface MemberBenefitsStatus {
  * - past_due: Monthly dues payment failed
  * - frozen: Membership is on hold
  * - cancelled: Membership was cancelled
+ * - initiation_fee_unpaid: Initiation fee has not been paid
+ * - no_subscription: No active subscription for dues
  */
 export function useMemberBenefitsStatus(): MemberBenefitsStatus {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
-  const { isDuesPastDue, isLoading: paymentLoading } = usePaymentStatus();
+  const { isInitiationFeePaid, hasActiveSubscription, isDuesPastDue, isLoading: paymentLoading } = usePaymentStatus();
 
   return useMemo(() => {
     const isLoading = membershipLoading || paymentLoading;
@@ -55,11 +57,17 @@ export function useMemberBenefitsStatus(): MemberBenefitsStatus {
 
     const status = membership.status;
     
-    // Determine frozen reason
+    // Determine frozen reason - priority order matters
     let frozenReason: MemberBenefitsStatus["frozenReason"] = null;
     
     if (status === "pending_activation") {
       frozenReason = "pending_activation";
+    } else if (!isInitiationFeePaid) {
+      // Even if status is "active", freeze if initiation fee not paid
+      frozenReason = "initiation_fee_unpaid";
+    } else if (!hasActiveSubscription) {
+      // Even if status is "active", freeze if no subscription
+      frozenReason = "no_subscription";
     } else if (status === "past_due" || isDuesPastDue) {
       frozenReason = "past_due";
     } else if (status === "frozen") {
@@ -69,7 +77,7 @@ export function useMemberBenefitsStatus(): MemberBenefitsStatus {
     }
 
     const hasFrozenBenefits = frozenReason !== null;
-    const isFullyActive = status === "active" && !isDuesPastDue;
+    const isFullyActive = status === "active" && isInitiationFeePaid && hasActiveSubscription && !isDuesPastDue;
 
     // Benefits are only available when fully active
     return {
@@ -83,5 +91,5 @@ export function useMemberBenefitsStatus(): MemberBenefitsStatus {
       isFullyActive,
       isLoading: false,
     };
-  }, [membership, membershipLoading, isDuesPastDue, paymentLoading]);
+  }, [membership, membershipLoading, isInitiationFeePaid, hasActiveSubscription, isDuesPastDue, paymentLoading]);
 }

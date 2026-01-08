@@ -1,8 +1,8 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { MemberSidebar } from "./MemberSidebar";
 import { AnnualFeeNotice } from "./AnnualFeeNotice";
+import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
-import { PaymentRequiredAlert } from "./PaymentRequiredAlert";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserMembership } from "@/hooks/useUserMembership";
@@ -15,7 +15,7 @@ interface MemberLayoutProps {
 
 export function MemberLayout({ children, title }: MemberLayoutProps) {
   const { data: membership } = useUserMembership();
-  const { isDuesPastDue } = usePaymentStatus();
+  const { hasPaymentIssues, isInitiationFeePaid } = usePaymentStatus();
   
   const isPendingActivation = membership?.status === "pending_activation";
 
@@ -35,11 +35,11 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
           </div>
         )}
         
-        {/* Annual fee notice for active members */}
-        {!isPendingActivation && <AnnualFeeNotice />}
+        {/* Payment due notice for members with payment issues (initiation fee or subscription) */}
+        {!isPendingActivation && hasPaymentIssues && <PaymentDueNotice />}
         
-        {/* Past due payment alert */}
-        {isDuesPastDue && !isPendingActivation && <PaymentRequiredAlert />}
+        {/* Annual fee renewal notice (only for members who have paid initially but need to renew) */}
+        {!isPendingActivation && isInitiationFeePaid && <AnnualFeeNotice />}
         
         <div className="flex flex-1">
           <MemberSidebar />
