@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useUserCredits } from "@/hooks/useUserCredits";
@@ -15,6 +16,7 @@ import { useWorkoutLogs } from "@/hooks/useWorkoutLogs";
 import { useHabits, useHabitStreaks } from "@/hooks/useHabits";
 import { useHabitLogs, useCreateHabitLog } from "@/hooks/useHabitLogs";
 import { useMemberGoals } from "@/hooks/useMemberGoals";
+import { useMemberBenefitsStatus } from "@/hooks/useMemberBenefitsStatus";
 import { Progress } from "@/components/ui/progress";
 import {
   CreditCard,
@@ -30,6 +32,7 @@ import {
   Target,
   TrendingUp,
   TrendingDown,
+  Lock,
 } from "lucide-react";
 import { format, parseISO, isValid, startOfToday } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,6 +43,7 @@ export default function MemberDashboard() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { data: credits, isLoading: creditsLoading } = useUserCredits();
   const { data: upcomingBookings, isLoading: bookingsLoading } = useUpcomingBookings();
+  const { hasFrozenBenefits, frozenReason } = useMemberBenefitsStatus();
   
   // Health & Wellness Data
   const { data: healthScore, isLoading: healthScoreLoading } = useHealthScore(undefined, 30);
@@ -57,9 +61,41 @@ export default function MemberDashboard() {
     ? healthScoreHistory[0].overall_score - healthScoreHistory[1].overall_score
     : 0;
 
+  // Helper to get frozen reason message
+  const getFrozenReasonMessage = () => {
+    switch (frozenReason) {
+      case "pending_activation":
+        return "Complete your membership activation to unlock all benefits.";
+      case "past_due":
+        return "Please update your payment method to restore your benefits.";
+      case "frozen":
+        return "Your membership is currently on hold.";
+      case "cancelled":
+        return "Your membership has been cancelled.";
+      default:
+        return "Your benefits are currently unavailable.";
+    }
+  };
+
   return (
     <MemberLayout title="Dashboard">
       <div className="space-y-6">
+        {/* Frozen Benefits Notice */}
+        {hasFrozenBenefits && (
+          <Alert className="bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700">
+            <Lock className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800 dark:text-amber-200">Benefits Frozen</AlertTitle>
+            <AlertDescription className="text-amber-700 dark:text-amber-300">
+              {getFrozenReasonMessage()} Class credits, member pricing, and amenity access are unavailable until resolved.
+              {frozenReason === "pending_activation" && (
+                <Button asChild size="sm" variant="outline" className="ml-4 mt-2 sm:mt-0">
+                  <Link to="/member/membership">Activate Now</Link>
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Welcome Header */}
         <div className="mb-8">
           {profileLoading ? (
