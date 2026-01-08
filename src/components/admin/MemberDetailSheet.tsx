@@ -784,7 +784,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                       </div>
 
                       <div className="pt-4 border-t">
-                        <p className="text-sm font-medium mb-2">Annual Fee Status</p>
+                        <p className="text-sm font-medium mb-2">Initiation Fee Status</p>
                         {member.annual_fee_paid_at ? (
                           <p className="text-sm text-muted-foreground">
                             Paid on {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
@@ -805,14 +805,14 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                                     },
                                   });
                                   if (error) throw error;
-                                  toast.success("Annual fee charged");
+                                  toast.success("Initiation fee charged");
                                   queryClient.invalidateQueries({ queryKey: ["admin-members"] });
                                 } catch (error) {
-                                  toast.error("Failed to charge annual fee");
+                                  toast.error("Failed to charge initiation fee");
                                 }
                               }}
                             >
-                              Charge Annual Fee
+                              Charge Initiation Fee
                             </Button>
                           </div>
                         )}
