@@ -1320,7 +1320,7 @@ export default function Applications() {
                   <TableHead>Founding Member</TableHead>
                   <TableHead>Card</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Annual Fee ($300)</TableHead>
+                  <TableHead>Initiation Fee</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -1570,17 +1570,17 @@ export default function Applications() {
                     />
                   </div>
 
-                  {/* Annual Fee Actions */}
+                  {/* Initiation Fee Actions */}
                   <div className="pt-4 border-t">
-                    <p className="text-sm text-muted-foreground mb-3">Update Annual Fee Status ($300)</p>
-                    <div className="flex gap-2 flex-wrap">
+                    <p className="text-sm text-muted-foreground mb-3">Initiation Fee Status</p>
+                    <div className="flex gap-2 flex-wrap mb-3">
                       <Button 
                         size="sm" 
                         variant={selectedApplication.annual_fee_status === "paid" ? "default" : "outline"}
                         onClick={() => updateAnnualFeeMutation.mutate({ id: selectedApplication.id, annual_fee_status: "paid" })}
                       >
                         <DollarSign className="h-4 w-4 mr-1" />
-                        Paid
+                        Mark as Paid
                       </Button>
                       <Button 
                         size="sm" 
@@ -1599,6 +1599,38 @@ export default function Applications() {
                         Failed
                       </Button>
                     </div>
+                    
+                    {/* Send Card Request Email - visible when initiation fee is paid and application is approved */}
+                    {selectedApplication.annual_fee_status === "paid" && selectedApplication.status === "approved" && (
+                      <div className="mt-3 p-3 border rounded-lg bg-muted/50">
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Initiation fee is paid. Send email to request card for membership dues:
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              const firstName = selectedApplication.first_name || selectedApplication.full_name?.split(" ")[0] || "";
+                              await supabase.functions.invoke("send-email", {
+                                body: {
+                                  type: "add_card_for_dues",
+                                  to: selectedApplication.email,
+                                  data: { name: firstName },
+                                },
+                              });
+                              toast.success(`Card request email sent to ${firstName}`);
+                            } catch (error) {
+                              console.error("Failed to send card request email:", error);
+                              toast.error("Failed to send email");
+                            }
+                          }}
+                        >
+                          <Mail className="h-4 w-4 mr-1" />
+                          Send Card Request Email
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Member Link Status (for approved applications) */}

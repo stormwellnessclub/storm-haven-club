@@ -185,7 +185,7 @@ export function SingleActivationDialog({
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Annual Fee</span>
+              <span className="text-sm text-muted-foreground">Initiation Fee</span>
               {paymentStatus?.isPaid ? (
                 <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
                   Paid
@@ -264,7 +264,7 @@ export function SingleActivationDialog({
                 htmlFor="charge-fee"
                 className="text-sm font-medium leading-none cursor-pointer"
               >
-                Charge $300 annual fee to saved card
+                Charge initiation fee to saved card
               </label>
             </div>
           )}

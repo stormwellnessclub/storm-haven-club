@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date';
+  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues';
   to: string;
   data: Record<string, any>;
 }
@@ -653,6 +653,61 @@ serve(async (req) => {
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
                 We look forward to welcoming you to Storm Wellness Club!
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
+                <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'add_card_for_dues':
+        subject = 'Add Your Payment Method - Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Your initiation fee has been received — thank you!
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                To prepare for your membership activation, please sign in to your member portal and add the payment method you'd like to use for your membership dues.
+              </p>
+              
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #312D28;">What you need to do:</h3>
+                <ul style="color: #374151; line-height: 2; margin: 0; padding-left: 20px;">
+                  <li>Sign in to your member portal</li>
+                  <li>Go to Settings → Payment Methods</li>
+                  <li>Add your preferred payment card</li>
+                </ul>
+              </div>
+              
+              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">
+                  Important Notes:
+                </p>
+                <ul style="color: #92400e; line-height: 1.8; margin: 10px 0 0 0; padding-left: 20px; font-size: 14px;">
+                  <li>Your card will be securely saved for billing</li>
+                  <li>You can change your payment method anytime in your Member Portal</li>
+                  <li>Your membership will be activated when we open</li>
+                </ul>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Add Payment Method</a>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you have any questions, please don't hesitate to reach out.
               </p>
               
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
