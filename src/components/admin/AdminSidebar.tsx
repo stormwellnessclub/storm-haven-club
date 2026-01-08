@@ -19,6 +19,7 @@ import {
   CalendarDays,
   Mail,
   Snowflake,
+  ScanLine,
 } from "lucide-react";
 import {
   Sidebar,
@@ -49,6 +50,7 @@ interface MenuItem {
 const quickAccessItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Check-In", url: "/admin/check-in", icon: QrCode, highlight: true, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
+  { title: "Scanner", url: "/admin/scanner", icon: ScanLine, highlight: true, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
 ];
 
 const managementItems: MenuItem[] = [
