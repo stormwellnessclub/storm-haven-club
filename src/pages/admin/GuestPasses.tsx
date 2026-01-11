@@ -43,12 +43,12 @@ export default function GuestPasses() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const { data, error } = await supabase
-        .from('guest_passes')
+      const { data, error } = await (supabase
+        .from('guest_passes' as any)
         .select('*')
         .gte('purchased_at', today.toISOString())
         .order('purchased_at', { ascending: false })
-        .limit(20);
+        .limit(20) as any);
 
       if (error) throw error;
 
