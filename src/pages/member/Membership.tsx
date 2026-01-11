@@ -6,13 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserMembership, getMembershipTierBenefits } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { IdCard, Check, FileCheck, Crown, Receipt } from "lucide-react";
+import { IdCard, Check, FileCheck, Crown, Receipt, AlertCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { InlineBillingSection } from "@/components/member/InlineBillingSection";
 import { BillingSummary } from "@/components/member/BillingSummary";
+import { ActivationRequired } from "@/components/member/ActivationRequired";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function MemberMembership() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
@@ -73,6 +75,40 @@ export default function MemberMembership() {
             </div>
           </CardContent>
         </Card>
+      </MemberLayout>
+    );
+  }
+
+  // Show activation form for pending_activation members
+  if (membership.status === "pending_activation") {
+    return (
+      <MemberLayout title="Activate Membership">
+        <div className="max-w-lg mx-auto">
+          <Alert className="mb-6 bg-amber-50 dark:bg-amber-900/20 border-amber-300">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-700 dark:text-amber-300">
+              Complete your membership activation to unlock all benefits including class credits, member pricing, and amenity access.
+            </AlertDescription>
+          </Alert>
+          <ActivationRequired 
+            memberData={{
+              id: membership.id,
+              member_id: membership.member_id,
+              membership_type: membership.membership_type,
+              status: membership.status,
+              approved_at: null,
+              activation_deadline: membership.activation_deadline,
+              activated_at: membership.activated_at,
+              first_name: membership.first_name,
+              last_name: membership.last_name,
+              email: membership.email,
+              gender: membership.gender,
+              is_founding_member: membership.is_founding_member,
+              annual_fee_paid_at: membership.annual_fee_paid_at,
+              locked_start_date: membership.locked_start_date,
+            }} 
+          />
+        </div>
       </MemberLayout>
     );
   }

@@ -17,10 +17,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StripeProvider } from "@/components/StripeProvider";
 import { MembershipActivationPayment } from "./MembershipActivationPayment";
-import { StripeProvider } from "@/components/StripeProvider";
-import { MembershipActivationPayment } from "./MembershipActivationPayment";
-import { StripeProvider } from "@/components/StripeProvider";
-import { MembershipActivationPayment } from "./MembershipActivationPayment";
 
 interface MemberData {
   id: string;
@@ -206,7 +202,8 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
       }
 
       if (result.error || result.data?.error) {
-        throw new Error(result.error || result.data?.error || "Failed to initialize payment");
+        const errorMsg = typeof result.error === 'string' ? result.error : result.error?.message || result.data?.error || "Failed to initialize payment";
+        throw new Error(errorMsg);
       }
 
       if (result.data?.clientSecret) {

@@ -26,7 +26,7 @@ export default function Settings() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="businessName">Business Name</Label>
-                <Input id="businessName" defaultValue="Storm Fitness & Wellness Center" />
+                <Input id="businessName" defaultValue="Storm Wellness Club" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>

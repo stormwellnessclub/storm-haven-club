@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Target,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -60,6 +61,9 @@ const wellnessMenuItems: MenuItem[] = [
   { title: "Goals", url: "/member/goals", icon: Target },
   { title: "Fitness Profile", url: "/member/fitness-profile", icon: Settings },
 ];
+
+// Highlight workouts item with AI badge
+const HIGHLIGHTED_ITEMS = ["Workouts"];
 
 export function MemberSidebar() {
   const location = useLocation();
@@ -134,9 +138,12 @@ export function MemberSidebar() {
                     isActive={isActive(item.url)}
                     tooltip={item.title}
                   >
-                    <NavLink to={item.url}>
+                    <NavLink to={item.url} className="flex items-center gap-2">
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
+                      {HIGHLIGHTED_ITEMS.includes(item.title) && (
+                        <Sparkles className="h-3 w-3 text-primary ml-auto" />
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

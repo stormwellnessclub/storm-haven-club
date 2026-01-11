@@ -259,6 +259,7 @@ export default function Members() {
                           {checkMemberPaymentStatus({
                             status: member.status,
                             annual_fee_paid_at: member.annual_fee_paid_at,
+                            stripe_subscription_id: member.stripe_subscription_id,
                           }).hasPaymentIssues && (
                             <span title="Payment issue">
                               <AlertTriangle className="h-4 w-4 text-red-500" />

@@ -34,9 +34,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkoutLogs, useCreateWorkoutLog, useUpdateWorkoutLog, useDeleteWorkoutLog, WorkoutLog, CreateWorkoutLogData } from "@/hooks/useWorkoutLogs";
 import { useAIWorkouts, useGenerateAIWorkout, useCompleteAIWorkout, useDeleteAIWorkout, AIWorkout, WorkoutPreferences } from "@/hooks/useAIWorkouts";
+import { useWorkoutPrograms, useGenerateProgram } from "@/hooks/useWorkoutPrograms";
 import { useFitnessProfile } from "@/hooks/useFitnessProfile";
 import { GenerateWorkoutModal } from "@/components/member/GenerateWorkoutModal";
+import { GenerateProgramModal, ProgramPreferences } from "@/components/member/GenerateProgramModal";
 import { ExerciseCard } from "@/components/member/ExerciseCard";
+import { ProgramDashboard } from "@/components/member/ProgramDashboard";
 import {
   Dumbbell,
   Plus,
@@ -48,6 +51,7 @@ import {
   Loader2,
   Settings,
   Info,
+  Calendar,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
@@ -69,6 +73,7 @@ const WORKOUT_TYPES = [
 export default function Workouts() {
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showProgramModal, setShowProgramModal] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<WorkoutLog | null>(null);
   const [formData, setFormData] = useState<CreateWorkoutLogData>({
     workout_type: "",
@@ -82,6 +87,7 @@ export default function Workouts() {
 
   const { data: workouts, isLoading } = useWorkoutLogs();
   const { data: aiWorkouts, isLoading: aiLoading } = useAIWorkouts(undefined, 5);
+  const { data: programs, isLoading: programsLoading } = useWorkoutPrograms();
   const { data: fitnessProfile } = useFitnessProfile();
   const createWorkout = useCreateWorkoutLog();
   const updateWorkout = useUpdateWorkoutLog();
@@ -89,6 +95,10 @@ export default function Workouts() {
   const generateAIWorkout = useGenerateAIWorkout();
   const completeAIWorkout = useCompleteAIWorkout();
   const deleteAIWorkout = useDeleteAIWorkout();
+  const generateProgram = useGenerateProgram();
+
+  // Get active program
+  const activeProgram = programs?.find(p => p.is_active);
 
   // Calculate statistics
   const stats = {
@@ -167,6 +177,15 @@ export default function Workouts() {
     try {
       await generateAIWorkout.mutateAsync(preferences);
       setShowGenerateModal(false);
+    } catch (error) {
+      // Error handled by hook
+    }
+  };
+
+  const handleGenerateProgram = async (preferences: ProgramPreferences) => {
+    try {
+      await generateProgram.mutateAsync(preferences);
+      setShowProgramModal(false);
     } catch (error) {
       // Error handled by hook
     }
@@ -317,7 +336,7 @@ export default function Workouts() {
             {fitnessProfile ? (
               <Button variant="outline" onClick={() => setShowGenerateModal(true)}>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Generate AI Workout
+                Generate Custom Workout
               </Button>
             ) : (
               <Button variant="outline" asChild>
@@ -336,6 +355,14 @@ export default function Workouts() {
           onOpenChange={setShowGenerateModal}
           onGenerate={handleGenerateAIWorkout}
           isGenerating={generateAIWorkout.isPending}
+        />
+
+        {/* Generate Program Modal */}
+        <GenerateProgramModal
+          open={showProgramModal}
+          onOpenChange={setShowProgramModal}
+          onGenerate={handleGenerateProgram}
+          isGenerating={generateProgram.isPending}
         />
 
         {/* Statistics */}
@@ -380,11 +407,61 @@ export default function Workouts() {
           </Card>
         </div>
 
-        <Tabs defaultValue="logged" className="space-y-4">
+        <Tabs defaultValue={activeProgram ? "programs" : "logged"} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="logged">Logged Workouts ({workouts?.length || 0})</TabsTrigger>
-            <TabsTrigger value="ai">AI Generated ({aiWorkouts?.length || 0})</TabsTrigger>
+            <TabsTrigger value="programs" className="gap-1.5">
+              <Calendar className="h-4 w-4" />
+              Programs {activeProgram && <Badge variant="secondary" className="ml-1 text-xs">Active</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="logged">Logged ({workouts?.length || 0})</TabsTrigger>
+            <TabsTrigger value="ai">AI Workouts ({aiWorkouts?.length || 0})</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="programs">
+            {programsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+            ) : activeProgram ? (
+              <ProgramDashboard 
+                program={activeProgram} 
+                onRegenerateProgram={() => setShowProgramModal(true)}
+              />
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Calendar className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                  <p className="text-lg font-medium mb-2">No Active Program</p>
+                  <p className="text-muted-foreground mb-4">
+                    Create a structured 4-week workout program tailored to your goals
+                  </p>
+                  {fitnessProfile ? (
+                    <Button onClick={() => setShowProgramModal(true)}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate 4-Week Program
+                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Fitness Profile Required</AlertTitle>
+                        <AlertDescription>
+                          Create your fitness profile to unlock personalized program generation.
+                        </AlertDescription>
+                      </Alert>
+                      <Button variant="outline" asChild>
+                        <Link to="/member/fitness-profile">
+                          <Settings className="h-4 w-4 mr-2" />
+                          Create Fitness Profile
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
           <TabsContent value="logged">
             {isLoading ? (

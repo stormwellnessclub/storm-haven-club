@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,14 +6,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Check, ArrowRight, ExternalLink, Loader2, CreditCard, AlertCircle, X } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
 import { useAgreements } from "@/hooks/useAgreements";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { StripeProvider } from "@/components/StripeProvider";
-import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { ApplicationProgress, getStepCompletion, APPLICATION_STEPS } from "@/components/ApplicationProgress";
+import { PaymentSectionEnhanced } from "@/components/PaymentSectionEnhanced";
+import { ApplicationValidationSummary } from "@/components/ApplicationValidationSummary";
+import { DraftSaveIndicator } from "@/components/DraftSaveIndicator";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
@@ -220,189 +222,7 @@ function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAg
   );
 }
 
-// Payment Form Component for Application
-function ApplicationPaymentForm({ 
-  clientSecret, 
-  onSuccess, 
-  onCancel 
-}: { 
-  clientSecret: string; 
-  onSuccess: (customerId: string) => void;
-  onCancel: () => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isElementReady, setIsElementReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    console.log("[Apply] Payment form submit - stripe:", !!stripe, "elements:", !!elements);
-
-    if (!stripe || !elements) {
-      const msg = `Payment form not ready. Stripe: ${!!stripe}, Elements: ${!!elements}`;
-      console.error("[Apply]", msg);
-      setError(msg);
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Validate the form first
-      const { error: submitError } = await elements.submit();
-      if (submitError) {
-        setError(submitError.message || "Please complete the payment form");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Confirm setup intent
-      const { error: confirmError, setupIntent } = await stripe.confirmSetup({
-        elements,
-        clientSecret,
-        redirect: "if_required",
-        confirmParams: {
-          return_url: window.location.href,
-        },
-      });
-
-      if (confirmError) {
-        setError(confirmError.message || "Failed to save payment method. Please try again.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (setupIntent?.customer && typeof setupIntent.customer === 'string') {
-        onSuccess(setupIntent.customer);
-      } else {
-        // Fallback: get customer ID from setup intent metadata or retrieve it
-        const setupIntentDetails = await stripe.setupIntents.retrieve(setupIntent.id);
-        if (setupIntentDetails.customer && typeof setupIntentDetails.customer === 'string') {
-          onSuccess(setupIntentDetails.customer);
-        } else {
-          throw new Error("Could not retrieve customer ID");
-        }
-      }
-    } catch (err: any) {
-      console.error("Payment setup error:", err);
-      setError(err.message || "Failed to save payment method. Please try again.");
-      setIsSubmitting(false);
-    }
-  };
-
-  console.log("[Apply] ApplicationPaymentForm render - clientSecret:", !!clientSecret, "isElementReady:", isElementReady, "stripe:", !!stripe, "elements:", !!elements);
-
-  if (!clientSecret) {
-    return (
-      <Card className="mt-4">
-        <CardContent className="p-6">
-          <div className="text-center text-destructive">
-            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-            <p>Payment form configuration error. Please try again.</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="mt-4">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Payment Information
-            </CardTitle>
-            <CardDescription>
-              Securely add your payment method. No charges will be made until you activate your membership.
-            </CardDescription>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Scrollable content area - matches AddCardModal pattern */}
-          <div className="min-h-[300px] relative">
-            {!isElementReady && !error && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-accent" />
-                  <p className="text-sm text-muted-foreground">Loading secure payment form...</p>
-                </div>
-              </div>
-            )}
-            {error && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
-                <div className="text-center p-4">
-                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
-                  <p className="text-sm text-destructive mb-2">{error}</p>
-                  <Button variant="outline" onClick={() => {
-                    setError(null);
-                    setIsElementReady(false);
-                  }}>
-                    Try Again
-                  </Button>
-                </div>
-              </div>
-            )}
-            <div tabIndex={-1}>
-              <PaymentElement
-                options={{
-                  layout: "tabs",
-                }}
-                onReady={() => {
-                  console.log("[Apply] PaymentElement is ready");
-                  setIsElementReady(true);
-                }}
-                onLoadError={(error) => {
-                  console.error("[Apply] PaymentElement load error:", error);
-                  setError(`Failed to load payment form: ${error.message || "Unknown error"}. Please refresh and try again.`);
-                  setIsElementReady(false);
-                }}
-              />
-            </div>
-          </div>
-
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!stripe || !elements || isSubmitting || !isElementReady}
-              variant="gold"
-              className="flex-1"
-            >
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save Payment Method
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
+// ApplicationPaymentForm has been moved to PaymentSectionEnhanced component
 
 export default function Apply() {
   const [searchParams] = useSearchParams();
@@ -411,6 +231,11 @@ export default function Apply() {
   const [isSavingCard, setIsSavingCard] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
+  const [currentStepId, setCurrentStepId] = useState("personal");
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  
+  // Section refs for scroll tracking
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
   // Use lazy initializers to hydrate from draft BEFORE any effects run
   const [formData, setFormData] = useState(() => {
@@ -466,10 +291,23 @@ export default function Apply() {
     
     const timeoutId = setTimeout(() => {
       saveDraft(formData, stripeCustomerId);
+      setLastSavedAt(Date.now());
     }, 500);
     
     return () => clearTimeout(timeoutId);
   }, [formData, stripeCustomerId]);
+
+  // Calculate step completion for progress
+  const steps = getStepCompletion(formData, stripeCustomerId);
+
+  // Scroll to section helper
+  const scrollToSection = (stepId: string) => {
+    const ref = sectionRefs.current[stepId];
+    if (ref) {
+      ref.scrollIntoView({ behavior: "smooth", block: "start" });
+      setCurrentStepId(stepId);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -661,7 +499,7 @@ export default function Apply() {
 
       if (error) {
         console.error("Error submitting application:", error);
-        toast.error("There was an error submitting your application. Please try again.");
+        toast.error(`Failed to submit application: ${error.message || error.code || 'Unknown error'}`);
         setIsSubmitting(false);
         return;
       }
@@ -769,12 +607,22 @@ export default function Apply() {
         </div>
       </section>
 
+      {/* Progress Stepper */}
+      <ApplicationProgress
+        steps={steps}
+        currentStepId={currentStepId}
+        onStepClick={scrollToSection}
+      />
+
+      {/* Draft Save Indicator */}
+      <DraftSaveIndicator lastSavedAt={lastSavedAt} />
+
       {/* Application Form */}
-      <section className="py-16 bg-background">
+      <section className="py-8 bg-background">
         <div className="container mx-auto px-6 max-w-3xl">
           <form onSubmit={handleSubmit}>
             {/* Personal Information */}
-            <div className="card-luxury p-8 mb-8">
+            <div ref={(el) => sectionRefs.current["personal"] = el} className="card-luxury p-8 mb-8">
               <h2 className="font-serif text-2xl mb-6 text-accent">Personal Information</h2>
               
               <div className="space-y-4">
@@ -968,7 +816,7 @@ export default function Apply() {
             </div>
 
             {/* Wellness Goals and Interests */}
-            <div className="card-luxury p-8 mb-8">
+            <div ref={(el) => sectionRefs.current["goals"] = el} className="card-luxury p-8 mb-8">
               <h2 className="font-serif text-2xl mb-6 text-accent">Wellness Goals and Interests</h2>
               
               <div className="space-y-6">
@@ -1088,7 +936,7 @@ export default function Apply() {
               <h2 className="font-serif text-2xl mb-6 text-accent">Motivation for Joining</h2>
               
               <div>
-                <Label className="mb-3 block">Why have you chosen Storm Fitness and Wellness Center for your wellness journey? (Select all that apply)</Label>
+                <Label className="mb-3 block">Why have you chosen Storm Wellness Club for your wellness journey? (Select all that apply)</Label>
                 <div className="space-y-2">
                   {motivations.map((motivation) => (
                     <div key={motivation} className="flex items-center gap-3">
@@ -1234,107 +1082,34 @@ export default function Apply() {
               </div>
             </div>
 
-            {/* Payment Information */}
-            <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-accent">Payment Information</h2>
-              
-              <div className="space-y-4">
-                <div className="p-4 bg-secondary/50 rounded-sm mb-4">
-                  <p className="text-sm text-muted-foreground">
-                    <strong className="text-foreground">Secure Payment Setup</strong>
-                    <br /><br />
-                    To complete your application, please save a payment method. Your card will be securely 
-                    stored with our payment processor and will only be charged upon approval of your membership 
-                    when you activate it. No charges will be made until you authorize the payment.
-                  </p>
-                </div>
-
-                {/* Card Save Button / Status */}
-                {stripeCustomerId && !showPaymentForm ? (
-                  <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-sm flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                      <Check className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-green-700 dark:text-green-400">Payment Method Saved</p>
-                      <p className="text-sm text-muted-foreground">Your card has been securely saved for future billing.</p>
-                    </div>
-                  </div>
-                ) : showPaymentForm && paymentClientSecret ? (
-                  <StripeProvider clientSecret={paymentClientSecret}>
-                    <ApplicationPaymentForm
-                      clientSecret={paymentClientSecret}
-                      onSuccess={(customerId) => {
-                        setStripeCustomerId(customerId);
-                        setShowPaymentForm(false);
-                        setPaymentClientSecret(null);
-                        toast.success("Payment method saved successfully!");
-                        saveDraft(formData, customerId);
-                      }}
-                      onCancel={() => {
-                        setShowPaymentForm(false);
-                        setPaymentClientSecret(null);
-                        setIsSavingCard(false);
-                      }}
-                    />
-                  </StripeProvider>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Click the button below to securely add your payment method. The payment form will appear here.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="gold"
-                      onClick={handleSavePaymentMethod}
-                      disabled={isSavingCard || !formData.firstName || !formData.lastName || !formData.email}
-                      className="w-full sm:w-auto"
-                    >
-                      {isSavingCard ? (
-                        <>
-                          <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                          Preparing Payment Form...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="mr-2 w-4 h-4" />
-                          Add Payment Method
-                        </>
-                      )}
-                    </Button>
-                    {(!formData.firstName || !formData.lastName || !formData.email) && (
-                      <p className="text-xs text-amber-600">Please fill in your name and email above first.</p>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-start gap-3 mt-4">
-                  <Checkbox
-                    id="creditCardAuth"
-                    checked={formData.creditCardAuth}
-                    onCheckedChange={(checked) => handleCheckboxChange("creditCardAuth", checked as boolean)}
-                    required
-                  />
-                  <Label htmlFor="creditCardAuth" className="font-normal cursor-pointer text-sm">
-                    I authorize Storm Fitness and Wellness Center to charge my saved payment method upon membership activation. *
-                  </Label>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="paymentAcknowledged"
-                    checked={formData.paymentAcknowledged}
-                    onCheckedChange={(checked) => handleCheckboxChange("paymentAcknowledged", checked as boolean)}
-                    required
-                  />
-                  <Label htmlFor="paymentAcknowledged" className="font-normal cursor-pointer text-sm">
-                    I acknowledge that the initiation fee will be charged upon activation and I agree to the billing terms. *
-                  </Label>
-                </div>
-              </div>
+            {/* Payment Information - Enhanced */}
+            <div ref={(el) => sectionRefs.current["payment"] = el} id="payment-section">
+              <PaymentSectionEnhanced
+                stripeCustomerId={stripeCustomerId}
+                showPaymentForm={showPaymentForm}
+                paymentClientSecret={paymentClientSecret}
+                isSavingCard={isSavingCard}
+                creditCardAuth={formData.creditCardAuth}
+                paymentAcknowledged={formData.paymentAcknowledged}
+                canStartPayment={!!(formData.firstName && formData.lastName && formData.email)}
+                onSavePaymentMethod={handleSavePaymentMethod}
+                onPaymentSuccess={(customerId) => {
+                  setStripeCustomerId(customerId);
+                  setShowPaymentForm(false);
+                  setPaymentClientSecret(null);
+                  toast.success("Payment method saved successfully!");
+                  saveDraft(formData, customerId);
+                  setLastSavedAt(Date.now());
+                }}
+                onPaymentCancel={() => {
+                  setShowPaymentForm(false);
+                  setPaymentClientSecret(null);
+                  setIsSavingCard(false);
+                }}
+                onCheckboxChange={handleCheckboxChange}
+                loadDraft={loadDraft}
+              />
             </div>
-
-            {/* Agreements */}
             <div className="card-luxury p-8 mb-8">
               <h2 className="font-serif text-2xl mb-6 text-accent">Agreements</h2>
               
@@ -1348,7 +1123,7 @@ export default function Apply() {
                   <p className="text-sm text-muted-foreground mb-3">
                     <strong className="text-foreground">One-Year Membership Commitment</strong>
                     <br /><br />
-                    Please note that all memberships at Storm Fitness and Wellness Center require a minimum 
+                    Please note that all memberships at Storm Wellness Club require a minimum 
                     commitment of one year. This commitment ensures that members fully experience the transformative 
                     benefits of our wellness community. Your membership will commence upon the opening of our new 
                     facility and extend for at least one year, providing you with continuous access to our exclusive 
@@ -1372,9 +1147,9 @@ export default function Apply() {
                     <strong className="text-foreground">Authorization and Acknowledgment of Initiation Fee and Membership Commitment</strong>
                     <br /><br />
                     By submitting this application, I understand and agree that, upon approval of my membership at 
-                    Storm Fitness and Wellness Center, the initiation fee as outlined in the membership details will 
-                    be charged to the credit card provided in this application. I hereby authorize Storm Fitness and 
-                    Wellness Center to process this charge upon the confirmation of my membership acceptance. Additionally, 
+                    Storm Wellness Club, the initiation fee as outlined in the membership details will 
+                    be charged to the credit card provided in this application. I hereby authorize Storm Wellness 
+                    Club to process this charge upon the confirmation of my membership acceptance. Additionally, 
                     I acknowledge that all memberships require a one-year commitment, starting from the opening of the 
                     new facility.
                   </p>
@@ -1414,19 +1189,12 @@ export default function Apply() {
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  Submit Application
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </>
-              )}
-            </Button>
+            {/* Validation Summary with Submit */}
+            <ApplicationValidationSummary
+              steps={steps}
+              onStepClick={scrollToSection}
+              isSubmitting={isSubmitting}
+            />
           </form>
         </div>
       </section>

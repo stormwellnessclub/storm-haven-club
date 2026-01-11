@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface RecommendationRequest {
-  type: 'class_recommendations' | 'fitness_tips' | 'schedule_optimization' | 'workout_generation';
+  type: 'class_recommendations' | 'fitness_tips' | 'schedule_optimization' | 'workout_generation' | 'program_generation';
   preferences?: Record<string, any>;
 }
 
@@ -60,7 +60,7 @@ serve(async (req) => {
     console.log(`Processing AI recommendation type: ${type} for user: ${userId}`);
 
     // Validate request type
-    const validTypes = ['class_recommendations', 'fitness_tips', 'schedule_optimization', 'workout_generation'];
+    const validTypes = ['class_recommendations', 'fitness_tips', 'schedule_optimization', 'workout_generation', 'program_generation'];
     if (!type || !validTypes.includes(type)) {
       return new Response(
         JSON.stringify({ error: "Invalid recommendation type" }),
@@ -257,6 +257,93 @@ Return ONLY valid JSON with no markdown formatting:`;
 Generate 5-8 exercises for a ${targetDuration} minute ${targetWorkoutType} workout targeting ${targetBodyParts.length > 0 ? targetBodyParts.join(', ') : 'full body'} at ${targetIntensity} intensity.`;
         break;
 
+      case 'program_generation':
+        if (!memberId) {
+          return new Response(
+            JSON.stringify({ error: "Member profile required for program generation" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
+
+        const programPrefs = preferences || {};
+        const programType = programPrefs.programType || 'strength';
+        const daysPerWeek = programPrefs.daysPerWeek || 4;
+        const programDuration = programPrefs.durationWeeks || 4;
+        const splitType = programPrefs.splitType || 'push_pull_legs';
+        const targetParts = programPrefs.targetBodyParts || [];
+
+        // Fetch ALL active equipment
+        const { data: programEquipment } = await supabase
+          .from('equipment')
+          .select('id, name, category, description')
+          .eq('is_active', true)
+          .order('display_order');
+
+        systemPrompt = `You are an expert personal trainer at Storm Wellness Club creating a ${programDuration}-week structured workout program.
+
+AVAILABLE GYM EQUIPMENT:
+${(programEquipment || []).map((eq: any) => `- ${eq.name} (${eq.category})`).join('\n')}
+
+PROGRAM REQUIREMENTS:
+- Program Type: ${programType}
+- Duration: ${programDuration} weeks
+- Days Per Week: ${daysPerWeek}
+- Split Type: ${splitType}
+- Target Areas: ${targetParts.length > 0 ? targetParts.join(', ') : 'Balanced full body'}
+
+MEMBER PROFILE:
+- Fitness Level: ${fitnessProfile?.fitness_level || 'intermediate'}
+- Primary Goal: ${fitnessProfile?.primary_goal || 'general fitness'}
+- Injuries/Limitations: ${JSON.stringify(fitnessProfile?.injuries_limitations || [])}
+
+Create a progressive program that:
+1. Builds intensity across weeks
+2. Balances muscle groups appropriately
+3. Includes proper warm-up and cool-down exercises
+4. Uses available gym equipment
+5. Matches the member's fitness level
+
+Return ONLY valid JSON with no markdown:`;
+
+        userPrompt = `{
+  "program_name": "Descriptive program name",
+  "program_type": "${programType}",
+  "duration_weeks": ${programDuration},
+  "days_per_week": ${daysPerWeek},
+  "split_type": "${splitType}",
+  "difficulty": "${fitnessProfile?.fitness_level || 'intermediate'}",
+  "target_body_parts": ${JSON.stringify(targetParts.length > 0 ? targetParts : ['chest', 'back', 'shoulders', 'legs', 'arms', 'core'])},
+  "progression_style": "linear",
+  "reasoning": "Brief explanation of the program design",
+  "workouts": [
+    {
+      "week_number": 1,
+      "day_number": 1,
+      "workout_name": "Day 1 - Focus Area",
+      "workout_type": "strength/cardio/flexibility",
+      "focus_area": "chest and triceps",
+      "duration_minutes": 45,
+      "exercises": [
+        {
+          "name": "Exercise name",
+          "sets": 3,
+          "reps": "10-12",
+          "weight": "moderate",
+          "rest": "60 seconds",
+          "equipment": "from gym list",
+          "targetMuscle": "primary muscle",
+          "notes": "Form tips",
+          "instructions": ["Step 1", "Step 2"]
+        }
+      ],
+      "notes": "Session focus notes"
+    }
+  ]
+}
+
+Generate a complete ${programDuration}-week program with ${daysPerWeek} workouts per week. Each workout should have 5-7 exercises.`;
+        break;
+
       default:
         throw new Error(`Unknown recommendation type: ${type}`);
     }
@@ -332,7 +419,6 @@ Generate 5-8 exercises for a ${targetDuration} minute ${targetWorkoutType} worko
 
         if (saveError) {
           console.error("Error saving workout:", saveError);
-          // Still return the workout even if save fails
           return new Response(
             JSON.stringify({ 
               type,
@@ -357,12 +443,110 @@ Generate 5-8 exercises for a ${targetDuration} minute ${targetWorkoutType} worko
         );
       } catch (parseError) {
         console.error("Error parsing workout JSON:", parseError);
-        // Return raw response if parsing fails
         return new Response(
           JSON.stringify({ 
             type,
             recommendation,
             error: "Failed to parse workout data",
+            generatedAt: new Date().toISOString()
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+    }
+
+    // For program generation, parse JSON and save to database
+    if (type === 'program_generation' && memberId) {
+      try {
+        let programData = recommendation;
+        if (programData.includes('```json')) {
+          programData = programData.split('```json')[1].split('```')[0].trim();
+        } else if (programData.includes('```')) {
+          programData = programData.split('```')[1].split('```')[0].trim();
+        }
+        
+        const programJson = JSON.parse(programData);
+        
+        // Deactivate any existing active programs for this member
+        await supabase
+          .from('workout_programs')
+          .update({ is_active: false })
+          .eq('member_id', memberId)
+          .eq('is_active', true);
+
+        // Save the program
+        const { data: savedProgram, error: programError } = await supabase
+          .from('workout_programs')
+          .insert({
+            member_id: memberId,
+            user_id: userId,
+            program_name: programJson.program_name,
+            program_type: programJson.program_type,
+            duration_weeks: programJson.duration_weeks,
+            days_per_week: programJson.days_per_week,
+            split_type: programJson.split_type,
+            difficulty: programJson.difficulty,
+            target_body_parts: programJson.target_body_parts,
+            progression_style: programJson.progression_style || 'linear',
+            ai_reasoning: programJson.reasoning,
+            is_active: true,
+            started_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (programError) {
+          console.error("Error saving program:", programError);
+          return new Response(
+            JSON.stringify({ 
+              type,
+              program: programJson,
+              saved: false,
+              error: "Failed to save program to database",
+              generatedAt: new Date().toISOString()
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Save individual workouts
+        const workoutsToInsert = programJson.workouts.map((w: any) => ({
+          program_id: savedProgram.id,
+          week_number: w.week_number,
+          day_number: w.day_number,
+          workout_name: w.workout_name,
+          workout_type: w.workout_type || programJson.program_type,
+          focus_area: w.focus_area,
+          duration_minutes: w.duration_minutes,
+          exercises: w.exercises,
+          notes: w.notes
+        }));
+
+        const { error: workoutsError } = await supabase
+          .from('program_workouts')
+          .insert(workoutsToInsert);
+
+        if (workoutsError) {
+          console.error("Error saving program workouts:", workoutsError);
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            type,
+            program: programJson,
+            program_id: savedProgram.id,
+            saved: true,
+            generatedAt: new Date().toISOString()
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      } catch (parseError) {
+        console.error("Error parsing program JSON:", parseError);
+        return new Response(
+          JSON.stringify({ 
+            type,
+            recommendation,
+            error: "Failed to parse program data",
             generatedAt: new Date().toISOString()
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }

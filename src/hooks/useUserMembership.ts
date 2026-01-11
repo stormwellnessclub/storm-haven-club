@@ -24,6 +24,9 @@ export interface UserMembership {
   is_founding_member: boolean | null;
   gender: string | null;
   annual_fee_paid_at: string | null;
+  activation_deadline: string | null;
+  activated_at: string | null;
+  locked_start_date: string | null;
 }
 
 export function useUserMembership() {

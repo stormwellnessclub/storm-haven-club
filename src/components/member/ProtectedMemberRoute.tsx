@@ -3,7 +3,6 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
-import { ActivationRequired } from "./ActivationRequired";
 import { SessionRepair } from "./SessionRepair";
 import { UnlinkedMemberFix } from "./UnlinkedMemberFix";
 import { Loader2, AlertCircle } from "lucide-react";
@@ -180,10 +179,9 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
     return <UnlinkedMemberFix memberData={applicationStatus.unlinkedMemberData} onSuccess={() => refetch()} />;
   }
 
-  // Show "Activation Required" view for approved members who haven't chosen start date
-  if (applicationStatus?.status === "pending_activation" && applicationStatus.memberData) {
-    return <ActivationRequired memberData={applicationStatus.memberData} />;
-  }
+  // NOTE: pending_activation members are now allowed into the portal
+  // They will see the ActivationRequiredNotice banner in MemberLayout
+  // Their benefits are frozen (handled by useMemberBenefitsStatus hook)
 
   // Payment notices are shown in MemberLayout (non-blocking)
   // Members can always access the portal regardless of payment status
