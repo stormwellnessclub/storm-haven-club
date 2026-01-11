@@ -20,6 +20,7 @@ import MemberSupport from "@/pages/member/Support";
 import MemberFreezeRequest from "@/pages/member/FreezeRequest";
 import MemberPaymentMethods from "@/pages/member/PaymentMethods";
 import PaymentHistory from "@/pages/member/PaymentHistory";
+import MemberEntry from "@/pages/member/Entry";
 import HealthScore from "@/pages/member/HealthScore";
 import Achievements from "@/pages/member/Achievements";
 import Workouts from "@/pages/member/Workouts";
@@ -104,6 +105,7 @@ const App = () => (
               <Route path="/member/membership" element={<ProtectedMemberRoute><MemberMembership /></ProtectedMemberRoute>} />
               <Route path="/member/payment-methods" element={<ProtectedMemberRoute><MemberPaymentMethods /></ProtectedMemberRoute>} />
               <Route path="/member/payment-history" element={<ProtectedMemberRoute><PaymentHistory /></ProtectedMemberRoute>} />
+              <Route path="/member/entry" element={<ProtectedMemberRoute><MemberEntry /></ProtectedMemberRoute>} />
               <Route path="/member/bookings" element={<ProtectedMemberRoute><MemberBookings /></ProtectedMemberRoute>} />
               <Route path="/member/waivers" element={<ProtectedMemberRoute><MemberWaivers /></ProtectedMemberRoute>} />
               <Route path="/member/kids-care-service-form" element={<ProtectedMemberRoute><KidsCareServiceForm /></ProtectedMemberRoute>} />

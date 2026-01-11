@@ -19,6 +19,7 @@ import {
   Settings,
   Sparkles,
   Receipt,
+  ScanLine,
 } from "lucide-react";
 import {
   Sidebar,
@@ -44,6 +45,7 @@ interface MenuItem {
 
 const memberMenuItems: MenuItem[] = [
   { title: "Dashboard", url: "/member", icon: LayoutDashboard },
+  { title: "Member Entry", url: "/member/entry", icon: ScanLine },
   { title: "My Profile", url: "/member/profile", icon: User },
   { title: "My Credits", url: "/member/credits", icon: CreditCard },
   { title: "My Membership", url: "/member/membership", icon: IdCard },

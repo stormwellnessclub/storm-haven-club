@@ -921,6 +921,48 @@ export type Database = {
           },
         ]
       }
+      guest_passes: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          guest_email: string | null
+          guest_name: string
+          id: string
+          price_paid: number
+          purchased_at: string | null
+          sold_by: string | null
+          status: string
+          stripe_payment_id: string | null
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          guest_email?: string | null
+          guest_name: string
+          id?: string
+          price_paid?: number
+          purchased_at?: string | null
+          sold_by?: string | null
+          status?: string
+          stripe_payment_id?: string | null
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          guest_email?: string | null
+          guest_name?: string
+          id?: string
+          price_paid?: number
+          purchased_at?: string | null
+          sold_by?: string | null
+          status?: string
+          stripe_payment_id?: string | null
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       habit_logs: {
         Row: {
           count: number | null
@@ -1835,6 +1877,136 @@ export type Database = {
           },
         ]
       }
+      scanner_access_logs: {
+        Row: {
+          access_denied_reason: string | null
+          access_granted: boolean
+          auto_checked_in: boolean | null
+          check_in_id: string | null
+          device_type: string | null
+          id: string
+          member_id: string | null
+          member_id_text: string | null
+          notes: string | null
+          override_reason: string | null
+          override_used: boolean | null
+          payment_status: Json | null
+          scanned_at: string | null
+          scanned_by: string | null
+        }
+        Insert: {
+          access_denied_reason?: string | null
+          access_granted: boolean
+          auto_checked_in?: boolean | null
+          check_in_id?: string | null
+          device_type?: string | null
+          id?: string
+          member_id?: string | null
+          member_id_text?: string | null
+          notes?: string | null
+          override_reason?: string | null
+          override_used?: boolean | null
+          payment_status?: Json | null
+          scanned_at?: string | null
+          scanned_by?: string | null
+        }
+        Update: {
+          access_denied_reason?: string | null
+          access_granted?: boolean
+          auto_checked_in?: boolean | null
+          check_in_id?: string | null
+          device_type?: string | null
+          id?: string
+          member_id?: string | null
+          member_id_text?: string | null
+          notes?: string | null
+          override_reason?: string | null
+          override_used?: boolean | null
+          payment_status?: Json | null
+          scanned_at?: string | null
+          scanned_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scanner_access_logs_check_in_id_fkey"
+            columns: ["check_in_id"]
+            isOneToOne: false
+            referencedRelation: "check_ins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scanner_access_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scanner_access_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scanner_settings: {
+        Row: {
+          audio_feedback_enabled: boolean | null
+          auto_check_in_enabled: boolean | null
+          created_at: string | null
+          id: string
+          location_name: string
+          qr_token_secret: string | null
+          require_override_reason: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          audio_feedback_enabled?: boolean | null
+          auto_check_in_enabled?: boolean | null
+          created_at?: string | null
+          id?: string
+          location_name: string
+          qr_token_secret?: string | null
+          require_override_reason?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          audio_feedback_enabled?: boolean | null
+          auto_check_in_enabled?: boolean | null
+          created_at?: string | null
+          id?: string
+          location_name?: string
+          qr_token_secret?: string | null
+          require_override_reason?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      scheduled_functions_config: {
+        Row: {
+          anon_key: string
+          created_at: string | null
+          id: string
+          supabase_url: string
+          updated_at: string | null
+        }
+        Insert: {
+          anon_key?: string
+          created_at?: string | null
+          id?: string
+          supabase_url?: string
+          updated_at?: string | null
+        }
+        Update: {
+          anon_key?: string
+          created_at?: string | null
+          id?: string
+          supabase_url?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_at: string | null
@@ -2152,6 +2324,13 @@ export type Database = {
         Returns: Json
       }
       current_user_email: { Args: never; Returns: string }
+      get_scheduled_functions_config: {
+        Args: never
+        Returns: {
+          anon_key: string
+          supabase_url: string
+        }[]
+      }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
@@ -2186,6 +2365,17 @@ export type Database = {
           status: string
           user_id: string
         }[]
+      }
+      process_member_scan: {
+        Args: {
+          p_auto_check_in?: boolean
+          p_device_type?: string
+          p_member_id_text: string
+          p_override?: boolean
+          p_override_reason?: string
+          p_scanned_by: string
+        }
+        Returns: Json
       }
     }
     Enums: {
