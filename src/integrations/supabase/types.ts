@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      agreements: {
+        Row: {
+          agreement_type: string
+          created_at: string
+          description: string | null
+          display_order: number | null
+          effective_date: string | null
+          id: string
+          is_active: boolean
+          is_required: boolean
+          pdf_url: string | null
+          title: string
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          agreement_type: string
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          effective_date?: string | null
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          pdf_url?: string | null
+          title: string
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          agreement_type?: string
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          effective_date?: string | null
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          pdf_url?: string | null
+          title?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
       ai_workouts: {
         Row: {
           ai_reasoning: string | null
@@ -1549,6 +1594,7 @@ export type Database = {
           id: string
           last_name: string
           lifestyle_integration: string | null
+          membership_agreement_signed: boolean
           membership_plan: string
           motivations: string[] | null
           notes: string | null
@@ -1587,6 +1633,7 @@ export type Database = {
           id?: string
           last_name: string
           lifestyle_integration?: string | null
+          membership_agreement_signed?: boolean
           membership_plan: string
           motivations?: string[] | null
           notes?: string | null
@@ -1625,6 +1672,7 @@ export type Database = {
           id?: string
           last_name?: string
           lifestyle_integration?: string | null
+          membership_agreement_signed?: boolean
           membership_plan?: string
           motivations?: string[] | null
           notes?: string | null
