@@ -1612,6 +1612,7 @@ export type Database = {
           stripe_customer_id: string | null
           submission_confirmation: boolean
           updated_at: string
+          user_id: string | null
           wellness_goals: string[]
           zip_code: string
         }
@@ -1651,6 +1652,7 @@ export type Database = {
           stripe_customer_id?: string | null
           submission_confirmation?: boolean
           updated_at?: string
+          user_id?: string | null
           wellness_goals?: string[]
           zip_code: string
         }
@@ -1690,6 +1692,7 @@ export type Database = {
           stripe_customer_id?: string | null
           submission_confirmation?: boolean
           updated_at?: string
+          user_id?: string | null
           wellness_goals?: string[]
           zip_code?: string
         }
@@ -2089,34 +2092,40 @@ export type Database = {
       }
       member_check_in_view: {
         Row: {
+          email: string | null
           first_name: string | null
+          gender: string | null
           id: string | null
           last_name: string | null
           member_id: string | null
           membership_type: string | null
+          phone: string | null
           photo_url: string | null
           status: string | null
-          user_id: string | null
         }
         Insert: {
+          email?: string | null
           first_name?: string | null
+          gender?: string | null
           id?: string | null
           last_name?: string | null
           member_id?: string | null
           membership_type?: string | null
+          phone?: string | null
           photo_url?: string | null
           status?: string | null
-          user_id?: string | null
         }
         Update: {
+          email?: string | null
           first_name?: string | null
+          gender?: string | null
           id?: string | null
           last_name?: string | null
           member_id?: string | null
           membership_type?: string | null
+          phone?: string | null
           photo_url?: string | null
           status?: string | null
-          user_id?: string | null
         }
         Relationships: []
       }

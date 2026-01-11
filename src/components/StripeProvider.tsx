@@ -1,8 +1,12 @@
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 
-// Stripe publishable key - use environment variable if available, otherwise fallback to hardcoded key
-const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51Se7DULyZrsSqLhsrs55WIACkSQNKMKTZ6hOKUWtIymBa05ZHrpDigyFYZyj5MGZUvfasUrRpUFDCZCtJzPnElPv00UZnFfqy4';
+// Stripe publishable key - must be set via environment variable
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+if (!STRIPE_PUBLISHABLE_KEY) {
+  console.error('VITE_STRIPE_PUBLISHABLE_KEY environment variable is required');
+}
 
 // Single cached stripe instance
 const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
