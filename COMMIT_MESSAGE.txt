@@ -1,0 +1,30 @@
+feat: Implement guest pass system and fix scheduled functions configuration
+
+- Implement complete guest pass system ($60 single pass for gym/amenities access)
+  - Add guest_passes table with usage tracking and expiration
+  - Create admin UI for selling guest passes with Stripe checkout
+  - Add guest pass purchase handling in stripe-payment and stripe-webhook functions
+  - Guest passes provide gym/amenities access only (no classes, red light, cryo)
+  - Subject to availability
+
+- Fix scheduled functions configuration for Supabase managed instances
+  - Replace ALTER DATABASE SET approach (requires superuser, blocked by Supabase)
+  - Implement configuration table approach (scheduled_functions_config)
+  - Add get_scheduled_functions_config() SECURITY DEFINER function
+  - Update cron jobs to read from config table instead of database parameters
+  - Works with managed Supabase instances (no superuser privileges needed)
+
+- Update Stripe products configuration
+  - Add guest pass price ID placeholder (needs to be configured in Stripe)
+  - Update stripe-payment function to handle guest pass checkout
+
+- Add comprehensive setup documentation
+  - SUPABASE_SETUP_INSTRUCTIONS_V2.md with step-by-step guide
+  - Migration order and configuration update instructions
+
+Migration order:
+1. 20260108000003_scheduled_functions_config.sql (creates config table)
+2. 20260108000001_configure_scheduled_functions.sql (creates cron jobs)
+3. 20260108000002_guest_passes_system.sql (creates guest passes table)
+
+Note: After running migrations, update scheduled_functions_config table with actual Supabase URL and anon key.

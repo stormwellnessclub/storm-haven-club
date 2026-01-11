@@ -49,10 +49,11 @@ const STRIPE_PRODUCTS = {
       tenPack: { member: 'price_1SlABPLyZrsSqLhsbL0mwcit', nonMember: 'price_1SlABzLyZrsSqLhseSyKYaDD' },
     },
   },
+  guestPass: 'TODO_ADD_STRIPE_PRICE_ID',  // $60 - Guest Pass (gym and amenities access, subject to availability)
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -68,6 +69,9 @@ interface PaymentRequest {
   passType?: 'single' | 'tenPack';
   isMember?: boolean;
   userId?: string;
+  // For guest pass
+  guestName?: string;
+  guestEmail?: string;
   // For freeze fee
   freezeId?: string;
   freezeFeeAmount?: number;
@@ -369,6 +373,48 @@ serve(async (req) => {
         });
 
         logStep("Class pass checkout created", { sessionId: session.id, url: session.url });
+
+        return new Response(
+          JSON.stringify({ sessionId: session.id, url: session.url }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_guest_pass_checkout': {
+        const { guestName, guestEmail, successUrl, cancelUrl } = body;
+
+        if (!guestName || !successUrl || !cancelUrl) {
+          throw new Error("Missing required fields for guest pass checkout");
+        }
+
+        // Get price ID for guest pass
+        const priceId = STRIPE_PRODUCTS.guestPass;
+        
+        if (!priceId || priceId.startsWith('TODO_')) {
+          throw new Error("Guest pass price ID not configured. Please add Stripe price ID in stripeProducts.ts");
+        }
+
+        const customerId = await getOrCreateCustomer();
+
+        // Create checkout session for guest pass
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: [{ price: priceId, quantity: 1 }],
+          mode: 'payment',
+          payment_intent_data: {
+            setup_future_usage: 'off_session',
+          },
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: cancelUrl,
+          metadata: {
+            type: 'guest_pass',
+            user_id: user.id, // Admin user who is selling the pass
+            guest_name: guestName,
+            guest_email: guestEmail || '',
+          },
+        });
+
+        logStep("Guest pass checkout created", { sessionId: session.id, url: session.url, guestName });
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),

@@ -70,6 +70,7 @@ export const STRIPE_PRODUCTS = {
       },
     },
   },
+  guestPass: 'TODO_ADD_STRIPE_PRICE_ID',  // $60 - Guest Pass (gym and amenities access, subject to availability)
 } as const;
 
 // Pricing data (in dollars)

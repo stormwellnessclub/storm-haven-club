@@ -1,17 +1,12 @@
--- Configure Scheduled Functions (pg_cron jobs)
+-- Configure Scheduled Functions (pg_cron jobs) - Using Configuration Table
 -- Creates cron jobs for all scheduled edge functions
 -- Note: Uses pg_net to call edge functions via HTTP
 --
--- IMPORTANT: Before running this migration, you need to:
--- 1. Set database parameter 'app.settings.supabase_url' to your Supabase project URL
--- 2. Set database parameter 'app.settings.anon_key' to your Supabase anon key
--- 
--- To set these parameters in Supabase:
--- ALTER DATABASE postgres SET app.settings.supabase_url = 'https://[project-ref].supabase.co';
--- ALTER DATABASE postgres SET app.settings.anon_key = 'your-anon-key-here';
+-- IMPORTANT: This migration requires the scheduled_functions_config table to be created first
+-- Run migration 20260108000003_scheduled_functions_config.sql first
 --
--- Alternatively, you can hardcode the URL by replacing current_setting() calls below
--- with the actual URL: 'https://[project-ref].supabase.co/functions/v1/[function-name]'
+-- The configuration table stores the Supabase URL and anon key needed for authentication
+-- This approach works with Supabase managed instances (no superuser privileges required)
 
 -- Drop existing cron jobs if they exist (idempotent)
 DO $$
@@ -35,9 +30,9 @@ SELECT cron.schedule(
   '0 2 * * *', -- 2 AM every day (UTC)
   $$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url', true) || '/functions/v1/process-monthly-credits',
+    url := (SELECT supabase_url FROM public.get_scheduled_functions_config()) || '/functions/v1/process-monthly-credits',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || current_setting('app.settings.anon_key', true),
+      'Authorization', 'Bearer ' || (SELECT anon_key FROM public.get_scheduled_functions_config()),
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb
@@ -52,9 +47,9 @@ SELECT cron.schedule(
   '0 3 * * *', -- 3 AM every day (UTC)
   $$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url', true) || '/functions/v1/process-freeze-expirations',
+    url := (SELECT supabase_url FROM public.get_scheduled_functions_config()) || '/functions/v1/process-freeze-expirations',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || current_setting('app.settings.anon_key', true),
+      'Authorization', 'Bearer ' || (SELECT anon_key FROM public.get_scheduled_functions_config()),
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb
@@ -69,9 +64,9 @@ SELECT cron.schedule(
   '0 6 * * *', -- 6 AM every day (UTC)
   $$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-class-reminders',
+    url := (SELECT supabase_url FROM public.get_scheduled_functions_config()) || '/functions/v1/send-class-reminders',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || current_setting('app.settings.anon_key', true),
+      'Authorization', 'Bearer ' || (SELECT anon_key FROM public.get_scheduled_functions_config()),
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb
@@ -86,9 +81,9 @@ SELECT cron.schedule(
   '0 1 * * *', -- 1 AM every day (UTC)
   $$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url', true) || '/functions/v1/process-expired-waitlist',
+    url := (SELECT supabase_url FROM public.get_scheduled_functions_config()) || '/functions/v1/process-expired-waitlist',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || current_setting('app.settings.anon_key', true),
+      'Authorization', 'Bearer ' || (SELECT anon_key FROM public.get_scheduled_functions_config()),
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb
@@ -103,9 +98,9 @@ SELECT cron.schedule(
   '0 4 * * *', -- 4 AM every day (UTC)
   $$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url', true) || '/functions/v1/process-activation-reminders',
+    url := (SELECT supabase_url FROM public.get_scheduled_functions_config()) || '/functions/v1/process-activation-reminders',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || current_setting('app.settings.anon_key', true),
+      'Authorization', 'Bearer ' || (SELECT anon_key FROM public.get_scheduled_functions_config()),
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb

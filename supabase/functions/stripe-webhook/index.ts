@@ -381,6 +381,48 @@ serve(async (req) => {
               return errorResponse(passError, "CLASS_PASS_CREATION");
             }
 
+          } else if (metadata.type === 'guest_pass') {
+            // Handle guest pass purchase
+            const userId = metadata.user_id; // Admin user who sold the pass
+            const guestName = metadata.guest_name;
+            const guestEmail = metadata.guest_email || null;
+
+            if (!userId || !guestName) {
+              logError("Missing required metadata for guest_pass", "GUEST_PASS");
+              return errorResponse(new Error("Missing required metadata: user_id or guest_name"), "GUEST_PASS");
+            }
+
+            // Guest pass expires 1 day from purchase
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 1); // 1 day
+
+            // Create guest pass record
+            try {
+              const { error: passError } = await supabase
+                .from('guest_passes')
+                .insert({
+                  guest_name: guestName,
+                  guest_email: guestEmail,
+                  user_id: userId, // Admin user who sold the pass
+                  price_paid: session.amount_total ? session.amount_total / 100 : 60.00,
+                  status: 'active',
+                  expires_at: expiresAt.toISOString(),
+                  stripe_payment_intent_id: session.payment_intent as string,
+                  stripe_session_id: session.id,
+                  purchased_by: userId,
+                });
+
+              if (passError) {
+                logError(passError, "GUEST_PASS_CREATION");
+                return errorResponse(passError, "GUEST_PASS_CREATION");
+              }
+
+              logStep("Guest pass created", { userId, guestName, expiresAt: expiresAt.toISOString() });
+            } catch (passError) {
+              logError(passError, "GUEST_PASS_CREATION");
+              return errorResponse(passError, "GUEST_PASS_CREATION");
+            }
+
           } else if (metadata.type === 'freeze_fee') {
             // Handle freeze fee payment
             const freezeId = metadata.freeze_id;
