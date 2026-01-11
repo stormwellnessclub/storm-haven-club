@@ -19,6 +19,7 @@ import KidsCareServiceForm from "@/pages/member/KidsCareServiceForm";
 import MemberSupport from "@/pages/member/Support";
 import MemberFreezeRequest from "@/pages/member/FreezeRequest";
 import MemberPaymentMethods from "@/pages/member/PaymentMethods";
+import PaymentHistory from "@/pages/member/PaymentHistory";
 import HealthScore from "@/pages/member/HealthScore";
 import Achievements from "@/pages/member/Achievements";
 import Workouts from "@/pages/member/Workouts";
@@ -49,6 +50,7 @@ import Scanner from "./pages/admin/Scanner";
 import Applications from "./pages/admin/Applications";
 import Appointments from "./pages/admin/Appointments";
 import Payments from "./pages/admin/Payments";
+import PaymentReports from "./pages/admin/PaymentReports";
 import Settings from "./pages/admin/Settings";
 import GuestPasses from "./pages/admin/GuestPasses";
 import CafePOS from "./pages/admin/CafePOS";
@@ -101,6 +103,7 @@ const App = () => (
               <Route path="/member/credits" element={<ProtectedMemberRoute><MemberCredits /></ProtectedMemberRoute>} />
               <Route path="/member/membership" element={<ProtectedMemberRoute><MemberMembership /></ProtectedMemberRoute>} />
               <Route path="/member/payment-methods" element={<ProtectedMemberRoute><MemberPaymentMethods /></ProtectedMemberRoute>} />
+              <Route path="/member/payment-history" element={<ProtectedMemberRoute><PaymentHistory /></ProtectedMemberRoute>} />
               <Route path="/member/bookings" element={<ProtectedMemberRoute><MemberBookings /></ProtectedMemberRoute>} />
               <Route path="/member/waivers" element={<ProtectedMemberRoute><MemberWaivers /></ProtectedMemberRoute>} />
               <Route path="/member/kids-care-service-form" element={<ProtectedMemberRoute><KidsCareServiceForm /></ProtectedMemberRoute>} />
@@ -122,6 +125,7 @@ const App = () => (
               <Route path="/admin/applications" element={<ProtectedAdminRoute><Applications /></ProtectedAdminRoute>} />
               <Route path="/admin/appointments" element={<ProtectedAdminRoute><Appointments /></ProtectedAdminRoute>} />
               <Route path="/admin/payments" element={<ProtectedAdminRoute><Payments /></ProtectedAdminRoute>} />
+              <Route path="/admin/payment-reports" element={<ProtectedAdminRoute><PaymentReports /></ProtectedAdminRoute>} />
               <Route path="/admin/guest-passes" element={<ProtectedAdminRoute><GuestPasses /></ProtectedAdminRoute>} />
               <Route path="/admin/cafe" element={<ProtectedAdminRoute><CafePOS /></ProtectedAdminRoute>} />
               <Route path="/admin/childcare" element={<ProtectedAdminRoute><Childcare /></ProtectedAdminRoute>} />

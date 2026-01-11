@@ -532,33 +532,53 @@ serve(async (req) => {
             status: subscription.status 
           });
 
-          // Update member status based on subscription status
-          if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
-            try {
-              const { error } = await supabase
-                .from('members')
-                .update({ status: 'past_due' })
-                .eq('stripe_subscription_id', subscription.id);
+          // Find member by subscription ID
+          const { data: memberData, error: memberError } = await supabase
+            .from('members')
+            .select('id, status')
+            .eq('stripe_subscription_id', subscription.id)
+            .maybeSingle();
 
-              if (error) {
-                logError(error, "SUBSCRIPTION_UPDATE_PAST_DUE");
-              }
-            } catch (updateError) {
-              logError(updateError, "SUBSCRIPTION_UPDATE_PAST_DUE");
-            }
-          } else if (subscription.status === 'active') {
-            try {
-              const { error } = await supabase
-                .from('members')
-                .update({ status: 'active' })
-                .eq('stripe_subscription_id', subscription.id);
+          if (memberError) {
+            logError(memberError, "SUBSCRIPTION_UPDATE_MEMBER_LOOKUP");
+          } else if (memberData) {
+            // Map Stripe subscription status to member status
+            let newStatus: string;
+            let reason: string;
 
-              if (error) {
-                logError(error, "SUBSCRIPTION_UPDATE_ACTIVE");
-              }
-            } catch (updateError) {
-              logError(updateError, "SUBSCRIPTION_UPDATE_ACTIVE");
+            if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
+              newStatus = 'past_due';
+              reason = subscription.status === 'past_due' ? 'payment_past_due' : 'payment_unpaid';
+            } else if (subscription.status === 'active') {
+              newStatus = 'active';
+              reason = 'subscription_active';
+            } else if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
+              newStatus = 'cancelled';
+              reason = subscription.status === 'canceled' ? 'subscription_canceled' : 'subscription_unpaid';
+            } else {
+              // For other statuses (trialing, incomplete, etc.), keep current status or handle appropriately
+              logStep("Subscription status not mapped", { status: subscription.status });
+              break;
             }
+
+            // Update status with history tracking
+            const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
+              p_member_id: memberData.id,
+              p_stripe_subscription_id: subscription.id,
+              p_new_status: newStatus,
+              p_reason: reason,
+              p_stripe_event_id: event.id,
+              p_changed_by: 'stripe',
+              p_metadata: { subscription_status: subscription.status }
+            });
+
+            if (updateError) {
+              logError(updateError, "SUBSCRIPTION_UPDATE_STATUS");
+            } else {
+              logStep("Subscription status updated", { memberId: memberData.id, newStatus, reason });
+            }
+          } else {
+            logStep("Member not found for subscription", { subscriptionId: subscription.id });
           }
         } catch (subscriptionError) {
           logError(subscriptionError, "SUBSCRIPTION_UPDATED");
@@ -572,13 +592,34 @@ serve(async (req) => {
           const subscription = event.data.object as Stripe.Subscription;
           logStep("Subscription deleted", { subscriptionId: subscription.id });
 
-          const { error } = await supabase
+          // Find member by subscription ID
+          const { data: memberData, error: memberError } = await supabase
             .from('members')
-            .update({ status: 'cancelled' })
-            .eq('stripe_subscription_id', subscription.id);
+            .select('id')
+            .eq('stripe_subscription_id', subscription.id)
+            .maybeSingle();
 
-          if (error) {
-            logError(error, "SUBSCRIPTION_DELETED");
+          if (memberError) {
+            logError(memberError, "SUBSCRIPTION_DELETED_MEMBER_LOOKUP");
+          } else if (memberData) {
+            // Update status with history tracking
+            const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
+              p_member_id: memberData.id,
+              p_stripe_subscription_id: subscription.id,
+              p_new_status: 'cancelled',
+              p_reason: 'subscription_deleted',
+              p_stripe_event_id: event.id,
+              p_changed_by: 'stripe',
+              p_metadata: {}
+            });
+
+            if (updateError) {
+              logError(updateError, "SUBSCRIPTION_DELETED");
+            } else {
+              logStep("Subscription deleted - member status updated", { memberId: memberData.id });
+            }
+          } else {
+            logStep("Member not found for deleted subscription", { subscriptionId: subscription.id });
           }
         } catch (subscriptionError) {
           logError(subscriptionError, "SUBSCRIPTION_DELETED");
@@ -587,15 +628,328 @@ serve(async (req) => {
         break;
       }
 
+      case 'invoice.payment_succeeded': {
+        try {
+          const invoice = event.data.object as Stripe.Invoice;
+          logStep("Payment succeeded", { 
+            invoiceId: invoice.id, 
+            customerId: invoice.customer,
+            subscriptionId: invoice.subscription
+          });
+
+          // Only process subscription invoices (skip one-time payments)
+          if (!invoice.subscription) {
+            logStep("Skipping non-subscription invoice", { invoiceId: invoice.id });
+            break;
+          }
+
+          // Find member by subscription ID
+          const { data: memberData, error: memberError } = await supabase
+            .from('members')
+            .select('id, status')
+            .eq('stripe_subscription_id', invoice.subscription as string)
+            .maybeSingle();
+
+          if (memberError) {
+            logError(memberError, "INVOICE_PAYMENT_SUCCEEDED_MEMBER_LOOKUP");
+          } else if (memberData) {
+            // Get payment intent and charge details
+            const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
+            const charge = invoice.charge as Stripe.Charge | string | null;
+            
+            let paymentIntentId: string | null = null;
+            let chargeId: string | null = null;
+            let paymentMethodId: string | null = null;
+            let paymentMethodType: string | null = null;
+            let cardBrand: string | null = null;
+            let cardLast4: string | null = null;
+
+            if (typeof paymentIntent === 'object' && paymentIntent) {
+              paymentIntentId = paymentIntent.id;
+              paymentMethodId = paymentIntent.payment_method as string | null;
+              
+              if (typeof charge === 'object' && charge && charge.payment_method_details) {
+                chargeId = charge.id;
+                if (charge.payment_method_details.type === 'card' && charge.payment_method_details.card) {
+                  paymentMethodType = 'card';
+                  cardBrand = charge.payment_method_details.card.brand || null;
+                  cardLast4 = charge.payment_method_details.card.last4 || null;
+                }
+              }
+            } else if (typeof paymentIntent === 'string') {
+              paymentIntentId = paymentIntent;
+            }
+
+            if (typeof charge === 'string') {
+              chargeId = charge;
+            }
+
+            // Log successful payment attempt
+            const { error: logAttemptError } = await supabase.rpc('log_payment_attempt', {
+              p_member_id: memberData.id,
+              p_stripe_invoice_id: invoice.id,
+              p_stripe_payment_intent_id: paymentIntentId,
+              p_stripe_charge_id: chargeId,
+              p_stripe_subscription_id: invoice.subscription as string,
+              p_invoice_number: invoice.number || null,
+              p_amount: invoice.amount_paid / 100, // Convert from cents
+              p_currency: invoice.currency || 'usd',
+              p_status: 'succeeded',
+              p_attempt_number: invoice.attempt_count || 1,
+              p_payment_method_id: paymentMethodId,
+              p_payment_method_type: paymentMethodType,
+              p_succeeded_at: new Date().toISOString(),
+              p_metadata: {
+                billing_reason: invoice.billing_reason,
+                period_start: invoice.period_start,
+                period_end: invoice.period_end,
+                card_brand: cardBrand,
+                card_last4: cardLast4
+              }
+            });
+
+            if (logAttemptError) {
+              logError(logAttemptError, "INVOICE_PAYMENT_SUCCEEDED_LOG");
+            }
+
+            // Update member status to active if it was past_due
+            if (memberData.status === 'past_due') {
+              const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
+                p_member_id: memberData.id,
+                p_stripe_subscription_id: invoice.subscription as string,
+                p_new_status: 'active',
+                p_reason: 'payment_succeeded',
+                p_stripe_event_id: event.id,
+                p_changed_by: 'stripe',
+                p_metadata: { invoice_id: invoice.id }
+              });
+
+              if (updateError) {
+                logError(updateError, "INVOICE_PAYMENT_SUCCEEDED_STATUS_UPDATE");
+              } else {
+                logStep("Member status updated to active", { memberId: memberData.id });
+              }
+            }
+          } else {
+            logStep("Member not found for invoice", { subscriptionId: invoice.subscription });
+          }
+        } catch (invoiceError) {
+          logError(invoiceError, "INVOICE_PAYMENT_SUCCEEDED");
+          return errorResponse(invoiceError, "INVOICE_PAYMENT_SUCCEEDED");
+        }
+        break;
+      }
+
       case 'invoice.payment_failed': {
         try {
           const invoice = event.data.object as Stripe.Invoice;
-          logStep("Payment failed", { invoiceId: invoice.id, customerId: invoice.customer });
+          logStep("Payment failed", { 
+            invoiceId: invoice.id, 
+            customerId: invoice.customer,
+            subscriptionId: invoice.subscription
+          });
 
-          // Optionally update member status or send notification
-          // For now, just log - could be enhanced to update status
+          // Only process subscription invoices
+          if (!invoice.subscription) {
+            logStep("Skipping non-subscription invoice", { invoiceId: invoice.id });
+            break;
+          }
+
+          // Find member by subscription ID
+          const { data: memberData, error: memberError } = await supabase
+            .from('members')
+            .select('id, status')
+            .eq('stripe_subscription_id', invoice.subscription as string)
+            .maybeSingle();
+
+          if (memberError) {
+            logError(memberError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP");
+          } else if (memberData) {
+            // Get payment intent and charge details for failure info
+            const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
+            const lastPaymentError = invoice.last_payment_error;
+            
+            let paymentIntentId: string | null = null;
+            let chargeId: string | null = null;
+            let paymentMethodId: string | null = null;
+            let paymentMethodType: string | null = null;
+            let failureCode: string | null = null;
+            let failureMessage: string | null = null;
+            let declineCode: string | null = null;
+            let declineReason: string | null = null;
+            let nextRetryAt: string | null = null;
+
+            if (typeof paymentIntent === 'object' && paymentIntent) {
+              paymentIntentId = paymentIntent.id;
+              paymentMethodId = paymentIntent.payment_method as string | null;
+              
+              if (paymentIntent.last_payment_error) {
+                failureCode = paymentIntent.last_payment_error.code || null;
+                failureMessage = paymentIntent.last_payment_error.message || null;
+                declineCode = paymentIntent.last_payment_error.decline_code || null;
+                
+                // Human-readable decline reason
+                if (declineCode) {
+                  const declineReasons: Record<string, string> = {
+                    'generic_decline': 'Card declined',
+                    'insufficient_funds': 'Insufficient funds',
+                    'lost_card': 'Lost card',
+                    'stolen_card': 'Stolen card',
+                    'expired_card': 'Expired card',
+                    'incorrect_cvc': 'Incorrect security code',
+                    'incorrect_number': 'Incorrect card number',
+                    'processing_error': 'Processing error',
+                    'reenter_transaction': 'Transaction declined - please try again',
+                    'restricted_card': 'Card restricted',
+                    'security_violation': 'Security violation',
+                    'service_not_allowed': 'Service not allowed',
+                    'stop_payment_order': 'Stop payment order',
+                    'testmode_decline': 'Test mode decline',
+                    'withdrawal_count_limit_exceeded': 'Withdrawal count limit exceeded'
+                  };
+                  declineReason = declineReasons[declineCode] || declineCode;
+                } else {
+                  declineReason = failureMessage || 'Payment failed';
+                }
+              }
+            } else if (typeof paymentIntent === 'string') {
+              paymentIntentId = paymentIntent;
+            }
+
+            // Get failure info from last_payment_error if available
+            if (lastPaymentError) {
+              failureCode = lastPaymentError.code || failureCode;
+              failureMessage = lastPaymentError.message || failureMessage;
+              declineCode = lastPaymentError.decline_code || declineCode;
+            }
+
+            // Check if Stripe will retry (based on attempt_count)
+            const attemptCount = invoice.attempt_count || 0;
+            const willRetry = attemptCount < 4; // Stripe typically retries up to 4 times
+
+            // Log failed payment attempt
+            const { error: logAttemptError } = await supabase.rpc('log_payment_attempt', {
+              p_member_id: memberData.id,
+              p_stripe_invoice_id: invoice.id,
+              p_stripe_payment_intent_id: paymentIntentId,
+              p_stripe_charge_id: chargeId,
+              p_stripe_subscription_id: invoice.subscription as string,
+              p_invoice_number: invoice.number || null,
+              p_amount: invoice.amount_due / 100, // Convert from cents
+              p_currency: invoice.currency || 'usd',
+              p_status: 'failed',
+              p_attempt_number: attemptCount,
+              p_payment_method_id: paymentMethodId,
+              p_payment_method_type: paymentMethodType,
+              p_failure_code: failureCode,
+              p_failure_message: failureMessage,
+              p_decline_code: declineCode,
+              p_decline_reason: declineReason,
+              p_retry_attempted: willRetry,
+              p_next_retry_at: willRetry ? invoice.next_payment_attempt ? new Date(invoice.next_payment_attempt * 1000).toISOString() : null : null,
+              p_failed_at: new Date().toISOString(),
+              p_metadata: {
+                billing_reason: invoice.billing_reason,
+                attempt_count: attemptCount,
+                next_payment_attempt: invoice.next_payment_attempt
+              }
+            });
+
+            if (logAttemptError) {
+              logError(logAttemptError, "INVOICE_PAYMENT_FAILED_LOG");
+            }
+
+            // Update member status to past_due if payment failed and subscription is active
+            if (memberData.status === 'active') {
+              const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
+                p_member_id: memberData.id,
+                p_stripe_subscription_id: invoice.subscription as string,
+                p_new_status: 'past_due',
+                p_reason: 'payment_failed',
+                p_stripe_event_id: event.id,
+                p_changed_by: 'stripe',
+                p_metadata: { 
+                  invoice_id: invoice.id,
+                  failure_code: failureCode,
+                  decline_code: declineCode,
+                  attempt_count: attemptCount
+                }
+              });
+
+              if (updateError) {
+                logError(updateError, "INVOICE_PAYMENT_FAILED_STATUS_UPDATE");
+              } else {
+                logStep("Member status updated to past_due", { memberId: memberData.id });
+              }
+            }
+          } else {
+            logStep("Member not found for failed invoice", { subscriptionId: invoice.subscription });
+          }
         } catch (invoiceError) {
           logError(invoiceError, "INVOICE_PAYMENT_FAILED");
+          return errorResponse(invoiceError, "INVOICE_PAYMENT_FAILED");
+        }
+        break;
+      }
+
+      case 'invoice.payment_action_required': {
+        try {
+          const invoice = event.data.object as Stripe.Invoice;
+          logStep("Payment action required", { 
+            invoiceId: invoice.id, 
+            customerId: invoice.customer,
+            subscriptionId: invoice.subscription
+          });
+
+          // Only process subscription invoices
+          if (!invoice.subscription) {
+            logStep("Skipping non-subscription invoice", { invoiceId: invoice.id });
+            break;
+          }
+
+          // Find member by subscription ID
+          const { data: memberData, error: memberError } = await supabase
+            .from('members')
+            .select('id')
+            .eq('stripe_subscription_id', invoice.subscription as string)
+            .maybeSingle();
+
+          if (memberError) {
+            logError(memberError, "INVOICE_PAYMENT_ACTION_REQUIRED_MEMBER_LOOKUP");
+          } else if (memberData) {
+            const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
+            let paymentIntentId: string | null = null;
+
+            if (typeof paymentIntent === 'object' && paymentIntent) {
+              paymentIntentId = paymentIntent.id;
+            } else if (typeof paymentIntent === 'string') {
+              paymentIntentId = paymentIntent;
+            }
+
+            // Log payment attempt requiring action
+            const { error: logAttemptError } = await supabase.rpc('log_payment_attempt', {
+              p_member_id: memberData.id,
+              p_stripe_invoice_id: invoice.id,
+              p_stripe_payment_intent_id: paymentIntentId,
+              p_stripe_subscription_id: invoice.subscription as string,
+              p_invoice_number: invoice.number || null,
+              p_amount: invoice.amount_due / 100,
+              p_currency: invoice.currency || 'usd',
+              p_status: 'requires_action',
+              p_attempt_number: invoice.attempt_count || 1,
+              p_metadata: {
+                billing_reason: invoice.billing_reason,
+                payment_intent_client_secret: typeof paymentIntent === 'object' ? paymentIntent.client_secret : null
+              }
+            });
+
+            if (logAttemptError) {
+              logError(logAttemptError, "INVOICE_PAYMENT_ACTION_REQUIRED_LOG");
+            }
+          }
+        } catch (invoiceError) {
+          logError(invoiceError, "INVOICE_PAYMENT_ACTION_REQUIRED");
+          return errorResponse(invoiceError, "INVOICE_PAYMENT_ACTION_REQUIRED");
         }
         break;
       }

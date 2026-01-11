@@ -18,6 +18,7 @@ import {
   Target,
   Settings,
   Sparkles,
+  Receipt,
 } from "lucide-react";
 import {
   Sidebar,
@@ -47,6 +48,7 @@ const memberMenuItems: MenuItem[] = [
   { title: "My Credits", url: "/member/credits", icon: CreditCard },
   { title: "My Membership", url: "/member/membership", icon: IdCard },
   { title: "Payment Methods", url: "/member/payment-methods", icon: Wallet },
+  { title: "Payment History", url: "/member/payment-history", icon: Receipt },
   { title: "My Bookings", url: "/member/bookings", icon: Calendar },
   { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
   { title: "Waivers", url: "/member/waivers", icon: FileCheck },
