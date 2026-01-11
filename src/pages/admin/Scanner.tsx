@@ -29,7 +29,9 @@ import {
   Calendar,
   Loader2,
   Settings,
+  ImageOff,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useMemberScanner, useRecentScans, ScanResult, DeviceType } from "@/hooks/useMemberScanner";
 import { useScannerSettings, useUpdateScannerSettings } from "@/hooks/useScannerSettings";
 import { MemberCameraScanner } from "@/components/admin/MemberCameraScanner";
@@ -297,11 +299,11 @@ export default function Scanner() {
             {scanResult && (
               <Card>
                 <CardContent className="p-6">
-                  {scanResult.access_granted ? (
+                {scanResult.access_granted ? (
                     <div className="space-y-4">
-                      <div className="flex items-center gap-3 text-green-700 dark:text-green-400">
-                        <CheckCircle2 className="h-8 w-8" />
-                        <div>
+                      <div className="flex items-center gap-4 text-green-700 dark:text-green-400">
+                        <CheckCircle2 className="h-10 w-10" />
+                        <div className="flex-1">
                           <h3 className="text-xl font-semibold">Access Granted</h3>
                           {scanResult.member && (
                             <p className="text-sm">
@@ -309,6 +311,19 @@ export default function Scanner() {
                             </p>
                           )}
                         </div>
+                        {/* Member Photo */}
+                        {scanResult.member && (
+                          <Avatar className="h-16 w-16 border-2 border-green-500/30">
+                            <AvatarImage 
+                              src={scanResult.member.photo_url || undefined} 
+                              alt={`${scanResult.member.first_name} ${scanResult.member.last_name}`}
+                              className="object-cover"
+                            />
+                            <AvatarFallback className="bg-green-100 dark:bg-green-900 text-lg">
+                              {(scanResult.member.first_name?.[0] || "") + (scanResult.member.last_name?.[0] || "")}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
                       </div>
                       {scanResult.member && (
                         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
@@ -332,15 +347,35 @@ export default function Scanner() {
                           )}
                         </div>
                       )}
+                      {/* No Photo Warning */}
+                      {scanResult.member && !scanResult.member.photo_url && (
+                        <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded text-amber-700 dark:text-amber-300 text-sm">
+                          <ImageOff className="h-4 w-4" />
+                          <span>No profile photo - verify identity manually</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="flex items-center gap-3 text-destructive">
-                        <XCircle className="h-8 w-8" />
-                        <div>
+                      <div className="flex items-center gap-4 text-destructive">
+                        <XCircle className="h-10 w-10" />
+                        <div className="flex-1">
                           <h3 className="text-xl font-semibold">Access Denied</h3>
                           <p className="text-sm">{getDenialMessage(scanResult.denial_reason)}</p>
                         </div>
+                        {/* Member Photo */}
+                        {scanResult.member && (
+                          <Avatar className="h-16 w-16 border-2 border-destructive/30">
+                            <AvatarImage 
+                              src={scanResult.member.photo_url || undefined} 
+                              alt={`${scanResult.member.first_name} ${scanResult.member.last_name}`}
+                              className="object-cover"
+                            />
+                            <AvatarFallback className="bg-red-100 dark:bg-red-900 text-lg">
+                              {(scanResult.member.first_name?.[0] || "") + (scanResult.member.last_name?.[0] || "")}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
                       </div>
 
                       {scanResult.member && (
