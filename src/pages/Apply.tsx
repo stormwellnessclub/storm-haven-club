@@ -499,7 +499,7 @@ export default function Apply() {
 
       if (error) {
         console.error("Error submitting application:", error);
-        toast.error("There was an error submitting your application. Please try again.");
+        toast.error(`Failed to submit application: ${error.message || error.code || 'Unknown error'}`);
         setIsSubmitting(false);
         return;
       }
