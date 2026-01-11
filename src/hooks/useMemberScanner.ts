@@ -16,6 +16,7 @@ export interface ScanResult {
     status: string;
     membership_type: string;
     email: string;
+    photo_url?: string | null;
   };
   payment_status?: {
     isAnnualFeeOverdue: boolean;

@@ -1957,6 +1957,7 @@ export type Database = {
           created_at: string | null
           id: string
           location_name: string
+          qr_token_secret: string | null
           require_override_reason: boolean | null
           updated_at: string | null
         }
@@ -1966,6 +1967,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           location_name: string
+          qr_token_secret?: string | null
           require_override_reason?: boolean | null
           updated_at?: string | null
         }
@@ -1975,6 +1977,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           location_name?: string
+          qr_token_secret?: string | null
           require_override_reason?: boolean | null
           updated_at?: string | null
         }

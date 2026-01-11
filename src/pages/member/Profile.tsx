@@ -18,7 +18,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { User, MapPin, Phone, Heart, Save } from "lucide-react";
+import { useUserMembership } from "@/hooks/useUserMembership";
+import { MemberPhotoUpload } from "@/components/member/MemberPhotoUpload";
+import { User, MapPin, Phone, Heart, Save, Camera } from "lucide-react";
 
 const profileSchema = z.object({
   first_name: z.string().min(1, "First name is required").max(50),
@@ -39,6 +41,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function MemberProfile() {
   const { profile, isLoading, updateProfile, isUpdating } = useUserProfile();
+  const { data: membership, isLoading: membershipLoading } = useUserMembership();
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -81,7 +84,7 @@ export default function MemberProfile() {
     updateProfile(data);
   };
 
-  if (isLoading) {
+  if (isLoading || membershipLoading) {
     return (
       <MemberLayout title="My Profile">
         <div className="space-y-6">
@@ -95,6 +98,29 @@ export default function MemberProfile() {
   return (
     <MemberLayout title="My Profile">
       <div className="max-w-3xl">
+        {/* Profile Photo Section */}
+        {membership && (
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Camera className="h-5 w-5 text-accent" />
+                <CardTitle>Profile Photo</CardTitle>
+              </div>
+              <CardDescription>
+                Your photo is used for entry verification at the front desk
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MemberPhotoUpload
+                memberId={membership.id}
+                currentPhotoUrl={membership.photo_url}
+                firstName={membership.first_name}
+                lastName={membership.last_name}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Personal Information */}
