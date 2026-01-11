@@ -149,8 +149,63 @@ serve(async (req) => {
     logStep(`Received event: ${event.type}`, { eventId: event.id });
 
     // Check for duplicate processing (idempotency check)
-    // In a production system, you might want to store processed event IDs
-    // For now, we'll rely on database constraints and graceful error handling
+    try {
+      const { data: existingEvent, error: checkError } = await supabase
+        .from('processed_webhook_events')
+        .select('id, processed_at, processing_result')
+        .eq('event_id', event.id)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" which is OK
+        logError(checkError, "IDEMPOTENCY_CHECK");
+        // Continue processing if check fails (log error but don't block)
+      } else if (existingEvent) {
+        logStep(`Event already processed: ${event.id}`, { 
+          processedAt: existingEvent.processed_at,
+          result: existingEvent.processing_result
+        });
+        // Return success - event already processed
+        return successResponse({ 
+          eventId: event.id, 
+          eventType: event.type,
+          alreadyProcessed: true,
+          processedAt: existingEvent.processed_at
+        });
+      }
+    } catch (idempotencyError) {
+      logError(idempotencyError, "IDEMPOTENCY_CHECK");
+      // Continue processing if idempotency check fails (log error but don't block)
+    }
+
+    // Store event ID immediately to prevent duplicate processing (race condition protection)
+    try {
+      const { error: insertError } = await supabase
+        .from('processed_webhook_events')
+        .insert({
+          event_id: event.id,
+          event_type: event.type,
+          processed_at: new Date().toISOString(),
+          processing_result: 'success',
+          metadata: { received_at: new Date().toISOString() }
+        });
+
+      if (insertError) {
+        // If insert fails (e.g., duplicate), event was already processed
+        if (insertError.code === '23505') { // Unique violation
+          logStep(`Event already processed (race condition): ${event.id}`);
+          return successResponse({ 
+            eventId: event.id, 
+            eventType: event.type,
+            alreadyProcessed: true
+          });
+        }
+        logError(insertError, "IDEMPOTENCY_STORE");
+        // Continue processing even if storing fails
+      }
+    } catch (storeError) {
+      logError(storeError, "IDEMPOTENCY_STORE");
+      // Continue processing even if storing fails
+    }
 
     switch (event.type) {
       case 'checkout.session.completed': {
