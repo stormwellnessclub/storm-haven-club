@@ -105,16 +105,18 @@ export function MemberCameraScanner({
     if (!scannerRef.current || !isScanning) return;
 
     try {
-      const track = scannerRef.current.getRunningTrack();
-      if (track) {
-        await track.applyConstraints({
-          advanced: [{ torch: !flashlightEnabled }] as any,
+      const capabilities = scannerRef.current.getRunningTrackCapabilities();
+      // Check if torch is supported
+      if (capabilities && (capabilities as any).torch) {
+        await scannerRef.current.applyVideoConstraints({
+          advanced: [{ torch: !flashlightEnabled } as any]
         });
         setFlashlightEnabled(!flashlightEnabled);
+      } else {
+        console.warn("Flashlight/torch not supported on this device");
       }
     } catch (error) {
       console.error("Error toggling flashlight:", error);
-      // Flashlight might not be supported on all devices
     }
   };
 
