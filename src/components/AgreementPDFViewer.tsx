@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ZoomIn, ZoomOut, Download, Printer, FileText, Loader2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Download, Printer, FileText, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -38,6 +38,53 @@ interface AgreementPDFViewerProps {
   onDocumentLoad?: () => void;
 }
 
+// Get PDF path from imported module or filename with logging
+const getPdfPath = (filename: string): string => {
+  const path = pdfMap[filename];
+  if (path) {
+    console.log(`[PDF] Mapped: ${filename} -> ${path}`);
+    return path;
+  }
+  console.warn(`[PDF] Not in pdfMap: ${filename}, using fallback path`);
+  return `/src/assets/agreements/${filename}`;
+};
+
+// Fallback UI component when PDF fails to load
+function PDFFallback({ 
+  pdfSrc, 
+  filename, 
+  onDownload 
+}: { 
+  pdfSrc: string; 
+  filename: string; 
+  onDownload: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[300px]">
+      <FileText className="h-16 w-16 mb-4 text-accent" />
+      <h3 className="font-medium text-lg mb-2">Unable to Preview PDF</h3>
+      <p className="text-sm text-muted-foreground mb-6 max-w-md">
+        Your browser cannot display this document inline. 
+        Please download or open it in a new tab to review the agreement.
+      </p>
+      <div className="flex gap-3 flex-wrap justify-center">
+        <Button onClick={onDownload} className="gap-2">
+          <Download className="h-4 w-4" />
+          Download PDF
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={() => window.open(pdfSrc, '_blank')}
+          className="gap-2"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Open in New Tab
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function AgreementPDFViewer({
   pdfUrl,
   title,
@@ -46,29 +93,66 @@ export function AgreementPDFViewer({
   className,
   onDocumentLoad,
 }: AgreementPDFViewerProps) {
-  const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Handle both single PDF and multiple PDFs
   const pdfs = Array.isArray(pdfUrl) ? pdfUrl : [pdfUrl];
   const [selectedPdfIndex, setSelectedPdfIndex] = useState(0);
   const currentPdf = pdfs[selectedPdfIndex];
 
-  // Get PDF path from imported module or filename
-  const getPdfPath = (filename: string) => {
-    return pdfMap[filename] || `/src/assets/agreements/${filename}`;
-  };
-
+  // Reset state when PDF changes
   useEffect(() => {
-    setPageNumber(1);
     setScale(1.0);
     setLoading(true);
     setError(null);
+    setIframeLoaded(false);
+
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Set a timeout to detect if PDF fails to load
+    timeoutRef.current = setTimeout(() => {
+      if (!iframeLoaded) {
+        console.warn(`[PDF] Load timeout for: ${currentPdf}`);
+        setError("PDF preview unavailable");
+        setLoading(false);
+      }
+    }, 5000); // 5 second timeout
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [currentPdf]);
 
+  // Handle successful iframe load
+  const handleIframeLoad = () => {
+    console.log(`[PDF] Loaded successfully: ${currentPdf}`);
+    setIframeLoaded(true);
+    setLoading(false);
+    setError(null);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    onDocumentLoad?.();
+  };
+
+  // Handle iframe error
+  const handleIframeError = () => {
+    console.error(`[PDF] Failed to load: ${currentPdf}`);
+    setError("Failed to load PDF");
+    setLoading(false);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+  };
 
   const handleDownload = () => {
     const filename = typeof currentPdf === 'string' ? currentPdf : `agreement-${selectedPdfIndex + 1}.pdf`;
@@ -132,30 +216,30 @@ export function AgreementPDFViewer({
           </div>
         )}
         <ScrollArea className="w-full" style={{ height }}>
-          {loading && (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          )}
-          {error && (
-            <div className="flex items-center justify-center h-full p-8">
+          {loading && !error && (
+            <div className="flex items-center justify-center h-full min-h-[300px]">
               <div className="text-center">
-                <FileText className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">{error}</p>
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Loading agreement...</p>
               </div>
             </div>
           )}
-          <iframe
-            src={pdfSrc}
-            className="w-full border-0"
-            style={{ height: '100%', minHeight: height }}
-            onLoad={() => setLoading(false)}
-            onError={() => {
-              setError("Failed to load PDF");
-              setLoading(false);
-            }}
-            title={title || "PDF Viewer"}
-          />
+          {error ? (
+            <PDFFallback 
+              pdfSrc={pdfSrc} 
+              filename={typeof currentPdf === 'string' ? currentPdf : 'agreement.pdf'} 
+              onDownload={handleDownload}
+            />
+          ) : (
+            <iframe
+              src={pdfSrc}
+              className={cn("w-full border-0", loading ? "opacity-0 absolute" : "opacity-100")}
+              style={{ height: '100%', minHeight: height }}
+              onLoad={handleIframeLoad}
+              onError={handleIframeError}
+              title={title || "PDF Viewer"}
+            />
+          )}
         </ScrollArea>
       </div>
     );
@@ -234,12 +318,37 @@ export function AgreementPDFViewer({
                   </div>
                 )}
                 <ScrollArea className="w-full" style={{ height }}>
-                  <iframe
-                    src={pdfSrc}
-                    className="w-full border-0"
-                    style={{ height: '100%', minHeight: height }}
-                    title={title || `PDF ${index + 1}`}
-                  />
+                  {selectedPdfIndex === index && loading && !error && (
+                    <div className="flex items-center justify-center h-full min-h-[300px]">
+                      <div className="text-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Loading agreement...</p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedPdfIndex === index && error ? (
+                    <PDFFallback 
+                      pdfSrc={pdfSrc} 
+                      filename={typeof pdf === 'string' ? pdf : `agreement-${index + 1}.pdf`} 
+                      onDownload={() => {
+                        const link = document.createElement("a");
+                        link.href = pdfSrc;
+                        link.download = typeof pdf === 'string' ? pdf : `agreement-${index + 1}.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    />
+                  ) : (
+                    <iframe
+                      src={pdfSrc}
+                      className={cn("w-full border-0", selectedPdfIndex === index && loading ? "opacity-0 absolute" : "opacity-100")}
+                      style={{ height: '100%', minHeight: height }}
+                      onLoad={handleIframeLoad}
+                      onError={handleIframeError}
+                      title={title || `PDF ${index + 1}`}
+                    />
+                  )}
                 </ScrollArea>
               </div>
             </TabsContent>
@@ -249,4 +358,3 @@ export function AgreementPDFViewer({
     </div>
   );
 }
-
