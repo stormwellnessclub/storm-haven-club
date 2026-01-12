@@ -16,11 +16,10 @@ import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
 import bodyTreatments from "@/assets/body-treatments.jpg";
 import sauna from "@/assets/sauna.jpg";
 // Brand imagery
-import scienceSoulBranding from "@/assets/brand/science-soul-branding.jpg";
 import mainLobby from "@/assets/main-lobby.jpeg";
 import avocadoToast from "@/assets/food/avocado-toast.jpg";
 import cafeHeroImage from "@/assets/food/matcha-latte.jpg";
-import marbleTexture from "@/assets/textures/marble-texture.jpg";
+
 
 const classStudios = [{
   icon: CircleDot,
@@ -28,8 +27,8 @@ const classStudios = [{
   description: "A mixture of reformer classes, both heated and non-heated options",
   image: reformerPilates,
   isHeated: false,
-  color: "text-amber-900",
-  bgColor: "bg-amber-900/10"
+  color: "text-accent",
+  bgColor: "bg-accent/10"
 }, {
   icon: Bike,
   title: "Cycling Studio",
@@ -37,8 +36,8 @@ const classStudios = [{
   image: cycling,
   isHeated: true,
   badgeText: "Cycling",
-  color: "text-amber-800",
-  bgColor: "bg-amber-800/10"
+  color: "text-accent",
+  bgColor: "bg-accent/10"
 }, {
   icon: Activity,
   title: "Aerobics Room",
@@ -46,8 +45,8 @@ const classStudios = [{
   image: aerobicsStudio,
   isHeated: true,
   badgeText: "AEROBICS",
-  color: "text-amber-700",
-  bgColor: "bg-amber-700/10"
+  color: "text-accent",
+  bgColor: "bg-accent/10"
 }];
 
 const quickLinks = [{
@@ -206,10 +205,7 @@ export default function Index() {
 
       {/* Aella Spa Section */}
       <section className="relative py-24 bg-gradient-to-b from-secondary/20 via-secondary/30 to-secondary/20 overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <img src={marbleTexture} alt="" className="w-full h-full object-cover" />
-        </div>
-        <div className="relative z-10 container mx-auto px-6">
+        <div className="container mx-auto px-6">
           <AnimatedSection className="text-center mb-16">
             <img src={aellaLogo} alt="Aella" className="h-24 w-auto mx-auto mb-2 mix-blend-multiply" />
             <p className="text-accent text-sm uppercase tracking-widest mb-6">by Storm Wellness Club</p>
@@ -262,10 +258,7 @@ export default function Index() {
 
       {/* Membership Benefits */}
       <section className="relative py-24 bg-primary text-primary-foreground overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <img src={marbleTexture} alt="" className="w-full h-full object-cover" />
-        </div>
-        <div className="relative z-10 container mx-auto px-6">
+        <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <AnimatedSection animation="fade-right">
               <img src={sauna} alt="Infrared Sauna" className="rounded-sm shadow-2xl" loading="lazy" />
@@ -333,10 +326,7 @@ export default function Index() {
 
       {/* Wellness Philosophy - Science & Soul */}
       <section className="relative py-32 bg-primary text-primary-foreground overflow-hidden">
-        <div className="absolute inset-0">
-          <img src={scienceSoulBranding} alt="A blend of science & soul" className="w-full h-full object-cover opacity-30" loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/90 via-charcoal/80 to-charcoal/90" />
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-charcoal/95 to-charcoal" />
         <AnimatedSection className="relative z-10 container mx-auto px-6 text-center" animation="scale-in">
           <div className="max-w-4xl mx-auto">
             <p className="text-gold-light text-sm uppercase tracking-widest mb-6">Our Philosophy</p>
