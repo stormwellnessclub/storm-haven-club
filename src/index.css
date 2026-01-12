@@ -35,8 +35,8 @@
     --muted: 25 13% 48%; /* Clay Veil */
     --muted-foreground: 38 27% 33%; /* Earth Smoke */
 
-    --accent: 33 5.4545% 32.3529%; /* Golden Dune */
-    --accent-foreground: 38 30% 8%; /* Smoked Umber */
+    --accent: 38 55% 88%; /* Golden Dune - warm beige-gold */
+    --accent-foreground: 38 30% 12%; /* Smoked Umber - darker for contrast */
 
     --destructive: 0 84% 60%; /* Keep minimal red for errors */
     --destructive-foreground: 0 0% 100%;
@@ -47,10 +47,10 @@
 
     --radius: 0.25rem;
 
-    /* Custom brand tokens - HIGH CONTRAST GOLD */
-    --gold: 43 85% 55%; /* Bright, saturated gold */
-    --gold-light: 45 90% 65%; /* Very bright gold for dark backgrounds - WCAG AA compliant */
-    --gold-contrast: 43 90% 60%; /* Maximum contrast gold */
+    /* Custom brand tokens - REFINED LUXURY GOLD */
+    --gold: 38 45% 58%; /* Muted sophisticated gold */
+    --gold-light: 38 50% 70%; /* Soft gold for dark backgrounds */
+    --gold-contrast: 38 55% 55%; /* Readable gold for accessibility */
     --charcoal: 38 30% 8%; /* Smoked Umber */
     --cream: 48 16% 84%; /* Limestone Haze */
     --cream-dark: 38 20% 68%; /* Still Sand */
