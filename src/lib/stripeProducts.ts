@@ -1,5 +1,12 @@
 // Stripe Product and Price IDs for Storm Wellness Club
 // These IDs reference products created in Stripe
+//
+// IMPORTANT: These price IDs are duplicated in Edge Functions (Deno environment):
+// - supabase/functions/stripe-payment/index.ts (STRIPE_PRODUCTS constant)
+// When updating prices, update BOTH locations to keep them in sync.
+//
+// Source of truth: This file (src/lib/stripeProducts.ts)
+// Update order: 1) Update this file, 2) Update Edge Functions to match
 
 export const STRIPE_PRODUCTS = {
   memberships: {

@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply';
+  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed';
   to: string;
   data: Record<string, any>;
 }
@@ -744,6 +744,82 @@ serve(async (req) => {
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/member/support" style="${emailStyles.button}">Contact Support</a>
               </div>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Best regards,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'payment_failed':
+        subject = 'Payment Issue - Storm Wellness Club';
+        const amount = data.amount ? `$${data.amount.toFixed(2)}` : 'your membership dues';
+        const nextRetry = data.nextRetryAt ? new Date(data.nextRetryAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We encountered an issue processing your payment for ${amount}.
+              </p>
+              
+              <div style="background: #fee2e2; border: 1px solid #ef4444; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0 0 10px 0; font-weight: 600; color: #991b1b;">
+                  Payment Failed: ${data.failureReason || data.declineReason || 'Unable to process payment'}
+                </p>
+                ${data.failureMessage ? `<p style="margin: 0; color: #991b1b; font-size: 14px;">${data.failureMessage}</p>` : ''}
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                To ensure uninterrupted access to your membership, please update your payment method as soon as possible.
+              </p>
+              
+              ${nextRetry ? `
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                  <p style="margin: 0; font-weight: 600; color: #92400e;">
+                    ⏰ We will automatically retry your payment on ${nextRetry}. Please update your payment method before then to avoid service interruption.
+                  </p>
+                </div>
+              ` : `
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                  <p style="margin: 0; font-weight: 600; color: #92400e;">
+                    ⚠️ Please update your payment method to restore full access to your membership benefits.
+                  </p>
+                </div>
+              `}
+              
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #312D28;">What you need to do:</h3>
+                <ul style="color: #374151; line-height: 2; margin: 0; padding-left: 20px;">
+                  <li>Sign in to your member portal</li>
+                  <li>Go to Membership → Payment Methods</li>
+                  <li>Update your payment method or add a new card</li>
+                </ul>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/membership" style="${emailStyles.button}">Update Payment Method</a>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Common reasons for payment failure include:
+              </p>
+              <ul style="color: #374151; line-height: 2; margin: 0 0 20px 0; padding-left: 20px;">
+                <li>Insufficient funds</li>
+                <li>Expired card</li>
+                <li>Card number changed</li>
+                <li>Bank declined the transaction</li>
+              </ul>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you have any questions or need assistance, please don't hesitate to reach out to us.
+              </p>
               
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Best regards,</p>

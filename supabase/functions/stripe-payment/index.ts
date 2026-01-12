@@ -15,7 +15,13 @@ const TIER_CREDITS: Record<string, { class: number; red_light: number; dry_cryo:
   diamond: { class: 10, red_light: 10, dry_cryo: 6 },
 };
 
-// Stripe Price IDs - matching src/lib/stripeProducts.ts
+// Stripe Price IDs - MUST MATCH src/lib/stripeProducts.ts
+// IMPORTANT: This is duplicated from src/lib/stripeProducts.ts because Edge Functions
+// run in Deno and cannot import TypeScript from the frontend codebase.
+// When updating prices, update BOTH locations:
+// 1) src/lib/stripeProducts.ts (source of truth)
+// 2) This file (supabase/functions/stripe-payment/index.ts)
+// 3) supabase/functions/stripe-webhook/index.ts (if it uses price IDs)
 const STRIPE_PRODUCTS = {
   memberships: {
     silver: {
@@ -261,19 +267,20 @@ serve(async (req) => {
         const startDateObj = new Date(startDate);
         const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
 
-        // Build line items - conditionally include annual fee
+        // Build line items - ONLY membership subscription (annual fee will be created separately as recurring subscription)
         const lineItems: { price: string; quantity: number }[] = [
           { price: membershipPriceId, quantity: 1 },
         ];
         
+        // Note: Annual fee is NOT included in checkout line items
+        // It will be created as a separate recurring subscription after checkout completes (in webhook)
         if (annualFeePriceId) {
-          lineItems.push({ price: annualFeePriceId, quantity: 1 });
-          logStep("Including annual fee in checkout", { annualFeePriceId });
+          logStep("Annual fee will be created as separate subscription after checkout", { annualFeePriceId });
         } else {
           logStep("Skipping annual fee - already paid");
         }
 
-        // Create checkout session with subscriptions
+        // Create checkout session with membership subscription only
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           line_items: lineItems,
@@ -289,6 +296,7 @@ serve(async (req) => {
               is_founding_member: String(isFoundingMember),
               start_date: startDate,
               annual_fee_skipped: String(skipAnnualFee || false),
+              annual_fee_price_id: annualFeePriceId || '', // Pass price ID for webhook
             },
           },
           success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
@@ -302,6 +310,7 @@ serve(async (req) => {
             is_founding_member: String(isFoundingMember),
             start_date: startDate,
             annual_fee_skipped: String(skipAnnualFee || false),
+            annual_fee_price_id: annualFeePriceId || '', // Pass price ID for webhook
           },
         });
 
@@ -1489,6 +1498,9 @@ serve(async (req) => {
           throw new Error(`Membership not available for ${gender} at ${tier} tier`);
         }
 
+        // Get annual fee price (only if not skipping)
+        const annualFeePriceId = skipAnnualFee ? null : STRIPE_PRODUCTS.annualFee[normalizedGender];
+
         // Get customer ID from member
         const { data: memberData } = await supabase
           .from('members')
@@ -1503,7 +1515,7 @@ serve(async (req) => {
         const startDateObj = new Date(startDate);
         const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
 
-        // Create subscription with saved payment method
+        // Create membership subscription with saved payment method
         const subscription = await stripe.subscriptions.create({
           customer: memberData.stripe_customer_id,
           items: [{ price: membershipPriceId }],
@@ -1522,7 +1534,7 @@ serve(async (req) => {
           },
         });
 
-        // Update member record
+        // Update member record with membership subscription
         await supabase
           .from('members')
           .update({
@@ -1536,6 +1548,43 @@ serve(async (req) => {
             annual_fee_paid_at: skipAnnualFee ? null : new Date().toISOString(),
           })
           .eq('id', memberId);
+
+        // Create annual fee subscription (separate recurring subscription) if not skipped
+        let annualFeeSubscriptionId: string | null = null;
+        if (!skipAnnualFee && annualFeePriceId) {
+          try {
+            console.log(`[STRIPE-PAYMENT] Creating annual fee subscription - ${JSON.stringify({ memberId, annualFeePriceId })}`);
+            
+            const annualFeeSubscription = await stripe.subscriptions.create({
+              customer: memberData.stripe_customer_id,
+              items: [{ price: annualFeePriceId }],
+              default_payment_method: paymentMethodId,
+              billing_cycle_anchor: billingAnchor,
+              proration_behavior: 'none',
+              metadata: {
+                member_id: memberId,
+                user_id: memberData.user_id,
+                type: 'annual_fee',
+              },
+            });
+
+            annualFeeSubscriptionId = annualFeeSubscription.id;
+
+            // Update member record with annual fee subscription ID
+            await supabase
+              .from('members')
+              .update({
+                annual_fee_subscription_id: annualFeeSubscriptionId,
+              })
+              .eq('id', memberId);
+
+            console.log(`[STRIPE-PAYMENT] Annual fee subscription created - ${JSON.stringify({ memberId, annualFeeSubscriptionId })}`);
+          } catch (annualFeeError) {
+            console.error(`[STRIPE-PAYMENT] ERROR ANNUAL_FEE_SUBSCRIPTION_CREATION - ${annualFeeError instanceof Error ? annualFeeError.message : String(annualFeeError)}`);
+            // Don't fail the function - membership subscription is already created
+            // Annual fee subscription creation can be retried manually if needed
+          }
+        }
 
         // Create initial credits (webhook will also do this, but doing it here ensures it happens)
         const credits = TIER_CREDITS[normalizedTier] || TIER_CREDITS.silver;

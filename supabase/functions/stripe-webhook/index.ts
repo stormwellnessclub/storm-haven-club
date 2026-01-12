@@ -231,6 +231,8 @@ serve(async (req) => {
 
             // Get subscription ID from session
             const subscriptionId = session.subscription as string;
+            const annualFeeSkipped = metadata.annual_fee_skipped === 'true';
+            const annualFeePriceId = metadata.annual_fee_price_id;
             
             // Update member record with Stripe info and activate
             try {
@@ -245,6 +247,7 @@ serve(async (req) => {
                   gender: gender,
                   activated_at: new Date().toISOString(),
                   membership_start_date: startDate,
+                  annual_fee_paid_at: annualFeeSkipped ? null : new Date().toISOString(), // Set initial payment date
                 })
                 .eq('id', memberId);
 
@@ -298,6 +301,67 @@ serve(async (req) => {
               }
             } catch (creditError) {
               logError(creditError, "CREDIT_CREATION");
+            }
+
+            // Create annual fee subscription (separate recurring subscription) if not skipped
+            if (!annualFeeSkipped && annualFeePriceId) {
+              try {
+                logStep("Creating annual fee subscription", { memberId, annualFeePriceId });
+                
+                // Get the subscription to use its default payment method
+                const membershipSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+                const defaultPaymentMethodId = membershipSubscription.default_payment_method as string | null;
+                
+                if (!defaultPaymentMethodId) {
+                  logError("No default payment method on membership subscription", "ANNUAL_FEE_SUBSCRIPTION");
+                  // Continue - annual fee subscription creation will fail, but member is activated
+                } else {
+                  // Calculate annual fee billing anchor (1 year from start date)
+                  const startDateObj = new Date(startDate);
+                  const annualFeeAnchor = Math.floor(startDateObj.getTime() / 1000);
+                  
+                  // Create annual fee subscription (yearly recurring)
+                  const annualFeeSubscription = await stripe.subscriptions.create({
+                    customer: session.customer as string,
+                    items: [{ price: annualFeePriceId }],
+                    default_payment_method: defaultPaymentMethodId,
+                    billing_cycle_anchor: annualFeeAnchor,
+                    proration_behavior: 'none',
+                    metadata: {
+                      member_id: memberId,
+                      user_id: userId,
+                      type: 'annual_fee',
+                    },
+                  });
+
+                  // Update member record with annual fee subscription ID
+                  const { error: annualFeeUpdateError } = await supabase
+                    .from('members')
+                    .update({
+                      annual_fee_subscription_id: annualFeeSubscription.id,
+                    })
+                    .eq('id', memberId);
+
+                  if (annualFeeUpdateError) {
+                    logError(annualFeeUpdateError, "ANNUAL_FEE_SUBSCRIPTION_UPDATE");
+                  } else {
+                    logStep("Annual fee subscription created", { 
+                      memberId, 
+                      annualFeeSubscriptionId: annualFeeSubscription.id 
+                    });
+                  }
+                }
+              } catch (annualFeeError) {
+                logError(annualFeeError, "ANNUAL_FEE_SUBSCRIPTION_CREATION");
+                // Don't fail the webhook - member is already activated
+                // Annual fee subscription creation can be retried manually if needed
+              }
+            } else {
+              logStep("Skipping annual fee subscription", { 
+                memberId, 
+                skipped: annualFeeSkipped, 
+                hasPriceId: !!annualFeePriceId 
+              });
             }
 
           } else if (metadata.type === 'class_pass') {
@@ -643,12 +707,36 @@ serve(async (req) => {
             break;
           }
 
-          // Find member by subscription ID
-          const { data: memberData, error: memberError } = await supabase
-            .from('members')
-            .select('id, status')
-            .eq('stripe_subscription_id', invoice.subscription as string)
-            .maybeSingle();
+          // Check if this is an annual fee subscription or membership subscription
+          // Annual fee subscriptions: price_1SlA2BLyZrsSqLhs8VX17F0C (women), price_1SlA2RLyZrsSqLhsK3XQuANN (men)
+          const annualFeePriceIds = ['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN'];
+          const isAnnualFeeInvoice = invoice.lines?.data?.some(line => 
+            line.price && annualFeePriceIds.includes(line.price.id as string)
+          ) || false;
+
+          // Find member by subscription ID (check both membership and annual fee subscriptions)
+          let memberData: { id: string; status: string } | null = null;
+          let memberError: unknown = null;
+
+          if (isAnnualFeeInvoice) {
+            // Find member by annual fee subscription ID
+            const { data, error } = await supabase
+              .from('members')
+              .select('id, status')
+              .eq('annual_fee_subscription_id', invoice.subscription as string)
+              .maybeSingle();
+            memberData = data;
+            memberError = error;
+          } else {
+            // Find member by membership subscription ID
+            const { data, error } = await supabase
+              .from('members')
+              .select('id, status')
+              .eq('stripe_subscription_id', invoice.subscription as string)
+              .maybeSingle();
+            memberData = data;
+            memberError = error;
+          }
 
           if (memberError) {
             logError(memberError, "INVOICE_PAYMENT_SUCCEEDED_MEMBER_LOOKUP");
@@ -712,22 +800,39 @@ serve(async (req) => {
               logError(logAttemptError, "INVOICE_PAYMENT_SUCCEEDED_LOG");
             }
 
-            // Update member status to active if it was past_due
-            if (memberData.status === 'past_due') {
-              const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
-                p_member_id: memberData.id,
-                p_stripe_subscription_id: invoice.subscription as string,
-                p_new_status: 'active',
-                p_reason: 'payment_succeeded',
-                p_stripe_event_id: event.id,
-                p_changed_by: 'stripe',
-                p_metadata: { invoice_id: invoice.id }
-              });
+            // Handle annual fee subscription renewals
+            if (isAnnualFeeInvoice) {
+              // Update annual_fee_paid_at on annual fee subscription renewal
+              const { error: annualFeeUpdateError } = await supabase
+                .from('members')
+                .update({
+                  annual_fee_paid_at: new Date().toISOString(),
+                })
+                .eq('id', memberData.id);
 
-              if (updateError) {
-                logError(updateError, "INVOICE_PAYMENT_SUCCEEDED_STATUS_UPDATE");
+              if (annualFeeUpdateError) {
+                logError(annualFeeUpdateError, "ANNUAL_FEE_RENEWAL_UPDATE");
               } else {
-                logStep("Member status updated to active", { memberId: memberData.id });
+                logStep("Annual fee renewal recorded", { memberId: memberData.id });
+              }
+            } else {
+              // Update member status to active if it was past_due (membership subscription)
+              if (memberData.status === 'past_due') {
+                const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
+                  p_member_id: memberData.id,
+                  p_stripe_subscription_id: invoice.subscription as string,
+                  p_new_status: 'active',
+                  p_reason: 'payment_succeeded',
+                  p_stripe_event_id: event.id,
+                  p_changed_by: 'stripe',
+                  p_metadata: { invoice_id: invoice.id }
+                });
+
+                if (updateError) {
+                  logError(updateError, "INVOICE_PAYMENT_SUCCEEDED_STATUS_UPDATE");
+                } else {
+                  logStep("Member status updated to active", { memberId: memberData.id });
+                }
               }
             }
           } else {
@@ -881,6 +986,42 @@ serve(async (req) => {
               } else {
                 logStep("Member status updated to past_due", { memberId: memberData.id });
               }
+            }
+
+            // Send payment failure email notification
+            if (memberData.email && (memberData.first_name || memberData.last_name)) {
+              try {
+                const memberName = memberData.first_name && memberData.last_name 
+                  ? `${memberData.first_name} ${memberData.last_name}`
+                  : memberData.first_name || memberData.last_name || 'Member';
+
+                const { error: emailError } = await supabase.functions.invoke('send-email', {
+                  body: {
+                    type: 'payment_failed',
+                    to: memberData.email,
+                    data: {
+                      name: memberName,
+                      amount: invoice.amount_due / 100, // Convert from cents to dollars
+                      failureReason: declineReason || failureMessage || 'Payment processing failed',
+                      failureMessage: failureMessage || null,
+                      declineReason: declineReason || null,
+                      nextRetryAt: invoice.next_payment_attempt ? new Date(invoice.next_payment_attempt * 1000).toISOString() : null,
+                      attemptCount: attemptCount,
+                    },
+                  },
+                });
+
+                if (emailError) {
+                  logError(emailError, "INVOICE_PAYMENT_FAILED_EMAIL");
+                } else {
+                  logStep("Payment failure email sent", { memberId: memberData.id, email: memberData.email });
+                }
+              } catch (emailError) {
+                logError(emailError, "INVOICE_PAYMENT_FAILED_EMAIL");
+                // Don't fail the webhook if email fails
+              }
+            } else {
+              logStep("Skipping payment failure email - no email or name", { memberId: memberData.id });
             }
           } else {
             logStep("Member not found for failed invoice", { subscriptionId: invoice.subscription });
