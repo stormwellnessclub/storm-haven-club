@@ -19,7 +19,7 @@ interface EntryTokenData {
 }
 
 export function useEntryToken() {
-  const { session } = useAuth();
+  const { session, loading: authLoading } = useAuth();
   const [data, setData] = useState<EntryTokenData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,16 +90,23 @@ export function useEntryToken() {
 
   // Fetch token on mount and set up silent refresh interval
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
+    }
+
+    // Session explicitly null means not authenticated
     if (!session?.access_token) {
+      setError("Please sign in to access your entry code");
       setIsLoading(false);
       return;
     }
 
     // Initial fetch
+    setError(null);
     fetchToken();
 
     // Silent refresh every 4.5 minutes (before 5-minute expiry)
-    // Using slightly less than 5 minutes to ensure smooth transition
     refreshIntervalRef.current = setInterval(() => {
       fetchToken();
     }, 4.5 * 60 * 1000);
@@ -109,7 +116,7 @@ export function useEntryToken() {
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [session?.access_token, fetchToken]);
+  }, [authLoading, session?.access_token, fetchToken]);
 
   // Manual refresh function (for error recovery)
   const refresh = useCallback(() => {
