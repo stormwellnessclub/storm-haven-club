@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
+import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, Coffee, Baby, Flame, Sun, Snowflake } from "lucide-react";
 import gymArea1 from "@/assets/gym-area-1.jpg";
 import gymArea2 from "@/assets/gym-area-2.jpg";
@@ -128,17 +129,19 @@ export default function Index() {
       {/* Quick Navigation */}
       <section className="py-8 bg-background border-b border-border">
         <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {quickLinks.map(link => <Link key={link.href} to={link.href} className="card-luxury p-4 flex items-center gap-4 hover:border-accent transition-colors">
-                <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+          <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-4" staggerDelay={75}>
+            {quickLinks.map(link => (
+              <Link key={link.href} to={link.href} className="card-luxury p-4 flex items-center gap-4 hover:border-accent transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
+                <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
                   <link.icon className="w-5 h-5 text-accent" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">{link.label}</p>
                   <p className="text-muted-foreground text-xs">{link.description}</p>
                 </div>
-              </Link>)}
-          </div>
+              </Link>
+            ))}
+          </StaggerContainer>
         </div>
       </section>
 
@@ -147,40 +150,53 @@ export default function Index() {
         <div className="container mx-auto px-6">
           <SectionHeading title="Three Distinct Studios" subtitle="A harmonious blend of mental clarity, emotional resilience, and physical strength—designed to address all facets of wellness." />
           
-          <div className="grid md:grid-cols-3 gap-8">
-            {classStudios.map((studio, index) => <div key={index} className="card-luxury overflow-hidden group">
+          <StaggerContainer className="grid md:grid-cols-3 gap-8" staggerDelay={150}>
+            {classStudios.map((studio, index) => (
+              <div key={index} className="card-luxury overflow-hidden group hover-lift">
                 <div className="relative h-64 overflow-hidden">
-                  <img src={studio.image} alt={studio.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-hero" />
+                  <img 
+                    src={studio.image} 
+                    alt={studio.title} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-hero opacity-60 group-hover:opacity-40 transition-opacity duration-500" />
                   <div className="absolute top-4 right-4 flex gap-2">
-                    {studio.isHeated ? <span className="flex items-center gap-1 px-3 py-1 text-accent-foreground text-xs uppercase tracking-wider bg-secondary">
-                         {studio.badgeText || "Heated Options"}
-                      </span> : <span className="flex items-center gap-1 px-3 py-1 text-secondary-foreground text-xs uppercase tracking-wider bg-secondary">RPilates REFORMER Pilates  
-                      </span>}
+                    {studio.isHeated ? (
+                      <span className="flex items-center gap-1 px-3 py-1 text-accent-foreground text-xs uppercase tracking-wider bg-secondary">
+                        {studio.badgeText || "Heated Options"}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 px-3 py-1 text-secondary-foreground text-xs uppercase tracking-wider bg-secondary">
+                        Reformer Pilates
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-10 h-10 rounded-full ${studio.bgColor} flex items-center justify-center`}>
+                    <div className={`w-10 h-10 rounded-full ${studio.bgColor} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
                       <studio.icon className={`w-5 h-5 ${studio.color}`} />
                     </div>
-                    <h3 className="font-serif text-xl">{studio.title}</h3>
+                    <h3 className="font-serif text-xl group-hover:text-accent transition-colors duration-300">{studio.title}</h3>
                   </div>
                   <p className="text-muted-foreground text-sm mb-3">{studio.description}</p>
-                  <Link to="/classes" className="text-accent text-sm font-medium hover:underline">
-                    View Classes →
+                  <Link to="/classes" className="text-accent text-sm font-medium hover:underline inline-flex items-center gap-1 group/link">
+                    View Classes 
+                    <ArrowRight className="w-3 h-3 transition-transform duration-300 group-hover/link:translate-x-1" />
                   </Link>
                 </div>
-              </div>)}
-          </div>
+              </div>
+            ))}
+          </StaggerContainer>
 
-          <div className="text-center mt-12">
+          <AnimatedSection className="text-center mt-12" delay={400}>
             <Link to="/classes">
-              <Button variant="outline" size="lg">
-                View Full Schedule <ArrowRight className="ml-2 w-4 h-4" />
+              <Button variant="outline" size="lg" className="group">
+                View Full Schedule <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Button>
             </Link>
-          </div>
+          </AnimatedSection>
         </div>
       </section>
 
@@ -190,7 +206,7 @@ export default function Index() {
           <img src={marbleTexture} alt="" className="w-full h-full object-cover" />
         </div>
         <div className="relative z-10 container mx-auto px-6">
-          <div className="text-center mb-16">
+          <AnimatedSection className="text-center mb-16">
             <img src={aellaLogo} alt="Aella" className="h-24 w-auto mx-auto mb-2 mix-blend-multiply" />
             <p className="text-accent text-sm uppercase tracking-widest mb-6">by Storm Wellness Club</p>
             <h2 className="heading-section mb-4">
@@ -200,43 +216,43 @@ export default function Index() {
               Open to all—no membership required. Our holistic approach encompasses a wide range of 
               treatments designed to support every step of your wellness journey.
             </p>
-          </div>
+          </AnimatedSection>
 
           {/* Services with Images */}
-          <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <Link to="/spa?category=Facials" className="group relative rounded-sm overflow-hidden h-72 block">
-              <img src={treatmentRoom} alt="Signature Facials" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
+          <StaggerContainer className="grid md:grid-cols-3 gap-6 mb-12" staggerDelay={150}>
+            <Link to="/spa?category=Facials" className="group relative rounded-sm overflow-hidden h-72 block hover-lift">
+              <img src={treatmentRoom} alt="Signature Facials" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent group-hover:from-charcoal/70 transition-all duration-500" />
+              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between transform group-hover:translate-y-0 transition-transform duration-300">
                 <h3 className="font-serif text-xl text-primary-foreground">Signature Facials</h3>
-                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/10 transition-colors">Explore</span>
+                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/20 transition-all duration-300">Explore</span>
               </div>
             </Link>
-            <Link to="/spa?category=Massage" className="group relative rounded-sm overflow-hidden h-72 block">
-              <img src={therapeuticMassage} alt="Therapeutic Massage" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
+            <Link to="/spa?category=Massage" className="group relative rounded-sm overflow-hidden h-72 block hover-lift">
+              <img src={therapeuticMassage} alt="Therapeutic Massage" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent group-hover:from-charcoal/70 transition-all duration-500" />
               <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
                 <h3 className="font-serif text-xl text-primary-foreground">Therapeutic Massage</h3>
-                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/10 transition-colors">Explore</span>
+                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/20 transition-all duration-300">Explore</span>
               </div>
             </Link>
-            <Link to="/spa?category=Body Wraps" className="group relative rounded-sm overflow-hidden h-72 block">
-              <img src={bodyTreatments} alt="Body Treatments" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent" />
+            <Link to="/spa?category=Body Wraps" className="group relative rounded-sm overflow-hidden h-72 block hover-lift">
+              <img src={bodyTreatments} alt="Body Treatments" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent group-hover:from-charcoal/70 transition-all duration-500" />
               <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
                 <h3 className="font-serif text-xl text-primary-foreground">Body Treatments</h3>
-                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/10 transition-colors">Explore</span>
+                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/20 transition-all duration-300">Explore</span>
               </div>
             </Link>
-          </div>
+          </StaggerContainer>
 
-          <div className="text-center">
+          <AnimatedSection className="text-center" delay={300}>
             <Link to="/spa">
-              <Button variant="gold" size="lg">
-                Explore Aella <ArrowRight className="ml-2 w-4 h-4" />
+              <Button variant="gold" size="lg" className="group">
+                Explore Aella <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Button>
             </Link>
-          </div>
+          </AnimatedSection>
         </div>
       </section>
 
@@ -247,10 +263,10 @@ export default function Index() {
         </div>
         <div className="relative z-10 container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div>
-              <img src={sauna} alt="Infrared Sauna" className="rounded-sm shadow-2xl" />
-            </div>
-            <div>
+            <AnimatedSection animation="fade-right">
+              <img src={sauna} alt="Infrared Sauna" className="rounded-sm shadow-2xl" loading="lazy" />
+            </AnimatedSection>
+            <AnimatedSection animation="fade-left" delay={150}>
               <p className="text-gold-light text-sm uppercase tracking-widest mb-4">Member Benefits</p>
               <h2 className="heading-section text-primary-foreground mb-6">
                 A Comprehensive
@@ -266,8 +282,11 @@ export default function Index() {
               <div className="mb-6">
                 <p className="text-gold-light text-xs uppercase tracking-widest mb-3 font-medium">Recovery Suite</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {recoverySuiteAmenities.map(amenity => (
-                    <div key={amenity.label} className="flex items-center gap-2 text-sm text-primary-foreground/90">
+                  {recoverySuiteAmenities.map((amenity, index) => (
+                    <div 
+                      key={amenity.label} 
+                      className="flex items-center gap-2 text-sm text-primary-foreground/90 transition-all duration-300 hover:text-primary-foreground hover:translate-x-1"
+                    >
                       <amenity.icon className="w-4 h-4 text-gold-light" />
                       <span>{amenity.label}</span>
                     </div>
@@ -279,8 +298,11 @@ export default function Index() {
               <div className="mb-10">
                 <p className="text-gold-light text-xs uppercase tracking-widest mb-3 font-medium">Lifestyle & Comfort</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {lifestyleAmenities.map(amenity => (
-                    <div key={amenity.label} className="flex items-center gap-2 text-sm text-primary-foreground/90">
+                  {lifestyleAmenities.map((amenity, index) => (
+                    <div 
+                      key={amenity.label} 
+                      className="flex items-center gap-2 text-sm text-primary-foreground/90 transition-all duration-300 hover:text-primary-foreground hover:translate-x-1"
+                    >
                       <amenity.icon className="w-4 h-4 text-gold-light" />
                       <span>{amenity.label}</span>
                     </div>
@@ -290,17 +312,17 @@ export default function Index() {
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link to="/apply">
-                  <Button variant="gold" size="lg">
+                  <Button variant="gold" size="lg" className="group">
                     Apply Now
                   </Button>
                 </Link>
                 <Link to="/amenities">
-                  <Button variant="hero-outline" size="lg">
-                    View All Amenities
+                  <Button variant="hero-outline" size="lg" className="group">
+                    View All Amenities <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
                   </Button>
                 </Link>
               </div>
-            </div>
+            </AnimatedSection>
           </div>
         </div>
       </section>
@@ -308,10 +330,10 @@ export default function Index() {
       {/* Wellness Philosophy - Science & Soul */}
       <section className="relative py-32 bg-primary text-primary-foreground overflow-hidden">
         <div className="absolute inset-0">
-          <img src={scienceSoulBranding} alt="A blend of science & soul" className="w-full h-full object-cover opacity-30" />
+          <img src={scienceSoulBranding} alt="A blend of science & soul" className="w-full h-full object-cover opacity-30" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-b from-charcoal/90 via-charcoal/80 to-charcoal/90" />
         </div>
-        <div className="relative z-10 container mx-auto px-6 text-center">
+        <AnimatedSection className="relative z-10 container mx-auto px-6 text-center" animation="scale-in">
           <div className="max-w-4xl mx-auto">
             <p className="text-gold-light text-sm uppercase tracking-widest mb-6">Our Philosophy</p>
             <h2 className="heading-section text-primary-foreground mb-8">
@@ -323,17 +345,19 @@ export default function Index() {
               cutting-edge science with mindful, soulful practices to create transformative experiences.
             </p>
           </div>
-        </div>
+        </AnimatedSection>
       </section>
 
       {/* Café Preview */}
       <section className="relative py-24 bg-background overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="relative h-96 rounded-sm overflow-hidden">
-              <img src={avocadoToast} alt="Fresh, healthy cuisine at Storm Café" className="w-full h-full object-cover" />
-            </div>
-            <div>
+            <AnimatedSection animation="fade-right">
+              <div className="relative h-96 rounded-sm overflow-hidden group">
+                <img src={avocadoToast} alt="Fresh, healthy cuisine at Storm Café" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+              </div>
+            </AnimatedSection>
+            <AnimatedSection animation="fade-left" delay={150}>
               <p className="text-accent text-sm uppercase tracking-widest mb-4">The Storm Café</p>
               <h2 className="heading-section mb-6">Nourish From Within</h2>
               <p className="text-muted-foreground mb-8 leading-relaxed">
@@ -341,11 +365,11 @@ export default function Index() {
                 and health-forward cuisine designed to fuel your transformation.
               </p>
               <Link to="/cafe">
-                <Button variant="outline" size="lg">
-                  View Menu & Order <ArrowRight className="ml-2 w-4 h-4" />
+                <Button variant="outline" size="lg" className="group">
+                  View Menu & Order <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </Button>
               </Link>
-            </div>
+            </AnimatedSection>
           </div>
         </div>
       </section>
@@ -353,7 +377,7 @@ export default function Index() {
       {/* Kids Care */}
       <section className="py-24 bg-secondary/30">
         <div className="container mx-auto px-6">
-          <div className="max-w-3xl mx-auto text-center">
+          <AnimatedSection className="max-w-3xl mx-auto text-center">
             <p className="text-accent text-sm uppercase tracking-widest mb-4">For Families</p>
             <h2 className="heading-section mb-6">Storm Kids Care</h2>
             <p className="text-muted-foreground mb-8 leading-relaxed">
@@ -361,20 +385,20 @@ export default function Index() {
               dedicated space. Available to members with a Kids Care add-on.
             </p>
             <Link to="/kids-care">
-              <Button variant="outline" size="lg">
-                Learn More <ArrowRight className="ml-2 w-4 h-4" />
+              <Button variant="outline" size="lg" className="group">
+                Learn More <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Button>
             </Link>
-          </div>
+          </AnimatedSection>
         </div>
       </section>
 
       {/* Final CTA */}
       <section className="py-24 bg-charcoal relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
-          <img src={gymArea1} alt="" className="w-full h-full object-cover" />
+          <img src={gymArea1} alt="" className="w-full h-full object-cover" loading="lazy" />
         </div>
-        <div className="relative z-10 container mx-auto px-6 text-center">
+        <AnimatedSection className="relative z-10 container mx-auto px-6 text-center" animation="scale-in">
           <h2 className="heading-section text-primary-foreground mb-6">
             Begin Your Wellness Journey
           </h2>
@@ -382,11 +406,11 @@ export default function Index() {
             Embark on a journey where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
           </p>
           <Link to="/apply">
-            <Button variant="gold" size="lg">
+            <Button variant="gold" size="lg" className="animate-pulse-soft">
               Apply for Membership
             </Button>
           </Link>
-        </div>
+        </AnimatedSection>
       </section>
     </Layout>;
 }
