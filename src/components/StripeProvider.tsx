@@ -2,18 +2,21 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { useState, useEffect } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
-// Stripe publishable key - must be set via environment variable
-const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+// Cache Stripe instances per publishable key
+const stripePromiseByKey = new Map<string, Promise<Stripe | null>>();
 
-// Single cached stripe instance
-let stripePromise: Promise<Stripe | null> | null = null;
+const getStripePromise = (publishableKey: string) => {
+  const key = publishableKey?.trim();
+  if (!key) return null;
 
-const getStripePromise = () => {
-  if (!stripePromise && STRIPE_PUBLISHABLE_KEY) {
-    stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
-  }
-  return stripePromise;
+  const existing = stripePromiseByKey.get(key);
+  if (existing) return existing;
+
+  const created = loadStripe(key);
+  stripePromiseByKey.set(key, created);
+  return created;
 };
 
 interface StripeProviderProps {
@@ -28,21 +31,46 @@ export const StripeProvider = ({ children, clientSecret }: StripeProviderProps) 
 
   useEffect(() => {
     const initStripe = async () => {
-      if (!STRIPE_PUBLISHABLE_KEY) {
-        console.error('VITE_STRIPE_PUBLISHABLE_KEY environment variable is required');
-        setError('Payment system is being configured. Please refresh the page in a moment.');
-        setIsLoading(false);
-        return;
-      }
-
       if (!clientSecret) {
         setError('Payment session not initialized. Please try again.');
         setIsLoading(false);
         return;
       }
 
+      const getPublishableKey = async (): Promise<string | null> => {
+        // Prefer build-time env when available
+        const envKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined) || '';
+        if (envKey.trim()) return envKey.trim();
+
+        // Fallback: fetch from backend at runtime (publishable key is safe to expose)
+        try {
+          const { data, error } = await supabase.functions.invoke('stripe-config', {
+            body: {},
+          });
+
+          if (error) {
+            console.error('stripe-config invoke error:', error);
+            return null;
+          }
+
+          const keyFromBackend = (data as { publishableKey?: string } | null)?.publishableKey;
+          return keyFromBackend?.trim() ? keyFromBackend.trim() : null;
+        } catch (err) {
+          console.error('stripe-config fetch error:', err);
+          return null;
+        }
+      };
+
+      const publishableKey = await getPublishableKey();
+      if (!publishableKey) {
+        console.error('Stripe publishable key is missing (VITE_STRIPE_PUBLISHABLE_KEY)');
+        setError('Payment system is not configured. Please try again in a moment.');
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const promise = getStripePromise();
+        const promise = getStripePromise(publishableKey);
         if (!promise) {
           setError('Unable to connect to payment provider. Please refresh the page.');
           setIsLoading(false);
@@ -121,11 +149,7 @@ export const StripeProvider = ({ children, clientSecret }: StripeProviderProps) 
     },
   };
 
-  return (
-    <Elements stripe={stripe} options={options}>
-      {children}
-    </Elements>
-  );
+  return <Elements stripe={stripe} options={options}>{children}</Elements>;
 };
 
 export { getStripePromise as stripePromise };

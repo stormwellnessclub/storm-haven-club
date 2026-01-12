@@ -69,7 +69,7 @@ serve(async (req) => {
     // e.g., if today is the 15th, find members who started on the 15th of their start month
     const { data: members, error: membersError } = await supabase
       .from("members")
-      .select("id, user_id, membership_type, membership_start_date")
+      .select("id, user_id, membership_type, membership_start_date, status")
       .eq("status", "active")
       .not("user_id", "is", null);
 
