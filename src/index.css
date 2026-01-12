@@ -408,6 +408,10 @@
     animation: slideInRight 0.4s ease-out forwards;
   }
 
+  .animate-slide-in-left {
+    animation: slideInLeft 0.4s ease-out forwards;
+  }
+
   .animate-scale-in {
     animation: scaleIn 0.3s ease-out forwards;
   }
@@ -416,13 +420,25 @@
     animation: bounceSlight 2s infinite;
   }
 
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-soft {
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
   /* ========================================
      KEYFRAMES
      ======================================== */
   @keyframes fadeUp {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(24px);
     }
     to {
       opacity: 1;
@@ -453,7 +469,18 @@
   @keyframes slideInRight {
     from {
       opacity: 0;
-      transform: translateX(10px);
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
     }
     to {
       opacity: 1;
@@ -464,7 +491,7 @@
   @keyframes scaleIn {
     from {
       opacity: 0;
-      transform: scale(0.95);
+      transform: scale(0.92);
     }
     to {
       opacity: 1;
@@ -477,7 +504,34 @@
       transform: translateY(0);
     }
     50% {
-      transform: translateY(-5px);
+      transform: translateY(-6px);
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes pulseSoft {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 10px hsl(var(--accent) / 0.3);
+    }
+    to {
+      box-shadow: 0 0 20px hsl(var(--accent) / 0.5);
     }
   }
 
@@ -501,6 +555,26 @@
     }
   }
 
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      opacity: 1;
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   /* ========================================
      STAGGER DELAYS
      ======================================== */
@@ -512,6 +586,8 @@
   .stagger-6 { animation-delay: 0.3s; }
   .stagger-7 { animation-delay: 0.35s; }
   .stagger-8 { animation-delay: 0.4s; }
+  .stagger-9 { animation-delay: 0.45s; }
+  .stagger-10 { animation-delay: 0.5s; }
 
   /* ========================================
      TRANSITION UTILITIES
@@ -528,19 +604,23 @@
     @apply transition-all duration-500 ease-out;
   }
 
+  .transition-slower {
+    @apply transition-all duration-700 ease-out;
+  }
+
   /* ========================================
      HOVER UTILITIES
      ======================================== */
   .hover-lift {
-    @apply transition-transform duration-300;
+    @apply transition-all duration-300;
   }
 
   .hover-lift:hover {
-    @apply -translate-y-1;
+    @apply -translate-y-1 shadow-card-hover;
   }
 
   .hover-lift-sm {
-    @apply transition-transform duration-200;
+    @apply transition-all duration-200;
   }
 
   .hover-lift-sm:hover {
@@ -555,6 +635,58 @@
     box-shadow: var(--shadow-gold-hover);
   }
 
+  .hover-scale {
+    @apply transition-transform duration-300;
+  }
+
+  .hover-scale:hover {
+    @apply scale-[1.02];
+  }
+
+  .hover-brightness {
+    @apply transition-all duration-300;
+  }
+
+  .hover-brightness:hover {
+    @apply brightness-110;
+  }
+
+  /* ========================================
+     SCROLL-TRIGGERED REVEAL CLASSES
+     For use with IntersectionObserver
+     ======================================== */
+  .reveal-hidden {
+    @apply opacity-0 translate-y-8;
+  }
+
+  .reveal-visible {
+    @apply opacity-100 translate-y-0;
+  }
+
+  .reveal-left-hidden {
+    @apply opacity-0 -translate-x-8;
+  }
+
+  .reveal-left-visible {
+    @apply opacity-100 translate-x-0;
+  }
+
+  .reveal-right-hidden {
+    @apply opacity-0 translate-x-8;
+  }
+
+  .reveal-right-visible {
+    @apply opacity-100 translate-x-0;
+  }
+
+  .reveal-scale-hidden {
+    @apply opacity-0 scale-95;
+  }
+
+  .reveal-scale-visible {
+    @apply opacity-100 scale-100;
+  }
+
   /* ========================================
      RESPONSIVE VISIBILITY
      ======================================== */
@@ -567,5 +699,32 @@
      ======================================== */
   .sr-only-focusable:focus {
     @apply not-sr-only;
+  }
+
+  /* ========================================
+     REDUCED MOTION
+     ======================================== */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up,
+    .animate-fade-in,
+    .animate-slide-in,
+    .animate-scale-in,
+    .animate-bounce-subtle,
+    .animate-float,
+    .animate-pulse-soft,
+    .animate-glow {
+      animation: none !important;
+    }
+
+    .transition-base,
+    .transition-smooth,
+    .transition-slow,
+    .transition-slower,
+    .hover-lift,
+    .hover-lift-sm,
+    .hover-glow,
+    .hover-scale {
+      transition: none !important;
+    }
   }
 }
