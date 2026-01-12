@@ -51,20 +51,20 @@ export function Navigation() {
     : "text-foreground hover:text-accent";
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navBackground}`}>
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 safe-area-inset ${navBackground}`}>
       <div className="container mx-auto container-padding">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo */}
-          <Link to="/" className="flex-shrink-0 transition-transform duration-300 hover:scale-105">
+          <Link to="/" className="flex-shrink-0 transition-transform duration-300 hover:scale-105 touch-feedback">
             <img
               alt="Storm Wellness Club"
-              className="h-20 w-auto"
+              className="h-16 sm:h-20 w-auto"
               src="/lovable-uploads/da2bfb84-b4c3-4698-8873-616dc85799d4.png"
             />
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-6 xl:gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -164,7 +164,7 @@ export function Navigation() {
 
           {/* Mobile Menu Button */}
           <button
-            className="lg:hidden p-2 touch-target transition-colors rounded-sm hover:bg-accent/10"
+            className="lg:hidden p-2 touch-target flex items-center justify-center transition-colors rounded-sm hover:bg-accent/10 touch-feedback"
             onClick={() => setIsOpen(!isOpen)}
             aria-label="Toggle menu"
             aria-expanded={isOpen}
@@ -179,17 +179,17 @@ export function Navigation() {
 
         {/* Mobile Navigation */}
         <div
-          className={`lg:hidden fixed top-20 left-0 right-0 bg-background border-b border-border shadow-elevated transition-all duration-300 ${
+          className={`lg:hidden fixed top-16 sm:top-20 left-0 right-0 bg-background border-b border-border shadow-elevated transition-all duration-300 max-h-[calc(100vh-4rem)] sm:max-h-[calc(100vh-5rem)] overflow-y-auto ${
             isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
           }`}
         >
-          <div className="container container-padding py-6 flex flex-col gap-4">
+          <div className="container container-padding py-4 sm:py-6 flex flex-col gap-1 safe-area-bottom">
             {navLinks.map((link, index) => (
               <Link
                 key={link.href}
                 to={link.href}
-                className={`text-sm uppercase tracking-widest font-medium py-2 transition-all hover:text-accent hover:translate-x-1 ${
-                  location.pathname === link.href ? "text-accent" : "text-foreground"
+                className={`text-sm uppercase tracking-widest font-medium py-3 px-2 rounded-sm transition-all hover:bg-accent/10 hover:text-accent touch-feedback ${
+                  location.pathname === link.href ? "text-accent bg-accent/5" : "text-foreground"
                 }`}
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
@@ -200,48 +200,48 @@ export function Navigation() {
             <div className="border-t border-border pt-4 mt-2 space-y-2">
               {user ? (
                 <>
-                  <p className="text-muted-foreground text-xs mb-3">{user.email}</p>
-                  <Link to="/member">
-                    <Button variant="default" className="w-full mb-2">
-                      <LayoutDashboard className="w-4 h-4 mr-2" />
+                  <p className="text-muted-foreground text-xs mb-3 px-2">{user.email}</p>
+                  <Link to="/member" className="block">
+                    <Button variant="default" className="w-full justify-start touch-target" size="lg">
+                      <LayoutDashboard className="w-5 h-5 mr-3" />
                       My Portal
                     </Button>
                   </Link>
-                  <Link to="/member/bookings">
-                    <Button variant="outline" className="w-full mb-2">
-                      <CalendarDays className="w-4 h-4 mr-2" />
+                  <Link to="/member/bookings" className="block">
+                    <Button variant="outline" className="w-full justify-start touch-target" size="lg">
+                      <CalendarDays className="w-5 h-5 mr-3" />
                       My Bookings
                     </Button>
                   </Link>
-                  <Link to="/member/credits">
-                    <Button variant="outline" className="w-full mb-2">
-                      <Ticket className="w-4 h-4 mr-2" />
+                  <Link to="/member/credits" className="block">
+                    <Button variant="outline" className="w-full justify-start touch-target" size="lg">
+                      <Ticket className="w-5 h-5 mr-3" />
                       My Credits
                     </Button>
                   </Link>
-                  <Link to="/apply">
-                    <Button variant="outline" className="w-full mb-2">
+                  <Link to="/apply" className="block">
+                    <Button variant="outline" className="w-full justify-start touch-target" size="lg">
                       Membership Application
                     </Button>
                   </Link>
-                  <Button variant="destructive" className="w-full" onClick={handleSignOut}>
-                    <LogOut className="w-4 h-4 mr-2" />
+                  <Button variant="destructive" className="w-full justify-start touch-target" size="lg" onClick={handleSignOut}>
+                    <LogOut className="w-5 h-5 mr-3" />
                     Sign Out
                   </Button>
                 </>
               ) : (
-                <>
-                  <Link to="/auth">
-                    <Button variant="outline" className="w-full mb-2">
+                <div className="flex flex-col gap-2">
+                  <Link to="/auth" className="block">
+                    <Button variant="outline" className="w-full touch-target" size="lg">
                       Sign In
                     </Button>
                   </Link>
-                  <Link to="/apply">
-                    <Button variant="default" className="w-full">
+                  <Link to="/apply" className="block">
+                    <Button variant="default" className="w-full touch-target" size="lg">
                       Apply for Membership
                     </Button>
                   </Link>
-                </>
+                </div>
               )}
             </div>
           </div>
