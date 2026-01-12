@@ -27,6 +27,7 @@ const DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 interface DraftData {
   formData: typeof initialFormData;
   stripeCustomerId: string | null;
+  isCardConfirmed: boolean;
   savedAt: number;
   source?: "local" | "session";
 }
@@ -64,8 +65,8 @@ const initialFormData = {
 };
 
 // Save to BOTH storages for maximum reliability on mobile
-const saveDraft = (formData: typeof initialFormData, stripeCustomerId: string | null) => {
-  const draft: DraftData = { formData, stripeCustomerId, savedAt: Date.now() };
+const saveDraft = (formData: typeof initialFormData, stripeCustomerId: string | null, isCardConfirmed: boolean = false) => {
+  const draft: DraftData = { formData, stripeCustomerId, isCardConfirmed, savedAt: Date.now() };
   const json = JSON.stringify(draft);
   
   try {
@@ -249,11 +250,17 @@ export default function Apply() {
   
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(() => {
     const draft = getInitialDraft();
-    if (draft?.stripeCustomerId) {
+    if (draft?.stripeCustomerId && draft?.isCardConfirmed) {
       console.log("[Apply] Hydrated stripeCustomerId from draft:", draft.stripeCustomerId);
       return draft.stripeCustomerId;
     }
     return null;
+  });
+  
+  // Track whether card was actually confirmed (not just customer created)
+  const [isCardConfirmed, setIsCardConfirmed] = useState<boolean>(() => {
+    const draft = getInitialDraft();
+    return draft?.isCardConfirmed === true;
   });
   
   const isHydrated = useRef(false);
@@ -277,8 +284,9 @@ export default function Apply() {
     
     if (setupSuccess === "true" && customerId) {
       setStripeCustomerId(customerId);
+      setIsCardConfirmed(true);
       // Use formDataRef to get current form state without adding formData as dependency
-      saveDraft(formDataRef.current, customerId);
+      saveDraft(formDataRef.current, customerId, true);
       toast.success("Payment method saved successfully!");
       // Clear URL params without reload
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -290,15 +298,15 @@ export default function Apply() {
     if (!isHydrated.current) return;
     
     const timeoutId = setTimeout(() => {
-      saveDraft(formData, stripeCustomerId);
+      saveDraft(formData, stripeCustomerId, isCardConfirmed);
       setLastSavedAt(Date.now());
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [formData, stripeCustomerId]);
+  }, [formData, stripeCustomerId, isCardConfirmed]);
 
   // Calculate step completion for progress
-  const steps = getStepCompletion(formData, stripeCustomerId);
+  const steps = getStepCompletion(formData, stripeCustomerId, isCardConfirmed);
 
   // Scroll to section helper
   const scrollToSection = (stepId: string) => {
@@ -342,9 +350,10 @@ export default function Apply() {
     }
 
     setIsSavingCard(true);
+    setIsCardConfirmed(false); // Reset card confirmation when starting new setup
 
-    // Save draft immediately
-    saveDraft(formData, stripeCustomerId);
+    // Save draft immediately (mark card as NOT confirmed during setup)
+    saveDraft(formData, stripeCustomerId, false);
     console.log("[Apply] Saved draft before payment setup");
 
     try {
@@ -380,17 +389,18 @@ export default function Apply() {
 
       // Store client secret and customer ID (customer is created at this point)
       // NOTE: Customer ID is created when setup is created, but payment method isn't saved until user completes form
-      // We store it here for use in onPaymentSuccess callback
+      // We store it here for use in onPaymentSuccess callback, but isCardConfirmed stays FALSE
       const customerIdFromResponse = data.customerId || null;
       if (customerIdFromResponse) {
-        // Save to draft so PaymentFormInner can access it
-        saveDraft(formData, customerIdFromResponse);
+        // Save to draft so PaymentFormInner can access it - BUT mark card as NOT confirmed yet
+        saveDraft(formData, customerIdFromResponse, false);
       }
       
       console.log("[Apply] Setting up embedded payment form with client secret");
       setPaymentClientSecret(data.clientSecret);
       setShowPaymentForm(true);
       setIsSavingCard(false);
+      // Do NOT set stripeCustomerId here - wait for card confirmation
       console.log("[Apply] Payment form should now be visible");
     } catch (error) {
       console.error("Error creating payment setup:", error);
@@ -415,8 +425,8 @@ export default function Apply() {
       return;
     }
 
-    // Validate payment method is saved
-    if (!stripeCustomerId) {
+    // Validate payment method is saved AND card is confirmed
+    if (!stripeCustomerId || !isCardConfirmed) {
       toast.error("Please save your payment method before submitting");
       return;
     }
@@ -600,7 +610,7 @@ export default function Apply() {
             <p className="text-primary-foreground/80 text-lg leading-relaxed mb-6">
               Complete the form below to apply for membership. Please ensure all required 
               fields are filled out accurately to help us process your application quickly. 
-              If you have any questions, contact us at contact@stormfitnessandwellness.com.
+              If you have any questions, contact us at admin@stormwellnessclub.com.
             </p>
             <Link to="/memberships">
               <Button variant="gold" size="lg">
@@ -1091,6 +1101,7 @@ export default function Apply() {
             <div ref={(el) => sectionRefs.current["payment"] = el} id="payment-section">
               <PaymentSectionEnhanced
                 stripeCustomerId={stripeCustomerId}
+                isCardConfirmed={isCardConfirmed}
                 showPaymentForm={showPaymentForm}
                 paymentClientSecret={paymentClientSecret}
                 isSavingCard={isSavingCard}
@@ -1100,16 +1111,18 @@ export default function Apply() {
                 onSavePaymentMethod={handleSavePaymentMethod}
                 onPaymentSuccess={(customerId) => {
                   setStripeCustomerId(customerId);
+                  setIsCardConfirmed(true);
                   setShowPaymentForm(false);
                   setPaymentClientSecret(null);
                   toast.success("Payment method saved successfully!");
-                  saveDraft(formData, customerId);
+                  saveDraft(formData, customerId, true);
                   setLastSavedAt(Date.now());
                 }}
                 onPaymentCancel={() => {
                   setShowPaymentForm(false);
                   setPaymentClientSecret(null);
                   setIsSavingCard(false);
+                  // Do NOT reset isCardConfirmed - keep for retry if already confirmed
                 }}
                 onCheckboxChange={handleCheckboxChange}
                 loadDraft={loadDraft}
