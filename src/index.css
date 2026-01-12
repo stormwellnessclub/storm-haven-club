@@ -688,10 +688,175 @@
   }
 
   /* ========================================
-     RESPONSIVE VISIBILITY
+     RESPONSIVE VISIBILITY & TOUCH TARGETS
      ======================================== */
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
+  }
+
+  .touch-target-lg {
+    @apply min-h-[48px] min-w-[48px];
+  }
+
+  /* Touch feedback for mobile */
+  .touch-feedback {
+    @apply active:opacity-80 active:scale-[0.98] transition-all duration-150;
+  }
+
+  /* ========================================
+     MOBILE-FIRST RESPONSIVE UTILITIES
+     ======================================== */
+  
+  /* Mobile text sizing */
+  .mobile-text-balance {
+    text-wrap: balance;
+  }
+
+  /* Stack on mobile, row on desktop */
+  .mobile-stack {
+    @apply flex flex-col gap-4 sm:flex-row sm:gap-6;
+  }
+
+  /* Full width on mobile, auto on desktop */
+  .mobile-full {
+    @apply w-full sm:w-auto;
+  }
+
+  /* Hidden on mobile, visible on tablet+ */
+  .mobile-hidden {
+    @apply hidden sm:block;
+  }
+
+  /* Visible on mobile, hidden on tablet+ */
+  .mobile-only {
+    @apply block sm:hidden;
+  }
+
+  /* Mobile-optimized grid */
+  .mobile-grid-1 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6;
+  }
+
+  .mobile-grid-2 {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6;
+  }
+
+  /* Mobile-safe scrolling */
+  .mobile-scroll-x {
+    @apply overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .mobile-scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe area padding for notched devices */
+  .safe-area-inset {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ========================================
+     RESPONSIVE SPACING HELPERS
+     ======================================== */
+  .gap-responsive {
+    @apply gap-4 sm:gap-6 lg:gap-8;
+  }
+
+  .p-responsive {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+
+  .py-responsive {
+    @apply py-4 sm:py-6 lg:py-8;
+  }
+
+  .px-responsive {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  /* ========================================
+     MOBILE-OPTIMIZED TABLES
+     ======================================== */
+  .table-responsive {
+    @apply w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
+  }
+
+  .table-responsive table {
+    @apply min-w-[600px] sm:min-w-0;
+  }
+
+  /* Card-based table alternative for mobile */
+  .table-as-cards {
+    @apply block sm:table;
+  }
+
+  .table-as-cards tbody {
+    @apply block sm:table-row-group;
+  }
+
+  .table-as-cards tr {
+    @apply block mb-4 p-4 rounded-sm border border-border bg-card sm:table-row sm:mb-0 sm:p-0 sm:bg-transparent sm:border-0;
+  }
+
+  .table-as-cards td {
+    @apply block text-right sm:table-cell sm:text-left;
+  }
+
+  .table-as-cards td::before {
+    content: attr(data-label);
+    @apply float-left font-medium text-muted-foreground sm:hidden;
+  }
+
+  /* ========================================
+     BOTTOM SHEET MODAL (Mobile)
+     ======================================== */
+  .bottom-sheet {
+    @apply fixed inset-x-0 bottom-0 z-50 rounded-t-xl bg-background p-6 shadow-elevated
+           transform translate-y-full
+           sm:relative sm:inset-auto sm:translate-y-0 sm:rounded-lg;
+  }
+
+  .bottom-sheet.open {
+    @apply translate-y-0;
+  }
+
+  .bottom-sheet-handle {
+    @apply w-12 h-1.5 bg-border rounded-full mx-auto mb-4 sm:hidden;
+  }
+
+  /* ========================================
+     IMAGE OPTIMIZATION CLASSES
+     ======================================== */
+  .img-responsive {
+    @apply w-full h-auto max-w-full;
+  }
+
+  .img-lazy {
+    @apply bg-muted/30 transition-opacity duration-300;
+  }
+
+  .img-lazy.loaded {
+    @apply opacity-100;
+  }
+
+  /* Aspect ratio containers */
+  .aspect-card {
+    @apply aspect-[4/3] sm:aspect-[16/10];
+  }
+
+  .aspect-hero {
+    @apply aspect-[9/16] sm:aspect-[16/9];
+  }
+
+  .aspect-square-mobile {
+    @apply aspect-square sm:aspect-auto;
   }
 
   /* ========================================
@@ -699,6 +864,12 @@
      ======================================== */
   .sr-only-focusable:focus {
     @apply not-sr-only;
+  }
+
+  /* Skip to content link */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] 
+           focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-sm;
   }
 
   /* ========================================
@@ -723,8 +894,20 @@
     .hover-lift,
     .hover-lift-sm,
     .hover-glow,
-    .hover-scale {
+    .hover-scale,
+    .touch-feedback {
       transition: none !important;
+    }
+  }
+
+  /* ========================================
+     DARK MODE MOBILE OPTIMIZATIONS
+     ======================================== */
+  @media (max-width: 640px) {
+    .dark {
+      /* Slightly increase contrast on mobile for readability */
+      --foreground: 48 16% 88%;
+      --muted-foreground: 0 1% 70%;
     }
   }
 }
