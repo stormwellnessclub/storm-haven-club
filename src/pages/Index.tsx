@@ -207,11 +207,13 @@ export default function Index() {
       <section className="relative py-24 bg-secondary/30 overflow-hidden">
         <div className="container mx-auto px-6">
           <AnimatedSection className="text-center mb-12">
-            <img 
-              src={aellaLogoTransparent} 
-              alt="Aella by Storm Wellness Club" 
-              className="h-48 md:h-64 w-auto mx-auto -mb-4" 
-            />
+            <div className="inline-block bg-secondary/30 rounded-sm">
+              <img 
+                src={aellaLogoTransparent} 
+                alt="Aella by Storm Wellness Club" 
+                className="h-48 md:h-64 w-auto mx-auto -mb-4" 
+              />
+            </div>
             <h2 className="heading-section mb-4">
               A Sanctuary for Renewal & Restoration
             </h2>
