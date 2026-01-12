@@ -124,7 +124,7 @@ export default function PaymentReports() {
   const { data: paymentMetrics, isLoading: metricsLoading, refetch: refetchMetrics } = useQuery({
     queryKey: ["payment-metrics", periodDays],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_payment_metrics", {
+      const { data, error } = await (supabase.rpc as any)("get_payment_metrics", {
         p_start_date: startDate.toISOString(),
         p_end_date: endDate.toISOString(),
       });
@@ -138,7 +138,7 @@ export default function PaymentReports() {
   const { data: subscriptionHealth, isLoading: healthLoading, refetch: refetchHealth } = useQuery({
     queryKey: ["subscription-health"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_subscription_health");
+      const { data, error } = await (supabase.rpc as any)("get_subscription_health");
 
       if (error) throw error;
       return data as SubscriptionHealth;
@@ -149,7 +149,7 @@ export default function PaymentReports() {
   const { data: dunningEfficiency, isLoading: dunningLoading, refetch: refetchDunning } = useQuery({
     queryKey: ["dunning-efficiency", periodDays],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_dunning_efficiency", {
+      const { data, error } = await (supabase.rpc as any)("get_dunning_efficiency", {
         p_start_date: startDate.toISOString(),
         p_end_date: endDate.toISOString(),
       });

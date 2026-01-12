@@ -100,7 +100,7 @@ export default function PaymentHistory() {
     queryFn: async () => {
       if (!membership?.id) return [];
 
-      const { data, error } = await supabase.rpc("get_member_payment_history", {
+      const { data, error } = await (supabase.rpc as any)("get_member_payment_history", {
         p_member_id: membership.id,
         p_limit: 100,
       });
