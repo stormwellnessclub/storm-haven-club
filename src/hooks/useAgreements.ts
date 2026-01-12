@@ -42,15 +42,19 @@ export interface UpdateAgreementData extends Partial<CreateAgreementData> {
   id: string;
 }
 
-export function useAgreements(agreementType?: string) {
+export function useAgreements(agreementType?: string, includeInactive?: boolean) {
   return useQuery({
-    queryKey: ["agreements", agreementType],
+    queryKey: ["agreements", agreementType, includeInactive],
     queryFn: async (): Promise<Agreement[]> => {
       try {
         let query = (supabase.from as any)("agreements")
           .select("*")
-          .eq("is_active", true)
           .order("display_order", { ascending: true });
+
+        // Only filter by is_active if includeInactive is not true
+        if (!includeInactive) {
+          query = query.eq("is_active", true);
+        }
 
         if (agreementType) {
           query = query.eq("agreement_type", agreementType);

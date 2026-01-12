@@ -21,7 +21,7 @@
     --card: 48 16% 86%; /* Limestone Haze - slightly lighter */
     --card-foreground: 38 30% 8%; /* Smoked Umber */
 
-    --popover: 48 16% 86%;
+    --popover: 48 16% 88%;
     --popover-foreground: 38 30% 8%;
 
     --primary: 38 30% 8%; /* Smoked Umber */
@@ -46,23 +46,27 @@
     --radius: 0.25rem;
 
     /* Custom brand tokens */
-    --gold: 38 55% 85%; /* Golden Dune */
-    --gold-light: 38 55% 90%; /* Golden Dune - lighter */
+    --gold: 38 55% 65%; /* Refined gold for better contrast */
+    --gold-light: 38 55% 72%; /* Adjusted for readability */
+    --gold-contrast: 38 65% 60%; /* High contrast gold for dark backgrounds */
     --charcoal: 38 30% 8%; /* Smoked Umber */
     --cream: 48 16% 84%; /* Limestone Haze */
     --cream-dark: 38 20% 68%; /* Still Sand */
     --warm-gray: 0 1% 78%; /* Silver Drift */
 
     /* Gradients using brand colors */
-    --gradient-gold: linear-gradient(135deg, hsl(38 55% 85%), hsl(38 55% 90%));
+    --gradient-gold: linear-gradient(135deg, hsl(38 55% 65%), hsl(38 55% 72%));
     --gradient-dark: linear-gradient(180deg, hsl(38 30% 8%), hsl(38 27% 33%));
     --gradient-cream: linear-gradient(180deg, hsl(48 16% 84%), hsl(38 20% 68%));
     --gradient-hero: linear-gradient(180deg, transparent 0%, hsl(38 30% 8% / 0.7) 100%);
 
-    /* Shadows using brand colors */
+    /* Enhanced shadow system for depth hierarchy */
     --shadow-soft: 0 4px 20px hsl(38 30% 8% / 0.08);
     --shadow-card: 0 2px 12px hsl(38 30% 8% / 0.06);
-    --shadow-gold: 0 4px 24px hsl(38 55% 85% / 0.25);
+    --shadow-card-hover: 0 8px 30px hsl(38 30% 8% / 0.12);
+    --shadow-gold: 0 4px 24px hsl(38 55% 65% / 0.25);
+    --shadow-gold-hover: 0 8px 32px hsl(38 55% 65% / 0.35);
+    --shadow-elevated: 0 12px 40px hsl(38 30% 8% / 0.15);
 
     /* Sidebar */
     --sidebar-background: 48 16% 86%;
@@ -82,7 +86,7 @@
     --card: 38 27% 15%; /* Earth Smoke - dark mode card */
     --card-foreground: 48 16% 84%;
 
-    --popover: 38 27% 15%;
+    --popover: 38 27% 12%;
     --popover-foreground: 48 16% 84%;
 
     --primary: 48 16% 84%; /* Limestone Haze - inverted in dark */
@@ -104,6 +108,10 @@
     --input: 38 20% 25%;
     --ring: 38 55% 75%;
 
+    --gold: 38 55% 70%;
+    --gold-light: 38 55% 75%;
+    --gold-contrast: 38 65% 70%;
+
     --sidebar-background: 38 30% 8%;
     --sidebar-foreground: 48 16% 84%;
     --sidebar-primary: 48 16% 84%;
@@ -123,58 +131,263 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Montserrat', sans-serif;
+    font-size: clamp(0.875rem, 0.5vw + 0.75rem, 1rem);
+    line-height: 1.6;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Cormorant Garamond', serif;
-    @apply font-medium tracking-tight;
+    @apply font-medium;
+    letter-spacing: 0.02em;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Focus visible styles for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }
 
 @layer components {
+  /* ========================================
+     TYPOGRAPHY SYSTEM - Fluid Scaling
+     ======================================== */
   .heading-display {
     font-family: 'Cormorant Garamond', serif;
-    @apply text-4xl md:text-5xl lg:text-6xl font-light tracking-tight;
+    font-size: clamp(2.5rem, 5vw + 1rem, 4rem);
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+    @apply font-light tracking-tight;
   }
 
   .heading-section {
     font-family: 'Cormorant Garamond', serif;
-    @apply text-3xl md:text-4xl font-light tracking-tight;
+    font-size: clamp(1.75rem, 3vw + 0.5rem, 2.5rem);
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    @apply font-light tracking-tight;
+  }
+
+  .heading-card {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.25rem, 2vw + 0.25rem, 1.5rem);
+    line-height: 1.3;
+    @apply font-medium;
+  }
+
+  .heading-subsection {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.125rem, 1.5vw + 0.5rem, 1.375rem);
+    line-height: 1.4;
+    @apply font-medium;
   }
 
   .text-elegant {
     font-family: 'Cormorant Garamond', serif;
-    @apply text-lg md:text-xl font-normal;
+    font-size: clamp(1rem, 1vw + 0.5rem, 1.25rem);
+    @apply font-normal leading-relaxed;
   }
 
+  .text-body {
+    font-size: clamp(0.875rem, 0.5vw + 0.75rem, 1rem);
+    @apply leading-relaxed;
+  }
+
+  .text-small {
+    font-size: clamp(0.75rem, 0.25vw + 0.625rem, 0.875rem);
+    @apply leading-normal;
+  }
+
+  /* ========================================
+     SPACING UTILITIES - Responsive
+     ======================================== */
+  .section-padding {
+    @apply py-16 sm:py-20 md:py-24 lg:py-32;
+  }
+
+  .section-padding-sm {
+    @apply py-12 sm:py-16 md:py-20;
+  }
+
+  .container-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  .card-padding {
+    @apply p-4 sm:p-6 md:p-8;
+  }
+
+  /* ========================================
+     DECORATIVE ELEMENTS
+     ======================================== */
   .gold-underline {
     @apply relative inline-block;
   }
   
   .gold-underline::after {
     content: '';
-    @apply absolute bottom-0 left-0 w-full h-0.5 bg-accent;
+    @apply absolute bottom-0 left-0 w-full h-0.5 bg-accent transition-all duration-300;
   }
 
+  .gold-underline:hover::after {
+    @apply h-1;
+  }
+
+  /* Gold text with proper contrast on dark backgrounds */
+  .text-gold-contrast {
+    color: hsl(var(--gold-contrast));
+  }
+
+  /* ========================================
+     CARD COMPONENTS
+     ======================================== */
   .card-luxury {
-    @apply bg-card rounded-sm border border-border shadow-card transition-all duration-300;
+    @apply bg-card rounded-sm border border-border transition-all duration-300;
+    box-shadow: var(--shadow-card);
   }
 
   .card-luxury:hover {
-    @apply shadow-soft -translate-y-1;
+    box-shadow: var(--shadow-card-hover);
+    @apply -translate-y-1;
   }
 
+  .card-glass {
+    @apply bg-card/80 backdrop-blur-md rounded-sm border border-border/50;
+  }
+
+  .card-elevated {
+    @apply bg-card rounded-sm border border-border;
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* ========================================
+     FILTER BADGES
+     ======================================== */
   .filter-badge {
     @apply px-4 py-2 text-sm font-medium rounded-sm border border-border bg-background 
-           hover:bg-secondary transition-colors cursor-pointer;
+           hover:bg-secondary transition-all duration-200 cursor-pointer;
+  }
+
+  .filter-badge:hover {
+    @apply -translate-y-0.5;
   }
 
   .filter-badge-active {
     @apply bg-primary text-primary-foreground border-primary;
   }
+
+  /* ========================================
+     FORM ENHANCEMENTS
+     ======================================== */
+  .input-focus-gold {
+    @apply focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background focus:border-accent;
+  }
+
+  .form-label {
+    @apply text-sm font-medium text-foreground mb-1.5 block;
+  }
+
+  .form-error {
+    @apply text-sm text-destructive mt-1;
+  }
+
+  /* ========================================
+     BUTTON ENHANCEMENTS
+     ======================================== */
+  .btn-press {
+    @apply active:scale-[0.98] transition-transform;
+  }
+
+  .btn-ripple {
+    @apply relative overflow-hidden;
+  }
+
+  .btn-ripple::after {
+    content: '';
+    @apply absolute inset-0 opacity-0 bg-white/20 transition-opacity;
+  }
+
+  .btn-ripple:active::after {
+    @apply opacity-100;
+  }
+
+  /* ========================================
+     NAVIGATION
+     ======================================== */
+  .nav-link {
+    @apply text-xs uppercase tracking-widest font-medium transition-colors relative;
+  }
+
+  .nav-link::after {
+    content: '';
+    @apply absolute -bottom-1 left-0 w-0 h-0.5 bg-accent transition-all duration-300;
+  }
+
+  .nav-link:hover::after,
+  .nav-link.active::after {
+    @apply w-full;
+  }
+
+  /* ========================================
+     SKELETON LOADING
+     ======================================== */
+  .skeleton {
+    @apply bg-muted/30 rounded animate-pulse;
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted) / 0.2) 0%,
+      hsl(var(--muted) / 0.4) 50%,
+      hsl(var(--muted) / 0.2) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* ========================================
+     SCROLL INDICATOR
+     ======================================== */
+  .scroll-indicator {
+    @apply w-6 h-10 border-2 border-primary-foreground/30 rounded-full flex justify-center pt-2;
+  }
+
+  .scroll-indicator::after {
+    content: '';
+    @apply w-1 h-2 bg-primary-foreground/50 rounded-full;
+    animation: scroll-bounce 2s infinite;
+  }
+
+  /* ========================================
+     IMAGE TREATMENTS
+     ======================================== */
+  .image-cover {
+    @apply w-full h-full object-cover;
+  }
+
+  .image-hover-zoom {
+    @apply transition-transform duration-500;
+  }
+
+  .image-hover-zoom:hover {
+    @apply scale-105;
+  }
+
+  .image-overlay-gradient {
+    @apply absolute inset-0;
+    background: var(--gradient-hero);
+  }
 }
 
 @layer utilities {
+  /* ========================================
+     ANIMATION UTILITIES
+     ======================================== */
   .animate-fade-up {
     animation: fadeUp 0.6s ease-out forwards;
   }
@@ -183,6 +396,29 @@
     animation: fadeIn 0.8s ease-out forwards;
   }
 
+  .animate-fade-in-fast {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.4s ease-out forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.4s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+
+  .animate-bounce-subtle {
+    animation: bounceSlight 2s infinite;
+  }
+
+  /* ========================================
+     KEYFRAMES
+     ======================================== */
   @keyframes fadeUp {
     from {
       opacity: 0;
@@ -203,9 +439,133 @@
     }
   }
 
-  .stagger-1 { animation-delay: 0.1s; }
-  .stagger-2 { animation-delay: 0.2s; }
-  .stagger-3 { animation-delay: 0.3s; }
-  .stagger-4 { animation-delay: 0.4s; }
-  .stagger-5 { animation-delay: 0.5s; }
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes bounceSlight {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes scroll-bounce {
+    0%, 100% {
+      opacity: 0.5;
+      transform: translateY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(4px);
+    }
+  }
+
+  /* ========================================
+     STAGGER DELAYS
+     ======================================== */
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
+  .stagger-7 { animation-delay: 0.35s; }
+  .stagger-8 { animation-delay: 0.4s; }
+
+  /* ========================================
+     TRANSITION UTILITIES
+     ======================================== */
+  .transition-base {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .transition-smooth {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .transition-slow {
+    @apply transition-all duration-500 ease-out;
+  }
+
+  /* ========================================
+     HOVER UTILITIES
+     ======================================== */
+  .hover-lift {
+    @apply transition-transform duration-300;
+  }
+
+  .hover-lift:hover {
+    @apply -translate-y-1;
+  }
+
+  .hover-lift-sm {
+    @apply transition-transform duration-200;
+  }
+
+  .hover-lift-sm:hover {
+    @apply -translate-y-0.5;
+  }
+
+  .hover-glow {
+    @apply transition-shadow duration-300;
+  }
+
+  .hover-glow:hover {
+    box-shadow: var(--shadow-gold-hover);
+  }
+
+  /* ========================================
+     RESPONSIVE VISIBILITY
+     ======================================== */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* ========================================
+     ACCESSIBILITY
+     ======================================== */
+  .sr-only-focusable:focus {
+    @apply not-sr-only;
+  }
 }
