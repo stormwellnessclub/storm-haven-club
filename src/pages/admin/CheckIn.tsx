@@ -180,32 +180,60 @@ export default function CheckIn() {
       setIsCheckingIn(true);
     }
 
-    const notes = override 
-      ? `OVERRIDE: Payment issue - checked in by admin (${user.email})`
-      : null;
+    try {
+      // Check for duplicate check-in (within last 30 minutes)
+      const { data: existingCheckIn, error: checkError } = await supabase.rpc('check_for_duplicate_check_in', {
+        p_member_id: selectedMember.id,
+        p_check_in_window_minutes: 30
+      });
 
-    const { error } = await supabase.from("check_ins").insert({
-      member_id: selectedMember.id,
-      checked_in_by: user.id,
-      notes,
-    });
+      if (checkError) {
+        console.error('Error checking for duplicate check-in:', checkError);
+        // Continue with check-in if check fails
+      }
 
-    setIsCheckingIn(false);
-    setIsOverriding(false);
+      if (existingCheckIn) {
+        // Duplicate check-in found
+        setIsCheckingIn(false);
+        setIsOverriding(false);
+        toast.warning(`${selectedMember.first_name} ${selectedMember.last_name} is already checked in (within last 30 minutes)`);
+        fetchRecentCheckIns();
+        fetchTodayStats();
+        return;
+      }
 
-    if (error) {
-      toast.error("Check-in failed");
-      return;
+      const notes = override 
+        ? `OVERRIDE: Payment issue - checked in by admin (${user.email})`
+        : null;
+
+      const { error } = await supabase.from("check_ins").insert({
+        member_id: selectedMember.id,
+        checked_in_by: user.id,
+        notes,
+      });
+
+      setIsCheckingIn(false);
+      setIsOverriding(false);
+
+      if (error) {
+        toast.error("Check-in failed");
+        return;
+      }
+
+      if (override) {
+        toast.warning(`${selectedMember.first_name} ${selectedMember.last_name} checked in with OVERRIDE. Payment issue noted.`);
+      } else {
+        toast.success(`${selectedMember.first_name} ${selectedMember.last_name} checked in!`);
+      }
+      setMemberCheckInCount((prev) => prev + 1);
+      fetchRecentCheckIns();
+      fetchTodayStats();
+    } catch (error: any) {
+      console.error('Check-in error:', error);
+      setIsCheckingIn(false);
+      setIsOverriding(false);
+      toast.error(error?.message || "Check-in failed");
     }
-
-    if (override) {
-      toast.warning(`${selectedMember.first_name} ${selectedMember.last_name} checked in with OVERRIDE. Payment issue noted.`);
-    } else {
-      toast.success(`${selectedMember.first_name} ${selectedMember.last_name} checked in!`);
-    }
-    setMemberCheckInCount((prev) => prev + 1);
-    fetchRecentCheckIns();
-    fetchTodayStats();
   };
 
   const getStatusConfig = (status: MemberStatus) => {

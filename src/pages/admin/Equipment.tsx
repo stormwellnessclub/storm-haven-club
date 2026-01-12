@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Loader2, Plus, Edit, Trash2, Save, X, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const EQUIPMENT_CATEGORIES = [
   { value: "cardio", label: "Cardio" },
@@ -122,9 +123,52 @@ export default function Equipment() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // TODO: Implement Supabase Storage upload
-    // For now, just show a message
-    toast.info("Image upload feature coming soon. Please provide a URL manually.");
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Please upload a JPG, PNG, WebP, or GIF image.");
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Please upload an image smaller than 10MB.");
+      return;
+    }
+
+    try {
+      const fileExt = file.name.split(".").pop() || "jpg";
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `equipment/${fileName}`;
+
+      // Upload file to storage
+      const { error: uploadError } = await supabase.storage
+        .from("equipment-images")
+        .upload(filePath, file, {
+          upsert: true,
+          cacheControl: "3600",
+        });
+
+      if (uploadError) {
+        console.error("[Equipment Image Upload] Storage error:", uploadError);
+        toast.error("Failed to upload image. Please try again.");
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("equipment-images")
+        .getPublicUrl(filePath);
+
+      const imageUrl = `${urlData.publicUrl}?t=${Date.now()}`; // Cache bust
+
+      // Update form data with the uploaded image URL
+      setFormData({ ...formData, image_url: imageUrl });
+      toast.success("Image uploaded successfully!");
+    } catch (error: any) {
+      console.error("[Equipment Image Upload] Error:", error);
+      toast.error(error.message || "Failed to upload image. Please try again.");
+    }
   };
 
   if (isLoading) {

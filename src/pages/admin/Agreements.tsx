@@ -7,12 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAgreements, useForms, useCreateAgreement, useUpdateAgreement, useDeleteAgreement, type Agreement, type Form } from "@/hooks/useAgreements";
 import { useState } from "react";
-import { Loader2, Plus, Edit, Trash2, Save, X, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Save, X, FileText, CheckCircle, AlertCircle, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -146,6 +147,57 @@ function AgreementManagement() {
     }
   };
 
+  const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (file.type !== "application/pdf") {
+      toast.error("Please upload a PDF file.");
+      return;
+    }
+
+    // Validate file size (max 50MB for PDFs)
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Please upload a PDF smaller than 50MB.");
+      return;
+    }
+
+    try {
+      const fileExt = file.name.split(".").pop() || "pdf";
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `agreements/${fileName}`;
+
+      // Upload file to storage
+      const { error: uploadError } = await supabase.storage
+        .from("agreements")
+        .upload(filePath, file, {
+          upsert: true,
+          cacheControl: "3600",
+        });
+
+      if (uploadError) {
+        console.error("[Agreement PDF Upload] Storage error:", uploadError);
+        toast.error("Failed to upload PDF. Please try again.");
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("agreements")
+        .getPublicUrl(filePath);
+
+      const pdfUrl = `${urlData.publicUrl}?t=${Date.now()}`; // Cache bust
+
+      // Update form data with the uploaded PDF URL
+      setFormData({ ...formData, pdf_url: pdfUrl });
+      toast.success("PDF uploaded successfully!");
+    } catch (error: any) {
+      console.error("[Agreement PDF Upload] Error:", error);
+      toast.error(error.message || "Failed to upload PDF. Please try again.");
+    }
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -236,16 +288,33 @@ function AgreementManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="pdf_url">PDF Filename *</Label>
-                  <Input
-                    id="pdf_url"
-                    value={formData.pdf_url}
-                    onChange={(e) => setFormData({ ...formData, pdf_url: e.target.value })}
-                    placeholder="e.g., membership-agreement.pdf"
-                    required
-                  />
+                  <Label htmlFor="pdf_url">PDF URL *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="pdf_url"
+                      value={formData.pdf_url}
+                      onChange={(e) => setFormData({ ...formData, pdf_url: e.target.value })}
+                      placeholder="https://example.com/agreement.pdf or upload file"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('pdf-upload')?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload PDF
+                    </Button>
+                    <input
+                      id="pdf-upload"
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      onChange={handlePDFUpload}
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Filename should match a file in src/assets/agreements/
+                    Upload a PDF file or provide a URL to an existing PDF
                   </p>
                 </div>
 
