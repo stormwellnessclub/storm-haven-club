@@ -710,7 +710,7 @@ serve(async (req) => {
           // Check if this is an annual fee subscription or membership subscription
           // Annual fee subscriptions: price_1SlA2BLyZrsSqLhs8VX17F0C (women), price_1SlA2RLyZrsSqLhsK3XQuANN (men)
           const annualFeePriceIds = ['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN'];
-          const isAnnualFeeInvoice = invoice.lines?.data?.some(line => 
+          const isAnnualFeeInvoice = invoice.lines?.data?.some((line: Stripe.InvoiceLineItem) => 
             line.price && annualFeePriceIds.includes(line.price.id as string)
           ) || false;
 
@@ -863,7 +863,7 @@ serve(async (req) => {
           // Find member by subscription ID
           const { data: memberData, error: memberError } = await supabase
             .from('members')
-            .select('id, status')
+            .select('id, status, email, first_name, last_name')
             .eq('stripe_subscription_id', invoice.subscription as string)
             .maybeSingle();
 
