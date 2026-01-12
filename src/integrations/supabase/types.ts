@@ -1740,6 +1740,78 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_attempts: {
+        Row: {
+          amount: number
+          attempt_number: number | null
+          created_at: string | null
+          currency: string | null
+          decline_code: string | null
+          decline_reason: string | null
+          failed_at: string | null
+          failure_code: string | null
+          failure_message: string | null
+          id: string
+          invoice_id: string | null
+          invoice_number: string | null
+          member_id: string | null
+          next_retry_at: string | null
+          status: string
+          succeeded_at: string | null
+        }
+        Insert: {
+          amount: number
+          attempt_number?: number | null
+          created_at?: string | null
+          currency?: string | null
+          decline_code?: string | null
+          decline_reason?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          id?: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          member_id?: string | null
+          next_retry_at?: string | null
+          status: string
+          succeeded_at?: string | null
+        }
+        Update: {
+          amount?: number
+          attempt_number?: number | null
+          created_at?: string | null
+          currency?: string | null
+          decline_code?: string | null
+          decline_reason?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          id?: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          member_id?: string | null
+          next_retry_at?: string | null
+          status?: string
+          succeeded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_attempts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_attempts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address_line1: string | null
@@ -2324,6 +2396,18 @@ export type Database = {
         Returns: Json
       }
       current_user_email: { Args: never; Returns: string }
+      get_dunning_efficiency: {
+        Args: { p_end_date: string; p_start_date: string }
+        Returns: Json
+      }
+      get_member_payment_history: {
+        Args: { p_limit?: number; p_member_id: string }
+        Returns: Json
+      }
+      get_payment_metrics: {
+        Args: { p_end_date: string; p_start_date: string }
+        Returns: Json
+      }
       get_scheduled_functions_config: {
         Args: never
         Returns: {
@@ -2331,6 +2415,7 @@ export type Database = {
           supabase_url: string
         }[]
       }
+      get_subscription_health: { Args: never; Returns: Json }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
