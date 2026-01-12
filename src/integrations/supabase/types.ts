@@ -1812,6 +1812,60 @@ export type Database = {
           },
         ]
       }
+      payment_method_updates: {
+        Row: {
+          card_brand: string | null
+          card_exp_month: number | null
+          card_exp_year: number | null
+          card_last4: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          is_default: boolean | null
+          member_id: string | null
+          payment_method_id: string | null
+        }
+        Insert: {
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          is_default?: boolean | null
+          member_id?: string | null
+          payment_method_id?: string | null
+        }
+        Update: {
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          is_default?: boolean | null
+          member_id?: string | null
+          payment_method_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_method_updates_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_method_updates_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address_line1: string | null
@@ -2078,6 +2132,54 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      subscription_status_history: {
+        Row: {
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string | null
+          id: string
+          member_id: string | null
+          new_status: string
+          old_status: string | null
+          stripe_event_id: string | null
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          member_id?: string | null
+          new_status: string
+          old_status?: string | null
+          stripe_event_id?: string | null
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          member_id?: string | null
+          new_status?: string
+          old_status?: string | null
+          stripe_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_status_history_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_status_history_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -2451,6 +2553,23 @@ export type Database = {
           user_id: string
         }[]
       }
+      log_payment_attempt: {
+        Args: {
+          p_amount: number
+          p_attempt_number?: number
+          p_currency: string
+          p_decline_code?: string
+          p_decline_reason?: string
+          p_failure_code?: string
+          p_failure_message?: string
+          p_invoice_id: string
+          p_invoice_number: string
+          p_member_id: string
+          p_next_retry_at?: string
+          p_status: string
+        }
+        Returns: string
+      }
       process_member_scan: {
         Args: {
           p_auto_check_in?: boolean
@@ -2461,6 +2580,29 @@ export type Database = {
           p_scanned_by: string
         }
         Returns: Json
+      }
+      track_payment_method_update: {
+        Args: {
+          p_card_brand?: string
+          p_card_exp_month?: number
+          p_card_exp_year?: number
+          p_card_last4?: string
+          p_event_type: string
+          p_is_default?: boolean
+          p_member_id: string
+          p_payment_method_id: string
+        }
+        Returns: string
+      }
+      update_subscription_status_with_history: {
+        Args: {
+          p_change_reason?: string
+          p_changed_by?: string
+          p_member_id: string
+          p_new_status: string
+          p_stripe_event_id?: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
