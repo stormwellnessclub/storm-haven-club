@@ -19,12 +19,12 @@ const LOADING_MESSAGES = [
 
 interface PaymentFormProps {
   clientSecret: string;
+  customerId: string; // Pass customerId directly instead of relying on draft
   onSuccess: (customerId: string) => void;
   onCancel: () => void;
-  loadDraft: () => { stripeCustomerId?: string | null } | null;
 }
 
-function PaymentFormInner({ clientSecret, onSuccess, onCancel, loadDraft }: PaymentFormProps) {
+function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,13 +77,7 @@ function PaymentFormInner({ clientSecret, onSuccess, onCancel, loadDraft }: Paym
       }
 
       if (setupIntent) {
-        // Get customer ID from setup intent (customer ID is created when setup intent is created)
-        // The customer ID is stored when the setup is created, so we need to get it from the response
-        // Since we can't get it from setupIntent directly, we need to store it when setup is created
-        // For now, get it from draft (which should have been set when setup was created)
-        const draft = loadDraft();
-        const customerId = draft?.stripeCustomerId || (setupIntent as any).customer || "";
-        
+        // Use the customerId passed directly from parent (set when setup was created)
         if (!customerId) {
           throw new Error("Unable to determine customer ID after payment method save");
         }
@@ -179,7 +173,6 @@ interface PaymentSectionEnhancedProps {
   onPaymentSuccess: (customerId: string) => void;
   onPaymentCancel: () => void;
   onCheckboxChange: (field: string, checked: boolean) => void;
-  loadDraft: () => { stripeCustomerId?: string | null } | null;
 }
 
 export function PaymentSectionEnhanced({
@@ -195,7 +188,6 @@ export function PaymentSectionEnhanced({
   onPaymentSuccess,
   onPaymentCancel,
   onCheckboxChange,
-  loadDraft,
 }: PaymentSectionEnhancedProps) {
   // Calculate section progress - use isCardConfirmed instead of just stripeCustomerId
   const paymentSteps = [
@@ -333,9 +325,9 @@ export function PaymentSectionEnhanced({
               <StripeProvider clientSecret={paymentClientSecret}>
                 <PaymentFormInner
                   clientSecret={paymentClientSecret}
+                  customerId={stripeCustomerId || ""}
                   onSuccess={onPaymentSuccess}
                   onCancel={onPaymentCancel}
-                  loadDraft={loadDraft}
                 />
               </StripeProvider>
             </div>
