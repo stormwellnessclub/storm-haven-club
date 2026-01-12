@@ -3,11 +3,11 @@ import { MemberSidebar } from "./MemberSidebar";
 import { AnnualFeeNotice } from "./AnnualFeeNotice";
 import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
+import { PWAInstallPrompt } from "./PWAInstallPrompt";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
-
 interface MemberLayoutProps {
   children: React.ReactNode;
   title?: string;
@@ -57,6 +57,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
                 </Button>
               </div>
             </header>
+            <PWAInstallPrompt />
             <main className="p-4 sm:p-6 safe-area-bottom">
               {children}
             </main>
