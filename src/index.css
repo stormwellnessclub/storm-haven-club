@@ -57,7 +57,7 @@
     --warm-gray: 0 1% 78%; /* Silver Drift */
 
     /* Gradients using brand colors */
-    --gradient-gold: linear-gradient(135deg, hsl(43 85% 55%), hsl(45 90% 65%));
+    --gradient-gold: linear-gradient(135deg, hsl(38 45% 58%), hsl(38 50% 70%));
     --gradient-dark: linear-gradient(180deg, hsl(38 30% 8%), hsl(38 27% 33%));
     --gradient-cream: linear-gradient(180deg, hsl(48 16% 84%), hsl(38 20% 68%));
     --gradient-hero: linear-gradient(180deg, transparent 0%, hsl(38 30% 8% / 0.7) 100%);
@@ -110,9 +110,9 @@
     --input: 38 20% 25%;
     --ring: 38 55% 75%;
 
-    --gold: 43 85% 60%;
-    --gold-light: 45 90% 70%;
-    --gold-contrast: 43 90% 65%;
+    --gold: 38 45% 65%;
+    --gold-light: 38 50% 75%;
+    --gold-contrast: 38 55% 60%;
 
     --sidebar-background: 38 30% 8%;
     --sidebar-foreground: 48 16% 84%;

@@ -27,8 +27,8 @@ const classStudios = [{
   description: "A mixture of reformer classes, both heated and non-heated options",
   image: reformerPilates,
   isHeated: false,
-  color: "text-accent",
-  bgColor: "bg-accent/10"
+  color: "text-foreground",
+  bgColor: "bg-secondary/30"
 }, {
   icon: Bike,
   title: "Cycling Studio",
@@ -36,8 +36,8 @@ const classStudios = [{
   image: cycling,
   isHeated: true,
   badgeText: "Cycling",
-  color: "text-accent",
-  bgColor: "bg-accent/10"
+  color: "text-foreground",
+  bgColor: "bg-secondary/30"
 }, {
   icon: Activity,
   title: "Aerobics Room",
@@ -45,8 +45,8 @@ const classStudios = [{
   image: aerobicsStudio,
   isHeated: true,
   badgeText: "AEROBICS",
-  color: "text-accent",
-  bgColor: "bg-accent/10"
+  color: "text-foreground",
+  bgColor: "bg-secondary/30"
 }];
 
 const quickLinks = [{
@@ -91,8 +91,8 @@ export default function Index() {
       <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
         <div className="absolute inset-0">
           <img 
-            src={mainLobby} 
-            alt="Storm Wellness Club Interior" 
+            src={gymArea1} 
+            alt="Storm Wellness Club Gym" 
             className="w-full h-full object-cover object-center opacity-30 sm:opacity-20" 
           />
           <div className="absolute inset-0 bg-gradient-to-b from-charcoal/60 via-charcoal/70 to-charcoal/80 sm:from-charcoal/70 sm:via-charcoal/80 sm:to-charcoal/90" />
@@ -103,7 +103,7 @@ export default function Index() {
           <h1 className="heading-display text-primary-foreground mb-4 sm:mb-6 animate-fade-up opacity-0 stagger-2 text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
             The Wellness Solution
             <br />
-            <span className="text-gold-light">You Have Been Seeking</span>
+            <span className="text-accent">You Have Been Seeking</span>
           </h1>
           <p className="text-primary-foreground/80 text-base sm:text-lg max-w-xl mx-auto mb-8 sm:mb-10 animate-fade-up opacity-0 stagger-3 px-4 sm:px-0">
             Where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
@@ -210,7 +210,7 @@ export default function Index() {
             <img 
               src={aellaLogoGold} 
               alt="Aella by Storm Wellness Club" 
-              className="h-48 md:h-64 w-auto mx-auto -mb-4" 
+              className="h-48 md:h-64 w-auto mx-auto -mb-4 mix-blend-darken" 
             />
             <h2 className="heading-section mb-4">
               A Sanctuary for Renewal & Restoration
@@ -267,7 +267,7 @@ export default function Index() {
               <img src={sauna} alt="Infrared Sauna" className="rounded-sm shadow-2xl" loading="lazy" />
             </AnimatedSection>
             <AnimatedSection animation="fade-left" delay={150}>
-              <p className="text-gold-light text-sm uppercase tracking-widest mb-4">Member Benefits</p>
+              <p className="text-accent text-sm uppercase tracking-widest mb-4">Member Benefits</p>
               <h2 className="heading-section text-primary-foreground mb-6">
                 A Comprehensive
                 <br />
@@ -280,14 +280,14 @@ export default function Index() {
               
               {/* Recovery Suite */}
               <div className="mb-6">
-                <p className="text-gold-light text-xs uppercase tracking-widest mb-3 font-medium">Recovery Suite</p>
+                <p className="text-accent text-xs uppercase tracking-widest mb-3 font-medium">Recovery Suite</p>
                 <div className="grid grid-cols-2 gap-3">
                   {recoverySuiteAmenities.map((amenity, index) => (
                     <div 
                       key={amenity.label} 
                       className="flex items-center gap-2 text-sm text-primary-foreground/90 transition-all duration-300 hover:text-primary-foreground hover:translate-x-1"
                     >
-                      <amenity.icon className="w-4 h-4 text-gold-light" />
+                      <amenity.icon className="w-4 h-4 text-accent" />
                       <span>{amenity.label}</span>
                     </div>
                   ))}
@@ -296,14 +296,14 @@ export default function Index() {
 
               {/* Lifestyle & Comfort */}
               <div className="mb-10">
-                <p className="text-gold-light text-xs uppercase tracking-widest mb-3 font-medium">Lifestyle & Comfort</p>
+                <p className="text-accent text-xs uppercase tracking-widest mb-3 font-medium">Lifestyle & Comfort</p>
                 <div className="grid grid-cols-2 gap-3">
                   {lifestyleAmenities.map((amenity, index) => (
                     <div 
                       key={amenity.label} 
                       className="flex items-center gap-2 text-sm text-primary-foreground/90 transition-all duration-300 hover:text-primary-foreground hover:translate-x-1"
                     >
-                      <amenity.icon className="w-4 h-4 text-gold-light" />
+                      <amenity.icon className="w-4 h-4 text-accent" />
                       <span>{amenity.label}</span>
                     </div>
                   ))}
@@ -332,7 +332,7 @@ export default function Index() {
         <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-charcoal/95 to-charcoal" />
         <AnimatedSection className="relative z-10 container mx-auto px-6 text-center" animation="scale-in">
           <div className="max-w-4xl mx-auto">
-            <p className="text-gold-light text-sm uppercase tracking-widest mb-6">Our Philosophy</p>
+            <p className="text-accent text-sm uppercase tracking-widest mb-6">Our Philosophy</p>
             <h2 className="heading-section text-primary-foreground mb-8">
               A Blend of Science & Soul
             </h2>
