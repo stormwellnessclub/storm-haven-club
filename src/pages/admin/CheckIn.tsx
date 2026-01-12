@@ -181,18 +181,24 @@ export default function CheckIn() {
     }
 
     try {
-      // Check for duplicate check-in (within last 30 minutes)
-      const { data: existingCheckIn, error: checkError } = await supabase.rpc('check_for_duplicate_check_in', {
-        p_member_id: selectedMember.id,
-        p_check_in_window_minutes: 30
-      });
+      // Check for duplicate check-in (within last 30 minutes) using direct query
+      const thirtyMinutesAgo = new Date();
+      thirtyMinutesAgo.setMinutes(thirtyMinutesAgo.getMinutes() - 30);
+
+      const { data: recentCheckIn, error: checkError } = await supabase
+        .from("check_ins")
+        .select("id")
+        .eq("member_id", selectedMember.id)
+        .gte("checked_in_at", thirtyMinutesAgo.toISOString())
+        .limit(1)
+        .maybeSingle();
 
       if (checkError) {
         console.error('Error checking for duplicate check-in:', checkError);
         // Continue with check-in if check fails
       }
 
-      if (existingCheckIn) {
+      if (recentCheckIn) {
         // Duplicate check-in found
         setIsCheckingIn(false);
         setIsOverriding(false);

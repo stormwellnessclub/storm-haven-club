@@ -63,35 +63,44 @@ export function useSpaBookAppointment() {
         throw new Error("You must be signed in to book an appointment");
       }
 
-      // Check for conflicts using database function
+      // Check for conflicts using direct query (no RPC dependency)
       try {
         const appointmentTimeStr = format(parse(params.appointmentTime, "HH:mm", new Date()), "HH:mm:ss");
-        const { data: conflictCheck, error: conflictError } = await supabase.rpc('check_spa_appointment_conflict', {
-          p_appointment_date: format(params.appointmentDate, "yyyy-MM-dd"),
-          p_appointment_time: appointmentTimeStr,
-          p_duration_minutes: params.durationMinutes,
-          p_cleanup_minutes: params.cleanupMinutes || 15,
-          p_staff_id: params.staffId || null,
-          p_exclude_appointment_id: null
-        });
-
-        if (conflictError) {
-          if (conflictError.code === "42883" || conflictError.message?.includes("does not exist")) {
-            // Function doesn't exist yet, skip conflict check (backward compatibility)
-            console.warn('Conflict check function not available, skipping conflict detection');
+        const appointmentDateStr = format(params.appointmentDate, "yyyy-MM-dd");
+        
+        // Query existing appointments for conflicts
+        const { data: existingAppts, error: queryError } = await (supabase.from as any)("spa_appointments")
+          .select("id, appointment_time, duration_minutes, cleanup_minutes")
+          .eq("appointment_date", appointmentDateStr)
+          .in("status", ["confirmed", "pending"])
+          .order("appointment_time");
+        
+        if (queryError) {
+          if (queryError.code === "42P01" || queryError.message?.includes("does not exist")) {
+            console.warn('spa_appointments table not available, skipping conflict detection');
           } else {
-            throw conflictError;
+            throw queryError;
           }
-        } else if (conflictCheck && conflictCheck.length > 0 && conflictCheck[0].has_conflict) {
-          // Conflict detected
-          throw new Error('This time slot is already booked. Please select a different time.');
+        } else if (existingAppts && existingAppts.length > 0) {
+          // Check for time overlaps
+          const newStart = parse(params.appointmentTime, "HH:mm", new Date());
+          const newEnd = addMinutes(newStart, params.durationMinutes + (params.cleanupMinutes || 15));
+          
+          const hasConflict = existingAppts.some((apt: { appointment_time: string; duration_minutes: number; cleanup_minutes?: number }) => {
+            const aptStart = parse(apt.appointment_time, "HH:mm:ss", new Date());
+            const aptEnd = addMinutes(aptStart, apt.duration_minutes + (apt.cleanup_minutes || 15));
+            
+            return (newStart < aptEnd && newEnd > aptStart);
+          });
+          
+          if (hasConflict) {
+            throw new Error('This time slot is already booked. Please select a different time.');
+          }
         }
       } catch (error: any) {
-        if (error?.code === "42883" || error?.message?.includes("does not exist")) {
-          // Function doesn't exist yet, skip conflict check (backward compatibility)
-          console.warn('Conflict check function not available, skipping conflict detection');
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          console.warn('spa_appointments table not available, skipping conflict detection');
         } else if (error?.message?.includes('already booked')) {
-          // Re-throw conflict errors
           throw error;
         } else {
           throw error;
