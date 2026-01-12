@@ -168,6 +168,7 @@ function PaymentFormInner({ clientSecret, onSuccess, onCancel, loadDraft }: Paym
 
 interface PaymentSectionEnhancedProps {
   stripeCustomerId: string | null;
+  isCardConfirmed: boolean;
   showPaymentForm: boolean;
   paymentClientSecret: string | null;
   isSavingCard: boolean;
@@ -183,6 +184,7 @@ interface PaymentSectionEnhancedProps {
 
 export function PaymentSectionEnhanced({
   stripeCustomerId,
+  isCardConfirmed,
   showPaymentForm,
   paymentClientSecret,
   isSavingCard,
@@ -195,9 +197,9 @@ export function PaymentSectionEnhanced({
   onCheckboxChange,
   loadDraft,
 }: PaymentSectionEnhancedProps) {
-  // Calculate section progress
+  // Calculate section progress - use isCardConfirmed instead of just stripeCustomerId
   const paymentSteps = [
-    { done: !!stripeCustomerId, label: "Payment method saved" },
+    { done: isCardConfirmed, label: "Payment method saved" },
     { done: creditCardAuth, label: "Authorization confirmed" },
     { done: paymentAcknowledged, label: "Terms acknowledged" },
   ];
@@ -302,21 +304,21 @@ export function PaymentSectionEnhanced({
         {/* Step 1: Save Card */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className={cn(
+          <div className={cn(
               "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-              stripeCustomerId ? "bg-green-500 text-white" : "bg-amber-500 text-white"
+              isCardConfirmed ? "bg-green-500 text-white" : "bg-amber-500 text-white"
             )}>
-              {stripeCustomerId ? <Check className="w-4 h-4" /> : "1"}
+              {isCardConfirmed ? <Check className="w-4 h-4" /> : "1"}
             </div>
             <span className={cn(
               "font-medium",
-              stripeCustomerId ? "text-green-600" : "text-foreground"
+              isCardConfirmed ? "text-green-600" : "text-foreground"
             )}>
               Save Payment Method
             </span>
           </div>
 
-          {stripeCustomerId && !showPaymentForm ? (
+          {isCardConfirmed && !showPaymentForm ? (
             <div className="ml-8 p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
                 <Check className="w-5 h-5 text-green-600" />

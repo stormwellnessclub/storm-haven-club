@@ -182,7 +182,7 @@ export default function CheckIn() {
 
     try {
       // Check for duplicate check-in (within last 30 minutes)
-      const { data: existingCheckIn, error: checkError } = await supabase.rpc('check_for_duplicate_check_in', {
+      const { data: existingCheckIn, error: checkError } = await (supabase.rpc as any)('check_for_duplicate_check_in', {
         p_member_id: selectedMember.id,
         p_check_in_window_minutes: 30
       });

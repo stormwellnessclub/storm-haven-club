@@ -168,7 +168,8 @@ export function getStepCompletion(
     authAcknowledgment: boolean;
     submissionConfirmation: boolean;
   },
-  stripeCustomerId: string | null
+  stripeCustomerId: string | null,
+  isCardConfirmed: boolean = false
 ): ApplicationStep[] {
   return APPLICATION_STEPS.map(step => {
     let isComplete = false;
@@ -204,7 +205,7 @@ export function getStepCompletion(
         isComplete = !!formData.foundingMember;
         break;
       case "payment":
-        isComplete = !!(stripeCustomerId && formData.creditCardAuth && formData.paymentAcknowledged);
+        isComplete = !!(stripeCustomerId && isCardConfirmed && formData.creditCardAuth && formData.paymentAcknowledged);
         break;
       case "agreements":
         isComplete = !!(

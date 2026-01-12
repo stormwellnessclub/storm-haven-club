@@ -66,7 +66,7 @@ export function useSpaBookAppointment() {
       // Check for conflicts using database function
       try {
         const appointmentTimeStr = format(parse(params.appointmentTime, "HH:mm", new Date()), "HH:mm:ss");
-        const { data: conflictCheck, error: conflictError } = await supabase.rpc('check_spa_appointment_conflict', {
+        const { data: conflictCheck, error: conflictError } = await (supabase.rpc as any)('check_spa_appointment_conflict', {
           p_appointment_date: format(params.appointmentDate, "yyyy-MM-dd"),
           p_appointment_time: appointmentTimeStr,
           p_duration_minutes: params.durationMinutes,
