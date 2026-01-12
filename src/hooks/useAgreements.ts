@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export interface Agreement {
   id: string;
@@ -24,6 +25,21 @@ export interface Form {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface CreateAgreementData {
+  agreement_type: string;
+  title: string;
+  pdf_url: string;
+  display_order: number;
+  is_required: boolean;
+  version?: string | null;
+  is_active: boolean;
+  effective_date?: string | null;
+}
+
+export interface UpdateAgreementData extends Partial<CreateAgreementData> {
+  id: string;
 }
 
 export function useAgreements(agreementType?: string) {
@@ -99,3 +115,74 @@ export function useAgreementsByType(type: string) {
   return useAgreements(type);
 }
 
+export function useCreateAgreement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateAgreementData): Promise<Agreement> => {
+      const { data: agreement, error } = await supabase
+        .from("agreements")
+        .insert([data])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return agreement as Agreement;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agreements"] });
+      toast.success("Agreement created successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to create agreement: ${error.message}`);
+    },
+  });
+}
+
+export function useUpdateAgreement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...data }: UpdateAgreementData): Promise<Agreement> => {
+      const { data: agreement, error } = await supabase
+        .from("agreements")
+        .update(data)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return agreement as Agreement;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agreements"] });
+      toast.success("Agreement updated successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update agreement: ${error.message}`);
+    },
+  });
+}
+
+export function useDeleteAgreement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      // Soft delete by setting is_active to false
+      const { error } = await supabase
+        .from("agreements")
+        .update({ is_active: false })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agreements"] });
+      toast.success("Agreement deleted successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete agreement: ${error.message}`);
+    },
+  });
+}

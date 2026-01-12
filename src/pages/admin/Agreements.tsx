@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAgreements, useForms, type Agreement, type Form } from "@/hooks/useAgreements";
+import { useAgreements, useForms, useCreateAgreement, useUpdateAgreement, useDeleteAgreement, type Agreement, type Form } from "@/hooks/useAgreements";
 import { useState } from "react";
 import { Loader2, Plus, Edit, Trash2, Save, X, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -13,6 +13,16 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const AGREEMENT_TYPES = [
   { value: "liability_waiver", label: "Liability Waiver" },
@@ -32,9 +42,13 @@ const FORM_TYPES = [
 ];
 
 function AgreementManagement() {
-  const { data: agreements, isLoading } = useAgreements();
+  const { data: agreements, isLoading } = useAgreements(undefined, true); // Include inactive for admin view
+  const createAgreement = useCreateAgreement();
+  const updateAgreement = useUpdateAgreement();
+  const deleteAgreement = useDeleteAgreement();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAgreement, setEditingAgreement] = useState<Agreement | null>(null);
+  const [deletingAgreement, setDeletingAgreement] = useState<Agreement | null>(null);
   const [formData, setFormData] = useState({
     agreement_type: "liability_waiver",
     title: "",
@@ -82,9 +96,54 @@ function AgreementManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement create/update mutations
-    toast.info("Agreement management mutations coming soon. Use Supabase dashboard for now.");
-    handleCloseDialog();
+
+    if (!formData.title.trim() || !formData.pdf_url.trim()) {
+      toast.error("Title and PDF URL are required");
+      return;
+    }
+
+    try {
+      if (editingAgreement) {
+        await updateAgreement.mutateAsync({
+          id: editingAgreement.id,
+          agreement_type: formData.agreement_type,
+          title: formData.title.trim(),
+          pdf_url: formData.pdf_url.trim(),
+          display_order: formData.display_order,
+          is_required: formData.is_required,
+          version: formData.version || null,
+          is_active: formData.is_active,
+          effective_date: formData.effective_date || null,
+        });
+      } else {
+        await createAgreement.mutateAsync({
+          agreement_type: formData.agreement_type,
+          title: formData.title.trim(),
+          pdf_url: formData.pdf_url.trim(),
+          display_order: formData.display_order,
+          is_required: formData.is_required,
+          version: formData.version || null,
+          is_active: formData.is_active,
+          effective_date: formData.effective_date || null,
+        });
+      }
+      handleCloseDialog();
+    } catch (error: any) {
+      console.error("Failed to save agreement:", error);
+      // Error toast is handled by the mutation
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingAgreement) return;
+
+    try {
+      await deleteAgreement.mutateAsync(deletingAgreement.id);
+      setDeletingAgreement(null);
+    } catch (error: any) {
+      console.error("Failed to delete agreement:", error);
+      // Error toast is handled by the mutation
+    }
   };
 
   if (isLoading) {
@@ -246,6 +305,27 @@ function AgreementManagement() {
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog open={!!deletingAgreement} onOpenChange={(open) => !open && setDeletingAgreement(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Agreement</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{deletingAgreement?.title}"? This will mark it as inactive. Members will no longer see this agreement.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         {/* Agreements by Type */}
@@ -318,6 +398,14 @@ function AgreementManagement() {
                                 onClick={() => handleOpenDialog(agreement)}
                               >
                                 <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => setDeletingAgreement(agreement)}
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>

@@ -276,9 +276,40 @@ export default function Cafe() {
 
         paymentIntentId = chargeData?.paymentIntentId || chargeData?.id;
       } else if (paymentMethod === "member_account") {
-        // Member account charging - just create order without payment intent
-        // Payment will be charged to member account
-        paymentIntentId = undefined;
+        // Member account charging - charge the member's saved payment method
+        const { data: memberData } = await supabase
+          .from("members")
+          .select("id, stripe_customer_id")
+          .eq("user_id", user!.id)
+          .maybeSingle();
+
+        if (!memberData || !memberData.id) {
+          throw new Error("You must be a member to use member account charging");
+        }
+
+        if (!memberData.stripe_customer_id) {
+          throw new Error("No payment method on file. Please add a payment method first.");
+        }
+
+        const totalAmountCents = Math.round(cartTotal * 100);
+        const orderDescription = `Cafe Order - ${orderItems.map(i => i.name).join(", ")}`;
+
+        const { data: chargeData, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "charge_saved_card",
+            memberId: memberData.id,
+            amount: totalAmountCents,
+            description: orderDescription,
+          },
+        });
+
+        if (chargeError) throw chargeError;
+        if (chargeData?.error) throw new Error(chargeData.error);
+        if (!chargeData?.paymentIntentId) {
+          throw new Error("Payment failed. Please try again.");
+        }
+
+        paymentIntentId = chargeData.paymentIntentId;
       } else {
         throw new Error("Please select a payment method");
       }

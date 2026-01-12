@@ -130,11 +130,40 @@ export default function EmailManagement() {
         })
         .eq('id', conversationId);
 
-      // TODO: Send actual email via send-email edge function
+      // Send actual email via send-email edge function
       const conversation = conversationsWithProfiles?.find(c => c.id === conversationId);
       if (conversation?.profile?.email) {
-        // Could trigger email notification here
-        console.log(`Would send email reply to: ${conversation.profile.email}`);
+        try {
+          const { error: emailError } = await supabase.functions.invoke("send-email", {
+            body: {
+              type: "staff_reply",
+              to: conversation.profile.email,
+              data: {
+                name: conversation.profile.first_name || "Member",
+                message: message,
+                subject: conversation.subject,
+              },
+            },
+          });
+
+          if (emailError) {
+            console.error("Failed to send email:", emailError);
+            // Don't throw - message is saved in DB even if email fails
+            toast({
+              title: "Warning",
+              description: "Message saved but email delivery failed. Please check email service configuration.",
+              variant: "destructive",
+            });
+          }
+        } catch (emailErr) {
+          console.error("Error invoking send-email function:", emailErr);
+          // Don't throw - message is saved in DB even if email fails
+          toast({
+            title: "Warning",
+            description: "Message saved but email delivery failed. Please check email service configuration.",
+            variant: "destructive",
+          });
+        }
       }
     },
     onSuccess: () => {

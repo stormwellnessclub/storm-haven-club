@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues';
+  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply';
   to: string;
   data: Record<string, any>;
 }
@@ -714,6 +714,40 @@ serve(async (req) => {
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
                 <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'staff_reply':
+        subject = data.subject || 'Re: Your Message - Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Hello ${data.name || 'Member'},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thank you for reaching out to us. We've received your message and wanted to respond:
+              </p>
+              
+              <div style="background: #f9fafb; border-left: 4px solid #C9A227; padding: 20px; margin: 25px 0; border-radius: 4px;">
+                <div style="white-space: pre-wrap; color: #374151; line-height: 1.8;">${data.message || ''}</div>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you have any further questions or concerns, please don't hesitate to reach out to us through your member portal.
+              </p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/support" style="${emailStyles.button}">Contact Support</a>
+              </div>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Best regards,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club Team</p>
               </div>
             </div>
             ${getEmailFooter()}
