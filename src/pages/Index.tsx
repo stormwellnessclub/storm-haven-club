@@ -91,11 +91,11 @@ export default function Index() {
       <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
         <div className="absolute inset-0">
           <img 
-            src={gymArea1} 
+            src={gymArea2} 
             alt="Storm Wellness Club Gym" 
-            className="w-full h-full object-cover object-center opacity-30 sm:opacity-20" 
+            className="w-full h-full object-cover object-center opacity-50 sm:opacity-40" 
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/60 via-charcoal/70 to-charcoal/80 sm:from-charcoal/70 sm:via-charcoal/80 sm:to-charcoal/90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/30 via-charcoal/40 to-charcoal/60 sm:from-charcoal/40 sm:via-charcoal/50 sm:to-charcoal/70" />
         </div>
         
         <div className="relative z-10 container mx-auto px-4 sm:px-6 text-center py-20 sm:py-0">
@@ -153,9 +153,9 @@ export default function Index() {
         <div className="container mx-auto px-6">
           <SectionHeading title="Three Distinct Studios" subtitle="A harmonious blend of mental clarity, emotional resilience, and physical strength—designed to address all facets of wellness." />
           
-          <StaggerContainer className="grid md:grid-cols-3 gap-8" staggerDelay={150}>
+          <StaggerContainer className="grid md:grid-cols-3 gap-8 [grid-auto-rows:1fr]" staggerDelay={150}>
             {classStudios.map((studio, index) => (
-              <div key={index} className="card-luxury overflow-hidden group hover-lift">
+              <div key={index} className="card-luxury overflow-hidden group hover-lift h-full flex flex-col">
                 <div className="relative h-64 overflow-hidden">
                   <img 
                     src={studio.image} 
@@ -176,15 +176,15 @@ export default function Index() {
                     )}
                   </div>
                 </div>
-                <div className="p-6">
+                <div className="p-6 flex-1 flex flex-col">
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`w-10 h-10 rounded-full ${studio.bgColor} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
                       <studio.icon className={`w-5 h-5 ${studio.color}`} />
                     </div>
                     <h3 className="font-serif text-xl group-hover:text-accent transition-colors duration-300">{studio.title}</h3>
                   </div>
-                  <p className="text-muted-foreground text-sm mb-3">{studio.description}</p>
-                  <Link to="/classes" className="text-accent text-sm font-medium hover:underline inline-flex items-center gap-1 group/link">
+                  <p className="text-muted-foreground text-sm mb-3 min-h-[3rem]">{studio.description}</p>
+                  <Link to="/classes" className="text-accent text-sm font-medium hover:underline inline-flex items-center gap-1 group/link mt-auto">
                     View Classes 
                     <ArrowRight className="w-3 h-3 transition-transform duration-300 group-hover/link:translate-x-1" />
                   </Link>
@@ -204,13 +204,13 @@ export default function Index() {
       </section>
 
       {/* Aella Spa Section */}
-      <section className="relative py-24 bg-gradient-to-b from-secondary/20 via-secondary/30 to-secondary/20 overflow-hidden">
+      <section className="relative py-24 bg-[#F5F0E6] overflow-hidden">
         <div className="container mx-auto px-6">
           <AnimatedSection className="text-center mb-12">
             <img 
               src={aellaLogoGold} 
               alt="Aella by Storm Wellness Club" 
-              className="h-48 md:h-64 w-auto mx-auto -mb-4 mix-blend-darken" 
+              className="h-48 md:h-64 w-auto mx-auto -mb-4" 
             />
             <h2 className="heading-section mb-4">
               A Sanctuary for Renewal & Restoration
