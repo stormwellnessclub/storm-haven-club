@@ -202,11 +202,14 @@ export default function Memberships() {
             subtitle="Select the membership that resonates with your vision of wellness."
           />
 
-          <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-4 gap-6" staggerDelay={100}>
+          <StaggerContainer 
+            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch [grid-auto-rows:1fr]" 
+            staggerDelay={100}
+          >
             {membershipTiers.map((tier) => (
               <div
                 key={tier.name}
-                className={`card-luxury p-6 flex flex-col relative hover-lift transition-all duration-300 ${
+                className={`card-luxury p-6 flex flex-col h-full relative hover-lift transition-all duration-300 ${
                   tier.highlighted ? "border-accent ring-2 ring-accent shadow-gold-hover" : ""
                 }`}
               >
@@ -237,7 +240,7 @@ export default function Memberships() {
                   </p>
                 </div>
 
-                <ul className="space-y-3 mb-6 flex-grow">
+                <ul className="space-y-3 mb-6 flex-1 min-h-[140px]">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2">
                       <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
@@ -259,7 +262,7 @@ export default function Memberships() {
 
                 <Link to="/apply" className="mt-auto">
                   <Button
-                    variant={tier.highlighted ? "gold" : "outline"}
+                    variant={tier.highlighted ? "gold" : "gold-outline"}
                     className="w-full hover-brightness"
                   >
                     Apply for Invitation
