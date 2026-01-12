@@ -27,29 +27,46 @@ export function useEntryToken() {
 
   const fetchToken = useCallback(async () => {
     if (!session?.access_token) {
-      setError("Not authenticated");
+      setError("Please sign in to access your entry code");
       setIsLoading(false);
       return;
     }
 
     try {
+      // Verify session is still valid before making the request
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !currentSession) {
+        console.error("[Entry Token] Session invalid:", sessionError);
+        setError("Your session has expired. Please sign in again.");
+        setIsLoading(false);
+        return;
+      }
+
       const { data: responseData, error: invokeError } = await supabase.functions.invoke(
         "generate-entry-token",
         {
           headers: {
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${currentSession.access_token}`,
           },
         }
       );
 
       if (invokeError) {
         console.error("[Entry Token] Fetch error:", invokeError);
-        setError(invokeError.message || "Failed to generate entry code");
+        // Handle specific error cases
+        if (invokeError.message?.includes('401') || invokeError.message?.includes('unauthorized')) {
+          setError("Session expired. Please sign in again.");
+        } else if (invokeError.message?.includes('404') || invokeError.message?.includes('not found')) {
+          setError("Member record not found. Please contact support.");
+        } else {
+          setError("Unable to load entry code. Please try again.");
+        }
         return;
       }
 
       if (!responseData?.success) {
-        setError(responseData?.error || "Failed to generate entry code");
+        setError(responseData?.error || "Unable to generate entry code");
         return;
       }
 
@@ -61,7 +78,11 @@ export function useEntryToken() {
       setError(null);
     } catch (err: any) {
       console.error("[Entry Token] Exception:", err);
-      setError(err.message || "Failed to generate entry code");
+      if (err.message?.includes('network') || err.message?.includes('fetch')) {
+        setError("Network error. Please check your connection and try again.");
+      } else {
+        setError("Unable to load entry code. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
