@@ -1,63 +1,93 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, User, LogOut, LayoutDashboard, CalendarDays, CreditCard, Ticket, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import logo from "@/assets/storm-logo-gold.png";
-const navLinks = [{
-  href: "/memberships",
-  label: "Memberships"
-}, {
-  href: "/classes",
-  label: "Classes"
-}, {
-  href: "/schedule",
-  label: "Schedule"
-}, {
-  href: "/spa",
-  label: "Spa"
-}, {
-  href: "/cafe",
-  label: "Café"
-}, {
-  href: "/amenities",
-  label: "Amenities"
-}, {
-  href: "/class-passes",
-  label: "Class Passes"
-}];
+
+const navLinks = [
+  { href: "/memberships", label: "Memberships" },
+  { href: "/classes", label: "Classes" },
+  { href: "/schedule", label: "Schedule" },
+  { href: "/spa", label: "Spa" },
+  { href: "/cafe", label: "Café" },
+  { href: "/amenities", label: "Amenities" },
+  { href: "/class-passes", label: "Class Passes" },
+];
+
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === "/";
-  const {
-    user,
-    signOut
-  } = useAuth();
+  const { user, signOut } = useAuth();
+
+  // Track scroll position for header styling
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
   const handleSignOut = async () => {
     await signOut();
   };
-  return <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isHome ? "bg-transparent" : "bg-background/95 backdrop-blur-md border-b border-border"}`}>
-      <div className="container mx-auto px-6">
+
+  const navBackground = isHome
+    ? isScrolled
+      ? "bg-background/95 backdrop-blur-md border-b border-border shadow-soft"
+      : "bg-transparent"
+    : "bg-background/95 backdrop-blur-md border-b border-border";
+
+  const linkColor = isHome && !isScrolled
+    ? "text-primary-foreground/90 hover:text-gold-light"
+    : "text-foreground hover:text-accent";
+
+  return (
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navBackground}`}>
+      <div className="container mx-auto container-padding">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link to="/" className="flex-shrink-0">
-            <img alt="Storm Wellness Club" className="h-20 w-auto" src="/lovable-uploads/da2bfb84-b4c3-4698-8873-616dc85799d4.png" />
+          <Link to="/" className="flex-shrink-0 transition-transform duration-300 hover:scale-105">
+            <img
+              alt="Storm Wellness Club"
+              className="h-20 w-auto"
+              src="/lovable-uploads/da2bfb84-b4c3-4698-8873-616dc85799d4.png"
+            />
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-8">
-            {navLinks.map(link => <Link key={link.href} to={link.href} className={`text-xs uppercase tracking-widest font-medium transition-colors hover:text-accent ${isHome ? "text-primary-foreground/90 hover:text-gold-light" : "text-foreground"} ${location.pathname === link.href ? "text-accent" : ""}`}>
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                to={link.href}
+                className={`nav-link ${linkColor} ${
+                  location.pathname === link.href ? "text-accent" : ""
+                }`}
+              >
                 {link.label}
-              </Link>)}
+              </Link>
+            ))}
           </div>
 
           {/* CTA & Account Button */}
           <div className="hidden lg:flex items-center gap-3">
-            {user ? <DropdownMenu>
+            {user ? (
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant={isHome ? "hero-outline" : "outline"} size="sm" className="gap-2">
+                  <Button
+                    variant={isHome && !isScrolled ? "hero-outline" : "outline"}
+                    size="sm"
+                    className="gap-2"
+                  >
                     <LayoutDashboard className="w-4 h-4" />
                     My Portal
                   </Button>
@@ -115,81 +145,108 @@ export function Navigation() {
                     Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
-              </DropdownMenu> : <>
+              </DropdownMenu>
+            ) : (
+              <>
                 <Link to="/auth">
-                  <Button variant={isHome ? "hero-outline" : "outline"} size="sm">
+                  <Button variant={isHome && !isScrolled ? "hero-outline" : "outline"} size="sm">
                     Sign In
                   </Button>
                 </Link>
                 <Link to="/apply">
-                  <Button variant={isHome ? "hero" : "default"} size="sm">
+                  <Button variant={isHome && !isScrolled ? "hero" : "default"} size="sm">
                     Apply for Membership
                   </Button>
                 </Link>
-              </>}
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
-          <button className="lg:hidden p-2" onClick={() => setIsOpen(!isOpen)} aria-label="Toggle menu">
-            {isOpen ? <X className={`h-6 w-6 ${isHome ? "text-primary-foreground" : "text-foreground"}`} /> : <Menu className={`h-6 w-6 ${isHome ? "text-primary-foreground" : "text-foreground"}`} />}
+          <button
+            className="lg:hidden p-2 touch-target transition-colors rounded-sm hover:bg-accent/10"
+            onClick={() => setIsOpen(!isOpen)}
+            aria-label="Toggle menu"
+            aria-expanded={isOpen}
+          >
+            {isOpen ? (
+              <X className={`h-6 w-6 ${isHome && !isScrolled ? "text-primary-foreground" : "text-foreground"}`} />
+            ) : (
+              <Menu className={`h-6 w-6 ${isHome && !isScrolled ? "text-primary-foreground" : "text-foreground"}`} />
+            )}
           </button>
         </div>
 
         {/* Mobile Navigation */}
-        {isOpen && <div className="lg:hidden absolute top-20 left-0 right-0 bg-background border-b border-border shadow-xl animate-slide-in">
-            <div className="container px-6 py-6 flex flex-col gap-4">
-              {navLinks.map(link => <Link key={link.href} to={link.href} onClick={() => setIsOpen(false)} className={`text-sm uppercase tracking-widest font-medium py-2 transition-colors hover:text-accent ${location.pathname === link.href ? "text-accent" : "text-foreground"}`}>
-                  {link.label}
-                </Link>)}
-              
-              <div className="border-t border-border pt-4 mt-2">
-                {user ? <>
-                    <p className="text-muted-foreground text-xs mb-3">{user.email}</p>
-                    <Link to="/member" onClick={() => setIsOpen(false)}>
-                      <Button variant="default" className="w-full mb-2">
-                        <LayoutDashboard className="w-4 h-4 mr-2" />
-                        My Portal
-                      </Button>
-                    </Link>
-                    <Link to="/member/bookings" onClick={() => setIsOpen(false)}>
-                      <Button variant="outline" className="w-full mb-2">
-                        <CalendarDays className="w-4 h-4 mr-2" />
-                        My Bookings
-                      </Button>
-                    </Link>
-                    <Link to="/member/credits" onClick={() => setIsOpen(false)}>
-                      <Button variant="outline" className="w-full mb-2">
-                        <Ticket className="w-4 h-4 mr-2" />
-                        My Credits
-                      </Button>
-                    </Link>
-                    <Link to="/apply" onClick={() => setIsOpen(false)}>
-                      <Button variant="outline" className="w-full mb-2">
-                        Membership Application
-                      </Button>
-                    </Link>
-                    <Button variant="destructive" className="w-full" onClick={() => {
-                handleSignOut();
-                setIsOpen(false);
-              }}>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
+        <div
+          className={`lg:hidden fixed top-20 left-0 right-0 bg-background border-b border-border shadow-elevated transition-all duration-300 ${
+            isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+          }`}
+        >
+          <div className="container container-padding py-6 flex flex-col gap-4">
+            {navLinks.map((link, index) => (
+              <Link
+                key={link.href}
+                to={link.href}
+                className={`text-sm uppercase tracking-widest font-medium py-2 transition-all hover:text-accent hover:translate-x-1 ${
+                  location.pathname === link.href ? "text-accent" : "text-foreground"
+                }`}
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                {link.label}
+              </Link>
+            ))}
+
+            <div className="border-t border-border pt-4 mt-2 space-y-2">
+              {user ? (
+                <>
+                  <p className="text-muted-foreground text-xs mb-3">{user.email}</p>
+                  <Link to="/member">
+                    <Button variant="default" className="w-full mb-2">
+                      <LayoutDashboard className="w-4 h-4 mr-2" />
+                      My Portal
                     </Button>
-                  </> : <>
-                    <Link to="/auth" onClick={() => setIsOpen(false)}>
-                      <Button variant="outline" className="w-full mb-2">
-                        Sign In
-                      </Button>
-                    </Link>
-                    <Link to="/apply" onClick={() => setIsOpen(false)}>
-                      <Button variant="default" className="w-full">
-                        Apply for Membership
-                      </Button>
-                    </Link>
-                  </>}
-              </div>
+                  </Link>
+                  <Link to="/member/bookings">
+                    <Button variant="outline" className="w-full mb-2">
+                      <CalendarDays className="w-4 h-4 mr-2" />
+                      My Bookings
+                    </Button>
+                  </Link>
+                  <Link to="/member/credits">
+                    <Button variant="outline" className="w-full mb-2">
+                      <Ticket className="w-4 h-4 mr-2" />
+                      My Credits
+                    </Button>
+                  </Link>
+                  <Link to="/apply">
+                    <Button variant="outline" className="w-full mb-2">
+                      Membership Application
+                    </Button>
+                  </Link>
+                  <Button variant="destructive" className="w-full" onClick={handleSignOut}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/auth">
+                    <Button variant="outline" className="w-full mb-2">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/apply">
+                    <Button variant="default" className="w-full">
+                      Apply for Membership
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
-          </div>}
+          </div>
+        </div>
       </div>
-    </nav>;
+    </nav>
+  );
 }
