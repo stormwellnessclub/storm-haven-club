@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { CheckCircle2, Sparkles, Crown, Gem, Star } from "lucide-react";
 import gymArea2 from "@/assets/gym-area-2.jpg";
+import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 
 interface MembershipTier {
   name: string;
@@ -123,7 +124,7 @@ export default function Memberships() {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="relative py-32 overflow-hidden">
+      <section className="relative min-h-[70vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <img
             src={gymArea2}
@@ -132,54 +133,56 @@ export default function Memberships() {
           />
           <div className="absolute inset-0 bg-gradient-to-b from-charcoal/60 via-charcoal/70 to-charcoal/90" />
         </div>
-        <div className="relative z-10 container mx-auto px-6 text-center">
-          <p className="text-gold-light text-sm uppercase tracking-widest mb-4">
-            Application-Based Membership
-          </p>
-          <h1 className="heading-display text-primary-foreground mb-6">
-            Membership Tiers
-          </h1>
-          <p className="text-primary-foreground/80 max-w-2xl mx-auto">
-            Explore our tiered memberships to find the perfect fit for your
-            wellness goals. All members enjoy access to premier facilities and
-            preferred pricing on spa services.
-          </p>
+        <div className="relative z-10 container mx-auto px-6 py-24 text-center">
+          <AnimatedSection animation="fade-up">
+            <p className="text-gold-light text-sm uppercase tracking-widest mb-4">
+              Application-Based Membership
+            </p>
+            <h1 className="heading-display text-primary-foreground mb-6">
+              Membership Tiers
+            </h1>
+            <p className="text-primary-foreground/80 max-w-2xl mx-auto text-lg">
+              Explore our tiered memberships to find the perfect fit for your
+              wellness goals. All members enjoy access to premier facilities and
+              preferred pricing on spa services.
+            </p>
+          </AnimatedSection>
         </div>
       </section>
 
       {/* Core Benefits */}
-      <section id="benefits" className="py-20 bg-background">
-        <div className="container mx-auto px-6">
+      <section id="benefits" className="section-padding bg-background">
+        <div className="container mx-auto container-padding">
           <SectionHeading
             title="Included in Every Membership"
             subtitle="All members enjoy access to our premier gym facilities and wet spa amenities."
           />
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
+          <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto" staggerDelay={60}>
             {coreAmenities.map((amenity) => (
               <div
                 key={amenity}
-                className="flex items-center gap-3 p-4 bg-secondary/50 rounded-sm"
+                className="flex items-center gap-3 p-4 bg-secondary/50 rounded-lg hover-lift-sm transition-all duration-300"
               >
                 <CheckCircle2 className="w-5 h-5 text-accent flex-shrink-0" />
                 <span className="text-foreground">{amenity}</span>
               </div>
             ))}
-          </div>
+          </StaggerContainer>
         </div>
       </section>
 
       {/* Spa Amenities */}
-      <section className="py-20 bg-secondary/30">
-        <div className="container mx-auto px-6">
+      <section className="section-padding bg-secondary/30">
+        <div className="container mx-auto container-padding">
           <SectionHeading
             title="Luxurious Spa Amenities"
             subtitle="Exclusive amenities designed to enhance your wellness journey."
           />
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto" staggerDelay={80}>
             {luxuriousSpaAmenities.map((amenity) => (
               <div
                 key={amenity.name}
-                className="card-luxury p-6 text-center"
+                className="card-luxury p-6 text-center hover-lift transition-all duration-300"
               >
                 <h3 className="font-serif text-lg mb-2">{amenity.name}</h3>
                 <p className="text-muted-foreground text-sm">
@@ -187,24 +190,24 @@ export default function Memberships() {
                 </p>
               </div>
             ))}
-          </div>
+          </StaggerContainer>
         </div>
       </section>
 
       {/* Membership Tiers */}
-      <section id="tiers" className="py-24 bg-background">
-        <div className="container mx-auto px-6">
+      <section id="tiers" className="section-padding bg-background">
+        <div className="container mx-auto container-padding">
           <SectionHeading
             title="Choose Your Tier"
             subtitle="Select the membership that resonates with your vision of wellness."
           />
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-4 gap-6" staggerDelay={100}>
             {membershipTiers.map((tier) => (
               <div
                 key={tier.name}
-                className={`card-luxury p-6 flex flex-col relative ${
-                  tier.highlighted ? "border-accent ring-1 ring-accent" : ""
+                className={`card-luxury p-6 flex flex-col relative hover-lift transition-all duration-300 ${
+                  tier.highlighted ? "border-accent ring-2 ring-accent shadow-gold-hover" : ""
                 }`}
               >
                 {tier.highlighted && (
@@ -257,39 +260,39 @@ export default function Memberships() {
                 <Link to="/apply" className="mt-auto">
                   <Button
                     variant={tier.highlighted ? "gold" : "outline"}
-                    className="w-full"
+                    className="w-full hover-brightness"
                   >
                     Apply for Invitation
                   </Button>
                 </Link>
               </div>
             ))}
-          </div>
+          </StaggerContainer>
         </div>
       </section>
 
       {/* Founding Member */}
-      <section className="py-24 bg-primary text-primary-foreground">
-        <div className="container mx-auto px-6">
-          <div className="max-w-3xl mx-auto text-center">
+      <section className="section-padding bg-primary text-primary-foreground overflow-hidden">
+        <div className="container mx-auto container-padding">
+          <AnimatedSection animation="fade-up" className="max-w-3xl mx-auto text-center">
             <p className="text-gold-light text-sm uppercase tracking-widest mb-4">
               Limited Opportunity
             </p>
             <h2 className="heading-section text-primary-foreground mb-6">
               Founding Member Privilege
             </h2>
-            <p className="text-primary-foreground/80 mb-8 leading-relaxed">
+            <p className="text-primary-foreground/80 mb-8 leading-relaxed text-lg">
               Apply now and pay your membership annually in advance to become one
               of our elite founding members. This status grants you a special
               founding member card, exclusive branded apparel, a premium gym bag,
               and priority access to all private events.
             </p>
             <Link to="/apply">
-              <Button variant="gold" size="lg">
+              <Button variant="gold" size="lg" className="hover-lift pulse-soft">
                 Apply to Be a Founding Member
               </Button>
             </Link>
-          </div>
+          </AnimatedSection>
         </div>
       </section>
 
@@ -351,20 +354,22 @@ export default function Memberships() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-24 bg-charcoal">
-        <div className="container mx-auto px-6 text-center">
-          <h2 className="heading-section text-primary-foreground mb-6">
-            Ready to Transform?
-          </h2>
-          <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10">
-            Select the membership tier that resonates with your vision of
-            wellness and begin your journey at Storm Wellness Club.
-          </p>
-          <Link to="/apply">
-            <Button variant="gold" size="lg">
-              Apply for Membership
-            </Button>
-          </Link>
+      <section className="section-padding bg-charcoal">
+        <div className="container mx-auto container-padding text-center">
+          <AnimatedSection animation="fade-up">
+            <h2 className="heading-section text-primary-foreground mb-6">
+              Ready to Transform?
+            </h2>
+            <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10 text-lg">
+              Select the membership tier that resonates with your vision of
+              wellness and begin your journey at Storm Wellness Club.
+            </p>
+            <Link to="/apply">
+              <Button variant="gold" size="lg" className="hover-lift">
+                Apply for Membership
+              </Button>
+            </Link>
+          </AnimatedSection>
         </div>
       </section>
     </Layout>

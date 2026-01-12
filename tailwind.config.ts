@@ -7,8 +7,16 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: {
+        DEFAULT: "1rem",
+        sm: "1.5rem",
+        lg: "2rem",
+      },
       screens: {
+        sm: "640px",
+        md: "768px",
+        lg: "1024px",
+        xl: "1280px",
         "2xl": "1400px",
       },
     },
@@ -63,6 +71,7 @@ export default {
         },
         gold: "hsl(var(--gold))",
         "gold-light": "hsl(var(--gold-light))",
+        "gold-contrast": "hsl(var(--gold-contrast))",
         charcoal: "hsl(var(--charcoal))",
         cream: "hsl(var(--cream))",
         "cream-dark": "hsl(var(--cream-dark))",
@@ -76,7 +85,10 @@ export default {
       boxShadow: {
         soft: "var(--shadow-soft)",
         card: "var(--shadow-card)",
+        "card-hover": "var(--shadow-card-hover)",
         gold: "var(--shadow-gold)",
+        "gold-hover": "var(--shadow-gold-hover)",
+        elevated: "var(--shadow-elevated)",
       },
       backgroundImage: {
         "gradient-gold": "var(--gradient-gold)",

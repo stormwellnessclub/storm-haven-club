@@ -41,23 +41,23 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         {/* Annual fee renewal notice (only for members who have paid initially but need to renew) */}
         {!isPendingActivation && isInitiationFeePaid && <AnnualFeeNotice />}
         
-        <div className="flex flex-1">
+        <div className="flex flex-1 flex-col md:flex-row">
           <MemberSidebar />
-          <SidebarInset className="flex-1">
-            <header className="h-16 border-b border-border flex items-center justify-between px-4 bg-card">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger />
+          <SidebarInset className="flex-1 min-w-0">
+            <header className="h-14 sm:h-16 border-b border-border flex items-center justify-between px-3 sm:px-4 bg-card sticky top-0 z-40">
+              <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                <SidebarTrigger className="touch-target" />
                 {title && (
-                  <h1 className="text-lg font-semibold">{title}</h1>
+                  <h1 className="text-base sm:text-lg font-semibold truncate">{title}</h1>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Button variant="ghost" size="icon" className="touch-target">
                   <User className="h-5 w-5" />
                 </Button>
               </div>
             </header>
-            <main className="p-6">
+            <main className="p-4 sm:p-6 safe-area-bottom">
               {children}
             </main>
           </SidebarInset>

@@ -18,6 +18,7 @@ import { useHabitLogs, useCreateHabitLog } from "@/hooks/useHabitLogs";
 import { useMemberGoals } from "@/hooks/useMemberGoals";
 import { useMemberBenefitsStatus } from "@/hooks/useMemberBenefitsStatus";
 import { Progress } from "@/components/ui/progress";
+import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 import {
   CreditCard,
   Calendar,
@@ -79,25 +80,27 @@ export default function MemberDashboard() {
 
   return (
     <MemberLayout title="Dashboard">
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Frozen Benefits Notice */}
         {hasFrozenBenefits && (
-          <Alert className="bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700">
-            <Lock className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-800 dark:text-amber-200">Benefits Frozen</AlertTitle>
-            <AlertDescription className="text-amber-700 dark:text-amber-300">
-              {getFrozenReasonMessage()} Class credits, member pricing, and amenity access are unavailable until resolved.
-              {frozenReason === "pending_activation" && (
-                <Button asChild size="sm" variant="outline" className="ml-4 mt-2 sm:mt-0">
-                  <Link to="/member/membership">Activate Now</Link>
-                </Button>
-              )}
-            </AlertDescription>
-          </Alert>
+          <AnimatedSection animation="fade-in">
+            <Alert className="bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700 shadow-sm">
+              <Lock className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-amber-800 dark:text-amber-200">Benefits Frozen</AlertTitle>
+              <AlertDescription className="text-amber-700 dark:text-amber-300">
+                {getFrozenReasonMessage()} Class credits, member pricing, and amenity access are unavailable until resolved.
+                {frozenReason === "pending_activation" && (
+                  <Button asChild size="sm" variant="gold" className="ml-4 mt-2 sm:mt-0">
+                    <Link to="/member/membership">Activate Now</Link>
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          </AnimatedSection>
         )}
 
         {/* Welcome Header */}
-        <div className="mb-8">
+        <AnimatedSection animation="fade-up" className="mb-2">
           {profileLoading ? (
             <Skeleton className="h-10 w-64" />
           ) : (
@@ -108,22 +111,24 @@ export default function MemberDashboard() {
           <p className="text-muted-foreground mt-1">
             Here's an overview of your membership
           </p>
-        </div>
+        </AnimatedSection>
 
         {/* Quick Stats */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" staggerDelay={80}>
           {/* Membership Status */}
-          <Card>
+          <Card variant="interactive" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Membership</CardTitle>
-              <IdCard className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 rounded-full bg-accent/10">
+                <IdCard className="h-4 w-4 text-accent" />
+              </div>
             </CardHeader>
             <CardContent>
               {membershipLoading ? (
                 <Skeleton className="h-8 w-24" />
               ) : membership ? (
                 <>
-                  <div className="text-2xl font-bold">{membership.membership_type}</div>
+                  <div className="text-2xl font-bold font-serif">{membership.membership_type}</div>
                   <Badge variant={membership.status === "active" ? "default" : "secondary"} className="mt-1">
                     {membership.status}
                   </Badge>
@@ -135,17 +140,19 @@ export default function MemberDashboard() {
           </Card>
 
           {/* Monthly Credits */}
-          <Card>
+          <Card variant="interactive" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Monthly Credits</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 rounded-full bg-accent/10">
+                <CreditCard className="h-4 w-4 text-accent" />
+              </div>
             </CardHeader>
             <CardContent>
               {creditsLoading ? (
                 <Skeleton className="h-8 w-24" />
               ) : credits?.classCredits ? (
                 <>
-                  <div className="text-2xl font-bold">
+                  <div className="text-2xl font-bold font-serif">
                     {credits.classCredits.credits_remaining}
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -159,17 +166,19 @@ export default function MemberDashboard() {
           </Card>
 
           {/* Class Passes */}
-          <Card>
+          <Card variant="interactive" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Class Passes</CardTitle>
-              <Ticket className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 rounded-full bg-accent/10">
+                <Ticket className="h-4 w-4 text-accent" />
+              </div>
             </CardHeader>
             <CardContent>
               {creditsLoading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">
+                  <div className="text-2xl font-bold font-serif">
                     {credits?.classPasses?.length || 0}
                   </div>
                   <p className="text-xs text-muted-foreground">active passes</p>
@@ -179,17 +188,19 @@ export default function MemberDashboard() {
           </Card>
 
           {/* Upcoming Bookings */}
-          <Card>
+          <Card variant="interactive" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Upcoming Classes</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 rounded-full bg-accent/10">
+                <Calendar className="h-4 w-4 text-accent" />
+              </div>
             </CardHeader>
             <CardContent>
               {bookingsLoading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">
+                  <div className="text-2xl font-bold font-serif">
                     {upcomingBookings?.length || 0}
                   </div>
                   <p className="text-xs text-muted-foreground">booked classes</p>
@@ -197,12 +208,15 @@ export default function MemberDashboard() {
               )}
             </CardContent>
           </Card>
-        </div>
+        </StaggerContainer>
 
         {/* Health & Wellness Overview */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <AnimatedSection animation="fade-up" delay={100}>
+          <h3 className="text-lg font-semibold mb-4">Health & Wellness</h3>
+        </AnimatedSection>
+        <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" staggerDelay={60}>
           {/* Health Score Widget */}
-          <Card className="hover:shadow-md transition-shadow">
+          <Card variant="elevated" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Health Score</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
@@ -254,7 +268,7 @@ export default function MemberDashboard() {
           </Card>
 
           {/* Achievements & Points Widget */}
-          <Card className="hover:shadow-md transition-shadow">
+          <Card variant="elevated" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Achievements</CardTitle>
               <Trophy className="h-4 w-4 text-muted-foreground" />
@@ -297,7 +311,7 @@ export default function MemberDashboard() {
           </Card>
 
           {/* Workouts Widget */}
-          <Card className="hover:shadow-md transition-shadow">
+          <Card variant="elevated" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Recent Workouts</CardTitle>
               <Dumbbell className="h-4 w-4 text-muted-foreground" />
@@ -337,7 +351,7 @@ export default function MemberDashboard() {
           </Card>
 
           {/* Habits Widget */}
-          <Card className="hover:shadow-md transition-shadow">
+          <Card variant="elevated" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Today's Habits</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
@@ -374,7 +388,7 @@ export default function MemberDashboard() {
           </Card>
 
           {/* Goals Widget */}
-          <Card className="hover:shadow-md transition-shadow">
+          <Card variant="elevated" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Goals</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
@@ -418,15 +432,20 @@ export default function MemberDashboard() {
               )}
             </CardContent>
           </Card>
-        </div>
+        </StaggerContainer>
 
         {/* Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="hover:shadow-md transition-shadow">
+        <AnimatedSection animation="fade-up" delay={150}>
+          <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+        </AnimatedSection>
+        <StaggerContainer className="grid gap-4 md:grid-cols-3" staggerDelay={80}>
+          <Card variant="interactive" className="hover-lift-sm">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Calendar className="h-8 w-8 text-accent" />
+                  <div className="p-2 rounded-full bg-accent/10">
+                    <Calendar className="h-6 w-6 text-accent" />
+                  </div>
                   <div>
                     <h3 className="font-semibold">Book a Class</h3>
                     <p className="text-sm text-muted-foreground">View schedule and book</p>
@@ -441,11 +460,13 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-md transition-shadow">
+          <Card variant="interactive" className="hover-lift-sm">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <User className="h-8 w-8 text-accent" />
+                  <div className="p-2 rounded-full bg-accent/10">
+                    <User className="h-6 w-6 text-accent" />
+                  </div>
                   <div>
                     <h3 className="font-semibold">Update Profile</h3>
                     <p className="text-sm text-muted-foreground">Manage your info</p>
@@ -460,11 +481,13 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-md transition-shadow">
+          <Card variant="interactive" className="hover-lift-sm">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Ticket className="h-8 w-8 text-accent" />
+                  <div className="p-2 rounded-full bg-accent/10">
+                    <Ticket className="h-6 w-6 text-accent" />
+                  </div>
                   <div>
                     <h3 className="font-semibold">Buy Class Passes</h3>
                     <p className="text-sm text-muted-foreground">Get more classes</p>
@@ -478,10 +501,11 @@ export default function MemberDashboard() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </StaggerContainer>
 
         {/* Upcoming Bookings Preview */}
-        <Card>
+        <AnimatedSection animation="fade-up" delay={200}>
+          <Card variant="elevated">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Upcoming Classes</CardTitle>
             <Button asChild variant="outline" size="sm">
@@ -535,7 +559,8 @@ export default function MemberDashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </AnimatedSection>
       </div>
     </MemberLayout>
   );
