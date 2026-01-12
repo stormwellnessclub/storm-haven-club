@@ -38,9 +38,14 @@ export const StripeProvider = ({ children, clientSecret }: StripeProviderProps) 
       }
 
       const getPublishableKey = async (): Promise<string | null> => {
-        // Prefer build-time env when available
+        const isValidPublishableKey = (key: string) => key.trim().startsWith('pk_');
+
+        // Prefer build-time env when available (but only if it looks like a real Stripe publishable key)
         const envKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined) || '';
-        if (envKey.trim()) return envKey.trim();
+        if (envKey.trim()) {
+          if (isValidPublishableKey(envKey)) return envKey.trim();
+          console.warn('Ignoring invalid VITE_STRIPE_PUBLISHABLE_KEY (expected pk_*)');
+        }
 
         // Fallback: fetch from backend at runtime (publishable key is safe to expose)
         try {
@@ -54,7 +59,14 @@ export const StripeProvider = ({ children, clientSecret }: StripeProviderProps) 
           }
 
           const keyFromBackend = (data as { publishableKey?: string } | null)?.publishableKey;
-          return keyFromBackend?.trim() ? keyFromBackend.trim() : null;
+          if (!keyFromBackend?.trim()) return null;
+
+          if (!isValidPublishableKey(keyFromBackend)) {
+            console.error('stripe-config returned invalid publishable key');
+            return null;
+          }
+
+          return keyFromBackend.trim();
         } catch (err) {
           console.error('stripe-config fetch error:', err);
           return null;
