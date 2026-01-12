@@ -378,12 +378,17 @@ export default function Apply() {
         throw new Error("No client secret returned from payment service");
       }
 
-      // Store client secret and customer ID, then show embedded payment form
+      // Store client secret and customer ID (customer is created at this point)
+      // NOTE: Customer ID is created when setup is created, but payment method isn't saved until user completes form
+      // We store it here for use in onPaymentSuccess callback
+      const customerIdFromResponse = data.customerId || null;
+      if (customerIdFromResponse) {
+        // Save to draft so PaymentFormInner can access it
+        saveDraft(formData, customerIdFromResponse);
+      }
+      
       console.log("[Apply] Setting up embedded payment form with client secret");
       setPaymentClientSecret(data.clientSecret);
-      if (data.customerId) {
-        setStripeCustomerId(data.customerId);
-      }
       setShowPaymentForm(true);
       setIsSavingCard(false);
       console.log("[Apply] Payment form should now be visible");

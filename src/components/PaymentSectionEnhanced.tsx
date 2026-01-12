@@ -77,12 +77,18 @@ function PaymentFormInner({ clientSecret, onSuccess, onCancel, loadDraft }: Paym
       }
 
       if (setupIntent) {
+        // Get customer ID from setup intent (customer ID is created when setup intent is created)
+        // The customer ID is stored when the setup is created, so we need to get it from the response
+        // Since we can't get it from setupIntent directly, we need to store it when setup is created
+        // For now, get it from draft (which should have been set when setup was created)
         const draft = loadDraft();
-        if (draft?.stripeCustomerId) {
-          onSuccess(draft.stripeCustomerId);
-        } else {
-          onSuccess("");
+        const customerId = draft?.stripeCustomerId || (setupIntent as any).customer || "";
+        
+        if (!customerId) {
+          throw new Error("Unable to determine customer ID after payment method save");
         }
+        
+        onSuccess(customerId);
       } else {
         throw new Error("Setup failed - no setup intent returned");
       }

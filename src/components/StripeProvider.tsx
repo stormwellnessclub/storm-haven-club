@@ -6,10 +6,11 @@ const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
 if (!STRIPE_PUBLISHABLE_KEY) {
   console.error('VITE_STRIPE_PUBLISHABLE_KEY environment variable is required');
+  console.error('Payment forms will not work without this key. Please set VITE_STRIPE_PUBLISHABLE_KEY in your .env file');
 }
 
-// Single cached stripe instance
-const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
+// Single cached stripe instance - will be null if key is missing
+const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
 
 interface StripeProviderProps {
   children: React.ReactNode;

@@ -38,15 +38,33 @@ interface AgreementPDFViewerProps {
   onDocumentLoad?: () => void;
 }
 
-// Get PDF path from imported module or filename with logging
-const getPdfPath = (filename: string): string => {
+// Get PDF path from imported module, filename, or URL
+const getPdfPath = (pdfInput: string): string => {
+  // If it's already a URL (starts with http:// or https://), use it directly
+  if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://')) {
+    console.log(`[PDF] Using URL directly: ${pdfInput}`);
+    return pdfInput;
+  }
+  
+  // Extract filename from URL if it's a storage URL
+  const filename = pdfInput.split('/').pop() || pdfInput;
+  
+  // Try to map filename to imported PDF
   const path = pdfMap[filename];
   if (path) {
     console.log(`[PDF] Mapped: ${filename} -> ${path}`);
     return path;
   }
-  console.warn(`[PDF] Not in pdfMap: ${filename}, using fallback path`);
-  return `/src/assets/agreements/${filename}`;
+  
+  // If it looks like a URL path but not http, use it directly
+  if (pdfInput.includes('/') && !pdfInput.startsWith('/src/')) {
+    console.log(`[PDF] Using path directly: ${pdfInput}`);
+    return pdfInput;
+  }
+  
+  console.warn(`[PDF] Not in pdfMap and not a URL: ${filename}`);
+  // Return the input as-is - it might be a relative path or URL
+  return pdfInput;
 };
 
 // Fallback UI component when PDF fails to load
