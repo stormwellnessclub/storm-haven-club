@@ -11,7 +11,7 @@ import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
 import aerobicsStudio from "@/assets/aerobics-studio.jpg";
 import stormLogoDark from "@/assets/storm-logo-dark.png";
-import aellaLogo from "@/assets/aella-logo.jpg";
+import aellaLogoGold from "@/assets/aella-logo-gold.jpg";
 import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
 import bodyTreatments from "@/assets/body-treatments.jpg";
 import sauna from "@/assets/sauna.jpg";
@@ -206,11 +206,14 @@ export default function Index() {
       {/* Aella Spa Section */}
       <section className="relative py-24 bg-gradient-to-b from-secondary/20 via-secondary/30 to-secondary/20 overflow-hidden">
         <div className="container mx-auto px-6">
-          <AnimatedSection className="text-center mb-16">
-            <img src={aellaLogo} alt="Aella" className="h-24 w-auto mx-auto mb-2 mix-blend-multiply" />
-            <p className="text-accent text-sm uppercase tracking-widest mb-6">by Storm Wellness Club</p>
+          <AnimatedSection className="text-center mb-12">
+            <img 
+              src={aellaLogoGold} 
+              alt="Aella by Storm Wellness Club" 
+              className="h-48 md:h-64 w-auto mx-auto -mb-4" 
+            />
             <h2 className="heading-section mb-4">
-              A Sanctuary for <span className="text-accent">Renewal & Restoration</span>
+              A Sanctuary for Renewal & Restoration
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
               Open to all—no membership required. Our holistic approach encompasses a wide range of 
