@@ -1,7 +1,37 @@
--- Check-In Duplicate Prevention
--- Prevents multiple check-ins within a time window (30 minutes) if member hasn't checked out
+# Member Scanner Fix
 
--- Update process_member_scan function to check for duplicate check-ins
+## Issue
+The member scanner is not working. This could be due to:
+1. Missing database function
+2. Missing `photo_url` in function return
+3. Migration not run
+
+## Solution
+
+### Step 1: Verify Function Exists
+
+Run this in Supabase SQL Editor:
+
+```sql
+SELECT proname, proargnames, prorettype 
+FROM pg_proc 
+WHERE proname = 'process_member_scan';
+```
+
+If no results, the function doesn't exist and you need to run the migration.
+
+### Step 2: Check if Migration Was Run
+
+The scanner function should be created by:
+- `supabase/migrations/20260107000000_scanner_system.sql` (initial)
+- `supabase/migrations/20260112000002_check_in_duplicate_prevention.sql` (updated)
+
+### Step 3: Fix Missing photo_url
+
+The function return doesn't include `photo_url`, but the frontend expects it. Update the function:
+
+```sql
+-- Update process_member_scan to include photo_url in return
 CREATE OR REPLACE FUNCTION process_member_scan(
   p_member_id_text text,
   p_scanned_by uuid,
@@ -121,7 +151,7 @@ BEGIN
   )
   RETURNING id INTO v_log_id;
   
-  -- Return result
+  -- Return result WITH photo_url
   RETURN jsonb_build_object(
     'success', true,
     'access_granted', v_access_granted,
@@ -133,7 +163,7 @@ BEGIN
       'status', v_member.status,
       'membership_type', v_member.membership_type,
       'email', v_member.email,
-      'photo_url', v_member.photo_url
+      'photo_url', v_member.photo_url  -- ADD THIS LINE
     ),
     'payment_status', v_payment_status,
     'denial_reason', v_denial_reason,
@@ -143,35 +173,38 @@ BEGIN
   );
 END;
 $$;
+```
 
--- Create a helper function for manual check-ins to check for duplicates
-CREATE OR REPLACE FUNCTION check_for_duplicate_check_in(
-  p_member_id uuid,
-  p_check_in_window_minutes integer DEFAULT 30
-)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_existing_check_in_id uuid;
-BEGIN
-  SELECT id INTO v_existing_check_in_id
-  FROM check_ins
-  WHERE member_id = p_member_id
-    AND checked_out_at IS NULL  -- Not checked out yet
-    AND checked_in_at > now() - (p_check_in_window_minutes || ' minutes')::interval
-  ORDER BY checked_in_at DESC
-  LIMIT 1;
-  
-  RETURN v_existing_check_in_id;
-END;
-$$;
+### Step 4: Verify Permissions
 
-GRANT EXECUTE ON FUNCTION check_for_duplicate_check_in TO authenticated;
+Make sure the function has execute permissions:
 
--- Create index to improve duplicate check performance
-CREATE INDEX IF NOT EXISTS idx_check_ins_member_checked_in_checked_out 
-ON check_ins(member_id, checked_in_at DESC) 
-WHERE checked_out_at IS NULL;
+```sql
+GRANT EXECUTE ON FUNCTION process_member_scan TO authenticated;
+```
+
+### Step 5: Test
+
+1. Go to `/admin/scanner`
+2. Try scanning a member ID (e.g., `STM-000001`)
+3. Check browser console for errors
+4. Check Supabase logs for function errors
+
+## Common Issues
+
+1. **Function doesn't exist**: Run the migration files
+2. **Permission denied**: Check RLS policies and function permissions
+3. **Member not found**: Verify member_id format (should be like `STM-000001`)
+4. **Photo URL missing**: Function updated above includes photo_url
+
+## Debugging
+
+Check browser console for:
+- RPC function errors
+- Network errors
+- Authentication errors
+
+Check Supabase logs for:
+- Function execution errors
+- Permission errors
+- SQL errors

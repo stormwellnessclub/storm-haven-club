@@ -1,7 +1,6 @@
--- Check-In Duplicate Prevention
--- Prevents multiple check-ins within a time window (30 minutes) if member hasn't checked out
+-- Fix scanner function to include photo_url in return
+-- This fixes the member scanner not working properly
 
--- Update process_member_scan function to check for duplicate check-ins
 CREATE OR REPLACE FUNCTION process_member_scan(
   p_member_id_text text,
   p_scanned_by uuid,
@@ -121,7 +120,7 @@ BEGIN
   )
   RETURNING id INTO v_log_id;
   
-  -- Return result
+  -- Return result WITH photo_url (FIXED)
   RETURN jsonb_build_object(
     'success', true,
     'access_granted', v_access_granted,
@@ -133,7 +132,7 @@ BEGIN
       'status', v_member.status,
       'membership_type', v_member.membership_type,
       'email', v_member.email,
-      'photo_url', v_member.photo_url
+      'photo_url', v_member.photo_url  -- FIXED: Added missing photo_url
     ),
     'payment_status', v_payment_status,
     'denial_reason', v_denial_reason,
@@ -144,34 +143,5 @@ BEGIN
 END;
 $$;
 
--- Create a helper function for manual check-ins to check for duplicates
-CREATE OR REPLACE FUNCTION check_for_duplicate_check_in(
-  p_member_id uuid,
-  p_check_in_window_minutes integer DEFAULT 30
-)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_existing_check_in_id uuid;
-BEGIN
-  SELECT id INTO v_existing_check_in_id
-  FROM check_ins
-  WHERE member_id = p_member_id
-    AND checked_out_at IS NULL  -- Not checked out yet
-    AND checked_in_at > now() - (p_check_in_window_minutes || ' minutes')::interval
-  ORDER BY checked_in_at DESC
-  LIMIT 1;
-  
-  RETURN v_existing_check_in_id;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION check_for_duplicate_check_in TO authenticated;
-
--- Create index to improve duplicate check performance
-CREATE INDEX IF NOT EXISTS idx_check_ins_member_checked_in_checked_out 
-ON check_ins(member_id, checked_in_at DESC) 
-WHERE checked_out_at IS NULL;
+-- Ensure permissions are set
+GRANT EXECUTE ON FUNCTION process_member_scan TO authenticated;

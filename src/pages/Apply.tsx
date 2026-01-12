@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Check, ExternalLink } from "lucide-react";
+import { Check, ExternalLink, Loader2, AlertCircle } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
@@ -183,12 +183,14 @@ interface MembershipAgreementSectionProps {
 }
 
 function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAgreementSectionProps) {
-  const { data: membershipAgreements } = useAgreements("membership_agreement");
+  const { data: membershipAgreements, isLoading: agreementsLoading } = useAgreements("membership_agreement");
   
   const getPdfUrls = () => {
     if (!membershipAgreements || membershipAgreements.length === 0) return [];
     return membershipAgreements.map((a) => a.pdf_url).filter(Boolean);
   };
+
+  const pdfUrls = getPdfUrls();
 
   return (
     <Card className="mb-6">
@@ -199,13 +201,32 @@ function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAg
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {membershipAgreements && membershipAgreements.length > 0 && (
+        {agreementsLoading ? (
+          <div className="flex items-center justify-center h-[500px]">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Loading agreement...</p>
+            </div>
+          </div>
+        ) : pdfUrls.length > 0 ? (
           <AgreementPDFViewer
-            pdfUrl={getPdfUrls()}
+            pdfUrl={pdfUrls}
             title="Membership Agreement"
             height="500px"
             showControls={true}
           />
+        ) : (
+          <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-700">Agreement Not Available</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  The membership agreement document is not currently available. Please contact support or try refreshing the page.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
         <div className="flex items-start gap-3 p-4 rounded-lg border bg-secondary/30">
           <Checkbox
