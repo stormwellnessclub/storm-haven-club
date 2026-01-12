@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
-import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, Coffee, Baby, Flame, Sun, Snowflake } from "lucide-react";
+import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, Coffee, Baby, Flame, Sun, Snowflake, Download, Share, Plus, X } from "lucide-react";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import gymArea1 from "@/assets/gym-area-1.jpg";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
@@ -86,6 +88,8 @@ const lifestyleAmenities = [
   { icon: Baby, label: "Kids Care" },
 ];
 export default function Index() {
+  const { isIOS, isStandalone, showIOSModal, handleInstall, closeIOSModal } = usePWAInstall();
+
   return <Layout>
       {/* Hero Section */}
       <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
@@ -120,6 +124,21 @@ export default function Index() {
               </Button>
             </Link>
           </div>
+          
+          {/* Download App Button */}
+          {!isStandalone && (
+            <div className="animate-fade-up opacity-0 stagger-5 mt-6">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleInstall}
+                className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10 gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download App
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden sm:block">
@@ -405,5 +424,70 @@ export default function Index() {
           </Link>
         </AnimatedSection>
       </section>
+
+      {/* iOS Install Instructions Modal */}
+      <Dialog open={showIOSModal} onOpenChange={closeIOSModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">Install Storm Wellness App</DialogTitle>
+            <DialogDescription className="text-center">
+              Add this app to your home screen for the best experience
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {isIOS ? (
+              <>
+                <div className="flex items-start gap-4 p-3 bg-secondary/50 rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-accent">1</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Tap the Share button</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Look for <Share className="inline h-3 w-3" /> at the bottom of your screen
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-4 p-3 bg-secondary/50 rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-accent">2</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Select "Add to Home Screen"</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Scroll down and tap <Plus className="inline h-3 w-3" /> Add to Home Screen
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-4 p-3 bg-secondary/50 rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-accent">3</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Tap "Add"</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Confirm by tapping Add in the top right corner
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground text-sm">
+                  To install this app, open this page in Chrome or Safari on your mobile device, 
+                  then follow the browser's install prompt.
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <Button variant="outline" onClick={closeIOSModal} className="w-full">
+            Got it
+          </Button>
+        </DialogContent>
+      </Dialog>
     </Layout>;
 }
