@@ -53,7 +53,7 @@ export default function FreezeRequest() {
 
   const isLoading = membershipLoading || freezesLoading || eligibilityLoading;
   const durationMonths = parseInt(duration) as 1 | 2;
-  const freezeFee = durationMonths * 20;
+  const freezeFee = durationMonths * 30;
   const endDate = startDate ? addMonths(startDate, durationMonths) : null;
 
   const canSubmit = 
@@ -228,7 +228,7 @@ export default function FreezeRequest() {
                       <p className="text-xs text-muted-foreground">Months Remaining</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">$20</p>
+                      <p className="text-2xl font-bold">$30</p>
                       <p className="text-xs text-muted-foreground">Per Month</p>
                     </div>
                   </div>
@@ -280,7 +280,7 @@ export default function FreezeRequest() {
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="1" id="1-month" />
                           <Label htmlFor="1-month" className="font-normal">
-                            1 Month ($20 fee)
+                            1 Month ($30 fee)
                           </Label>
                         </div>
                         {(eligibility?.monthsRemaining || 0) >= 2 && (

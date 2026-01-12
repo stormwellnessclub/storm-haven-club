@@ -52,6 +52,18 @@ serve(async (req) => {
 
     for (const freeze of expiredFreezes) {
       try {
+        // Get member details for email and subscription IDs
+        const { data: memberData, error: memberFetchError } = await supabase
+          .from('members')
+          .select('id, email, first_name, last_name, status, stripe_subscription_id, annual_fee_subscription_id')
+          .eq('id', freeze.member_id)
+          .single();
+
+        if (memberFetchError) {
+          errors.push(`Failed to fetch member ${freeze.member_id}: ${memberFetchError.message}`);
+          continue;
+        }
+
         // Update freeze status to completed
         const { error: freezeUpdateError } = await supabase
           .from('member_freezes')
@@ -80,11 +92,113 @@ serve(async (req) => {
           continue;
         }
 
+        // Resume membership subscription if it exists
+        if (memberData?.stripe_subscription_id) {
+          try {
+            const { error: resumeError } = await supabase.functions.invoke('stripe-payment', {
+              body: {
+                action: 'resume_subscription',
+                subscriptionId: memberData.stripe_subscription_id,
+              },
+            });
+
+            if (resumeError) {
+              logStep("Failed to resume membership subscription", { 
+                memberId: freeze.member_id, 
+                error: resumeError 
+              });
+              // Don't fail the process if resume fails, but log it
+            } else {
+              logStep("Membership subscription resumed", { 
+                memberId: freeze.member_id, 
+                subscriptionId: memberData.stripe_subscription_id 
+              });
+            }
+          } catch (resumeErr) {
+            logStep("Error resuming membership subscription", { 
+              memberId: freeze.member_id, 
+              error: resumeErr 
+            });
+            // Don't fail the process if resume fails
+          }
+        }
+
+        // Resume annual fee subscription if it exists
+        if (memberData?.annual_fee_subscription_id) {
+          try {
+            const { error: resumeError } = await supabase.functions.invoke('stripe-payment', {
+              body: {
+                action: 'resume_subscription',
+                subscriptionId: memberData.annual_fee_subscription_id,
+              },
+            });
+
+            if (resumeError) {
+              logStep("Failed to resume annual fee subscription", { 
+                memberId: freeze.member_id, 
+                error: resumeError 
+              });
+              // Don't fail the process if resume fails, but log it
+            } else {
+              logStep("Annual fee subscription resumed", { 
+                memberId: freeze.member_id, 
+                subscriptionId: memberData.annual_fee_subscription_id 
+              });
+            }
+          } catch (resumeErr) {
+            logStep("Error resuming annual fee subscription", { 
+              memberId: freeze.member_id, 
+              error: resumeErr 
+            });
+            // Don't fail the process if resume fails
+          }
+        }
+
         logStep(`Processed freeze expiration`, { freezeId: freeze.id, memberId: freeze.member_id });
         processedCount++;
 
-        // TODO: Send reactivation email to member
-        // This would call the send-email function with freeze_completed template
+        // Send reactivation email to member
+        if (memberData?.email && (memberData.first_name || memberData.last_name)) {
+          try {
+            const memberName = memberData.first_name && memberData.last_name 
+              ? `${memberData.first_name} ${memberData.last_name}`
+              : memberData.first_name || memberData.last_name || 'Member';
+
+            const { error: emailError } = await supabase.functions.invoke('send-email', {
+              body: {
+                type: 'freeze_completed',
+                to: memberData.email,
+                data: {
+                  name: memberName,
+                  freezeEndDate: freeze.actual_end_date || new Date().toISOString(),
+                },
+              },
+            });
+
+            if (emailError) {
+              logStep("Failed to send freeze completion email", { 
+                memberId: freeze.member_id, 
+                error: emailError 
+              });
+              // Don't fail the process if email fails
+            } else {
+              logStep("Freeze completion email sent", { 
+                memberId: freeze.member_id, 
+                email: memberData.email 
+              });
+            }
+          } catch (emailError) {
+            logStep("Error sending freeze completion email", { 
+              memberId: freeze.member_id, 
+              error: emailError 
+            });
+            // Don't fail the process if email fails
+          }
+        } else {
+          logStep("Skipping freeze completion email - no email or name", { 
+            memberId: freeze.member_id 
+          });
+        }
 
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';

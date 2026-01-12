@@ -125,7 +125,7 @@ export function useActivateFreeze() {
 
   return useMutation({
     mutationFn: async (freezeId: string) => {
-      // Get the freeze request
+      // Get the freeze request and member data
       const { data: freezeData, error: fetchError } = await supabase
         .from("member_freezes")
         .select("member_id")
@@ -133,6 +133,15 @@ export function useActivateFreeze() {
         .single();
 
       if (fetchError) throw fetchError;
+
+      // Get member's subscription ID for pausing
+      const { data: memberData, error: memberFetchError } = await supabase
+        .from("members")
+        .select("stripe_subscription_id, annual_fee_subscription_id")
+        .eq("id", freezeData.member_id)
+        .single();
+
+      if (memberFetchError) throw memberFetchError;
 
       // Update the freeze status to active
       const { error: freezeError } = await supabase
@@ -156,6 +165,46 @@ export function useActivateFreeze() {
         .eq("id", freezeData.member_id);
 
       if (memberError) throw memberError;
+
+      // Pause membership subscription if it exists
+      if (memberData?.stripe_subscription_id) {
+        try {
+          const { error: pauseError } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "pause_subscription",
+              subscriptionId: memberData.stripe_subscription_id,
+            },
+          });
+
+          if (pauseError) {
+            console.error("Failed to pause membership subscription:", pauseError);
+            // Don't fail the freeze activation if pause fails, but log it
+          }
+        } catch (pauseErr) {
+          console.error("Error pausing membership subscription:", pauseErr);
+          // Don't fail the freeze activation if pause fails
+        }
+      }
+
+      // Pause annual fee subscription if it exists
+      if (memberData?.annual_fee_subscription_id) {
+        try {
+          const { error: pauseError } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "pause_subscription",
+              subscriptionId: memberData.annual_fee_subscription_id,
+            },
+          });
+
+          if (pauseError) {
+            console.error("Failed to pause annual fee subscription:", pauseError);
+            // Don't fail the freeze activation if pause fails, but log it
+          }
+        } catch (pauseErr) {
+          console.error("Error pausing annual fee subscription:", pauseErr);
+          // Don't fail the freeze activation if pause fails
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });

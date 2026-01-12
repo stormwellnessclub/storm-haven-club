@@ -84,6 +84,13 @@ serve(async (req) => {
     let skipped = 0;
 
     for (const member of members || []) {
+      // Skip frozen members - they don't get credits during freeze
+      if (member.status === 'frozen') {
+        console.log(`[process-monthly-credits] Skipping frozen member ${member.id}`);
+        skipped++;
+        continue;
+      }
+
       // Check if today is this member's billing anniversary
       const startDate = new Date(member.membership_start_date);
       const startDay = startDate.getDate();

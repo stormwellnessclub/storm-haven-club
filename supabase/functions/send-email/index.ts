@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed';
+  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed';
   to: string;
   data: Record<string, any>;
 }
@@ -823,6 +823,58 @@ serve(async (req) => {
               
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Best regards,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'freeze_completed':
+        subject = 'Membership Reactivated - Welcome Back to Storm Wellness Club!';
+        const freezeEndDate = data.freezeEndDate ? new Date(data.freezeEndDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'today';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Welcome back, ${data.name}! 🎉</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Your membership freeze has ended and your membership is now active again. We're excited to have you back!
+              </p>
+              
+              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0; font-weight: 600; color: #065f46;">
+                  ✅ Membership Reactivated
+                </p>
+                <p style="margin: 0; color: #047857; font-size: 14px;">
+                  Your membership freeze ended on ${freezeEndDate}. Full access to all facilities and services has been restored.
+                </p>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                You now have full access to:
+              </p>
+              
+              <ul style="color: #374151; line-height: 2; margin: 0 0 20px 0; padding-left: 20px;">
+                <li>All fitness facilities and equipment</li>
+                <li>Group classes and personal training</li>
+                <li>Spa services and amenities</li>
+                <li>Cafe and wellness services</li>
+              </ul>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member" style="${emailStyles.button}">Access Member Portal</a>
+                <a href="${BASE_URL}/schedule" style="${emailStyles.buttonSecondary}">Book a Class</a>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you have any questions or need assistance, please don't hesitate to reach out to our team.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Welcome back,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club Team</p>
               </div>
             </div>

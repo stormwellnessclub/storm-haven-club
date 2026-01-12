@@ -18,7 +18,7 @@ CREATE TABLE public.member_freezes (
   reviewed_at TIMESTAMPTZ,
   rejection_reason TEXT,
   
-  -- Fee tracking ($20/month)
+  -- Fee tracking ($30/month)
   freeze_fee_total NUMERIC NOT NULL DEFAULT 0,
   stripe_payment_intent_id TEXT,
   fee_paid BOOLEAN DEFAULT FALSE,

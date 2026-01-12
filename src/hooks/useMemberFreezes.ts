@@ -105,7 +105,7 @@ export function useCreateFreezeRequest() {
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + durationMonths);
       
-      const freezeFeeTotal = durationMonths * 20; // $20 per month
+      const freezeFeeTotal = durationMonths * 30; // $30 per month
 
       const { data, error } = await supabase
         .from("member_freezes")
