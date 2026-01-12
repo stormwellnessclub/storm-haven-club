@@ -27,39 +27,44 @@ export const StripeProvider = ({ children, clientSecret }: StripeProviderProps) 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!STRIPE_PUBLISHABLE_KEY) {
-      setError('Payment system is not configured. Please contact support.');
-      setIsLoading(false);
-      console.error('VITE_STRIPE_PUBLISHABLE_KEY environment variable is required');
-      return;
-    }
+    const initStripe = async () => {
+      if (!STRIPE_PUBLISHABLE_KEY) {
+        console.error('VITE_STRIPE_PUBLISHABLE_KEY environment variable is required');
+        setError('Payment system is being configured. Please refresh the page in a moment.');
+        setIsLoading(false);
+        return;
+      }
 
-    if (!clientSecret) {
-      setError('Payment session not initialized. Please try again.');
-      setIsLoading(false);
-      return;
-    }
+      if (!clientSecret) {
+        setError('Payment session not initialized. Please try again.');
+        setIsLoading(false);
+        return;
+      }
 
-    const promise = getStripePromise();
-    if (promise) {
-      promise
-        .then((stripeInstance) => {
-          if (stripeInstance) {
-            setStripe(stripeInstance);
-          } else {
-            setError('Failed to initialize payment system. Please refresh the page.');
-          }
+      try {
+        const promise = getStripePromise();
+        if (!promise) {
+          setError('Unable to connect to payment provider. Please refresh the page.');
           setIsLoading(false);
-        })
-        .catch((err) => {
-          console.error('Stripe initialization error:', err);
-          setError('Payment system temporarily unavailable. Please try again later.');
-          setIsLoading(false);
-        });
-    } else {
-      setError('Payment system is not configured properly.');
-      setIsLoading(false);
-    }
+          return;
+        }
+
+        const stripeInstance = await promise;
+        if (stripeInstance) {
+          setStripe(stripeInstance);
+          setError(null);
+        } else {
+          setError('Failed to initialize payment system. Please refresh the page.');
+        }
+      } catch (err) {
+        console.error('Stripe initialization error:', err);
+        setError('Payment system temporarily unavailable. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initStripe();
   }, [clientSecret]);
 
   if (isLoading) {
