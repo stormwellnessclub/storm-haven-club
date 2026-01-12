@@ -89,37 +89,41 @@ const lifestyleAmenities = [
 export default function Index() {
   return <Layout>
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-primary">
+      <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
         <div className="absolute inset-0">
-          <img src={mainLobby} alt="Storm Wellness Club Interior" className="w-full h-full object-cover opacity-20" />
-          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/70 via-charcoal/80 to-charcoal/90" />
+          <img 
+            src={mainLobby} 
+            alt="Storm Wellness Club Interior" 
+            className="w-full h-full object-cover object-center opacity-30 sm:opacity-20" 
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/60 via-charcoal/70 to-charcoal/80 sm:from-charcoal/70 sm:via-charcoal/80 sm:to-charcoal/90" />
         </div>
         
-        <div className="relative z-10 container mx-auto px-6 text-center">
+        <div className="relative z-10 container mx-auto px-4 sm:px-6 text-center py-20 sm:py-0">
           
-          <h1 className="heading-display text-primary-foreground mb-6 animate-fade-up opacity-0 stagger-2">
+          <h1 className="heading-display text-primary-foreground mb-4 sm:mb-6 animate-fade-up opacity-0 stagger-2 text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
             The Wellness Solution
             <br />
             <span className="text-gold-light">You Have Been Seeking</span>
           </h1>
-          <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto mb-10 animate-fade-up opacity-0 stagger-3">
+          <p className="text-primary-foreground/80 text-base sm:text-lg max-w-xl mx-auto mb-8 sm:mb-10 animate-fade-up opacity-0 stagger-3 px-4 sm:px-0">
             Where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-up opacity-0 stagger-4">
-            <Link to="/apply">
-              <Button variant="hero" size="lg">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-up opacity-0 stagger-4 px-4 sm:px-0">
+            <Link to="/apply" className="w-full sm:w-auto">
+              <Button variant="hero" size="lg" className="w-full sm:w-auto">
                 Apply for Membership
               </Button>
             </Link>
-            <Link to="/memberships">
-              <Button variant="hero-outline" size="lg">
+            <Link to="/memberships" className="w-full sm:w-auto">
+              <Button variant="hero-outline" size="lg" className="w-full sm:w-auto">
                 Explore Memberships
               </Button>
             </Link>
           </div>
         </div>
 
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+        <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden sm:block">
           <div className="w-6 h-10 border-2 border-primary-foreground/30 rounded-full flex justify-center pt-2">
             <div className="w-1 h-2 bg-primary-foreground/50 rounded-full" />
           </div>
