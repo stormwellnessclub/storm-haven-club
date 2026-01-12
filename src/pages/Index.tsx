@@ -11,7 +11,7 @@ import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
 import aerobicsStudio from "@/assets/aerobics-studio.jpg";
 import stormLogoDark from "@/assets/storm-logo-dark.png";
-import aellaLogo from "@/assets/aella-logo.png";
+import aellaLogoTransparent from "@/assets/aella-logo-transparent.png";
 import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
 import bodyTreatments from "@/assets/body-treatments.jpg";
 import sauna from "@/assets/sauna.jpg";
@@ -208,7 +208,7 @@ export default function Index() {
         <div className="container mx-auto px-6">
           <AnimatedSection className="text-center mb-12">
             <img 
-              src={aellaLogo} 
+              src={aellaLogoTransparent} 
               alt="Aella by Storm Wellness Club" 
               className="h-48 md:h-64 w-auto mx-auto -mb-4" 
             />
