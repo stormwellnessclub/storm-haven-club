@@ -16,6 +16,7 @@ import {
 import { Maximize2, Camera, Sun, AlertCircle } from "lucide-react";
 import { EntryQRCode } from "@/components/member/EntryQRCode";
 import { useEntryToken } from "@/hooks/useEntryToken";
+import { AnimatedSection } from "@/components/AnimatedSection";
 
 export default function MemberEntry() {
   const { token, member, isLoading, error, refresh } = useEntryToken();
@@ -53,19 +54,20 @@ export default function MemberEntry() {
   return (
     <MemberLayout title="Member Entry">
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Card className="w-full max-w-md border-accent/30 shadow-lg">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-2xl font-bold">Member Entry</CardTitle>
-            <CardDescription>
-              Show this code at the front desk
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="flex flex-col items-center gap-6 pb-8">
-            {/* QR Code */}
-            <div className="relative p-2 rounded-xl border-4 border-accent bg-accent/5">
-              <EntryQRCode token={token} isLoading={false} size={240} />
-            </div>
+        <AnimatedSection animation="scale-in">
+          <Card variant="luxury" className="w-full max-w-md border-accent/30 shadow-elevated">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="text-2xl font-serif">Member Entry</CardTitle>
+              <CardDescription>
+                Show this code at the front desk
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="flex flex-col items-center gap-6 pb-8">
+              {/* QR Code */}
+              <div className="relative p-3 rounded-xl border-4 border-accent bg-gradient-to-br from-accent/5 to-accent/10 shadow-gold-hover">
+                <EntryQRCode token={token} isLoading={false} size={240} />
+              </div>
 
             {/* Member Info */}
             {member && (
@@ -107,35 +109,36 @@ export default function MemberEntry() {
               </Alert>
             )}
 
-            {/* Full Screen Button */}
-            <Button
-              variant="outline"
-              className="w-full max-w-xs gap-2"
-              onClick={() => setShowFullScreen(true)}
-            >
-              <Maximize2 className="h-4 w-4" />
-              Open Full Screen
-            </Button>
+              {/* Full Screen Button */}
+              <Button
+                variant="gold-outline"
+                className="w-full max-w-xs gap-2 hover-lift-sm"
+                onClick={() => setShowFullScreen(true)}
+              >
+                <Maximize2 className="h-4 w-4" />
+                Open Full Screen
+              </Button>
 
-            {/* Brightness Tip */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Sun className="h-4 w-4" />
-              <span>For best results, increase screen brightness</span>
-            </div>
-          </CardContent>
-        </Card>
+              {/* Brightness Tip */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Sun className="h-4 w-4 text-accent" />
+                <span>For best results, increase screen brightness</span>
+              </div>
+            </CardContent>
+          </Card>
+        </AnimatedSection>
       </div>
 
       {/* Full Screen Modal */}
       <Dialog open={showFullScreen} onOpenChange={setShowFullScreen}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-8 sm:p-12 flex flex-col items-center justify-center bg-background">
           <DialogHeader className="text-center mb-6">
-            <DialogTitle className="text-2xl">Member Entry</DialogTitle>
+            <DialogTitle className="text-2xl font-serif">Member Entry</DialogTitle>
           </DialogHeader>
           
-          <div className="flex flex-col items-center gap-8">
+          <div className="flex flex-col items-center gap-8 animate-in fade-in-0 zoom-in-95 duration-300">
             {/* Large QR Code */}
-            <div className="p-4 rounded-xl border-4 border-accent bg-accent/5">
+            <div className="p-4 rounded-xl border-4 border-accent bg-gradient-to-br from-accent/5 to-accent/10 shadow-gold-hover">
               <EntryQRCode token={token} isLoading={false} size={320} />
             </div>
 
