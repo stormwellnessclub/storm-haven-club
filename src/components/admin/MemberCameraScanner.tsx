@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { Camera, CameraOff, RotateCcw, Zap, ZapOff } from "lucide-react";
@@ -21,9 +21,14 @@ export function MemberCameraScanner({
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [cameraId, setCameraId] = useState<string | null>(null);
   const [flashlightEnabled, setFlashlightEnabled] = useState(false);
+  
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const scannerContainerRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
+  const isCleaningUpRef = useRef(false);
+  
+  // Generate a unique ID for this scanner instance to avoid DOM conflicts
+  const uniqueId = useId();
+  const scannerElementId = `qr-scanner-${uniqueId.replace(/:/g, "-")}`;
 
   // Get available cameras with proper cleanup
   useEffect(() => {
@@ -63,10 +68,17 @@ export function MemberCameraScanner({
   }, []);
 
   const startScanning = async () => {
-    if (!cameraId || !scannerContainerRef.current || !isMountedRef.current) return;
+    if (!cameraId || !isMountedRef.current || isCleaningUpRef.current) return;
+    
+    // Check if the element exists
+    const element = document.getElementById(scannerElementId);
+    if (!element) {
+      console.error("Scanner element not found:", scannerElementId);
+      return;
+    }
 
     try {
-      const scanner = new Html5Qrcode(scannerContainerRef.current.id);
+      const scanner = new Html5Qrcode(scannerElementId);
       scannerRef.current = scanner;
 
       await scanner.start(
@@ -83,8 +95,8 @@ export function MemberCameraScanner({
           // Success callback
           onScanSuccess(decodedText);
         },
-        (errorMessage) => {
-          // Error callback - ignore quiet errors
+        () => {
+          // Error callback - ignore quiet errors (scanning continuously)
         }
       );
 
@@ -103,20 +115,35 @@ export function MemberCameraScanner({
   };
 
   const stopScanning = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        await scannerRef.current.clear();
-        scannerRef.current = null;
-        if (isMountedRef.current) {
-          setIsScanning(false);
-          setFlashlightEnabled(false);
-        }
-      } catch (error) {
-        // Ignore errors during cleanup - DOM may already be gone
-        console.log("Stop scanning:", error);
-      }
+    // Prevent double cleanup
+    if (isCleaningUpRef.current) return;
+    
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+    
+    isCleaningUpRef.current = true;
+    scannerRef.current = null; // Clear ref early to prevent re-entry
+    
+    try {
+      await scanner.stop();
+    } catch (error) {
+      // Ignore stop errors - scanner may already be stopped
+      console.log("Stop scanner:", error);
     }
+    
+    try {
+      scanner.clear();
+    } catch (error) {
+      // Ignore clear errors - DOM may already be gone
+      console.log("Clear scanner:", error);
+    }
+    
+    if (isMountedRef.current) {
+      setIsScanning(false);
+      setFlashlightEnabled(false);
+    }
+    
+    isCleaningUpRef.current = false;
   };
 
   const toggleFlashlight = async () => {
@@ -140,26 +167,34 @@ export function MemberCameraScanner({
     }
   };
 
-  // Cleanup on unmount - use ref, no state dependencies
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
-      // Use scannerRef directly without checking isScanning state
-      if (scannerRef.current) {
-        scannerRef.current
-          .stop()
-          .then(() => {
-            if (scannerRef.current) {
-              scannerRef.current.clear();
-            }
-          })
-          .catch((err) => {
-            // Ignore errors during cleanup - DOM may already be gone
-            console.log("Scanner cleanup:", err.message);
-          });
-      }
+      
+      // Capture scanner reference at cleanup time
+      const scanner = scannerRef.current;
+      if (!scanner) return;
+      
+      // Prevent other cleanup calls
+      isCleaningUpRef.current = true;
+      scannerRef.current = null;
+      
+      // Async cleanup - fire and forget
+      scanner
+        .stop()
+        .then(() => {
+          try {
+            scanner.clear();
+          } catch {
+            // Ignore clear errors
+          }
+        })
+        .catch(() => {
+          // Ignore all cleanup errors - component is unmounting
+        });
     };
-  }, []); // Empty dependency array
+  }, []);
 
   if (hasPermission === false) {
     return (
@@ -178,14 +213,27 @@ export function MemberCameraScanner({
     <div className="space-y-4">
       <Card>
         <CardContent className="p-0">
+          {/* 
+            CRITICAL: DOM structure separates html5-qrcode container from React-managed overlay.
+            - The outer wrapper is position:relative
+            - The scanner host div is EMPTY and owned entirely by html5-qrcode
+            - The overlay is a SIBLING (not child) positioned absolute on top
+            This prevents html5-qrcode from deleting React nodes when it clears its container.
+          */}
           <div
-            id="qr-reader"
-            ref={scannerContainerRef}
             className="relative w-full bg-black rounded-lg overflow-hidden"
-            style={{ minHeight: "400px", position: "relative" }}
+            style={{ minHeight: "400px" }}
           >
+            {/* Scanner host - MUST be empty, owned by html5-qrcode */}
+            <div
+              id={scannerElementId}
+              className="w-full h-full"
+              style={{ minHeight: "400px" }}
+            />
+            
+            {/* React overlay - separate from scanner host */}
             {!isScanning && (
-              <div className="absolute inset-0 flex items-center justify-center bg-muted">
+              <div className="absolute inset-0 flex items-center justify-center bg-muted pointer-events-none">
                 <div className="text-center">
                   <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">Camera ready</p>
@@ -227,9 +275,10 @@ export function MemberCameraScanner({
               )}
             </Button>
             <Button
-              onClick={() => {
-                stopScanning();
-                setTimeout(startScanning, 100);
+              onClick={async () => {
+                await stopScanning();
+                // Small delay to ensure cleanup completes
+                setTimeout(startScanning, 150);
               }}
               variant="outline"
               size="lg"
