@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { StripeProvider } from "@/components/StripeProvider";
+import { AdminAddCardForm } from "./AdminAddCardForm";
 import {
   Sheet,
   SheetContent,
@@ -111,6 +113,13 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
   const [isCharging, setIsCharging] = useState(false);
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeDescription, setChargeDescription] = useState("");
+  
+  // Add Card state
+  const [showAddCardForm, setShowAddCardForm] = useState(false);
+  const [addCardClientSecret, setAddCardClientSecret] = useState<string | null>(null);
+  const [addCardCustomerId, setAddCardCustomerId] = useState<string | null>(null);
+  const [isCreatingSetupIntent, setIsCreatingSetupIntent] = useState(false);
+  
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
@@ -279,6 +288,48 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
     } finally {
       setIsCharging(false);
     }
+  };
+
+  const handleAddCard = async () => {
+    if (!member) return;
+    
+    setIsCreatingSetupIntent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-payment', {
+        body: {
+          action: 'create_admin_setup_intent',
+          stripeCustomerId: member.stripe_customer_id,
+          applicantEmail: member.email,
+          applicantName: `${member.first_name} ${member.last_name}`,
+        },
+      });
+      
+      if (error) throw error;
+      if (!data?.clientSecret) throw new Error("Failed to create setup intent");
+      
+      setAddCardClientSecret(data.clientSecret);
+      setAddCardCustomerId(data.customerId);
+      setShowAddCardForm(true);
+    } catch (err) {
+      console.error("Error creating setup intent:", err);
+      toast.error("Failed to initialize card form");
+    } finally {
+      setIsCreatingSetupIntent(false);
+    }
+  };
+
+  const handleAddCardSuccess = () => {
+    setShowAddCardForm(false);
+    setAddCardClientSecret(null);
+    setAddCardCustomerId(null);
+    queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    toast.success("Card saved successfully");
+  };
+
+  const handleAddCardCancel = () => {
+    setShowAddCardForm(false);
+    setAddCardClientSecret(null);
+    setAddCardCustomerId(null);
   };
 
   const canReactivate = member && ["suspended", "cancelled", "inactive", "frozen", "expired"].includes(member.status);
@@ -790,6 +841,43 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                           </>
                         )}
                       </div>
+
+                      {/* Add Another Card Button */}
+                      <div className="pt-4 border-t">
+                        <p className="text-sm font-medium mb-3">Payment Methods</p>
+                        {showAddCardForm && addCardClientSecret ? (
+                          <div className="border rounded-lg p-4 bg-muted/30">
+                            <p className="text-sm font-medium mb-3">Add Payment Method</p>
+                            <StripeProvider clientSecret={addCardClientSecret}>
+                              <AdminAddCardForm
+                                onSuccess={handleAddCardSuccess}
+                                onCancel={handleAddCardCancel}
+                                memberId={member.id}
+                                stripeCustomerId={addCardCustomerId || undefined}
+                              />
+                            </StripeProvider>
+                          </div>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleAddCard}
+                            disabled={isCreatingSetupIntent}
+                          >
+                            {isCreatingSetupIntent ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Initializing...
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Another Card
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
                       
                       <div className="pt-4 border-t">
                         <ChargeHistory 
@@ -888,7 +976,41 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                       </div>
                     </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No payment method on file</p>
+                    <div className="text-center py-4">
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-muted-foreground mb-4">No payment method on file</p>
+                      
+                      {showAddCardForm && addCardClientSecret ? (
+                        <div className="border rounded-lg p-4 bg-muted/30 text-left">
+                          <p className="text-sm font-medium mb-3">Add Payment Method</p>
+                          <StripeProvider clientSecret={addCardClientSecret}>
+                            <AdminAddCardForm
+                              onSuccess={handleAddCardSuccess}
+                              onCancel={handleAddCardCancel}
+                              memberId={member.id}
+                              stripeCustomerId={addCardCustomerId || undefined}
+                            />
+                          </StripeProvider>
+                        </div>
+                      ) : (
+                        <Button 
+                          onClick={handleAddCard}
+                          disabled={isCreatingSetupIntent}
+                        >
+                          {isCreatingSetupIntent ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Initializing...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Card
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
