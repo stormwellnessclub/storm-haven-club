@@ -101,7 +101,7 @@ const formatStatus = (status: string) => {
 
 export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSheetProps) {
   const queryClient = useQueryClient();
-  const { isSuperAdmin } = useUserRoles();
+  const { isSuperAdmin, loading: rolesLoading } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
@@ -705,7 +705,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                 </Button>
               )}
 
-              {isSuperAdmin() && member.status !== "active" && (
+              {!rolesLoading && isSuperAdmin() && member.status !== "active" && (
                 <Button 
                   variant="default" 
                   className="w-full mt-4 bg-green-600 hover:bg-green-700"
