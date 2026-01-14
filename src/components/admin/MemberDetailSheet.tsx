@@ -108,8 +108,10 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showReactivateDialog, setShowReactivateDialog] = useState(false);
   const [showChargeDialog, setShowChargeDialog] = useState(false);
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReactivating, setIsReactivating] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
   const [isCharging, setIsCharging] = useState(false);
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeDescription, setChargeDescription] = useState("");
@@ -246,6 +248,34 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
       toast.error("Failed to reactivate membership");
     } finally {
       setIsReactivating(false);
+    }
+  };
+
+  const handleActivateMember = async () => {
+    if (!member) return;
+    
+    setIsActivating(true);
+    try {
+      const { error } = await supabase
+        .from("members")
+        .update({ 
+          status: "active",
+          activated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      toast.success("Member activated successfully");
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      setShowActivateDialog(false);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error activating member:", error);
+      toast.error("Failed to activate member");
+    } finally {
+      setIsActivating(false);
     }
   };
 
@@ -675,6 +705,17 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                 </Button>
               )}
 
+              {isSuperAdmin() && member.status !== "active" && (
+                <Button 
+                  variant="default" 
+                  className="w-full mt-4 bg-green-600 hover:bg-green-700"
+                  onClick={() => setShowActivateDialog(true)}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Activate Member (Super Admin)
+                </Button>
+              )}
+
               {member.status !== "suspended" && member.status !== "cancelled" && member.status === "active" && (
                 <Button 
                   variant="destructive" 
@@ -1090,6 +1131,32 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
             >
               {isReactivating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Reactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate Member (Super Admin)</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to activate {member.first_name} {member.last_name}'s membership. 
+              This will grant them full member access immediately.
+              <br /><br />
+              <strong className="text-foreground">Note:</strong> This action bypasses normal payment requirements. 
+              Make sure any required payments have been collected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isActivating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleActivateMember}
+              disabled={isActivating}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isActivating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Confirm Activation
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
