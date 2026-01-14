@@ -23,12 +23,19 @@ export function MemberCameraScanner({
   const [flashlightEnabled, setFlashlightEnabled] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
 
-  // Get available cameras
+  // Get available cameras with proper cleanup
   useEffect(() => {
+    isMountedRef.current = true;
+
     const getCameras = async () => {
       try {
         const devices = await Html5Qrcode.getCameras();
+        
+        // Only update state if still mounted
+        if (!isMountedRef.current) return;
+        
         if (devices && devices.length > 0) {
           // Prefer back camera for iPad/tablet
           const backCamera = devices.find(
@@ -41,15 +48,22 @@ export function MemberCameraScanner({
         }
       } catch (error) {
         console.error("Error getting cameras:", error);
-        setHasPermission(false);
+        if (isMountedRef.current) {
+          setHasPermission(false);
+        }
       }
     };
 
     getCameras();
+
+    // Cleanup function
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const startScanning = async () => {
-    if (!cameraId || !scannerContainerRef.current) return;
+    if (!cameraId || !scannerContainerRef.current || !isMountedRef.current) return;
 
     try {
       const scanner = new Html5Qrcode(scannerContainerRef.current.id);
@@ -68,35 +82,39 @@ export function MemberCameraScanner({
         (decodedText) => {
           // Success callback
           onScanSuccess(decodedText);
-          // Optionally stop after successful scan
-          // stopScanning();
         },
         (errorMessage) => {
           // Error callback - ignore quiet errors
-          // Only report actual errors
         }
       );
 
-      setIsScanning(true);
+      if (isMountedRef.current) {
+        setIsScanning(true);
+      }
     } catch (error: any) {
       console.error("Error starting scanner:", error);
-      setIsScanning(false);
-      if (onScanError) {
-        onScanError(error.message || "Failed to start camera");
+      if (isMountedRef.current) {
+        setIsScanning(false);
+        if (onScanError) {
+          onScanError(error.message || "Failed to start camera");
+        }
       }
     }
   };
 
   const stopScanning = async () => {
-    if (scannerRef.current && isScanning) {
+    if (scannerRef.current) {
       try {
         await scannerRef.current.stop();
         await scannerRef.current.clear();
         scannerRef.current = null;
-        setIsScanning(false);
-        setFlashlightEnabled(false);
+        if (isMountedRef.current) {
+          setIsScanning(false);
+          setFlashlightEnabled(false);
+        }
       } catch (error) {
-        console.error("Error stopping scanner:", error);
+        // Ignore errors during cleanup - DOM may already be gone
+        console.log("Stop scanning:", error);
       }
     }
   };
@@ -111,7 +129,9 @@ export function MemberCameraScanner({
         await scannerRef.current.applyVideoConstraints({
           advanced: [{ torch: !flashlightEnabled } as any]
         });
-        setFlashlightEnabled(!flashlightEnabled);
+        if (isMountedRef.current) {
+          setFlashlightEnabled(!flashlightEnabled);
+        }
       } else {
         console.warn("Flashlight/torch not supported on this device");
       }
@@ -120,16 +140,26 @@ export function MemberCameraScanner({
     }
   };
 
-  // Cleanup on unmount
+  // Cleanup on unmount - use ref, no state dependencies
   useEffect(() => {
     return () => {
-      if (scannerRef.current && isScanning) {
+      isMountedRef.current = false;
+      // Use scannerRef directly without checking isScanning state
+      if (scannerRef.current) {
         scannerRef.current
           .stop()
-          .catch((err) => console.error("Error cleaning up scanner:", err));
+          .then(() => {
+            if (scannerRef.current) {
+              scannerRef.current.clear();
+            }
+          })
+          .catch((err) => {
+            // Ignore errors during cleanup - DOM may already be gone
+            console.log("Scanner cleanup:", err.message);
+          });
       }
     };
-  }, [isScanning]);
+  }, []); // Empty dependency array
 
   if (hasPermission === false) {
     return (
@@ -214,4 +244,3 @@ export function MemberCameraScanner({
     </div>
   );
 }
-
