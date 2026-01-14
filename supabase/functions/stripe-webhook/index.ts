@@ -1095,6 +1095,100 @@ serve(async (req) => {
         break;
       }
 
+      case 'setup_intent.succeeded': {
+        try {
+          const setupIntent = event.data.object as Stripe.SetupIntent;
+          const customerId = setupIntent.customer as string;
+          const paymentMethodId = setupIntent.payment_method as string;
+          const metadata = setupIntent.metadata || {};
+
+          logStep("SetupIntent succeeded", { 
+            setupIntentId: setupIntent.id, 
+            customerId, 
+            paymentMethodId,
+            type: metadata.type || 'unknown'
+          });
+
+          // Sync to members table if this customer has a member record
+          if (customerId) {
+            const { data: memberData, error: memberError } = await supabase
+              .from('members')
+              .select('id, stripe_customer_id')
+              .eq('stripe_customer_id', customerId)
+              .maybeSingle();
+
+            if (memberError) {
+              logError(memberError, "SETUP_INTENT_MEMBER_LOOKUP");
+            } else if (memberData) {
+              // Log payment method update to audit table
+              try {
+                const { error: pmLogError } = await supabase
+                  .from('payment_method_updates')
+                  .insert({
+                    member_id: memberData.id,
+                    payment_method_id: paymentMethodId,
+                    event_type: 'card_added',
+                    card_brand: null, // Will be populated if we fetch payment method details
+                    card_last4: null,
+                    card_exp_month: null,
+                    card_exp_year: null,
+                    is_default: false,
+                  });
+
+                if (pmLogError) {
+                  logError(pmLogError, "SETUP_INTENT_LOG_PAYMENT_METHOD");
+                } else {
+                  logStep("Payment method update logged", { memberId: memberData.id, paymentMethodId });
+                }
+              } catch (logErr) {
+                logError(logErr, "SETUP_INTENT_LOG_PAYMENT_METHOD");
+              }
+            }
+          }
+
+          // Sync to membership_applications if this is an application setup
+          if (metadata.type === 'application_card_setup' || metadata.type === 'admin_card_setup') {
+            const applicantEmail = metadata.applicant_email || metadata.email;
+            
+            if (applicantEmail && customerId) {
+              const { error: appUpdateError } = await supabase
+                .from('membership_applications')
+                .update({ 
+                  stripe_customer_id: customerId,
+                  payment_info_provided: true 
+                })
+                .eq('email', applicantEmail);
+
+              if (appUpdateError) {
+                logError(appUpdateError, "SETUP_INTENT_APPLICATION_UPDATE");
+              } else {
+                logStep("Application updated with Stripe customer", { email: applicantEmail, customerId });
+              }
+            }
+          }
+
+          // If metadata has member_id, ensure member record is synced
+          if (metadata.member_id && customerId) {
+            const { error: memberSyncError } = await supabase
+              .from('members')
+              .update({ stripe_customer_id: customerId })
+              .eq('id', metadata.member_id)
+              .is('stripe_customer_id', null); // Only update if not already set
+
+            if (memberSyncError) {
+              logError(memberSyncError, "SETUP_INTENT_MEMBER_SYNC");
+            } else {
+              logStep("Member stripe_customer_id synced", { memberId: metadata.member_id, customerId });
+            }
+          }
+
+        } catch (setupError) {
+          logError(setupError, "SETUP_INTENT_SUCCEEDED");
+          return errorResponse(setupError, "SETUP_INTENT_SUCCEEDED");
+        }
+        break;
+      }
+
       default:
         logStep(`Unhandled event type: ${event.type}`, { eventId: event.id });
     }
