@@ -197,7 +197,7 @@ export default function Terms() {
               <strong>Storm Wellness Club</strong><br />
               Operated by SR & D Development LLC<br />
               18340 Middlebelt Rd<br />
-              Livonia, MI 48127<br />
+              Livonia, MI 48152<br />
               Email: <a href="mailto:admin@stormwellnessclub.com" className="text-gold hover:text-gold-light">admin@stormwellnessclub.com</a><br />
               Phone: <a href="tel:+13132865070" className="text-gold hover:text-gold-light">(313) 286-5070</a>
             </address>

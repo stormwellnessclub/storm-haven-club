@@ -117,7 +117,7 @@ export function Footer() {
             </h4>
             <ul className="space-y-3 text-sm text-primary-foreground/70">
               <li>18340 Middlebelt Rd</li>
-              <li>Livonia, MI 48127</li>
+              <li>Livonia, MI 48152</li>
               <li className="pt-2">
                 <a href="tel:+13132865070" className="hover:text-primary-foreground transition-colors">
                   (313) 286-5070

@@ -362,7 +362,7 @@ export default function Auth() {
             </h2>
             <p className="text-primary-foreground/70 max-w-md mx-auto">
               Access premium classes, spa treatments, and exclusive amenities 
-              at Houston's most distinguished wellness destination.
+              at Livonia's most distinguished wellness destination.
             </p>
           </div>
         </div>
