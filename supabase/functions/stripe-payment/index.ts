@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'create_application_setup' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -663,6 +663,141 @@ serve(async (req) => {
         );
       }
 
+      case 'list_application_payment_methods': {
+        // List payment methods directly using stripeCustomerId (for applicants without member records)
+        const { stripeCustomerId: appCustomerId } = body;
+
+        if (!appCustomerId) {
+          return new Response(
+            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        logStep("Listing payment methods for application", { stripeCustomerId: appCustomerId });
+
+        try {
+          // Get customer to find default payment method
+          const appCustomer = await stripe.customers.retrieve(appCustomerId);
+          const appDefaultPaymentMethodId = !appCustomer.deleted 
+            ? appCustomer.invoice_settings?.default_payment_method as string | null
+            : null;
+
+          // List payment methods
+          const appPaymentMethods = await stripe.paymentMethods.list({
+            customer: appCustomerId,
+            type: 'card',
+          });
+
+          const appFormattedMethods = appPaymentMethods.data.map((pm: { 
+            id: string; 
+            card?: { brand?: string; last4?: string; exp_month?: number; exp_year?: number };
+            metadata?: Record<string, string>;
+          }) => ({
+            id: pm.id,
+            brand: pm.card?.brand,
+            last4: pm.card?.last4,
+            expMonth: pm.card?.exp_month,
+            expYear: pm.card?.exp_year,
+            nickname: pm.metadata?.nickname || null,
+            isDefault: pm.id === appDefaultPaymentMethodId,
+          }));
+
+          logStep("Application payment methods listed", { 
+            stripeCustomerId: appCustomerId, 
+            count: appFormattedMethods.length 
+          });
+
+          return new Response(
+            JSON.stringify({ 
+              paymentMethods: appFormattedMethods, 
+              hasPaymentMethod: appFormattedMethods.length > 0,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        } catch (stripeErr: any) {
+          logStep("Error listing application payment methods", { error: stripeErr.message });
+          return new Response(
+            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false, error: stripeErr.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+      }
+
+      case 'create_admin_setup_intent': {
+        // Create a SetupIntent for admin to add card on behalf of applicant
+        const { stripeCustomerId: adminSetupCustomerId, applicantEmail: adminApplicantEmail, applicantName: adminApplicantName } = body;
+
+        // Verify admin role
+        const { data: adminRoleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!adminRoleData || adminRoleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Creating admin setup intent", { 
+          customerId: adminSetupCustomerId, 
+          email: adminApplicantEmail, 
+          adminUserId: user.id 
+        });
+
+        let finalCustomerId = adminSetupCustomerId;
+
+        // Create customer if needed
+        if (!finalCustomerId && adminApplicantEmail) {
+          const existingCustomers = await stripe.customers.list({ 
+            email: adminApplicantEmail, 
+            limit: 1 
+          });
+          
+          if (existingCustomers.data.length > 0) {
+            finalCustomerId = existingCustomers.data[0].id;
+            logStep("Found existing customer for admin setup", { customerId: finalCustomerId });
+          } else {
+            const newCustomer = await stripe.customers.create({
+              email: adminApplicantEmail,
+              name: adminApplicantName || undefined,
+              metadata: { 
+                source: 'admin_card_addition',
+                added_by: user.id,
+              }
+            });
+            finalCustomerId = newCustomer.id;
+            logStep("Created new customer for admin setup", { customerId: finalCustomerId });
+          }
+        }
+
+        if (!finalCustomerId) {
+          throw new Error("stripeCustomerId or applicantEmail required");
+        }
+
+        const adminSetupIntent = await stripe.setupIntents.create({
+          customer: finalCustomerId,
+          payment_method_types: ['card'],
+          metadata: {
+            type: 'admin_card_setup',
+            added_by: user.id,
+          },
+        });
+
+        logStep("Admin setup intent created", { 
+          setupIntentId: adminSetupIntent.id, 
+          customerId: finalCustomerId 
+        });
+
+        return new Response(
+          JSON.stringify({ 
+            clientSecret: adminSetupIntent.client_secret,
+            customerId: finalCustomerId,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
       case 'charge_saved_card': {
         const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description } = body;
 
@@ -800,6 +935,56 @@ serve(async (req) => {
           }
         } else {
           logStep("Skipping manual_charges insert - no member or application ID");
+        }
+
+        // SYNC TO MEMBER PROFILE: If this is an initiation/annual fee charge, sync to member profile
+        if (paymentIntent.status === 'succeeded') {
+          const isInitiationFee = description.toLowerCase().includes('initiation') || 
+                                  description.toLowerCase().includes('annual fee');
+          
+          if (isInitiationFee && applicationIdForLog) {
+            logStep("Syncing initiation fee to member profile", { applicationId: applicationIdForLog });
+            
+            // Get application email to find member record
+            const { data: appData } = await supabase
+              .from('membership_applications')
+              .select('email')
+              .eq('id', applicationIdForLog)
+              .single();
+            
+            if (appData?.email) {
+              // Check if member record exists for this application's email
+              const { data: memberDataForSync } = await supabase
+                .from('members')
+                .select('id')
+                .ilike('email', appData.email)
+                .maybeSingle();
+              
+              if (memberDataForSync) {
+                // Sync annual_fee_paid_at to member profile (prevents double-billing during activation)
+                const { error: syncError } = await supabase
+                  .from('members')
+                  .update({ 
+                    annual_fee_paid_at: new Date().toISOString(),
+                    stripe_customer_id: customerId 
+                  })
+                  .eq('id', memberDataForSync.id);
+                
+                if (syncError) {
+                  logStep("Warning: Failed to sync annual_fee_paid_at to member", { error: syncError.message });
+                } else {
+                  logStep("Successfully synced annual_fee_paid_at to member profile", { 
+                    memberId: memberDataForSync.id,
+                    customerId,
+                  });
+                }
+              } else {
+                logStep("No member record found for application email - will sync on member creation", { 
+                  email: appData.email 
+                });
+              }
+            }
+          }
         }
 
         return new Response(

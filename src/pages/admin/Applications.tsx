@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -38,17 +38,21 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX, Plus, Wallet } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { BatchActivationDialog, BatchActivationConfig } from "@/components/admin/BatchActivationDialog";
 import { SingleActivationDialog } from "@/components/admin/SingleActivationDialog";
+import { AdminAddCardForm } from "@/components/admin/AdminAddCardForm";
+import { StripeProvider } from "@/components/StripeProvider";
 import { useApplicationStatusHistory } from "@/hooks/useApplicationStatusHistory";
 import { History } from "lucide-react";
 
@@ -175,9 +179,35 @@ export default function Applications() {
   const [showChargeDialog, setShowChargeDialog] = useState(false);
   const [chargeTarget, setChargeTarget] = useState<Application | null>(null);
   const [chargeAmount, setChargeAmount] = useState("300");
-  const [chargeDescription, setChargeDescription] = useState("Annual Membership Fee");
+  const [chargeDescription, setChargeDescription] = useState("Initiation Fee");
   const [isCharging, setIsCharging] = useState(false);
   const [isRequestingPayment, setIsRequestingPayment] = useState(false);
+  
+  // Enhanced charge dialog state
+  const [cardDetails, setCardDetails] = useState<{
+    brand: string;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+  } | null>(null);
+  const [isLoadingCard, setIsLoadingCard] = useState(false);
+  const [showAddCardForm, setShowAddCardForm] = useState(false);
+  const [addCardClientSecret, setAddCardClientSecret] = useState<string | null>(null);
+  const [chargeSuccessData, setChargeSuccessData] = useState<{
+    success: boolean;
+    cardBrand: string;
+    cardLast4: string;
+    amount: string;
+  } | null>(null);
+  
+  // Post-charge options
+  const [afterChargeOptions, setAfterChargeOptions] = useState({
+    markInitiationFeePaid: true,
+    syncToMemberProfile: true,
+    approveAndSendEmail: false,
+    autoActivate: false,
+    activationDate: new Date(),
+  });
   
   // Batch activation dialog state
   const [showBatchActivationDialog, setShowBatchActivationDialog] = useState(false);
@@ -508,11 +538,49 @@ export default function Applications() {
     }
   };
 
-  const openChargeDialog = (app: Application) => {
+  const openChargeDialog = async (app: Application) => {
     setChargeTarget(app);
     setChargeAmount("300");
-    setChargeDescription("Annual Membership Fee");
+    setChargeDescription("Initiation Fee");
     setShowChargeDialog(true);
+    setCardDetails(null);
+    setChargeSuccessData(null);
+    setShowAddCardForm(false);
+    setAddCardClientSecret(null);
+    setAfterChargeOptions({
+      markInitiationFeePaid: true,
+      syncToMemberProfile: true,
+      approveAndSendEmail: false,
+      autoActivate: false,
+      activationDate: new Date(),
+    });
+    
+    // Fetch card details if customer ID exists
+    if (app.stripe_customer_id) {
+      setIsLoadingCard(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "list_application_payment_methods",
+            stripeCustomerId: app.stripe_customer_id,
+          },
+        });
+        
+        if (!error && data?.paymentMethods?.length > 0) {
+          const card = data.paymentMethods[0];
+          setCardDetails({
+            brand: card.brand,
+            last4: card.last4,
+            expMonth: card.expMonth,
+            expYear: card.expYear,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch card details:", err);
+      } finally {
+        setIsLoadingCard(false);
+      }
+    }
   };
 
   const openSingleActivationDialog = (app: Application) => {
@@ -642,7 +710,13 @@ export default function Applications() {
       if (data?.error) throw new Error(data.error);
 
       if (data?.success) {
-        toast.success(`Successfully charged $${amountNum.toFixed(2)} to ${chargeTarget.full_name}'s card`);
+        // Show success state with card details
+        setChargeSuccessData({
+          success: true,
+          cardBrand: data.cardBrand || "Card",
+          cardLast4: data.cardLast4 || "****",
+          amount: amountNum.toFixed(2),
+        });
         
         // Send charge confirmation email
         try {
@@ -666,20 +740,42 @@ export default function Applications() {
           });
         } catch (emailErr) {
           console.error("Failed to send confirmation email:", emailErr);
-          // Don't fail the charge if email fails
         }
         
-        // Update annual fee status if this was an annual fee charge
-        if (chargeDescription.toLowerCase().includes("annual") && chargeDescription.toLowerCase().includes("fee")) {
+        // Check if this is an initiation/annual fee charge
+        const isInitiationFee = chargeDescription.toLowerCase().includes("initiation") ||
+                                chargeDescription.toLowerCase().includes("annual fee");
+        
+        // Update annual fee status if enabled (application table)
+        if (isInitiationFee && afterChargeOptions.markInitiationFeePaid) {
           await supabase
             .from("membership_applications")
             .update({ annual_fee_status: "paid" })
             .eq("id", chargeTarget.id);
-          queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
         }
         
-        setShowChargeDialog(false);
-        setChargeTarget(null);
+        // Sync to member profile if checkbox enabled (member table - done by edge function)
+        // The edge function already handles this, but we can do a frontend update for immediate UI feedback
+        if (isInitiationFee && afterChargeOptions.syncToMemberProfile) {
+          const { data: memberData } = await supabase
+            .from("members")
+            .select("id")
+            .ilike("email", chargeTarget.email)
+            .maybeSingle();
+          
+          if (memberData) {
+            await supabase
+              .from("members")
+              .update({ 
+                annual_fee_paid_at: new Date().toISOString(),
+                stripe_customer_id: chargeTarget.stripe_customer_id,
+              })
+              .eq("id", memberData.id);
+          }
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+        toast.success(`Successfully charged $${amountNum.toFixed(2)}`);
       } else {
         throw new Error("Charge was not successful");
       }
@@ -688,6 +784,116 @@ export default function Applications() {
       toast.error(err.message || "Failed to charge card");
     } finally {
       setIsCharging(false);
+    }
+  };
+
+  // Handle adding a new card for applicant
+  const handleAddCard = async () => {
+    if (!chargeTarget) return;
+    
+    setIsLoadingCard(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_admin_setup_intent",
+          stripeCustomerId: chargeTarget.stripe_customer_id,
+          applicantEmail: chargeTarget.email,
+          applicantName: chargeTarget.full_name,
+        },
+      });
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      setAddCardClientSecret(data.clientSecret);
+      setShowAddCardForm(true);
+      
+      // Update application with customer ID if newly created
+      if (data.customerId && !chargeTarget.stripe_customer_id) {
+        await supabase
+          .from("membership_applications")
+          .update({ stripe_customer_id: data.customerId })
+          .eq("id", chargeTarget.id);
+        
+        setChargeTarget({ ...chargeTarget, stripe_customer_id: data.customerId });
+        queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to initialize card form");
+    } finally {
+      setIsLoadingCard(false);
+    }
+  };
+
+  // Handle card saved successfully
+  const handleCardSaved = async () => {
+    setShowAddCardForm(false);
+    setAddCardClientSecret(null);
+    
+    // Refresh card details
+    if (chargeTarget?.stripe_customer_id) {
+      setIsLoadingCard(true);
+      try {
+        const { data } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "list_application_payment_methods",
+            stripeCustomerId: chargeTarget.stripe_customer_id,
+          },
+        });
+        
+        if (data?.paymentMethods?.length > 0) {
+          const card = data.paymentMethods[0];
+          setCardDetails({
+            brand: card.brand,
+            last4: card.last4,
+            expMonth: card.expMonth,
+            expYear: card.expYear,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to refresh card details:", err);
+      } finally {
+        setIsLoadingCard(false);
+      }
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+  };
+
+  // Execute post-charge actions (approve, activate)
+  const handleExecutePostChargeActions = async () => {
+    if (!chargeTarget) return;
+    
+    try {
+      // Update application's annual_fee_status to reflect current state for the mutation
+      const updatedApp = {
+        ...chargeTarget,
+        annual_fee_status: "paid",
+      };
+
+      if (afterChargeOptions.autoActivate) {
+        // Auto-activate overrides approve - it does both
+        await updateStatusMutation.mutateAsync({
+          id: chargeTarget.id,
+          status: "approved",
+          application: updatedApp,
+          autoActivate: true,
+          startDate: afterChargeOptions.activationDate,
+        });
+      } else if (afterChargeOptions.approveAndSendEmail && chargeTarget.status !== "approved") {
+        await updateStatusMutation.mutateAsync({
+          id: chargeTarget.id,
+          status: "approved",
+          application: updatedApp,
+          suppressEmail: false,
+        });
+      }
+      
+      setShowChargeDialog(false);
+      setChargeTarget(null);
+      setChargeSuccessData(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to execute post-charge actions");
     }
   };
 
@@ -1746,60 +1952,206 @@ export default function Applications() {
           </DialogContent>
         </Dialog>
 
-        {/* Charge Card Dialog */}
-        <Dialog open={showChargeDialog} onOpenChange={setShowChargeDialog}>
-          <DialogContent className="max-w-md">
+        {/* Enhanced Charge Card Dialog */}
+        <Dialog open={showChargeDialog} onOpenChange={(open) => {
+          if (!open) {
+            setShowChargeDialog(false);
+            setChargeSuccessData(null);
+            setShowAddCardForm(false);
+          }
+        }}>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Charge Card</DialogTitle>
+              <DialogTitle>
+                {chargeSuccessData ? "✅ Charge Successful" : "Charge Card"}
+              </DialogTitle>
               <DialogDescription>
-                Charge {chargeTarget?.full_name}'s saved card
+                {chargeSuccessData 
+                  ? `Charged $${chargeSuccessData.amount} to ${chargeSuccessData.cardBrand} •••• ${chargeSuccessData.cardLast4}`
+                  : `Charge ${chargeTarget?.full_name}'s saved card`
+                }
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Applicant</label>
-                <p className="text-sm text-muted-foreground">{chargeTarget?.full_name} ({chargeTarget?.email})</p>
-              </div>
-              <div>
-                <label htmlFor="charge-amount" className="text-sm font-medium">Amount ($)</label>
-                <Input
-                  id="charge-amount"
-                  type="number"
-                  step="0.01"
-                  min="0.50"
-                  value={chargeAmount}
-                  onChange={(e) => setChargeAmount(e.target.value)}
-                  placeholder="300.00"
-                />
-              </div>
-              <div>
-                <label htmlFor="charge-description" className="text-sm font-medium">Description</label>
-                <Input
-                  id="charge-description"
-                  value={chargeDescription}
-                  onChange={(e) => setChargeDescription(e.target.value)}
-                  placeholder="Annual Membership Fee"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setShowChargeDialog(false)} disabled={isCharging}>
-                  Cancel
-                </Button>
-                <Button onClick={handleChargeApplicationCard} disabled={isCharging}>
-                  {isCharging ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Charging...
-                    </>
-                  ) : (
-                    <>
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      Charge ${parseFloat(chargeAmount || "0").toFixed(2)}
-                    </>
+
+            {chargeSuccessData ? (
+              /* Post-Charge Success View */
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>Initiation fee marked as paid</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>Member profile synced (if exists)</span>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">What's Next?</p>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="approve-email"
+                      checked={afterChargeOptions.approveAndSendEmail}
+                      onCheckedChange={(checked) => setAfterChargeOptions(prev => ({ ...prev, approveAndSendEmail: !!checked, autoActivate: false }))}
+                    />
+                    <label htmlFor="approve-email" className="text-sm">Approve & send email</label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="auto-activate"
+                      checked={afterChargeOptions.autoActivate}
+                      onCheckedChange={(checked) => setAfterChargeOptions(prev => ({ ...prev, autoActivate: !!checked, approveAndSendEmail: false }))}
+                    />
+                    <label htmlFor="auto-activate" className="text-sm">Auto-activate member</label>
+                  </div>
+                  
+                  {afterChargeOptions.autoActivate && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="ml-6">
+                          <CalendarIcon className="h-4 w-4 mr-2" />
+                          {format(afterChargeOptions.activationDate, "MMM d, yyyy")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={afterChargeOptions.activationDate}
+                          onSelect={(date) => date && setAfterChargeOptions(prev => ({ ...prev, activationDate: date }))}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   )}
-                </Button>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => { setShowChargeDialog(false); setChargeSuccessData(null); }}>
+                    Done
+                  </Button>
+                  {(afterChargeOptions.approveAndSendEmail || afterChargeOptions.autoActivate) && (
+                    <Button onClick={handleExecutePostChargeActions}>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Execute Actions
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : showAddCardForm && addCardClientSecret ? (
+              /* Add Card Form */
+              <StripeProvider clientSecret={addCardClientSecret}>
+                <AdminAddCardForm 
+                  onSuccess={handleCardSaved}
+                  onCancel={() => { setShowAddCardForm(false); setAddCardClientSecret(null); }}
+                />
+              </StripeProvider>
+            ) : (
+              /* Main Charge View */
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Applicant</label>
+                  <p className="text-sm text-muted-foreground">{chargeTarget?.full_name} ({chargeTarget?.email})</p>
+                </div>
+
+                {/* Card on File Section */}
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium flex items-center gap-2">
+                      <Wallet className="h-4 w-4" />
+                      Card on File
+                    </span>
+                    <Button size="sm" variant="ghost" onClick={handleAddCard} disabled={isLoadingCard}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      {cardDetails ? "Replace" : "Add Card"}
+                    </Button>
+                  </div>
+                  
+                  {isLoadingCard ? (
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-5 w-24" />
+                    </div>
+                  ) : cardDetails ? (
+                    <div className="flex items-center gap-3 text-sm">
+                      <CreditCard className="h-5 w-5 text-muted-foreground" />
+                      <span className="capitalize font-medium">{cardDetails.brand}</span>
+                      <span>•••• {cardDetails.last4}</span>
+                      <span className="text-muted-foreground">
+                        Expires {cardDetails.expMonth}/{cardDetails.expYear}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No card on file</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="charge-amount" className="text-sm font-medium">Amount ($)</label>
+                  <Input
+                    id="charge-amount"
+                    type="number"
+                    step="0.01"
+                    min="0.50"
+                    value={chargeAmount}
+                    onChange={(e) => setChargeAmount(e.target.value)}
+                    placeholder="300.00"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="charge-description" className="text-sm font-medium">Description</label>
+                  <Input
+                    id="charge-description"
+                    value={chargeDescription}
+                    onChange={(e) => setChargeDescription(e.target.value)}
+                    placeholder="Initiation Fee"
+                  />
+                </div>
+
+                <Separator />
+
+                {/* After Charge Options */}
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">After Charge</p>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="mark-paid" 
+                      checked={afterChargeOptions.markInitiationFeePaid}
+                      onCheckedChange={(checked) => setAfterChargeOptions(prev => ({ ...prev, markInitiationFeePaid: !!checked }))}
+                    />
+                    <label htmlFor="mark-paid" className="text-sm">Mark initiation fee as paid</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="sync-member"
+                      checked={afterChargeOptions.syncToMemberProfile}
+                      onCheckedChange={(checked) => setAfterChargeOptions(prev => ({ ...prev, syncToMemberProfile: !!checked }))}
+                    />
+                    <label htmlFor="sync-member" className="text-sm">Sync to member profile (prevents double-bill)</label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setShowChargeDialog(false)} disabled={isCharging}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleChargeApplicationCard} disabled={isCharging || !cardDetails}>
+                    {isCharging ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Charging...
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign className="h-4 w-4 mr-2" />
+                        Charge ${parseFloat(chargeAmount || "0").toFixed(2)}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 
