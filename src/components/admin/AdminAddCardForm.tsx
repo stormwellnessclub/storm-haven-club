@@ -3,13 +3,23 @@ import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AdminAddCardFormProps {
   onSuccess: () => void;
   onCancel: () => void;
+  applicationId?: string;
+  memberId?: string;
+  stripeCustomerId?: string;
 }
 
-export function AdminAddCardForm({ onSuccess, onCancel }: AdminAddCardFormProps) {
+export function AdminAddCardForm({ 
+  onSuccess, 
+  onCancel, 
+  applicationId,
+  memberId,
+  stripeCustomerId 
+}: AdminAddCardFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,7 +36,7 @@ export function AdminAddCardForm({ onSuccess, onCancel }: AdminAddCardFormProps)
     setIsSubmitting(true);
 
     try {
-      const { error } = await stripe.confirmSetup({
+      const { error, setupIntent } = await stripe.confirmSetup({
         elements,
         confirmParams: {
           return_url: window.location.href,
@@ -38,6 +48,45 @@ export function AdminAddCardForm({ onSuccess, onCancel }: AdminAddCardFormProps)
         console.error("Card setup error:", error);
         toast.error(error.message || "Failed to save card");
       } else {
+        // Sync to Supabase immediately after successful card save
+        // This is a backup in case the webhook is delayed or fails
+        try {
+          if (applicationId && stripeCustomerId) {
+            await supabase
+              .from('membership_applications')
+              .update({ 
+                stripe_customer_id: stripeCustomerId,
+                payment_info_provided: true 
+              })
+              .eq('id', applicationId);
+            console.log("[AdminAddCardForm] Synced stripe_customer_id to application:", applicationId);
+          }
+
+          if (memberId && stripeCustomerId) {
+            await supabase
+              .from('members')
+              .update({ stripe_customer_id: stripeCustomerId })
+              .eq('id', memberId);
+            console.log("[AdminAddCardForm] Synced stripe_customer_id to member:", memberId);
+          }
+
+          // Log the payment method update for audit trail
+          if (memberId && setupIntent?.payment_method) {
+            await supabase
+              .from('payment_method_updates')
+              .insert({
+                member_id: memberId,
+                payment_method_id: setupIntent.payment_method as string,
+                event_type: 'card_added_admin',
+                is_default: false,
+              });
+            console.log("[AdminAddCardForm] Logged payment method update for member:", memberId);
+          }
+        } catch (syncError) {
+          console.error("[AdminAddCardForm] Supabase sync error (non-blocking):", syncError);
+          // Don't fail the card save - webhook should handle this too
+        }
+
         setIsComplete(true);
         toast.success("Card saved successfully");
         onSuccess();
