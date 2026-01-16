@@ -18,6 +18,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -222,6 +223,9 @@ export default function Applications() {
   // Add card dialog state
   const [showAddCardDialog, setShowAddCardDialog] = useState(false);
   const [cardTargetApplication, setCardTargetApplication] = useState<Application | null>(null);
+  
+  // Locked start date dialog state
+  const [showLockedDateDialog, setShowLockedDateDialog] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -1593,31 +1597,37 @@ export default function Applications() {
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
+                          {/* Charge Card - only when payment method exists */}
                           {app.stripe_customer_id && (
                             <DropdownMenuItem onClick={() => openChargeDialog(app)}>
                               <DollarSign className="h-4 w-4 mr-2" />
                               Charge Card
                             </DropdownMenuItem>
                           )}
-                          {!app.stripe_customer_id && (
-                            <>
-                              <DropdownMenuItem 
-                                onClick={() => handleAddApplicantCard(app)}
-                              >
-                                <CreditCard className="h-4 w-4 mr-2" />
-                                Add Payment Method
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleRequestPaymentInfo(app)}
-                                disabled={isRequestingPayment}
-                              >
-                                <Mail className="h-4 w-4 mr-2" />
-                                Request Payment Info
-                              </DropdownMenuItem>
-                            </>
+                          
+                          {/* Add/Update Payment Method - always available */}
+                          <DropdownMenuItem 
+                            onClick={() => handleAddApplicantCard(app)}
+                          >
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            {app.stripe_customer_id ? "Update Payment Method" : "Add Payment Method"}
+                          </DropdownMenuItem>
+                          
+                          {/* Request Payment Info - available for pending/approved apps */}
+                          {(app.status === "pending" || app.status === "approved") && (
+                            <DropdownMenuItem 
+                              onClick={() => handleRequestPaymentInfo(app)}
+                              disabled={isRequestingPayment}
+                            >
+                              <Mail className="h-4 w-4 mr-2" />
+                              Request Payment Info
+                            </DropdownMenuItem>
                           )}
+                          
+                          {/* Approval options - only for non-approved apps */}
                           {app.status !== "approved" && (
                             <>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 className="text-muted-foreground" 
                                 onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app })}
@@ -1637,6 +1647,15 @@ export default function Applications() {
                               >
                                 <Zap className="h-4 w-4 mr-2" />
                                 Approve & Auto-Activate
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  setSingleActivationTarget(app);
+                                  setShowLockedDateDialog(true);
+                                }}
+                              >
+                                <CalendarIcon className="h-4 w-4 mr-2" />
+                                Approve with Locked Start Date
                               </DropdownMenuItem>
                             </>
                           )}
@@ -2173,13 +2192,24 @@ export default function Applications() {
           </DialogContent>
         </Dialog>
 
-        {/* Single Activation Dialog */}
+        {/* Single Activation Dialog - Immediate Mode */}
         <SingleActivationDialog
           open={showSingleActivationDialog}
           onOpenChange={setShowSingleActivationDialog}
           application={singleActivationTarget}
           onConfirm={handleSingleActivation}
           isLoading={isSingleActivating}
+          initialMode="immediate"
+        />
+        
+        {/* Single Activation Dialog - Locked Date Mode */}
+        <SingleActivationDialog
+          open={showLockedDateDialog}
+          onOpenChange={setShowLockedDateDialog}
+          application={singleActivationTarget}
+          onConfirm={handleSingleActivation}
+          isLoading={isSingleActivating}
+          initialMode="locked"
         />
 
         {/* Add Applicant Card Modal */}
@@ -2188,8 +2218,11 @@ export default function Applications() {
             open={showAddCardDialog}
             onOpenChange={setShowAddCardDialog}
             onSuccess={() => {
+              // Invalidate and immediately refetch for instant UI update
               queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+              queryClient.refetchQueries({ queryKey: ["membership-applications"] });
               setCardTargetApplication(null);
+              toast.success("Payment method saved! Dropdown options updated.");
             }}
             applicantEmail={cardTargetApplication.email}
             applicantName={cardTargetApplication.full_name}

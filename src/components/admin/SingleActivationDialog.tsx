@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format, addDays } from "date-fns";
 import { CalendarIcon, Zap, CreditCard, AlertCircle, Loader2, Lock, CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ interface SingleActivationDialogProps {
     chargeAnnualFee: boolean;
   }) => void;
   isLoading?: boolean;
+  initialMode?: ActivationMode;
 }
 
 export function SingleActivationDialog({
@@ -56,11 +57,19 @@ export function SingleActivationDialog({
   application,
   onConfirm,
   isLoading = false,
+  initialMode = "immediate",
 }: SingleActivationDialogProps) {
-  const [activationMode, setActivationMode] = useState<ActivationMode>("immediate");
+  const [activationMode, setActivationMode] = useState<ActivationMode>(initialMode);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [chargeUnpaidFees, setChargeUnpaidFees] = useState(true);
+
+  // Reset mode when dialog opens or initialMode changes
+  useEffect(() => {
+    if (open) {
+      setActivationMode(initialMode);
+    }
+  }, [open, initialMode]);
 
   const today = new Date();
   // For locked mode, allow up to 90 days out (grand opening flexibility)
