@@ -8,6 +8,14 @@ import { Check, CreditCard, Lock, Shield, Loader2, AlertCircle } from "lucide-re
 import { cn } from "@/lib/utils";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { supabase } from "@/integrations/supabase/client";
+
+export interface CardDetails {
+  brand: string | null;
+  last4: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+}
 
 // Loading messages for payment form
 const LOADING_MESSAGES = [
@@ -20,7 +28,7 @@ const LOADING_MESSAGES = [
 interface PaymentFormProps {
   clientSecret: string;
   customerId: string; // Pass customerId directly instead of relying on draft
-  onSuccess: (customerId: string) => void;
+  onSuccess: (customerId: string, cardDetails?: CardDetails) => void;
   onCancel: () => void;
 }
 
@@ -82,7 +90,34 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
           throw new Error("Unable to determine customer ID after payment method save");
         }
         
-        onSuccess(customerId);
+        // Fetch card details from Stripe with a small delay to ensure attachment is complete
+        let cardDetails: CardDetails | undefined;
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          const { data: pmData } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "list_application_payment_methods",
+              stripeCustomerId: customerId,
+            },
+          });
+          
+          if (pmData?.paymentMethods?.[0]) {
+            const card = pmData.paymentMethods[0];
+            cardDetails = {
+              brand: card.brand || null,
+              last4: card.last4 || null,
+              expMonth: card.expMonth || null,
+              expYear: card.expYear || null,
+            };
+            console.log("[PaymentForm] Fetched card details:", cardDetails);
+          }
+        } catch (err) {
+          console.error("[PaymentForm] Failed to fetch card details:", err);
+          // Continue without card details - webhook will sync later
+        }
+        
+        onSuccess(customerId, cardDetails);
       } else {
         throw new Error("Setup failed - no setup intent returned");
       }
@@ -169,8 +204,9 @@ interface PaymentSectionEnhancedProps {
   creditCardAuth: boolean;
   paymentAcknowledged: boolean;
   canStartPayment: boolean;
+  savedCardDetails?: CardDetails | null;
   onSavePaymentMethod: () => void;
-  onPaymentSuccess: (customerId: string) => void;
+  onPaymentSuccess: (customerId: string, cardDetails?: CardDetails) => void;
   onPaymentCancel: () => void;
   onCheckboxChange: (field: string, checked: boolean) => void;
 }
@@ -184,6 +220,7 @@ export function PaymentSectionEnhanced({
   creditCardAuth,
   paymentAcknowledged,
   canStartPayment,
+  savedCardDetails,
   onSavePaymentMethod,
   onPaymentSuccess,
   onPaymentCancel,
@@ -313,11 +350,21 @@ export function PaymentSectionEnhanced({
           {isCardConfirmed && !showPaymentForm ? (
             <div className="ml-8 p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                <Check className="w-5 h-5 text-green-600" />
+                <CreditCard className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="font-medium text-green-700 dark:text-green-400">Payment Method Saved</p>
-                <p className="text-sm text-muted-foreground">Your card has been securely saved for future billing.</p>
+                <p className="font-medium text-green-700 dark:text-green-400">
+                  {savedCardDetails?.brand && savedCardDetails?.last4 
+                    ? `${savedCardDetails.brand.toUpperCase()} •••• ${savedCardDetails.last4}`
+                    : "Payment Method Saved"
+                  }
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {savedCardDetails?.expMonth && savedCardDetails?.expYear
+                    ? `Expires ${String(savedCardDetails.expMonth).padStart(2, '0')}/${savedCardDetails.expYear}`
+                    : "Your card has been securely saved for future billing."
+                  }
+                </p>
               </div>
             </div>
           ) : showPaymentForm && paymentClientSecret ? (

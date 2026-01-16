@@ -27,6 +27,10 @@ export interface UserMembership {
   activation_deadline: string | null;
   activated_at: string | null;
   locked_start_date: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
+  card_exp_month: number | null;
+  card_exp_year: number | null;
 }
 
 export function useUserMembership() {
