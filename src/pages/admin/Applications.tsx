@@ -51,6 +51,7 @@ import { BatchActivationDialog, BatchActivationConfig } from "@/components/admin
 import { SingleActivationDialog } from "@/components/admin/SingleActivationDialog";
 import { useApplicationStatusHistory } from "@/hooks/useApplicationStatusHistory";
 import { History } from "lucide-react";
+import { AddApplicantCardModal } from "@/components/admin/AddApplicantCardModal";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -187,6 +188,10 @@ export default function Applications() {
   const [showSingleActivationDialog, setShowSingleActivationDialog] = useState(false);
   const [singleActivationTarget, setSingleActivationTarget] = useState<Application | null>(null);
   const [isSingleActivating, setIsSingleActivating] = useState(false);
+  
+  // Add card dialog state
+  const [showAddCardDialog, setShowAddCardDialog] = useState(false);
+  const [cardTargetApplication, setCardTargetApplication] = useState<Application | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -518,6 +523,11 @@ export default function Applications() {
   const openSingleActivationDialog = (app: Application) => {
     setSingleActivationTarget(app);
     setShowSingleActivationDialog(true);
+  };
+
+  const handleAddApplicantCard = (app: Application) => {
+    setCardTargetApplication(app);
+    setShowAddCardDialog(true);
   };
 
   const handleSingleActivation = async (config: { mode: "immediate" | "locked"; startDate: Date; chargeAnnualFee: boolean }) => {
@@ -1384,13 +1394,21 @@ export default function Applications() {
                             </DropdownMenuItem>
                           )}
                           {!app.stripe_customer_id && (
-                            <DropdownMenuItem 
-                              onClick={() => handleRequestPaymentInfo(app)}
-                              disabled={isRequestingPayment}
-                            >
-                              <Mail className="h-4 w-4 mr-2" />
-                              Request Payment Info
-                            </DropdownMenuItem>
+                            <>
+                              <DropdownMenuItem 
+                                onClick={() => handleAddApplicantCard(app)}
+                              >
+                                <CreditCard className="h-4 w-4 mr-2" />
+                                Add Payment Method
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleRequestPaymentInfo(app)}
+                                disabled={isRequestingPayment}
+                              >
+                                <Mail className="h-4 w-4 mr-2" />
+                                Request Payment Info
+                              </DropdownMenuItem>
+                            </>
                           )}
                           {app.status !== "approved" && (
                             <>
@@ -1811,6 +1829,21 @@ export default function Applications() {
           onConfirm={handleSingleActivation}
           isLoading={isSingleActivating}
         />
+
+        {/* Add Applicant Card Modal */}
+        {cardTargetApplication && (
+          <AddApplicantCardModal
+            open={showAddCardDialog}
+            onOpenChange={setShowAddCardDialog}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+              setCardTargetApplication(null);
+            }}
+            applicantEmail={cardTargetApplication.email}
+            applicantName={cardTargetApplication.full_name}
+            applicationId={cardTargetApplication.id}
+          />
+        )}
       </div>
     </AdminLayout>
   );

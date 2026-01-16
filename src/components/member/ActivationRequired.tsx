@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { format, addDays, isAfter, isBefore, startOfDay } from "date-fns";
-import { Calendar, Clock, Loader2, CreditCard, AlertCircle, CheckCircle } from "lucide-react";
+import { Calendar, Clock, Loader2, CreditCard, AlertCircle, CheckCircle, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -40,6 +41,8 @@ interface ActivationRequiredProps {
 }
 
 export function ActivationRequired({ memberData }: ActivationRequiredProps) {
+  const { isSuperAdmin } = useUserRoles();
+  
   // Check if start date is locked by admin
   const hasLockedDate = !!memberData.locked_start_date;
   const lockedDate = hasLockedDate ? new Date(memberData.locked_start_date!) : null;
@@ -235,6 +238,43 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
     setShowPaymentForm(false);
     setPaymentClientSecret(null);
     setIsLoading(false);
+  };
+
+  const handleSuperAdminActivate = async () => {
+    if (!memberData.id) return;
+    
+    if (!selectedDate) {
+      toast.error("Please select a start date");
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      // Directly activate the membership without payment
+      const { error: updateError } = await supabase
+        .from("members")
+        .update({
+          status: "active",
+          activated_at: new Date().toISOString(),
+          membership_start_date: format(selectedDate, "yyyy-MM-dd"),
+        })
+        .eq("id", memberData.id)
+        .eq("status", "pending_activation");
+
+      if (updateError) throw updateError;
+
+      toast.success("Membership activated by super admin");
+      
+      // Refresh the page to show updated status
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error: any) {
+      console.error("Super admin activation error:", error);
+      toast.error(error.message || "Failed to activate membership");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Date validation for calendar
@@ -465,6 +505,41 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
               <p className="text-xs text-center text-muted-foreground">
                 Secure payment processing - stay on this page
               </p>
+
+              {/* Super Admin Override */}
+              {isSuperAdmin() && (
+                <div className="mt-4 pt-4 border-t border-destructive/20">
+                  <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      <Shield className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-destructive">Super Admin Override</p>
+                        <p className="text-sm text-muted-foreground">
+                          Activate this membership immediately without payment processing.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={handleSuperAdminActivate}
+                      disabled={!selectedDate || isLoading || diamondMenBlocked}
+                      className="w-full"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Activating...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="mr-2 h-4 w-4" />
+                          Activate Membership (Super Admin)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           ) : paymentClientSecret ? (
             <div className="space-y-4">

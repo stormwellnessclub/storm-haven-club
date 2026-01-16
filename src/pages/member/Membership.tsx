@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserMembership, getMembershipTierBenefits } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { IdCard, Check, FileCheck, Crown, Receipt, AlertCircle } from "lucide-react";
+import { IdCard, Check, FileCheck, Crown, Receipt, AlertCircle, Shield } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { InlineBillingSection } from "@/components/member/InlineBillingSection";
@@ -15,10 +15,13 @@ import { ActivationRequired } from "@/components/member/ActivationRequired";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useUserRoles } from "@/hooks/useUserRoles";
+import { toast } from "sonner";
 
 export default function MemberMembership() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { profile, isLoading: profileLoading } = useUserProfile();
+  const { isSuperAdmin } = useUserRoles();
   const isLoading = membershipLoading || profileLoading;
 
   // Fetch next billing date from subscription
@@ -81,6 +84,30 @@ export default function MemberMembership() {
 
   // Show activation form for pending_activation members
   if (membership.status === "pending_activation") {
+    const handleSuperAdminActivate = async () => {
+      if (!membership?.id) return;
+      
+      try {
+        const { error: updateError } = await supabase
+          .from("members")
+          .update({
+            status: "active",
+            activated_at: new Date().toISOString(),
+            membership_start_date: new Date().toISOString().split('T')[0],
+          })
+          .eq("id", membership.id)
+          .eq("status", "pending_activation");
+
+        if (updateError) throw updateError;
+
+        toast.success("Membership activated by super admin");
+        window.location.reload();
+      } catch (error: any) {
+        console.error("Super admin activation error:", error);
+        toast.error(error.message || "Failed to activate membership");
+      }
+    };
+
     return (
       <MemberLayout title="Activate Membership">
         <div className="max-w-lg mx-auto">
@@ -108,6 +135,27 @@ export default function MemberMembership() {
               locked_start_date: membership.locked_start_date,
             }} 
           />
+          {isSuperAdmin() && (
+            <div className="mt-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+              <div className="flex items-start gap-3 mb-3">
+                <Shield className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-destructive">Super Admin Override</p>
+                  <p className="text-sm text-muted-foreground">
+                    Activate this membership immediately without payment processing.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={handleSuperAdminActivate}
+                className="w-full"
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                Activate Membership (Super Admin)
+              </Button>
+            </div>
+          )}
         </div>
       </MemberLayout>
     );
