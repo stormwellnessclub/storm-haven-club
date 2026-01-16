@@ -43,6 +43,10 @@ interface Application {
   referred_by_member: string;
   services_interested: string[];
   notes: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
+  card_exp_month: number | null;
+  card_exp_year: number | null;
 }
 
 interface BatchActivationDialogProps {
