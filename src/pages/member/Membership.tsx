@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserMembership, getMembershipTierBenefits } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { IdCard, Check, FileCheck, Crown, Receipt, AlertCircle, Shield } from "lucide-react";
+import { IdCard, Check, FileCheck, Crown, Receipt, AlertCircle, Shield, CreditCard } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { InlineBillingSection } from "@/components/member/InlineBillingSection";
@@ -215,6 +215,36 @@ export default function MemberMembership() {
                 </p>
               </div>
             </div>
+
+            {/* Payment Method on File */}
+            {(membership.card_brand || membership.card_last4) && (
+              <div className="mt-6 pt-6 border-t border-primary-foreground/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="h-5 w-5 opacity-70" />
+                    <div>
+                      <p className="text-sm opacity-80">Payment Method</p>
+                      <p className="font-medium">
+                        {membership.card_brand?.toUpperCase()} •••• {membership.card_last4}
+                        {membership.card_exp_month && membership.card_exp_year && (
+                          <span className="text-sm opacity-70 ml-2">
+                            Exp {String(membership.card_exp_month).padStart(2, '0')}/{membership.card_exp_year}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    asChild
+                    className="bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20"
+                  >
+                    <Link to="/member/payment-methods">Manage</Link>
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -13,7 +13,7 @@ import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
 import { useAgreements } from "@/hooks/useAgreements";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApplicationProgress, getStepCompletion, APPLICATION_STEPS } from "@/components/ApplicationProgress";
-import { PaymentSectionEnhanced } from "@/components/PaymentSectionEnhanced";
+import { PaymentSectionEnhanced, CardDetails } from "@/components/PaymentSectionEnhanced";
 import { ApplicationValidationSummary } from "@/components/ApplicationValidationSummary";
 import { DraftSaveIndicator } from "@/components/DraftSaveIndicator";
 
@@ -30,6 +30,7 @@ interface DraftData {
   isCardConfirmed: boolean;
   savedAt: number;
   source?: "local" | "session";
+  cardDetails?: CardDetails | null;
 }
 
 const initialFormData = {
@@ -65,8 +66,13 @@ const initialFormData = {
 };
 
 // Save to BOTH storages for maximum reliability on mobile
-const saveDraft = (formData: typeof initialFormData, stripeCustomerId: string | null, isCardConfirmed: boolean = false) => {
-  const draft: DraftData = { formData, stripeCustomerId, isCardConfirmed, savedAt: Date.now() };
+const saveDraft = (
+  formData: typeof initialFormData, 
+  stripeCustomerId: string | null, 
+  isCardConfirmed: boolean = false,
+  cardDetails?: CardDetails | null
+) => {
+  const draft: DraftData = { formData, stripeCustomerId, isCardConfirmed, savedAt: Date.now(), cardDetails };
   const json = JSON.stringify(draft);
   
   try {
@@ -284,6 +290,12 @@ export default function Apply() {
     return draft?.isCardConfirmed === true;
   });
   
+  // Store card details for display and submission
+  const [savedCardDetails, setSavedCardDetails] = useState<CardDetails | null>(() => {
+    const draft = getInitialDraft();
+    return draft?.cardDetails || null;
+  });
+  
   const isHydrated = useRef(false);
   const formDataRef = useRef(formData);
   
@@ -319,12 +331,12 @@ export default function Apply() {
     if (!isHydrated.current) return;
     
     const timeoutId = setTimeout(() => {
-      saveDraft(formData, stripeCustomerId, isCardConfirmed);
+      saveDraft(formData, stripeCustomerId, isCardConfirmed, savedCardDetails);
       setLastSavedAt(Date.now());
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [formData, stripeCustomerId, isCardConfirmed]);
+  }, [formData, stripeCustomerId, isCardConfirmed, savedCardDetails]);
 
   // Calculate step completion for progress
   const steps = getStepCompletion(formData, stripeCustomerId, isCardConfirmed);
@@ -374,7 +386,7 @@ export default function Apply() {
     setIsCardConfirmed(false); // Reset card confirmation when starting new setup
 
     // Save draft immediately (mark card as NOT confirmed during setup)
-    saveDraft(formData, stripeCustomerId, false);
+    saveDraft(formData, stripeCustomerId, false, null);
     console.log("[Apply] Saved draft before payment setup");
 
     try {
@@ -414,7 +426,7 @@ export default function Apply() {
       const customerIdFromResponse = data.customerId || null;
       if (customerIdFromResponse) {
         // Save to draft for persistence - BUT mark card as NOT confirmed yet
-        saveDraft(formData, customerIdFromResponse, false);
+        saveDraft(formData, customerIdFromResponse, false, null);
         // Set in state so PaymentFormInner can use it immediately
         setStripeCustomerId(customerIdFromResponse);
       }
@@ -532,6 +544,10 @@ export default function Apply() {
         submission_confirmation: formData.submissionConfirmation,
         membership_agreement_signed: formData.membershipAgreementSigned,
         stripe_customer_id: stripeCustomerId,
+        card_brand: savedCardDetails?.brand || null,
+        card_last4: savedCardDetails?.last4 || null,
+        card_exp_month: savedCardDetails?.expMonth || null,
+        card_exp_year: savedCardDetails?.expYear || null,
       });
 
       if (error) {
@@ -1130,14 +1146,20 @@ export default function Apply() {
                 creditCardAuth={formData.creditCardAuth}
                 paymentAcknowledged={formData.paymentAcknowledged}
                 canStartPayment={!!(formData.firstName && formData.lastName && formData.email)}
+                savedCardDetails={savedCardDetails}
                 onSavePaymentMethod={handleSavePaymentMethod}
-                onPaymentSuccess={(customerId) => {
+                onPaymentSuccess={(customerId, cardDetails) => {
                   setStripeCustomerId(customerId);
                   setIsCardConfirmed(true);
                   setShowPaymentForm(false);
                   setPaymentClientSecret(null);
-                  toast.success("Payment method saved successfully!");
-                  saveDraft(formData, customerId, true);
+                  setSavedCardDetails(cardDetails || null);
+                  
+                  const cardDisplay = cardDetails?.brand && cardDetails?.last4 
+                    ? `${cardDetails.brand.toUpperCase()} •••• ${cardDetails.last4}` 
+                    : "Payment method";
+                  toast.success(`${cardDisplay} saved successfully!`);
+                  saveDraft(formData, customerId, true, cardDetails);
                   setLastSavedAt(Date.now());
                 }}
                 onPaymentCancel={() => {
