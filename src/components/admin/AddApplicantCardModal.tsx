@@ -72,11 +72,42 @@ function CardForm({ onSuccess, onCancel, applicantEmail, applicantName, applicat
         // Immediately sync to membership_applications for instant UI update
         // The webhook provides backup sync
         if (customerId && applicationId) {
+          // Fetch card details from Stripe via the payment method
+          let cardBrand: string | null = null;
+          let cardLast4: string | null = null;
+          let cardExpMonth: number | null = null;
+          let cardExpYear: number | null = null;
+
+          try {
+            // Get payment methods for the customer to extract card details
+            const { data: pmData } = await supabase.functions.invoke("stripe-payment", {
+              body: {
+                action: "list_application_payment_methods",
+                stripeCustomerId: customerId,
+              },
+            });
+
+            if (pmData?.paymentMethods && pmData.paymentMethods.length > 0) {
+              const latestCard = pmData.paymentMethods[0];
+              cardBrand = latestCard.brand || null;
+              cardLast4 = latestCard.last4 || null;
+              cardExpMonth = latestCard.expMonth || null;
+              cardExpYear = latestCard.expYear || null;
+            }
+          } catch (cardErr) {
+            console.error("Failed to fetch card details:", cardErr);
+            // Continue without card details - webhook will handle it
+          }
+
           const { error: updateError } = await supabase
             .from("membership_applications")
             .update({
               stripe_customer_id: customerId,
               payment_info_provided: true,
+              card_brand: cardBrand,
+              card_last4: cardLast4,
+              card_exp_month: cardExpMonth,
+              card_exp_year: cardExpYear,
             })
             .eq("id", applicationId);
 
@@ -84,7 +115,12 @@ function CardForm({ onSuccess, onCancel, applicantEmail, applicantName, applicat
             console.error("Failed to sync stripe_customer_id:", updateError);
             // Don't fail the operation - webhook will handle it
           } else {
-            console.log("Successfully synced stripe_customer_id to application", { applicationId, customerId });
+            console.log("Successfully synced stripe_customer_id and card details to application", { 
+              applicationId, 
+              customerId,
+              cardBrand,
+              cardLast4
+            });
           }
         }
 

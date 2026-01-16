@@ -1541,6 +1541,10 @@ export type Database = {
           annual_fee_subscription_id: string | null
           approved_at: string | null
           billing_type: string | null
+          card_brand: string | null
+          card_exp_month: number | null
+          card_exp_year: number | null
+          card_last4: string | null
           created_at: string | null
           email: string
           first_name: string
@@ -1568,6 +1572,10 @@ export type Database = {
           annual_fee_subscription_id?: string | null
           approved_at?: string | null
           billing_type?: string | null
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
           created_at?: string | null
           email: string
           first_name: string
@@ -1595,6 +1603,10 @@ export type Database = {
           annual_fee_subscription_id?: string | null
           approved_at?: string | null
           billing_type?: string | null
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
           created_at?: string | null
           email?: string
           first_name?: string
@@ -1622,6 +1634,10 @@ export type Database = {
           address: string
           annual_fee_status: string
           auth_acknowledgment: boolean
+          card_brand: string | null
+          card_exp_month: number | null
+          card_exp_year: number | null
+          card_last4: string | null
           city: string
           country: string
           created_at: string
@@ -1662,6 +1678,10 @@ export type Database = {
           address: string
           annual_fee_status?: string
           auth_acknowledgment?: boolean
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
           city: string
           country?: string
           created_at?: string
@@ -1702,6 +1722,10 @@ export type Database = {
           address?: string
           annual_fee_status?: string
           auth_acknowledgment?: boolean
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
           city?: string
           country?: string
           created_at?: string
