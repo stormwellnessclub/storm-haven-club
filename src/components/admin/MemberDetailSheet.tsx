@@ -273,7 +273,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
       onOpenChange(false);
     } catch (error) {
       console.error("Error activating member:", error);
-      toast.error("Failed to activate member");
+      toast.error(error instanceof Error ? error.message : "Failed to activate member");
     } finally {
       setIsActivating(false);
     }
@@ -707,9 +707,15 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
 
               {!rolesLoading && isSuperAdmin() && member.status !== "active" && (
                 <Button 
+                  type="button"
                   variant="default" 
                   className="w-full mt-4 bg-green-600 hover:bg-green-700"
-                  onClick={() => setShowActivateDialog(true)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("Activate button clicked");
+                    setShowActivateDialog(true);
+                  }}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Activate Member (Super Admin)
@@ -1137,7 +1143,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
       </AlertDialog>
 
       <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[200]">
           <AlertDialogHeader>
             <AlertDialogTitle>Activate Member (Super Admin)</AlertDialogTitle>
             <AlertDialogDescription>
