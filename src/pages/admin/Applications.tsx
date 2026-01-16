@@ -100,6 +100,10 @@ type Application = {
   annual_fee_status: string;
   notes: string | null;
   stripe_customer_id: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
+  card_exp_month: number | null;
+  card_exp_year: number | null;
 };
 
 const getStatusBadge = (status: string) => {
@@ -393,6 +397,11 @@ export default function Applications() {
           gender: gender,
           stripe_customer_id: application.stripe_customer_id || null,
           annual_fee_paid_at: annualFeePaidAt,
+          // Copy card details from application to member
+          card_brand: application.card_brand || null,
+          card_last4: application.card_last4 || null,
+          card_exp_month: application.card_exp_month || null,
+          card_exp_year: application.card_exp_year || null,
         };
         
         // Add locked_start_date if provided (for locked mode)
@@ -1574,7 +1583,9 @@ export default function Applications() {
                       {app.stripe_customer_id ? (
                         <Badge className="bg-muted/20 text-muted-foreground dark:bg-muted/30 dark:text-muted-foreground">
                           <CreditCard className="h-3 w-3 mr-1" />
-                          On File
+                          {app.card_brand && app.card_last4 
+                            ? `${app.card_brand.toUpperCase()} •••• ${app.card_last4}`
+                            : "On File"}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-muted-foreground">

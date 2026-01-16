@@ -70,6 +70,10 @@ interface Member {
   stripe_subscription_id: string | null;
   annual_fee_paid_at: string | null;
   created_at: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
+  card_exp_month: number | null;
+  card_exp_year: number | null;
 }
 
 interface MemberDetailSheetProps {
@@ -630,12 +634,26 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                 </p>
                 {member.stripe_customer_id ? (
                   <div className="text-sm space-y-2">
-                    <p className="text-muted-foreground">
-                      Stripe Customer: <span className="font-mono text-xs">{member.stripe_customer_id}</span>
+                    {/* Card details display */}
+                    {member.card_brand && member.card_last4 && (
+                      <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">
+                          {member.card_brand.toUpperCase()} •••• {member.card_last4}
+                        </span>
+                        {member.card_exp_month && member.card_exp_year && (
+                          <span className="text-muted-foreground text-xs ml-auto">
+                            Exp: {String(member.card_exp_month).padStart(2, '0')}/{member.card_exp_year}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-muted-foreground text-xs">
+                      Stripe Customer: <span className="font-mono">{member.stripe_customer_id}</span>
                     </p>
                     {member.stripe_subscription_id && (
-                      <p className="text-muted-foreground">
-                        Subscription: <span className="font-mono text-xs">{member.stripe_subscription_id}</span>
+                      <p className="text-muted-foreground text-xs">
+                        Subscription: <span className="font-mono">{member.stripe_subscription_id}</span>
                       </p>
                     )}
                     <Button 

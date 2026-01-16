@@ -51,23 +51,61 @@ export function AdminAddCardForm({
         // Sync to Supabase immediately after successful card save
         // This is a backup in case the webhook is delayed or fails
         try {
+          // Fetch card details from Stripe
+          let cardBrand: string | null = null;
+          let cardLast4: string | null = null;
+          let cardExpMonth: number | null = null;
+          let cardExpYear: number | null = null;
+
+          if (stripeCustomerId) {
+            try {
+              const { data: pmData } = await supabase.functions.invoke("stripe-payment", {
+                body: {
+                  action: "list_payment_methods",
+                  stripeCustomerId: stripeCustomerId,
+                },
+              });
+
+              if (pmData?.paymentMethods && pmData.paymentMethods.length > 0) {
+                const latestCard = pmData.paymentMethods[0];
+                cardBrand = latestCard.brand || null;
+                cardLast4 = latestCard.last4 || null;
+                cardExpMonth = latestCard.expMonth || null;
+                cardExpYear = latestCard.expYear || null;
+              }
+            } catch (cardErr) {
+              console.error("Failed to fetch card details:", cardErr);
+              // Continue without card details - webhook will handle it
+            }
+          }
+
           if (applicationId && stripeCustomerId) {
             await supabase
               .from('membership_applications')
               .update({ 
                 stripe_customer_id: stripeCustomerId,
-                payment_info_provided: true 
+                payment_info_provided: true,
+                card_brand: cardBrand,
+                card_last4: cardLast4,
+                card_exp_month: cardExpMonth,
+                card_exp_year: cardExpYear,
               })
               .eq('id', applicationId);
-            console.log("[AdminAddCardForm] Synced stripe_customer_id to application:", applicationId);
+            console.log("[AdminAddCardForm] Synced stripe_customer_id and card details to application:", applicationId);
           }
 
           if (memberId && stripeCustomerId) {
             await supabase
               .from('members')
-              .update({ stripe_customer_id: stripeCustomerId })
+              .update({ 
+                stripe_customer_id: stripeCustomerId,
+                card_brand: cardBrand,
+                card_last4: cardLast4,
+                card_exp_month: cardExpMonth,
+                card_exp_year: cardExpYear,
+              })
               .eq('id', memberId);
-            console.log("[AdminAddCardForm] Synced stripe_customer_id to member:", memberId);
+            console.log("[AdminAddCardForm] Synced stripe_customer_id and card details to member:", memberId);
           }
 
           // Log the payment method update for audit trail
@@ -79,6 +117,10 @@ export function AdminAddCardForm({
                 payment_method_id: setupIntent.payment_method as string,
                 event_type: 'card_added_admin',
                 is_default: false,
+                card_brand: cardBrand,
+                card_last4: cardLast4,
+                card_exp_month: cardExpMonth,
+                card_exp_year: cardExpYear,
               });
             console.log("[AdminAddCardForm] Logged payment method update for member:", memberId);
           }
