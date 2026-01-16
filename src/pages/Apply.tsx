@@ -410,19 +410,20 @@ export default function Apply() {
 
       // Store client secret and customer ID (customer is created at this point)
       // NOTE: Customer ID is created when setup is created, but payment method isn't saved until user completes form
-      // We store it here for use in onPaymentSuccess callback, but isCardConfirmed stays FALSE
+      // We set stripeCustomerId immediately so it's available to the payment form, but isCardConfirmed stays FALSE
       const customerIdFromResponse = data.customerId || null;
       if (customerIdFromResponse) {
-        // Save to draft so PaymentFormInner can access it - BUT mark card as NOT confirmed yet
+        // Save to draft for persistence - BUT mark card as NOT confirmed yet
         saveDraft(formData, customerIdFromResponse, false);
+        // Set in state so PaymentFormInner can use it immediately
+        setStripeCustomerId(customerIdFromResponse);
       }
       
       console.log("[Apply] Setting up embedded payment form with client secret");
       setPaymentClientSecret(data.clientSecret);
       setShowPaymentForm(true);
       setIsSavingCard(false);
-      // Do NOT set stripeCustomerId here - wait for card confirmation
-      console.log("[Apply] Payment form should now be visible");
+      console.log("[Apply] Payment form should now be visible with customerId:", customerIdFromResponse);
     } catch (error) {
       console.error("Error creating payment setup:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to open payment setup. Please try again.";
@@ -1146,7 +1147,6 @@ export default function Apply() {
                   // Do NOT reset isCardConfirmed - keep for retry if already confirmed
                 }}
                 onCheckboxChange={handleCheckboxChange}
-                loadDraft={loadDraft}
               />
             </div>
             <div className="card-luxury p-8 mb-8">

@@ -63,7 +63,8 @@ serve(async (req) => {
     // Get authorization header for user context
     const authHeader = req.headers.get("Authorization");
     
-    if (action === "generate" || req.method === "GET") {
+    // Default to generate when no sub-action specified (action will be the function name)
+    if (action === "generate" || action === "generate-entry-token" || !action || req.method === "GET") {
       // Generate a token for the authenticated member
       console.log("[Entry Token] Generating token for member");
       

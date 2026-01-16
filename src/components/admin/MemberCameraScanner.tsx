@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { Camera, CameraOff, RotateCcw, Zap, ZapOff } from "lucide-react";
@@ -21,14 +21,26 @@ export function MemberCameraScanner({
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [cameraId, setCameraId] = useState<string | null>(null);
   const [flashlightEnabled, setFlashlightEnabled] = useState(false);
+  
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const scannerContainerRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
+  const isCleaningUpRef = useRef(false);
+  
+  // Generate a unique ID for this scanner instance to avoid DOM conflicts
+  const uniqueId = useId();
+  const scannerElementId = `qr-scanner-${uniqueId.replace(/:/g, "-")}`;
 
-  // Get available cameras
+  // Get available cameras with proper cleanup
   useEffect(() => {
+    isMountedRef.current = true;
+
     const getCameras = async () => {
       try {
         const devices = await Html5Qrcode.getCameras();
+        
+        // Only update state if still mounted
+        if (!isMountedRef.current) return;
+        
         if (devices && devices.length > 0) {
           // Prefer back camera for iPad/tablet
           const backCamera = devices.find(
@@ -41,18 +53,32 @@ export function MemberCameraScanner({
         }
       } catch (error) {
         console.error("Error getting cameras:", error);
-        setHasPermission(false);
+        if (isMountedRef.current) {
+          setHasPermission(false);
+        }
       }
     };
 
     getCameras();
+
+    // Cleanup function
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const startScanning = async () => {
-    if (!cameraId || !scannerContainerRef.current) return;
+    if (!cameraId || !isMountedRef.current || isCleaningUpRef.current) return;
+    
+    // Check if the element exists
+    const element = document.getElementById(scannerElementId);
+    if (!element) {
+      console.error("Scanner element not found:", scannerElementId);
+      return;
+    }
 
     try {
-      const scanner = new Html5Qrcode(scannerContainerRef.current.id);
+      const scanner = new Html5Qrcode(scannerElementId);
       scannerRef.current = scanner;
 
       await scanner.start(
@@ -68,37 +94,56 @@ export function MemberCameraScanner({
         (decodedText) => {
           // Success callback
           onScanSuccess(decodedText);
-          // Optionally stop after successful scan
-          // stopScanning();
         },
-        (errorMessage) => {
-          // Error callback - ignore quiet errors
-          // Only report actual errors
+        () => {
+          // Error callback - ignore quiet errors (scanning continuously)
         }
       );
 
-      setIsScanning(true);
+      if (isMountedRef.current) {
+        setIsScanning(true);
+      }
     } catch (error: any) {
       console.error("Error starting scanner:", error);
-      setIsScanning(false);
-      if (onScanError) {
-        onScanError(error.message || "Failed to start camera");
+      if (isMountedRef.current) {
+        setIsScanning(false);
+        if (onScanError) {
+          onScanError(error.message || "Failed to start camera");
+        }
       }
     }
   };
 
   const stopScanning = async () => {
-    if (scannerRef.current && isScanning) {
-      try {
-        await scannerRef.current.stop();
-        await scannerRef.current.clear();
-        scannerRef.current = null;
-        setIsScanning(false);
-        setFlashlightEnabled(false);
-      } catch (error) {
-        console.error("Error stopping scanner:", error);
-      }
+    // Prevent double cleanup
+    if (isCleaningUpRef.current) return;
+    
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+    
+    isCleaningUpRef.current = true;
+    scannerRef.current = null; // Clear ref early to prevent re-entry
+    
+    try {
+      await scanner.stop();
+    } catch (error) {
+      // Ignore stop errors - scanner may already be stopped
+      console.log("Stop scanner:", error);
     }
+    
+    try {
+      scanner.clear();
+    } catch (error) {
+      // Ignore clear errors - DOM may already be gone
+      console.log("Clear scanner:", error);
+    }
+    
+    if (isMountedRef.current) {
+      setIsScanning(false);
+      setFlashlightEnabled(false);
+    }
+    
+    isCleaningUpRef.current = false;
   };
 
   const toggleFlashlight = async () => {
@@ -111,7 +156,9 @@ export function MemberCameraScanner({
         await scannerRef.current.applyVideoConstraints({
           advanced: [{ torch: !flashlightEnabled } as any]
         });
-        setFlashlightEnabled(!flashlightEnabled);
+        if (isMountedRef.current) {
+          setFlashlightEnabled(!flashlightEnabled);
+        }
       } else {
         console.warn("Flashlight/torch not supported on this device");
       }
@@ -123,13 +170,31 @@ export function MemberCameraScanner({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (scannerRef.current && isScanning) {
-        scannerRef.current
-          .stop()
-          .catch((err) => console.error("Error cleaning up scanner:", err));
-      }
+      isMountedRef.current = false;
+      
+      // Capture scanner reference at cleanup time
+      const scanner = scannerRef.current;
+      if (!scanner) return;
+      
+      // Prevent other cleanup calls
+      isCleaningUpRef.current = true;
+      scannerRef.current = null;
+      
+      // Async cleanup - fire and forget
+      scanner
+        .stop()
+        .then(() => {
+          try {
+            scanner.clear();
+          } catch {
+            // Ignore clear errors
+          }
+        })
+        .catch(() => {
+          // Ignore all cleanup errors - component is unmounting
+        });
     };
-  }, [isScanning]);
+  }, []);
 
   if (hasPermission === false) {
     return (
@@ -148,14 +213,27 @@ export function MemberCameraScanner({
     <div className="space-y-4">
       <Card>
         <CardContent className="p-0">
+          {/* 
+            CRITICAL: DOM structure separates html5-qrcode container from React-managed overlay.
+            - The outer wrapper is position:relative
+            - The scanner host div is EMPTY and owned entirely by html5-qrcode
+            - The overlay is a SIBLING (not child) positioned absolute on top
+            This prevents html5-qrcode from deleting React nodes when it clears its container.
+          */}
           <div
-            id="qr-reader"
-            ref={scannerContainerRef}
             className="relative w-full bg-black rounded-lg overflow-hidden"
-            style={{ minHeight: "400px", position: "relative" }}
+            style={{ minHeight: "400px" }}
           >
+            {/* Scanner host - MUST be empty, owned by html5-qrcode */}
+            <div
+              id={scannerElementId}
+              className="w-full h-full"
+              style={{ minHeight: "400px" }}
+            />
+            
+            {/* React overlay - separate from scanner host */}
             {!isScanning && (
-              <div className="absolute inset-0 flex items-center justify-center bg-muted">
+              <div className="absolute inset-0 flex items-center justify-center bg-muted pointer-events-none">
                 <div className="text-center">
                   <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">Camera ready</p>
@@ -197,9 +275,10 @@ export function MemberCameraScanner({
               )}
             </Button>
             <Button
-              onClick={() => {
-                stopScanning();
-                setTimeout(startScanning, 100);
+              onClick={async () => {
+                await stopScanning();
+                // Small delay to ensure cleanup completes
+                setTimeout(startScanning, 150);
               }}
               variant="outline"
               size="lg"
@@ -214,4 +293,3 @@ export function MemberCameraScanner({
     </div>
   );
 }
-

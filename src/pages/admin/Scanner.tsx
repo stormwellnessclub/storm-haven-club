@@ -30,6 +30,7 @@ import {
   Loader2,
   Settings,
   ImageOff,
+  RotateCcw,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useMemberScanner, useRecentScans, ScanResult, DeviceType } from "@/hooks/useMemberScanner";
@@ -46,6 +47,7 @@ export default function Scanner() {
   const [showOverrideDialog, setShowOverrideDialog] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [pendingScan, setPendingScan] = useState<{ memberId: string; deviceType: DeviceType } | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { scanMember, scanMemberAsync, isScanning } = useMemberScanner();
@@ -269,12 +271,51 @@ export default function Scanner() {
                     </p>
                   </div>
                 ) : (
-                  <MemberCameraScanner
-                    onScanSuccess={handleCameraScan}
-                    onScanError={(error) => {
-                      console.error("Camera scan error:", error);
-                    }}
-                  />
+                  <div className="space-y-3">
+                    {cameraError && (
+                      <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Camera Error</AlertTitle>
+                        <AlertDescription className="flex flex-col gap-2">
+                          <span>{cameraError}</span>
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setCameraError(null);
+                                setShowCamera(false);
+                                setTimeout(() => inputRef.current?.focus(), 100);
+                              }}
+                            >
+                              <Keyboard className="h-4 w-4 mr-1" />
+                              Use Scanner/Manual
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setCameraError(null);
+                                // Force remount by toggling
+                                setShowCamera(false);
+                                setTimeout(() => setShowCamera(true), 100);
+                              }}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                              Retry Camera
+                            </Button>
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    <MemberCameraScanner
+                      onScanSuccess={handleCameraScan}
+                      onScanError={(error) => {
+                        console.error("Camera scan error:", error);
+                        setCameraError(error);
+                      }}
+                    />
+                  </div>
                 )}
 
                 {/* Auto Check-In Toggle */}
