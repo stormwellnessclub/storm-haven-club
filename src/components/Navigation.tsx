@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, User, LogOut, LayoutDashboard, CalendarDays, CreditCard, Ticket, FileText } from "lucide-react";
+import { Menu, X, User, LogOut, LayoutDashboard, CalendarDays, CreditCard, Ticket, FileText, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -128,6 +128,12 @@ export function Navigation() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
+                    <Link to="/member/payment-methods" className="cursor-pointer">
+                      <Wallet className="w-4 h-4 mr-2" />
+                      Payment Methods
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link to="/member/waivers" className="cursor-pointer">
                       <FileText className="w-4 h-4 mr-2" />
                       Waivers
@@ -217,6 +223,12 @@ export function Navigation() {
                     <Button variant="outline" className="w-full justify-start touch-target" size="lg">
                       <Ticket className="w-5 h-5 mr-3" />
                       My Credits
+                    </Button>
+                  </Link>
+                  <Link to="/member/payment-methods" className="block">
+                    <Button variant="outline" className="w-full justify-start touch-target" size="lg">
+                      <Wallet className="w-5 h-5 mr-3" />
+                      Payment Methods
                     </Button>
                   </Link>
                   <Link to="/apply" className="block">
