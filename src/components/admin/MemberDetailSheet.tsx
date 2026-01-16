@@ -76,6 +76,7 @@ interface MemberDetailSheetProps {
   member: Member | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRequestSuperActivate?: (member: Member) => void;
 }
 
 const getStatusColor = (status: string) => {
@@ -99,7 +100,7 @@ const formatStatus = (status: string) => {
   return status?.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Unknown";
 };
 
-export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSheetProps) {
+export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperActivate }: MemberDetailSheetProps) {
   const queryClient = useQueryClient();
   const { isSuperAdmin, loading: rolesLoading } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
@@ -108,10 +109,8 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showReactivateDialog, setShowReactivateDialog] = useState(false);
   const [showChargeDialog, setShowChargeDialog] = useState(false);
-  const [showActivateDialog, setShowActivateDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReactivating, setIsReactivating] = useState(false);
-  const [isActivating, setIsActivating] = useState(false);
   const [isCharging, setIsCharging] = useState(false);
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeDescription, setChargeDescription] = useState("");
@@ -251,33 +250,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
     }
   };
 
-  const handleActivateMember = async () => {
-    if (!member) return;
-    
-    setIsActivating(true);
-    try {
-      const { error } = await supabase
-        .from("members")
-        .update({ 
-          status: "active",
-          activated_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", member.id);
-
-      if (error) throw error;
-
-      toast.success("Member activated successfully");
-      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
-      setShowActivateDialog(false);
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error activating member:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to activate member");
-    } finally {
-      setIsActivating(false);
-    }
-  };
+  // handleActivateMember was moved to Members.tsx to fix dialog z-index issues
 
   const handleChargeCard = async () => {
     if (!member) return;
@@ -705,17 +678,12 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                 </Button>
               )}
 
-              {!rolesLoading && isSuperAdmin() && member.status !== "active" && (
+              {!rolesLoading && isSuperAdmin() && member.status !== "active" && onRequestSuperActivate && (
                 <Button 
                   type="button"
                   variant="default" 
                   className="w-full mt-4 bg-green-600 hover:bg-green-700"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log("Activate button clicked");
-                    setShowActivateDialog(true);
-                  }}
+                  onClick={() => onRequestSuperActivate(member)}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Activate Member (Super Admin)
@@ -1142,31 +1110,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
-        <AlertDialogContent className="z-[200]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Activate Member (Super Admin)</AlertDialogTitle>
-            <AlertDialogDescription>
-              You are about to activate {member.first_name} {member.last_name}'s membership. 
-              This will grant them full member access immediately.
-              <br /><br />
-              <strong className="text-foreground">Note:</strong> This action bypasses normal payment requirements. 
-              Make sure any required payments have been collected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isActivating}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleActivateMember}
-              disabled={isActivating}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isActivating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirm Activation
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Activation AlertDialog moved to Members.tsx to fix z-index issues with Sheet */}
 
       <Dialog open={showChargeDialog} onOpenChange={setShowChargeDialog}>
         <DialogContent>

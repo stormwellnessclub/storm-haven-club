@@ -68,22 +68,10 @@ function CardForm({ onSuccess, onCancel, applicantEmail, applicantName, applicat
       }
 
       if (setupIntent?.payment_method) {
-        // Update application with customer ID and mark card as confirmed
-        const { error: updateError } = await supabase
-          .from("membership_applications")
-          .update({
-            stripe_customer_id: setupIntent.customer as string,
-            annual_fee_status: "pending", // Card is now on file
-          })
-          .eq("id", applicationId);
-
-        if (updateError) {
-          console.error("Failed to update application:", updateError);
-          toast.error("Card saved but failed to update application");
-        } else {
-          toast.success("Card added successfully!");
-          onSuccess();
-        }
+        // The stripe-webhook will handle syncing customer ID and payment method to the application
+        // via the setup_intent.succeeded event. We just show success here.
+        toast.success("Card added successfully!");
+        onSuccess();
       }
     } catch (err) {
       console.error("Setup error:", err);

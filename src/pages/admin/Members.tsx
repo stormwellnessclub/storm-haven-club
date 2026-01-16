@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { MemberDetailSheet } from "@/components/admin/MemberDetailSheet";
@@ -22,7 +23,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle, DollarSign, ShoppingBag } from "lucide-react";
+import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle, DollarSign, ShoppingBag, CheckCircle2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { SellMembershipPackage } from "@/components/admin/SellMembershipPackage";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { format } from "date-fns";
@@ -90,6 +102,14 @@ export default function Members() {
   const [showClassPackageDialog, setShowClassPackageDialog] = useState(false);
   const [foundingMemberFilter, setFoundingMemberFilter] = useState<boolean | null>(null);
   const [billingTypeFilter, setBillingTypeFilter] = useState<string>("all");
+  
+  // Super Admin Activation state (moved from MemberDetailSheet)
+  const [memberToActivate, setMemberToActivate] = useState<typeof members[0] | null>(null);
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
+  
+  const queryClient = useQueryClient();
+  const { isSuperAdmin } = useUserRoles();
 
   const { data: members = [], isLoading, error } = useQuery({
     queryKey: ["admin-members"],
@@ -132,6 +152,33 @@ export default function Members() {
 
   const handleCheckIn = (member: typeof members[0]) => {
     navigate(`/admin/check-in?member=${member.member_id}`);
+  };
+
+  // Super Admin activation handler
+  const handleActivateMember = async () => {
+    if (!memberToActivate) return;
+    setIsActivating(true);
+    try {
+      const { error } = await supabase
+        .from("members")
+        .update({ 
+          status: "active",
+          activated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", memberToActivate.id);
+      if (error) throw error;
+      toast.success("Member activated successfully");
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      setShowActivateDialog(false);
+      setMemberToActivate(null);
+      setIsSheetOpen(false);
+    } catch (error) {
+      console.error("Error activating member:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to activate member");
+    } finally {
+      setIsActivating(false);
+    }
   };
 
   return (
@@ -318,6 +365,10 @@ export default function Members() {
           member={selectedMember}
           open={isSheetOpen}
           onOpenChange={setIsSheetOpen}
+          onRequestSuperActivate={(member: any) => {
+            setMemberToActivate(member);
+            setShowActivateDialog(true);
+          }}
         />
 
         <SellMembershipPackage
@@ -331,6 +382,33 @@ export default function Members() {
           onOpenChange={setShowClassPackageDialog}
           userId={selectedMember?.user_id}
         />
+
+        {/* Super Admin Activation Dialog - OUTSIDE THE SHEET */}
+        <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Activate Member (Super Admin)</AlertDialogTitle>
+              <AlertDialogDescription>
+                You are about to activate {memberToActivate?.first_name} {memberToActivate?.last_name}'s membership.
+                This will grant them full member access immediately.
+                <br /><br />
+                <strong className="text-foreground">Note:</strong> This action bypasses normal payment requirements.
+                Make sure any required payments have been collected.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isActivating}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleActivateMember}
+                disabled={isActivating}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isActivating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Confirm Activation
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
