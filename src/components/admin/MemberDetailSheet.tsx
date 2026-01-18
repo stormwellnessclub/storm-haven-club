@@ -74,6 +74,7 @@ interface Member {
   card_last4: string | null;
   card_exp_month: number | null;
   card_exp_year: number | null;
+  user_id: string | null;
 }
 
 interface MemberDetailSheetProps {
@@ -124,6 +125,10 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   const [addCardClientSecret, setAddCardClientSecret] = useState<string | null>(null);
   const [addCardCustomerId, setAddCardCustomerId] = useState<string | null>(null);
   const [isCreatingSetupIntent, setIsCreatingSetupIntent] = useState(false);
+  
+  // Account Linking state
+  const [linkEmail, setLinkEmail] = useState("");
+  const [isLinking, setIsLinking] = useState(false);
   
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -339,6 +344,27 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
     setAddCardCustomerId(null);
   };
 
+  // Account linking handler
+  const handleLinkAccount = async () => {
+    if (!member || !linkEmail.trim()) return;
+    setIsLinking(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_link_member_to_user", {
+        _member_id: member.id,
+        _user_email: linkEmail.trim(),
+      });
+      if (error) throw error;
+      if (!data) throw new Error("No user account found with that email address. The user must create an account first.");
+      toast.success("Member account successfully linked!");
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      setLinkEmail("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to link account");
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
   const canReactivate = member && ["suspended", "cancelled", "inactive", "frozen", "expired"].includes(member.status);
 
   if (!member) return null;
@@ -518,6 +544,52 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   <Button onClick={startEditing} variant="outline" className="w-full">
                     Edit Details
                   </Button>
+
+                  {/* Account Linking Section */}
+                  <Card className="mt-4">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Account Linking
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {member.user_id ? (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="text-sm">User account linked</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-amber-600">
+                            <AlertCircle className="h-4 w-4" />
+                            <span className="text-sm">No user account linked</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            This member has not signed up yet, or signed up with a different email.
+                          </p>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Enter user's signup email"
+                              value={linkEmail}
+                              onChange={(e) => setLinkEmail(e.target.value)}
+                              className="flex-1 text-sm"
+                            />
+                            <Button
+                              onClick={handleLinkAccount}
+                              disabled={!linkEmail.trim() || isLinking}
+                              size="sm"
+                            >
+                              {isLinking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Link"}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            The user must have already created an account. Email matching is case-insensitive.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </TabsContent>
