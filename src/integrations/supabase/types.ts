@@ -2540,6 +2540,7 @@ export type Database = {
         Returns: Json
       }
       current_user_email: { Args: never; Returns: string }
+      current_user_email_lower: { Args: never; Returns: string }
       get_dunning_efficiency: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json

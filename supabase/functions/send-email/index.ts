@@ -122,6 +122,12 @@ serve(async (req) => {
                 </p>
               </div>
               
+              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #0369a1;">
+                  <strong>📧 Important:</strong> When creating your member account, please use the same email address you applied with: <strong>${data.email || to}</strong>. This ensures your membership is automatically linked to your account.
+                </p>
+              </div>
+              
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/auth" style="${emailStyles.button}">Choose Your Start Date</a>
               </div>
@@ -195,6 +201,12 @@ serve(async (req) => {
                 Sign in to your member portal to select your start date. You have <strong>4 days remaining</strong> to make your selection before your membership automatically begins.
               </p>
               
+              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #0369a1;">
+                  <strong>📧 Important:</strong> When signing in or creating your account, please use the same email address you applied with: <strong>${data.email || to}</strong>.
+                </p>
+              </div>
+              
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/auth" style="${emailStyles.button}">Choose My Start Date</a>
               </div>
@@ -226,6 +238,12 @@ serve(async (req) => {
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
                 Please sign in to select your preferred start date. If no date is selected by <strong>${data.activationDeadline}</strong>, your membership will automatically begin on that date.
               </p>
+              
+              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #0369a1;">
+                  <strong>📧 Important:</strong> When signing in or creating your account, please use the same email address you applied with: <strong>${data.email || to}</strong>.
+                </p>
+              </div>
               
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/auth" style="${emailStyles.button}">Choose My Start Date</a>
@@ -647,6 +665,12 @@ serve(async (req) => {
                 </p>
               </div>
               
+              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #0369a1;">
+                  <strong>📧 Important:</strong> When creating your member account, please use the same email address you applied with: <strong>${data.email || to}</strong>. This ensures your membership is automatically linked to your account.
+                </p>
+              </div>
+              
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/auth" style="${emailStyles.button}">Complete Your Setup</a>
               </div>
@@ -700,6 +724,12 @@ serve(async (req) => {
                   <li>You can change your payment method anytime in your Member Portal</li>
                   <li>Your membership will be activated when we open</li>
                 </ul>
+              </div>
+              
+              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #0369a1;">
+                  <strong>📧 Important:</strong> When signing in, please use the same email address you applied with: <strong>${data.email || to}</strong>. This ensures your membership is automatically linked to your account.
+                </p>
               </div>
               
               <div style="text-align: center; margin: 30px 0;">

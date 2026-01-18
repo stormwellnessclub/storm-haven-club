@@ -116,7 +116,30 @@ export default function Members() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("members")
-        .select("*")
+        .select(`
+          id,
+          member_id,
+          first_name,
+          last_name,
+          email,
+          phone,
+          membership_type,
+          status,
+          membership_start_date,
+          membership_end_date,
+          billing_type,
+          gender,
+          is_founding_member,
+          stripe_customer_id,
+          stripe_subscription_id,
+          annual_fee_paid_at,
+          created_at,
+          card_brand,
+          card_last4,
+          card_exp_month,
+          card_exp_year,
+          user_id
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
