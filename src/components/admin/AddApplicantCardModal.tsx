@@ -139,24 +139,21 @@ function CardForm({ onSuccess, onCancel, applicantEmail, applicantName, applicat
           })
             .eq("id", applicationId);
 
-          if (updateError) {
-            console.error("Failed to sync stripe_customer_id:", updateError);
-            // Don't fail the operation - webhook will handle it
-          } else {
-            console.log("Successfully synced stripe_customer_id and card details to application", { 
-              applicationId, 
-              customerId,
-              cardBrand,
-              cardLast4
-            });
-            toast.success("Card added successfully!");
-            onSuccess();
-          }
+        if (updateError) {
+          console.error("Failed to sync stripe_customer_id:", updateError);
+          // Don't fail the operation - webhook will handle it
         } else {
-          toast.error("Missing customer ID or application ID");
+          console.log("Successfully synced stripe_customer_id and card details to application", { 
+            applicationId, 
+            customerId,
+            cardBrand,
+            cardLast4
+          });
         }
+        toast.success("Card added successfully!");
+        onSuccess();
       } else {
-        toast.error("Card setup completed but payment method was not saved. Please try again.");
+        toast.error("Missing customer ID or application ID");
       }
     } catch (err) {
       console.error("Setup error:", err);

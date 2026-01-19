@@ -153,18 +153,15 @@ export function AdminAddCardForm({
             console.log("[AdminAddCardForm] Logged payment method update for member:", memberId);
           }
 
-          toast.success("Card added successfully!");
-          setIsComplete(true);
-          onSuccess();
-        } catch (syncError) {
-          console.error("[AdminAddCardForm] Failed to sync card details:", syncError);
-          // Still show success - webhook will handle sync
-          toast.success("Card added successfully! Syncing details...");
-          setIsComplete(true);
-          onSuccess();
-        }
-      } else {
-        toast.error("Card setup completed but payment method was not saved. Please try again.");
+        toast.success("Card added successfully!");
+        setIsComplete(true);
+        onSuccess();
+      } catch (syncError) {
+        console.error("[AdminAddCardForm] Failed to sync card details:", syncError);
+        // Still show success - webhook will handle sync
+        toast.success("Card added successfully! Syncing details...");
+        setIsComplete(true);
+        onSuccess();
       }
     } catch (err: any) {
       console.error("Card setup exception:", err);

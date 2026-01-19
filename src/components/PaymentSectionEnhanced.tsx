@@ -110,7 +110,6 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
           setupIntentId: setupIntent.id,
           status: setupIntent.status,
           payment_method: setupIntent.payment_method,
-          customer: setupIntent.customer,
         });
         setError("Card setup completed but payment method was not saved. Please try again.");
         setIsSubmitting(false);
@@ -154,7 +153,7 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
       console.log("[PaymentSectionEnhanced] Payment method saved successfully:", {
         setupIntentId: setupIntent.id,
         paymentMethodId: setupIntent.payment_method,
-        customerId: setupIntent.customer,
+        customerId,
       });
         
       onSuccess(customerId, cardDetails);
