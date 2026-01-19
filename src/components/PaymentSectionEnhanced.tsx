@@ -103,9 +103,13 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
         return;
       }
 
-      // CRITICAL: Validate payment_method exists and is a string
-      // This is the key fix - Stripe can return a succeeded setupIntent without a payment_method
-      if (!setupIntent.payment_method || typeof setupIntent.payment_method !== "string") {
+      // CRITICAL: Validate payment_method exists - can be a string OR object with id
+      // Stripe may return payment_method as an expanded object instead of just a string ID
+      const paymentMethodId = typeof setupIntent.payment_method === "string" 
+        ? setupIntent.payment_method 
+        : (setupIntent.payment_method as any)?.id;
+      
+      if (!paymentMethodId) {
         console.error("[PaymentSectionEnhanced] Setup intent succeeded but no payment method:", {
           setupIntentId: setupIntent.id,
           status: setupIntent.status,
@@ -115,6 +119,8 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
         setIsSubmitting(false);
         return;
       }
+      
+      console.log("[PaymentSectionEnhanced] Payment method ID resolved:", paymentMethodId);
 
       // All validations passed - proceed with success
       if (!customerId) {
@@ -122,31 +128,59 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
         throw new Error("Unable to determine customer ID after payment method save");
       }
 
-      // Fetch card details from Stripe with a small delay to ensure attachment is complete
+      // Fetch card details from Stripe with RETRY LOGIC to handle eventual consistency
       let cardDetails: CardDetails | undefined;
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1500));
+      const maxAttempts = 4;
+      let attempts = 0;
+      
+      while (attempts < maxAttempts && !cardDetails) {
+        // Increasing delays: 2s, 2s, 2.5s, 3s
+        const delay = attempts === 0 ? 2000 : (attempts === 1 ? 2000 : (attempts === 2 ? 2500 : 3000));
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempts++;
         
-        const { data: pmData } = await supabase.functions.invoke("stripe-payment", {
-          body: {
-            action: "list_application_payment_methods",
-            stripeCustomerId: customerId,
-          },
-        });
-        
-        if (pmData?.paymentMethods?.[0]) {
-          const card = pmData.paymentMethods[0];
-          cardDetails = {
-            brand: card.brand || null,
-            last4: card.last4 || null,
-            expMonth: card.expMonth || null,
-            expYear: card.expYear || null,
-          };
-          console.log("[PaymentForm] Fetched card details:", cardDetails);
+        try {
+          console.log(`[PaymentForm] Attempt ${attempts}/${maxAttempts} - Fetching card details for customer: ${customerId}`);
+          
+          const { data: pmData, error: pmError } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "list_application_payment_methods",
+              stripeCustomerId: customerId,
+            },
+          });
+          
+          // Log the full response for debugging
+          console.log(`[PaymentForm] Attempt ${attempts} - Response:`, { 
+            pmData, 
+            pmError,
+            hasPaymentMethods: pmData?.paymentMethods?.length > 0
+          });
+          
+          if (pmError) {
+            console.error(`[PaymentForm] Attempt ${attempts} - Edge function error:`, pmError);
+            continue; // Try again
+          }
+          
+          if (pmData?.paymentMethods?.[0]) {
+            const card = pmData.paymentMethods[0];
+            cardDetails = {
+              brand: card.brand || null,
+              last4: card.last4 || null,
+              expMonth: card.expMonth || null,
+              expYear: card.expYear || null,
+            };
+            console.log("[PaymentForm] Successfully fetched card details:", cardDetails);
+          } else {
+            console.warn(`[PaymentForm] Attempt ${attempts} - No payment methods returned, will retry...`);
+          }
+        } catch (err) {
+          console.error(`[PaymentForm] Attempt ${attempts} - Exception:`, err);
+          // Continue to next attempt
         }
-      } catch (err) {
-        console.error("[PaymentForm] Failed to fetch card details:", err);
-        // Continue without card details - webhook will sync later
+      }
+      
+      if (!cardDetails) {
+        console.warn("[PaymentForm] Could not fetch card details after all attempts - webhook will sync later");
       }
 
       // Log successful save for debugging
