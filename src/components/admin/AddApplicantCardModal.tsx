@@ -22,12 +22,13 @@ interface AddApplicantCardModalProps {
   applicationId: string;
 }
 
-function CardForm({ onSuccess, onCancel, applicantEmail, applicantName, applicationId }: {
+function CardForm({ onSuccess, onCancel, applicantEmail, applicantName, applicationId, customerId }: {
   onSuccess: () => void;
   onCancel: () => void;
   applicantEmail: string;
   applicantName: string;
   applicationId: string;
+  customerId: string | null;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -96,21 +97,66 @@ function CardForm({ onSuccess, onCancel, applicantEmail, applicantName, applicat
         return;
       }
 
-      // Update application with customer ID and mark card as confirmed
-      const { error: updateError } = await supabase
-        .from("membership_applications")
-        .update({
-          stripe_customer_id: setupIntent.customer as string,
-          annual_fee_status: "pending", // Card is now on file
-        })
-        .eq("id", applicationId);
+      // Immediately sync to membership_applications for instant UI update
+      // The webhook provides backup sync
+      if (customerId && applicationId) {
+        // Fetch card details from Stripe via the payment method
+        let cardBrand: string | null = null;
+        let cardLast4: string | null = null;
+        let cardExpMonth: number | null = null;
+        let cardExpYear: number | null = null;
 
-      if (updateError) {
-        console.error("Failed to update application:", updateError);
-        toast.error("Card saved but failed to update application");
+        try {
+          // Get payment methods for the customer to extract card details
+          const { data: pmData } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "list_application_payment_methods",
+              stripeCustomerId: customerId,
+            },
+          });
+
+          if (pmData?.paymentMethods && pmData.paymentMethods.length > 0) {
+            const latestCard = pmData.paymentMethods[0];
+            cardBrand = latestCard.brand || null;
+            cardLast4 = latestCard.last4 || null;
+            cardExpMonth = latestCard.expMonth || null;
+            cardExpYear = latestCard.expYear || null;
+          }
+        } catch (cardErr) {
+          console.error("Failed to fetch card details:", cardErr);
+          // Continue without card details - webhook will handle it
+        }
+
+        const { error: updateError } = await supabase
+          .from("membership_applications")
+          .update({
+            stripe_customer_id: customerId,
+            payment_info_provided: true,
+            card_brand: cardBrand,
+            card_last4: cardLast4,
+            card_exp_month: cardExpMonth,
+            card_exp_year: cardExpYear,
+          })
+            .eq("id", applicationId);
+
+          if (updateError) {
+            console.error("Failed to sync stripe_customer_id:", updateError);
+            // Don't fail the operation - webhook will handle it
+          } else {
+            console.log("Successfully synced stripe_customer_id and card details to application", { 
+              applicationId, 
+              customerId,
+              cardBrand,
+              cardLast4
+            });
+            toast.success("Card added successfully!");
+            onSuccess();
+          }
+        } else {
+          toast.error("Missing customer ID or application ID");
+        }
       } else {
-        toast.success("Card added successfully!");
-        onSuccess();
+        toast.error("Card setup completed but payment method was not saved. Please try again.");
       }
     } catch (err) {
       console.error("Setup error:", err);
@@ -190,6 +236,7 @@ export function AddApplicantCardModal({
   applicationId 
 }: AddApplicantCardModalProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const setupIntentKeyRef = useRef(0);
@@ -213,6 +260,7 @@ export function AddApplicantCardModal({
       if (data?.error) throw new Error(data.error);
 
       setClientSecret(data.clientSecret);
+      setCustomerId(data.customerId || null);
       setupIntentKeyRef.current += 1;
     } catch (err) {
       console.error("Failed to create setup intent:", err);
@@ -231,6 +279,7 @@ export function AddApplicantCardModal({
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setClientSecret(null);
+      setCustomerId(null);
       setError(null);
     }
     onOpenChange(newOpen);
@@ -238,6 +287,7 @@ export function AddApplicantCardModal({
 
   const handleSuccess = () => {
     setClientSecret(null);
+    setCustomerId(null);
     setError(null);
     onSuccess();
     onOpenChange(false);
@@ -285,6 +335,7 @@ export function AddApplicantCardModal({
               applicantEmail={applicantEmail}
               applicantName={applicantName}
               applicationId={applicationId}
+              customerId={customerId}
             />
           </StripeProvider>
         )}

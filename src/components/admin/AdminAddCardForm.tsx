@@ -83,27 +83,65 @@ export function AdminAddCardForm({
       // Sync to Supabase immediately after successful card save
       // This is a backup in case the webhook is delayed or fails
       try {
+        // Fetch card details from Stripe
+        let cardBrand: string | null = null;
+        let cardLast4: string | null = null;
+        let cardExpMonth: number | null = null;
+        let cardExpYear: number | null = null;
+
+        if (stripeCustomerId) {
+          try {
+            const { data: pmData } = await supabase.functions.invoke("stripe-payment", {
+              body: {
+                action: "list_payment_methods",
+                stripeCustomerId: stripeCustomerId,
+              },
+            });
+
+            if (pmData?.paymentMethods && pmData.paymentMethods.length > 0) {
+              const latestCard = pmData.paymentMethods[0];
+              cardBrand = latestCard.brand || null;
+              cardLast4 = latestCard.last4 || null;
+              cardExpMonth = latestCard.expMonth || null;
+              cardExpYear = latestCard.expYear || null;
+            }
+          } catch (cardErr) {
+            console.error("Failed to fetch card details:", cardErr);
+            // Continue without card details - webhook will handle it
+          }
+        }
+
         if (applicationId && stripeCustomerId) {
           await supabase
             .from('membership_applications')
             .update({ 
               stripe_customer_id: stripeCustomerId,
-              payment_info_provided: true 
+              payment_info_provided: true,
+              card_brand: cardBrand,
+              card_last4: cardLast4,
+              card_exp_month: cardExpMonth,
+              card_exp_year: cardExpYear,
             })
             .eq('id', applicationId);
-          console.log("[AdminAddCardForm] Synced stripe_customer_id to application:", applicationId);
+          console.log("[AdminAddCardForm] Synced stripe_customer_id and card details to application:", applicationId);
         }
 
         if (memberId && stripeCustomerId) {
           await supabase
             .from('members')
-            .update({ stripe_customer_id: stripeCustomerId })
-            .eq('id', memberId);
-          console.log("[AdminAddCardForm] Synced stripe_customer_id to member:", memberId);
-        }
+            .update({ 
+              stripe_customer_id: stripeCustomerId,
+                card_brand: cardBrand,
+                card_last4: cardLast4,
+                card_exp_month: cardExpMonth,
+                card_exp_year: cardExpYear,
+              })
+              .eq('id', memberId);
+            console.log("[AdminAddCardForm] Synced stripe_customer_id and card details to member:", memberId);
+          }
 
-        // Log the payment method update for audit trail
-        if (memberId && setupIntent.payment_method) {
+          // Log the payment method update for audit trail
+          if (memberId && setupIntent.payment_method) {
             await supabase
               .from('payment_method_updates')
               .insert({
@@ -114,14 +152,19 @@ export function AdminAddCardForm({
               });
             console.log("[AdminAddCardForm] Logged payment method update for member:", memberId);
           }
-        } catch (syncError) {
-          console.error("[AdminAddCardForm] Supabase sync error (non-blocking):", syncError);
-          // Don't fail the card save - webhook should handle this too
-        }
 
-        setIsComplete(true);
-        toast.success("Card saved successfully");
-        onSuccess();
+          toast.success("Card added successfully!");
+          setIsComplete(true);
+          onSuccess();
+        } catch (syncError) {
+          console.error("[AdminAddCardForm] Failed to sync card details:", syncError);
+          // Still show success - webhook will handle sync
+          toast.success("Card added successfully! Syncing details...");
+          setIsComplete(true);
+          onSuccess();
+        }
+      } else {
+        toast.error("Card setup completed but payment method was not saved. Please try again.");
       }
     } catch (err: any) {
       console.error("Card setup exception:", err);

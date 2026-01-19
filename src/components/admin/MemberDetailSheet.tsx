@@ -70,12 +70,18 @@ interface Member {
   stripe_subscription_id: string | null;
   annual_fee_paid_at: string | null;
   created_at: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
+  card_exp_month: number | null;
+  card_exp_year: number | null;
+  user_id: string | null;
 }
 
 interface MemberDetailSheetProps {
   member: Member | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRequestSuperActivate?: (member: Member) => void;
 }
 
 const getStatusColor = (status: string) => {
@@ -99,7 +105,7 @@ const formatStatus = (status: string) => {
   return status?.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Unknown";
 };
 
-export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSheetProps) {
+export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperActivate }: MemberDetailSheetProps) {
   const queryClient = useQueryClient();
   const { isSuperAdmin, loading: rolesLoading } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
@@ -108,10 +114,8 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showReactivateDialog, setShowReactivateDialog] = useState(false);
   const [showChargeDialog, setShowChargeDialog] = useState(false);
-  const [showActivateDialog, setShowActivateDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReactivating, setIsReactivating] = useState(false);
-  const [isActivating, setIsActivating] = useState(false);
   const [isCharging, setIsCharging] = useState(false);
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeDescription, setChargeDescription] = useState("");
@@ -121,6 +125,10 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
   const [addCardClientSecret, setAddCardClientSecret] = useState<string | null>(null);
   const [addCardCustomerId, setAddCardCustomerId] = useState<string | null>(null);
   const [isCreatingSetupIntent, setIsCreatingSetupIntent] = useState(false);
+  
+  // Account Linking state
+  const [linkEmail, setLinkEmail] = useState("");
+  const [isLinking, setIsLinking] = useState(false);
   
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -251,33 +259,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
     }
   };
 
-  const handleActivateMember = async () => {
-    if (!member) return;
-    
-    setIsActivating(true);
-    try {
-      const { error } = await supabase
-        .from("members")
-        .update({ 
-          status: "active",
-          activated_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", member.id);
-
-      if (error) throw error;
-
-      toast.success("Member activated successfully");
-      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
-      setShowActivateDialog(false);
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error activating member:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to activate member");
-    } finally {
-      setIsActivating(false);
-    }
-  };
+  // handleActivateMember was moved to Members.tsx to fix dialog z-index issues
 
   const handleChargeCard = async () => {
     if (!member) return;
@@ -360,6 +342,27 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
     setShowAddCardForm(false);
     setAddCardClientSecret(null);
     setAddCardCustomerId(null);
+  };
+
+  // Account linking handler
+  const handleLinkAccount = async () => {
+    if (!member || !linkEmail.trim()) return;
+    setIsLinking(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_link_member_to_user", {
+        _member_id: member.id,
+        _user_email: linkEmail.trim(),
+      });
+      if (error) throw error;
+      if (!data) throw new Error("No user account found with that email address. The user must create an account first.");
+      toast.success("Member account successfully linked!");
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      setLinkEmail("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to link account");
+    } finally {
+      setIsLinking(false);
+    }
   };
 
   const canReactivate = member && ["suspended", "cancelled", "inactive", "frozen", "expired"].includes(member.status);
@@ -541,6 +544,52 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                   <Button onClick={startEditing} variant="outline" className="w-full">
                     Edit Details
                   </Button>
+
+                  {/* Account Linking Section */}
+                  <Card className="mt-4">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Account Linking
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {member.user_id ? (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="text-sm">User account linked</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-amber-600">
+                            <AlertCircle className="h-4 w-4" />
+                            <span className="text-sm">No user account linked</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            This member has not signed up yet, or signed up with a different email.
+                          </p>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Enter user's signup email"
+                              value={linkEmail}
+                              onChange={(e) => setLinkEmail(e.target.value)}
+                              className="flex-1 text-sm"
+                            />
+                            <Button
+                              onClick={handleLinkAccount}
+                              disabled={!linkEmail.trim() || isLinking}
+                              size="sm"
+                            >
+                              {isLinking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Link"}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            The user must have already created an account. Email matching is case-insensitive.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </TabsContent>
@@ -657,12 +706,26 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                 </p>
                 {member.stripe_customer_id ? (
                   <div className="text-sm space-y-2">
-                    <p className="text-muted-foreground">
-                      Stripe Customer: <span className="font-mono text-xs">{member.stripe_customer_id}</span>
+                    {/* Card details display */}
+                    {member.card_brand && member.card_last4 && (
+                      <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">
+                          {member.card_brand.toUpperCase()} •••• {member.card_last4}
+                        </span>
+                        {member.card_exp_month && member.card_exp_year && (
+                          <span className="text-muted-foreground text-xs ml-auto">
+                            Exp: {String(member.card_exp_month).padStart(2, '0')}/{member.card_exp_year}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-muted-foreground text-xs">
+                      Stripe Customer: <span className="font-mono">{member.stripe_customer_id}</span>
                     </p>
                     {member.stripe_subscription_id && (
-                      <p className="text-muted-foreground">
-                        Subscription: <span className="font-mono text-xs">{member.stripe_subscription_id}</span>
+                      <p className="text-muted-foreground text-xs">
+                        Subscription: <span className="font-mono">{member.stripe_subscription_id}</span>
                       </p>
                     )}
                     <Button 
@@ -705,17 +768,12 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                 </Button>
               )}
 
-              {!rolesLoading && isSuperAdmin() && member.status !== "active" && (
+              {!rolesLoading && isSuperAdmin() && member.status !== "active" && onRequestSuperActivate && (
                 <Button 
                   type="button"
                   variant="default" 
                   className="w-full mt-4 bg-green-600 hover:bg-green-700"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log("Activate button clicked");
-                    setShowActivateDialog(true);
-                  }}
+                  onClick={() => onRequestSuperActivate(member)}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Activate Member (Super Admin)
@@ -1142,31 +1200,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
-        <AlertDialogContent className="z-[200]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Activate Member (Super Admin)</AlertDialogTitle>
-            <AlertDialogDescription>
-              You are about to activate {member.first_name} {member.last_name}'s membership. 
-              This will grant them full member access immediately.
-              <br /><br />
-              <strong className="text-foreground">Note:</strong> This action bypasses normal payment requirements. 
-              Make sure any required payments have been collected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isActivating}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleActivateMember}
-              disabled={isActivating}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isActivating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirm Activation
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Activation AlertDialog moved to Members.tsx to fix z-index issues with Sheet */}
 
       <Dialog open={showChargeDialog} onOpenChange={setShowChargeDialog}>
         <DialogContent>

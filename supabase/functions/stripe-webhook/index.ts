@@ -1109,6 +1109,28 @@ serve(async (req) => {
             type: metadata.type || 'unknown'
           });
 
+          // Fetch card details from Stripe
+          let cardBrand: string | null = null;
+          let cardLast4: string | null = null;
+          let cardExpMonth: number | null = null;
+          let cardExpYear: number | null = null;
+
+          if (paymentMethodId) {
+            try {
+              const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+              if (paymentMethod.card) {
+                cardBrand = paymentMethod.card.brand || null;
+                cardLast4 = paymentMethod.card.last4 || null;
+                cardExpMonth = paymentMethod.card.exp_month || null;
+                cardExpYear = paymentMethod.card.exp_year || null;
+              }
+              logStep("Retrieved card details", { cardBrand, cardLast4, cardExpMonth, cardExpYear });
+            } catch (pmError) {
+              logError(pmError, "SETUP_INTENT_FETCH_PAYMENT_METHOD");
+              // Continue without card details - they can be fetched later
+            }
+          }
+
           // Sync to members table if this customer has a member record
           if (customerId) {
             const { data: memberData, error: memberError } = await supabase
@@ -1120,6 +1142,23 @@ serve(async (req) => {
             if (memberError) {
               logError(memberError, "SETUP_INTENT_MEMBER_LOOKUP");
             } else if (memberData) {
+              // Update member with card details
+              const { error: memberCardError } = await supabase
+                .from('members')
+                .update({
+                  card_brand: cardBrand,
+                  card_last4: cardLast4,
+                  card_exp_month: cardExpMonth,
+                  card_exp_year: cardExpYear,
+                })
+                .eq('id', memberData.id);
+
+              if (memberCardError) {
+                logError(memberCardError, "SETUP_INTENT_MEMBER_CARD_UPDATE");
+              } else {
+                logStep("Member card details updated", { memberId: memberData.id, cardBrand, cardLast4 });
+              }
+
               // Log payment method update to audit table
               try {
                 const { error: pmLogError } = await supabase
@@ -1128,10 +1167,10 @@ serve(async (req) => {
                     member_id: memberData.id,
                     payment_method_id: paymentMethodId,
                     event_type: 'card_added',
-                    card_brand: null, // Will be populated if we fetch payment method details
-                    card_last4: null,
-                    card_exp_month: null,
-                    card_exp_year: null,
+                    card_brand: cardBrand,
+                    card_last4: cardLast4,
+                    card_exp_month: cardExpMonth,
+                    card_exp_year: cardExpYear,
                     is_default: false,
                   });
 
@@ -1155,30 +1194,49 @@ serve(async (req) => {
                 .from('membership_applications')
                 .update({ 
                   stripe_customer_id: customerId,
-                  payment_info_provided: true 
+                  payment_info_provided: true,
+                  card_brand: cardBrand,
+                  card_last4: cardLast4,
+                  card_exp_month: cardExpMonth,
+                  card_exp_year: cardExpYear,
                 })
                 .eq('email', applicantEmail);
 
               if (appUpdateError) {
                 logError(appUpdateError, "SETUP_INTENT_APPLICATION_UPDATE");
               } else {
-                logStep("Application updated with Stripe customer", { email: applicantEmail, customerId });
+                logStep("Application updated with Stripe customer and card details", { 
+                  email: applicantEmail, 
+                  customerId,
+                  cardBrand,
+                  cardLast4
+                });
               }
             }
           }
 
-          // If metadata has member_id, ensure member record is synced
+          // If metadata has member_id, ensure member record is synced with card details
           if (metadata.member_id && customerId) {
             const { error: memberSyncError } = await supabase
               .from('members')
-              .update({ stripe_customer_id: customerId })
-              .eq('id', metadata.member_id)
-              .is('stripe_customer_id', null); // Only update if not already set
+              .update({ 
+                stripe_customer_id: customerId,
+                card_brand: cardBrand,
+                card_last4: cardLast4,
+                card_exp_month: cardExpMonth,
+                card_exp_year: cardExpYear,
+              })
+              .eq('id', metadata.member_id);
 
             if (memberSyncError) {
               logError(memberSyncError, "SETUP_INTENT_MEMBER_SYNC");
             } else {
-              logStep("Member stripe_customer_id synced", { memberId: metadata.member_id, customerId });
+              logStep("Member stripe_customer_id and card details synced", { 
+                memberId: metadata.member_id, 
+                customerId,
+                cardBrand,
+                cardLast4
+              });
             }
           }
 

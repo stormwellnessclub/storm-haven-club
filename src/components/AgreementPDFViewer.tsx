@@ -40,9 +40,9 @@ interface AgreementPDFViewerProps {
 
 // Get PDF path from imported module, filename, or URL
 const getPdfPath = (pdfInput: string): string => {
-  // If it's already a URL (starts with http:// or https://), use it directly
-  if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://')) {
-    console.log(`[PDF] Using URL directly: ${pdfInput}`);
+  // If it's already a full URL or absolute path, use it directly
+  if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://') || pdfInput.startsWith('/')) {
+    console.log(`[PDF] Using path directly: ${pdfInput}`);
     return pdfInput;
   }
   
@@ -56,15 +56,9 @@ const getPdfPath = (pdfInput: string): string => {
     return path;
   }
   
-  // If it looks like a URL path but not http, use it directly
-  if (pdfInput.includes('/') && !pdfInput.startsWith('/src/')) {
-    console.log(`[PDF] Using path directly: ${pdfInput}`);
-    return pdfInput;
-  }
-  
-  console.warn(`[PDF] Not in pdfMap and not a URL: ${filename}`);
-  // Return the input as-is - it might be a relative path or URL
-  return pdfInput;
+  // Default: assume it's in public/agreements/
+  console.log(`[PDF] Using public path: /agreements/${filename}`);
+  return `/agreements/${filename}`;
 };
 
 // Fallback UI component when PDF fails to load
@@ -122,7 +116,7 @@ export function AgreementPDFViewer({
   const [selectedPdfIndex, setSelectedPdfIndex] = useState(0);
   const currentPdf = pdfs[selectedPdfIndex];
 
-  // Reset state when PDF changes
+  // Reset state when PDF changes - add preflight check
   useEffect(() => {
     setScale(1.0);
     setLoading(true);
@@ -134,10 +128,27 @@ export function AgreementPDFViewer({
       clearTimeout(timeoutRef.current);
     }
 
-    // Set a timeout to detect if PDF fails to load
+    const pdfSrc = getPdfPath(currentPdf);
+    
+    // Preflight check - verify PDF is accessible
+    fetch(pdfSrc, { method: 'HEAD' })
+      .then(response => {
+        if (!response.ok) {
+          console.warn(`[PDF] Preflight failed for ${pdfSrc}: ${response.status}`);
+          setError("PDF preview unavailable");
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        console.warn(`[PDF] Preflight error for ${pdfSrc}:`, err);
+        // Don't set error yet - let iframe try anyway
+      });
+
+    // Set a timeout to detect if PDF fails to load (5 seconds - faster since we have fallback buttons)
     timeoutRef.current = setTimeout(() => {
       if (!iframeLoaded) {
         console.warn(`[PDF] Load timeout for: ${currentPdf}`);
+        console.warn(`[PDF] Resolved path was: ${pdfSrc}`);
         setError("PDF preview unavailable");
         setLoading(false);
       }
@@ -233,6 +244,15 @@ export function AgreementPDFViewer({
             )}
           </div>
         )}
+        {/* Always show action buttons above viewer */}
+        <div className="px-4 py-2 border-b bg-muted/30 flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={handleDownload} className="gap-1">
+            <Download className="h-4 w-4" /> Download PDF
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => window.open(pdfSrc, '_blank')} className="gap-1">
+            <ExternalLink className="h-4 w-4" /> Open in New Tab
+          </Button>
+        </div>
         <ScrollArea className="w-full" style={{ height }}>
           {loading && !error && (
             <div className="flex items-center justify-center h-full min-h-[300px]">

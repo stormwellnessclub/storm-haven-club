@@ -191,6 +191,68 @@ serve(async (req) => {
       );
     }
 
+    // Handle unauthenticated action: list_application_payment_methods
+    // This allows applicants to fetch their card details after saving without needing auth
+    if (action === 'list_application_payment_methods') {
+      const { stripeCustomerId: appCustomerId } = body;
+
+      if (!appCustomerId) {
+        return new Response(
+          JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      logStep("Listing payment methods for application (unauthenticated)", { stripeCustomerId: appCustomerId });
+
+      try {
+        // Get customer to find default payment method
+        const appCustomer = await stripe.customers.retrieve(appCustomerId);
+        const appDefaultPaymentMethodId = !appCustomer.deleted 
+          ? appCustomer.invoice_settings?.default_payment_method as string | null
+          : null;
+
+        // List payment methods
+        const appPaymentMethods = await stripe.paymentMethods.list({
+          customer: appCustomerId,
+          type: 'card',
+        });
+
+        const appFormattedMethods = appPaymentMethods.data.map((pm: { 
+          id: string; 
+          card?: { brand?: string; last4?: string; exp_month?: number; exp_year?: number };
+          metadata?: Record<string, string>;
+        }) => ({
+          id: pm.id,
+          brand: pm.card?.brand,
+          last4: pm.card?.last4,
+          expMonth: pm.card?.exp_month,
+          expYear: pm.card?.exp_year,
+          nickname: pm.metadata?.nickname || null,
+          isDefault: pm.id === appDefaultPaymentMethodId,
+        }));
+
+        logStep("Application payment methods listed (unauthenticated)", { 
+          stripeCustomerId: appCustomerId, 
+          count: appFormattedMethods.length 
+        });
+
+        return new Response(
+          JSON.stringify({ 
+            paymentMethods: appFormattedMethods, 
+            hasPaymentMethod: appFormattedMethods.length > 0,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      } catch (stripeErr: any) {
+        logStep("Error listing application payment methods (unauthenticated)", { error: stripeErr.message });
+        return new Response(
+          JSON.stringify({ paymentMethods: [], hasPaymentMethod: false, error: stripeErr.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+    }
+
     // All other actions require authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
@@ -661,67 +723,6 @@ serve(async (req) => {
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
-      }
-
-      case 'list_application_payment_methods': {
-        // List payment methods directly using stripeCustomerId (for applicants without member records)
-        const { stripeCustomerId: appCustomerId } = body;
-
-        if (!appCustomerId) {
-          return new Response(
-            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-
-        logStep("Listing payment methods for application", { stripeCustomerId: appCustomerId });
-
-        try {
-          // Get customer to find default payment method
-          const appCustomer = await stripe.customers.retrieve(appCustomerId);
-          const appDefaultPaymentMethodId = !appCustomer.deleted 
-            ? appCustomer.invoice_settings?.default_payment_method as string | null
-            : null;
-
-          // List payment methods
-          const appPaymentMethods = await stripe.paymentMethods.list({
-            customer: appCustomerId,
-            type: 'card',
-          });
-
-          const appFormattedMethods = appPaymentMethods.data.map((pm: { 
-            id: string; 
-            card?: { brand?: string; last4?: string; exp_month?: number; exp_year?: number };
-            metadata?: Record<string, string>;
-          }) => ({
-            id: pm.id,
-            brand: pm.card?.brand,
-            last4: pm.card?.last4,
-            expMonth: pm.card?.exp_month,
-            expYear: pm.card?.exp_year,
-            nickname: pm.metadata?.nickname || null,
-            isDefault: pm.id === appDefaultPaymentMethodId,
-          }));
-
-          logStep("Application payment methods listed", { 
-            stripeCustomerId: appCustomerId, 
-            count: appFormattedMethods.length 
-          });
-
-          return new Response(
-            JSON.stringify({ 
-              paymentMethods: appFormattedMethods, 
-              hasPaymentMethod: appFormattedMethods.length > 0,
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        } catch (stripeErr: any) {
-          logStep("Error listing application payment methods", { error: stripeErr.message });
-          return new Response(
-            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false, error: stripeErr.message }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
       }
 
       case 'create_admin_setup_intent': {
