@@ -311,18 +311,18 @@ export default function Memberships() {
             <div className="flex flex-wrap justify-center gap-4 mb-8">
               <div className="bg-background p-4 rounded-sm">
                 <p className="font-serif text-lg">Silver</p>
-                <p className="text-accent">$120/mo</p>
+                <p className="text-gold font-semibold">$120/mo</p>
               </div>
               <div className="bg-background p-4 rounded-sm">
                 <p className="font-serif text-lg">Gold</p>
-                <p className="text-accent">$155/mo</p>
+                <p className="text-gold font-semibold">$155/mo</p>
               </div>
               <div className="bg-background p-4 rounded-sm">
                 <p className="font-serif text-lg">Platinum</p>
-                <p className="text-accent">$175/mo</p>
+                <p className="text-gold font-semibold">$175/mo</p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/70">
               Reduced annual fee of $175 on all tiers
             </p>
           </div>

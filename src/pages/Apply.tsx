@@ -836,7 +836,7 @@ export default function Apply() {
           <form onSubmit={handleSubmit}>
             {/* Personal Information */}
             <div ref={(el) => sectionRefs.current["personal"] = el} className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-accent">Personal Information</h2>
+              <h2 className="font-serif text-2xl mb-6 text-gold">Personal Information</h2>
               
               <div className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -1030,7 +1030,7 @@ export default function Apply() {
 
             {/* Wellness Goals and Interests */}
             <div ref={(el) => sectionRefs.current["goals"] = el} className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-accent">Wellness Goals and Interests</h2>
+              <h2 className="font-serif text-2xl mb-6 text-gold">Wellness Goals and Interests</h2>
               
               <div className="space-y-6">
                 <div>
@@ -1111,7 +1111,7 @@ export default function Apply() {
 
             {/* Wellness Background */}
             <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-accent">Wellness Background</h2>
+              <h2 className="font-serif text-2xl mb-6 text-gold">Wellness Background</h2>
               
               <div>
                 <Label className="mb-3 block">Have you previously been a member of a fitness center, or wellness club?</Label>
@@ -1146,7 +1146,7 @@ export default function Apply() {
 
             {/* Motivation for Joining */}
             <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-accent">Motivation for Joining</h2>
+              <h2 className="font-serif text-2xl mb-6 text-gold">Motivation for Joining</h2>
               
               <div>
                 <Label className="mb-3 block">Why have you chosen Storm Wellness Club for your wellness journey? (Select all that apply)</Label>
@@ -1188,7 +1188,7 @@ export default function Apply() {
 
             {/* Getting to Know You Better */}
             <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-accent">Getting to Know You Better</h2>
+              <h2 className="font-serif text-2xl mb-6 text-gold">Getting to Know You Better</h2>
               
               <div className="space-y-4">
                 <div>
@@ -1253,7 +1253,7 @@ export default function Apply() {
 
             {/* Alignment with Our Wellness Community */}
             <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-accent">Alignment with Our Wellness Community</h2>
+              <h2 className="font-serif text-2xl mb-6 text-gold">Alignment with Our Wellness Community</h2>
               
               <div>
                 <Label className="mb-3 block">Would you like to become a founding member? *</Label>
@@ -1332,7 +1332,7 @@ export default function Apply() {
               />
             </div>
             <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-accent">Agreements</h2>
+              <h2 className="font-serif text-2xl mb-6 text-gold">Agreements</h2>
               
               <div className="space-y-6">
                 {/* Membership Agreement */}
