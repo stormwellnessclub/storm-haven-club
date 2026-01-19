@@ -67,23 +67,50 @@ function CardForm({ onSuccess, onCancel, applicantEmail, applicantName, applicat
         return;
       }
 
-      if (setupIntent?.payment_method) {
-        // Update application with customer ID and mark card as confirmed
-        const { error: updateError } = await supabase
-          .from("membership_applications")
-          .update({
-            stripe_customer_id: setupIntent.customer as string,
-            annual_fee_status: "pending", // Card is now on file
-          })
-          .eq("id", applicationId);
+      // Validate setupIntent exists and has payment_method
+      if (!setupIntent) {
+        console.error("[AddApplicantCardModal] Setup intent not returned");
+        toast.error("Setup failed - no setup intent returned. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
 
-        if (updateError) {
-          console.error("Failed to update application:", updateError);
-          toast.error("Card saved but failed to update application");
-        } else {
-          toast.success("Card added successfully!");
-          onSuccess();
-        }
+      if (setupIntent.status !== "succeeded") {
+        console.error("[AddApplicantCardModal] Setup intent not succeeded:", {
+          status: setupIntent.status,
+          setupIntentId: setupIntent.id,
+        });
+        toast.error(`Payment setup incomplete (status: ${setupIntent.status}). Please try again.`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!setupIntent.payment_method || typeof setupIntent.payment_method !== "string") {
+        console.error("[AddApplicantCardModal] Setup intent succeeded but no payment method:", {
+          setupIntentId: setupIntent.id,
+          status: setupIntent.status,
+          payment_method: setupIntent.payment_method,
+        });
+        toast.error("Card setup completed but payment method was not saved. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Update application with customer ID and mark card as confirmed
+      const { error: updateError } = await supabase
+        .from("membership_applications")
+        .update({
+          stripe_customer_id: setupIntent.customer as string,
+          annual_fee_status: "pending", // Card is now on file
+        })
+        .eq("id", applicationId);
+
+      if (updateError) {
+        console.error("Failed to update application:", updateError);
+        toast.error("Card saved but failed to update application");
+      } else {
+        toast.success("Card added successfully!");
+        onSuccess();
       }
     } catch (err) {
       console.error("Setup error:", err);

@@ -68,11 +68,43 @@ function CardForm({ onSuccess, onCancel, nickname, onNicknameChange, memberId }:
 
       if (error) {
         toast.error(error.message || "Failed to save card");
-      } else {
-        const paymentMethodId = setupIntent?.payment_method;
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Validate setupIntent exists and has payment_method
+      if (!setupIntent) {
+        console.error("[AddCardModal] Setup intent not returned");
+        toast.error("Setup failed - no setup intent returned. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (setupIntent.status !== "succeeded") {
+        console.error("[AddCardModal] Setup intent not succeeded:", {
+          status: setupIntent.status,
+          setupIntentId: setupIntent.id,
+        });
+        toast.error(`Payment setup incomplete (status: ${setupIntent.status}). Please try again.`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const paymentMethodId = setupIntent.payment_method;
+      
+      if (!paymentMethodId || typeof paymentMethodId !== "string") {
+        console.error("[AddCardModal] Setup intent succeeded but no payment method:", {
+          setupIntentId: setupIntent.id,
+          status: setupIntent.status,
+          payment_method: setupIntent.payment_method,
+        });
+        toast.error("Card setup completed but payment method was not saved. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
         
-        // If nickname provided, update the payment method metadata
-        if (nickname.trim() && paymentMethodId) {
+      // If nickname provided, update the payment method metadata
+      if (nickname.trim() && paymentMethodId) {
           try {
             await supabase.functions.invoke("stripe-payment", {
               body: {

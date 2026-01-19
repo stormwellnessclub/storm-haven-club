@@ -47,31 +47,63 @@ export function AdminAddCardForm({
       if (error) {
         console.error("Card setup error:", error);
         toast.error(error.message || "Failed to save card");
-      } else {
-        // Sync to Supabase immediately after successful card save
-        // This is a backup in case the webhook is delayed or fails
-        try {
-          if (applicationId && stripeCustomerId) {
-            await supabase
-              .from('membership_applications')
-              .update({ 
-                stripe_customer_id: stripeCustomerId,
-                payment_info_provided: true 
-              })
-              .eq('id', applicationId);
-            console.log("[AdminAddCardForm] Synced stripe_customer_id to application:", applicationId);
-          }
+        setIsSubmitting(false);
+        return;
+      }
 
-          if (memberId && stripeCustomerId) {
-            await supabase
-              .from('members')
-              .update({ stripe_customer_id: stripeCustomerId })
-              .eq('id', memberId);
-            console.log("[AdminAddCardForm] Synced stripe_customer_id to member:", memberId);
-          }
+      // Validate setupIntent exists and has payment_method
+      if (!setupIntent) {
+        console.error("[AdminAddCardForm] Setup intent not returned");
+        toast.error("Setup failed - no setup intent returned. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
 
-          // Log the payment method update for audit trail
-          if (memberId && setupIntent?.payment_method) {
+      if (setupIntent.status !== "succeeded") {
+        console.error("[AdminAddCardForm] Setup intent not succeeded:", {
+          status: setupIntent.status,
+          setupIntentId: setupIntent.id,
+        });
+        toast.error(`Payment setup incomplete (status: ${setupIntent.status}). Please try again.`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!setupIntent.payment_method || typeof setupIntent.payment_method !== "string") {
+        console.error("[AdminAddCardForm] Setup intent succeeded but no payment method:", {
+          setupIntentId: setupIntent.id,
+          status: setupIntent.status,
+          payment_method: setupIntent.payment_method,
+        });
+        toast.error("Card setup completed but payment method was not saved. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Sync to Supabase immediately after successful card save
+      // This is a backup in case the webhook is delayed or fails
+      try {
+        if (applicationId && stripeCustomerId) {
+          await supabase
+            .from('membership_applications')
+            .update({ 
+              stripe_customer_id: stripeCustomerId,
+              payment_info_provided: true 
+            })
+            .eq('id', applicationId);
+          console.log("[AdminAddCardForm] Synced stripe_customer_id to application:", applicationId);
+        }
+
+        if (memberId && stripeCustomerId) {
+          await supabase
+            .from('members')
+            .update({ stripe_customer_id: stripeCustomerId })
+            .eq('id', memberId);
+          console.log("[AdminAddCardForm] Synced stripe_customer_id to member:", memberId);
+        }
+
+        // Log the payment method update for audit trail
+        if (memberId && setupIntent.payment_method) {
             await supabase
               .from('payment_method_updates')
               .insert({

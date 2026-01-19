@@ -76,16 +76,53 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
         return;
       }
 
-      if (setupIntent) {
-        // Use the customerId passed directly from parent (set when setup was created)
-        if (!customerId) {
-          throw new Error("Unable to determine customer ID after payment method save");
-        }
-        
-        onSuccess(customerId);
-      } else {
-        throw new Error("Setup failed - no setup intent returned");
+      // CRITICAL: Validate setupIntent exists
+      if (!setupIntent) {
+        console.error("[PaymentSectionEnhanced] Setup intent not returned from confirmSetup");
+        setError("Setup failed - no setup intent returned. Please try again.");
+        setIsSubmitting(false);
+        return;
       }
+
+      // CRITICAL: Validate setup intent status is succeeded
+      if (setupIntent.status !== "succeeded") {
+        console.error("[PaymentSectionEnhanced] Setup intent not succeeded:", {
+          status: setupIntent.status,
+          setupIntentId: setupIntent.id,
+        });
+        setError(`Payment setup incomplete (status: ${setupIntent.status}). Please try again.`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // CRITICAL: Validate payment_method exists and is a string
+      // This is the key fix - Stripe can return a succeeded setupIntent without a payment_method
+      if (!setupIntent.payment_method || typeof setupIntent.payment_method !== "string") {
+        console.error("[PaymentSectionEnhanced] Setup intent succeeded but no payment method:", {
+          setupIntentId: setupIntent.id,
+          status: setupIntent.status,
+          payment_method: setupIntent.payment_method,
+          customer: setupIntent.customer,
+        });
+        setError("Card setup completed but payment method was not saved. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // All validations passed - proceed with success
+      if (!customerId) {
+        console.error("[PaymentSectionEnhanced] Customer ID missing after successful payment method save");
+        throw new Error("Unable to determine customer ID after payment method save");
+      }
+
+      // Log successful save for debugging
+      console.log("[PaymentSectionEnhanced] Payment method saved successfully:", {
+        setupIntentId: setupIntent.id,
+        paymentMethodId: setupIntent.payment_method,
+        customerId: setupIntent.customer,
+      });
+        
+      onSuccess(customerId);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save payment method";
       setError(errorMessage);
