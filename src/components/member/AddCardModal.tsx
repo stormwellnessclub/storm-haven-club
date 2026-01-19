@@ -142,12 +142,11 @@ function CardForm({ onSuccess, onCancel, nickname, onNicknameChange, memberId }:
           }
         }
         
-        setIsComplete(true);
-        toast.success("Card added successfully!");
-        setTimeout(() => {
-          onSuccess();
-        }, 1500);
-      }
+      setIsComplete(true);
+      toast.success("Card added successfully!");
+      setTimeout(() => {
+        onSuccess();
+      }, 1500);
     } catch (err) {
       console.error("Setup error:", err);
       toast.error("An unexpected error occurred");
