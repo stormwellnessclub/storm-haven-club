@@ -249,7 +249,7 @@ export default function Amenities() {
       <section className="py-24 bg-background">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
-            <p className="text-accent text-sm uppercase tracking-[0.2em] mb-4">Open Access</p>
+            <p className="text-gold text-sm uppercase tracking-[0.2em] mb-4">Open Access</p>
             <h2 className="text-4xl md:text-5xl font-serif mb-6">Recovery Suite</h2>
             <p className="text-muted-foreground text-lg">
               Our recovery sanctuary supports your journey toward continuous growth and restoration.
@@ -272,8 +272,8 @@ export default function Amenities() {
                     </div>
                   </div>
                 ) : (
-                  <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-secondary/50 flex items-center justify-center transition-all duration-300 group-hover:bg-accent/10 group-hover:scale-110">
-                    <amenity.icon className="w-8 h-8 text-accent" />
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-secondary/50 flex items-center justify-center transition-all duration-300 group-hover:bg-gold/10 group-hover:scale-110">
+                    <amenity.icon className="w-8 h-8 text-gold" />
                   </div>
                 )}
                 <div className="text-center">
@@ -403,7 +403,7 @@ export default function Amenities() {
       <section className="py-24 bg-secondary/30">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
-            <p className="text-accent text-sm uppercase tracking-[0.2em] mb-4">The Details</p>
+            <p className="text-gold text-sm uppercase tracking-[0.2em] mb-4">The Details</p>
             <h2 className="text-4xl md:text-5xl font-serif mb-6">Lifestyle & Comfort</h2>
             <p className="text-muted-foreground text-lg">
               Every detail designed for your comfort and convenience.
@@ -414,13 +414,13 @@ export default function Amenities() {
             {lifestyleAmenities.map((amenity, index) => (
               <div key={index} className="bg-background rounded-sm p-6 flex items-start gap-4 hover:shadow-lg transition-shadow duration-300">
                 <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                  <amenity.icon className="w-5 h-5 text-accent" />
+                  <amenity.icon className="w-5 h-5 text-gold" />
                 </div>
                 <div>
                   <h3 className="font-serif text-lg mb-1">{amenity.title}</h3>
                   <p className="text-muted-foreground text-sm">{amenity.description}</p>
                   {amenity.addon && (
-                    <span className="inline-block mt-2 text-xs text-accent uppercase tracking-wider">
+                    <span className="inline-block mt-2 text-xs text-gold uppercase tracking-wider">
                       Add-on Available
                     </span>
                   )}
@@ -438,7 +438,7 @@ export default function Amenities() {
         </div>
         <div className="relative z-10 container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
-            <p className="text-accent text-sm uppercase tracking-[0.2em] mb-4">Membership</p>
+            <p className="text-gold text-sm uppercase tracking-[0.2em] mb-4">Membership</p>
             <h2 className="text-4xl md:text-5xl font-serif mb-6">Your Wellness Journey</h2>
             <p className="text-muted-foreground text-lg">
               Select the membership that aligns with your wellness goals and lifestyle.
@@ -464,7 +464,7 @@ export default function Amenities() {
                 )}
                 <div className="text-center mb-6">
                   <h3 className="font-serif text-xl mb-1">{tier.name}</h3>
-                  <p className={`text-xs uppercase tracking-wider mb-3 ${tier.popular ? 'text-gold-light' : 'text-accent'}`}>
+                  <p className={`text-xs uppercase tracking-wider mb-3 ${tier.popular ? 'text-gold-light' : 'text-gold'}`}>
                     {tier.subtitle}
                   </p>
                   <div className="flex items-baseline justify-center gap-1">
@@ -479,7 +479,7 @@ export default function Amenities() {
                 <ul className="space-y-2 mb-6">
                   {tier.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
-                      <CheckCircle2 className={`w-4 h-4 flex-shrink-0 mt-0.5 ${tier.popular ? 'text-gold-light' : 'text-accent'}`} />
+                      <CheckCircle2 className={`w-4 h-4 flex-shrink-0 mt-0.5 ${tier.popular ? 'text-gold-light' : 'text-gold'}`} />
                       <span>{feature}</span>
                     </li>
                   ))}

@@ -551,7 +551,7 @@ export default function Spa() {
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-serif text-xl">{service.name}</h3>
                       {service.popular && (
-                        <span className="flex items-center gap-1 text-xs text-accent">
+                        <span className="flex items-center gap-1 text-xs text-gold">
                           <Star className="w-3 h-3 fill-current" /> Popular
                         </span>
                       )}
@@ -573,7 +573,7 @@ export default function Spa() {
                       {service.duration}
                     </span>
                     <div className="flex flex-col">
-                      <span className="text-accent font-semibold text-lg">
+                      <span className="text-gold font-semibold text-lg">
                         {formatPrice(service.price)}
                       </span>
                       {service.memberPrice && (
@@ -614,8 +614,8 @@ export default function Spa() {
           
           <div className="grid md:grid-cols-3 gap-8 mb-12">
             <div className="card-luxury p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-serif text-accent">5</span>
+              <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-serif text-gold">5</span>
               </div>
               <h3 className="font-serif text-lg mb-2">Treatment Rooms</h3>
               <p className="text-sm text-muted-foreground">
@@ -624,8 +624,8 @@ export default function Spa() {
             </div>
             
             <div className="card-luxury p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-serif text-accent">3</span>
+              <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-serif text-gold">3</span>
               </div>
               <h3 className="font-serif text-lg mb-2">Shared Treatment Rooms</h3>
               <p className="text-sm text-muted-foreground">
@@ -634,8 +634,8 @@ export default function Spa() {
             </div>
             
             <div className="card-luxury p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-serif text-accent">2</span>
+              <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-serif text-gold">2</span>
               </div>
               <h3 className="font-serif text-lg mb-2">Dedicated Body Wrap Rooms</h3>
               <p className="text-sm text-muted-foreground">
