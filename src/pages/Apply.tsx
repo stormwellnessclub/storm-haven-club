@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Check, ExternalLink, Loader2, AlertCircle } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { loadStripe } from "@stripe/stripe-js";
 import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
 import { useAgreements } from "@/hooks/useAgreements";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -275,10 +276,12 @@ export default function Apply() {
     return initialFormData;
   });
   
+  // CRITICAL FIX: Always restore stripeCustomerId from draft, even if card isn't confirmed yet
+  // This is needed for 3DS redirect recovery - the customer was created before redirect
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(() => {
     const draft = getInitialDraft();
-    if (draft?.stripeCustomerId && draft?.isCardConfirmed) {
-      console.log("[Apply] Hydrated stripeCustomerId from draft:", draft.stripeCustomerId);
+    if (draft?.stripeCustomerId) {
+      console.log("[Apply] Hydrated stripeCustomerId from draft:", draft.stripeCustomerId, "isCardConfirmed:", draft.isCardConfirmed);
       return draft.stripeCustomerId;
     }
     return null;
@@ -309,7 +312,7 @@ export default function Apply() {
     isHydrated.current = true;
   }, []);
 
-  // Check for successful card setup on return from Stripe
+  // Check for successful card setup on return from Stripe (legacy setup_success params)
   // CRITICAL: Do NOT depend on formData - use ref to avoid overwriting with stale state
   useEffect(() => {
     const setupSuccess = searchParams.get("setup_success");
@@ -325,6 +328,163 @@ export default function Apply() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [searchParams]);
+
+  // CRITICAL: Handle 3DS redirect returns from Stripe
+  // When Stripe redirects back after 3DS authentication, we need to finalize the SetupIntent
+  const location = useLocation();
+  
+  useEffect(() => {
+    const handleStripeReturn = async () => {
+      const urlParams = new URLSearchParams(location.search);
+      const setupIntentClientSecret = urlParams.get("setup_intent_client_secret");
+      const setupIntentId = urlParams.get("setup_intent");
+      const redirectStatus = urlParams.get("redirect_status");
+      
+      // Only process if we have Stripe return params AND card is not already confirmed
+      if (!setupIntentClientSecret || isCardConfirmed) {
+        return;
+      }
+      
+      console.log("[Apply] Detected Stripe 3DS return:", { 
+        setupIntentId, 
+        redirectStatus,
+        hasClientSecret: !!setupIntentClientSecret,
+        existingCustomerId: stripeCustomerId 
+      });
+      
+      // Check redirect status first
+      if (redirectStatus === "failed") {
+        toast.error("Card authentication failed. Please try again.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+      
+      try {
+        // Get Stripe publishable key
+        let publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+        
+        if (!publishableKey || !publishableKey.startsWith("pk_")) {
+          console.log("[Apply] Fetching Stripe key from backend...");
+          const { data: configData, error: configError } = await supabase.functions.invoke("stripe-config");
+          if (configError || !configData?.publishableKey) {
+            throw new Error("Could not retrieve Stripe configuration");
+          }
+          publishableKey = configData.publishableKey;
+        }
+        
+        // Initialize Stripe and retrieve the SetupIntent
+        const stripe = await loadStripe(publishableKey);
+        if (!stripe) {
+          throw new Error("Failed to initialize Stripe");
+        }
+        
+        console.log("[Apply] Retrieving SetupIntent...");
+        const { setupIntent, error: retrieveError } = await stripe.retrieveSetupIntent(setupIntentClientSecret);
+        
+        if (retrieveError) {
+          console.error("[Apply] Failed to retrieve SetupIntent:", retrieveError);
+          throw new Error(retrieveError.message || "Failed to verify card setup");
+        }
+        
+        if (!setupIntent) {
+          throw new Error("SetupIntent not found");
+        }
+        
+        console.log("[Apply] SetupIntent status:", setupIntent.status, setupIntent);
+        
+        if (setupIntent.status !== "succeeded") {
+          if (setupIntent.status === "processing") {
+            toast.info("Card setup is processing. Please wait...");
+          } else {
+            toast.error(`Card setup incomplete (${setupIntent.status}). Please try again.`);
+          }
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+        
+        // SetupIntent succeeded - determine customer ID
+        // Priority: 1) existing state, 2) draft, 3) setupIntent.customer (via type assertion)
+        let finalCustomerId = stripeCustomerId;
+        if (!finalCustomerId) {
+          const draft = loadDraft();
+          finalCustomerId = draft?.stripeCustomerId || null;
+        }
+        // Stripe's SetupIntent may include customer but TypeScript types don't always reflect it
+        const setupIntentAny = setupIntent as any;
+        if (!finalCustomerId && setupIntentAny.customer) {
+          finalCustomerId = typeof setupIntentAny.customer === "string" 
+            ? setupIntentAny.customer 
+            : setupIntentAny.customer?.id;
+        }
+        
+        if (!finalCustomerId) {
+          console.error("[Apply] Could not determine customer ID after 3DS return");
+          toast.error("Unable to verify payment setup. Please try again.");
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+        
+        console.log("[Apply] 3DS return successful, customer:", finalCustomerId);
+        
+        // Fetch card details with retry logic
+        let cardDetails: CardDetails | null = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, attempt === 1 ? 2000 : 1500));
+          
+          try {
+            console.log(`[Apply] Fetching card details attempt ${attempt}/3...`);
+            const { data: pmData, error: pmError } = await supabase.functions.invoke("stripe-payment", {
+              body: {
+                action: "list_application_payment_methods",
+                stripeCustomerId: finalCustomerId,
+              },
+            });
+            
+            if (pmError) {
+              console.warn(`[Apply] Card fetch attempt ${attempt} error:`, pmError);
+              continue;
+            }
+            
+            if (pmData?.paymentMethods?.[0]) {
+              const card = pmData.paymentMethods[0];
+              cardDetails = {
+                brand: card.brand || null,
+                last4: card.last4 || null,
+                expMonth: card.expMonth || null,
+                expYear: card.expYear || null,
+              };
+              console.log("[Apply] Card details fetched:", cardDetails);
+              break;
+            }
+          } catch (err) {
+            console.warn(`[Apply] Card fetch attempt ${attempt} exception:`, err);
+          }
+        }
+        
+        // Update state
+        setStripeCustomerId(finalCustomerId);
+        setIsCardConfirmed(true);
+        setSavedCardDetails(cardDetails);
+        setShowPaymentForm(false);
+        setPaymentClientSecret(null);
+        
+        // Save draft
+        saveDraft(formDataRef.current, finalCustomerId, true, cardDetails);
+        
+        toast.success("Payment method saved successfully!");
+        
+        // Clear URL params
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+      } catch (err) {
+        console.error("[Apply] Error handling 3DS return:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to verify card setup");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+    
+    handleStripeReturn();
+  }, [location.search, isCardConfirmed, stripeCustomerId]);
 
   // Autosave draft with debounce (only after hydration)
   useEffect(() => {
