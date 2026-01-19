@@ -123,14 +123,14 @@ export default function ClassPasses() {
       <section className="pt-32 pb-16 bg-secondary/30">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl">
-            <p className="text-accent text-sm uppercase tracking-widest mb-4">Flexible Options</p>
+            <p className="text-gold text-sm uppercase tracking-widest mb-4">Flexible Options</p>
             <h1 className="heading-display mb-6">Class Passes</h1>
             <p className="text-muted-foreground text-lg leading-relaxed">
               Purchase class passes for our Reformer Pilates, Cycling, and Aerobics studios. 
               Members receive discounted pricing on all class packages.
             </p>
             {user && (
-              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent text-sm">
+              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold/10 text-gold text-sm">
                 <Check className="h-4 w-4" />
                 {isMember ? "Member pricing applied" : "Non-member pricing"}
               </div>
@@ -167,12 +167,12 @@ export default function ClassPasses() {
                 >
                   <div className="font-medium">{tier.type}</div>
                   <div className="text-center">
-                    <span className={`text-2xl font-light ${isMember ? 'text-accent' : ''}`}>
+                    <span className={`text-2xl font-light ${isMember ? 'text-gold' : ''}`}>
                       ${tier.memberPrice}
                     </span>
                   </div>
                   <div className="text-center">
-                    <span className={`text-2xl font-light ${!isMember && user ? 'text-accent' : ''}`}>
+                    <span className={`text-2xl font-light ${!isMember && user ? 'text-gold' : ''}`}>
                       ${tier.nonMemberPrice}
                     </span>
                   </div>
@@ -218,12 +218,12 @@ export default function ClassPasses() {
                 >
                   <div className="font-medium">{tier.type}</div>
                   <div className="text-center">
-                    <span className={`text-2xl font-light ${isMember ? 'text-accent' : ''}`}>
+                    <span className={`text-2xl font-light ${isMember ? 'text-gold' : ''}`}>
                       ${tier.memberPrice}
                     </span>
                   </div>
                   <div className="text-center">
-                    <span className={`text-2xl font-light ${!isMember && user ? 'text-accent' : ''}`}>
+                    <span className={`text-2xl font-light ${!isMember && user ? 'text-gold' : ''}`}>
                       ${tier.nonMemberPrice}
                     </span>
                   </div>
@@ -249,8 +249,8 @@ export default function ClassPasses() {
               {/* Pass Validity */}
               <div className="card-luxury p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-5 h-5 text-accent" />
+                  <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-5 h-5 text-gold" />
                   </div>
                   <div>
                 <h3 className="font-serif text-xl mb-2">Pass Validity</h3>
@@ -259,11 +259,11 @@ export default function ClassPasses() {
                     </p>
                     <ul className="space-y-2">
                       <li className="flex items-start gap-2 text-sm">
-                        <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
                         <span>Use across any eligible class type</span>
                       </li>
                       <li className="flex items-start gap-2 text-sm">
-                        <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
                         <span>Classes do not roll over after expiration</span>
                       </li>
                     </ul>
@@ -274,8 +274,8 @@ export default function ClassPasses() {
               {/* Non-Member Access */}
               <div className="card-luxury p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                    <Info className="w-5 h-5 text-accent" />
+                  <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center flex-shrink-0">
+                    <Info className="w-5 h-5 text-gold" />
                   </div>
                   <div>
                     <h3 className="font-serif text-xl mb-2">Non-Member Access</h3>
@@ -284,11 +284,11 @@ export default function ClassPasses() {
                     </p>
                     <ul className="space-y-2">
                       <li className="flex items-start gap-2 text-sm">
-                        <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
                         <span>Studio access for booked class</span>
                       </li>
                       <li className="flex items-start gap-2 text-sm">
-                        <Check className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                        <Check className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
                         <span>Amenities not included</span>
                       </li>
                     </ul>
