@@ -31,7 +31,9 @@ export function PaymentDueNotice() {
         const { data, error } = await supabase.functions.invoke("stripe-payment", {
           body: {
             action: "pay_annual_fee",
-            gender: membership.gender || "women",
+            memberId: membership.id,
+            successUrl: `${window.location.origin}/member/membership?annual_fee_paid=true`,
+            cancelUrl: `${window.location.origin}/member/membership`,
           },
         });
 
