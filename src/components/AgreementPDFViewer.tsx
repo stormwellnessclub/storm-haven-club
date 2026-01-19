@@ -40,24 +40,30 @@ interface AgreementPDFViewerProps {
 
 // Get PDF path from imported module, filename, or URL
 const getPdfPath = (pdfInput: string): string => {
-  // If it's already a full URL or absolute path, use it directly
-  if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://') || pdfInput.startsWith('/')) {
-    console.log(`[PDF] Using path directly: ${pdfInput}`);
+  // If it's already a full URL, use it directly
+  if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://')) {
+    console.log(`[PDF] Using URL directly: ${pdfInput}`);
     return pdfInput;
   }
   
-  // Extract filename from URL if it's a storage URL
+  // Extract filename from any path (including absolute paths starting with /)
   const filename = pdfInput.split('/').pop() || pdfInput;
   
-  // Try to map filename to imported PDF
-  const path = pdfMap[filename];
-  if (path) {
-    console.log(`[PDF] Mapped: ${filename} -> ${path}`);
-    return path;
+  // PRIORITY 1: Try to map filename to imported PDF (most reliable - bundled by Vite)
+  const importedPath = pdfMap[filename];
+  if (importedPath) {
+    console.log(`[PDF] Using imported: ${filename} -> ${importedPath}`);
+    return importedPath;
   }
   
-  // Default: assume it's in public/agreements/
-  console.log(`[PDF] Using public path: /agreements/${filename}`);
+  // PRIORITY 2: If it's an absolute path starting with /, use it as-is (public folder)
+  if (pdfInput.startsWith('/')) {
+    console.log(`[PDF] Using public path: ${pdfInput}`);
+    return pdfInput;
+  }
+  
+  // PRIORITY 3: Default: assume it's in public/agreements/
+  console.log(`[PDF] Using default public path: /agreements/${filename}`);
   return `/agreements/${filename}`;
 };
 
