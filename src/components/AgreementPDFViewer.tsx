@@ -134,14 +134,16 @@ export function AgreementPDFViewer({
       clearTimeout(timeoutRef.current);
     }
 
-    // Set a timeout to detect if PDF fails to load
+    // Set a timeout to detect if PDF fails to load (10 seconds for slower connections)
     timeoutRef.current = setTimeout(() => {
       if (!iframeLoaded) {
+        const resolvedPath = getPdfPath(currentPdf);
         console.warn(`[PDF] Load timeout for: ${currentPdf}`);
-        setError("PDF preview unavailable");
+        console.warn(`[PDF] Resolved path was: ${resolvedPath}`);
+        setError("PDF preview unavailable - try downloading");
         setLoading(false);
       }
-    }, 5000); // 5 second timeout
+    }, 10000); // 10 second timeout
 
     return () => {
       if (timeoutRef.current) {
