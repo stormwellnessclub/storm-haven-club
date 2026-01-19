@@ -150,7 +150,7 @@ export function AgreementPDFViewer({
         // Don't set error yet - let iframe try anyway
       });
 
-    // Set a timeout to detect if PDF fails to load (5 seconds - faster since we have fallback buttons)
+    // Set a timeout to detect if PDF fails to load (10 seconds - allow time for larger PDFs)
     timeoutRef.current = setTimeout(() => {
       if (!iframeLoaded) {
         console.warn(`[PDF] Load timeout for: ${currentPdf}`);
@@ -158,7 +158,7 @@ export function AgreementPDFViewer({
         setError("PDF preview unavailable");
         setLoading(false);
       }
-    }, 5000); // 5 second timeout
+    }, 10000); // 10 second timeout
 
     return () => {
       if (timeoutRef.current) {

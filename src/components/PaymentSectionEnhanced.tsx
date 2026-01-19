@@ -198,8 +198,15 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
     }
   };
 
+  // Handle form submission via button click (NOT a <form> to avoid nested form issues)
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleSubmit(e as unknown as React.FormEvent);
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
       <div className="min-h-[300px] relative">
         {!isElementReady && !error && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
@@ -219,7 +226,7 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
             <div className="text-center p-4">
               <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
               <p className="text-sm text-destructive mb-2">{error}</p>
-              <Button variant="outline" onClick={() => {
+              <Button type="button" variant="outline" onClick={() => {
                 setError(null);
                 setIsElementReady(false);
               }}>
@@ -252,7 +259,8 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
           Cancel
         </Button>
         <Button
-          type="submit"
+          type="button"
+          onClick={handleButtonClick}
           disabled={!stripe || !elements || isSubmitting || !isElementReady}
           variant="gold"
           className="flex-1"
@@ -261,7 +269,7 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
           Save Payment Method
         </Button>
       </div>
-    </form>
+    </div>
   );
 }
 
