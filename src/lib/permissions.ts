@@ -49,6 +49,7 @@ export const PAGE_PERMISSIONS: Record<string, AppRole[]> = {
   '/admin/settings': ['super_admin', 'admin'],
   '/admin/staff-roles': ['super_admin', 'admin'],
   '/admin/revenue-analytics': ['super_admin'],
+  '/admin/reports': ['super_admin'],
 };
 
 // Helper to check if a role can access a page
