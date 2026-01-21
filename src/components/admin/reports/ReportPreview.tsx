@@ -6,16 +6,25 @@ import { type ReportDefinition } from "@/lib/reportDefinitions";
 
 // Report components
 import { RevenueSummaryReport } from "./reports/RevenueSummaryReport";
+import { RevenueByCategoryReport } from "./reports/RevenueByCategoryReport";
+import { CashFlowProjectionReport } from "./reports/CashFlowProjectionReport";
 import { MemberStatusReport } from "./reports/MemberStatusReport";
 import { TierDistributionReport } from "./reports/TierDistributionReport";
-import { PaymentAnalysisReport } from "./reports/PaymentAnalysisReport";
-import { DailyCheckinsReport } from "./reports/DailyCheckinsReport";
-import { ClassAttendanceReport } from "./reports/ClassAttendanceReport";
-import { GuestPassUsageReport } from "./reports/GuestPassUsageReport";
 import { FoundingMembersReport } from "./reports/FoundingMembersReport";
 import { NewApplicationsReport } from "./reports/NewApplicationsReport";
 import { FreezeHistoryReport } from "./reports/FreezeHistoryReport";
+import { PaymentAnalysisReport } from "./reports/PaymentAnalysisReport";
+import { DailyCheckinsReport } from "./reports/DailyCheckinsReport";
+import { PeakHoursReport } from "./reports/PeakHoursReport";
+import { VisitFrequencyReport } from "./reports/VisitFrequencyReport";
+import { ClassAttendanceReport } from "./reports/ClassAttendanceReport";
+import { ClassUtilizationReport } from "./reports/ClassUtilizationReport";
+import { InstructorPerformanceReport } from "./reports/InstructorPerformanceReport";
+import { NoShowReport } from "./reports/NoShowReport";
+import { GuestPassUsageReport } from "./reports/GuestPassUsageReport";
 import { CreditBalancesReport } from "./reports/CreditBalancesReport";
+import { WorkoutActivityReport } from "./reports/WorkoutActivityReport";
+import { GoalsProgressReport } from "./reports/GoalsProgressReport";
 
 interface ReportPreviewProps {
   report: ReportDefinition | null;
@@ -95,16 +104,25 @@ interface ReportContentProps {
 function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
   const reportComponents: Record<string, React.ComponentType<{ dateRange: { start: Date; end: Date }; filters: Record<string, string | boolean> }>> = {
     'revenue-summary': RevenueSummaryReport,
+    'revenue-by-category': RevenueByCategoryReport,
+    'cash-flow-projection': CashFlowProjectionReport,
+    'payment-analysis': PaymentAnalysisReport,
     'member-status-distribution': MemberStatusReport,
     'tier-distribution': TierDistributionReport,
-    'payment-analysis': PaymentAnalysisReport,
-    'daily-checkins': DailyCheckinsReport,
-    'class-attendance': ClassAttendanceReport,
-    'guest-pass-usage': GuestPassUsageReport,
     'founding-members': FoundingMembersReport,
     'new-applications': NewApplicationsReport,
     'freeze-history': FreezeHistoryReport,
+    'daily-checkins': DailyCheckinsReport,
+    'peak-hours': PeakHoursReport,
+    'visit-frequency': VisitFrequencyReport,
+    'class-attendance': ClassAttendanceReport,
+    'class-utilization': ClassUtilizationReport,
+    'instructor-performance': InstructorPerformanceReport,
+    'no-show-report': NoShowReport,
+    'guest-pass-usage': GuestPassUsageReport,
     'credit-balances': CreditBalancesReport,
+    'workout-activity': WorkoutActivityReport,
+    'goals-progress': GoalsProgressReport,
   };
 
   const ReportComponent = reportComponents[reportId];
