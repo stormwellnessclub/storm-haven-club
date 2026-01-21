@@ -4,6 +4,7 @@ import {
   Users,
   QrCode,
   FileText,
+  FileBarChart,
   Calendar,
   CreditCard,
   Settings,
@@ -64,6 +65,7 @@ const managementItems: MenuItem[] = [
   { title: "Payments", url: "/admin/payments", icon: CreditCard, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
   { title: "Payment Reports", url: "/admin/payment-reports", icon: BarChart3, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Revenue Analytics", url: "/admin/revenue-analytics", icon: TrendingUp, requiredRoles: ['super_admin'] },
+  { title: "Reports", url: "/admin/reports", icon: FileBarChart, requiredRoles: ['super_admin'] },
   { title: "Guest Passes", url: "/admin/guest-passes", icon: Ticket, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
 ];
 
