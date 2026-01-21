@@ -29,7 +29,7 @@ export function TierDistributionReport({ dateRange, filters }: Props) {
     queryFn: async () => {
       const { data: members, error } = await supabase
         .from('membership_applications')
-        .select('membership_type, status, is_founding_member');
+        .select('membership_plan, status, founding_member');
 
       if (error) throw error;
 
@@ -40,8 +40,8 @@ export function TierDistributionReport({ dateRange, filters }: Props) {
 
       // Group by tier
       const tierCounts = (filtered || []).reduce((acc, member) => {
-        const type = member.membership_type?.toLowerCase() || 'unknown';
-        const tier = Object.keys(TIER_PRICING).find(t => type.includes(t)) || 'other';
+        const plan = member.membership_plan?.toLowerCase() || 'unknown';
+        const tier = Object.keys(TIER_PRICING).find(t => plan.includes(t)) || 'other';
         
         if (!acc[tier]) {
           acc[tier] = { tier, count: 0, active: 0, revenue: 0 };
