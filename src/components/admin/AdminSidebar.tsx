@@ -21,6 +21,7 @@ import {
   Snowflake,
   ScanLine,
   BarChart3,
+  TrendingUp,
 } from "lucide-react";
 import {
   Sidebar,
@@ -62,6 +63,7 @@ const managementItems: MenuItem[] = [
   { title: "Appointments", url: "/admin/appointments", icon: Calendar, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk', 'spa_staff'] },
   { title: "Payments", url: "/admin/payments", icon: CreditCard, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
   { title: "Payment Reports", url: "/admin/payment-reports", icon: BarChart3, requiredRoles: ['super_admin', 'admin', 'manager'] },
+  { title: "Revenue Analytics", url: "/admin/revenue-analytics", icon: TrendingUp, requiredRoles: ['super_admin'] },
   { title: "Guest Passes", url: "/admin/guest-passes", icon: Ticket, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
 ];
 
