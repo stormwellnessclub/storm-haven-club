@@ -142,7 +142,7 @@ export function FreezeHistoryReport({ dateRange, filters }: Props) {
                 {freeze.requested_end_date ? format(parseISO(freeze.requested_end_date), 'MMM d, yyyy') : '-'}
               </TableCell>
               <TableCell className="max-w-[200px] truncate">
-                {freeze.notes || '-'}
+                {freeze.reason || '-'}
               </TableCell>
               <TableCell>{format(parseISO(freeze.created_at), 'MMM d, yyyy')}</TableCell>
             </TableRow>

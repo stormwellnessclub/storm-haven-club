@@ -49,8 +49,8 @@ export function ClassAttendanceReport({ dateRange, filters }: Props) {
         
         acc[className].sessions += 1;
         acc[className].totalCapacity += session.max_capacity || 0;
-        acc[className].totalBooked += sessionBookings.filter(b => b.status === 'confirmed').length;
-        acc[className].checkedIn += sessionBookings.filter(b => b.status === 'checked_in').length;
+        acc[className].totalBooked += sessionBookings.filter(b => b.status === 'confirmed' || b.status === 'completed').length;
+        acc[className].checkedIn += sessionBookings.filter(b => b.status === 'completed').length;
         
         return acc;
       }, {} as Record<string, { name: string; sessions: number; totalCapacity: number; totalBooked: number; checkedIn: number }>);
