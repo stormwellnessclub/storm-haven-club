@@ -2217,6 +2217,105 @@ export type Database = {
         }
         Relationships: []
       }
+      spa_appointments: {
+        Row: {
+          amount_paid: number | null
+          appointment_date: string
+          appointment_time: string
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          checked_in_at: string | null
+          cleanup_minutes: number
+          completed_at: string | null
+          created_at: string
+          duration_minutes: number
+          id: string
+          member_id: string | null
+          member_notes: string | null
+          member_price: number | null
+          payment_intent_id: string | null
+          payment_method: string | null
+          service_category: string
+          service_id: number
+          service_name: string
+          service_price: number
+          staff_id: string | null
+          staff_notes: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          appointment_date: string
+          appointment_time: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          checked_in_at?: string | null
+          cleanup_minutes?: number
+          completed_at?: string | null
+          created_at?: string
+          duration_minutes: number
+          id?: string
+          member_id?: string | null
+          member_notes?: string | null
+          member_price?: number | null
+          payment_intent_id?: string | null
+          payment_method?: string | null
+          service_category: string
+          service_id: number
+          service_name: string
+          service_price: number
+          staff_id?: string | null
+          staff_notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          appointment_date?: string
+          appointment_time?: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          checked_in_at?: string | null
+          cleanup_minutes?: number
+          completed_at?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          member_id?: string | null
+          member_notes?: string | null
+          member_price?: number | null
+          payment_intent_id?: string | null
+          payment_method?: string | null
+          service_category?: string
+          service_id?: number
+          service_name?: string
+          service_price?: number
+          staff_id?: string | null
+          staff_notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_appointments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spa_appointments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_status_history: {
         Row: {
           change_reason: string | null
