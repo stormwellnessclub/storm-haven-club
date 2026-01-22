@@ -157,6 +157,66 @@ export type Database = {
           },
         ]
       }
+      cafe_orders: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          estimated_ready_at: string | null
+          id: string
+          member_id: string | null
+          order_items: Json
+          payment_intent_id: string | null
+          payment_method: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          estimated_ready_at?: string | null
+          id?: string
+          member_id?: string | null
+          order_items: Json
+          payment_intent_id?: string | null
+          payment_method?: string | null
+          status?: string
+          total_amount: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          estimated_ready_at?: string | null
+          id?: string
+          member_id?: string | null
+          order_items?: Json
+          payment_intent_id?: string | null
+          payment_method?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cafe_orders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_orders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       check_ins: {
         Row: {
           checked_in_at: string
