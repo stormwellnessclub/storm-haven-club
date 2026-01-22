@@ -1690,6 +1690,90 @@ export type Database = {
           },
         ]
       }
+      member_notes: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_internal: boolean
+          member_id: string
+          note_text: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_internal?: boolean
+          member_id: string
+          note_text: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_internal?: boolean
+          member_id?: string
+          note_text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_notes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_notes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_tags: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          member_id: string
+          tag: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          member_id: string
+          tag: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          member_id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_tags_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_tags_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           activated_at: string | null
