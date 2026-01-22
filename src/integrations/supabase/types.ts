@@ -2875,7 +2875,13 @@ export type Database = {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
       }
+      calculate_churn_risk: { Args: { p_member_id: string }; Returns: number }
+      calculate_engagement_score: {
+        Args: { p_days?: number; p_member_id: string }
+        Returns: number
+      }
       calculate_health_score: { Args: { _member_id: string }; Returns: number }
+      calculate_member_ltv: { Args: { p_member_id: string }; Returns: number }
       check_and_award_achievements: {
         Args: { _member_id: string }
         Returns: undefined
@@ -2915,8 +2921,16 @@ export type Database = {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
       }
+      get_member_attendance_pattern: {
+        Args: { p_days?: number; p_member_id: string }
+        Returns: Json
+      }
       get_member_payment_history: {
         Args: { p_limit?: number; p_member_id: string }
+        Returns: Json
+      }
+      get_member_service_utilization: {
+        Args: { p_days?: number; p_member_id: string }
         Returns: Json
       }
       get_payment_metrics: {
@@ -2983,6 +2997,7 @@ export type Database = {
         }
         Returns: string
       }
+      mark_guest_pass_used: { Args: { p_pass_id: string }; Returns: Json }
       process_member_scan: {
         Args: {
           p_auto_check_in?: boolean
