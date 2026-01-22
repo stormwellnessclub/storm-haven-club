@@ -1160,6 +1160,103 @@ export type Database = {
         }
         Relationships: []
       }
+      kids_care_bookings: {
+        Row: {
+          age_group: string | null
+          booking_date: string
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          checked_in_at: string | null
+          checked_in_by: string | null
+          checked_out_at: string | null
+          checked_out_by: string | null
+          child_age: number
+          child_dob: string | null
+          child_name: string
+          created_at: string
+          end_time: string
+          id: string
+          member_id: string
+          parent_notes: string | null
+          pass_id: string | null
+          special_instructions: string | null
+          start_time: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age_group?: string | null
+          booking_date: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          checked_out_at?: string | null
+          checked_out_by?: string | null
+          child_age: number
+          child_dob?: string | null
+          child_name: string
+          created_at?: string
+          end_time: string
+          id?: string
+          member_id: string
+          parent_notes?: string | null
+          pass_id?: string | null
+          special_instructions?: string | null
+          start_time: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age_group?: string | null
+          booking_date?: string
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          checked_out_at?: string | null
+          checked_out_by?: string | null
+          child_age?: number
+          child_dob?: string | null
+          child_name?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          member_id?: string
+          parent_notes?: string | null
+          pass_id?: string | null
+          special_instructions?: string | null
+          start_time?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kids_care_bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kids_care_bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kids_care_bookings_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "class_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manual_charges: {
         Row: {
           amount: number
