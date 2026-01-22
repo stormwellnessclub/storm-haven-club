@@ -13,6 +13,7 @@ import {
   UserCheck,
   Calendar,
   Snowflake,
+  Calculator,
 } from "lucide-react";
 
 export type ReportCategory = 
@@ -140,6 +141,15 @@ export const REPORTS: ReportDefinition[] = [
       { id: 'foundingOnly', label: 'Founding Members Only', type: 'boolean' },
     ],
     defaultDateRange: 'thisYear',
+  },
+  {
+    id: 'class-revenue-projection',
+    name: 'Class Revenue Projection',
+    description: 'Projected class revenue with adjustable fill rates and member mix',
+    category: 'financial',
+    icon: Calculator,
+    filters: [],
+    defaultDateRange: 'thisMonth',
   },
   
   // Membership Reports
