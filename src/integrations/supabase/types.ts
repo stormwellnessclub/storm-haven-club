@@ -2131,6 +2131,36 @@ export type Database = {
           },
         ]
       }
+      processed_webhook_events: {
+        Row: {
+          error_message: string | null
+          event_id: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          processed_at: string
+          processing_result: string | null
+        }
+        Insert: {
+          error_message?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          processed_at?: string
+          processing_result?: string | null
+        }
+        Update: {
+          error_message?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          processed_at?: string
+          processing_result?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address_line1: string | null
