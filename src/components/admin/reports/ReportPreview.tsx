@@ -8,6 +8,7 @@ import { type ReportDefinition } from "@/lib/reportDefinitions";
 import { RevenueSummaryReport } from "./reports/RevenueSummaryReport";
 import { RevenueByCategoryReport } from "./reports/RevenueByCategoryReport";
 import { CashFlowProjectionReport } from "./reports/CashFlowProjectionReport";
+import { ClassRevenueProjectionReport } from "./reports/ClassRevenueProjectionReport";
 import { MemberStatusReport } from "./reports/MemberStatusReport";
 import { TierDistributionReport } from "./reports/TierDistributionReport";
 import { FoundingMembersReport } from "./reports/FoundingMembersReport";
@@ -106,6 +107,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'revenue-summary': RevenueSummaryReport,
     'revenue-by-category': RevenueByCategoryReport,
     'cash-flow-projection': CashFlowProjectionReport,
+    'class-revenue-projection': ClassRevenueProjectionReport,
     'payment-analysis': PaymentAnalysisReport,
     'member-status-distribution': MemberStatusReport,
     'tier-distribution': TierDistributionReport,
