@@ -13,10 +13,17 @@ export type ApplicationStatus =
 export interface ApplicationStatusResult {
   status: ApplicationStatus;
   applicationData?: {
+    id: string;
     full_name: string;
+    email: string;
     membership_plan: string;
     created_at: string;
     status: string;
+    stripe_customer_id?: string | null;
+    card_brand?: string | null;
+    card_last4?: string | null;
+    card_exp_month?: number | null;
+    card_exp_year?: number | null;
   };
   memberData?: {
     id: string;

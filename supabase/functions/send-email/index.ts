@@ -553,12 +553,12 @@ serve(async (req) => {
               
               <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
                 <p style="margin: 0; font-weight: 600; color: #92400e;">
-                  Please click the button below to securely add your payment method.
+                  Sign in or create an account using the same email address you applied with (${data.email}), and you'll be able to add your payment method securely.
                 </p>
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${BASE_URL}/apply" style="${emailStyles.button}">Add Payment Information</a>
+                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Add Payment Information</a>
               </div>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
