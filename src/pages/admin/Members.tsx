@@ -170,8 +170,8 @@ export default function Members() {
   });
 
   const handleViewProfile = (member: typeof members[0]) => {
-    setSelectedMember(member);
-    setIsSheetOpen(true);
+    // Navigate to full member detail page
+    navigate(`/admin/members/${member.id}`);
   };
 
   const handleCheckIn = (member: typeof members[0]) => {
@@ -295,7 +295,7 @@ export default function Members() {
                 </TableHeader>
                 <TableBody>
                   {filteredMembers.map((member) => (
-                    <TableRow key={member.id}>
+                    <TableRow key={member.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleViewProfile(member)}>
                       <TableCell className="font-mono text-sm">
                         {member.member_id}
                       </TableCell>
