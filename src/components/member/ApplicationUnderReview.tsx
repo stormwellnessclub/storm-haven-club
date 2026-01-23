@@ -1,21 +1,204 @@
-import { Clock, CheckCircle, Mail, Phone, ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Clock, CheckCircle, Mail, Phone, ArrowLeft, CreditCard, Loader2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import logo from "@/assets/storm-logo-gold.png";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { StripeProvider } from "@/components/StripeProvider";
+import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 interface ApplicationUnderReviewProps {
   applicationData: {
+    id: string;
     full_name: string;
+    email: string;
     membership_plan: string;
     created_at: string;
     status: string;
+    stripe_customer_id?: string | null;
+    card_brand?: string | null;
+    card_last4?: string | null;
+    card_exp_month?: number | null;
+    card_exp_year?: number | null;
   };
+}
+
+// Inner form component that uses Stripe hooks
+function PaymentFormInner({ 
+  onSuccess, 
+  onCancel,
+  applicationId,
+  applicantEmail,
+  applicantName,
+}: { 
+  onSuccess: () => void; 
+  onCancel: () => void;
+  applicationId: string;
+  applicantEmail: string;
+  applicantName: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const { error, setupIntent } = await stripe.confirmSetup({
+        elements,
+        confirmParams: {
+          return_url: window.location.href,
+        },
+        redirect: "if_required",
+      });
+
+      if (error) {
+        // Provide clearer error messages for common Stripe validation errors
+        let userMessage = error.message || "Failed to save card";
+        
+        if (error.code === 'card_declined') {
+          if ((error as any).decline_code === 'insufficient_funds') {
+            userMessage = "Card verification failed. This is NOT a charge - the bank declined the security check. Please try a different card or contact your bank.";
+          }
+        }
+        
+        toast.error(userMessage);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (setupIntent?.status === "succeeded" && setupIntent.payment_method) {
+        // Fetch card details and update application
+        const { data: cardData } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "list_application_payment_methods",
+            applicationId,
+          },
+        });
+
+        if (cardData?.paymentMethods?.[0]) {
+          const card = cardData.paymentMethods[0];
+          await supabase
+            .from("membership_applications")
+            .update({
+              stripe_customer_id: card.customer,
+              stripe_payment_method_id: card.id,
+              card_brand: card.card?.brand,
+              card_last4: card.card?.last4,
+              card_exp_month: card.card?.exp_month,
+              card_exp_year: card.card?.exp_year,
+            })
+            .eq("id", applicationId);
+        }
+
+        toast.success("Payment method saved successfully!");
+        onSuccess();
+      }
+    } catch (err) {
+      console.error("Error saving card:", err);
+      toast.error("Failed to save payment method");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement 
+        onReady={() => setIsReady(true)}
+        options={{
+          layout: "tabs",
+        }}
+      />
+      
+      <div className="flex gap-3 pt-2">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="flex-1"
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          disabled={!stripe || !elements || isSubmitting || !isReady}
+          className="flex-1"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Save Payment Method"
+          )}
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 export function ApplicationUnderReview({ applicationData }: ApplicationUnderReviewProps) {
   const submittedDate = format(parseISO(applicationData.created_at), "MMMM d, yyyy");
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(applicationData.stripe_customer_id || null);
+  const [isLoadingSetup, setIsLoadingSetup] = useState(false);
+  const [cardOnFile, setCardOnFile] = useState({
+    exists: !!applicationData.card_last4,
+    brand: applicationData.card_brand,
+    last4: applicationData.card_last4,
+  });
+
+  const handleAddPaymentMethod = async () => {
+    setIsLoadingSetup(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_application_setup",
+          applicantEmail: applicationData.email,
+          applicantName: applicationData.full_name,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.clientSecret) {
+        setClientSecret(data.clientSecret);
+        setCustomerId(data.customerId);
+        setShowPaymentForm(true);
+      } else {
+        throw new Error("No client secret returned");
+      }
+    } catch (err) {
+      console.error("Error creating setup intent:", err);
+      toast.error("Failed to initialize payment form");
+    } finally {
+      setIsLoadingSetup(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentForm(false);
+    setClientSecret(null);
+    setCardOnFile({
+      exists: true,
+      brand: null, // Will be updated on next page load
+      last4: null,
+    });
+    // Refresh the page to get updated data
+    window.location.reload();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,6 +249,81 @@ export function ApplicationUnderReview({ applicationData }: ApplicationUnderRevi
                 Under Review
               </span>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment Information Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Payment Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {cardOnFile.exists ? (
+              <div className="flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-primary" />
+                <div>
+                  <p className="font-medium text-foreground">Payment method on file</p>
+                  {cardOnFile.brand && cardOnFile.last4 && (
+                    <p className="text-sm text-muted-foreground">
+                      {cardOnFile.brand.charAt(0).toUpperCase() + cardOnFile.brand.slice(1)} •••• {cardOnFile.last4}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : showPaymentForm && clientSecret ? (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <p className="text-muted-foreground">
+                    Your card will be saved securely for future billing. No charges will be made until your membership is activated.
+                  </p>
+                </div>
+                <StripeProvider clientSecret={clientSecret}>
+                  <PaymentFormInner
+                    onSuccess={handlePaymentSuccess}
+                    onCancel={() => {
+                      setShowPaymentForm(false);
+                      setClientSecret(null);
+                    }}
+                    applicationId={applicationData.id}
+                    applicantEmail={applicationData.email}
+                    applicantName={applicationData.full_name}
+                  />
+                </StripeProvider>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 bg-accent/10 border border-accent/20 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-accent" />
+                  <div>
+                    <p className="font-medium text-foreground">Payment method required</p>
+                    <p className="text-sm text-muted-foreground">
+                      Please add a payment method to complete your application.
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleAddPaymentMethod} 
+                  disabled={isLoadingSetup}
+                  className="w-full"
+                >
+                  {isLoadingSetup ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Add Payment Method
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
