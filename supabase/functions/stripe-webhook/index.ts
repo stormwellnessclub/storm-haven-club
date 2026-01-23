@@ -132,7 +132,8 @@ serve(async (req) => {
     }
     
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      // CRITICAL: Use constructEventAsync for Deno's async-only SubtleCrypto environment
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (signatureError) {
       logError(signatureError, "SECURITY");
       // Return 401 for invalid signature - security failure
