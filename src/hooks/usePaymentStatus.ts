@@ -41,8 +41,10 @@ export function usePaymentStatus(): PaymentStatusResult {
 
     const issues: PaymentIssue[] = [];
     
-    // Check if initiation fee has been paid
-    const isInitiationFeePaid = !!membership.annual_fee_paid_at;
+    // Check if initiation fee has been paid (either one-time payment or subscription)
+    // annual_fee_paid_at = timestamp when paid (legacy one-time mode)
+    // annual_fee_subscription_id = Stripe subscription ID (new recurring mode)
+    const isInitiationFeePaid = !!(membership.annual_fee_paid_at || membership.annual_fee_subscription_id);
     if (!isInitiationFeePaid) {
       issues.push("initiation_fee_unpaid");
     }
@@ -100,6 +102,7 @@ export function usePaymentStatus(): PaymentStatusResult {
 export function checkMemberPaymentStatus(member: {
   status: string;
   annual_fee_paid_at: string | null;
+  annual_fee_subscription_id?: string | null;
   stripe_subscription_id?: string | null;
 }): { 
   isInitiationFeePaid: boolean; 
@@ -109,7 +112,8 @@ export function checkMemberPaymentStatus(member: {
   isFullyPaid: boolean;
 } {
   const isDuesPastDue = member.status === "past_due";
-  const isInitiationFeePaid = !!member.annual_fee_paid_at;
+  // Check both legacy one-time payment and new subscription mode
+  const isInitiationFeePaid = !!(member.annual_fee_paid_at || member.annual_fee_subscription_id);
   const hasActiveSubscription = !!member.stripe_subscription_id;
   const isFullyPaid = isInitiationFeePaid && hasActiveSubscription && !isDuesPastDue;
 

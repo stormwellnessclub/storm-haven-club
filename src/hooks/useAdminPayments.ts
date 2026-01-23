@@ -38,6 +38,15 @@ interface ManageSubscriptionParams {
   action: 'pause' | 'cancel' | 'resume';
 }
 
+interface AdminCreateSubscriptionParams {
+  memberId: string;
+  tier: string;
+  gender: string;
+  billingType: 'monthly' | 'annual';
+  isFoundingMember?: boolean;
+  startDate?: string;
+}
+
 export function useProcessMembershipPayment() {
   const queryClient = useQueryClient();
 
@@ -188,10 +197,16 @@ export function useManageSubscription() {
 
   return useMutation({
     mutationFn: async (params: ManageSubscriptionParams) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expired");
+
       const { data, error } = await supabase.functions.invoke("stripe-payment", {
         body: {
           action: `${params.action}_subscription`,
           subscriptionId: params.subscriptionId,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
         },
       });
 
@@ -206,6 +221,45 @@ export function useManageSubscription() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to manage subscription");
+    },
+  });
+}
+
+export function useAdminCreateSubscription() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: AdminCreateSubscriptionParams) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expired");
+
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "admin_create_member_subscription",
+          memberId: params.memberId,
+          tier: params.tier,
+          gender: params.gender,
+          billingType: params.billingType,
+          isFoundingMember: params.isFoundingMember || false,
+          startDate: params.startDate || new Date().toISOString().split('T')[0],
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+      toast.success("Subscription created successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create subscription");
     },
   });
 }

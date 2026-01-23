@@ -60,9 +60,13 @@ export function useMemberBenefitsStatus(): MemberBenefitsStatus {
     // Determine frozen reason - priority order matters
     let frozenReason: MemberBenefitsStatus["frozenReason"] = null;
     
+    // Check initiation fee - support both legacy one-time and new subscription mode
+    const membershipData = membership as typeof membership & { annual_fee_subscription_id?: string };
+    const initiationFeePaidOrSubscribed = isInitiationFeePaid || !!membershipData.annual_fee_subscription_id;
+    
     if (status === "pending_activation") {
       frozenReason = "pending_activation";
-    } else if (!isInitiationFeePaid) {
+    } else if (!initiationFeePaidOrSubscribed) {
       // Even if status is "active", freeze if initiation fee not paid
       frozenReason = "initiation_fee_unpaid";
     } else if (!hasActiveSubscription) {
@@ -77,7 +81,7 @@ export function useMemberBenefitsStatus(): MemberBenefitsStatus {
     }
 
     const hasFrozenBenefits = frozenReason !== null;
-    const isFullyActive = status === "active" && isInitiationFeePaid && hasActiveSubscription && !isDuesPastDue;
+    const isFullyActive = status === "active" && initiationFeePaidOrSubscribed && hasActiveSubscription && !isDuesPastDue;
 
     // Benefits are only available when fully active
     return {
