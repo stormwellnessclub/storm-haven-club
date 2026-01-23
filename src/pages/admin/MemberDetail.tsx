@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -13,6 +13,8 @@ import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/u
 import { useMemberActivities } from "@/hooks/useMemberActivities";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { useAuth } from "@/contexts/AuthContext";
+import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,8 +60,16 @@ import {
   ArrowLeft, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, 
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
-  Clock, Shield, Snowflake, Crown, RefreshCcw
+  Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle
 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 // Helper functions
 const getStatusColor = (status: string) => {
@@ -125,6 +135,7 @@ export default function MemberDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isSuperAdmin } = useUserRoles();
+  const { user } = useAuth();
 
   // State
   const [isEditing, setIsEditing] = useState(false);
@@ -154,6 +165,13 @@ export default function MemberDetail() {
   const [showCancelAnnualFeeDialog, setShowCancelAnnualFeeDialog] = useState(false);
   const [isCancelingAnnualFee, setIsCancelingAnnualFee] = useState(false);
 
+  // Credit adjustment state
+  const [showAdjustCreditDialog, setShowAdjustCreditDialog] = useState(false);
+  const [adjustmentType, setAdjustmentType] = useState<"add" | "remove">("add");
+  const [adjustCreditType, setAdjustCreditType] = useState<CreditType>("class");
+  const [adjustAmount, setAdjustAmount] = useState("1");
+  const [adjustReason, setAdjustReason] = useState("");
+
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
@@ -177,6 +195,115 @@ export default function MemberDetail() {
       return data;
     },
     enabled: !!id,
+  });
+
+  // Fetch member credits
+  const { data: memberCredits = [], isLoading: isCreditsLoading } = useQuery({
+    queryKey: ["member-credits", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("member_credits")
+        .select("*")
+        .eq("member_id", id)
+        .gt("expires_at", new Date().toISOString())
+        .order("credit_type", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch credit adjustment history for this member
+  const { data: creditAdjustments = [], isLoading: isAdjustmentsLoading } = useQuery({
+    queryKey: ["member-credit-adjustments", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data: adjustments, error } = await supabase
+        .from("credit_adjustments")
+        .select("*")
+        .eq("member_id", id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+
+      // Get staff info
+      const staffIds = [...new Set((adjustments || []).map((a) => a.adjusted_by))];
+      const { data: staffData } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name")
+        .in("user_id", staffIds);
+
+      const staffMap = new Map((staffData || []).map((s) => [s.user_id, s]));
+
+      return (adjustments || []).map((adj) => ({
+        ...adj,
+        staff: staffMap.get(adj.adjusted_by),
+      }));
+    },
+    enabled: !!id,
+  });
+
+  // Credit adjustment mutation
+  const adjustCreditMutation = useMutation({
+    mutationFn: async ({
+      creditType,
+      adjustment,
+      reason,
+    }: {
+      creditType: CreditType;
+      adjustment: number;
+      reason: string;
+    }) => {
+      if (!user || !id) throw new Error("Not authenticated");
+
+      const credit = memberCredits.find((c) => c.credit_type === creditType);
+      
+      if (!credit) {
+        throw new Error(`No active ${CREDIT_TYPE_LABELS[creditType]} credits found for this member`);
+      }
+
+      const previousBalance = credit.credits_remaining;
+      const newRemaining = Math.max(0, Math.min(credit.credits_total + 50, previousBalance + adjustment));
+
+      // Update the credit balance
+      const { error: updateError } = await supabase
+        .from("member_credits")
+        .update({ credits_remaining: newRemaining })
+        .eq("id", credit.id);
+
+      if (updateError) throw updateError;
+
+      // Log the adjustment
+      const { error: logError } = await supabase
+        .from("credit_adjustments")
+        .insert({
+          member_id: id,
+          member_credit_id: credit.id,
+          credit_type: creditType,
+          adjustment_type: adjustment > 0 ? "add" : "remove",
+          amount: Math.abs(adjustment),
+          previous_balance: previousBalance,
+          new_balance: newRemaining,
+          reason: reason || null,
+          adjusted_by: user.id,
+        });
+
+      if (logError) throw logError;
+
+      return { newRemaining, creditType };
+    },
+    onSuccess: (data) => {
+      toast.success(`${CREDIT_TYPE_LABELS[data.creditType]} adjusted to ${data.newRemaining} credits`);
+      queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
+      queryClient.invalidateQueries({ queryKey: ["member-credit-adjustments", id] });
+      setShowAdjustCreditDialog(false);
+      setAdjustAmount("1");
+      setAdjustReason("");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to adjust credits");
+    },
   });
 
   // Hooks for notes, tags, activities
@@ -662,6 +789,7 @@ export default function MemberDetail() {
           <TabsList>
             <TabsTrigger value="profile"><User className="h-4 w-4 mr-2" />Profile</TabsTrigger>
             <TabsTrigger value="membership"><Shield className="h-4 w-4 mr-2" />Membership</TabsTrigger>
+            <TabsTrigger value="credits"><Coins className="h-4 w-4 mr-2" />Credits</TabsTrigger>
             <TabsTrigger value="payments"><DollarSign className="h-4 w-4 mr-2" />Payments</TabsTrigger>
             <TabsTrigger value="activity"><Activity className="h-4 w-4 mr-2" />Activity</TabsTrigger>
           </TabsList>
@@ -862,6 +990,143 @@ export default function MemberDetail() {
             </div>
           </TabsContent>
 
+          {/* Credits Tab */}
+          <TabsContent value="credits">
+            <div className="space-y-6">
+              {/* Current Credits */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Current Credits</CardTitle>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setAdjustmentType("add");
+                          setShowAdjustCreditDialog(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />Add
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setAdjustmentType("remove");
+                          setShowAdjustCreditDialog(true);
+                        }}
+                      >
+                        <Minus className="h-4 w-4 mr-1" />Remove
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isCreditsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : memberCredits.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No active credits</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {(['class', 'red_light', 'dry_cryo'] as CreditType[]).map((type) => {
+                        const credit = memberCredits.find((c) => c.credit_type === type);
+                        return (
+                          <div key={type} className="p-4 border rounded-lg">
+                            <p className="text-sm text-muted-foreground mb-1">{CREDIT_TYPE_LABELS[type]}</p>
+                            {credit ? (
+                              <>
+                                <p className="text-2xl font-bold">
+                                  {credit.credits_remaining}
+                                  <span className="text-sm font-normal text-muted-foreground">/{credit.credits_total}</span>
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Expires {format(new Date(credit.expires_at), 'MMM d, yyyy')}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="text-2xl font-bold text-muted-foreground">—</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Credit Adjustment History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Adjustment History</CardTitle>
+                  <CardDescription>Recent credit adjustments for this member</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isAdjustmentsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : creditAdjustments.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No adjustment history</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Credit Type</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Balance</TableHead>
+                          <TableHead>Reason</TableHead>
+                          <TableHead>Staff</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {creditAdjustments.map((adj: any) => (
+                          <TableRow key={adj.id}>
+                            <TableCell className="text-sm">
+                              {format(new Date(adj.created_at), 'MMM d, yyyy h:mm a')}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {CREDIT_TYPE_LABELS[adj.credit_type as CreditType] || adj.credit_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {adj.adjustment_type === 'add' ? (
+                                <span className="flex items-center gap-1 text-emerald-600">
+                                  <ArrowUpCircle className="h-4 w-4" />Add
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-rose-600">
+                                  <ArrowDownCircle className="h-4 w-4" />Remove
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {adj.adjustment_type === 'add' ? '+' : '-'}{adj.amount}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {adj.previous_balance} → {adj.new_balance}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate" title={adj.reason || ''}>
+                              {adj.reason || '—'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {adj.staff ? `${adj.staff.first_name} ${adj.staff.last_name}` : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           {/* Activity Tab */}
           <TabsContent value="activity">
             <Card>
@@ -875,6 +1140,85 @@ export default function MemberDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Adjust Credit Dialog */}
+      <Dialog open={showAdjustCreditDialog} onOpenChange={setShowAdjustCreditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {adjustmentType === 'add' ? (
+                <><ArrowUpCircle className="h-5 w-5 text-emerald-600" />Add Credits</>
+              ) : (
+                <><ArrowDownCircle className="h-5 w-5 text-rose-600" />Remove Credits</>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {adjustmentType === 'add' ? 'Add' : 'Remove'} credits for {member.first_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Credit Type</Label>
+              <Select value={adjustCreditType} onValueChange={(v) => setAdjustCreditType(v as CreditType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="class">Class Credits</SelectItem>
+                  <SelectItem value="red_light">Red Light Credits</SelectItem>
+                  <SelectItem value="dry_cryo">Dry Cryo Credits</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Amount</Label>
+              <Input 
+                type="number" 
+                min="1" 
+                value={adjustAmount} 
+                onChange={(e) => setAdjustAmount(e.target.value)} 
+                placeholder="1"
+              />
+            </div>
+            <div>
+              <Label>Reason (required)</Label>
+              <Textarea 
+                value={adjustReason} 
+                onChange={(e) => setAdjustReason(e.target.value)} 
+                placeholder="Enter reason for adjustment..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdjustCreditDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                const amount = parseInt(adjustAmount, 10);
+                if (isNaN(amount) || amount <= 0) {
+                  toast.error("Please enter a valid amount");
+                  return;
+                }
+                if (!adjustReason.trim()) {
+                  toast.error("Please enter a reason");
+                  return;
+                }
+                adjustCreditMutation.mutate({
+                  creditType: adjustCreditType,
+                  adjustment: adjustmentType === 'add' ? amount : -amount,
+                  reason: adjustReason.trim(),
+                });
+              }}
+              disabled={adjustCreditMutation.isPending}
+              className={adjustmentType === 'add' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}
+            >
+              {adjustCreditMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {adjustmentType === 'add' ? 'Add' : 'Remove'} {adjustAmount} Credit{parseInt(adjustAmount) !== 1 ? 's' : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Card Form Dialog */}
       <Dialog open={showAddCardForm} onOpenChange={setShowAddCardForm}>
