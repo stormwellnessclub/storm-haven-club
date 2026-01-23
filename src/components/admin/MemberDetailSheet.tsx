@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
@@ -69,6 +69,7 @@ interface Member {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   annual_fee_paid_at: string | null;
+  annual_fee_subscription_id: string | null;
   created_at: string | null;
   card_brand: string | null;
   card_last4: string | null;
@@ -129,6 +130,10 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   // Account Linking state
   const [linkEmail, setLinkEmail] = useState("");
   const [isLinking, setIsLinking] = useState(false);
+
+  // Annual fee subscription cancel state
+  const [showCancelAnnualFeeDialog, setShowCancelAnnualFeeDialog] = useState(false);
+  const [isCancelingAnnualFee, setIsCancelingAnnualFee] = useState(false);
   
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -363,6 +368,41 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
     } finally {
       setIsLinking(false);
     }
+  };
+
+  // Cancel annual fee subscription handler
+  const handleCancelAnnualFeeSubscription = async () => {
+    if (!member || !member.annual_fee_subscription_id) return;
+    
+    setIsCancelingAnnualFee(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-payment', {
+        body: {
+          action: 'cancel_annual_fee_subscription',
+          memberId: member.id,
+          subscriptionId: member.annual_fee_subscription_id,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Failed to cancel subscription");
+
+      toast.success("Annual fee subscription canceled successfully");
+      setShowCancelAnnualFeeDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    } catch (error) {
+      console.error("Error canceling annual fee subscription:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to cancel subscription");
+    } finally {
+      setIsCancelingAnnualFee(false);
+    }
+  };
+
+  // Helper to generate Stripe Dashboard link for subscriptions
+  const getStripeSubscriptionLink = (subscriptionId: string) => {
+    // Test mode subscriptions still use 'sub_' prefix, but we can check the environment
+    // For simplicity, we'll use the test dashboard for now (most common during development)
+    return `https://dashboard.stripe.com/subscriptions/${subscriptionId}`;
   };
 
   const canReactivate = member && ["suspended", "cancelled", "inactive", "frozen", "expired"].includes(member.status);
@@ -724,10 +764,73 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                       Stripe Customer: <span className="font-mono">{member.stripe_customer_id}</span>
                     </p>
                     {member.stripe_subscription_id && (
-                      <p className="text-muted-foreground text-xs">
-                        Subscription: <span className="font-mono">{member.stripe_subscription_id}</span>
-                      </p>
+                      <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                        <span>Membership Subscription:</span>
+                        <a 
+                          href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="font-mono text-primary hover:underline inline-flex items-center gap-1"
+                        >
+                          {member.stripe_subscription_id.substring(0, 18)}...
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
                     )}
+                    
+                    {/* Annual Fee Subscription Section */}
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-sm font-medium mb-2">Initiation Fee Status</p>
+                      {member.annual_fee_subscription_id ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10">
+                            <CheckCircle2 className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium text-primary">Active Subscription</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                            <span>Subscription ID:</span>
+                            <a 
+                              href={getStripeSubscriptionLink(member.annual_fee_subscription_id)} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="font-mono text-primary hover:underline inline-flex items-center gap-1"
+                            >
+                              {member.annual_fee_subscription_id.substring(0, 18)}...
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                          {member.annual_fee_paid_at && (
+                            <p className="text-xs text-muted-foreground">
+                              Last Paid: {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
+                            </p>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-2 text-destructive hover:bg-destructive/10"
+                            onClick={() => setShowCancelAnnualFeeDialog(true)}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Cancel Annual Fee Subscription
+                          </Button>
+                        </div>
+                      ) : member.annual_fee_paid_at ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10">
+                            <CheckCircle2 className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium text-primary">Paid (One-time)</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Paid on: {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10">
+                          <AlertCircle className="h-4 w-4 text-destructive" />
+                          <span className="text-sm font-medium text-destructive">Not Paid</span>
+                        </div>
+                      )}
+                    </div>
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -1249,6 +1352,39 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Cancel Annual Fee Subscription Dialog */}
+      <AlertDialog open={showCancelAnnualFeeDialog} onOpenChange={setShowCancelAnnualFeeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Annual Fee Subscription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel the annual initiation fee subscription for {member.first_name} {member.last_name}. 
+              The subscription will be canceled in Stripe and the member record will be updated.
+              <br /><br />
+              <strong>Note:</strong> This does not issue a refund. To refund the member, visit the 
+              <a 
+                href={member.annual_fee_subscription_id ? `https://dashboard.stripe.com/subscriptions/${member.annual_fee_subscription_id}` : '#'} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline ml-1"
+              >
+                Stripe Dashboard
+              </a>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCancelingAnnualFee}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelAnnualFeeSubscription}
+              disabled={isCancelingAnnualFee}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isCancelingAnnualFee && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Confirm Cancellation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

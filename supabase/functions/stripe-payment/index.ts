@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -549,7 +549,7 @@ serve(async (req) => {
         // Get member record to determine gender for pricing
         const { data: member, error: memberError } = await supabase
           .from('members')
-          .select('id, gender, stripe_customer_id, first_name, last_name, email, annual_fee_paid_at')
+          .select('id, gender, stripe_customer_id, first_name, last_name, email, annual_fee_paid_at, annual_fee_subscription_id')
           .eq('id', memberId)
           .eq('user_id', user.id)
           .single();
@@ -559,6 +559,28 @@ serve(async (req) => {
         }
 
         logStep("Found member for annual fee payment", { memberId: member.id, gender: member.gender });
+
+        // WARNING: Check if member already has an active annual fee subscription
+        if (member.annual_fee_subscription_id) {
+          logStep("WARNING: Member already has annual fee subscription - proceeding with warning", { 
+            memberId: member.id, 
+            existingSubscriptionId: member.annual_fee_subscription_id 
+          });
+        }
+
+        // WARNING: Check if annual_fee_paid_at is within the last year
+        if (member.annual_fee_paid_at) {
+          const paidDate = new Date(member.annual_fee_paid_at);
+          const oneYearAgo = new Date();
+          oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+          
+          if (paidDate > oneYearAgo) {
+            logStep("WARNING: Annual fee was paid within the last year - proceeding with warning", { 
+              memberId: member.id, 
+              paidAt: member.annual_fee_paid_at 
+            });
+          }
+        }
 
         // Determine gender for pricing
         const normalizedGender = (member.gender?.toLowerCase() === 'male' || member.gender?.toLowerCase() === 'men') ? 'men' : 'women';
@@ -1951,6 +1973,56 @@ serve(async (req) => {
             success: true, 
             subscriptionId: subscription.id,
             status: subscription.status,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'cancel_annual_fee_subscription': {
+        const { memberId, subscriptionId } = body;
+
+        if (!memberId || !subscriptionId) {
+          throw new Error("Missing required fields for canceling annual fee subscription");
+        }
+
+        logStep("Canceling annual fee subscription", { memberId, subscriptionId });
+
+        // Verify admin role
+        const { data: adminRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+        
+        const isAdmin = adminRoles?.some(r => ['admin', 'super_admin'].includes(r.role));
+        if (!isAdmin) {
+          throw new Error("Admin access required to cancel annual fee subscription");
+        }
+
+        // Cancel the subscription in Stripe
+        const canceledSubscription = await stripe.subscriptions.cancel(subscriptionId);
+        logStep("Stripe subscription canceled", { subscriptionId, status: canceledSubscription.status });
+
+        // Clear from member record
+        const { error: updateError } = await supabase
+          .from('members')
+          .update({ 
+            annual_fee_subscription_id: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', memberId);
+
+        if (updateError) {
+          logStep("Error clearing annual fee subscription from member", updateError);
+          throw new Error("Failed to update member record");
+        }
+
+        logStep("Annual fee subscription canceled and cleared from member record", { memberId });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: "Annual fee subscription canceled",
+            canceledSubscriptionId: subscriptionId,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );

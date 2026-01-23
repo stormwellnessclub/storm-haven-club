@@ -133,6 +133,7 @@ export default function Members() {
           stripe_customer_id,
           stripe_subscription_id,
           annual_fee_paid_at,
+          annual_fee_subscription_id,
           created_at,
           card_brand,
           card_last4,
