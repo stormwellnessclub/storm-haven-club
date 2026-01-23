@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -2024,6 +2024,122 @@ serve(async (req) => {
             message: "Annual fee subscription canceled",
             canceledSubscriptionId: subscriptionId,
           }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_member_dues_checkout': {
+        // Member self-service subscription checkout - creates a checkout session for their tier
+        const { memberId, successUrl, cancelUrl } = body;
+
+        if (!memberId || !successUrl || !cancelUrl) {
+          throw new Error("memberId, successUrl, and cancelUrl are required");
+        }
+
+        logStep("Creating member dues checkout", { memberId });
+
+        // Get member data including their tier and payment info
+        const { data: memberData, error: memberError } = await supabase
+          .from('members')
+          .select('id, user_id, email, first_name, last_name, membership_type, gender, is_founding_member, billing_type, stripe_customer_id, stripe_subscription_id')
+          .eq('id', memberId)
+          .single();
+
+        if (memberError || !memberData) {
+          throw new Error("Member not found");
+        }
+
+        // Verify this member belongs to the authenticated user
+        if (memberData.user_id !== user.id) {
+          throw new Error("Unauthorized: You can only set up billing for your own membership");
+        }
+
+        // Check if already has an active subscription
+        if (memberData.stripe_subscription_id) {
+          throw new Error("You already have an active subscription");
+        }
+
+        // Normalize tier and gender
+        const normalizedTier = memberData.membership_type.toLowerCase().replace(' membership', '') as keyof typeof STRIPE_PRODUCTS.memberships;
+        const normalizedGender = (memberData.gender?.toLowerCase() === 'male' || memberData.gender?.toLowerCase() === 'men') ? 'men' : 'women';
+        const billingType = memberData.is_founding_member ? 'annual' : (memberData.billing_type || 'monthly');
+
+        logStep("Member dues checkout - tier info", { tier: normalizedTier, gender: normalizedGender, billingType });
+
+        // Get membership price ID
+        const membershipPrices = STRIPE_PRODUCTS.memberships[normalizedTier];
+        if (!membershipPrices) {
+          throw new Error(`Invalid membership tier: ${memberData.membership_type}`);
+        }
+
+        const priceId = membershipPrices[billingType as 'monthly' | 'annual'][normalizedGender];
+        if (!priceId) {
+          throw new Error(`Membership not available for your tier and billing type`);
+        }
+
+        // Get or create Stripe customer
+        let customerId = memberData.stripe_customer_id;
+        
+        if (!customerId) {
+          // Check if customer exists by email
+          const existingCustomers = await stripe.customers.list({ email: memberData.email, limit: 1 });
+          
+          if (existingCustomers.data.length > 0) {
+            customerId = existingCustomers.data[0].id;
+          } else {
+            const customer = await stripe.customers.create({
+              email: memberData.email,
+              name: `${memberData.first_name} ${memberData.last_name}`,
+              metadata: {
+                member_id: memberId,
+                user_id: user.id,
+              },
+            });
+            customerId = customer.id;
+          }
+
+          // Update member with customer ID
+          await supabase
+            .from('members')
+            .update({ stripe_customer_id: customerId })
+            .eq('id', memberId);
+        }
+
+        // Create checkout session for subscription
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          mode: 'subscription',
+          line_items: [{
+            price: priceId,
+            quantity: 1,
+          }],
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          metadata: {
+            type: 'membership_dues',
+            member_id: memberId,
+            user_id: user.id,
+            tier: normalizedTier,
+            gender: normalizedGender,
+            billing_type: billingType,
+            is_founding_member: String(memberData.is_founding_member || false),
+          },
+          subscription_data: {
+            metadata: {
+              member_id: memberId,
+              user_id: user.id,
+              tier: normalizedTier,
+              gender: normalizedGender,
+              billing_type: billingType,
+              is_founding_member: String(memberData.is_founding_member || false),
+            },
+          },
+        });
+
+        logStep("Member dues checkout session created", { sessionId: session.id, url: session.url });
+
+        return new Response(
+          JSON.stringify({ url: session.url, sessionId: session.id }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }

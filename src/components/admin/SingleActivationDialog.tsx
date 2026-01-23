@@ -46,6 +46,7 @@ interface SingleActivationDialogProps {
     mode: ActivationMode;
     startDate: Date;
     chargeAnnualFee: boolean;
+    createSubscription: boolean;
   }) => void;
   isLoading?: boolean;
   initialMode?: ActivationMode;
@@ -63,6 +64,7 @@ export function SingleActivationDialog({
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [chargeUnpaidFees, setChargeUnpaidFees] = useState(true);
+  const [createSubscription, setCreateSubscription] = useState(true);
 
   // Reset mode when dialog opens or initialMode changes
   useEffect(() => {
@@ -86,11 +88,18 @@ export function SingleActivationDialog({
       application.annual_fee_status !== "paid" && 
       !!application.stripe_customer_id && 
       chargeUnpaidFees;
+    
+    // Only create subscription for immediate mode with card on file
+    const shouldCreateSubscription = 
+      activationMode === "immediate" && 
+      !!application.stripe_customer_id && 
+      createSubscription;
 
     onConfirm({
       mode: activationMode,
       startDate,
       chargeAnnualFee: shouldChargeFee,
+      createSubscription: shouldCreateSubscription,
     });
   };
 
@@ -274,6 +283,23 @@ export function SingleActivationDialog({
                 className="text-sm font-medium leading-none cursor-pointer"
               >
                 Charge initiation fee to saved card
+              </label>
+            </div>
+          )}
+
+          {/* Create Subscription Option - Only for immediate mode with card */}
+          {activationMode === "immediate" && paymentStatus?.hasCard && (
+            <div className="flex items-center space-x-2 p-3 border rounded-lg bg-muted/50">
+              <Checkbox
+                id="create-subscription"
+                checked={createSubscription}
+                onCheckedChange={(checked) => setCreateSubscription(checked === true)}
+              />
+              <label
+                htmlFor="create-subscription"
+                className="text-sm font-medium leading-none cursor-pointer"
+              >
+                Create dues subscription (auto-charged on start date)
               </label>
             </div>
           )}

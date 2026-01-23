@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,17 +13,43 @@ import { ChargeHistory } from "@/components/ChargeHistory";
 import { InlineBillingSection } from "@/components/member/InlineBillingSection";
 import { BillingSummary } from "@/components/member/BillingSummary";
 import { ActivationRequired } from "@/components/member/ActivationRequired";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { toast } from "sonner";
 
 export default function MemberMembership() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { profile, isLoading: profileLoading } = useUserProfile();
   const { isSuperAdmin } = useUserRoles();
   const isLoading = membershipLoading || profileLoading;
+
+  // Handle subscription creation success from Stripe checkout return
+  useEffect(() => {
+    const subscriptionCreated = searchParams.get('subscription_created');
+    const annualFeePaid = searchParams.get('annual_fee_paid');
+    
+    if (subscriptionCreated === 'true') {
+      toast.success("Membership subscription activated! Your dues will be charged automatically.");
+      // Clear the URL parameter
+      searchParams.delete('subscription_created');
+      setSearchParams(searchParams, { replace: true });
+      // Refresh membership data
+      queryClient.invalidateQueries({ queryKey: ["user-membership"] });
+    }
+    
+    if (annualFeePaid === 'true') {
+      toast.success("Initiation fee paid successfully!");
+      // Clear the URL parameter
+      searchParams.delete('annual_fee_paid');
+      setSearchParams(searchParams, { replace: true });
+      // Refresh membership data
+      queryClient.invalidateQueries({ queryKey: ["user-membership"] });
+    }
+  }, [searchParams, setSearchParams, queryClient]);
 
   // Fetch next billing date from subscription
   const { data: subscriptionData } = useQuery({

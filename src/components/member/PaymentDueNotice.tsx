@@ -44,10 +44,15 @@ export function PaymentDueNotice() {
         }
       }
       
-      // If initiation fee paid but no subscription, redirect to billing portal
+      // If initiation fee paid but no subscription, create a checkout for dues
       if (isInitiationFeePaid && !hasActiveSubscription) {
         const { data, error } = await supabase.functions.invoke("stripe-payment", {
-          body: { action: "customer_portal" },
+          body: { 
+            action: "create_member_dues_checkout",
+            memberId: membership.id,
+            successUrl: `${window.location.origin}/member/membership?subscription_created=true`,
+            cancelUrl: `${window.location.origin}/member/membership`,
+          },
         });
 
         if (error) throw error;
