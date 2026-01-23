@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -1814,6 +1814,144 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ subscription, success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'admin_create_member_subscription': {
+        // Admin-initiated subscription creation for members
+        const { memberId, tier, gender, billingType: requestedBillingType, startDate, isFoundingMember } = body;
+
+        if (!memberId || !tier || !gender) {
+          throw new Error("memberId, tier, and gender are required");
+        }
+
+        // Verify admin role
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!roleData || roleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        const normalizedTier = tier.toLowerCase().replace(' membership', '') as keyof typeof STRIPE_PRODUCTS.memberships;
+        const normalizedGender = (gender.toLowerCase() === 'male' || gender.toLowerCase() === 'men') ? 'men' : 'women';
+        const billingType = requestedBillingType || (isFoundingMember ? 'annual' : 'monthly');
+
+        logStep("Admin creating member subscription", { memberId, tier: normalizedTier, gender: normalizedGender, billingType });
+
+        // Get membership price
+        const membershipPrices = STRIPE_PRODUCTS.memberships[normalizedTier];
+        if (!membershipPrices) {
+          throw new Error(`Invalid membership tier: ${tier}`);
+        }
+
+        const membershipPriceId = membershipPrices[billingType as 'monthly' | 'annual'][normalizedGender];
+        if (!membershipPriceId) {
+          throw new Error(`Membership not available for ${gender} at ${tier} tier with ${billingType} billing`);
+        }
+
+        // Get member data
+        const { data: memberData, error: memberError } = await supabase
+          .from('members')
+          .select('stripe_customer_id, user_id, email, first_name, last_name')
+          .eq('id', memberId)
+          .single();
+
+        if (memberError || !memberData) {
+          throw new Error("Member not found");
+        }
+
+        if (!memberData.stripe_customer_id) {
+          throw new Error("Member has no Stripe customer ID. Add a payment method first.");
+        }
+
+        // Get default payment method
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: memberData.stripe_customer_id,
+          type: 'card',
+          limit: 1,
+        });
+
+        if (paymentMethods.data.length === 0) {
+          throw new Error("No payment method on file. Add a card first.");
+        }
+
+        const paymentMethodId = paymentMethods.data[0].id;
+        const subscriptionStartDate = startDate ? new Date(startDate) : new Date();
+        const billingAnchor = Math.floor(subscriptionStartDate.getTime() / 1000);
+
+        // Create the subscription
+        const subscription = await stripe.subscriptions.create({
+          customer: memberData.stripe_customer_id,
+          items: [{ price: membershipPriceId }],
+          default_payment_method: paymentMethodId,
+          billing_cycle_anchor: billingAnchor,
+          proration_behavior: 'none',
+          metadata: {
+            member_id: memberId,
+            user_id: memberData.user_id || '',
+            tier: normalizedTier,
+            gender: normalizedGender,
+            is_founding_member: String(isFoundingMember || false),
+            billing_type: billingType,
+            created_by_admin: user.id,
+          },
+        });
+
+        logStep("Admin subscription created", { subscriptionId: subscription.id, memberId });
+
+        // Update member record
+        await supabase
+          .from('members')
+          .update({
+            stripe_subscription_id: subscription.id,
+            status: 'active',
+            billing_type: billingType,
+            is_founding_member: isFoundingMember || false,
+            activated_at: new Date().toISOString(),
+            membership_start_date: subscriptionStartDate.toISOString().split('T')[0],
+          })
+          .eq('id', memberId);
+
+        // Allocate credits
+        const credits = TIER_CREDITS[normalizedTier] || TIER_CREDITS.silver;
+        const cycleStart = subscriptionStartDate;
+        const cycleEnd = new Date(cycleStart);
+        cycleEnd.setMonth(cycleEnd.getMonth() + 1);
+        const expiresAt = new Date(cycleEnd);
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        const creditTypes = ['class', 'red_light', 'dry_cryo'] as const;
+        for (const creditType of creditTypes) {
+          const creditAmount = credits[creditType];
+          if (creditAmount > 0) {
+            await supabase
+              .from('member_credits')
+              .insert({
+                member_id: memberId,
+                user_id: memberData.user_id,
+                credit_type: creditType,
+                credits_total: creditAmount,
+                credits_remaining: creditAmount,
+                cycle_start: cycleStart.toISOString().split('T')[0],
+                cycle_end: cycleEnd.toISOString().split('T')[0],
+                expires_at: expiresAt.toISOString(),
+              });
+          }
+        }
+
+        logStep("Admin subscription complete with credits", { memberId, subscriptionId: subscription.id });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            subscriptionId: subscription.id,
+            status: subscription.status,
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }

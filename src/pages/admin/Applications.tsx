@@ -616,6 +616,12 @@ export default function Applications() {
     
     setIsSingleActivating(true);
     try {
+      // Get session for auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Session expired. Please log in again.");
+      }
+
       // If we need to charge the annual fee first (only for immediate mode with card on file)
       if (config.chargeAnnualFee && singleActivationTarget.stripe_customer_id && config.mode === "immediate") {
         const { data, error } = await supabase.functions.invoke("stripe-payment", {
@@ -626,6 +632,9 @@ export default function Applications() {
             applicationId: singleActivationTarget.id,
             amount: 30000, // $300 in cents
             description: "Annual Membership Fee",
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
           },
         });
 
@@ -718,6 +727,12 @@ export default function Applications() {
 
     setIsCharging(true);
     try {
+      // Get session for auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Session expired. Please log in again.");
+      }
+
       const { data, error } = await supabase.functions.invoke("stripe-payment", {
         body: {
           action: "charge_saved_card",
@@ -726,6 +741,9 @@ export default function Applications() {
           applicationId: chargeTarget.id,
           amount: Math.round(amountNum * 100), // Convert to cents
           description: chargeDescription,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
         },
       });
 
@@ -1164,6 +1182,12 @@ export default function Applications() {
     setIsBatchActivating(true);
     
     try {
+      // Get session for auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Session expired. Please log in again.");
+      }
+
       const { startDate, chargeUnpaidAnnualFees, applicationsToActivate, skippedApplications } = config;
       let successCount = 0;
       let chargedCount = 0;
@@ -1186,6 +1210,9 @@ export default function Applications() {
                 applicationId: app.id,
                 amount: annualFeeAmount * 100, // cents
                 description: "Annual Membership Fee",
+              },
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
               },
             });
             
