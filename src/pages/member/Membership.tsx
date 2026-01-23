@@ -7,17 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserMembership, getMembershipTierBenefits } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { IdCard, Check, FileCheck, Crown, Receipt, AlertCircle, Shield, CreditCard } from "lucide-react";
+import { IdCard, Check, FileCheck, Crown, Receipt, AlertCircle, Shield, CreditCard, Clock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { InlineBillingSection } from "@/components/member/InlineBillingSection";
 import { BillingSummary } from "@/components/member/BillingSummary";
-import { ActivationRequired } from "@/components/member/ActivationRequired";
+// ActivationRequired component preserved for future use - currently bypassed for soft launch
+// import { ActivationRequired } from "@/components/member/ActivationRequired";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { toast } from "sonner";
+import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 
 export default function MemberMembership() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -109,7 +111,10 @@ export default function MemberMembership() {
     );
   }
 
-  // Show activation form for pending_activation members
+  // SOFT LAUNCH MODE: Show informational message instead of self-activation
+  // Original ActivationRequired component is preserved for future use
+  const { isInitiationFeePaid } = usePaymentStatus();
+  
   if (membership.status === "pending_activation") {
     const handleSuperAdminActivate = async () => {
       if (!membership?.id) return;
@@ -136,34 +141,117 @@ export default function MemberMembership() {
     };
 
     return (
-      <MemberLayout title="Activate Membership">
-        <div className="max-w-lg mx-auto">
-          <Alert className="mb-6 bg-amber-50 dark:bg-amber-900/20 border-amber-300">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-amber-700 dark:text-amber-300">
-              Complete your membership activation to unlock all benefits including class credits, member pricing, and amenity access.
-            </AlertDescription>
-          </Alert>
-          <ActivationRequired 
-            memberData={{
-              id: membership.id,
-              member_id: membership.member_id,
-              membership_type: membership.membership_type,
-              status: membership.status,
-              approved_at: null,
-              activation_deadline: membership.activation_deadline,
-              activated_at: membership.activated_at,
-              first_name: membership.first_name,
-              last_name: membership.last_name,
-              email: membership.email,
-              gender: membership.gender,
-              is_founding_member: membership.is_founding_member,
-              annual_fee_paid_at: membership.annual_fee_paid_at,
-              locked_start_date: membership.locked_start_date,
-            }} 
-          />
+      <MemberLayout title="Membership Status">
+        <div className="max-w-lg mx-auto space-y-6">
+          {/* Status Card */}
+          <Card className="border-2 border-amber-300 bg-amber-50 dark:bg-amber-900/20">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Clock className="h-6 w-6 text-amber-600" />
+                <CardTitle className="text-amber-800 dark:text-amber-200">
+                  Membership Pending Activation
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-amber-700 dark:text-amber-300">
+                Congratulations on your approval, {membership.first_name}!
+              </p>
+              
+              {/* Dynamic message based on initiation fee status */}
+              {isInitiationFeePaid ? (
+                <p className="text-amber-700 dark:text-amber-300">
+                  Your membership credits and access will be activated once your 
+                  <strong> membership dues payment</strong> is processed. 
+                  Please ensure your correct card information is on file.
+                </p>
+              ) : (
+                <p className="text-amber-700 dark:text-amber-300">
+                  Your membership credits and access will be activated once your 
+                  <strong> membership dues and initiation fee</strong> are paid. 
+                  Please ensure your correct card information is on file.
+                </p>
+              )}
+
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                Our team will activate your membership once payment is confirmed.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card on File Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Payment Method
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {membership.card_brand && membership.card_last4 ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {membership.card_brand.toUpperCase()} •••• {membership.card_last4}
+                    </p>
+                    {membership.card_exp_month && membership.card_exp_year && (
+                      <p className="text-sm text-muted-foreground">
+                        Expires {String(membership.card_exp_month).padStart(2, '0')}/{membership.card_exp_year}
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700">
+                    Card on File
+                  </Badge>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <AlertCircle className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+                  <p className="text-muted-foreground mb-3">
+                    No payment method on file
+                  </p>
+                  <Button asChild>
+                    <Link to="/member/payment-methods">Add Payment Method</Link>
+                  </Button>
+                </div>
+              )}
+              
+              {membership.card_brand && membership.card_last4 && (
+                <Button variant="outline" asChild className="w-full mt-4">
+                  <Link to="/member/payment-methods">Update Payment Method</Link>
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Membership Details Preview */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Membership</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tier</span>
+                <span className="font-medium">{membership.membership_type}</span>
+              </div>
+              {membership.is_founding_member && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <Badge className="bg-accent">Founding Member</Badge>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Initiation Fee</span>
+                <span className={isInitiationFeePaid ? "text-green-600 font-medium" : "text-amber-600"}>
+                  {isInitiationFeePaid ? "Paid ✓" : "Pending"}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Super Admin Override - PRESERVED */}
           {isSuperAdmin() && (
-            <div className="mt-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+            <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
               <div className="flex items-start gap-3 mb-3">
                 <Shield className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                 <div>
