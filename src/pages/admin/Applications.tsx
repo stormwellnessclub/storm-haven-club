@@ -991,6 +991,7 @@ export default function Applications() {
           to: app.email,
           data: {
             name: app.first_name || app.full_name.split(" ")[0],
+            email: app.email,
           },
         },
       });

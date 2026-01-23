@@ -1904,14 +1904,14 @@ serve(async (req) => {
 
         const paymentMethodId = paymentMethods.data[0].id;
         const subscriptionStartDate = startDate ? new Date(startDate) : new Date();
-        const billingAnchor = Math.floor(subscriptionStartDate.getTime() / 1000);
+        const now = new Date();
+        const isStartDateInPast = subscriptionStartDate < now;
 
-        // Create the subscription
-        const subscription = await stripe.subscriptions.create({
+        // Build subscription parameters - handle past dates differently
+        const subscriptionParams: any = {
           customer: memberData.stripe_customer_id,
           items: [{ price: membershipPriceId }],
           default_payment_method: paymentMethodId,
-          billing_cycle_anchor: billingAnchor,
           proration_behavior: 'none',
           metadata: {
             member_id: memberId,
@@ -1921,8 +1921,24 @@ serve(async (req) => {
             is_founding_member: String(isFoundingMember || false),
             billing_type: billingType,
             created_by_admin: user.id,
+            original_start_date: startDate || new Date().toISOString().split('T')[0],
           },
-        });
+        };
+
+        if (isStartDateInPast) {
+          // For past dates, start immediately - Stripe doesn't allow billing_cycle_anchor in past
+          logStep("Start date is in past, starting subscription from today", { 
+            originalStartDate: startDate, 
+            now: now.toISOString() 
+          });
+          // Don't set billing_cycle_anchor - defaults to now
+        } else {
+          // For future dates, use billing_cycle_anchor
+          subscriptionParams.billing_cycle_anchor = Math.floor(subscriptionStartDate.getTime() / 1000);
+        }
+
+        // Create the subscription
+        const subscription = await stripe.subscriptions.create(subscriptionParams);
 
         logStep("Admin subscription created", { subscriptionId: subscription.id, memberId });
 
