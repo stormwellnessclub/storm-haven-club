@@ -114,6 +114,13 @@ export type Database = {
             foreignKeyName: "ai_workouts_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_workouts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -212,6 +219,13 @@ export type Database = {
             foreignKeyName: "cafe_orders_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_orders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -251,6 +265,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_ins_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -336,6 +357,13 @@ export type Database = {
             foreignKeyName: "class_bookings_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -388,6 +416,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_credits_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -454,6 +489,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_passes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -560,6 +602,13 @@ export type Database = {
             referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "class_schedules_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       class_sessions: {
@@ -631,6 +680,13 @@ export type Database = {
             columns: ["instructor_id"]
             isOneToOne: false
             referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_sessions_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
             referencedColumns: ["id"]
           },
           {
@@ -784,6 +840,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_adjustments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -1110,6 +1173,13 @@ export type Database = {
             foreignKeyName: "habits_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "habits_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1245,6 +1315,13 @@ export type Database = {
             foreignKeyName: "kids_care_bookings_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kids_care_bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1328,6 +1405,13 @@ export type Database = {
             foreignKeyName: "manual_charges_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_charges_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1379,6 +1463,13 @@ export type Database = {
             foreignKeyName: "member_achievements_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_achievements_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1415,6 +1506,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_activities_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -1478,6 +1576,13 @@ export type Database = {
             foreignKeyName: "member_credits_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_credits_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1535,6 +1640,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: true
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_fitness_profiles_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -1622,6 +1734,13 @@ export type Database = {
             foreignKeyName: "member_freezes_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_freezes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1682,6 +1801,13 @@ export type Database = {
             foreignKeyName: "member_goals_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_goals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1721,6 +1847,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_health_scores_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -1772,6 +1905,13 @@ export type Database = {
             foreignKeyName: "member_notes_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_notes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1805,6 +1945,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_tags_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -2114,6 +2261,13 @@ export type Database = {
             foreignKeyName: "payment_attempts_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_attempts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -2162,6 +2316,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_method_updates_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -2408,6 +2569,13 @@ export type Database = {
             foreignKeyName: "scanner_access_logs_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scanner_access_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -2448,21 +2616,21 @@ export type Database = {
       }
       scheduled_functions_config: {
         Row: {
-          anon_key: string
+          anon_key: string | null
           created_at: string | null
           id: string
           supabase_url: string
           updated_at: string | null
         }
         Insert: {
-          anon_key?: string
+          anon_key?: string | null
           created_at?: string | null
           id?: string
           supabase_url?: string
           updated_at?: string | null
         }
         Update: {
-          anon_key?: string
+          anon_key?: string | null
           created_at?: string | null
           id?: string
           supabase_url?: string
@@ -2564,6 +2732,13 @@ export type Database = {
             foreignKeyName: "spa_appointments_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spa_appointments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -2606,6 +2781,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_status_history_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -2681,6 +2863,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -2765,6 +2954,13 @@ export type Database = {
             foreignKeyName: "workout_programs_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_programs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -2818,6 +3014,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_bookings_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
             referencedColumns: ["id"]
           },
           {
@@ -2908,6 +3111,96 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           status?: string | null
+        }
+        Relationships: []
+      }
+      member_limited_view: {
+        Row: {
+          activated_at: string | null
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          gender: string | null
+          id: string | null
+          is_founding_member: boolean | null
+          last_name: string | null
+          member_id: string | null
+          membership_end_date: string | null
+          membership_start_date: string | null
+          membership_type: string | null
+          phone: string | null
+          photo_url: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string | null
+          is_founding_member?: boolean | null
+          last_name?: string | null
+          member_id?: string | null
+          membership_end_date?: string | null
+          membership_start_date?: string | null
+          membership_type?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string | null
+          is_founding_member?: boolean | null
+          last_name?: string | null
+          member_id?: string | null
+          membership_end_date?: string | null
+          membership_start_date?: string | null
+          membership_type?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      public_instructors_view: {
+        Row: {
+          bio: string | null
+          created_at: string | null
+          first_name: string | null
+          id: string | null
+          is_active: boolean | null
+          last_name: string | null
+          photo_url: string | null
+          specialties: string[] | null
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          photo_url?: string | null
+          specialties?: string[] | null
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          photo_url?: string | null
+          specialties?: string[] | null
         }
         Relationships: []
       }
