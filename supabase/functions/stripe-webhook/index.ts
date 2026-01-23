@@ -548,8 +548,8 @@ serve(async (req) => {
               return errorResponse(freezeError, "FREEZE_FEE");
             }
 
-          } else if (metadata.type === 'annual_fee_payment') {
-            // Handle annual fee payment
+          } else if (metadata.type === 'annual_fee_payment' || metadata.type === 'annual_fee_subscription') {
+            // Handle annual fee payment (both one-time legacy and subscription)
             const memberId = metadata.member_id;
             const userId = metadata.user_id;
 
@@ -559,13 +559,22 @@ serve(async (req) => {
             }
 
             try {
-              // Update member record with annual fee payment date
+              // Build update object
+              const updateData: Record<string, any> = {
+                annual_fee_paid_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              };
+
+              // If this is a subscription checkout, store the subscription ID
+              if (session.subscription) {
+                updateData.annual_fee_subscription_id = session.subscription as string;
+                logStep("Storing annual fee subscription ID", { subscriptionId: session.subscription });
+              }
+
+              // Update member record with annual fee payment date and subscription ID
               const { error: updateError } = await supabase
                 .from('members')
-                .update({
-                  annual_fee_paid_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                })
+                .update(updateData)
                 .eq('id', memberId);
 
               if (updateError) {
@@ -573,7 +582,11 @@ serve(async (req) => {
                 return errorResponse(updateError, "ANNUAL_FEE_UPDATE");
               }
 
-              logStep("Annual fee payment processed", { memberId, userId });
+              logStep("Annual fee payment processed", { 
+                memberId, 
+                userId, 
+                subscriptionId: session.subscription || 'one-time' 
+              });
             } catch (annualFeeError) {
               logError(annualFeeError, "ANNUAL_FEE");
               return errorResponse(annualFeeError, "ANNUAL_FEE");

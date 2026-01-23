@@ -580,18 +580,23 @@ serve(async (req) => {
           logStep("Created and saved Stripe customer", { customerId });
         }
 
-        // Create one-time payment for annual fee (not subscription - just immediate charge)
+        // Create annual fee subscription (yearly recurring)
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           line_items: [{ price: annualFeePriceId, quantity: 1 }],
-          mode: 'payment',
-          payment_intent_data: {
-            setup_future_usage: 'off_session',
+          mode: 'subscription',
+          subscription_data: {
+            metadata: {
+              type: 'annual_fee_subscription',
+              member_id: memberId,
+              user_id: user.id,
+              gender: normalizedGender,
+            },
           },
           success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}&annual_fee_paid=true`,
           cancel_url: cancelUrl,
           metadata: {
-            type: 'annual_fee_payment',
+            type: 'annual_fee_subscription',
             member_id: memberId,
             user_id: user.id,
             gender: normalizedGender,
@@ -1504,16 +1509,22 @@ serve(async (req) => {
           },
         });
 
-        // If price ID exists, use checkout instead
+        // If price ID exists, use subscription checkout instead (recurring yearly)
         if (annualFeePriceId) {
           const session = await stripe.checkout.sessions.create({
             customer: customerId,
             line_items: [{ price: annualFeePriceId, quantity: 1 }],
-            mode: 'payment',
+            mode: 'subscription',
+            subscription_data: {
+              metadata: {
+                type: 'annual_fee_subscription',
+                member_id: memberId,
+              },
+            },
             success_url: `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member?payment=success`,
             cancel_url: `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member?payment=cancelled`,
             metadata: {
-              type: 'annual_fee_payment',
+              type: 'annual_fee_subscription',
               member_id: memberId,
             },
           });
