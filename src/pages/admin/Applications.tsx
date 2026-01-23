@@ -611,7 +611,7 @@ export default function Applications() {
     setShowAddCardDialog(true);
   };
 
-  const handleSingleActivation = async (config: { mode: "immediate" | "locked"; startDate: Date; chargeAnnualFee: boolean }) => {
+  const handleSingleActivation = async (config: { mode: "immediate" | "locked"; startDate: Date; chargeAnnualFee: boolean; createSubscription: boolean }) => {
     if (!singleActivationTarget) return;
     
     setIsSingleActivating(true);
@@ -687,6 +687,50 @@ export default function Applications() {
           autoActivate: true,
           startDate: config.startDate,
         });
+
+        // Create subscription if enabled and card on file
+        if (config.createSubscription && singleActivationTarget.stripe_customer_id) {
+          try {
+            // Find the newly created member to get their ID
+            const { data: newMember } = await supabase
+              .from("members")
+              .select("id")
+              .ilike("email", singleActivationTarget.email)
+              .maybeSingle();
+
+            if (newMember) {
+              const tier = normalizeTierName(singleActivationTarget.membership_plan);
+              const gender = singleActivationTarget.gender?.toLowerCase() === 'male' ? 'men' : 'women';
+              const isFounding = singleActivationTarget.founding_member?.toLowerCase() === 'yes';
+              const billingType = isFounding ? 'annual' : 'monthly';
+
+              const { error: subError } = await supabase.functions.invoke("stripe-payment", {
+                body: {
+                  action: "admin_create_member_subscription",
+                  memberId: newMember.id,
+                  tier,
+                  gender,
+                  billingType,
+                  isFoundingMember: isFounding,
+                  startDate: format(config.startDate, "yyyy-MM-dd"),
+                },
+                headers: {
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+              });
+
+              if (subError) {
+                console.error("Failed to create subscription:", subError);
+                toast.error("Member activated but subscription creation failed. Create it manually.");
+              } else {
+                toast.success("Member activated with subscription!");
+              }
+            }
+          } catch (subErr) {
+            console.error("Subscription creation error:", subErr);
+            toast.error("Member activated but subscription creation failed");
+          }
+        }
       } else {
         // Locked mode - member must complete activation themselves
         await updateStatusMutation.mutateAsync({

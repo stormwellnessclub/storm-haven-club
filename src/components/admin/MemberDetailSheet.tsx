@@ -135,6 +135,9 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   const [showCancelAnnualFeeDialog, setShowCancelAnnualFeeDialog] = useState(false);
   const [isCancelingAnnualFee, setIsCancelingAnnualFee] = useState(false);
   
+  // Create subscription state
+  const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
+  
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
@@ -395,6 +398,48 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
       toast.error(error instanceof Error ? error.message : "Failed to cancel subscription");
     } finally {
       setIsCancelingAnnualFee(false);
+    }
+  };
+
+  // Create membership subscription handler
+  const handleCreateSubscription = async () => {
+    if (!member || !member.stripe_customer_id) return;
+    
+    setIsCreatingSubscription(true);
+    try {
+      // Normalize tier and gender from member record
+      const tier = member.membership_type.toLowerCase().replace(' membership', '');
+      const gender = member.gender?.toLowerCase() === 'male' ? 'men' : 'women';
+      const billingType = member.is_founding_member ? 'annual' : (member.billing_type || 'monthly');
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expired");
+
+      const { data, error } = await supabase.functions.invoke('stripe-payment', {
+        body: {
+          action: 'admin_create_member_subscription',
+          memberId: member.id,
+          tier,
+          gender,
+          billingType,
+          isFoundingMember: member.is_founding_member || false,
+          startDate: member.membership_start_date || new Date().toISOString().split('T')[0],
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("Membership subscription created successfully!");
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    } catch (error) {
+      console.error("Error creating subscription:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create subscription");
+    } finally {
+      setIsCreatingSubscription(false);
     }
   };
 
@@ -671,7 +716,24 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                                     Active
                                   </Badge>
                                 ) : (
-                                  <Badge variant="destructive">Not Started</Badge>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="destructive">Not Started</Badge>
+                                    {member.stripe_customer_id && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-6 px-2 text-xs"
+                                        onClick={handleCreateSubscription}
+                                        disabled={isCreatingSubscription}
+                                      >
+                                        {isCreatingSubscription ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          "Create"
+                                        )}
+                                      </Button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                               {paymentStatus.isDuesPastDue && (
