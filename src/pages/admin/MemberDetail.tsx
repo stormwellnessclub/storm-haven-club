@@ -244,6 +244,60 @@ export default function MemberDetail() {
     enabled: !!id,
   });
 
+  // Fetch credit usage history (class bookings that used credits)
+  const { data: creditUsageHistory = [], isLoading: isCreditUsageLoading } = useQuery({
+    queryKey: ["member-credit-usage", id],
+    queryFn: async () => {
+      if (!id) return [];
+      
+      // Get class bookings that used credits
+      const { data: classBookings, error: bookingsError } = await supabase
+        .from("class_bookings")
+        .select(`
+          id,
+          booked_at,
+          credits_used,
+          status,
+          member_credit_id,
+          session:class_sessions(
+            id,
+            session_date,
+            start_time,
+            class_type:class_types(name, category)
+          ),
+          credit:member_credits(credit_type)
+        `)
+        .eq("member_id", id)
+        .gt("credits_used", 0)
+        .order("booked_at", { ascending: false })
+        .limit(50);
+      
+      if (bookingsError) throw bookingsError;
+      
+      // Transform to unified format
+      const usageHistory: any[] = [];
+      
+      // Add class bookings
+      (classBookings || []).forEach((booking) => {
+        const session = booking.session as any;
+        const credit = booking.credit as any;
+        usageHistory.push({
+          id: booking.id,
+          date: booking.booked_at,
+          service_type: 'class',
+          service_name: session?.class_type?.name || 'Class',
+          service_details: session ? `${format(new Date(session.session_date), 'MMM d')} at ${session.start_time}` : null,
+          credit_type: credit?.credit_type || 'class',
+          credits_used: booking.credits_used,
+          status: booking.status,
+        });
+      });
+      
+      return usageHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+    enabled: !!id,
+  });
+
   // Credit adjustment mutation
   const adjustCreditMutation = useMutation({
     mutationFn: async ({
@@ -1057,11 +1111,81 @@ export default function MemberDetail() {
                 </CardContent>
               </Card>
 
+              {/* Credit Usage History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Credit Usage History</CardTitle>
+                  <CardDescription>Credits used for class bookings and services</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isCreditUsageLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : creditUsageHistory.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No credit usage history</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Service</TableHead>
+                          <TableHead>Credit Type</TableHead>
+                          <TableHead>Credits Used</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {creditUsageHistory.map((usage: any) => (
+                          <TableRow key={usage.id}>
+                            <TableCell className="text-sm">
+                              {format(new Date(usage.date), 'MMM d, yyyy h:mm a')}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {usage.service_type === 'class' && <Calendar className="h-4 w-4 text-primary" />}
+                                {usage.service_type === 'spa' && <Snowflake className="h-4 w-4 text-cyan-500" />}
+                                {usage.service_type === 'wellness' && <Activity className="h-4 w-4 text-emerald-500" />}
+                                <div>
+                                  <p className="font-medium">{usage.service_name}</p>
+                                  {usage.service_details && (
+                                    <p className="text-xs text-muted-foreground">{usage.service_details}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {CREDIT_TYPE_LABELS[usage.credit_type as CreditType] || usage.credit_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium text-rose-600">
+                              -{usage.credits_used}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={
+                                usage.status === 'confirmed' || usage.status === 'completed' 
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300'
+                                  : usage.status === 'cancelled'
+                                  ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300'
+                              }>
+                                {usage.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Credit Adjustment History */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Adjustment History</CardTitle>
-                  <CardDescription>Recent credit adjustments for this member</CardDescription>
+                  <CardTitle>Manual Adjustments</CardTitle>
+                  <CardDescription>Credits added or removed by staff</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isAdjustmentsLoading ? (
@@ -1069,7 +1193,7 @@ export default function MemberDetail() {
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                   ) : creditAdjustments.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No adjustment history</p>
+                    <p className="text-center text-muted-foreground py-8">No manual adjustments</p>
                   ) : (
                     <Table>
                       <TableHeader>
