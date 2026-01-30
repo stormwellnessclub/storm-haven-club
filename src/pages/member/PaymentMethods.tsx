@@ -21,6 +21,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface PaymentMethod {
   id: string;
@@ -333,19 +339,38 @@ export default function MemberPaymentMethods() {
                           )}
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setCardToDelete(method)}
-                        disabled={deletingCardId === method.id}
-                      >
-                        {deletingCardId === method.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={() => {
+                                  if (paymentMethods.length === 1) {
+                                    toast.error("You must keep at least one payment method on file for billing.");
+                                    return;
+                                  }
+                                  setCardToDelete(method);
+                                }}
+                                disabled={deletingCardId === method.id || paymentMethods.length === 1}
+                              >
+                                {deletingCardId === method.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {paymentMethods.length === 1 && (
+                            <TooltipContent>
+                              <p>You must keep at least one payment method on file</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
                 ))}

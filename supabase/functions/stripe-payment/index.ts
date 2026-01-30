@@ -1167,6 +1167,16 @@ serve(async (req) => {
           throw new Error("Unauthorized: Payment method does not belong to this user");
         }
 
+        // Check if this is the last payment method - members must keep at least one on file
+        const allPaymentMethods = await stripe.paymentMethods.list({
+          customer: customerId,
+          type: 'card',
+        });
+
+        if (allPaymentMethods.data.length <= 1) {
+          throw new Error("Cannot remove your last payment method. At least one card must remain on file for billing.");
+        }
+
         // Detach the payment method
         await stripe.paymentMethods.detach(paymentMethodId);
 
