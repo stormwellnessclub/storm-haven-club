@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed';
+  type: 'application_submitted' | 'application_approved' | 'application_approved_pre_launch' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed';
   to: string;
   data: Record<string, any>;
 }
@@ -143,6 +143,51 @@ serve(async (req) => {
               </div>
             </div>
             ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'application_approved_pre_launch':
+        subject = 'Welcome to Storm Wellness Club - Application Approved!';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We are delighted to inform you that your application to Storm Wellness Club has been approved.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                The way you choose to care for yourself matters. Storm Wellness Club was built for people who value intention, depth, and an environment that supports the whole person—physically, mentally, and through recovery.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We are currently finalizing the last details before our opening. Please keep an eye out in the coming days for more emails from us with instructions on how to create your account and complete your membership setup.
+              </p>
+              
+              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: 600; color: #065f46;">
+                  ✓ Your spot is secured as a <strong>${data.membershipTier}</strong> member.
+                </p>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thank you for your patience as we prepare to welcome you.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
+                <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
+            </div>
+            <div style="${emailStyles.footer}">
+              <p style="${emailStyles.muted}">
+                Storm Wellness Club
+              </p>
+            </div>
           </div>
         `;
         break;

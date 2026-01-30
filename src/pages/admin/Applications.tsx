@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX, Plus, Wallet } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX, Plus, Wallet, Rocket } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -305,6 +305,7 @@ export default function Applications() {
       autoActivate = false,
       startDate,
       lockedStartDate,
+      isPreLaunch = false,
     }: { 
       id: string; 
       status: string; 
@@ -313,6 +314,7 @@ export default function Applications() {
       autoActivate?: boolean;
       startDate?: Date;
       lockedStartDate?: Date;
+      isPreLaunch?: boolean;
     }) => {
       const { error } = await supabase
         .from("membership_applications")
@@ -433,6 +435,18 @@ export default function Applications() {
                   },
                 },
               });
+            } else if (isPreLaunch) {
+              // Send pre-launch email (no links to website/auth)
+              await supabase.functions.invoke("send-email", {
+                body: {
+                  type: "application_approved_pre_launch",
+                  to: application.email,
+                  data: {
+                    name: firstName,
+                    membershipTier: normalizeTierName(application.membership_plan) + " Membership",
+                  },
+                },
+              });
             } else if (lockedStartDate) {
               // Send locked date email
               await supabase.functions.invoke("send-email", {
@@ -484,11 +498,13 @@ export default function Applications() {
         }
       }
     },
-    onSuccess: (_, { status, suppressEmail, autoActivate, lockedStartDate }) => {
+    onSuccess: (_, { status, suppressEmail, autoActivate, lockedStartDate, isPreLaunch }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
       if (status === "approved") {
         if (autoActivate) {
           toast.success("Application approved & member auto-activated");
+        } else if (isPreLaunch) {
+          toast.success("Application approved & pre-launch email sent");
         } else if (lockedStartDate) {
           toast.success("Application approved with locked start date & email sent");
         } else if (suppressEmail) {
@@ -1717,6 +1733,12 @@ export default function Applications() {
                               >
                                 <Send className="h-4 w-4 mr-2" />
                                 Approve & Send Email
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, isPreLaunch: true })}
+                              >
+                                <Rocket className="h-4 w-4 mr-2" />
+                                Approve & Send Pre-Launch Email
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, suppressEmail: true })}
