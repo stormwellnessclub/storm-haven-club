@@ -28,6 +28,15 @@ const TIER_CREDITS: Record<string, { class: number; red_light: number; dry_cryo:
   diamond: { class: 10, red_light: 10, dry_cryo: 6 },
 };
 
+// Helper to get tier name from membership type
+function getTierName(membershipType: string): string {
+  const normalized = membershipType.toLowerCase().trim();
+  if (normalized.includes("diamond")) return "diamond";
+  if (normalized.includes("platinum")) return "platinum";
+  if (normalized.includes("gold")) return "gold";
+  return "silver";
+}
+
 // Class pass details - Updated to match new categories
 const CLASS_PASS_CONFIG: Record<string, { category: string; classes: number; validityDays: number }> = {
   'single_pilatesCycling': { category: 'reformer', classes: 1, validityDays: 7 },
@@ -926,6 +935,93 @@ serve(async (req) => {
                 } else {
                   logStep("Member status updated to active", { memberId: memberData.id });
                 }
+              }
+
+              // Create new monthly credits for successful subscription renewal
+              try {
+                // Get member tier to determine credit amounts
+                const { data: memberInfo } = await supabase
+                  .from('members')
+                  .select('membership_type, user_id, membership_start_date')
+                  .eq('id', memberData.id)
+                  .single();
+
+                if (memberInfo && memberInfo.user_id) {
+                  const tierName = getTierName(memberInfo.membership_type || 'silver');
+                  const tierCredits = TIER_CREDITS[tierName] || TIER_CREDITS.silver;
+
+                  // Calculate cycle dates based on invoice period
+                  const cycleStart = new Date(invoice.period_start * 1000);
+                  const cycleEnd = new Date(invoice.period_end * 1000);
+                  cycleEnd.setDate(cycleEnd.getDate() - 1); // End day before next billing
+                  const expiresAt = new Date(cycleEnd);
+                  expiresAt.setHours(23, 59, 59, 999);
+
+                  const cycleStartStr = cycleStart.toISOString().split('T')[0];
+                  const cycleEndStr = cycleEnd.toISOString().split('T')[0];
+
+                  // Check if credits already exist for this cycle
+                  const { data: existingCredits } = await supabase
+                    .from('member_credits')
+                    .select('credit_type')
+                    .eq('user_id', memberInfo.user_id)
+                    .eq('cycle_start', cycleStartStr);
+
+                  const existingTypes = new Set(existingCredits?.map((c: { credit_type: string }) => c.credit_type) || []);
+
+                  const creditsToCreate: Array<{
+                    user_id: string;
+                    member_id: string;
+                    credit_type: string;
+                    credits_total: number;
+                    credits_remaining: number;
+                    cycle_start: string;
+                    cycle_end: string;
+                    expires_at: string;
+                  }> = [];
+                  const creditTypes = ['class', 'red_light', 'dry_cryo'] as const;
+
+                  for (const creditType of creditTypes) {
+                    const amount = tierCredits[creditType];
+                    if (amount > 0 && !existingTypes.has(creditType)) {
+                      creditsToCreate.push({
+                        user_id: memberInfo.user_id,
+                        member_id: memberData.id,
+                        credit_type: creditType,
+                        credits_total: amount,
+                        credits_remaining: amount,
+                        cycle_start: cycleStartStr,
+                        cycle_end: cycleEndStr,
+                        expires_at: expiresAt.toISOString(),
+                      });
+                    }
+                  }
+
+                  if (creditsToCreate.length > 0) {
+                    const { error: creditError } = await supabase
+                      .from('member_credits')
+                      .insert(creditsToCreate);
+
+                    if (creditError) {
+                      logError(creditError, "CREDIT_RENEWAL");
+                    } else {
+                      logStep("Monthly credits renewed", { 
+                        memberId: memberData.id, 
+                        credits: creditsToCreate.length,
+                        tier: tierName
+                      });
+                    }
+                  } else {
+                    logStep("Credits already exist or tier has no credits", { 
+                      memberId: memberData.id,
+                      tier: tierName,
+                      cycleStart: cycleStartStr
+                    });
+                  }
+                }
+              } catch (creditRenewalError) {
+                logError(creditRenewalError, "CREDIT_RENEWAL");
+                // Don't fail the webhook for credit creation issues
               }
             }
           } else {
