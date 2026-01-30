@@ -592,6 +592,85 @@ serve(async (req) => {
               logError(annualFeeError, "ANNUAL_FEE");
               return errorResponse(annualFeeError, "ANNUAL_FEE");
             }
+          } else if (metadata.type === 'membership_dues') {
+            // Handle self-service dues subscription checkout
+            const memberId = metadata.member_id;
+            const userId = metadata.user_id;
+            const tier = metadata.tier;
+            const billingType = metadata.billing_type;
+
+            if (!memberId) {
+              logError("Missing member_id in membership_dues metadata", "MEMBERSHIP_DUES");
+              return errorResponse(new Error("Missing member_id in metadata"), "MEMBERSHIP_DUES");
+            }
+
+            // Get subscription ID from session
+            const subscriptionId = session.subscription as string;
+
+            if (!subscriptionId) {
+              logError("No subscription ID in membership_dues session", "MEMBERSHIP_DUES");
+              return errorResponse(new Error("No subscription ID in session"), "MEMBERSHIP_DUES");
+            }
+
+            try {
+              // Update member record with subscription ID
+              const updateData: Record<string, any> = {
+                stripe_subscription_id: subscriptionId,
+                stripe_customer_id: session.customer as string,
+                updated_at: new Date().toISOString(),
+              };
+
+              // If billing_type was set, update it
+              if (billingType) {
+                updateData.billing_type = billingType;
+              }
+
+              const { error: updateError } = await supabase
+                .from('members')
+                .update(updateData)
+                .eq('id', memberId);
+
+              if (updateError) {
+                logError(updateError, "MEMBERSHIP_DUES_UPDATE");
+                return errorResponse(updateError, "MEMBERSHIP_DUES_UPDATE");
+              }
+
+              logStep("Membership dues subscription linked", { 
+                memberId, 
+                subscriptionId,
+                tier,
+                billingType
+              });
+
+              // Try to update card metadata from the subscription's default payment method
+              try {
+                const duesSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+                const defaultPMId = duesSubscription.default_payment_method as string | null;
+                
+                if (defaultPMId) {
+                  const pm = await stripe.paymentMethods.retrieve(defaultPMId);
+                  if (pm.card) {
+                    await supabase
+                      .from('members')
+                      .update({
+                        card_brand: pm.card.brand,
+                        card_last4: pm.card.last4,
+                        card_exp_month: pm.card.exp_month,
+                        card_exp_year: pm.card.exp_year,
+                      })
+                      .eq('id', memberId);
+                    logStep("Card metadata synced for dues", { last4: pm.card.last4 });
+                  }
+                }
+              } catch (cardError) {
+                logError(cardError, "MEMBERSHIP_DUES_CARD_SYNC");
+                // Don't fail the webhook for card sync issues
+              }
+
+            } catch (duesError) {
+              logError(duesError, "MEMBERSHIP_DUES");
+              return errorResponse(duesError, "MEMBERSHIP_DUES");
+            }
           } else {
             logStep("Unknown checkout type", { type: metadata.type, sessionId: session.id });
           }
