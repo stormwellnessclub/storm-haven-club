@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { CreditCard, Plus, Loader2, AlertCircle, Trash2, Calendar, DollarSign, XCircle } from "lucide-react";
+import { CreditCard, Plus, Loader2, AlertCircle, Trash2, Calendar, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { AddCardModal } from "@/components/member/AddCardModal";
-import { CancelSubscriptionDialog } from "@/components/member/CancelSubscriptionDialog";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -76,7 +75,6 @@ export function InlineBillingSection({
   billingType 
 }: InlineBillingSectionProps) {
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
-  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
   const [cardToDelete, setCardToDelete] = useState<PaymentMethod | null>(null);
 
@@ -169,10 +167,6 @@ export function InlineBillingSection({
     }
   };
 
-  const handleCancelSuccess = () => {
-    refetchSubscription();
-  };
-
   const isLoading = paymentMethodsLoading || subscriptionLoading;
   const paymentMethods = paymentMethodsData?.paymentMethods || [];
 
@@ -249,18 +243,6 @@ export function InlineBillingSection({
               )}
             </div>
             
-            {!isCanceled && (
-              <div className="pt-4 border-t">
-                <Button 
-                  variant="outline" 
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setIsCancelDialogOpen(true)}
-                >
-                  <XCircle className="mr-2 h-4 w-4" />
-                  Cancel Subscription
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -423,17 +405,6 @@ export function InlineBillingSection({
         onSuccess={handleAddCardSuccess}
         memberId={memberId}
       />
-
-      {/* Cancel Subscription Dialog */}
-      {stripeSubscriptionId && (
-        <CancelSubscriptionDialog
-          open={isCancelDialogOpen}
-          onOpenChange={setIsCancelDialogOpen}
-          subscriptionId={stripeSubscriptionId}
-          accessEndDate={nextBillingDate}
-          onSuccess={handleCancelSuccess}
-        />
-      )}
 
       {/* Delete Card Confirmation Dialog */}
       <AlertDialog open={!!cardToDelete} onOpenChange={(open) => !open && setCardToDelete(null)}>
