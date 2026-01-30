@@ -1,156 +1,151 @@
 
 
-## Plan: Fix Membership Dues Checkout Webhook Handler
+## Plan: Fix Credit Renewal System and Restore Your Credits
 
-### Root Cause Identified
-
-Your $500 Diamond membership payment completed successfully in Stripe, BUT the webhook did not update your database because:
-
-1. The checkout was created with metadata `type: 'membership_dues'`
-2. The webhook only handles:
-   - `membership_activation`
-   - `class_pass`
-   - `annual_fee_payment` / `annual_fee_subscription`
-   - `guest_pass`
-   - `freeze_fee`
-3. It logged "Unknown checkout type" and did nothing → your `stripe_subscription_id` stayed NULL
-
-**Current database state:**
-- `annual_fee_paid_at`: ✓ Set (initiation fee paid)
-- `annual_fee_subscription_id`: ✓ Set  
-- `stripe_subscription_id`: ✗ NULL ← **This is the problem**
-
-**Payment status logic requires:**
-- `isInitiationFeePaid` = TRUE (checks `annual_fee_paid_at` OR `annual_fee_subscription_id`) ✓
-- `hasActiveSubscription` = TRUE (checks `stripe_subscription_id`) ✗ **FAILS**
+### Problem Summary
+Your Diamond membership credits expired on January 27th. New credits should have been created on January 28th (your billing anniversary) but weren't, likely because:
+1. Your `stripe_subscription_id` was NULL until we fixed it
+2. The `process-monthly-credits` function may not have scheduled trigger
 
 ---
 
-### Solution
+### Part 1: Immediate Fix - Create Your January 28th Cycle Credits
 
-Add a new handler case in the webhook for `type === 'membership_dues'` that:
-1. Extracts `member_id`, `user_id`, `tier`, `gender`, `billing_type` from metadata
-2. Updates the member's `stripe_subscription_id` with the new subscription ID
-3. Updates card metadata if available
+**Direct database insert** to create your new credit cycle:
+
+```sql
+-- Create new credits for Jan 28 - Feb 27 cycle (Diamond tier)
+INSERT INTO member_credits (user_id, member_id, credit_type, credits_total, credits_remaining, cycle_start, cycle_end, expires_at)
+VALUES 
+  ('6d30811c-7e66-4ea9-b135-f5c340bf78fc', '8c9ffb27-85ae-4732-a904-3334b50c4e33', 'class', 10, 10, '2026-01-28', '2026-02-27', '2026-02-27 23:59:59+00'),
+  ('6d30811c-7e66-4ea9-b135-f5c340bf78fc', '8c9ffb27-85ae-4732-a904-3334b50c4e33', 'red_light', 10, 10, '2026-01-28', '2026-02-27', '2026-02-27 23:59:59+00'),
+  ('6d30811c-7e66-4ea9-b135-f5c340bf78fc', '8c9ffb27-85ae-4732-a904-3334b50c4e33', 'dry_cryo', 6, 6, '2026-01-28', '2026-02-27', '2026-02-27 23:59:59+00');
+```
+
+This gives you:
+- 10 Class Credits
+- 10 Red Light Therapy sessions
+- 6 Dry Cryo sessions
+
+Valid through February 27th.
 
 ---
 
-### File: `supabase/functions/stripe-webhook/index.ts`
+### Part 2: Add Credit Renewal to Webhook (Better Reliability)
 
-**Location:** Insert new case before line 595 (the `else` clause for unknown types)
+**File:** `supabase/functions/stripe-webhook/index.ts`
 
-**Add handler for `membership_dues` type:**
+Currently, when a monthly dues invoice succeeds, the webhook only:
+- Logs the payment attempt
+- Updates status if `past_due` → `active`
+
+**Add credit creation** to the `invoice.payment_succeeded` handler so credits are renewed when payment is confirmed:
+
+**Insert after line 929** (inside the `else` block for membership subscription invoices):
 
 ```typescript
-} else if (metadata.type === 'membership_dues') {
-  // Handle self-service dues subscription checkout
-  const memberId = metadata.member_id;
-  const userId = metadata.user_id;
-  const tier = metadata.tier;
-  const billingType = metadata.billing_type;
+// Create new monthly credits for successful subscription renewal
+try {
+  // Get member tier to determine credit amounts
+  const { data: memberInfo } = await supabase
+    .from('members')
+    .select('membership_type, user_id, membership_start_date')
+    .eq('id', memberData.id)
+    .single();
 
-  if (!memberId) {
-    logError("Missing member_id in membership_dues metadata", "MEMBERSHIP_DUES");
-    return errorResponse(new Error("Missing member_id in metadata"), "MEMBERSHIP_DUES");
-  }
+  if (memberInfo) {
+    const tierName = getTierName(memberInfo.membership_type);
+    const tierCredits = TIER_CREDITS[tierName] || TIER_CREDITS.silver;
 
-  // Get subscription ID from session
-  const subscriptionId = session.subscription as string;
+    // Calculate cycle dates based on invoice period
+    const cycleStart = new Date(invoice.period_start * 1000);
+    const cycleEnd = new Date(invoice.period_end * 1000);
+    cycleEnd.setDate(cycleEnd.getDate() - 1); // End day before next billing
+    const expiresAt = new Date(cycleEnd);
+    expiresAt.setHours(23, 59, 59, 999);
 
-  if (!subscriptionId) {
-    logError("No subscription ID in membership_dues session", "MEMBERSHIP_DUES");
-    return errorResponse(new Error("No subscription ID in session"), "MEMBERSHIP_DUES");
-  }
+    const cycleStartStr = cycleStart.toISOString().split('T')[0];
+    const cycleEndStr = cycleEnd.toISOString().split('T')[0];
 
-  try {
-    // Update member record with subscription ID
-    const updateData: Record<string, any> = {
-      stripe_subscription_id: subscriptionId,
-      stripe_customer_id: session.customer as string,
-      updated_at: new Date().toISOString(),
-    };
+    // Check if credits already exist for this cycle
+    const { data: existingCredits } = await supabase
+      .from('member_credits')
+      .select('credit_type')
+      .eq('user_id', memberInfo.user_id)
+      .eq('cycle_start', cycleStartStr);
 
-    // If billing_type was set, update it
-    if (billingType) {
-      updateData.billing_type = billingType;
-    }
+    const existingTypes = new Set(existingCredits?.map((c: any) => c.credit_type) || []);
 
-    const { error: updateError } = await supabase
-      .from('members')
-      .update(updateData)
-      .eq('id', memberId);
+    const creditsToCreate: any[] = [];
+    const creditTypes = ['class', 'red_light', 'dry_cryo'] as const;
 
-    if (updateError) {
-      logError(updateError, "MEMBERSHIP_DUES_UPDATE");
-      return errorResponse(updateError, "MEMBERSHIP_DUES_UPDATE");
-    }
-
-    logStep("Membership dues subscription linked", { 
-      memberId, 
-      subscriptionId,
-      tier,
-      billingType
-    });
-
-    // Try to update card metadata from the subscription's default payment method
-    try {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      const defaultPMId = subscription.default_payment_method as string | null;
-      
-      if (defaultPMId) {
-        const pm = await stripe.paymentMethods.retrieve(defaultPMId);
-        if (pm.card) {
-          await supabase
-            .from('members')
-            .update({
-              card_brand: pm.card.brand,
-              card_last4: pm.card.last4,
-              card_exp_month: pm.card.exp_month,
-              card_exp_year: pm.card.exp_year,
-            })
-            .eq('id', memberId);
-          logStep("Card metadata synced", { last4: pm.card.last4 });
-        }
+    for (const creditType of creditTypes) {
+      const amount = tierCredits[creditType];
+      if (amount > 0 && !existingTypes.has(creditType)) {
+        creditsToCreate.push({
+          user_id: memberInfo.user_id,
+          member_id: memberData.id,
+          credit_type: creditType,
+          credits_total: amount,
+          credits_remaining: amount,
+          cycle_start: cycleStartStr,
+          cycle_end: cycleEndStr,
+          expires_at: expiresAt.toISOString(),
+        });
       }
-    } catch (cardError) {
-      logError(cardError, "MEMBERSHIP_DUES_CARD_SYNC");
-      // Don't fail the webhook for card sync issues
     }
 
-  } catch (duesError) {
-    logError(duesError, "MEMBERSHIP_DUES");
-    return errorResponse(duesError, "MEMBERSHIP_DUES");
+    if (creditsToCreate.length > 0) {
+      const { error: creditError } = await supabase
+        .from('member_credits')
+        .insert(creditsToCreate);
+
+      if (creditError) {
+        logError(creditError, "CREDIT_RENEWAL");
+      } else {
+        logStep("Monthly credits renewed", { 
+          memberId: memberData.id, 
+          credits: creditsToCreate.length,
+          tier: tierName
+        });
+      }
+    }
   }
+} catch (creditRenewalError) {
+  logError(creditRenewalError, "CREDIT_RENEWAL");
+  // Don't fail the webhook for credit creation issues
 }
 ```
 
 ---
 
-### Immediate Database Fix
+### Part 3: Add Helper Function at Top of Webhook
 
-Since you already paid the $500 and we can see your subscription in Stripe (`sub_1SvFWvLyZrsSqLhsaeSwc3eG` with price `price_1Sl9wILyZrsSqLhsLjYqkoqq` - Diamond Women Monthly), I will also update your member record directly:
+**Add near line 30** (with other helper functions):
 
-**Manual SQL fix needed for your account:**
-```sql
-UPDATE members 
-SET stripe_subscription_id = 'sub_1SvFWvLyZrsSqLhsaeSwc3eG'
-WHERE id = '8c9ffb27-85ae-4732-a904-3334b50c4e33';
+```typescript
+function getTierName(membershipType: string): string {
+  const normalized = membershipType.toLowerCase().trim();
+  if (normalized.includes("diamond")) return "diamond";
+  if (normalized.includes("platinum")) return "platinum";
+  if (normalized.includes("gold")) return "gold";
+  return "silver";
+}
 ```
 
 ---
 
 ### Summary
 
-| Task | Action |
-|------|--------|
-| Add webhook handler | Handle `membership_dues` checkout type |
-| Update your record | Link the existing subscription ID |
-| Prevent future issues | New checkouts will be handled correctly |
+| Task | What It Does |
+|------|--------------|
+| Database insert | Immediately restores your Diamond credits for current cycle |
+| Webhook enhancement | Ensures credits auto-renew when monthly payment succeeds |
+| Helper function | Adds tier detection to webhook for credit amounts |
 
-### What This Fixes
+### After Implementation
 
-After this change:
-- Your payment status logic will see `stripe_subscription_id` is set
-- The "Payment Required — Benefits Frozen" banner will disappear
-- Future self-service dues checkouts will work correctly
+- Your credits will show immediately in the portal
+- Future monthly payments will automatically create new credits
+- No dependency on cron job reliability - credits tied to actual payment events
 
