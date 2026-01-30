@@ -3252,6 +3252,13 @@ export type Database = {
       }
       current_user_email: { Args: never; Returns: string }
       current_user_email_lower: { Args: never; Returns: string }
+      generate_class_sessions: {
+        Args: { _start_date?: string; _weeks_ahead?: number }
+        Returns: {
+          sessions_created: number
+          sessions_skipped: number
+        }[]
+      }
       get_dunning_efficiency: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
