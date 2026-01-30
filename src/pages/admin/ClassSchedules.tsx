@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,9 +31,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Calendar } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { format, addWeeks } from "date-fns";
 
 interface ClassType {
   id: string;
@@ -71,12 +83,11 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function ClassSchedules() {
-  const [schedules, setSchedules] = useState<ClassSchedule[]>([]);
-  const [classTypes, setClassTypes] = useState<ClassType[]>([]);
-  const [instructors, setInstructors] = useState<Instructor[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
+  const [weeksToGenerate, setWeeksToGenerate] = useState(4);
   
   // Form state
   const [classTypeId, setClassTypeId] = useState("");
@@ -88,13 +99,11 @@ export default function ClassSchedules() {
   const [maxCapacity, setMaxCapacity] = useState<number | null>(null);
   const [isActive, setIsActive] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
-    const [schedulesRes, classTypesRes, instructorsRes] = await Promise.all([
-      supabase
+  // Fetch schedules
+  const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
+    queryKey: ['class-schedules'],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("class_schedules")
         .select(`
           *,
@@ -102,23 +111,55 @@ export default function ClassSchedules() {
           instructors (id, first_name, last_name)
         `)
         .order("day_of_week")
-        .order("start_time"),
-      supabase.from("class_types").select("id, name, category").eq("is_active", true),
-      supabase.from("instructors").select("id, first_name, last_name").eq("is_active", true),
-    ]);
+        .order("start_time");
 
-    if (schedulesRes.error) {
-      toast.error("Failed to load schedules");
-      console.error(schedulesRes.error);
-    } else {
-      setSchedules(schedulesRes.data || []);
-    }
+      if (error) throw error;
+      return data as ClassSchedule[];
+    },
+  });
 
-    if (!classTypesRes.error) setClassTypes(classTypesRes.data || []);
-    if (!instructorsRes.error) setInstructors(instructorsRes.data || []);
-    
-    setLoading(false);
-  }
+  // Fetch class types
+  const { data: classTypes = [] } = useQuery({
+    queryKey: ['class-types-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("class_types")
+        .select("id, name, category")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data as ClassType[];
+    },
+  });
+
+  // Fetch instructors
+  const { data: instructors = [] } = useQuery({
+    queryKey: ['instructors-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("instructors")
+        .select("id, first_name, last_name")
+        .eq("is_active", true)
+        .order("first_name");
+      if (error) throw error;
+      return data as Instructor[];
+    },
+  });
+
+  // Fetch upcoming session count
+  const { data: upcomingSessionCount = 0 } = useQuery({
+    queryKey: ['upcoming-sessions-count'],
+    queryFn: async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { count, error } = await supabase
+        .from("class_sessions")
+        .select("*", { count: 'exact', head: true })
+        .gte("session_date", today)
+        .eq("is_cancelled", false);
+      if (error) throw error;
+      return count || 0;
+    },
+  });
 
   function resetForm() {
     setClassTypeId("");
@@ -145,54 +186,77 @@ export default function ClassSchedules() {
     setDialogOpen(true);
   }
 
-  async function handleSubmit() {
-    if (!classTypeId) {
-      toast.error("Class type is required");
-      return;
-    }
-
-    const scheduleData = {
-      class_type_id: classTypeId,
-      instructor_id: instructorId || null,
-      day_of_week: dayOfWeek,
-      start_time: startTime,
-      end_time: endTime,
-      room: room.trim() || null,
-      max_capacity: maxCapacity,
-      is_active: isActive,
-    };
-
-    if (editingSchedule) {
-      const { error } = await supabase
-        .from("class_schedules")
-        .update(scheduleData)
-        .eq("id", editingSchedule.id);
-      
-      if (error) {
-        toast.error("Failed to update schedule");
-        console.error(error);
-      } else {
-        toast.success("Schedule updated");
-        setDialogOpen(false);
-        resetForm();
-        fetchData();
+  // Create/Update schedule mutation
+  const scheduleMutation = useMutation({
+    mutationFn: async () => {
+      if (!classTypeId) {
+        throw new Error("Class type is required");
       }
-    } else {
-      const { error } = await supabase
-        .from("class_schedules")
-        .insert([scheduleData]);
-      
-      if (error) {
-        toast.error("Failed to create schedule");
-        console.error(error);
+
+      const scheduleData = {
+        class_type_id: classTypeId,
+        instructor_id: instructorId || null,
+        day_of_week: dayOfWeek,
+        start_time: startTime,
+        end_time: endTime,
+        room: room.trim() || null,
+        max_capacity: maxCapacity,
+        is_active: isActive,
+      };
+
+      if (editingSchedule) {
+        const { error } = await supabase
+          .from("class_schedules")
+          .update(scheduleData)
+          .eq("id", editingSchedule.id);
+        if (error) throw error;
       } else {
-        toast.success("Schedule created");
-        setDialogOpen(false);
-        resetForm();
-        fetchData();
+        const { error } = await supabase
+          .from("class_schedules")
+          .insert([scheduleData]);
+        if (error) throw error;
       }
-    }
-  }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['class-schedules'] });
+      toast.success(editingSchedule ? "Schedule updated" : "Schedule created");
+      setDialogOpen(false);
+      resetForm();
+    },
+    onError: (error: Error) => {
+      console.error('Schedule error:', error);
+      toast.error(error.message || "Failed to save schedule");
+    },
+  });
+
+  // Generate sessions mutation
+  const generateSessionsMutation = useMutation({
+    mutationFn: async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { data, error } = await supabase.rpc('generate_class_sessions', {
+        _start_date: today,
+        _weeks_ahead: weeksToGenerate
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
+      const result = data?.[0];
+      if (result) {
+        toast.success(`Generated ${result.sessions_created} new sessions (${result.sessions_skipped} already existed)`);
+      } else {
+        toast.success("Session generation complete");
+      }
+      setGenerateDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error('Generate sessions error:', error);
+      toast.error("Failed to generate sessions");
+    },
+  });
 
   function formatTime(time: string) {
     const [hours, minutes] = time.split(":");
@@ -201,6 +265,8 @@ export default function ClassSchedules() {
     const hour = h % 12 || 12;
     return `${hour}:${minutes} ${ampm}`;
   }
+
+  const activeScheduleCount = schedules.filter(s => s.is_active).length;
 
   return (
     <AdminLayout>
@@ -212,143 +278,225 @@ export default function ClassSchedules() {
               Manage recurring weekly class schedules
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Schedule
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>{editingSchedule ? "Edit Schedule" : "Add Schedule"}</DialogTitle>
-                <DialogDescription>
-                  {editingSchedule ? "Update the schedule details." : "Create a new recurring class schedule."}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="classType">Class Type</Label>
-                  <Select value={classTypeId} onValueChange={setClassTypeId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select class type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classTypes.map((ct) => (
-                        <SelectItem key={ct.id} value={ct.id}>
-                          {ct.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="instructor">Instructor</Label>
-                  <Select value={instructorId} onValueChange={setInstructorId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select instructor (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No instructor assigned</SelectItem>
-                      {instructors.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.first_name} {i.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="day">Day of Week</Label>
-                  <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DAYS_OF_WEEK.map((d) => (
-                        <SelectItem key={d.value} value={d.value.toString()}>
-                          {d.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="startTime">Start Time</Label>
-                    <Input
-                      id="startTime"
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="endTime">End Time</Label>
-                    <Input
-                      id="endTime"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="room">Room</Label>
-                    <Input
-                      id="room"
-                      value={room}
-                      onChange={(e) => setRoom(e.target.value)}
-                      placeholder="e.g., Studio A"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="capacity">Max Capacity</Label>
-                    <Input
-                      id="capacity"
-                      type="number"
-                      value={maxCapacity || ""}
-                      onChange={(e) => setMaxCapacity(e.target.value ? parseInt(e.target.value) : null)}
-                      placeholder="Default from class type"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="active">Active</Label>
-                  <Switch
-                    id="active"
-                    checked={isActive}
-                    onCheckedChange={setIsActive}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => setGenerateDialogOpen(true)}
+              disabled={activeScheduleCount === 0}
+            >
+              <CalendarPlus className="h-4 w-4 mr-2" />
+              Generate Sessions
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Schedule
                 </Button>
-                <Button onClick={handleSubmit}>
-                  {editingSchedule ? "Update" : "Create"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>{editingSchedule ? "Edit Schedule" : "Add Schedule"}</DialogTitle>
+                  <DialogDescription>
+                    {editingSchedule ? "Update the schedule details." : "Create a new recurring class schedule."}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="classType">Class Type</Label>
+                    <Select value={classTypeId} onValueChange={setClassTypeId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classTypes.map((ct) => (
+                          <SelectItem key={ct.id} value={ct.id}>
+                            {ct.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="instructor">Instructor</Label>
+                    <Select value={instructorId} onValueChange={setInstructorId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select instructor (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No instructor assigned</SelectItem>
+                        {instructors.map((i) => (
+                          <SelectItem key={i.id} value={i.id}>
+                            {i.first_name} {i.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="day">Day of Week</Label>
+                    <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DAYS_OF_WEEK.map((d) => (
+                          <SelectItem key={d.value} value={d.value.toString()}>
+                            {d.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="startTime">Start Time</Label>
+                      <Input
+                        id="startTime"
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="endTime">End Time</Label>
+                      <Input
+                        id="endTime"
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="room">Room</Label>
+                      <Input
+                        id="room"
+                        value={room}
+                        onChange={(e) => setRoom(e.target.value)}
+                        placeholder="e.g., Studio A"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="capacity">Max Capacity</Label>
+                      <Input
+                        id="capacity"
+                        type="number"
+                        value={maxCapacity || ""}
+                        onChange={(e) => setMaxCapacity(e.target.value ? parseInt(e.target.value) : null)}
+                        placeholder="Default from class type"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="active">Active</Label>
+                    <Switch
+                      id="active"
+                      checked={isActive}
+                      onCheckedChange={setIsActive}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => scheduleMutation.mutate()}
+                    disabled={scheduleMutation.isPending}
+                  >
+                    {scheduleMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {editingSchedule ? "Update" : "Create"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
+        {/* Stats Card */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Active Schedules
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeScheduleCount}</div>
+              <p className="text-xs text-muted-foreground">
+                Recurring weekly classes
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Upcoming Sessions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{upcomingSessionCount}</div>
+              <p className="text-xs text-muted-foreground">
+                Bookable class sessions
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Generation Range
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{weeksToGenerate} weeks</div>
+              <p className="text-xs text-muted-foreground">
+                Until {format(addWeeks(new Date(), weeksToGenerate), 'MMM d, yyyy')}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Info Banner */}
+        {activeScheduleCount > 0 && upcomingSessionCount === 0 && (
+          <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+            <CardContent className="flex items-center gap-3 py-4">
+              <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-amber-800 dark:text-amber-200">
+                  No sessions generated yet
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Click "Generate Sessions" to create bookable class sessions from your schedules. 
+                  Members will then be able to see and book these classes.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Schedules Table */}
         <Card>
           <CardHeader>
             <CardTitle>Weekly Schedule</CardTitle>
+            <CardDescription>
+              These recurring schedules define when classes happen each week
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            {schedulesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
             ) : schedules.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No schedules found. Add your first schedule to get started.</p>
+                <p className="font-medium">No schedules found</p>
+                <p className="text-sm mt-1">Add your first schedule to get started.</p>
               </div>
             ) : (
               <Table>
@@ -401,6 +549,59 @@ export default function ClassSchedules() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Generate Sessions Dialog */}
+      <AlertDialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Generate Class Sessions</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create bookable class sessions for the next {weeksToGenerate} weeks 
+              based on your active schedules ({activeScheduleCount} schedules).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="weeks">Weeks to Generate</Label>
+            <Select 
+              value={weeksToGenerate.toString()} 
+              onValueChange={(v) => setWeeksToGenerate(parseInt(v))}
+            >
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 week</SelectItem>
+                <SelectItem value="2">2 weeks</SelectItem>
+                <SelectItem value="4">4 weeks</SelectItem>
+                <SelectItem value="6">6 weeks</SelectItem>
+                <SelectItem value="8">8 weeks</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground mt-2">
+              Sessions will be created from today until {format(addWeeks(new Date(), weeksToGenerate), 'MMMM d, yyyy')}
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => generateSessionsMutation.mutate()}
+              disabled={generateSessionsMutation.isPending}
+            >
+              {generateSessionsMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Generate Sessions
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
