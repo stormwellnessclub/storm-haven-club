@@ -47,6 +47,18 @@ const getEmailFooter = () => `
   </div>
 `;
 
+// Minimal footer for receipts/applicant emails - no portal links
+const getReceiptFooter = () => `
+  <div style="${emailStyles.footer}">
+    <p style="${emailStyles.muted}">
+      Questions about this charge? Reply to this email or contact us.
+    </p>
+    <p style="${emailStyles.muted}">
+      Storm Wellness Club
+    </p>
+  </div>
+`;
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -672,7 +684,7 @@ serve(async (req) => {
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
               </div>
             </div>
-            ${getEmailFooter()}
+            ${getReceiptFooter()}
           </div>
         `;
         break;
