@@ -8,6 +8,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { StripeProvider } from "@/components/StripeProvider";
 import { AdminAddCardForm } from "@/components/admin/AdminAddCardForm";
 import { ChargeHistory } from "@/components/ChargeHistory";
+import { TierChangeDialog } from "@/components/admin/TierChangeDialog";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
 import { useMemberActivities } from "@/hooks/useMemberActivities";
@@ -60,7 +61,8 @@ import {
   ArrowLeft, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, 
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
-  Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle
+  Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle,
+  ArrowUpDown
 } from "lucide-react";
 import {
   Table,
@@ -171,6 +173,9 @@ export default function MemberDetail() {
   const [adjustCreditType, setAdjustCreditType] = useState<CreditType>("class");
   const [adjustAmount, setAdjustAmount] = useState("1");
   const [adjustReason, setAdjustReason] = useState("");
+
+  // Tier change state
+  const [showTierChangeDialog, setShowTierChangeDialog] = useState(false);
 
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -926,11 +931,25 @@ export default function MemberDetail() {
           <TabsContent value="membership">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Membership Details</CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowTierChangeDialog(true)}
+                  >
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    Change Tier
+                  </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Current Tier</p>
+                      <Badge className={getMembershipColor(member.membership_type)}>
+                        {normalizeTierDisplay(member.membership_type)}
+                      </Badge>
+                    </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Member Since</p>
                       <p className="font-medium">{member.membership_start_date ? format(new Date(member.membership_start_date), 'PPP') : '—'}</p>
@@ -1546,6 +1565,17 @@ export default function MemberDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Tier Change Dialog */}
+      <TierChangeDialog
+        open={showTierChangeDialog}
+        onOpenChange={setShowTierChangeDialog}
+        memberId={member.id}
+        currentTier={member.membership_type}
+        memberGender={member.gender || 'female'}
+        billingType={member.billing_type || 'monthly'}
+        hasActiveSubscription={!!member.stripe_subscription_id}
+      />
     </AdminLayout>
   );
 }

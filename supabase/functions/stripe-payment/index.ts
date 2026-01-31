@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -102,6 +102,9 @@ interface PaymentRequest {
   // For create_subscription_from_payment
   billingType?: 'monthly' | 'annual';
   customerId?: string;
+  // For admin_update_member_tier
+  newTier?: 'silver' | 'gold' | 'platinum' | 'diamond';
+  prorationBehavior?: 'create_prorations' | 'none' | 'always_invoice';
 }
 
 const logStep = (step: string, details?: unknown) => {
@@ -2262,6 +2265,219 @@ serve(async (req) => {
             cardLast4: cardDetails.card_last4,
             cardExpMonth: cardDetails.card_exp_month,
             cardExpYear: cardDetails.card_exp_year,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'admin_update_member_tier': {
+        // Admin-initiated tier upgrade/downgrade
+        const { memberId, newTier, prorationBehavior = 'create_prorations' } = body;
+
+        if (!memberId || !newTier) {
+          throw new Error("memberId and newTier are required");
+        }
+
+        logStep("Admin updating member tier", { memberId, newTier, prorationBehavior });
+
+        // Verify admin role
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!roleData || roleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        // Get member data
+        const { data: memberData, error: memberError } = await supabase
+          .from('members')
+          .select('id, user_id, stripe_subscription_id, stripe_customer_id, gender, billing_type, membership_type, is_founding_member')
+          .eq('id', memberId)
+          .single();
+
+        if (memberError || !memberData) {
+          throw new Error("Member not found");
+        }
+
+        // Validate subscription exists
+        if (!memberData.stripe_subscription_id) {
+          throw new Error("Member has no active subscription to modify. Create a subscription first.");
+        }
+
+        // Normalize gender and billing type
+        const normalizedGender = (memberData.gender?.toLowerCase() === 'male' || memberData.gender?.toLowerCase() === 'men') ? 'men' : 'women';
+        const billingType = memberData.billing_type || (memberData.is_founding_member ? 'annual' : 'monthly');
+        const normalizedTier = newTier.toLowerCase() as keyof typeof STRIPE_PRODUCTS.memberships;
+
+        // Get new price ID
+        const membershipPrices = STRIPE_PRODUCTS.memberships[normalizedTier];
+        if (!membershipPrices) {
+          throw new Error(`Invalid membership tier: ${newTier}`);
+        }
+
+        const newPriceId = membershipPrices[billingType as 'monthly' | 'annual'][normalizedGender];
+        if (!newPriceId) {
+          throw new Error(`${newTier} tier is not available for ${normalizedGender === 'men' ? 'men' : 'women'}`);
+        }
+
+        logStep("Tier change details", { 
+          currentTier: memberData.membership_type, 
+          newTier, 
+          gender: normalizedGender, 
+          billingType, 
+          newPriceId 
+        });
+
+        // Retrieve current subscription
+        const subscription = await stripe.subscriptions.retrieve(memberData.stripe_subscription_id);
+        
+        if (!subscription || subscription.status === 'canceled') {
+          throw new Error("Subscription is not active");
+        }
+
+        // Get the subscription item ID (first item)
+        const subscriptionItem = subscription.items.data[0];
+        if (!subscriptionItem) {
+          throw new Error("No subscription item found");
+        }
+
+        const oldPriceId = subscriptionItem.price.id;
+        const oldTier = memberData.membership_type?.toLowerCase().replace(' membership', '') || 'unknown';
+
+        // Update subscription with new price
+        const updatedSubscription = await stripe.subscriptions.update(memberData.stripe_subscription_id, {
+          items: [{
+            id: subscriptionItem.id,
+            price: newPriceId,
+          }],
+          proration_behavior: prorationBehavior as 'create_prorations' | 'none' | 'always_invoice',
+          metadata: {
+            ...subscription.metadata,
+            tier: normalizedTier,
+            previous_tier: oldTier,
+            tier_changed_at: new Date().toISOString(),
+            tier_changed_by: user.id,
+          },
+        });
+
+        logStep("Stripe subscription updated", { 
+          subscriptionId: updatedSubscription.id, 
+          oldPriceId, 
+          newPriceId, 
+          status: updatedSubscription.status 
+        });
+
+        // Update member record in database
+        const capitalizedTier = normalizedTier.charAt(0).toUpperCase() + normalizedTier.slice(1);
+        const { error: updateError } = await supabase
+          .from('members')
+          .update({
+            membership_type: capitalizedTier,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', memberId);
+
+        if (updateError) {
+          logStep("Warning: Failed to update member record", { error: updateError.message });
+        }
+
+        // Handle credit adjustments for upgrades
+        const oldTierCredits = TIER_CREDITS[oldTier] || TIER_CREDITS.silver;
+        const newTierCredits = TIER_CREDITS[normalizedTier] || TIER_CREDITS.silver;
+
+        // For upgrades, add the difference in credits for the current cycle
+        const creditTypes = ['class', 'red_light', 'dry_cryo'] as const;
+        let creditsAdded: Record<string, number> = {};
+
+        for (const creditType of creditTypes) {
+          const oldAmount = oldTierCredits[creditType];
+          const newAmount = newTierCredits[creditType];
+          const difference = newAmount - oldAmount;
+
+          if (difference > 0) {
+            // Upgrading: Add the difference
+            const { data: existingCredit } = await supabase
+              .from('member_credits')
+              .select('id, credits_remaining, credits_total')
+              .eq('member_id', memberId)
+              .eq('credit_type', creditType)
+              .gt('expires_at', new Date().toISOString())
+              .order('expires_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (existingCredit) {
+              // Update existing credit
+              const newRemaining = existingCredit.credits_remaining + difference;
+              const newTotal = existingCredit.credits_total + difference;
+              
+              await supabase
+                .from('member_credits')
+                .update({ 
+                  credits_remaining: newRemaining, 
+                  credits_total: newTotal,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', existingCredit.id);
+
+              // Log the adjustment
+              await supabase.from('credit_adjustments').insert({
+                member_id: memberId,
+                member_credit_id: existingCredit.id,
+                credit_type: creditType,
+                adjustment_type: 'add',
+                amount: difference,
+                previous_balance: existingCredit.credits_remaining,
+                new_balance: newRemaining,
+                reason: `Tier upgrade from ${oldTier} to ${normalizedTier}`,
+                adjusted_by: user.id,
+              });
+
+              creditsAdded[creditType] = difference;
+            } else if (newAmount > 0 && memberData.user_id) {
+              // No existing credit, create one for the new tier
+              const cycleStart = new Date();
+              const cycleEnd = new Date(cycleStart);
+              cycleEnd.setMonth(cycleEnd.getMonth() + 1);
+              const expiresAt = new Date(cycleEnd);
+              expiresAt.setDate(expiresAt.getDate() + 7);
+
+              await supabase.from('member_credits').insert({
+                member_id: memberId,
+                user_id: memberData.user_id,
+                credit_type: creditType,
+                credits_total: newAmount,
+                credits_remaining: newAmount,
+                cycle_start: cycleStart.toISOString().split('T')[0],
+                cycle_end: cycleEnd.toISOString().split('T')[0],
+                expires_at: expiresAt.toISOString(),
+              });
+
+              creditsAdded[creditType] = newAmount;
+            }
+          }
+          // For downgrades: Don't remove existing credits - they stay until next renewal
+        }
+
+        logStep("Tier change complete", { 
+          memberId, 
+          oldTier, 
+          newTier: normalizedTier, 
+          creditsAdded,
+          subscriptionStatus: updatedSubscription.status 
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            oldTier,
+            newTier: normalizedTier,
+            subscriptionId: updatedSubscription.id,
+            subscriptionStatus: updatedSubscription.status,
+            creditsAdded,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
