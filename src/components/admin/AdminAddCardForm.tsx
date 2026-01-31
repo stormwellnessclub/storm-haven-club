@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { formatSetupError } from "@/lib/stripeErrors";
 
 interface AdminAddCardFormProps {
   onSuccess: () => void;
@@ -46,7 +47,7 @@ export function AdminAddCardForm({
 
       if (error) {
         console.error("Card setup error:", error);
-        toast.error(error.message || "Failed to save card");
+        toast.error(formatSetupError(error));
         setIsSubmitting(false);
         return;
       }

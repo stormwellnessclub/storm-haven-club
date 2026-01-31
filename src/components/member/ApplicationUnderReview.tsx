@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { formatSetupError } from "@/lib/stripeErrors";
 
 interface ApplicationUnderReviewProps {
   applicationData: {
@@ -61,16 +62,7 @@ function PaymentFormInner({
       });
 
       if (error) {
-        // Provide clearer error messages for common Stripe validation errors
-        let userMessage = error.message || "Failed to save card";
-        
-        if (error.code === 'card_declined') {
-          if ((error as any).decline_code === 'insufficient_funds') {
-            userMessage = "Card verification failed. This is NOT a charge - the bank declined the security check. Please try a different card or contact your bank.";
-          }
-        }
-        
-        toast.error(userMessage);
+        toast.error(formatSetupError(error));
         setIsSubmitting(false);
         return;
       }

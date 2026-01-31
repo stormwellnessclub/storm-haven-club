@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { supabase } from "@/integrations/supabase/client";
+import { formatSetupError } from "@/lib/stripeErrors";
 
 export interface CardDetails {
   brand: string | null;
@@ -79,7 +80,7 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
       });
 
       if (confirmError) {
-        setError(confirmError.message || "Failed to save payment method. Please try again.");
+        setError(formatSetupError(confirmError));
         setIsSubmitting(false);
         return;
       }
