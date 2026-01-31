@@ -1,77 +1,138 @@
 
 
-## Updated Plan: Pre-Launch Approval Email Option
+# Restore Class Scheduling System
 
-### Overview
+## Summary
 
-Adding a new "Approve & Send Pre-Launch Email" option to the admin Applications portal. This email confirms approval without directing applicants to create an account or visit the website during the build phase.
-
----
-
-### Updated Email Template Content
-
-```html
-Subject: Welcome to Storm Wellness Club - Application Approved!
-
-Dear [First Name],
-
-We are delighted to inform you that your application to Storm Wellness Club has been approved.
-
-The way you choose to care for yourself matters. Storm Wellness Club was built for people who value intention, depth, and an environment that supports the whole person—physically, mentally, and through recovery.
-
-We are currently finalizing the last details before our opening. Please keep an eye out in the coming days for more emails from us with instructions on how to create your account and complete your membership setup.
-
-In the meantime, know that your spot is secured as a [Membership Tier] member.
-
-Thank you for your patience as we prepare to welcome you.
-
-Warmly,
-Storm
-Founder, Storm Wellness Club
+Restore the permanent class schedule templates from historical data and set up ongoing automatic session generation so classes never "expire" again. Also add missing navigation links in the member portal.
 
 ---
-Storm Wellness Club
+
+## Phase 1: Database Migration
+
+### 1.1 Restore Permanent Schedules from Historical Sessions
+
+Extract the recurring patterns from the 360 historical sessions and create permanent schedule templates:
+
+```sql
+INSERT INTO class_schedules (
+  class_type_id, instructor_id, day_of_week, 
+  start_time, end_time, room, max_capacity, is_active
+)
+SELECT DISTINCT
+  class_type_id,
+  instructor_id,
+  extract(dow from session_date)::integer,
+  start_time,
+  end_time,
+  room,
+  max_capacity,
+  true
+FROM class_sessions
+WHERE instructor_id IS NOT NULL
+  AND class_type_id IS NOT NULL;
 ```
 
-**Changes from original draft:**
-- ~~"choose your start date"~~ → Removed
-- ~~"Once we are ready, you will receive another email with instructions..."~~ → "Please keep an eye out in the coming days for more emails from us with instructions on how to create your account and complete your membership setup."
+**Result**: ~70+ permanent recurring templates
+
+### 1.2 Generate Initial Sessions (12 Weeks Ahead)
+
+```sql
+SELECT * FROM generate_class_sessions(CURRENT_DATE, 12);
+```
+
+**Result**: ~840+ bookable sessions immediately available
+
+### 1.3 Set Up Daily Auto-Generation Cron Job
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+SELECT cron.schedule(
+  'auto-generate-class-sessions',
+  '0 3 * * *',
+  $$ SELECT net.http_post(
+    url:='https://cqzmrdzwgsujgbjqpoxh.supabase.co/functions/v1/process-session-generation',
+    headers:='{"Content-Type": "application/json", "Authorization": "Bearer ..."}'::jsonb,
+    body:='{"weeks_ahead": 12}'::jsonb
+  ); $$
+);
+```
+
+**Result**: Rolling 12-week window maintained automatically forever
 
 ---
 
-### Implementation Summary
+## Phase 2: Member Portal Navigation
+
+### 2.1 Update Member Sidebar
+
+**File**: `src/components/member/MemberSidebar.tsx`
+
+Add two new menu items to the "My Account" section:
+
+| Menu Item | URL | Icon |
+|-----------|-----|------|
+| Book Classes | `/schedule` | CalendarPlus |
+| Buy Passes | `/class-passes` | Ticket |
+
+### 2.2 Improve Bookings Empty State
+
+**File**: `src/pages/member/Bookings.tsx`
+
+Enhance the empty state message with clear call-to-action buttons linking to the schedule and class passes pages.
+
+---
+
+## Technical Details
+
+### How the System Works After Implementation
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  class_schedules (PERMANENT)                                │
+│  Templates exist FOREVER until admin changes/cancels them   │
+│  Example: "Cycle - Every Monday 6:00 AM - Studio B"         │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          │  Daily cron at 3 AM
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  class_sessions (ROLLING 12-WEEK WINDOW)                    │
+│  Bookable instances auto-maintained                         │
+│  Today: Jan 31 → Sessions through Apr 25                    │
+│  Tomorrow: Feb 1 → Sessions through Apr 26                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Admin Control
+
+| Action | How |
+|--------|-----|
+| Cancel class permanently | Set `is_active = false` on the schedule |
+| Change time/instructor | Edit the schedule template |
+| Add new class | Create new schedule in Admin → Class Schedules |
+| Cancel specific date | Cancel individual session without touching schedule |
+
+---
+
+## Files to Modify
 
 | File | Change |
 |------|--------|
-| `supabase/functions/send-email/index.ts` | Add `application_approved_pre_launch` email type with updated template |
-| `src/pages/admin/Applications.tsx` | Add "Approve & Send Pre-Launch Email" dropdown option |
+| Database migration | Restore schedules + generate sessions + create cron |
+| `src/components/member/MemberSidebar.tsx` | Add "Book Classes" and "Buy Passes" links |
+| `src/pages/member/Bookings.tsx` | Improve empty state with CTAs |
 
 ---
 
-### Dropdown Menu After Implementation
+## Expected Results
 
-```text
-📋 View Details
-💵 Charge Card (if payment on file)
-💳 Add/Update Payment Method
-📧 Request Payment Info
----
-📤 Approve & Send Email              
-🚀 Approve & Send Pre-Launch Email   ← NEW (no links)
-📪 Approve (No Email)
-⚡ Approve & Auto-Activate
-📅 Approve with Locked Start Date
----
-❌ Reject
-🚫 Cancel
-```
-
----
-
-### What Stays Unchanged
-
-- All existing email types and logic remain intact
-- Standard approval flow unchanged
-- Member creation logic unchanged
-- Payment handling unchanged
+| Component | Before | After |
+|-----------|--------|-------|
+| Permanent schedules | 0 records | ~70+ recurring templates |
+| Bookable sessions | 0 future | ~840+ (12 weeks) |
+| Auto-generation | Not configured | Daily at 3 AM |
+| Member sidebar | Missing links | Book Classes + Buy Passes added |
 
