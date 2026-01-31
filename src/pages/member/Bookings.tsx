@@ -64,11 +64,19 @@ export default function MemberBookings() {
             ) : (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <Calendar className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground mb-4">No upcoming classes</p>
-                  <Button asChild>
-                    <Link to="/schedule">Browse Schedule</Link>
-                  </Button>
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="font-semibold text-lg mb-2">No Upcoming Classes</h3>
+                  <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                    You haven't booked any classes yet. Browse our schedule to find classes that fit your routine.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button asChild>
+                      <Link to="/schedule">Browse Schedule</Link>
+                    </Button>
+                    <Button variant="outline" asChild>
+                      <Link to="/class-passes">Buy Class Passes</Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
