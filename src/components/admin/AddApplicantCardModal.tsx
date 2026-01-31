@@ -12,6 +12,7 @@ import { Loader2, CreditCard, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { StripeProvider } from "@/components/StripeProvider";
+import { formatSetupError } from "@/lib/stripeErrors";
 
 interface AddApplicantCardModalProps {
   open: boolean;
@@ -63,7 +64,7 @@ function CardForm({ onSuccess, onCancel, applicantEmail, applicantName, applicat
       });
 
       if (error) {
-        toast.error(error.message || "Failed to save card");
+        toast.error(formatSetupError(error));
         setIsSubmitting(false);
         return;
       }
