@@ -1,119 +1,102 @@
 
-
-# Restore Class Scheduling System
+# Fix "Card Declined" Message When Admin Saves Card
 
 ## Summary
 
-Restore the permanent class schedule templates from historical data and set up ongoing automatic session generation so classes never "expire" again. Also add missing navigation links in the member portal.
+When an admin saves a card on file in the application portal, Stripe's SetupIntent validation can return "Your card was declined" even though no charge is being attempted. This confusing message makes users think a charge failed when the system is only trying to save the card for future use.
 
 ---
 
-## Phase 1: Database Migration
+## Problem Analysis
 
-### 1.1 Restore Permanent Schedules from Historical Sessions
+Stripe's `confirmSetup()` method validates cards before saving them. Some card issuers perform a $0 or $1 pre-authorization check which can fail and return "card declined" errors. This is a **verification failure**, not a charge failure.
 
-Extract the recurring patterns from the 360 historical sessions and create permanent schedule templates:
+**Current behavior:**
+- Error message: "Your card was declined"
+- User perception: "Why was my card charged?"
 
-```sql
-INSERT INTO class_schedules (
-  class_type_id, instructor_id, day_of_week, 
-  start_time, end_time, room, max_capacity, is_active
-)
-SELECT DISTINCT
-  class_type_id,
-  instructor_id,
-  extract(dow from session_date)::integer,
-  start_time,
-  end_time,
-  room,
-  max_capacity,
-  true
-FROM class_sessions
-WHERE instructor_id IS NOT NULL
-  AND class_type_id IS NOT NULL;
-```
-
-**Result**: ~70+ permanent recurring templates
-
-### 1.2 Generate Initial Sessions (12 Weeks Ahead)
-
-```sql
-SELECT * FROM generate_class_sessions(CURRENT_DATE, 12);
-```
-
-**Result**: ~840+ bookable sessions immediately available
-
-### 1.3 Set Up Daily Auto-Generation Cron Job
-
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pg_net;
-
-SELECT cron.schedule(
-  'auto-generate-class-sessions',
-  '0 3 * * *',
-  $$ SELECT net.http_post(
-    url:='https://cqzmrdzwgsujgbjqpoxh.supabase.co/functions/v1/process-session-generation',
-    headers:='{"Content-Type": "application/json", "Authorization": "Bearer ..."}'::jsonb,
-    body:='{"weeks_ahead": 12}'::jsonb
-  ); $$
-);
-```
-
-**Result**: Rolling 12-week window maintained automatically forever
+**Expected behavior:**
+- Error message: "Card verification failed. No charge was made..."
+- User perception: "My card couldn't be verified, I'll try another card"
 
 ---
 
-## Phase 2: Member Portal Navigation
+## Solution
 
-### 2.1 Update Member Sidebar
+### 1. Create Error Message Helper Function
 
-**File**: `src/components/member/MemberSidebar.tsx`
+Add a utility function to translate Stripe SetupIntent errors into user-friendly messages:
 
-Add two new menu items to the "My Account" section:
+```typescript
+function formatSetupError(error: { code?: string; message?: string }): string {
+  // Map common Stripe decline codes to user-friendly messages
+  const declineCodes = [
+    'card_declined',
+    'insufficient_funds',
+    'lost_card',
+    'stolen_card',
+    'expired_card',
+    'incorrect_cvc',
+    'processing_error',
+  ];
 
-| Menu Item | URL | Icon |
-|-----------|-----|------|
-| Book Classes | `/schedule` | CalendarPlus |
-| Buy Passes | `/class-passes` | Ticket |
+  if (error.code && declineCodes.includes(error.code)) {
+    return `Card verification failed. No charge was made. Please check your card details or try a different card. (${error.code})`;
+  }
 
-### 2.2 Improve Bookings Empty State
+  // Check if the message contains "declined" and reword it
+  if (error.message?.toLowerCase().includes('declined')) {
+    return "Card verification failed. No charge was made. The card issuer declined the verification request. Please try a different card or contact your bank.";
+  }
 
-**File**: `src/pages/member/Bookings.tsx`
-
-Enhance the empty state message with clear call-to-action buttons linking to the schedule and class passes pages.
-
----
-
-## Technical Details
-
-### How the System Works After Implementation
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  class_schedules (PERMANENT)                                │
-│  Templates exist FOREVER until admin changes/cancels them   │
-│  Example: "Cycle - Every Monday 6:00 AM - Studio B"         │
-└─────────────────────────────────────────────────────────────┘
-                          │
-                          │  Daily cron at 3 AM
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│  class_sessions (ROLLING 12-WEEK WINDOW)                    │
-│  Bookable instances auto-maintained                         │
-│  Today: Jan 31 → Sessions through Apr 25                    │
-│  Tomorrow: Feb 1 → Sessions through Apr 26                  │
-└─────────────────────────────────────────────────────────────┘
+  return error.message || "Failed to save card. Please try again.";
+}
 ```
 
-### Admin Control
+### 2. Update AdminAddCardForm.tsx
 
-| Action | How |
-|--------|-----|
-| Cancel class permanently | Set `is_active = false` on the schedule |
-| Change time/instructor | Edit the schedule template |
-| Add new class | Create new schedule in Admin → Class Schedules |
-| Cancel specific date | Cancel individual session without touching schedule |
+Modify the error handler to use friendly messaging:
+
+```typescript
+if (error) {
+  console.error("Card setup error:", error);
+  
+  // Translate declined messages to clarify no charge was made
+  let userMessage = error.message || "Failed to save card";
+  if (error.message?.toLowerCase().includes('declined') || error.code === 'card_declined') {
+    userMessage = "Card verification failed. No charge was made. Please check your card details or try a different card.";
+  }
+  
+  toast.error(userMessage);
+  setIsSubmitting(false);
+  return;
+}
+```
+
+### 3. Update AddApplicantCardModal.tsx
+
+Apply the same error handling pattern:
+
+```typescript
+if (error) {
+  // Translate declined messages to clarify no charge was made
+  let userMessage = error.message || "Failed to save card";
+  if (error.message?.toLowerCase().includes('declined') || error.code === 'card_declined') {
+    userMessage = "Card verification failed. No charge was made. Please check your card details or try a different card.";
+  }
+  
+  toast.error(userMessage);
+  setIsSubmitting(false);
+  return;
+}
+```
+
+### 4. Update Other Card-Save Components
+
+Apply the same fix to:
+- `src/components/member/AddCardModal.tsx`
+- `src/components/PaymentSectionEnhanced.tsx`
+- `src/components/member/ApplicationUnderReview.tsx`
 
 ---
 
@@ -121,18 +104,19 @@ Enhance the empty state message with clear call-to-action buttons linking to the
 
 | File | Change |
 |------|--------|
-| Database migration | Restore schedules + generate sessions + create cron |
-| `src/components/member/MemberSidebar.tsx` | Add "Book Classes" and "Buy Passes" links |
-| `src/pages/member/Bookings.tsx` | Improve empty state with CTAs |
+| `src/components/admin/AdminAddCardForm.tsx` | Improve error message for declined cards |
+| `src/components/admin/AddApplicantCardModal.tsx` | Improve error message for declined cards |
+| `src/components/member/AddCardModal.tsx` | Improve error message for declined cards |
+| `src/components/PaymentSectionEnhanced.tsx` | Improve error message for declined cards |
+| `src/components/member/ApplicationUnderReview.tsx` | Improve error message for declined cards |
 
 ---
 
 ## Expected Results
 
-| Component | Before | After |
-|-----------|--------|-------|
-| Permanent schedules | 0 records | ~70+ recurring templates |
-| Bookable sessions | 0 future | ~840+ (12 weeks) |
-| Auto-generation | Not configured | Daily at 3 AM |
-| Member sidebar | Missing links | Book Classes + Buy Passes added |
+| Scenario | Before | After |
+|----------|--------|-------|
+| Card declined during save | "Your card was declined" | "Card verification failed. No charge was made. Please check your card details or try a different card." |
+| Card expired | "Your card has expired" | "Card verification failed. No charge was made. Your card has expired. Please use a different card." |
+| Other verification errors | Raw Stripe message | Friendly message with clarification that no charge was made |
 
