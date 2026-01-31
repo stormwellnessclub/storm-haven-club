@@ -128,31 +128,59 @@ export function AdminAddCardForm({
         }
 
         if (memberId && stripeCustomerId) {
-          await supabase
-            .from('members')
-            .update({ 
-              stripe_customer_id: stripeCustomerId,
+          // Sync card metadata via the edge function for consistency
+          try {
+            const { data: syncData } = await supabase.functions.invoke("stripe-payment", {
+              body: { 
+                action: "sync_member_card_metadata",
+                memberId
+              }
+            });
+            console.log("[AdminAddCardForm] Synced card metadata:", syncData);
+          } catch (syncErr) {
+            console.warn("Failed to sync via edge function, falling back to direct update:", syncErr);
+            // Fallback: update directly with fetched card details
+            await supabase
+              .from('members')
+              .update({ 
+                stripe_customer_id: stripeCustomerId,
                 card_brand: cardBrand,
                 card_last4: cardLast4,
                 card_exp_month: cardExpMonth,
                 card_exp_year: cardExpYear,
               })
               .eq('id', memberId);
-            console.log("[AdminAddCardForm] Synced stripe_customer_id and card details to member:", memberId);
           }
+          console.log("[AdminAddCardForm] Synced stripe_customer_id and card details to member:", memberId);
+        }
 
-          // Log the payment method update for audit trail
-          if (memberId && setupIntent.payment_method) {
-            await supabase
-              .from('payment_method_updates')
-              .insert({
-                member_id: memberId,
-                payment_method_id: setupIntent.payment_method as string,
-                event_type: 'card_added_admin',
-                is_default: false,
-              });
-            console.log("[AdminAddCardForm] Logged payment method update for member:", memberId);
-          }
+        if (applicationId && stripeCustomerId) {
+          await supabase
+            .from('membership_applications')
+            .update({ 
+              stripe_customer_id: stripeCustomerId,
+              payment_info_provided: true,
+              card_brand: cardBrand,
+              card_last4: cardLast4,
+              card_exp_month: cardExpMonth,
+              card_exp_year: cardExpYear,
+            })
+            .eq('id', applicationId);
+          console.log("[AdminAddCardForm] Synced stripe_customer_id and card details to application:", applicationId);
+        }
+
+        // Log the payment method update for audit trail
+        if (memberId && setupIntent.payment_method) {
+          await supabase
+            .from('payment_method_updates')
+            .insert({
+              member_id: memberId,
+              payment_method_id: setupIntent.payment_method as string,
+              event_type: 'card_added_admin',
+              is_default: false,
+            });
+          console.log("[AdminAddCardForm] Logged payment method update for member:", memberId);
+        }
 
         toast.success("Card added successfully!");
         setIsComplete(true);

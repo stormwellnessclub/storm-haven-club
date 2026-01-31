@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -2166,6 +2166,103 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ url: session.url, sessionId: session.id }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'sync_member_card_metadata': {
+        // Sync card metadata from Stripe to the members table
+        const { memberId } = body;
+        
+        if (!memberId) {
+          throw new Error("Member ID required");
+        }
+
+        // Get member's stripe_customer_id
+        const { data: memberData, error: memberError } = await supabase
+          .from('members')
+          .select('stripe_customer_id')
+          .eq('id', memberId)
+          .single();
+
+        if (memberError) {
+          throw new Error("Member not found");
+        }
+
+        if (!memberData?.stripe_customer_id) {
+          logStep("No stripe_customer_id, cannot sync card metadata", { memberId });
+          return new Response(
+            JSON.stringify({ success: false, message: "No Stripe customer ID on file" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Get the default payment method from customer
+        const customer = await stripe.customers.retrieve(memberData.stripe_customer_id);
+        const defaultPaymentMethodId = !customer.deleted 
+          ? customer.invoice_settings?.default_payment_method as string | null
+          : null;
+
+        // List payment methods to find the default or most recent
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: memberData.stripe_customer_id,
+          type: 'card',
+          limit: 10,
+        });
+
+        if (paymentMethods.data.length === 0) {
+          logStep("No payment methods found", { memberId });
+          return new Response(
+            JSON.stringify({ success: false, message: "No payment methods on file" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Use default payment method, or fall back to most recent
+        let cardToSync = paymentMethods.data.find((pm: { id: string }) => pm.id === defaultPaymentMethodId);
+        if (!cardToSync) {
+          cardToSync = paymentMethods.data[0]; // Most recent
+        }
+
+        const cardDetails = {
+          card_brand: cardToSync.card?.brand || null,
+          card_last4: cardToSync.card?.last4 || null,
+          card_exp_month: cardToSync.card?.exp_month || null,
+          card_exp_year: cardToSync.card?.exp_year || null,
+        };
+
+        // Update member record
+        const { error: updateError } = await supabase
+          .from('members')
+          .update(cardDetails)
+          .eq('id', memberId);
+
+        if (updateError) {
+          throw new Error("Failed to update member card metadata");
+        }
+
+        // Log the update
+        await supabase.from('payment_method_updates').insert({
+          member_id: memberId,
+          payment_method_id: cardToSync.id,
+          event_type: 'card_metadata_synced',
+          is_default: cardToSync.id === defaultPaymentMethodId,
+        });
+
+        logStep("Card metadata synced to member", { 
+          memberId, 
+          cardBrand: cardDetails.card_brand, 
+          cardLast4: cardDetails.card_last4 
+        });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            cardBrand: cardDetails.card_brand,
+            cardLast4: cardDetails.card_last4,
+            cardExpMonth: cardDetails.card_exp_month,
+            cardExpYear: cardDetails.card_exp_year,
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }

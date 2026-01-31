@@ -143,6 +143,19 @@ function CardForm({ onSuccess, onCancel, nickname, onNicknameChange, memberId }:
           }
         }
         
+        // Sync card metadata to member record for display in admin
+        try {
+          await supabase.functions.invoke("stripe-payment", {
+            body: { 
+              action: "sync_member_card_metadata",
+              memberId
+            }
+          });
+          console.log("[AddCardModal] Synced card metadata to member record");
+        } catch (err) {
+          console.warn("Failed to sync card metadata:", err);
+        }
+        
       setIsComplete(true);
       toast.success("Card added successfully!");
       setTimeout(() => {
