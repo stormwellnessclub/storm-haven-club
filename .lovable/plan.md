@@ -1,102 +1,188 @@
 
-# Import New Applications from CSV
+# Admin Membership Upgrade/Downgrade Feature
 
 ## Summary
-You want to import new applications from the CSV file - specifically from **Nicolette Juncaj (Dec 27, 2025 @ 4:16 PM)** up to **Wafaa Diab (Jan 31, 2026)**. Based on my analysis:
+Add the ability for admins to upgrade or downgrade a member's membership tier (Silver, Gold, Platinum, Diamond) directly from the Member Detail page. This will update both the database record and the Stripe subscription with the new pricing.
 
-- **Applications to import**: 18 records (CSV lines 2-19)
-- **Already migrated cutoff**: Amal Hachem (Dec 27, 2025 @ 3:00 PM) - line 20 and below
-- **No deletions** - existing applications remain untouched
+## Current State Analysis
+- Members have a `membership_type` field storing their tier (Silver, Gold, Platinum, Diamond)
+- Active subscriptions are tied to Stripe price IDs that correspond to each tier/gender/billing combination
+- The `stripe-payment` edge function already has `admin_create_member_subscription` action for creating subscriptions
+- There's an `update_subscription_billing` action but it doesn't change the price/tier
+- Credits are allocated based on tier (Silver: none, Gold: 4 red light + 2 cryo, Platinum: 6 + 4, Diamond: 10 + 6 + 10 classes)
 
-## Applications to Import
+## User Experience
 
-| # | Name | Email | Membership | Date |
-|---|------|-------|------------|------|
-| 1 | Wafaa Diab | wafdiab@gmail.com | Silver | Jan 31, 2026 |
-| 2 | Deanna Beydoun | dbeydoun44@gmail.com | Silver | Jan 31, 2026 |
-| 3 | Afifa Seblini | afifa.seblini@gmail.com | Silver | Jan 29, 2026 |
-| 4 | Sherene Albosaraj | albosarajsherene@gmail.com | Gold | Jan 18, 2026 |
-| 5 | Tiara Foster | facebytiaramona@gmail.com | Gold | Jan 18, 2026 |
-| 6 | Faten Saad | fatensaad1986@gmail.com | Gold | Jan 17, 2026 |
-| 7 | Jeniffer Meta | jennameta11@icloud.com | Silver | Jan 14, 2026 |
-| 8 | Sarah Hamze | sarahhamze15@gmail.com | Gold | Jan 7, 2026 |
-| 9 | Naydean Beydoun | naydeano@gmail.comn | Silver | Jan 3, 2026 |
-| 10 | Yara Hamed | yarah12405@gmail.com | Gold | Jan 1, 2026 |
-| 11 | Nadine Atoui | nadine.a.atoui@gmail.com | Silver | Dec 30, 2025 |
-| 12 | Deja Pryor | dejampryor@gmail.com | Gold | Dec 29, 2025 |
-| 13 | Deja Pryor (duplicate) | dejampryor@gmail.com | Gold | Dec 29, 2025 |
-| 14 | Zahraa Jaber | zkjaber76@gmail.com | Platinum | Dec 28, 2025 |
-| 15 | Jacklyn Gougeon | jackiemgougeon@gmail.com | Gold | Dec 28, 2025 |
-| 16 | Nicolette Juncaj | lettagj@gmail.com | Silver | Dec 27, 2025 |
+### Admin Flow
+1. Admin navigates to `/admin/members/:id` (Member Detail page)
+2. In the **Membership** tab or header summary card, admin sees an **"Upgrade/Downgrade"** button
+3. Clicking opens a dialog showing:
+   - Current tier with current pricing
+   - Available tiers (Silver, Gold, Platinum, Diamond)
+   - New pricing for selected tier based on member's gender and billing type
+   - Proration options (create prorations, no prorations, immediate invoice)
+4. Admin selects new tier and confirms
+5. System updates Stripe subscription and database
+6. Success confirmation shows new tier, subscription details, and any prorated charges
 
-**Note**: There appear to be 2 entries for Deja Pryor - I'll handle duplicates by checking email before inserting.
+### Restrictions
+- Diamond is only available for women (enforced by Stripe price IDs)
+- Cannot change tier if member has no active Stripe subscription
+- Founding members stay on annual billing when changing tiers
 
-## Implementation Plan
+## Technical Implementation
 
-### Step 1: Parse CSV Data
-Create a migration script that parses the CSV and maps fields to database columns:
+### 1. New Edge Function Action: `admin_update_member_tier`
+
+Location: `supabase/functions/stripe-payment/index.ts`
 
 ```text
-CSV Field                    → Database Column
-─────────────────────────────────────────────
-Submission Time              → created_at
-Full Name                    → full_name, first_name, last_name
-Date of Birth                → date_of_birth
-Address fields               → address, city, state, zip_code, country
-Email Address                → email
-Phone Number                 → phone
-Membership Plan              → membership_plan
-Would you like founding...   → founding_member
-Referred by member?          → referred_by_member
-Services interested          → services_interested
-Wellness goals               → wellness_goals
-Lifestyle integration        → lifestyle_integration
-Holistic wellness            → holistic_wellness
-Previous member              → previous_member
-Gender                       → gender (will need to be inferred or set to 'Not Specified')
+New action parameters:
+- memberId: string (required)
+- newTier: 'silver' | 'gold' | 'platinum' | 'diamond' (required)
+- prorationBehavior: 'create_prorations' | 'none' | 'always_invoice' (default: 'create_prorations')
+
+Logic:
+1. Verify admin role (super_admin, admin, manager)
+2. Fetch member data (stripe_subscription_id, gender, billing_type)
+3. Validate new tier is available for member's gender
+4. Get current Stripe subscription with items
+5. Get new price ID based on tier + gender + billing_type
+6. Update Stripe subscription item with new price
+7. Update members table with new membership_type
+8. Handle credit adjustments for new tier
+9. Return success with prorated amount (if any)
 ```
 
-### Step 2: Data Transformation
-For each record:
-1. Split full name into first_name and last_name
-2. Parse date of birth from MM/DD/YYYY format
-3. Convert submission time to ISO timestamp
-4. Map membership plan text to database values
-5. Set default values for required fields
-6. Handle gender (not in CSV - will set to 'Not Specified')
+### 2. Frontend: Upgrade/Downgrade Dialog Component
 
-### Step 3: Duplicate Check
-Before inserting, check if email already exists in the database to prevent duplicates.
+New component: `src/components/admin/TierChangeDialog.tsx`
 
-### Step 4: Insert Applications
-Insert new records with status = 'pending'
+Features:
+- Select dropdown for new tier (filtered by gender restrictions)
+- Preview of price change
+- Proration behavior selector
+- Confirmation with visual diff
 
-## Technical Details
+### 3. MemberDetail.tsx Updates
 
-### Database Insert Structure
-```sql
-INSERT INTO membership_applications (
-  full_name, first_name, last_name, email, phone,
-  date_of_birth, address, city, state, zip_code, country,
-  membership_plan, founding_member, referred_by_member,
-  wellness_goals, services_interested, lifestyle_integration,
-  holistic_wellness, previous_member, gender, status,
-  auth_acknowledgment, credit_card_auth, membership_agreement_signed,
-  one_year_commitment, submission_confirmation, created_at
-) VALUES (...)
+Add to the Membership tab:
+- "Change Tier" button in the Membership Details card
+- Dialog state management
+- Mutation for tier change API call
+- Success/error toast notifications
+
+## Proration Handling
+
+According to Stripe documentation:
+- `create_prorations` (default): Credits unused time on old price, charges for remaining time on new price
+- `none`: No adjustments - new price applies from next billing cycle
+- `always_invoice`: Immediately creates and attempts to pay an invoice for the proration
+
+For **upgrades** (e.g., Silver → Gold): Member is charged prorated difference immediately
+For **downgrades** (e.g., Gold → Silver): Member receives credit toward next invoice
+
+## Credit Adjustments
+
+When tier changes, credits should be adjusted:
+- If upgrading: Add the difference in credits for the current cycle
+- If downgrading: Credits remain as-is until next renewal (don't remove existing credits)
+
+| Tier | Class | Red Light | Dry Cryo |
+|------|-------|-----------|----------|
+| Silver | 0 | 0 | 0 |
+| Gold | 0 | 4 | 2 |
+| Platinum | 0 | 6 | 4 |
+| Diamond | 10 | 10 | 6 |
+
+## Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `supabase/functions/stripe-payment/index.ts` | Modify | Add `admin_update_member_tier` action |
+| `src/components/admin/TierChangeDialog.tsx` | Create | Dialog component for tier selection |
+| `src/pages/admin/MemberDetail.tsx` | Modify | Add trigger button and dialog integration |
+
+## Edge Function Implementation Details
+
+```text
+case 'admin_update_member_tier': {
+  // Required parameters
+  const { memberId, newTier, prorationBehavior = 'create_prorations' } = body;
+
+  // 1. Verify admin role
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .in('role', ['super_admin', 'admin', 'manager']);
+
+  if (!roleData || roleData.length === 0) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  // 2. Fetch member data
+  const { data: memberData } = await supabase
+    .from('members')
+    .select('*')
+    .eq('id', memberId)
+    .single();
+
+  // 3. Validate subscription exists
+  if (!memberData.stripe_subscription_id) {
+    throw new Error("Member has no active subscription to modify");
+  }
+
+  // 4. Get new price ID
+  const normalizedGender = memberData.gender === 'male' ? 'men' : 'women';
+  const billingType = memberData.billing_type || 'monthly';
+  const newPriceId = STRIPE_PRODUCTS.memberships[newTier][billingType][normalizedGender];
+
+  if (!newPriceId) {
+    throw new Error(`${newTier} tier not available for ${normalizedGender}`);
+  }
+
+  // 5. Retrieve current subscription
+  const subscription = await stripe.subscriptions.retrieve(memberData.stripe_subscription_id);
+  const subscriptionItemId = subscription.items.data[0].id;
+
+  // 6. Update subscription with new price
+  const updatedSubscription = await stripe.subscriptions.update(memberData.stripe_subscription_id, {
+    items: [{
+      id: subscriptionItemId,
+      price: newPriceId,
+    }],
+    proration_behavior: prorationBehavior,
+  });
+
+  // 7. Update database
+  await supabase
+    .from('members')
+    .update({
+      membership_type: capitalizeFirstLetter(newTier),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', memberId);
+
+  // 8. Adjust credits if upgrading
+  // (Add additional credits for upgraded tier)
+
+  return { success: true, subscription: updatedSubscription };
+}
 ```
 
-### Files to Create/Modify
-| File | Action |
-|------|--------|
-| `src/pages/admin/Applications.tsx` | Add import functionality with file upload |
-| OR create migration SQL | Direct database insert via migration tool |
+## Security Considerations
 
-## Recommended Approach
-I recommend using the **database migration tool** to directly insert these 18 applications. This is:
-- Faster than building a UI
-- One-time operation
-- Can include duplicate checking
-- Preserves original submission timestamps
+1. **Role Verification**: Only super_admin, admin, or manager roles can change tiers
+2. **Stripe Validation**: Subscription must exist and be in valid state
+3. **Gender Restrictions**: Diamond tier blocked for men at the Stripe price ID level
+4. **Audit Trail**: Changes logged via Stripe subscription history and database `updated_at`
 
-Would you like me to proceed with this approach?
+## Testing Checklist
+
+1. Upgrade from Silver to Gold - verify prorated charge
+2. Downgrade from Platinum to Silver - verify credit applied
+3. Attempt Diamond for male member - verify error
+4. Change tier for member without subscription - verify error
+5. Verify credits are adjusted appropriately
+6. Verify Stripe Dashboard shows correct subscription state
