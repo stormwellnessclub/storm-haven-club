@@ -1,102 +1,53 @@
 
-# Fix "Card Declined" Message When Admin Saves Card
+# Remove Website Links from Payment Receipt Emails
 
 ## Summary
 
-When an admin saves a card on file in the application portal, Stripe's SetupIntent validation can return "Your card was declined" even though no charge is being attempted. This confusing message makes users think a charge failed when the system is only trying to save the card for future use.
+Payment receipt emails sent from the admin application portal currently include footer links to the member portal (support, bookings, website). Since these receipts go to applicants who may not have accounts yet, the links should be removed.
 
 ---
 
 ## Problem Analysis
 
-Stripe's `confirmSetup()` method validates cards before saving them. Some card issuers perform a $0 or $1 pre-authorization check which can fail and return "card declined" errors. This is a **verification failure**, not a charge failure.
+The `charge_confirmation` email template uses the shared `getEmailFooter()` function which includes:
+- Link to member support portal
+- Link to manage bookings  
+- Link to main website
 
-**Current behavior:**
-- Error message: "Your card was declined"
-- User perception: "Why was my card charged?"
-
-**Expected behavior:**
-- Error message: "Card verification failed. No charge was made..."
-- User perception: "My card couldn't be verified, I'll try another card"
+These links are inappropriate for applicants who haven't activated their membership yet.
 
 ---
 
 ## Solution
 
-### 1. Create Error Message Helper Function
+Create a minimal footer specifically for receipt emails that only contains contact information without clickable links to the portal.
 
-Add a utility function to translate Stripe SetupIntent errors into user-friendly messages:
+### Update send-email Edge Function
 
-```typescript
-function formatSetupError(error: { code?: string; message?: string }): string {
-  // Map common Stripe decline codes to user-friendly messages
-  const declineCodes = [
-    'card_declined',
-    'insufficient_funds',
-    'lost_card',
-    'stolen_card',
-    'expired_card',
-    'incorrect_cvc',
-    'processing_error',
-  ];
+**File**: `supabase/functions/send-email/index.ts`
 
-  if (error.code && declineCodes.includes(error.code)) {
-    return `Card verification failed. No charge was made. Please check your card details or try a different card. (${error.code})`;
-  }
-
-  // Check if the message contains "declined" and reword it
-  if (error.message?.toLowerCase().includes('declined')) {
-    return "Card verification failed. No charge was made. The card issuer declined the verification request. Please try a different card or contact your bank.";
-  }
-
-  return error.message || "Failed to save card. Please try again.";
-}
-```
-
-### 2. Update AdminAddCardForm.tsx
-
-Modify the error handler to use friendly messaging:
+1. Create a new receipt-specific footer function:
 
 ```typescript
-if (error) {
-  console.error("Card setup error:", error);
-  
-  // Translate declined messages to clarify no charge was made
-  let userMessage = error.message || "Failed to save card";
-  if (error.message?.toLowerCase().includes('declined') || error.code === 'card_declined') {
-    userMessage = "Card verification failed. No charge was made. Please check your card details or try a different card.";
-  }
-  
-  toast.error(userMessage);
-  setIsSubmitting(false);
-  return;
-}
+const getReceiptFooter = () => `
+  <div style="${emailStyles.footer}">
+    <p style="${emailStyles.muted}">
+      Questions about this charge? Reply to this email or contact us.
+    </p>
+    <p style="${emailStyles.muted}">
+      Storm Wellness Club
+    </p>
+  </div>
+`;
 ```
 
-### 3. Update AddApplicantCardModal.tsx
-
-Apply the same error handling pattern:
+2. Update the `charge_confirmation` case to use the new footer:
 
 ```typescript
-if (error) {
-  // Translate declined messages to clarify no charge was made
-  let userMessage = error.message || "Failed to save card";
-  if (error.message?.toLowerCase().includes('declined') || error.code === 'card_declined') {
-    userMessage = "Card verification failed. No charge was made. Please check your card details or try a different card.";
-  }
-  
-  toast.error(userMessage);
-  setIsSubmitting(false);
-  return;
-}
+case 'charge_confirmation':
+  // ... existing content ...
+  ${getReceiptFooter()}  // Instead of ${getEmailFooter()}
 ```
-
-### 4. Update Other Card-Save Components
-
-Apply the same fix to:
-- `src/components/member/AddCardModal.tsx`
-- `src/components/PaymentSectionEnhanced.tsx`
-- `src/components/member/ApplicationUnderReview.tsx`
 
 ---
 
@@ -104,19 +55,14 @@ Apply the same fix to:
 
 | File | Change |
 |------|--------|
-| `src/components/admin/AdminAddCardForm.tsx` | Improve error message for declined cards |
-| `src/components/admin/AddApplicantCardModal.tsx` | Improve error message for declined cards |
-| `src/components/member/AddCardModal.tsx` | Improve error message for declined cards |
-| `src/components/PaymentSectionEnhanced.tsx` | Improve error message for declined cards |
-| `src/components/member/ApplicationUnderReview.tsx` | Improve error message for declined cards |
+| `supabase/functions/send-email/index.ts` | Add `getReceiptFooter()` function and use it for charge_confirmation emails |
 
 ---
 
 ## Expected Results
 
-| Scenario | Before | After |
-|----------|--------|-------|
-| Card declined during save | "Your card was declined" | "Card verification failed. No charge was made. Please check your card details or try a different card." |
-| Card expired | "Your card has expired" | "Card verification failed. No charge was made. Your card has expired. Please use a different card." |
-| Other verification errors | Raw Stripe message | Friendly message with clarification that no charge was made |
-
+| Element | Before | After |
+|---------|--------|-------|
+| Footer links | Contains portal links | No links - just contact info |
+| Support reference | "Visit your member portal" | "Reply to this email or contact us" |
+| Website link | stormwellnessclub.com (clickable) | Storm Wellness Club (text only) |
