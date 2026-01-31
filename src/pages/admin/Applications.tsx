@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX, Plus, Wallet, Rocket } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX, Plus, Wallet, Rocket, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -230,6 +230,10 @@ export default function Applications() {
   
   // Locked start date dialog state
   const [showLockedDateDialog, setShowLockedDateDialog] = useState(false);
+  
+  // Delete confirmation dialog state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [applicationToDelete, setApplicationToDelete] = useState<Application | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -525,6 +529,25 @@ export default function Applications() {
     },
     onError: () => {
       toast.error("Failed to update application");
+    },
+  });
+
+  const deleteApplicationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("membership_applications")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+      toast.success("Application deleted");
+      setShowDeleteDialog(false);
+      setApplicationToDelete(null);
+    },
+    onError: () => {
+      toast.error("Failed to delete application");
     },
   });
 
@@ -1617,6 +1640,48 @@ export default function Applications() {
           </AlertDialogContent>
         </AlertDialog>
 
+        {/* Delete Application Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
+          if (!open) {
+            setShowDeleteDialog(false);
+            setApplicationToDelete(null);
+          }
+        }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Application</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete the application for <strong>{applicationToDelete?.full_name || applicationToDelete?.first_name}</strong>.
+                <br /><br />
+                This action cannot be undone. The following related data will also be deleted:
+                <ul className="list-disc list-inside mt-2 text-sm">
+                  <li>Application status history</li>
+                  <li>Associated charge records</li>
+                </ul>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  if (applicationToDelete) {
+                    deleteApplicationMutation.mutate(applicationToDelete.id);
+                  }
+                }}
+                disabled={deleteApplicationMutation.isPending}
+              >
+                {deleteApplicationMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-1" />
+                )}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* Applications Table */}
         <Card>
           <CardHeader>
@@ -1776,6 +1841,17 @@ export default function Applications() {
                               Cancel
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              setApplicationToDelete(app);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
