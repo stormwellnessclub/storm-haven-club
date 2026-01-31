@@ -1,130 +1,144 @@
 
-# Plan: Add Delete Application Functionality
+# Fix: Admin Card Saving for Applications
 
-## Overview
-Add the ability for administrators to permanently delete membership applications from the Applications admin page. This feature will include a confirmation dialog to prevent accidental deletions.
+## Problem Summary
+When adding a card for an applicant in the Admin → Applications page, the card saves successfully in Stripe but the card metadata (brand, last 4 digits, expiry) is **not being stored** in the database. This makes it appear as though the card wasn't saved.
 
-## Technical Approach
+## Root Cause
+The `AdminAddCardForm` component on the Applications page is rendered **without passing the required props**:
 
-### 1. Database: Add DELETE RLS Policy
-Create a new RLS policy on the `membership_applications` table to allow deletion by authorized staff roles (super_admin, admin, manager).
+```tsx
+// Current (broken):
+<AdminAddCardForm 
+  onSuccess={handleCardSaved}
+  onCancel={() => { ... }}
+/>
 
-```sql
-CREATE POLICY "Staff can delete applications"
-  ON public.membership_applications
-  FOR DELETE
-  TO public
-  USING (has_any_role(auth.uid(), ARRAY['super_admin'::app_role, 'admin'::app_role, 'manager'::app_role]));
+// Required:
+<AdminAddCardForm 
+  onSuccess={handleCardSaved}
+  onCancel={() => { ... }}
+  applicationId={chargeTarget.id}
+  stripeCustomerId={chargeTarget.stripe_customer_id || addCardCustomerId}
+/>
 ```
 
-### 2. Component State for Delete Confirmation
-Add state variables to manage the delete confirmation dialog:
-- `showDeleteDialog`: Controls visibility of the confirmation dialog
-- `applicationToDelete`: Stores the application being deleted
-- `isDeleting`: Loading state during deletion
+Without `applicationId` and `stripeCustomerId`, the form cannot:
+1. Update the application record with card details
+2. Sync card metadata to the database
 
-### 3. Delete Mutation
-Create a new React Query mutation that:
-- Calls Supabase to delete the application by ID
-- Invalidates the applications query cache on success
-- Shows success/error toast notifications
+## Solution
 
-### 4. UI Components
+### Step 1: Track the Created Customer ID
+When creating a setup intent, the edge function may create a new Stripe customer. We need to store this customer ID so we can pass it to the form.
 
-**Dropdown Menu Item**
-Add a "Delete" option to the actions dropdown for each application (with red/destructive styling):
-```text
-┌─────────────────────────┐
-│ View Details            │
-│ Charge Card             │
-│ Add Payment Method      │
-│ ─────────────────────── │
-│ Approve & Send Email    │
-│ Reject                  │
-│ Cancel                  │
-│ ─────────────────────── │
-│ 🗑️ Delete (destructive) │
-└─────────────────────────┘
+**Add state variable:**
+```typescript
+const [addCardCustomerId, setAddCardCustomerId] = useState<string | null>(null);
 ```
 
-**Confirmation Dialog**
-A AlertDialog that warns the user before deletion:
-```text
-┌─────────────────────────────────────────┐
-│ Delete Application                       │
-│                                         │
-│ ⚠️ This will permanently delete the     │
-│ application for [Applicant Name].       │
-│                                         │
-│ This action cannot be undone. The       │
-│ following related data will also be     │
-│ deleted:                                │
-│ • Application status history            │
-│ • Associated charge records             │
-│                                         │
-│            [Cancel]  [Delete]           │
-└─────────────────────────────────────────┘
+**Update `handleAddCard`:**
+Store the customer ID returned from the setup intent creation:
+```typescript
+setAddCardCustomerId(data.customerId);
 ```
 
-## Files to be Modified
+### Step 2: Pass Required Props to AdminAddCardForm
+Update the form rendering to include all necessary props:
+
+```tsx
+<AdminAddCardForm 
+  onSuccess={handleCardSaved}
+  onCancel={() => { 
+    setShowAddCardForm(false); 
+    setAddCardClientSecret(null);
+    setAddCardCustomerId(null);  // Reset on cancel
+  }}
+  applicationId={chargeTarget?.id}
+  stripeCustomerId={chargeTarget?.stripe_customer_id || addCardCustomerId || undefined}
+/>
+```
+
+### Step 3: Update handleCardSaved to Persist Card Metadata
+After refreshing card details from Stripe, also update the application record:
+
+```typescript
+const handleCardSaved = async () => {
+  setShowAddCardForm(false);
+  setAddCardClientSecret(null);
+  setAddCardCustomerId(null);
+  
+  if (chargeTarget?.stripe_customer_id || addCardCustomerId) {
+    const customerId = chargeTarget?.stripe_customer_id || addCardCustomerId;
+    setIsLoadingCard(true);
+    try {
+      const { data } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "list_application_payment_methods",
+          stripeCustomerId: customerId,
+        },
+      });
+      
+      if (data?.paymentMethods?.length > 0) {
+        const card = data.paymentMethods[0];
+        setCardDetails({ ... });
+        
+        // Also update the application record
+        await supabase
+          .from("membership_applications")
+          .update({
+            card_brand: card.brand,
+            card_last4: card.last4,
+            card_exp_month: card.expMonth,
+            card_exp_year: card.expYear,
+            payment_info_provided: true,
+          })
+          .eq("id", chargeTarget.id);
+      }
+    } catch (err) { ... }
+  }
+  
+  queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+};
+```
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `supabase/migrations/[new]` | Add DELETE RLS policy for membership_applications |
-| `src/pages/admin/Applications.tsx` | Add delete state, mutation, dialog, and dropdown menu item |
+| `src/pages/admin/Applications.tsx` | Add `addCardCustomerId` state, pass props to `AdminAddCardForm`, update `handleCardSaved` to persist card metadata |
 
-## Implementation Details
+## Technical Details
 
-### State Variables (Applications.tsx)
+### State Addition
 ```typescript
-const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-const [applicationToDelete, setApplicationToDelete] = useState<Application | null>(null);
+const [addCardCustomerId, setAddCardCustomerId] = useState<string | null>(null);
 ```
 
-### Delete Mutation (Applications.tsx)
+### handleAddCard Update (around line 932)
 ```typescript
-const deleteApplicationMutation = useMutation({
-  mutationFn: async (id: string) => {
-    const { error } = await supabase
-      .from("membership_applications")
-      .delete()
-      .eq("id", id);
-    if (error) throw error;
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
-    toast.success("Application deleted");
-    setShowDeleteDialog(false);
-    setApplicationToDelete(null);
-  },
-  onError: () => {
-    toast.error("Failed to delete application");
-  },
-});
+setAddCardClientSecret(data.clientSecret);
+setAddCardCustomerId(data.customerId);  // <-- Add this line
+setShowAddCardForm(true);
 ```
 
-### New Dropdown Menu Item
-```jsx
-<DropdownMenuSeparator />
-<DropdownMenuItem 
-  className="text-destructive focus:text-destructive"
-  onClick={() => {
-    setApplicationToDelete(app);
-    setShowDeleteDialog(true);
+### AdminAddCardForm Props Update (around line 2263)
+```tsx
+<AdminAddCardForm 
+  onSuccess={handleCardSaved}
+  onCancel={() => { 
+    setShowAddCardForm(false); 
+    setAddCardClientSecret(null); 
+    setAddCardCustomerId(null);
   }}
->
-  <Trash2 className="h-4 w-4 mr-2" />
-  Delete
-</DropdownMenuItem>
+  applicationId={chargeTarget?.id}
+  stripeCustomerId={chargeTarget?.stripe_customer_id || addCardCustomerId || undefined}
+/>
 ```
 
-## Security Considerations
-- Only `super_admin`, `admin`, and `manager` roles can delete applications (enforced via RLS)
-- Related `application_status_history` records are automatically deleted via CASCADE constraint
-- Confirmation dialog prevents accidental deletions
-
-## Data Cascade
-When an application is deleted, the following happens automatically:
-- `application_status_history` records are deleted (ON DELETE CASCADE already configured)
-
-Note: If there's an associated member record (for approved applications), it will **not** be deleted - only the application itself.
+## Expected Outcome
+After these changes:
+1. Card saves in Stripe ✓ (already working)
+2. Application record updated with `card_brand`, `card_last4`, `card_exp_month`, `card_exp_year` ✓
+3. `payment_info_provided` set to `true` ✓
+4. Card details visible in admin UI immediately after saving ✓
