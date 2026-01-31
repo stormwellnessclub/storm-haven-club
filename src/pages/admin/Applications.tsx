@@ -199,6 +199,7 @@ export default function Applications() {
   const [isLoadingCard, setIsLoadingCard] = useState(false);
   const [showAddCardForm, setShowAddCardForm] = useState(false);
   const [addCardClientSecret, setAddCardClientSecret] = useState<string | null>(null);
+  const [addCardCustomerId, setAddCardCustomerId] = useState<string | null>(null);
   const [chargeSuccessData, setChargeSuccessData] = useState<{
     success: boolean;
     cardBrand: string;
@@ -930,6 +931,7 @@ export default function Applications() {
       if (data?.error) throw new Error(data.error);
       
       setAddCardClientSecret(data.clientSecret);
+      setAddCardCustomerId(data.customerId);
       setShowAddCardForm(true);
       
       // Update application with customer ID if newly created
@@ -954,14 +956,17 @@ export default function Applications() {
     setShowAddCardForm(false);
     setAddCardClientSecret(null);
     
-    // Refresh card details
-    if (chargeTarget?.stripe_customer_id) {
+    // Determine which customer ID to use
+    const customerId = chargeTarget?.stripe_customer_id || addCardCustomerId;
+    
+    // Refresh card details and persist to database
+    if (customerId && chargeTarget) {
       setIsLoadingCard(true);
       try {
         const { data } = await supabase.functions.invoke("stripe-payment", {
           body: {
             action: "list_application_payment_methods",
-            stripeCustomerId: chargeTarget.stripe_customer_id,
+            stripeCustomerId: customerId,
           },
         });
         
@@ -973,6 +978,29 @@ export default function Applications() {
             expMonth: card.expMonth,
             expYear: card.expYear,
           });
+          
+          // Persist card metadata to the application record
+          await supabase
+            .from("membership_applications")
+            .update({
+              card_brand: card.brand,
+              card_last4: card.last4,
+              card_exp_month: card.expMonth,
+              card_exp_year: card.expYear,
+              payment_info_provided: true,
+              stripe_customer_id: customerId,
+            })
+            .eq("id", chargeTarget.id);
+          
+          // Update local chargeTarget state
+          setChargeTarget({
+            ...chargeTarget,
+            stripe_customer_id: customerId,
+            card_brand: card.brand,
+            card_last4: card.last4,
+            card_exp_month: card.expMonth,
+            card_exp_year: card.expYear,
+          });
         }
       } catch (err) {
         console.error("Failed to refresh card details:", err);
@@ -981,6 +1009,7 @@ export default function Applications() {
       }
     }
     
+    setAddCardCustomerId(null);
     queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
   };
 
@@ -2262,7 +2291,13 @@ export default function Applications() {
               <StripeProvider clientSecret={addCardClientSecret}>
                 <AdminAddCardForm 
                   onSuccess={handleCardSaved}
-                  onCancel={() => { setShowAddCardForm(false); setAddCardClientSecret(null); }}
+                  onCancel={() => { 
+                    setShowAddCardForm(false); 
+                    setAddCardClientSecret(null); 
+                    setAddCardCustomerId(null);
+                  }}
+                  applicationId={chargeTarget?.id}
+                  stripeCustomerId={chargeTarget?.stripe_customer_id || addCardCustomerId || undefined}
                 />
               </StripeProvider>
             ) : (
