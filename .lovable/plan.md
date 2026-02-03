@@ -1,65 +1,78 @@
 
-# Fix: Annual Fee Payment Link - Stripe Mode Error
 
-## Problem
-The edge function is failing with:
-> "You specified `payment` mode but passed a recurring price. Either switch to `subscription` mode or use only one-time prices."
+# Annual Fee Payment Link - Auto-Email Implementation
 
-The annual fee prices in Stripe are configured as **recurring yearly prices**, but the code uses `mode: 'payment'` which only works with one-time prices.
+## Overview
+Implement automatic email delivery when admins generate payment links for applicants, using Stripe Payment Links (no expiration) with 3-day urgency messaging.
 
-## Root Cause
-In `supabase/functions/stripe-payment/index.ts` at line 2571:
-```typescript
-mode: 'payment',  // Only works with one-time prices
-```
+## Email Content (Final Version)
 
-But the annual fee price IDs are recurring yearly prices:
-- Women: `price_1SlA2BLyZrsSqLhs8VX17F0C` ($300/year - recurring)
-- Men: `price_1SlA2RLyZrsSqLhsK3XQuANN` ($175/year - recurring)
+The email will include:
+- Personalized greeting with applicant's name
+- 3-day urgency warning in a highlighted box
+- Dynamic initiation fee amount based on applicant's tier
+- Prominent "Complete Payment" button
+- Updated closing: "...to **activate your member account** and welcome you to Storm Wellness Club"
 
-## Solution
-Change `mode: 'payment'` to `mode: 'subscription'` since the annual fee is meant to renew yearly.
+## Technical Implementation
 
-## Changes Required
+### Files to Modify
 
-| File | Change |
-|------|--------|
-| `supabase/functions/stripe-payment/index.ts` | Change `mode: 'payment'` to `mode: 'subscription'` in the `create_annual_fee_payment_link` action |
+| File | Purpose |
+|------|---------|
+| `supabase/functions/stripe-payment/index.ts` | Replace Checkout Session with Payment Link + trigger email |
+| `supabase/functions/send-email/index.ts` | Add `annual_fee_payment_request` email template |
+| `supabase/functions/stripe-webhook/index.ts` | Handle Payment Link metadata for webhook processing |
+| `src/pages/admin/Applications.tsx` | Update UI to confirm email was sent |
 
-## Updated Code
+### 1. Update stripe-payment Edge Function
 
-```typescript
-// Line ~2567-2582 in stripe-payment/index.ts
-const linkSession = await stripe.checkout.sessions.create({
-  customer: feeCustomerId,
-  line_items: [{ price: feePriceId, quantity: 1 }],
-  mode: 'subscription',  // Changed from 'payment' - annual fee is a yearly subscription
-  success_url: feeSuccessUrl || 'https://storm-haven-club.lovable.app/payment-success?type=annual_fee',
-  cancel_url: feeCancelUrl || 'https://storm-haven-club.lovable.app/',
-  subscription_data: {
-    metadata: {
-      type: 'annual_fee_payment_link',
-      application_id: applicationId,
-      source: 'admin_generated_link',
-    },
-  },
-  metadata: {
-    type: 'annual_fee_payment_link',
-    application_id: applicationId,
-    source: 'admin_generated_link',
-  },
-});
-```
+Replace `stripe.checkout.sessions.create()` with `stripe.paymentLinks.create()`:
+- Payment Links don't expire (unlike Checkout Sessions' 24-hour limit)
+- Include metadata for webhook processing
+- After creating link, invoke `send-email` function automatically
 
-## What This Means for Applicants
-- Applicant clicks the payment link
-- Completes payment on Stripe Checkout
-- A yearly subscription is created that will auto-renew annually
-- The webhook updates their application status to "paid"
-- Card is saved for future renewals
+### 2. Add Email Template
 
-## Webhook Update
-Also need to update the webhook handler to expect a **subscription** instead of a **payment_intent** when processing `annual_fee_payment_link` type checkouts.
+Add new case in send-email function for `annual_fee_payment_request`:
+- Georgia font styling consistent with brand
+- 3-day urgency warning box
+- Dynamic fee amount from applicant data
+- "Complete Payment" CTA button
+- Updated closing text about activating member account
 
-## Alternative Option
-If you prefer the annual fee to be a one-time charge (not auto-renewing), you would need to create new one-time prices in Stripe Dashboard for $300 and $175 and use those instead. Let me know if you'd prefer that approach.
+### 3. Update Webhook Handler
+
+Modify `stripe-webhook` to retrieve Payment Link metadata:
+- When `checkout.session.completed` fires, check for `payment_link` field
+- Retrieve Payment Link to access metadata
+- Process application update same as before
+
+### 4. Update Admin UI
+
+Enhance the payment link dialog in Applications.tsx:
+- Show confirmation that email was sent to applicant
+- Still display copyable link for manual sharing if needed
+- Update toast message to confirm email delivery
+
+## User Flow
+
+**Admin:**
+1. Clicks "Generate Payment Link" on approved application
+2. System creates Payment Link + sends email automatically
+3. Sees confirmation: "Payment link emailed to applicant@email.com"
+
+**Applicant:**
+1. Receives branded email with payment button
+2. Has 3 days to complete payment (per club policy)
+3. Clicks "Complete Payment" → Stripe Checkout
+4. Completes payment → redirected to success page
+5. Application automatically marked as paid
+
+## Benefits
+
+- Links never expire technically (Stripe Payment Links)
+- 3-day urgency communicated via email content
+- No manual copying/emailing by admin
+- Consistent branded email experience
+
