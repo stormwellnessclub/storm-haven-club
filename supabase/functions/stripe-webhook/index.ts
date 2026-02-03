@@ -680,6 +680,64 @@ serve(async (req) => {
               logError(duesError, "MEMBERSHIP_DUES");
               return errorResponse(duesError, "MEMBERSHIP_DUES");
             }
+          } else if (metadata.type === 'annual_fee_payment_link') {
+            // Handle admin-generated annual fee payment link
+            const applicationId = metadata.application_id;
+            
+            if (!applicationId) {
+              logError("Missing application_id in annual fee payment link metadata", "ANNUAL_FEE_LINK");
+              return errorResponse(new Error("Missing application_id"), "ANNUAL_FEE_LINK");
+            }
+
+            try {
+              // Update application with paid status and customer ID
+              const { error: updateError } = await supabase
+                .from('membership_applications')
+                .update({
+                  annual_fee_status: 'paid',
+                  stripe_customer_id: session.customer as string,
+                })
+                .eq('id', applicationId);
+
+              if (updateError) {
+                logError(updateError, "ANNUAL_FEE_LINK_UPDATE");
+                return errorResponse(updateError, "ANNUAL_FEE_LINK_UPDATE");
+              }
+
+              // Sync card details to application from payment
+              try {
+                if (session.payment_intent) {
+                  const paymentIntent = await stripe.paymentIntents.retrieve(
+                    session.payment_intent as string
+                  );
+                  if (paymentIntent.payment_method) {
+                    const pm = await stripe.paymentMethods.retrieve(
+                      paymentIntent.payment_method as string
+                    );
+                    if (pm.card) {
+                      await supabase
+                        .from('membership_applications')
+                        .update({
+                          card_brand: pm.card.brand,
+                          card_last4: pm.card.last4,
+                          card_exp_month: pm.card.exp_month,
+                          card_exp_year: pm.card.exp_year,
+                        })
+                        .eq('id', applicationId);
+                      logStep("Card details synced to application", { last4: pm.card.last4 });
+                    }
+                  }
+                }
+              } catch (cardError) {
+                logError(cardError, "ANNUAL_FEE_LINK_CARD_SYNC");
+                // Don't fail webhook for card sync issues
+              }
+
+              logStep("Annual fee payment link processed", { applicationId, customerId: session.customer });
+            } catch (annualFeeLinkError) {
+              logError(annualFeeLinkError, "ANNUAL_FEE_LINK");
+              return errorResponse(annualFeeLinkError, "ANNUAL_FEE_LINK");
+            }
           } else {
             logStep("Unknown checkout type", { type: metadata.type, sessionId: session.id });
           }
