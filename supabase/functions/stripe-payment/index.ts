@@ -2587,13 +2587,18 @@ serve(async (req) => {
           },
         });
 
-        // Update application with Stripe customer ID if not already set
+        // Update application with Stripe customer ID and payment link sent timestamp
+        const updateData: { stripe_customer_id?: string; payment_link_sent_at?: string } = {};
         if (!application.stripe_customer_id) {
-          await supabase
-            .from('membership_applications')
-            .update({ stripe_customer_id: feeCustomerId })
-            .eq('id', applicationId);
+          updateData.stripe_customer_id = feeCustomerId;
         }
+        // Always record when the payment link was generated/sent
+        updateData.payment_link_sent_at = new Date().toISOString();
+        
+        await supabase
+          .from('membership_applications')
+          .update(updateData)
+          .eq('id', applicationId);
 
         logStep("Annual fee payment link created", { 
           sessionId: linkSession.id, 

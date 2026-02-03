@@ -2091,6 +2091,7 @@ export type Database = {
           other_motivation: string | null
           other_services: string | null
           payment_info_provided: boolean
+          payment_link_sent_at: string | null
           phone: string
           previous_member: string | null
           referred_by_member: string
@@ -2135,6 +2136,7 @@ export type Database = {
           other_motivation?: string | null
           other_services?: string | null
           payment_info_provided?: boolean
+          payment_link_sent_at?: string | null
           phone: string
           previous_member?: string | null
           referred_by_member: string
@@ -2179,6 +2181,7 @@ export type Database = {
           other_motivation?: string | null
           other_services?: string | null
           payment_info_provided?: boolean
+          payment_link_sent_at?: string | null
           phone?: string
           previous_member?: string | null
           referred_by_member?: string
