@@ -2490,7 +2490,7 @@ serve(async (req) => {
           throw new Error("Missing applicationId or gender for payment link");
         }
 
-        logStep("Creating annual fee payment link", { applicationId, gender: feeGender });
+        logStep("Creating annual fee payment link with auto-email", { applicationId, gender: feeGender });
 
         // Verify admin/staff role
         const { data: staffRole } = await supabase
@@ -2521,6 +2521,8 @@ serve(async (req) => {
         }
 
         const applicantEmail = application.email;
+        const applicantFirstName = application.first_name || 
+          (application.full_name?.split(' ')[0]) || 'Applicant';
         const applicantName = application.full_name || 
           `${application.first_name || ''} ${application.last_name || ''}`.trim();
 
@@ -2561,7 +2563,7 @@ serve(async (req) => {
           throw new Error(`No annual fee price found for gender: ${feeGender}`);
         }
 
-        // Calculate fee amount for logging
+        // Calculate fee amount for logging and email
         const feeAmount = normalizedFeeGender === 'men' ? 175 : 300;
 
         // Create checkout session for annual fee subscription
@@ -2600,12 +2602,45 @@ serve(async (req) => {
           amount: feeAmount,
         });
 
+        // Send email with payment link automatically
+        let emailSent = false;
+        try {
+          const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              type: 'annual_fee_payment_request',
+              to: applicantEmail,
+              data: {
+                name: applicantFirstName,
+                amount: feeAmount,
+                paymentUrl: linkSession.url,
+              },
+            }),
+          });
+
+          if (emailResponse.ok) {
+            emailSent = true;
+            logStep("Payment request email sent", { email: applicantEmail });
+          } else {
+            const emailError = await emailResponse.text();
+            logStep("Failed to send payment request email", { error: emailError });
+          }
+        } catch (emailErr) {
+          logStep("Error sending payment request email", { error: String(emailErr) });
+        }
+
         return new Response(
           JSON.stringify({ 
             url: linkSession.url, 
             applicationId,
             amount: feeAmount,
             customerId: feeCustomerId,
+            emailSent,
+            emailAddress: applicantEmail,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
