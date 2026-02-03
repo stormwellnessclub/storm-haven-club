@@ -236,6 +236,12 @@ export default function Applications() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [applicationToDelete, setApplicationToDelete] = useState<Application | null>(null);
   
+  // Payment link dialog state
+  const [showPaymentLinkDialog, setShowPaymentLinkDialog] = useState(false);
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState<string | null>(null);
+  const [paymentLinkTarget, setPaymentLinkTarget] = useState<Application | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading, isError, error, refetch } = useQuery({
@@ -1074,6 +1080,46 @@ export default function Applications() {
     }
   };
 
+  // Generate payment link for annual fee
+  const handleGeneratePaymentLink = async (app: Application) => {
+    setIsGeneratingLink(true);
+    setPaymentLinkTarget(app);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_annual_fee_payment_link",
+          applicationId: app.id,
+          gender: app.gender || "women",
+          successUrl: window.location.origin + "/payment-success?type=annual_fee",
+          cancelUrl: window.location.origin,
+        },
+      });
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      setPaymentLinkUrl(data.url);
+      setShowPaymentLinkDialog(true);
+    } catch (err: any) {
+      console.error("Payment link error:", err);
+      toast.error(err.message || "Failed to generate payment link");
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const handleCopyPaymentLink = async () => {
+    if (!paymentLinkUrl) return;
+    
+    try {
+      await navigator.clipboard.writeText(paymentLinkUrl);
+      toast.success("Payment link copied to clipboard!");
+    } catch (err) {
+      toast.error("Failed to copy link");
+    }
+  };
+
   const handleExportCSV = () => {
     const headers = [
       "Full Name",
@@ -1817,6 +1863,17 @@ export default function Applications() {
                             </DropdownMenuItem>
                           )}
                           
+                          {/* Generate Payment Link - for annual fee not yet paid */}
+                          {app.annual_fee_status !== "paid" && (app.status === "pending" || app.status === "approved") && (
+                            <DropdownMenuItem 
+                              onClick={() => handleGeneratePaymentLink(app)}
+                              disabled={isGeneratingLink}
+                            >
+                              <Link2 className="h-4 w-4 mr-2" />
+                              {isGeneratingLink ? "Generating..." : "Generate Payment Link"}
+                            </DropdownMenuItem>
+                          )}
+                          
                           {/* Approval options - only for non-approved apps */}
                           {app.status !== "approved" && (
                             <>
@@ -2445,6 +2502,85 @@ export default function Applications() {
             applicationId={cardTargetApplication.id}
           />
         )}
+
+        {/* Payment Link Dialog */}
+        <Dialog open={showPaymentLinkDialog} onOpenChange={(open) => {
+          setShowPaymentLinkDialog(open);
+          if (!open) {
+            setPaymentLinkUrl(null);
+            setPaymentLinkTarget(null);
+          }
+        }}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5" />
+                Payment Link Generated
+              </DialogTitle>
+              <DialogDescription>
+                Send this link to the applicant to complete their initiation fee payment.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {paymentLinkTarget && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Applicant</p>
+                    <p className="font-medium">{paymentLinkTarget.full_name || `${paymentLinkTarget.first_name} ${paymentLinkTarget.last_name}`}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Email</p>
+                    <p className="font-medium">{paymentLinkTarget.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Amount</p>
+                    <p className="font-medium text-lg">
+                      ${(paymentLinkTarget.gender?.toLowerCase() === 'male' || paymentLinkTarget.gender?.toLowerCase() === 'men') ? '175' : '300'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Gender Pricing</p>
+                    <Badge variant="outline">
+                      {(paymentLinkTarget.gender?.toLowerCase() === 'male' || paymentLinkTarget.gender?.toLowerCase() === 'men') ? 'Men' : 'Women'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Payment Link</p>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={paymentLinkUrl || ""} 
+                      readOnly 
+                      className="font-mono text-xs"
+                    />
+                    <Button onClick={handleCopyPaymentLink} variant="outline">
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    This link expires in 24 hours. Once the applicant completes payment, their initiation fee status will be automatically updated to "Paid".
+                  </AlertDescription>
+                </Alert>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowPaymentLinkDialog(false)}>
+                    Close
+                  </Button>
+                  <Button onClick={handleCopyPaymentLink}>
+                    <Link2 className="h-4 w-4 mr-2" />
+                    Copy Link
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

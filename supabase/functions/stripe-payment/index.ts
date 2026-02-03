@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -2478,6 +2478,130 @@ serve(async (req) => {
             subscriptionId: updatedSubscription.id,
             subscriptionStatus: updatedSubscription.status,
             creditsAdded,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_annual_fee_payment_link': {
+        const { applicationId, gender: feeGender, successUrl: feeSuccessUrl, cancelUrl: feeCancelUrl } = body;
+        
+        if (!applicationId || !feeGender) {
+          throw new Error("Missing applicationId or gender for payment link");
+        }
+
+        logStep("Creating annual fee payment link", { applicationId, gender: feeGender });
+
+        // Verify admin/staff role
+        const { data: staffRole } = await supabase
+          .from('staff_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const { data: userRole } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!staffRole?.role && !userRole?.role) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        // Fetch application details
+        const { data: application, error: appError } = await supabase
+          .from('membership_applications')
+          .select('id, email, full_name, first_name, last_name, stripe_customer_id')
+          .eq('id', applicationId)
+          .single();
+
+        if (appError || !application) {
+          throw new Error("Application not found");
+        }
+
+        const applicantEmail = application.email;
+        const applicantName = application.full_name || 
+          `${application.first_name || ''} ${application.last_name || ''}`.trim();
+
+        // Get or create Stripe customer
+        let feeCustomerId: string;
+        if (application.stripe_customer_id) {
+          feeCustomerId = application.stripe_customer_id;
+          logStep("Using existing Stripe customer", { customerId: feeCustomerId });
+        } else {
+          const customers = await stripe.customers.list({ 
+            email: applicantEmail, 
+            limit: 1 
+          });
+          
+          if (customers.data.length > 0) {
+            feeCustomerId = customers.data[0].id;
+            logStep("Found existing Stripe customer", { customerId: feeCustomerId });
+          } else {
+            const customer = await stripe.customers.create({
+              email: applicantEmail,
+              name: applicantName,
+              metadata: { 
+                source: 'annual_fee_payment_link', 
+                application_id: applicationId 
+              }
+            });
+            feeCustomerId = customer.id;
+            logStep("Created new Stripe customer", { customerId: feeCustomerId });
+          }
+        }
+
+        // Get annual fee price ID based on gender
+        const normalizedFeeGender = (feeGender.toLowerCase() === 'male' || 
+          feeGender.toLowerCase() === 'men') ? 'men' : 'women';
+        const feePriceId = STRIPE_PRODUCTS.annualFee[normalizedFeeGender];
+
+        if (!feePriceId) {
+          throw new Error(`No annual fee price found for gender: ${feeGender}`);
+        }
+
+        // Calculate fee amount for logging
+        const feeAmount = normalizedFeeGender === 'men' ? 175 : 300;
+
+        // Create checkout session for one-time payment
+        const linkSession = await stripe.checkout.sessions.create({
+          customer: feeCustomerId,
+          line_items: [{ price: feePriceId, quantity: 1 }],
+          mode: 'payment',
+          success_url: feeSuccessUrl || 'https://storm-haven-club.lovable.app/payment-success?type=annual_fee',
+          cancel_url: feeCancelUrl || 'https://storm-haven-club.lovable.app/',
+          payment_intent_data: {
+            setup_future_usage: 'off_session', // Save card for future charges
+          },
+          metadata: {
+            type: 'annual_fee_payment_link',
+            application_id: applicationId,
+            source: 'admin_generated_link',
+          },
+        });
+
+        // Update application with Stripe customer ID if not already set
+        if (!application.stripe_customer_id) {
+          await supabase
+            .from('membership_applications')
+            .update({ stripe_customer_id: feeCustomerId })
+            .eq('id', applicationId);
+        }
+
+        logStep("Annual fee payment link created", { 
+          sessionId: linkSession.id, 
+          url: linkSession.url,
+          applicationId,
+          amount: feeAmount,
+        });
+
+        return new Response(
+          JSON.stringify({ 
+            url: linkSession.url, 
+            applicationId,
+            amount: feeAmount,
+            customerId: feeCustomerId,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
