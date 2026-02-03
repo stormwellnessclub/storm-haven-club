@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'application_approved_pre_launch' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed';
+  type: 'application_submitted' | 'application_approved' | 'application_approved_pre_launch' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request';
   to: string;
   data: Record<string, any>;
 }
@@ -914,6 +914,55 @@ serve(async (req) => {
               </div>
             </div>
             ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'annual_fee_payment_request':
+        subject = 'Complete Your Initiation Fee - Storm Wellness Club';
+        const feeAmount = data.amount || 300;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}; font-family: Georgia, 'Times New Roman', Times, serif;">
+              <h2 style="${emailStyles.heading}; font-family: Georgia, 'Times New Roman', Times, serif;">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                Congratulations on being approved to join Storm Wellness Club. To complete your membership setup, please pay your initiation fee using the secure link below.
+              </p>
+              
+              <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #92400e; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
+                  ⏰ Important: You have 3 days to complete this payment
+                </p>
+                <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  If payment is not received within 3 days, your application will expire and you will need to reapply.
+                </p>
+              </div>
+              
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-family: Georgia, 'Times New Roman', Times, serif;">Initiation Fee</td>
+                    <td style="padding: 8px 0; font-weight: 600; font-family: Georgia, 'Times New Roman', Times, serif;">$${feeAmount}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${data.paymentUrl}" style="${emailStyles.button}; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">Complete Payment</a>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                Once your payment is received, our team will be in touch with next steps to <strong>activate your member account</strong> and welcome you to Storm Wellness Club.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getReceiptFooter()}
           </div>
         `;
         break;

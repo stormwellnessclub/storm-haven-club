@@ -241,6 +241,8 @@ export default function Applications() {
   const [paymentLinkUrl, setPaymentLinkUrl] = useState<string | null>(null);
   const [paymentLinkTarget, setPaymentLinkTarget] = useState<Application | null>(null);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [paymentLinkEmailSent, setPaymentLinkEmailSent] = useState(false);
+  const [paymentLinkEmailAddress, setPaymentLinkEmailAddress] = useState<string | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -1084,6 +1086,8 @@ export default function Applications() {
   const handleGeneratePaymentLink = async (app: Application) => {
     setIsGeneratingLink(true);
     setPaymentLinkTarget(app);
+    setPaymentLinkEmailSent(false);
+    setPaymentLinkEmailAddress(null);
     
     try {
       const { data, error } = await supabase.functions.invoke("stripe-payment", {
@@ -1100,7 +1104,13 @@ export default function Applications() {
       if (data?.error) throw new Error(data.error);
       
       setPaymentLinkUrl(data.url);
+      setPaymentLinkEmailSent(data.emailSent || false);
+      setPaymentLinkEmailAddress(data.emailAddress || app.email);
       setShowPaymentLinkDialog(true);
+      
+      if (data.emailSent) {
+        toast.success(`Payment link emailed to ${data.emailAddress}`);
+      }
     } catch (err: any) {
       console.error("Payment link error:", err);
       toast.error(err.message || "Failed to generate payment link");
@@ -2514,16 +2524,37 @@ export default function Applications() {
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Link2 className="h-5 w-5" />
-                Payment Link Generated
+                {paymentLinkEmailSent ? (
+                  <>
+                    <Mail className="h-5 w-5 text-green-600" />
+                    Payment Link Emailed
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="h-5 w-5" />
+                    Payment Link Generated
+                  </>
+                )}
               </DialogTitle>
               <DialogDescription>
-                Send this link to the applicant to complete their initiation fee payment.
+                {paymentLinkEmailSent 
+                  ? `Payment link has been sent to ${paymentLinkEmailAddress}. The applicant has 3 days to complete payment.`
+                  : 'Send this link to the applicant to complete their initiation fee payment.'}
               </DialogDescription>
             </DialogHeader>
             
             {paymentLinkTarget && (
               <div className="space-y-4">
+                {/* Email Sent Confirmation */}
+                {paymentLinkEmailSent && (
+                  <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800 dark:text-green-200">
+                      Email sent to <strong>{paymentLinkEmailAddress}</strong> with payment instructions.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Applicant</p>
@@ -2548,7 +2579,7 @@ export default function Applications() {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Payment Link</p>
+                  <p className="text-sm text-muted-foreground">Payment Link (for manual sharing)</p>
                   <div className="flex gap-2">
                     <Input 
                       value={paymentLinkUrl || ""} 
@@ -2564,7 +2595,7 @@ export default function Applications() {
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    This link expires in 24 hours. Once the applicant completes payment, their initiation fee status will be automatically updated to "Paid".
+                    Per club policy, applicants have 3 days to complete payment. Once payment is completed, their initiation fee status will be automatically updated to "Paid".
                   </AlertDescription>
                 </Alert>
 
