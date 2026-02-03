@@ -2564,15 +2564,19 @@ serve(async (req) => {
         // Calculate fee amount for logging
         const feeAmount = normalizedFeeGender === 'men' ? 175 : 300;
 
-        // Create checkout session for one-time payment
+        // Create checkout session for annual fee subscription
         const linkSession = await stripe.checkout.sessions.create({
           customer: feeCustomerId,
           line_items: [{ price: feePriceId, quantity: 1 }],
-          mode: 'payment',
+          mode: 'subscription',  // Changed from 'payment' - annual fee is a yearly subscription
           success_url: feeSuccessUrl || 'https://storm-haven-club.lovable.app/payment-success?type=annual_fee',
           cancel_url: feeCancelUrl || 'https://storm-haven-club.lovable.app/',
-          payment_intent_data: {
-            setup_future_usage: 'off_session', // Save card for future charges
+          subscription_data: {
+            metadata: {
+              type: 'annual_fee_payment_link',
+              application_id: applicationId,
+              source: 'admin_generated_link',
+            },
           },
           metadata: {
             type: 'annual_fee_payment_link',
