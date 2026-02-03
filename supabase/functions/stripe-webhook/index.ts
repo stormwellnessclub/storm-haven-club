@@ -704,28 +704,46 @@ serve(async (req) => {
                 return errorResponse(updateError, "ANNUAL_FEE_LINK_UPDATE");
               }
 
-              // Sync card details to application from payment
+              // Sync card details to application from subscription or payment
               try {
-                if (session.payment_intent) {
+                let paymentMethodId: string | null = null;
+                
+                // For subscription mode, get payment method from subscription
+                if (session.subscription) {
+                  const subscription = await stripe.subscriptions.retrieve(
+                    session.subscription as string
+                  );
+                  paymentMethodId = subscription.default_payment_method as string;
+                  
+                  // Also update application with subscription ID for tracking
+                  await supabase
+                    .from('membership_applications')
+                    .update({
+                      annual_fee_subscription_id: subscription.id,
+                    })
+                    .eq('id', applicationId);
+                  logStep("Annual fee subscription ID saved", { subscriptionId: subscription.id });
+                } else if (session.payment_intent) {
+                  // Fallback for one-time payment mode
                   const paymentIntent = await stripe.paymentIntents.retrieve(
                     session.payment_intent as string
                   );
-                  if (paymentIntent.payment_method) {
-                    const pm = await stripe.paymentMethods.retrieve(
-                      paymentIntent.payment_method as string
-                    );
-                    if (pm.card) {
-                      await supabase
-                        .from('membership_applications')
-                        .update({
-                          card_brand: pm.card.brand,
-                          card_last4: pm.card.last4,
-                          card_exp_month: pm.card.exp_month,
-                          card_exp_year: pm.card.exp_year,
-                        })
-                        .eq('id', applicationId);
-                      logStep("Card details synced to application", { last4: pm.card.last4 });
-                    }
+                  paymentMethodId = paymentIntent.payment_method as string;
+                }
+                
+                if (paymentMethodId) {
+                  const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
+                  if (pm.card) {
+                    await supabase
+                      .from('membership_applications')
+                      .update({
+                        card_brand: pm.card.brand,
+                        card_last4: pm.card.last4,
+                        card_exp_month: pm.card.exp_month,
+                        card_exp_year: pm.card.exp_year,
+                      })
+                      .eq('id', applicationId);
+                    logStep("Card details synced to application", { last4: pm.card.last4 });
                   }
                 }
               } catch (cardError) {
