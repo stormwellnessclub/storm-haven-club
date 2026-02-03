@@ -47,6 +47,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChargeHistory } from "@/components/ChargeHistory";
@@ -104,6 +105,7 @@ type Application = {
   card_last4: string | null;
   card_exp_month: number | null;
   card_exp_year: number | null;
+  payment_link_sent_at: string | null;
 };
 
 const getStatusBadge = (status: string) => {
@@ -1818,18 +1820,36 @@ export default function Applications() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {app.stripe_customer_id ? (
-                        <Badge className="bg-muted/20 text-muted-foreground dark:bg-muted/30 dark:text-muted-foreground">
-                          <CreditCard className="h-3 w-3 mr-1" />
-                          {app.card_brand && app.card_last4 
-                            ? `${app.card_brand.toUpperCase()} •••• ${app.card_last4}`
-                            : "On File"}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-muted-foreground">
-                          None
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {app.stripe_customer_id ? (
+                          <Badge className="bg-muted/20 text-muted-foreground dark:bg-muted/30 dark:text-muted-foreground">
+                            <CreditCard className="h-3 w-3 mr-1" />
+                            {app.card_brand && app.card_last4 
+                              ? `${app.card_brand.toUpperCase()} •••• ${app.card_last4}`
+                              : "On File"}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            None
+                          </Badge>
+                        )}
+                        {/* Payment link sent indicator */}
+                        {app.payment_link_sent_at && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1 text-amber-600 dark:text-amber-500">
+                                  <Link2 className="h-3.5 w-3.5" />
+                                  <span className="text-xs font-medium">Sent</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Payment link sent on {format(new Date(app.payment_link_sent_at), "MMM d, yyyy 'at' h:mm a")}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(app.status)}</TableCell>
                     <TableCell>{getAnnualFeeBadge(app.annual_fee_status)}</TableCell>
