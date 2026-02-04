@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useAgreements } from "@/hooks/useAgreements";
 import { toast } from "sonner";
 
 interface PricingTier {
@@ -33,10 +34,12 @@ export default function ClassPasses() {
   const navigate = useNavigate();
   const { data: membership } = useUserMembership();
   const { profile } = useUserProfile();
+  const { data: singleClassAgreements } = useAgreements("single_class_pass");
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
 
   const isMember = membership?.status === 'active';
-  const needsAgreement = !profile?.single_class_pass_agreement_signed;
+  const hasAgreementConfigured = singleClassAgreements && singleClassAgreements.length > 0;
+  const needsAgreement = hasAgreementConfigured && !profile?.single_class_pass_agreement_signed;
 
   const handlePurchase = async (
     category: 'pilatesCycling' | 'otherClasses',
@@ -47,12 +50,14 @@ export default function ClassPasses() {
       return;
     }
 
-    // Check if single class pass and agreement is required
+    // Check if single class pass and agreement is required (only if agreement is configured)
     if (passType === 'single' && needsAgreement) {
-      toast.error("Please sign the Single Class Pass Agreement before purchasing");
+      toast.info("Please sign the Single Class Pass Agreement before purchasing");
       navigate("/member/waivers");
       return;
     }
+
+    console.log("[ClassPasses] Starting purchase:", { category, passType, isMember });
 
     const passKey = `${category}-${passType}`;
     setLoadingPass(passKey);
@@ -71,16 +76,24 @@ export default function ClassPasses() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[ClassPasses] Edge function error:", error);
+        throw error;
+      }
+
+      console.log("[ClassPasses] Stripe response:", data);
 
       if (data?.url) {
-        window.open(data.url, '_blank');
+        // Redirect in same tab instead of opening new tab
+        window.location.href = data.url;
       } else {
-        throw new Error("No checkout URL returned");
+        console.error("[ClassPasses] No checkout URL in response:", data);
+        throw new Error("No checkout URL returned from payment service");
       }
-    } catch (error) {
-      console.error("Checkout error:", error);
-      toast.error("Failed to start checkout. Please try again.");
+    } catch (error: any) {
+      console.error("[ClassPasses] Checkout error:", error);
+      const errorMessage = error?.message || "Failed to start checkout. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setLoadingPass(null);
     }
