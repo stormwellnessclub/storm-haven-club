@@ -1,102 +1,217 @@
 
+# Fix Card Saving in Admin Member Portal
 
-# Add 3 New Applicants
+## Problem Summary
 
-## Overview
-Adding three new membership applications to the system. All applicants are interested in Silver Membership.
+When an admin adds a card to a member's profile, the card appears to save successfully but **never actually persists** to the database. This is a critical bug blocking the February 9th launch.
 
----
+## Root Cause Analysis
 
-## Applicant 1: Alyssa Maley
+### Flow Trace: What's Happening
 
-| Field | Value |
-|-------|-------|
-| **Name** | Alyssa Maley |
-| **Email** | alyssammaley5@gmail.com |
-| **Phone** | 3133339545 |
-| **DOB** | 1995-04-02 |
-| **Address** | 6134 Huff St, Westland, MI 48185 |
-| **Membership** | Silver Membership |
-| **Founding Member** | Yes |
-| **Gender** | Women (inferred) |
+1. **Admin clicks "Add Card"** → `handleAddCard()` is called
+2. **Frontend calls `create_admin_setup_intent`** with:
+   - `stripeCustomerId: member.stripe_customer_id` (often **null** for pending members)
+   - `applicantEmail: member.email`
+   - `applicantName: member name`
 
-**Wellness Goals:** Weight Loss, Muscle Gain, Improved Flexibility, Stress Reduction, Holistic Health
+3. **Edge function creates a NEW Stripe customer** (lines 782-803) but **NEVER saves the customer ID to the `members` table**
 
-**Services Interested:** Fitness Classes, Open Gym, Spa Services, Personal Training
+4. **Frontend receives the new `customerId`** and passes it to `AdminAddCardForm`
 
-**Previous Fitness Member:** Yes
+5. **Member completes card form** → Stripe setup succeeds
 
-**Motivation:** Luxurious amenities
+6. **`AdminAddCardForm` attempts to sync**:
+   - Calls `sync_member_card_metadata` → **FAILS** because `members.stripe_customer_id` is still `null` in database
+   - Falls back to direct DB update → **FAILS** due to RLS policies blocking anonymous client updates
 
----
-
-## Applicant 2: Summer Daoud
-
-| Field | Value |
-|-------|-------|
-| **Name** | Summer Daoud |
-| **Email** | summerd1410@gmail.com |
-| **Phone** | 3134728704 |
-| **DOB** | 2001-04-06 |
-| **Address** | 4800 Parkside Blvd, Allen Park, MI 48101 |
-| **Membership** | Silver Membership |
-| **Founding Member** | No |
-| **Gender** | Women (inferred) |
-| **Social Media** | Simplyysummer |
-
-**Wellness Goals:** Weight Loss, Muscle Gain, Improved Flexibility, Stress Reduction
-
-**Services Interested:** Fitness Classes, Open Gym, Spa Services
-
-**Previous Fitness Member:** Yes (infrared sauna experience)
-
-**Motivation:** Comprehensive wellness approach, Luxurious amenities
-
-**Lifestyle:** "My name is Summer dude I've been into fitness ever since I was younger been an athlete growing up. My routine with fitness is very important on my daily schedule and I also became a Pilates instructor and I believe that being around the wellness brings me a lot of joy. I want to be able to use this wellness center. Anytime I feel to reduce my stress levels to relax and just get a good workout in."
-
-**Holistic Wellness:** "Holistic wellness means caring for my body and mind together. It's not only about working out, but also about healthy habits like proper rest, nutrition, and taking care of my mental well-being so I can stay consistent and healthy long-term."
+7. **Result**: Card is saved in Stripe but database shows "No card on file"
 
 ---
 
-## Applicant 3: Siham Aoun
+## The Fix
 
-| Field | Value |
-|-------|-------|
-| **Name** | Siham Aoun |
-| **Email** | saoun2425@gmail.com |
-| **Phone** | 3133385262 |
-| **DOB** | 1979-07-30 |
-| **Address** | 24540 Emerson St *(city/state/zip had form errors - will use MI as state)* |
-| **Membership** | Silver Membership |
-| **Founding Member** | No |
-| **Gender** | Women (inferred) |
+### 1. Edge Function: Update `create_admin_setup_intent` to Save Customer ID
 
-> ⚠️ **Note:** The address form appears to have had an entry error where "24540 EMERSON ST" was entered in city, state, and zip fields. I'll set the address as "24540 Emerson St" with state "MI" and leave city/zip blank for manual correction later.
+Modify the edge function to accept a `memberId` parameter and persist the Stripe customer ID after creation:
 
-**Wellness Goals:** Weight Loss, Muscle Gain, Improved Flexibility, Stress Reduction
+```text
+BEFORE (current behavior):
+  - Creates Stripe customer
+  - Returns customerId to frontend
+  - DOES NOT save to database
 
-**Services Interested:** Fitness Classes, Spa Services, Personal Training, Nutritional Guidance
+AFTER (fixed behavior):
+  - Creates Stripe customer  
+  - IF memberId provided → UPDATE members.stripe_customer_id
+  - Returns customerId to frontend
+```
 
-**Previous Fitness Member:** Yes
+### 2. Frontend: Pass `memberId` to the Edge Function
 
-**Motivation:** Specific services (e.g., spa, personal training)
+Update `MemberDetail.tsx` and `MemberDetailSheet.tsx` to include `memberId` in the `create_admin_setup_intent` request:
+
+```text
+BEFORE:
+  action: 'create_admin_setup_intent',
+  stripeCustomerId: member.stripe_customer_id,
+  applicantEmail: member.email,
+  applicantName: `${member.first_name} ${member.last_name}`,
+
+AFTER:
+  action: 'create_admin_setup_intent',
+  stripeCustomerId: member.stripe_customer_id,
+  applicantEmail: member.email,
+  applicantName: `${member.first_name} ${member.last_name}`,
+  memberId: member.id,  // ← NEW: Allow edge function to persist customer ID
+```
+
+### 3. Fix `sync_member_card_metadata` Fallback
+
+Update the action to accept an optional `stripeCustomerId` parameter as a fallback when the member record doesn't have one yet:
+
+```text
+BEFORE:
+  - Reads stripe_customer_id from members table
+  - If null → returns error
+
+AFTER:
+  - Accepts optional stripeCustomerId parameter
+  - If member record has no customer ID but parameter provided → use parameter
+  - Also update members.stripe_customer_id while syncing card metadata
+```
 
 ---
 
-## Data Insert Summary
+## Files to Modify
 
-Three records will be added to `membership_applications`:
+| File | Change |
+|------|--------|
+| `supabase/functions/stripe-payment/index.ts` | Update `create_admin_setup_intent` to save customer ID when `memberId` is provided |
+| `supabase/functions/stripe-payment/index.ts` | Update `sync_member_card_metadata` to accept optional `stripeCustomerId` param |
+| `src/pages/admin/MemberDetail.tsx` | Pass `memberId` in `handleAddCard` function |
+| `src/components/admin/MemberDetailSheet.tsx` | Pass `memberId` in `handleAddCard` function |
+| `src/components/admin/AdminAddCardForm.tsx` | Update sync call to pass `stripeCustomerId` when available |
 
-| # | Name | Email | Plan | Founding |
-|---|------|-------|------|----------|
-| 1 | Alyssa Maley | alyssammaley5@gmail.com | Silver | Yes |
-| 2 | Summer Daoud | summerd1410@gmail.com | Silver | No |
-| 3 | Siham Aoun | saoun2425@gmail.com | Silver | No |
+---
 
-## Payment Information Note
+## Technical Details
 
-Card details will need to be added via the Stripe integration after applications are created:
-1. Open each application in the admin dashboard
-2. Use "Add Card" to securely add payment method via Stripe
-3. Charge initiation fee or generate payment link
+### Edge Function Changes (`stripe-payment/index.ts`)
 
+#### `create_admin_setup_intent` (around line 758)
+Add logic to persist customer ID to member record:
+
+```typescript
+case 'create_admin_setup_intent': {
+  const { 
+    stripeCustomerId: adminSetupCustomerId, 
+    applicantEmail: adminApplicantEmail, 
+    applicantName: adminApplicantName,
+    memberId: adminSetupMemberId  // ← NEW PARAMETER
+  } = body;
+
+  // ... existing customer creation logic ...
+
+  // NEW: Save customer ID to member record if memberId provided
+  if (adminSetupMemberId && finalCustomerId) {
+    const { error: updateError } = await supabase
+      .from('members')
+      .update({ stripe_customer_id: finalCustomerId })
+      .eq('id', adminSetupMemberId);
+    
+    if (updateError) {
+      logStep("Warning: Failed to save stripe_customer_id to member", { 
+        error: updateError.message 
+      });
+    } else {
+      logStep("Saved stripe_customer_id to member", { 
+        memberId: adminSetupMemberId, 
+        customerId: finalCustomerId 
+      });
+    }
+  }
+
+  // ... rest of existing code ...
+}
+```
+
+#### `sync_member_card_metadata` (around line 2176)
+Allow passing customer ID directly:
+
+```typescript
+case 'sync_member_card_metadata': {
+  const { memberId, stripeCustomerId: providedCustomerId } = body;
+  
+  // ... existing member lookup ...
+
+  // Use provided customer ID if member doesn't have one
+  const customerIdToUse = memberData?.stripe_customer_id || providedCustomerId;
+  
+  if (!customerIdToUse) {
+    return Response with error...
+  }
+
+  // If member record was missing customer ID, update it now
+  if (!memberData?.stripe_customer_id && providedCustomerId) {
+    await supabase
+      .from('members')
+      .update({ stripe_customer_id: providedCustomerId })
+      .eq('id', memberId);
+  }
+
+  // ... rest of existing sync logic using customerIdToUse ...
+}
+```
+
+### Frontend Changes
+
+#### `MemberDetail.tsx` → `handleAddCard()` (around line 590)
+```typescript
+const { data, error } = await supabase.functions.invoke('stripe-payment', {
+  body: {
+    action: 'create_admin_setup_intent',
+    stripeCustomerId: member.stripe_customer_id,
+    applicantEmail: member.email,
+    applicantName: `${member.first_name} ${member.last_name}`,
+    memberId: member.id,  // ← ADD THIS
+  },
+});
+```
+
+#### `MemberDetailSheet.tsx` → `handleAddCard()` (around line 313)
+Same change as above.
+
+#### `AdminAddCardForm.tsx` → sync call (around line 133)
+```typescript
+const { data: syncData } = await supabase.functions.invoke("stripe-payment", {
+  body: { 
+    action: "sync_member_card_metadata",
+    memberId,
+    stripeCustomerId  // ← ADD THIS as fallback
+  }
+});
+```
+
+---
+
+## Expected Outcome After Fix
+
+1. Admin clicks "Add Card" on member profile
+2. Edge function creates Stripe customer AND saves ID to `members` table
+3. Admin enters card details
+4. Card is saved in Stripe
+5. `sync_member_card_metadata` successfully updates card details
+6. Admin sees card on file immediately
+
+---
+
+## Additional Issues to Address
+
+During analysis, I also identified these related issues that should be reviewed:
+
+| Issue | Impact | Priority |
+|-------|--------|----------|
+| Package sales require `userId` | Admin can't sell packages to members without linked accounts | High |
+| Member portal card saving | Same sync issue affects member self-service | High |
+| Credits not allocated without subscription | Members need active subscription for credits | Medium |
