@@ -43,6 +43,7 @@ import steamRoom from "@/assets/wellness/steam-room.jpg";
 import coldPlunge from "@/assets/wellness/cold-plunge.jpg";
 import marbleTexture from "@/assets/textures/marble-texture.jpg";
 import saltRoom from "@/assets/wellness/salt-room.jpg";
+import zerobodyCryoNew from "@/assets/wellness/zerobody-cryo.jpg";
 
 // Recovery Suite amenities - open access (no booking needed)
 const recoveryAmenities = [
@@ -292,15 +293,12 @@ export default function Amenities() {
       </section>
 
       {/* Premium Experiences - Booking Required */}
-      <section className="relative py-24 bg-primary text-primary-foreground overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <img src={marbleTexture} alt="" className="w-full h-full object-cover" />
-        </div>
+      <section className="py-24 bg-secondary/30">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
-            <p className="text-gold-light text-sm uppercase tracking-[0.2em] mb-4">Reservation Required</p>
-            <h2 className="text-4xl md:text-5xl font-serif text-primary-foreground mb-6">Advanced Recovery</h2>
-            <p className="text-primary-foreground/70 text-lg">
+            <p className="text-gold text-sm uppercase tracking-[0.2em] mb-4">Reservation Required</p>
+            <h2 className="text-4xl md:text-5xl font-serif text-foreground mb-6">Advanced Recovery</h2>
+            <p className="text-muted-foreground text-lg">
               Precision therapies. Booking ensures your time is protected.
             </p>
           </div>
@@ -325,7 +323,7 @@ export default function Amenities() {
                 <p className="text-primary-foreground/80 text-sm leading-relaxed mb-4">
                   Cellular repair through precision wavelengths. Reduce inflammation, accelerate recovery, restore skin.
                 </p>
-                <Button variant="outline" className="border-gold/30 text-primary-foreground hover:bg-gold/10 hover:text-primary-foreground">
+                <Button variant="gold" size="sm">
                   Book Session
                 </Button>
               </div>
@@ -335,8 +333,8 @@ export default function Amenities() {
             <div className="group relative overflow-hidden rounded-sm">
               <div className="aspect-[4/3]">
                 <img 
-                  src={fracturedIce} 
-                  alt="Starpool ZeroBody - Cold Therapy" 
+                  src={zerobodyCryoNew} 
+                  alt="Starpool ZeroBody - Dry Floatation" 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                 />
               </div>
@@ -350,7 +348,7 @@ export default function Amenities() {
                 <p className="text-primary-foreground/80 text-sm leading-relaxed mb-4">
                   Dry floatation in complete weightlessness. The nervous system resets. The mind follows.
                 </p>
-                <Button variant="outline" className="border-gold/30 text-primary-foreground hover:bg-gold/10 hover:text-primary-foreground">
+                <Button variant="gold" size="sm">
                   Book Session
                 </Button>
               </div>
