@@ -42,6 +42,7 @@ import fracturedIce from "@/assets/wellness/fractured-ice.jpg";
 import steamRoom from "@/assets/wellness/steam-room.jpg";
 import coldPlunge from "@/assets/wellness/cold-plunge.jpg";
 import marbleTexture from "@/assets/textures/marble-texture.jpg";
+import saltRoom from "@/assets/wellness/salt-room.jpg";
 
 // Recovery Suite amenities - open access (no booking needed)
 const recoveryAmenities = [
@@ -67,6 +68,7 @@ const recoveryAmenities = [
     icon: Waves,
     title: "Salt Room",
     description: "Himalayan salt therapy for respiratory health and skin rejuvenation.",
+    image: saltRoom,
   },
 ];
 
