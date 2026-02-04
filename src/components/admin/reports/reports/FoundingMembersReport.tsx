@@ -6,18 +6,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trophy, Users, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { 
+  extractTier, 
+  normalizeGender, 
+  getAnnualPrice,
+  type MembershipTier
+} from "@/lib/membershipPricing";
 
 interface Props {
   dateRange: { start: Date; end: Date };
   filters: Record<string, string | boolean>;
 }
-
-const TIER_PRICING: Record<string, number> = {
-  diamond: 695,
-  platinum: 495,
-  gold: 395,
-  silver: 295,
-};
 
 export function FoundingMembersReport({ dateRange, filters }: Props) {
   const { data, isLoading } = useQuery({
@@ -32,38 +31,46 @@ export function FoundingMembersReport({ dateRange, filters }: Props) {
       const founding = (members || []).filter(m => m.founding_member);
       const regular = (members || []).filter(m => !m.founding_member);
 
-      // Calculate revenue
-      const calcRevenue = (list: typeof members) => (list || []).reduce((sum, m) => {
-        const type = m.membership_plan?.toLowerCase() || '';
-        const tier = Object.keys(TIER_PRICING).find(t => type.includes(t));
-        return sum + (tier ? TIER_PRICING[tier] : 0);
+      // Calculate annual revenue for founding members (they pay upfront)
+      const foundingRevenue = founding.reduce((sum, m) => {
+        const tier = extractTier(m.membership_plan);
+        const gender = normalizeGender(m.gender);
+        return sum + getAnnualPrice(tier, gender);
       }, 0);
-
-      const foundingRevenue = calcRevenue(founding);
-      const regularRevenue = calcRevenue(regular);
 
       const chartData = [
         { name: 'Founding Members', value: founding.length, color: 'hsl(45, 93%, 47%)' },
         { name: 'Regular Members', value: regular.length, color: 'hsl(var(--primary))' },
       ].filter(d => d.value > 0);
 
-      // Tier breakdown for founding members
+      // Tier breakdown for founding members with annual pricing
       const foundingByTier = founding.reduce((acc, m) => {
-        const type = m.membership_plan?.toLowerCase() || '';
-        const tier = Object.keys(TIER_PRICING).find(t => type.includes(t)) || 'other';
+        const tier = extractTier(m.membership_plan);
+        const gender = normalizeGender(m.gender);
+        const annualPrice = getAnnualPrice(tier, gender);
+        
         if (!acc[tier]) acc[tier] = { tier, count: 0, revenue: 0 };
         acc[tier].count += 1;
-        acc[tier].revenue += TIER_PRICING[tier] || 0;
+        acc[tier].revenue += annualPrice;
         return acc;
       }, {} as Record<string, { tier: string; count: number; revenue: number }>);
+
+      // Gender breakdown for founding members
+      const foundingByGender = founding.reduce((acc, m) => {
+        const gender = normalizeGender(m.gender);
+        if (!acc[gender]) acc[gender] = { gender, count: 0, revenue: 0 };
+        acc[gender].count += 1;
+        acc[gender].revenue += getAnnualPrice(extractTier(m.membership_plan), gender);
+        return acc;
+      }, {} as Record<string, { gender: string; count: number; revenue: number }>);
 
       return {
         founding,
         regular,
         foundingRevenue,
-        regularRevenue,
         chartData,
         foundingByTier: Object.values(foundingByTier),
+        foundingByGender: Object.values(foundingByGender),
         totalMembers: (members || []).length,
       };
     },
@@ -110,8 +117,9 @@ export function FoundingMembersReport({ dateRange, filters }: Props) {
             <div className="flex items-center gap-3">
               <DollarSign className="h-8 w-8 text-green-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Founding Revenue/mo</p>
+                <p className="text-sm text-muted-foreground">Founding Annual Revenue</p>
                 <p className="text-2xl font-bold">{formatCurrency(data?.foundingRevenue || 0)}</p>
+                <p className="text-xs text-muted-foreground">Paid upfront</p>
               </div>
             </div>
           </CardContent>
@@ -145,18 +153,17 @@ export function FoundingMembersReport({ dateRange, filters }: Props) {
 
         {/* Founding by Tier */}
         <div>
-          <h4 className="font-semibold mb-4">Founding Members by Tier</h4>
+          <h4 className="font-semibold mb-4">Founding Members by Tier (Annual Revenue)</h4>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Tier</TableHead>
                 <TableHead className="text-right">Count</TableHead>
-                <TableHead className="text-right">Monthly Revenue</TableHead>
+                <TableHead className="text-right">Annual Revenue</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data?.foundingByTier
-                .filter(t => t.tier !== 'other')
                 .sort((a, b) => b.revenue - a.revenue)
                 .map((row) => (
                   <TableRow key={row.tier}>
@@ -170,8 +177,33 @@ export function FoundingMembersReport({ dateRange, filters }: Props) {
                     <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
                   </TableRow>
                 ))}
+              {data?.foundingByTier && data.foundingByTier.length > 0 && (
+                <TableRow className="font-semibold bg-muted/50">
+                  <TableCell>Total</TableCell>
+                  <TableCell className="text-right">{data.founding.length}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(data.foundingRevenue)}</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
+
+          {/* Gender breakdown */}
+          {data?.foundingByGender && data.foundingByGender.length > 0 && (
+            <div className="mt-6">
+              <h4 className="font-semibold mb-4">By Gender</h4>
+              <div className="grid grid-cols-2 gap-4">
+                {data.foundingByGender.map((g) => (
+                  <Card key={g.gender}>
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-muted-foreground capitalize">{g.gender}</p>
+                      <p className="text-xl font-bold">{g.count}</p>
+                      <p className="text-sm text-muted-foreground">{formatCurrency(g.revenue)}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
