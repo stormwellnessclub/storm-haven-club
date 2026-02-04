@@ -37,12 +37,12 @@ function getTierName(membershipType: string): string {
   return "silver";
 }
 
-// Class pass details - Updated to match new categories
+// Class pass details - Fixed to use pilates_cycling category for broader matching
 const CLASS_PASS_CONFIG: Record<string, { category: string; classes: number; validityDays: number }> = {
-  'single_pilatesCycling': { category: 'reformer', classes: 1, validityDays: 7 },
-  'tenPack_pilatesCycling': { category: 'reformer', classes: 10, validityDays: 60 },
-  'single_cycling': { category: 'cycling', classes: 1, validityDays: 7 },
-  'tenPack_cycling': { category: 'cycling', classes: 10, validityDays: 60 },
+  'single_pilatesCycling': { category: 'pilates_cycling', classes: 1, validityDays: 7 },
+  'tenPack_pilatesCycling': { category: 'pilates_cycling', classes: 10, validityDays: 60 },
+  'single_cycling': { category: 'pilates_cycling', classes: 1, validityDays: 7 },
+  'tenPack_cycling': { category: 'pilates_cycling', classes: 10, validityDays: 60 },
   'single_otherClasses': { category: 'aerobics', classes: 1, validityDays: 7 },
   'tenPack_otherClasses': { category: 'aerobics', classes: 10, validityDays: 60 },
 };
@@ -387,8 +387,9 @@ serve(async (req) => {
             }
 
             // Map old category names to new ones for backward compatibility
+            // Now mapping to pilates_cycling for broader class matching
             let mappedCategory = category;
-            if (category === 'pilatesCycling') mappedCategory = 'reformer';
+            if (category === 'pilatesCycling') mappedCategory = 'pilates_cycling';
             if (category === 'otherClasses') mappedCategory = 'aerobics';
 
             const configKey = `${passType}_${category}`;
@@ -398,8 +399,9 @@ serve(async (req) => {
             if (!config) {
               // Try to infer from category if exact match not found
               const defaultConfig = {
-                'reformer': { category: 'reformer', classes: passType === 'tenPack' ? 10 : 1, validityDays: passType === 'tenPack' ? 60 : 7 },
-                'cycling': { category: 'cycling', classes: passType === 'tenPack' ? 10 : 1, validityDays: passType === 'tenPack' ? 60 : 7 },
+                'pilates_cycling': { category: 'pilates_cycling', classes: passType === 'tenPack' ? 10 : 1, validityDays: passType === 'tenPack' ? 60 : 7 },
+                'reformer': { category: 'pilates_cycling', classes: passType === 'tenPack' ? 10 : 1, validityDays: passType === 'tenPack' ? 60 : 7 },
+                'cycling': { category: 'pilates_cycling', classes: passType === 'tenPack' ? 10 : 1, validityDays: passType === 'tenPack' ? 60 : 7 },
                 'aerobics': { category: 'aerobics', classes: passType === 'tenPack' ? 10 : 1, validityDays: passType === 'tenPack' ? 60 : 7 },
               };
               config = defaultConfig[mappedCategory as keyof typeof defaultConfig] || defaultConfig.aerobics;
