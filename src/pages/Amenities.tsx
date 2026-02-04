@@ -296,7 +296,7 @@ export default function Amenities() {
       <section className="py-24 bg-background">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-12">
-            <p className="text-muted-foreground text-xs uppercase tracking-[0.3em] mb-4 font-medium">Reservation Required</p>
+            <p className="text-muted-foreground text-sm uppercase tracking-[0.3em] mb-4 font-medium">Reservation Required</p>
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif text-foreground mb-6">Advanced Recovery</h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
               Precision therapies. Booking ensures your time is protected.
