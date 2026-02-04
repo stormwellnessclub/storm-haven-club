@@ -39,6 +39,7 @@ import strengthSculpt from "@/assets/strength-sculpt.jpg";
 import woodenLockers from "@/assets/interiors/wooden-lockers-gold.jpg";
 import saunaInterior from "@/assets/wellness/sauna-interior-wide.jpg";
 import fracturedIce from "@/assets/wellness/fractured-ice.jpg";
+import steamRoom from "@/assets/wellness/steam-room.jpg";
 import marbleTexture from "@/assets/textures/marble-texture.jpg";
 
 // Recovery Suite amenities - open access (no booking needed)
@@ -53,6 +54,7 @@ const recoveryAmenities = [
     icon: Wind,
     title: "Steam Room",
     description: "Eucalyptus-infused steam for relaxation and respiratory wellness.",
+    image: steamRoom,
   },
   {
     icon: Droplets,
