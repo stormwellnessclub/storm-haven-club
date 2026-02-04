@@ -293,65 +293,66 @@ export default function Amenities() {
       </section>
 
       {/* Premium Experiences - Booking Required */}
-      <section className="py-24 bg-secondary/30">
+      <section className="py-24 bg-background">
         <div className="container mx-auto px-6">
-          <div className="max-w-3xl mx-auto text-center mb-16">
-            <p className="text-gold text-sm uppercase tracking-[0.2em] mb-4">Reservation Required</p>
-            <h2 className="text-4xl md:text-5xl font-serif text-foreground mb-6">Advanced Recovery</h2>
-            <p className="text-muted-foreground text-lg">
+          <div className="max-w-3xl mx-auto text-center mb-12">
+            <p className="text-muted-foreground text-xs uppercase tracking-[0.3em] mb-4 font-medium">Reservation Required</p>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif text-foreground mb-6">Advanced Recovery</h2>
+            <p className="text-muted-foreground text-lg max-w-xl mx-auto">
               Precision therapies. Booking ensures your time is protected.
             </p>
           </div>
-          
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {/* Red Light Therapy */}
-            <div className="group relative overflow-hidden rounded-sm">
-              <div className="aspect-[4/3]">
-                <img 
-                  src={redLightTherapy} 
-                  alt="Red Light Therapy" 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                />
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/40 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-8">
-                <h3 className="font-serif text-2xl text-primary-foreground mb-2">Red Light Therapy</h3>
-                <div className="flex items-center gap-2 text-sm text-gold-light mb-3">
-                  <Clock className="w-4 h-4" />
-                  20 minutes
-                </div>
-                <p className="text-primary-foreground/80 text-sm leading-relaxed mb-4">
-                  Cellular repair through precision wavelengths. Reduce inflammation, accelerate recovery, restore skin.
-                </p>
-                <Button variant="gold" size="sm">
-                  Book Session
-                </Button>
-              </div>
+        </div>
+        
+        {/* Full-width seamless image grid */}
+        <div className="grid md:grid-cols-2">
+          {/* Red Light Therapy */}
+          <div className="group relative overflow-hidden">
+            <div className="aspect-[4/3] md:aspect-[16/10]">
+              <img 
+                src={redLightTherapy} 
+                alt="Red Light Therapy" 
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+              />
             </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/50 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
+              <h3 className="font-serif text-3xl md:text-4xl text-primary-foreground mb-3">Red Light Therapy</h3>
+              <div className="flex items-center gap-2 text-sm text-gold-light mb-4 font-medium">
+                <Clock className="w-4 h-4" />
+                20 minutes
+              </div>
+              <p className="text-primary-foreground/90 text-base leading-relaxed mb-6 max-w-md">
+                Cellular repair through precision wavelengths. Reduce inflammation, accelerate recovery, restore skin.
+              </p>
+              <Button variant="gold" size="lg">
+                Book Session
+              </Button>
+            </div>
+          </div>
 
-            {/* ZeroBody */}
-            <div className="group relative overflow-hidden rounded-sm">
-              <div className="aspect-[4/3]">
-                <img 
-                  src={zerobodyCryoNew} 
-                  alt="Starpool ZeroBody - Dry Floatation" 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                />
+          {/* ZeroBody */}
+          <div className="group relative overflow-hidden">
+            <div className="aspect-[4/3] md:aspect-[16/10]">
+              <img 
+                src={zerobodyCryoNew} 
+                alt="Starpool ZeroBody - Dry Floatation" 
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/50 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
+              <h3 className="font-serif text-3xl md:text-4xl text-primary-foreground mb-3">Starpool ZeroBody</h3>
+              <div className="flex items-center gap-2 text-sm text-gold-light mb-4 font-medium">
+                <Clock className="w-4 h-4" />
+                5 minutes
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/40 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-8">
-                <h3 className="font-serif text-2xl text-primary-foreground mb-2">Starpool ZeroBody</h3>
-                <div className="flex items-center gap-2 text-sm text-gold-light mb-3">
-                  <Clock className="w-4 h-4" />
-                  5 minutes
-                </div>
-                <p className="text-primary-foreground/80 text-sm leading-relaxed mb-4">
-                  Dry floatation in complete weightlessness. The nervous system resets. The mind follows.
-                </p>
-                <Button variant="gold" size="sm">
-                  Book Session
-                </Button>
-              </div>
+              <p className="text-primary-foreground/90 text-base leading-relaxed mb-6 max-w-md">
+                Dry floatation in complete weightlessness. The nervous system resets. The mind follows.
+              </p>
+              <Button variant="gold" size="lg">
+                Book Session
+              </Button>
             </div>
           </div>
         </div>
