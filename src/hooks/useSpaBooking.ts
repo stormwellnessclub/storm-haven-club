@@ -41,9 +41,11 @@ interface BookSpaAppointmentParams {
   durationMinutes: number;
   cleanupMinutes?: number;
   memberNotes?: string;
-  paymentMethod: "card" | "member_account";
+  paymentMethod: "card" | "member_account" | "credit";
   paymentIntentId?: string;
   staffId?: string;
+  creditType?: "red_light" | "dry_cryo";
+  creditId?: string;
 }
 
 interface CheckAvailabilityParams {

@@ -578,13 +578,14 @@ export default function MemberDetail() {
   };
 
   const getCreditsForTier = (tier: string) => {
+    // MUST MATCH stripe-payment and stripe-webhook edge functions
     const credits: Record<string, { class: number; red_light: number; dry_cryo: number }> = {
       silver: { class: 0, red_light: 0, dry_cryo: 0 },
-      gold: { class: 8, red_light: 4, dry_cryo: 4 },
-      platinum: { class: 16, red_light: 8, dry_cryo: 8 },
-      diamond: { class: 999, red_light: 999, dry_cryo: 999 },
+      gold: { class: 0, red_light: 4, dry_cryo: 2 },
+      platinum: { class: 0, red_light: 6, dry_cryo: 4 },
+      diamond: { class: 10, red_light: 10, dry_cryo: 6 },
     };
-    return credits[tier?.toLowerCase()] || credits.gold;
+    return credits[tier?.toLowerCase()] || credits.silver;
   };
 
   const handleAddCard = async () => {
