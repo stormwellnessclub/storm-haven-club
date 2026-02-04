@@ -55,7 +55,7 @@ const STRIPE_PRODUCTS = {
       tenPack: { member: 'price_1SlABPLyZrsSqLhsbL0mwcit', nonMember: 'price_1SlABzLyZrsSqLhseSyKYaDD' },
     },
   },
-  guestPass: 'TODO_ADD_STRIPE_PRICE_ID',  // $60 - Guest Pass (gym and amenities access, subject to availability)
+  guestPass: 'price_1SxATYLyZrsSqLhs6vDu1QWg',  // $60 - Guest Pass (gym and amenities access, subject to availability)
 };
 
 interface PaymentRequest {
