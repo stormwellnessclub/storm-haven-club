@@ -390,32 +390,6 @@ export default function Memberships() {
       </section>
       */}
 
-      {/* Access Schedule */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-6">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="heading-section mb-6">Accessibility Schedule</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="card-luxury p-6">
-                <h3 className="font-serif text-lg mb-3">Women-Only Access</h3>
-                <p className="text-muted-foreground">
-                  Monday, Wednesday, Friday & Saturday
-                </p>
-              </div>
-              <div className="card-luxury p-6">
-                <h3 className="font-serif text-lg mb-3">Unisex Access</h3>
-                <p className="text-muted-foreground">
-                  Tuesday, Thursday & Sunday
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-6">
-              Café and Spa are open 7 days a week to all members. Services
-              available à la carte at preferred member rates.
-            </p>
-          </div>
-        </div>
-      </section>
 
       {/* Final CTA */}
       <section className="section-padding bg-charcoal">
