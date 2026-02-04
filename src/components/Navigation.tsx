@@ -53,12 +53,12 @@ export function Navigation() {
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 safe-area-inset ${navBackground}`}>
       <div className="container mx-auto container-padding">
-        <div className="flex items-center justify-between h-16 sm:h-20">
+        <div className="flex items-center justify-between h-20 sm:h-24">
           {/* Logo */}
-          <Link to="/" className="flex-shrink-0 transition-transform duration-300 hover:scale-105 touch-feedback">
+          <Link to="/" className="flex-shrink-0 -ml-2 sm:-ml-4 transition-transform duration-300 hover:scale-105 touch-feedback">
             <img
               alt="Storm Wellness Club"
-              className="h-16 sm:h-20 w-auto"
+              className="h-20 sm:h-28 w-auto"
               src="/lovable-uploads/da2bfb84-b4c3-4698-8873-616dc85799d4.png"
             />
           </Link>
