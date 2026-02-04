@@ -323,19 +323,31 @@ export default function Members() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className={getStatusColor(member.status)}>
-                            {formatStatus(member.status)}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className={getStatusColor(member.status)}>
+                              {formatStatus(member.status)}
+                            </Badge>
+                            {checkMemberPaymentStatus({
+                              status: member.status,
+                              annual_fee_paid_at: member.annual_fee_paid_at,
+                              stripe_subscription_id: member.stripe_subscription_id,
+                            }).hasPaymentIssues && (
+                              <span title="Payment issue">
+                                <AlertTriangle className="h-4 w-4 text-red-500" />
+                              </span>
+                            )}
+                          </div>
+                          <Badge 
+                            variant="outline" 
+                            className={
+                              member.annual_fee_paid_at || member.annual_fee_subscription_id
+                                ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 text-xs"
+                                : "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800 text-xs"
+                            }
+                          >
+                            {member.annual_fee_paid_at || member.annual_fee_subscription_id ? "Initiation Fee Paid" : "Initiation Fee Unpaid"}
                           </Badge>
-                          {checkMemberPaymentStatus({
-                            status: member.status,
-                            annual_fee_paid_at: member.annual_fee_paid_at,
-                            stripe_subscription_id: member.stripe_subscription_id,
-                          }).hasPaymentIssues && (
-                            <span title="Payment issue">
-                              <AlertTriangle className="h-4 w-4 text-red-500" />
-                            </span>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell>
