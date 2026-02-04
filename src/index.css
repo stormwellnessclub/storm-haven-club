@@ -35,8 +35,8 @@
     --muted: 25 13% 48%; /* Clay Veil */
     --muted-foreground: 38 27% 33%; /* Earth Smoke */
 
-    --accent: 38 55% 88%; /* Golden Dune - warm beige-gold */
-    --accent-foreground: 38 30% 12%; /* Smoked Umber - darker for contrast */
+    --accent: 38 35% 45%; /* Dark brown - readable text accent */
+    --accent-foreground: 48 16% 90%; /* Light foreground for accent backgrounds */
 
     --destructive: 0 84% 60%; /* Keep minimal red for errors */
     --destructive-foreground: 0 0% 100%;
@@ -100,7 +100,7 @@
     --muted: 25 13% 30%; /* Clay Veil - darker */
     --muted-foreground: 0 1% 65%; /* Silver Drift - darker */
 
-    --accent: 38 55% 75%; /* Golden Dune - slightly darker */
+    --accent: 38 40% 55%; /* Dark brown for dark mode */
     --accent-foreground: 38 30% 8%;
 
     --destructive: 0 62% 30%;
