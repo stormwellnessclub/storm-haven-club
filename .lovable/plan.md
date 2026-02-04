@@ -1,202 +1,178 @@
 
 
-# Comprehensive Membership Activation Workflow Analysis
+# Member Activation Email System Implementation
 
-## Executive Summary
-
-Your membership system is **substantially complete** for the February 9th launch. The admin-controlled activation workflow is functional, Stripe integration is solid, and credit allocation is properly connected to tier-based benefits. However, I've identified several gaps and areas needing fine-tuning.
+## Overview
+Create a new email workflow that allows admins to send activation setup emails to members with `pending_activation` status. The email will instruct members to:
+1. **Create an account** using the same email they applied with
+2. **Add a payment card** for their membership billing
+3. **Sign the membership agreement**
 
 ---
 
-## Current System Architecture
+## Current State Analysis
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         MEMBERSHIP WORKFLOW                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  1. APPLY → 2. APPROVE → 3. ADD CARD → 4. ACTIVATE → 5. BILLING STARTS     │
-│             (Admin)       (Admin/Self)   (Admin)       (Stripe)              │
-└─────────────────────────────────────────────────────────────────────────────┘
+### Database Status (20 pending_activation members):
+- **7 have cards on file** (card_last4 not null)
+- **10 have initiation fees paid** (annual_fee_paid_at not null)
+- **13 have NO Stripe customer ID** yet (need to create account first)
+
+### Existing Related Email Templates:
+- `add_card_for_dues` - Sent after initiation fee is paid (not ideal for pre-launch)
+- `application_approved_pre_launch` - Basic approval notice
+
+### Key Fields to Track:
+- `members.card_last4` - Has card on file
+- `members.stripe_customer_id` - Has Stripe customer
+- `profiles.membership_agreement_signed` - Has signed agreement
+
+---
+
+## Implementation Plan
+
+### Step 1: Add New Email Template
+**File:** `supabase/functions/send-email/index.ts`
+
+Add `member_activation_setup` email type with:
+- Clear February 9th deadline messaging
+- Instruction to create account with the SAME EMAIL they applied with (highlighted prominently)
+- Visual checklist: Card + Agreement requirements
+- Two action buttons: "Add Payment Method" and "Sign Agreement"
+- Dynamic status showing what's already completed
+
+### Step 2: Add Email Tracking Column
+**Database Migration:**
+```sql
+ALTER TABLE members 
+ADD COLUMN IF NOT EXISTS activation_email_sent_at timestamptz;
+```
+
+### Step 3: Add Individual Email Action to Member Detail Page
+**File:** `src/pages/admin/MemberDetail.tsx`
+
+Add a prominent "Send Activation Email" button in the header section that:
+- Shows current setup status (card on file? agreement signed?)
+- Sends the activation email with one click
+- Updates `activation_email_sent_at` timestamp
+- Shows toast confirmation
+
+### Step 4: Add Bulk Email UI to Members Page
+**File:** `src/pages/admin/Members.tsx`
+
+Add:
+- Filter for "Pending Activation" members
+- Individual dropdown action: "Send Activation Email"
+- Bulk action button: "Send Activation Emails to All Pending"
+- Progress indicator during batch send
+- Visual indicator showing who has been emailed
+
+---
+
+## Email Template Content
+
+**Subject:** Action Required: Complete Your Membership Setup - Storm Wellness Club
+
+**Content includes:**
+1. Personalized greeting
+2. Clear deadline: "We open February 9th"
+3. **Prominent email reminder** (highlighted blue box):
+   - "Create your account using: [their_email]"
+   - "This is the same email you applied with"
+4. What they need to do (checklist):
+   - [ ] Create/sign in to member account
+   - [ ] Add payment method for membership dues
+   - [ ] Sign membership agreement
+5. Two action buttons:
+   - Primary: "Complete Your Setup" → `/auth`
+   - Secondary: "Sign Agreement" → `/member/waivers` (after login)
+6. Deadline warning with visual urgency
+
+---
+
+## UI Changes
+
+### Members Page (Admin)
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Members (20)                  [Send Activation Emails ▼]   │
+├─────────────────────────────────────────────────────────────┤
+│  [Filter: Pending Activation ▼]  [Billing Type ▼]          │
+├─────────────────────────────────────────────────────────────┤
+│  Name              Status              Email Sent   Actions │
+│  Jane Doe          Pending Activation  ✓ Sent       [···]   │
+│  John Smith        Pending Activation  —            [···]   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Member Detail Page (Admin)
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ← Back   Jane Doe                                          │
+│           Pending Activation                                │
+├─────────────────────────────────────────────────────────────┤
+│  Activation Status                                          │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ ✓ Stripe Customer Created                           │   │
+│  │ ✓ Card on File (Visa •••• 4242)                     │   │
+│  │ ✗ Membership Agreement Not Signed                   │   │
+│  │                                                      │   │
+│  │ [Send Activation Email]  Last sent: Feb 3, 2026    │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## WHAT'S WORKING ✅
+## Files to Modify
 
-### 1. Admin Activation Flow (Applications.tsx + SingleActivationDialog.tsx)
-- **Approval modes working**: Standard, No Email, Auto-Activate, Locked Start Date, Pre-Launch
-- **Card management**: Admins can add cards to applicants via `AdminAddCardForm`
-- **Initiation fee charging**: Works via `charge_saved_card` action
-- **Member creation**: Properly copies card metadata, tier, gender, founding status from application
+1. **`supabase/functions/send-email/index.ts`**
+   - Add `member_activation_setup` email type to the union
+   - Add email template with checklist and Feb 9th deadline
 
-### 2. Subscription Creation (stripe-payment edge function)
-- **`admin_create_member_subscription` action**: Fully implemented
-  - Creates Stripe subscription with correct tier/gender/billing type pricing
-  - Handles past start dates (skips billing_cycle_anchor to avoid Stripe errors)
-  - Allocates initial credits automatically
-  - Updates member status to `active`
+2. **Database Migration**
+   - Add `activation_email_sent_at` column to members table
 
-### 3. Stripe Price IDs
-- All membership tiers (Silver, Gold, Platinum, Diamond) have price IDs for both monthly and annual billing
-- Gender-specific pricing (Women/Men) correctly mapped
-- Initiation fees have dedicated recurring price IDs
+3. **`src/pages/admin/Members.tsx`**
+   - Add "Send Activation Email" to dropdown menu
+   - Add bulk send button for pending_activation members
+   - Add visual indicator for email sent status
+   - Fetch `activation_email_sent_at` in the query
 
-### 4. Credit Allocation by Tier
-```text
-Tier       │ Class │ Red Light │ Dry Cryo
-───────────┼───────┼───────────┼──────────
-Silver     │   0   │     0     │    0
-Gold       │   0   │     4     │    2
-Platinum   │   0   │     6     │    4
-Diamond    │  10   │    10     │    6
-```
-
-### 5. Webhook Credit Renewal (stripe-webhook)
-- `invoice.payment_succeeded` event properly renews credits monthly
-- Checks for duplicate credits before inserting
-- Handles both membership and annual fee subscriptions
-
-### 6. Class Booking with Credits (useBooking.ts)
-- `class` credits are consumed via `create_atomic_class_booking` RPC
-- Properly refunds credits on cancellation (if >12 hours before class)
+4. **`src/pages/admin/MemberDetail.tsx`**
+   - Add activation status card showing setup progress
+   - Add "Send Activation Email" button with send date
+   - Join with profiles to check agreement status
 
 ---
 
-## WHAT'S MISSING ❌
+## Key Email Copy
 
-### 1. Wellness Credit Booking (Red Light & Dry Cryo)
-**CRITICAL GAP**: The spa booking modal (`SpaBookingModal.tsx`) does NOT consume `red_light` or `dry_cryo` credits. It only charges cards or member accounts.
+**Email reminder text (will be prominently displayed):**
 
-**Impact**: Members with Gold/Platinum/Diamond tiers get allocated wellness credits but have no way to use them for booking Red Light Therapy or Dry Cryo sessions.
-
-**Required Fix**:
-- Add credit payment option to SpaBookingModal
-- Create deduction logic similar to class bookings
-- Track credit usage in booking records
-
-### 2. Credit-to-Service Category Mapping
-**Issue**: Class credits work because class categories (`pilates_cycling`, `other`) are mapped in `classCategories.ts`. However, there's no equivalent mapping for wellness services to credit types.
-
-**Missing Logic**:
-```text
-Service Name        → Credit Type
-Red Light Therapy   → red_light
-Dry Cryotherapy     → dry_cryo
-```
-
-### 3. Member Dues Self-Service (Limited)
-The `create_member_dues_checkout` action exists but is hidden in soft-launch mode. Members with `pending_activation` status see a passive message instead of a payment button.
-
-**Current behavior**: Correct for admin-controlled launch
-**Post-launch**: Should enable the PaymentDueNotice "Set Up Billing" button
+> **📧 Important: Create your account with this email address**
+> 
+> **[member@email.com]**
+> 
+> This is the same email you used when applying. Using a different email will prevent your membership from being linked automatically.
 
 ---
 
-## WHAT NEEDS FINE-TUNING ⚠️
+## Expected Flow
 
-### 1. Gold Tier Credit Values Mismatch
-**In MemberDetail.tsx (line 580-588)**:
-```javascript
-const credits = {
-  gold: { class: 8, red_light: 4, dry_cryo: 4 },
-  // ...
-};
-```
+1. Admin goes to `/admin/members`
+2. Filters by "Pending Activation" 
+3. Clicks "Send Activation Emails" button
+4. Confirmation dialog shows count: "Send to 13 pending members?"
+5. Emails sent with progress toast
+6. Table updates to show "Email Sent" badges
 
-**In stripe-payment and stripe-webhook**:
-```javascript
-gold: { class: 0, red_light: 4, dry_cryo: 2 },
-```
-
-**Recommendation**: The edge functions have the correct values. Update MemberDetail.tsx to match.
-
-### 2. Database Members Status
-Based on my query, you have **10 members in `pending_activation`** with various states:
-- Some have `stripe_customer_id` and `card_brand/last4` (ready to activate)
-- Some have `annual_fee_paid_at` set (initiation fee paid)
-- Some have neither (need card on file first)
-
-**Pre-launch checklist for each member**:
-1. ✓ Stripe Customer ID exists
-2. ✓ Card on file (card_brand, card_last4 not null)
-3. ✓ Initiation fee paid (annual_fee_paid_at not null)
-4. → Admin activates via "Create Subscription" button
-
-### 3. Annual Fee Subscription ID Not Being Set on Activation
-When admin uses `admin_create_member_subscription`, it creates the membership dues subscription but does NOT create the annual fee subscription separately.
-
-**Current behavior**: `annual_fee_subscription_id` remains null
-**Expected**: Annual fee should be a separate yearly recurring subscription
-
-**Fix needed**: Add annual fee subscription creation to `admin_create_member_subscription` action (similar to how `create_subscription_from_payment` does it)
-
-### 4. Credits Not Created When Using Other Activation Methods
-If a member is activated via:
-- Super Admin override button in member portal
-- Direct status update in MemberDetail edit mode
-
-...credits are NOT allocated. Credits are only created when:
-- `admin_create_member_subscription` is called
-- Webhook handles `checkout.session.completed`
-
----
-
-## RECOMMENDED IMPLEMENTATION PLAN
-
-### Phase 1: Pre-Launch (Before Feb 9th)
-1. **Fix Gold tier credits in MemberDetail.tsx** - UI consistency
-2. **Add annual fee subscription to admin activation** - Ensures proper recurring billing
-3. **Verify all pending members have cards on file** - Admin dashboard check
-
-### Phase 2: Launch Day
-4. **Activate members via admin panel** - Use "Create Subscription" button for each
-5. **Verify credits allocated** - Check Credits tab in MemberDetail
-
-### Phase 3: Post-Launch Enhancement
-6. **Implement wellness credit booking** - Allow Red Light/Dry Cryo sessions to consume credits
-7. **Enable self-service dues checkout** - For future members
-
----
-
-## TECHNICAL CHANGES REQUIRED
-
-### Fix 1: Update Gold Tier Credits in MemberDetail.tsx
-**File**: `src/pages/admin/MemberDetail.tsx`
-**Line**: 580-588
-**Change**: Match edge function values
-
-### Fix 2: Add Annual Fee Subscription to Admin Activation
-**File**: `supabase/functions/stripe-payment/index.ts`
-**Action**: `admin_create_member_subscription`
-**Add**: Create annual fee subscription after membership subscription
-
-### Fix 3: Wellness Credit Consumption
-**Files**: 
-- `src/components/booking/SpaBookingModal.tsx`
-- `src/hooks/useSpaBooking.ts`
-**Add**: Check for available `red_light`/`dry_cryo` credits and offer as payment option
-
----
-
-## DATABASE STATE SUMMARY
-
-| Status | Applications | Members |
-|--------|-------------|---------|
-| Approved | 116 | - |
-| Pending Activation | - | 10 |
-| Active | - | 1 |
-| With Card on File | - | ~5 |
-| Initiation Fee Paid | - | ~6 |
-
----
-
-## IMMEDIATE ACTION ITEMS
-
-1. ✅ Stripe integration is complete - price IDs configured
-2. ✅ Admin activation workflow is functional
-3. ⚠️ Fix Gold tier credit display (cosmetic)
-4. ⚠️ Add annual fee subscription to admin activation
-5. ❌ Wellness credits need booking integration (post-launch OK)
-
-Your core activation flow is ready for Feb 9th. The wellness credit booking enhancement can be added after launch without blocking member activations.
+### Member receives email:
+1. Opens email with clear Feb 9th deadline
+2. Sees their email address highlighted (to use for account)
+3. Clicks "Complete Your Setup" → goes to `/auth`
+4. Creates account with their application email
+5. System auto-links their member record
+6. Navigates to Payment Methods → adds card
+7. Navigates to Waivers → signs membership agreement
+8. Ready for admin activation on Feb 9th
 
