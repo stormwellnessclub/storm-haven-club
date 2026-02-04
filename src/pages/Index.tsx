@@ -200,7 +200,7 @@ export default function Index() {
                     <div className={`w-10 h-10 rounded-full ${studio.bgColor} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
                       <studio.icon className={`w-5 h-5 ${studio.color}`} />
                     </div>
-                    <h3 className="font-serif text-xl group-hover:text-accent transition-colors duration-300">{studio.title}</h3>
+                    <h3 className="font-serif text-xl group-hover:text-muted-foreground transition-colors duration-300">{studio.title}</h3>
                   </div>
                   <p className="text-muted-foreground text-sm mb-3 min-h-[3rem]">{studio.description}</p>
                   <Link to="/classes" className="text-accent text-sm font-medium hover:underline inline-flex items-center gap-1 group/link mt-auto">
