@@ -1,23 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { DollarSign, TrendingUp, Users } from "lucide-react";
+import { DollarSign, TrendingUp, Users, Trophy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { 
+  extractTier, 
+  normalizeGender, 
+  getMonthlyPrice, 
+  getAnnualPrice,
+  INITIATION_FEE,
+  type MembershipTier
+} from "@/lib/membershipPricing";
 
 interface Props {
   dateRange: { start: Date; end: Date };
   filters: Record<string, string | boolean>;
 }
-
-const TIER_PRICING: Record<string, { monthly: number; annual: number }> = {
-  diamond: { monthly: 695, annual: 500 },
-  platinum: { monthly: 495, annual: 500 },
-  gold: { monthly: 395, annual: 500 },
-  silver: { monthly: 295, annual: 500 },
-};
 
 export function RevenueSummaryReport({ dateRange, filters }: Props) {
   const { data, isLoading } = useQuery({
@@ -25,7 +26,7 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
     queryFn: async () => {
       const { data: members, error } = await supabase
         .from('membership_applications')
-        .select('membership_plan, status, founding_member, created_at')
+        .select('membership_plan, status, founding_member, gender, created_at')
         .gte('created_at', dateRange.start.toISOString())
         .lte('created_at', dateRange.end.toISOString());
 
@@ -36,37 +37,65 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
         ? members?.filter(m => m.membership_plan?.toLowerCase().includes(tierFilter.toLowerCase()))
         : members;
 
-      // Calculate revenue by tier
-      const tierRevenue = (filtered || []).reduce((acc, member) => {
-        const tier = member.membership_plan?.toLowerCase() || 'unknown';
-        const pricing = Object.entries(TIER_PRICING).find(([key]) => tier.includes(key))?.[1] || { monthly: 0, annual: 0 };
-        
-        if (!acc[tier]) {
-          acc[tier] = { tier, members: 0, monthlyRevenue: 0, annualFeeRevenue: 0 };
-        }
-        
-        acc[tier].members += 1;
-        if (member.status === 'active' || member.status === 'pending_activation') {
-          acc[tier].monthlyRevenue += pricing.monthly;
-          acc[tier].annualFeeRevenue += pricing.annual;
-        }
-        
-        return acc;
-      }, {} as Record<string, { tier: string; members: number; monthlyRevenue: number; annualFeeRevenue: number }>);
+      // Separate founding and regular members
+      const foundingMembers = (filtered || []).filter(m => m.founding_member);
+      const regularMembers = (filtered || []).filter(m => !m.founding_member);
 
-      const chartData = Object.values(tierRevenue).map(t => ({
+      // Calculate revenue by tier with proper founding vs regular logic
+      const tierData: Record<string, {
+        tier: string;
+        foundingCount: number;
+        regularCount: number;
+        foundingAnnual: number;
+        regularMonthly: number;
+      }> = {};
+
+      // Process founding members - they pay annual upfront
+      foundingMembers.forEach(member => {
+        const tier = extractTier(member.membership_plan);
+        const gender = normalizeGender(member.gender);
+        
+        if (!tierData[tier]) {
+          tierData[tier] = { tier, foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 };
+        }
+        
+        if (member.status === 'active' || member.status === 'pending_activation' || member.status === 'approved') {
+          tierData[tier].foundingCount += 1;
+          tierData[tier].foundingAnnual += getAnnualPrice(tier, gender);
+        }
+      });
+
+      // Process regular members - they pay monthly
+      regularMembers.forEach(member => {
+        const tier = extractTier(member.membership_plan);
+        const gender = normalizeGender(member.gender);
+        
+        if (!tierData[tier]) {
+          tierData[tier] = { tier, foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 };
+        }
+        
+        if (member.status === 'active' || member.status === 'pending_activation' || member.status === 'approved') {
+          tierData[tier].regularCount += 1;
+          tierData[tier].regularMonthly += getMonthlyPrice(tier, gender);
+        }
+      });
+
+      const tierRevenue = Object.values(tierData);
+
+      const chartData = tierRevenue.map(t => ({
         name: t.tier.charAt(0).toUpperCase() + t.tier.slice(1),
-        'Monthly Dues': t.monthlyRevenue,
-        'Annual Fees': t.annualFeeRevenue,
+        'Founding Annual': t.foundingAnnual,
+        'Regular Monthly': t.regularMonthly,
       }));
 
-      const totals = Object.values(tierRevenue).reduce((acc, t) => ({
-        members: acc.members + t.members,
-        monthlyRevenue: acc.monthlyRevenue + t.monthlyRevenue,
-        annualFeeRevenue: acc.annualFeeRevenue + t.annualFeeRevenue,
-      }), { members: 0, monthlyRevenue: 0, annualFeeRevenue: 0 });
+      const totals = tierRevenue.reduce((acc, t) => ({
+        foundingCount: acc.foundingCount + t.foundingCount,
+        regularCount: acc.regularCount + t.regularCount,
+        foundingAnnual: acc.foundingAnnual + t.foundingAnnual,
+        regularMonthly: acc.regularMonthly + t.regularMonthly,
+      }), { foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 });
 
-      return { tierRevenue: Object.values(tierRevenue), chartData, totals };
+      return { tierRevenue, chartData, totals, totalMembers: (filtered || []).length };
     },
   });
 
@@ -80,7 +109,7 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -89,7 +118,21 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Members</p>
-                <p className="text-2xl font-bold">{data?.totals.members || 0}</p>
+                <p className="text-2xl font-bold">{data?.totalMembers || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-yellow-500/10">
+                <Trophy className="h-6 w-6 text-yellow-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Founding Annual</p>
+                <p className="text-2xl font-bold">{formatCurrency(data?.totals.foundingAnnual || 0)}</p>
+                <p className="text-xs text-muted-foreground">{data?.totals.foundingCount || 0} members (paid upfront)</p>
               </div>
             </div>
           </CardContent>
@@ -101,8 +144,9 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
                 <DollarSign className="h-6 w-6 text-green-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Monthly Revenue</p>
-                <p className="text-2xl font-bold">{formatCurrency(data?.totals.monthlyRevenue || 0)}</p>
+                <p className="text-sm text-muted-foreground">Monthly Recurring</p>
+                <p className="text-2xl font-bold">{formatCurrency(data?.totals.regularMonthly || 0)}</p>
+                <p className="text-xs text-muted-foreground">{data?.totals.regularCount || 0} regular members</p>
               </div>
             </div>
           </CardContent>
@@ -114,8 +158,10 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
                 <TrendingUp className="h-6 w-6 text-blue-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Annual Fees</p>
-                <p className="text-2xl font-bold">{formatCurrency(data?.totals.annualFeeRevenue || 0)}</p>
+                <p className="text-sm text-muted-foreground">Annual Run Rate</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency((data?.totals.regularMonthly || 0) * 12 + (data?.totals.foundingAnnual || 0))}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -129,11 +175,11 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
             <BarChart data={data.chartData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" className="text-xs" />
-              <YAxis tickFormatter={(v) => `$${v}`} className="text-xs" />
+              <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} className="text-xs" />
               <Tooltip formatter={(value: number) => formatCurrency(value)} />
               <Legend />
-              <Bar dataKey="Monthly Dues" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Annual Fees" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Founding Annual" fill="hsl(45, 93%, 47%)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Regular Monthly" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -144,24 +190,33 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
         <TableHeader>
           <TableRow>
             <TableHead>Tier</TableHead>
-            <TableHead className="text-right">Members</TableHead>
+            <TableHead className="text-right">Founding</TableHead>
+            <TableHead className="text-right">Annual Revenue</TableHead>
+            <TableHead className="text-right">Regular</TableHead>
             <TableHead className="text-right">Monthly Revenue</TableHead>
-            <TableHead className="text-right">Annual Fee Revenue</TableHead>
-            <TableHead className="text-right">Total</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data?.tierRevenue.map((row) => (
             <TableRow key={row.tier}>
-              <TableCell className="font-medium capitalize">{row.tier}</TableCell>
-              <TableCell className="text-right">{row.members}</TableCell>
-              <TableCell className="text-right">{formatCurrency(row.monthlyRevenue)}</TableCell>
-              <TableCell className="text-right">{formatCurrency(row.annualFeeRevenue)}</TableCell>
-              <TableCell className="text-right font-semibold">
-                {formatCurrency(row.monthlyRevenue + row.annualFeeRevenue)}
+              <TableCell className="font-medium capitalize">
+                <Badge variant="outline">{row.tier}</Badge>
               </TableCell>
+              <TableCell className="text-right">{row.foundingCount}</TableCell>
+              <TableCell className="text-right">{formatCurrency(row.foundingAnnual)}</TableCell>
+              <TableCell className="text-right">{row.regularCount}</TableCell>
+              <TableCell className="text-right">{formatCurrency(row.regularMonthly)}</TableCell>
             </TableRow>
           ))}
+          {data?.tierRevenue && data.tierRevenue.length > 0 && (
+            <TableRow className="font-semibold bg-muted/50">
+              <TableCell>Total</TableCell>
+              <TableCell className="text-right">{data.totals.foundingCount}</TableCell>
+              <TableCell className="text-right">{formatCurrency(data.totals.foundingAnnual)}</TableCell>
+              <TableCell className="text-right">{data.totals.regularCount}</TableCell>
+              <TableCell className="text-right">{formatCurrency(data.totals.regularMonthly)}</TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>
