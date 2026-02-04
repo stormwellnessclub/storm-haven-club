@@ -390,7 +390,7 @@ export default function Index() {
       <section className="py-24 bg-secondary/30">
         <div className="container mx-auto px-6">
           <AnimatedSection className="max-w-3xl mx-auto text-center">
-            <p className="text-accent text-sm uppercase tracking-widest mb-4">For Families</p>
+            <p className="text-muted-foreground text-sm uppercase tracking-widest mb-4">For Families</p>
             <h2 className="heading-section mb-6">Storm Kids Care</h2>
             <p className="text-muted-foreground mb-8 leading-relaxed">
               Prioritize your health while your little ones enjoy supervised care in our 
