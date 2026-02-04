@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreditType } from "@/lib/memberCredits";
+import { isPassValidForClass } from "@/lib/classCategories";
 
 export interface ClassPass {
   id: string;
@@ -118,11 +119,16 @@ export function useUserCredits() {
   });
 }
 
-export function useAvailableCreditsForCategory(category: "reformer" | "cycling" | "aerobics" | "other" | "pilates_cycling") {
+/**
+ * Get available credits for a specific class category
+ * Uses the category mapping to find all valid passes for the class
+ */
+export function useAvailableCreditsForCategory(classCategory: string) {
   const { data: creditsData, ...rest } = useUserCredits();
 
+  // Filter passes using the category mapping - a pass is valid if isPassValidForClass returns true
   const availablePasses = creditsData?.classPasses.filter(
-    (pass) => pass.category === category && pass.classes_remaining > 0
+    (pass) => pass.classes_remaining > 0 && isPassValidForClass(pass.category, classCategory)
   ) || [];
 
   const hasClassCredits =

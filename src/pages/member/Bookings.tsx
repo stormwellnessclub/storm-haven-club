@@ -115,9 +115,10 @@ interface BookingCardProps {
 }
 
 function BookingCard({ booking, isUpcoming }: BookingCardProps) {
-  const session = booking.class_sessions;
-  const classType = session?.class_types;
-  const instructor = session?.instructors;
+  // Use correct property names from query alias (session, class_type, instructor)
+  const session = booking.session;
+  const classType = session?.class_type;
+  const instructor = session?.instructor;
   
   const cancelBooking = useCancelBooking();
 

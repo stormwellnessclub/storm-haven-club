@@ -37,9 +37,13 @@ export default function MemberCredits() {
   const tierName = membershipType ? getTierName(membershipType) : null;
   const classPasses = credits?.classPasses || [];
 
-  const reformerPasses = classPasses.filter(p => p.category === "reformer");
-  const cyclingPasses = classPasses.filter(p => p.category === "cycling");
-  const aerobicsPasses = classPasses.filter(p => p.category === "aerobics");
+  // Group passes by display category - pilates_cycling passes go with reformer/cycling
+  const pilatesCyclingPasses = classPasses.filter(p => 
+    p.category === "reformer" || p.category === "cycling" || p.category === "pilates_cycling"
+  );
+  const aerobicsPasses = classPasses.filter(p => 
+    p.category === "aerobics" || p.category === "other"
+  );
 
   // Determine which credits to show based on tier
   const showClassCredits = tierName === "diamond";
@@ -190,47 +194,30 @@ export default function MemberCredits() {
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {/* Reformer Studio Passes */}
-              {reformerPasses.length > 0 && (
+              {/* Pilates & Cycling Studio Passes */}
+              {pilatesCyclingPasses.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Reformer Studio</CardTitle>
+                    <CardTitle className="text-lg">Pilates & Cycling Studio</CardTitle>
                     <CardDescription>
-                      Valid for all Reformer Pilates classes
+                      Valid for all Reformer Pilates and Cycling classes
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {reformerPasses.map((pass) => (
+                    {pilatesCyclingPasses.map((pass) => (
                       <PassCard key={pass.id} pass={pass} />
                     ))}
                   </CardContent>
                 </Card>
               )}
 
-              {/* Cycling Studio Passes */}
-              {cyclingPasses.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Cycling Studio</CardTitle>
-                    <CardDescription>
-                      Valid for all Cycling classes
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {cyclingPasses.map((pass) => (
-                      <PassCard key={pass.id} pass={pass} />
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Aerobics Studio Passes */}
+              {/* Aerobics & Other Studio Passes */}
               {aerobicsPasses.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Aerobics Studio</CardTitle>
+                    <CardTitle className="text-lg">Aerobics & Other</CardTitle>
                     <CardDescription>
-                      Valid for all Aerobics and other class types
+                      Valid for Yoga, Bootcamp, Stretch and other class types
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
