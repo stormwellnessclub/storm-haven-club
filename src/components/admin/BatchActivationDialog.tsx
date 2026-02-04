@@ -47,6 +47,7 @@ interface Application {
   card_last4: string | null;
   card_exp_month: number | null;
   card_exp_year: number | null;
+  payment_link_sent_at: string | null;
 }
 
 interface BatchActivationDialogProps {
