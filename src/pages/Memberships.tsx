@@ -164,32 +164,35 @@ export default function Memberships() {
             subtitle="All members enjoy access to our premier gym facilities and wet spa amenities."
           />
           
-          {/* Amenity Image Banner */}
-          <AnimatedSection animation="fade-up" className="mb-10">
-            <div className="relative overflow-hidden rounded-lg max-w-5xl mx-auto">
-              <div className="grid grid-cols-5 h-40 md:h-56">
+          {/* Amenity Image Banner - Premium seamless design */}
+          <AnimatedSection animation="fade-up" className="mb-12">
+            <div className="relative overflow-hidden max-w-6xl mx-auto">
+              <div className="grid grid-cols-5 h-48 md:h-64 lg:h-72">
                 <div className="relative overflow-hidden">
-                  <img src={gymArea1} alt="Gym" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-charcoal/20" />
+                  <img src={gymArea1} alt="Gym" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-charcoal/30 via-transparent to-transparent" />
                 </div>
                 <div className="relative overflow-hidden">
-                  <img src={saunaInterior} alt="Sauna" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-charcoal/20 to-charcoal/20" />
+                  <img src={saunaInterior} alt="Sauna" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
+                  <div className="absolute inset-0 bg-charcoal/10" />
                 </div>
                 <div className="relative overflow-hidden">
-                  <img src={steamRoom} alt="Steam Room" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-charcoal/20 to-charcoal/20" />
+                  <img src={steamRoom} alt="Steam Room" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
+                  <div className="absolute inset-0 bg-charcoal/10" />
                 </div>
                 <div className="relative overflow-hidden">
-                  <img src={saltRoom} alt="Salt Room" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-charcoal/20 to-charcoal/20" />
+                  <img src={saltRoom} alt="Salt Room" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
+                  <div className="absolute inset-0 bg-charcoal/10" />
                 </div>
                 <div className="relative overflow-hidden">
-                  <img src={coldPlunge} alt="Cold Plunge" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-l from-transparent to-charcoal/20" />
+                  <img src={coldPlunge} alt="Cold Plunge" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
+                  <div className="absolute inset-0 bg-gradient-to-l from-charcoal/30 via-transparent to-transparent" />
                 </div>
               </div>
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/30 pointer-events-none" />
+              {/* Seamless blend overlays */}
+              <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background opacity-20 pointer-events-none" />
+              <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-background to-transparent pointer-events-none" />
+              <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-background to-transparent pointer-events-none" />
             </div>
           </AnimatedSection>
           
