@@ -2024,10 +2024,53 @@ serve(async (req) => {
 
         logStep("Admin subscription complete with credits", { memberId, subscriptionId: subscription.id });
 
+        // Create annual fee subscription (separate recurring subscription)
+        let annualFeeSubscriptionId: string | null = null;
+        const annualFeePriceId = STRIPE_PRODUCTS.annualFee[normalizedGender];
+        
+        if (annualFeePriceId) {
+          try {
+            logStep("Creating annual fee subscription for admin activation", { memberId, annualFeePriceId });
+            
+            const annualFeeSubscription = await stripe.subscriptions.create({
+              customer: memberData.stripe_customer_id,
+              items: [{ price: annualFeePriceId }],
+              default_payment_method: paymentMethodId,
+              proration_behavior: 'none',
+              metadata: {
+                member_id: memberId,
+                user_id: memberData.user_id || '',
+                type: 'annual_fee',
+                created_by_admin: user.id,
+              },
+            });
+
+            annualFeeSubscriptionId = annualFeeSubscription.id;
+
+            // Update member record with annual fee subscription ID
+            await supabase
+              .from('members')
+              .update({
+                annual_fee_subscription_id: annualFeeSubscriptionId,
+                annual_fee_paid_at: new Date().toISOString(),
+              })
+              .eq('id', memberId);
+
+            logStep("Annual fee subscription created during admin activation", { 
+              memberId, 
+              annualFeeSubscriptionId 
+            });
+          } catch (annualFeeError) {
+            console.error(`[STRIPE-PAYMENT] ERROR ANNUAL_FEE_ADMIN_CREATION - ${annualFeeError instanceof Error ? annualFeeError.message : String(annualFeeError)}`);
+            // Don't fail - membership subscription is already created
+          }
+        }
+
         return new Response(
           JSON.stringify({ 
             success: true, 
             subscriptionId: subscription.id,
+            annualFeeSubscriptionId,
             status: subscription.status,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }

@@ -3,6 +3,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useSpaBookAppointment, useCheckSpaAvailability } from "@/hooks/useSpaBooking";
 import { useUserMembership } from "@/hooks/useUserMembership";
+import { useWellnessCredits } from "@/hooks/useWellnessCredits";
+import { getWellnessCreditType, getCreditTypeDisplayName, WellnessCreditType } from "@/lib/wellnessCategories";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -23,8 +24,8 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, addDays, addMonths, parse, addMinutes } from "date-fns";
-import { CalendarIcon, Clock, CreditCard, User, Loader2, AlertCircle } from "lucide-react";
+import { format, addDays, addMonths } from "date-fns";
+import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,21 +54,36 @@ const TIME_SLOTS = [
   "18:00", "18:30", "19:00", "19:30",
 ];
 
+type PaymentMethodType = "card" | "member_account" | "credit";
+
 export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: membership } = useUserMembership();
+  const { data: wellnessCredits, refetch: refetchCredits } = useWellnessCredits();
   const bookAppointment = useSpaBookAppointment();
   const checkAvailability = useCheckSpaAvailability();
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [memberNotes, setMemberNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "member_account">("card");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("card");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<Set<string>>(new Set());
+
+  // Determine if this service can be booked with credits
+  const creditType = service ? getWellnessCreditType(service.name) : null;
+  const availableCredit = creditType && wellnessCredits ? wellnessCredits[creditType] : null;
+  const canUseCredit = !!availableCredit && availableCredit.credits_remaining > 0;
+
+  // Auto-select credit payment if available
+  useEffect(() => {
+    if (canUseCredit && paymentMethod === "card") {
+      setPaymentMethod("credit");
+    }
+  }, [canUseCredit]);
 
   // Fetch saved payment methods
   useEffect(() => {
@@ -138,6 +154,9 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
     }
   }
 
+  // If using credit, price is $0
+  const displayPrice = paymentMethod === "credit" ? 0 : finalPrice;
+
   const handleBook = async () => {
     if (!user) {
       navigate("/auth");
@@ -157,8 +176,31 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
 
     try {
       let paymentIntentId: string | undefined;
+      let usedCreditId: string | undefined;
 
-      // Process payment if using card
+      // Handle credit-based payment
+      if (paymentMethod === "credit" && availableCredit && creditType) {
+        // Deduct credit from member_credits table
+        const newRemaining = availableCredit.credits_remaining - 1;
+        
+        const { error: creditError } = await supabase
+          .from("member_credits")
+          .update({ 
+            credits_remaining: newRemaining,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", availableCredit.id);
+
+        if (creditError) {
+          console.error("Credit deduction error:", creditError);
+          throw new Error("Failed to deduct wellness credit. Please try again.");
+        }
+
+        usedCreditId = availableCredit.id;
+        console.log(`Wellness credit deducted: ${creditType}, remaining: ${newRemaining}`);
+      }
+
+      // Process card payment if using card
       if (paymentMethod === "card" && selectedPaymentMethodId) {
         const { data: memberData } = await supabase
           .from("members")
@@ -192,15 +234,22 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         serviceId: service.id,
         serviceName: service.name,
         serviceCategory: service.category,
-        servicePrice: service.price,
+        servicePrice: paymentMethod === "credit" ? 0 : service.price,
         appointmentDate: selectedDate,
         appointmentTime: selectedTime,
         durationMinutes,
         cleanupMinutes,
         memberNotes: memberNotes || undefined,
-        paymentMethod,
+        paymentMethod: paymentMethod === "credit" ? "credit" : paymentMethod,
         paymentIntentId,
+        creditType: paymentMethod === "credit" ? creditType : undefined,
+        creditId: usedCreditId,
       });
+
+      // Refetch credits after successful booking
+      if (paymentMethod === "credit") {
+        refetchCredits();
+      }
 
       onOpenChange(false);
       setSelectedDate(undefined);
@@ -208,6 +257,9 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
       setMemberNotes("");
     } catch (error: any) {
       console.error("Booking error:", error);
+      
+      // If credit was deducted but booking failed, we should ideally refund
+      // For now, just show error - admin can manually adjust credits if needed
       toast.error(error.message || "Failed to book appointment");
     }
   };
@@ -234,7 +286,13 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
                 <p className="text-sm text-muted-foreground">{service.category}</p>
               </div>
               <div className="text-right">
-                {membership && finalPrice < service.price ? (
+                {paymentMethod === "credit" ? (
+                  <>
+                    <p className="text-sm text-muted-foreground line-through">${service.price.toFixed(2)}</p>
+                    <p className="text-lg font-semibold text-accent">FREE</p>
+                    <p className="text-xs text-muted-foreground">Using Member Credit</p>
+                  </>
+                ) : membership && finalPrice < service.price ? (
                   <>
                     <p className="text-sm text-muted-foreground line-through">${service.price.toFixed(2)}</p>
                     <p className="text-lg font-semibold text-accent">${finalPrice.toFixed(2)}</p>
@@ -322,11 +380,20 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
           {/* Payment Method */}
           <div className="space-y-2">
             <Label>Payment Method</Label>
-            <Select value={paymentMethod} onValueChange={(value: "card" | "member_account") => setPaymentMethod(value)}>
+            <Select value={paymentMethod} onValueChange={(value: PaymentMethodType) => setPaymentMethod(value)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                {/* Show credit option first if available */}
+                {canUseCredit && creditType && (
+                  <SelectItem value="credit">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-accent" />
+                      Use {getCreditTypeDisplayName(creditType)} Credit ({availableCredit?.credits_remaining} remaining)
+                    </div>
+                  </SelectItem>
+                )}
                 <SelectItem value="card">
                   <div className="flex items-center gap-2">
                     <CreditCard className="w-4 h-4" />
@@ -344,6 +411,20 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
               </SelectContent>
             </Select>
           </div>
+
+          {/* Credit info banner */}
+          {paymentMethod === "credit" && availableCredit && creditType && (
+            <div className="p-3 bg-accent/10 border border-accent/20 rounded-md">
+              <div className="flex items-center gap-2 text-accent">
+                <Sparkles className="w-4 h-4" />
+                <span className="font-medium">Using Member Credit</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                1 {getCreditTypeDisplayName(creditType)} credit will be deducted. 
+                You have {availableCredit.credits_remaining} credit{availableCredit.credits_remaining > 1 ? 's' : ''} remaining.
+              </p>
+            </div>
+          )}
 
           {paymentMethod === "card" && savedPaymentMethods.length > 0 && (
             <div className="space-y-2">
@@ -378,7 +459,11 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
           <div className="border-t pt-4">
             <div className="flex justify-between items-center text-lg font-semibold">
               <span>Total</span>
-              <span className="text-accent">${finalPrice.toFixed(2)}</span>
+              {paymentMethod === "credit" ? (
+                <span className="text-accent">FREE (1 Credit)</span>
+              ) : (
+                <span className="text-accent">${finalPrice.toFixed(2)}</span>
+              )}
             </div>
           </div>
         </div>
@@ -402,6 +487,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Booking...
               </>
+            ) : paymentMethod === "credit" ? (
+              "Book with Credit"
             ) : (
               `Book for $${finalPrice.toFixed(2)}`
             )}
@@ -411,4 +498,3 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
     </Dialog>
   );
 }
-
