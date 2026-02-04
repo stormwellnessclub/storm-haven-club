@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { CheckCircle2, Sparkles, Crown, Gem, Star } from "lucide-react";
-import gymArea2 from "@/assets/gym-area-2.jpg";
+import membershipsHero from "@/assets/memberships-hero.jpg";
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 
 // Amenity banner images
@@ -133,7 +133,7 @@ export default function Memberships() {
       <section className="relative min-h-[70vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={gymArea2}
+            src={membershipsHero}
             alt="Storm Wellness Club"
             className="w-full h-full object-cover"
           />
