@@ -1,101 +1,202 @@
 
-# Class Pass Purchase Flow - Fix Plan
 
-## Issues Identified
+# Comprehensive Membership Activation Workflow Analysis
 
-### Issue 1: Footer Links Not Clickable in Member Portal
-**Root Cause:** The Member Portal uses `MemberLayout.tsx` which does NOT include the Footer component. The Footer is only included in the public `Layout.tsx`. This is intentional design - the member portal is a dashboard layout with a sidebar, not a traditional page layout with a footer.
+## Executive Summary
 
-**What you're seeing:** If there's a footer-like area visible, it may be content within a page, not the actual Footer component.
-
-**Solution:** This is expected behavior - the member portal uses sidebar navigation instead of footer links. The "Buy Passes" link in the sidebar correctly links to `/class-passes`.
+Your membership system is **substantially complete** for the February 9th launch. The admin-controlled activation workflow is functional, Stripe integration is solid, and credit allocation is properly connected to tier-based benefits. However, I've identified several gaps and areas needing fine-tuning.
 
 ---
 
-### Issue 2: "Buy Class Pass" Opens Stripe in New Tab Instead of Staying On-Site
-**Root Cause:** In `ClassPasses.tsx` line 77, the code explicitly opens Stripe Checkout in a new tab:
+## Current System Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         MEMBERSHIP WORKFLOW                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  1. APPLY → 2. APPROVE → 3. ADD CARD → 4. ACTIVATE → 5. BILLING STARTS     │
+│             (Admin)       (Admin/Self)   (Admin)       (Stripe)              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## WHAT'S WORKING ✅
+
+### 1. Admin Activation Flow (Applications.tsx + SingleActivationDialog.tsx)
+- **Approval modes working**: Standard, No Email, Auto-Activate, Locked Start Date, Pre-Launch
+- **Card management**: Admins can add cards to applicants via `AdminAddCardForm`
+- **Initiation fee charging**: Works via `charge_saved_card` action
+- **Member creation**: Properly copies card metadata, tier, gender, founding status from application
+
+### 2. Subscription Creation (stripe-payment edge function)
+- **`admin_create_member_subscription` action**: Fully implemented
+  - Creates Stripe subscription with correct tier/gender/billing type pricing
+  - Handles past start dates (skips billing_cycle_anchor to avoid Stripe errors)
+  - Allocates initial credits automatically
+  - Updates member status to `active`
+
+### 3. Stripe Price IDs
+- All membership tiers (Silver, Gold, Platinum, Diamond) have price IDs for both monthly and annual billing
+- Gender-specific pricing (Women/Men) correctly mapped
+- Initiation fees have dedicated recurring price IDs
+
+### 4. Credit Allocation by Tier
+```text
+Tier       │ Class │ Red Light │ Dry Cryo
+───────────┼───────┼───────────┼──────────
+Silver     │   0   │     0     │    0
+Gold       │   0   │     4     │    2
+Platinum   │   0   │     6     │    4
+Diamond    │  10   │    10     │    6
+```
+
+### 5. Webhook Credit Renewal (stripe-webhook)
+- `invoice.payment_succeeded` event properly renews credits monthly
+- Checks for duplicate credits before inserting
+- Handles both membership and annual fee subscriptions
+
+### 6. Class Booking with Credits (useBooking.ts)
+- `class` credits are consumed via `create_atomic_class_booking` RPC
+- Properly refunds credits on cancellation (if >12 hours before class)
+
+---
+
+## WHAT'S MISSING ❌
+
+### 1. Wellness Credit Booking (Red Light & Dry Cryo)
+**CRITICAL GAP**: The spa booking modal (`SpaBookingModal.tsx`) does NOT consume `red_light` or `dry_cryo` credits. It only charges cards or member accounts.
+
+**Impact**: Members with Gold/Platinum/Diamond tiers get allocated wellness credits but have no way to use them for booking Red Light Therapy or Dry Cryo sessions.
+
+**Required Fix**:
+- Add credit payment option to SpaBookingModal
+- Create deduction logic similar to class bookings
+- Track credit usage in booking records
+
+### 2. Credit-to-Service Category Mapping
+**Issue**: Class credits work because class categories (`pilates_cycling`, `other`) are mapped in `classCategories.ts`. However, there's no equivalent mapping for wellness services to credit types.
+
+**Missing Logic**:
+```text
+Service Name        → Credit Type
+Red Light Therapy   → red_light
+Dry Cryotherapy     → dry_cryo
+```
+
+### 3. Member Dues Self-Service (Limited)
+The `create_member_dues_checkout` action exists but is hidden in soft-launch mode. Members with `pending_activation` status see a passive message instead of a payment button.
+
+**Current behavior**: Correct for admin-controlled launch
+**Post-launch**: Should enable the PaymentDueNotice "Set Up Billing" button
+
+---
+
+## WHAT NEEDS FINE-TUNING ⚠️
+
+### 1. Gold Tier Credit Values Mismatch
+**In MemberDetail.tsx (line 580-588)**:
 ```javascript
-window.open(data.url, '_blank');  // Opens in new tab
+const credits = {
+  gold: { class: 8, red_light: 4, dry_cryo: 4 },
+  // ...
+};
 ```
 
-**Solution:** Change from `window.open(data.url, '_blank')` to `window.location.href = data.url` to redirect in the same tab, OR implement an embedded checkout using Stripe Elements.
-
----
-
-### Issue 3: Single Class Pass Purchase → Flickering/Shaking Waivers Page
-**Root Cause:** When you click to buy a single class pass, the code checks if `single_class_pass_agreement_signed` is false (lines 51-55 in ClassPasses.tsx). If not signed, it navigates to `/member/waivers`.
-
-However, the `agreements` table in the database has **NO `single_class_pass` agreement records** - only `membership_agreement` exists. This causes the Waivers page to render with missing PDF data, potentially causing layout instability.
-
-Additionally, the AgreementPDFViewer imports multiple PDF files that may not load correctly, causing re-renders and flickering.
-
-**Solution:** 
-1. Add `single_class_pass` agreement records to the database, OR
-2. Skip the agreement requirement for single class passes if no agreement is configured
-
----
-
-### Issue 4: 10-Class Pack Purchase Does Nothing
-**Root Cause:** The same code path runs for both single and 10-pack purchases. The issue is that:
-1. For `passType: 'single'`, there's an additional waiver check that redirects (line 51-55)
-2. For `passType: 'tenPack'`, there's no waiver requirement, so it should proceed directly
-
-The 10-pack button calls `handlePurchase('pilatesCycling', 'tenPack')` which should invoke the edge function. If nothing happens, it's likely a silent error in the Stripe function invocation.
-
-**Solution:** Add error handling/logging to diagnose why the Stripe function isn't returning or the button click isn't registering.
-
----
-
-## Implementation Plan
-
-### Step 1: Fix Stripe Checkout Redirect (Keep on same site)
-**File:** `src/pages/ClassPasses.tsx`
-- Change `window.open(data.url, '_blank')` to `window.location.href = data.url`
-
-### Step 2: Fix Single Class Pass Waiver Requirement
-**File:** `src/pages/ClassPasses.tsx`  
-- Only require waiver signature if agreements actually exist in database
-- Add fallback logic if no single class pass agreement is configured
-
-### Step 3: Add Better Error Handling for 10-Pack Purchases
-**File:** `src/pages/ClassPasses.tsx`
-- Add console logging to trace button click
-- Ensure the loading state properly resets on errors
-- Add network error toast notifications
-
-### Step 4: Add Missing Agreement Records (Database)
-Add the following agreement records to the `agreements` table:
-- `single_class_pass` agreement with PDF URLs pointing to existing files
-
----
-
-## Technical Details
-
-### Files to Modify:
-1. `src/pages/ClassPasses.tsx` - Fix redirect behavior and waiver check
-2. Database: Insert `single_class_pass` agreement records (or skip requirement)
-
-### Code Changes Summary:
-
-**ClassPasses.tsx changes:**
-```typescript
-// Line 77: Change from new tab to same page
-window.location.href = data.url;  // Instead of window.open(data.url, '_blank')
-
-// Lines 51-55: Make waiver check conditional on agreement existence
-if (passType === 'single' && needsAgreement && hasAgreementConfigured) {
-  // Only redirect if agreements actually exist
-}
+**In stripe-payment and stripe-webhook**:
+```javascript
+gold: { class: 0, red_light: 4, dry_cryo: 2 },
 ```
 
-### Database Changes:
-Option A: Insert agreement records for single_class_pass type
-Option B: Update code to skip waiver check if no agreements configured
+**Recommendation**: The edge functions have the correct values. Update MemberDetail.tsx to match.
+
+### 2. Database Members Status
+Based on my query, you have **10 members in `pending_activation`** with various states:
+- Some have `stripe_customer_id` and `card_brand/last4` (ready to activate)
+- Some have `annual_fee_paid_at` set (initiation fee paid)
+- Some have neither (need card on file first)
+
+**Pre-launch checklist for each member**:
+1. ✓ Stripe Customer ID exists
+2. ✓ Card on file (card_brand, card_last4 not null)
+3. ✓ Initiation fee paid (annual_fee_paid_at not null)
+4. → Admin activates via "Create Subscription" button
+
+### 3. Annual Fee Subscription ID Not Being Set on Activation
+When admin uses `admin_create_member_subscription`, it creates the membership dues subscription but does NOT create the annual fee subscription separately.
+
+**Current behavior**: `annual_fee_subscription_id` remains null
+**Expected**: Annual fee should be a separate yearly recurring subscription
+
+**Fix needed**: Add annual fee subscription creation to `admin_create_member_subscription` action (similar to how `create_subscription_from_payment` does it)
+
+### 4. Credits Not Created When Using Other Activation Methods
+If a member is activated via:
+- Super Admin override button in member portal
+- Direct status update in MemberDetail edit mode
+
+...credits are NOT allocated. Credits are only created when:
+- `admin_create_member_subscription` is called
+- Webhook handles `checkout.session.completed`
 
 ---
 
-## Expected Results After Fix:
-1. ✅ Footer links work normally on public pages (member portal uses sidebar by design)
-2. ✅ Class pass purchases redirect in same tab to Stripe Checkout
-3. ✅ Single class pass purchase either goes to properly-loaded waivers page OR proceeds directly
-4. ✅ 10-class pack purchases work with proper error feedback
+## RECOMMENDED IMPLEMENTATION PLAN
+
+### Phase 1: Pre-Launch (Before Feb 9th)
+1. **Fix Gold tier credits in MemberDetail.tsx** - UI consistency
+2. **Add annual fee subscription to admin activation** - Ensures proper recurring billing
+3. **Verify all pending members have cards on file** - Admin dashboard check
+
+### Phase 2: Launch Day
+4. **Activate members via admin panel** - Use "Create Subscription" button for each
+5. **Verify credits allocated** - Check Credits tab in MemberDetail
+
+### Phase 3: Post-Launch Enhancement
+6. **Implement wellness credit booking** - Allow Red Light/Dry Cryo sessions to consume credits
+7. **Enable self-service dues checkout** - For future members
+
+---
+
+## TECHNICAL CHANGES REQUIRED
+
+### Fix 1: Update Gold Tier Credits in MemberDetail.tsx
+**File**: `src/pages/admin/MemberDetail.tsx`
+**Line**: 580-588
+**Change**: Match edge function values
+
+### Fix 2: Add Annual Fee Subscription to Admin Activation
+**File**: `supabase/functions/stripe-payment/index.ts`
+**Action**: `admin_create_member_subscription`
+**Add**: Create annual fee subscription after membership subscription
+
+### Fix 3: Wellness Credit Consumption
+**Files**: 
+- `src/components/booking/SpaBookingModal.tsx`
+- `src/hooks/useSpaBooking.ts`
+**Add**: Check for available `red_light`/`dry_cryo` credits and offer as payment option
+
+---
+
+## DATABASE STATE SUMMARY
+
+| Status | Applications | Members |
+|--------|-------------|---------|
+| Approved | 116 | - |
+| Pending Activation | - | 10 |
+| Active | - | 1 |
+| With Card on File | - | ~5 |
+| Initiation Fee Paid | - | ~6 |
+
+---
+
+## IMMEDIATE ACTION ITEMS
+
+1. ✅ Stripe integration is complete - price IDs configured
+2. ✅ Admin activation workflow is functional
+3. ⚠️ Fix Gold tier credit display (cosmetic)
+4. ⚠️ Add annual fee subscription to admin activation
+5. ❌ Wellness credits need booking integration (post-launch OK)
+
+Your core activation flow is ready for Feb 9th. The wellness credit booking enhancement can be added after launch without blocking member activations.
+
