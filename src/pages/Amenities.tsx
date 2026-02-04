@@ -40,7 +40,7 @@ import woodenLockers from "@/assets/interiors/wooden-lockers-gold.jpg";
 import saunaInterior from "@/assets/wellness/sauna-interior-wide.jpg";
 
 import steamRoom from "@/assets/wellness/steam-room.jpg";
-import coldPlunge from "@/assets/wellness/cold-plunge.jpg";
+import coldPlunge from "@/assets/wellness/cold-plunge-premium.jpg";
 import marbleTexture from "@/assets/textures/marble-texture.jpg";
 import saltRoom from "@/assets/wellness/salt-room.jpg";
 import zerobodyCryoNew from "@/assets/wellness/zerobody-cryo.jpg";

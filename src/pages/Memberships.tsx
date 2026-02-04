@@ -11,7 +11,7 @@ import gymArea1 from "@/assets/gym-area-1.jpg";
 import saunaInterior from "@/assets/wellness/sauna-interior-wide.jpg";
 import steamRoom from "@/assets/wellness/steam-room.jpg";
 import saltRoom from "@/assets/wellness/salt-room.jpg";
-import coldPlunge from "@/assets/wellness/cold-plunge.jpg";
+import coldPlunge from "@/assets/wellness/cold-plunge-premium.jpg";
 
 interface MembershipTier {
   name: string;
@@ -157,45 +157,66 @@ export default function Memberships() {
       </section>
 
       {/* Core Benefits */}
-      <section id="benefits" className="section-padding bg-background">
+      <section id="benefits" className="section-padding bg-background overflow-hidden">
         <div className="container mx-auto container-padding">
           <SectionHeading
             title="Included in Every Membership"
             subtitle="All members enjoy access to our premier gym facilities and wet spa amenities."
           />
-          
-          {/* Amenity Image Banner - Premium seamless design */}
-          <AnimatedSection animation="fade-up" className="mb-12">
-            <div className="relative overflow-hidden max-w-6xl mx-auto">
-              <div className="grid grid-cols-5 h-48 md:h-64 lg:h-72">
-                <div className="relative overflow-hidden">
-                  <img src={gymArea1} alt="Gym" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-charcoal/30 via-transparent to-transparent" />
-                </div>
-                <div className="relative overflow-hidden">
-                  <img src={saunaInterior} alt="Sauna" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute inset-0 bg-charcoal/10" />
-                </div>
-                <div className="relative overflow-hidden">
-                  <img src={steamRoom} alt="Steam Room" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute inset-0 bg-charcoal/10" />
-                </div>
-                <div className="relative overflow-hidden">
-                  <img src={saltRoom} alt="Salt Room" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute inset-0 bg-charcoal/10" />
-                </div>
-                <div className="relative overflow-hidden">
-                  <img src={coldPlunge} alt="Cold Plunge" className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute inset-0 bg-gradient-to-l from-charcoal/30 via-transparent to-transparent" />
-                </div>
+        </div>
+
+        {/* Amenity Image Banner - Full-bleed + seamless */}
+        <AnimatedSection animation="fade-up" className="mb-12">
+          <div className="relative w-full overflow-hidden">
+            <div className="grid grid-cols-5 h-48 md:h-64 lg:h-72">
+              <div className="relative overflow-hidden">
+                <img
+                  src={gymArea1}
+                  alt="Gym"
+                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-charcoal/30 via-transparent to-transparent" />
               </div>
-              {/* Seamless blend overlays */}
-              <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background opacity-20 pointer-events-none" />
-              <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-background to-transparent pointer-events-none" />
-              <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-background to-transparent pointer-events-none" />
+              <div className="relative overflow-hidden">
+                <img
+                  src={saunaInterior}
+                  alt="Sauna"
+                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-charcoal/10" />
+              </div>
+              <div className="relative overflow-hidden">
+                <img
+                  src={steamRoom}
+                  alt="Steam Room"
+                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-charcoal/10" />
+              </div>
+              <div className="relative overflow-hidden">
+                <img
+                  src={saltRoom}
+                  alt="Salt Room"
+                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-charcoal/10" />
+              </div>
+              <div className="relative overflow-hidden">
+                <img
+                  src={coldPlunge}
+                  alt="Cold Plunge"
+                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-l from-charcoal/30 via-transparent to-transparent" />
+              </div>
             </div>
-          </AnimatedSection>
-          
+
+            {/* Fade into section background (top/bottom) */}
+            <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background opacity-30 pointer-events-none" />
+          </div>
+        </AnimatedSection>
+
+        <div className="container mx-auto container-padding">
           <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto" staggerDelay={60}>
             {coreAmenities.map((amenity) => (
               <div
