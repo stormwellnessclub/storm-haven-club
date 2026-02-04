@@ -6,6 +6,13 @@ import { CheckCircle2, Sparkles, Crown, Gem, Star } from "lucide-react";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 
+// Amenity banner images
+import gymArea1 from "@/assets/gym-area-1.jpg";
+import saunaInterior from "@/assets/wellness/sauna-interior-wide.jpg";
+import steamRoom from "@/assets/wellness/steam-room.jpg";
+import saltRoom from "@/assets/wellness/salt-room.jpg";
+import coldPlunge from "@/assets/wellness/cold-plunge.jpg";
+
 interface MembershipTier {
   name: string;
   tagline: string;
@@ -49,7 +56,6 @@ const membershipTiers: MembershipTier[] = [
     ],
     childcareNote: "$75/month add-on (2 hrs/day, 4 days/week)",
     classesNote: "Purchase classes à la carte or through class credits",
-    highlighted: true,
   },
   {
     name: "Platinum",
@@ -157,6 +163,36 @@ export default function Memberships() {
             title="Included in Every Membership"
             subtitle="All members enjoy access to our premier gym facilities and wet spa amenities."
           />
+          
+          {/* Amenity Image Banner */}
+          <AnimatedSection animation="fade-up" className="mb-10">
+            <div className="relative overflow-hidden rounded-lg max-w-5xl mx-auto">
+              <div className="grid grid-cols-5 h-40 md:h-56">
+                <div className="relative overflow-hidden">
+                  <img src={gymArea1} alt="Gym" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-charcoal/20" />
+                </div>
+                <div className="relative overflow-hidden">
+                  <img src={saunaInterior} alt="Sauna" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-charcoal/20 to-charcoal/20" />
+                </div>
+                <div className="relative overflow-hidden">
+                  <img src={steamRoom} alt="Steam Room" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-charcoal/20 to-charcoal/20" />
+                </div>
+                <div className="relative overflow-hidden">
+                  <img src={saltRoom} alt="Salt Room" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-charcoal/20 to-charcoal/20" />
+                </div>
+                <div className="relative overflow-hidden">
+                  <img src={coldPlunge} alt="Cold Plunge" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-l from-transparent to-charcoal/20" />
+                </div>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/30 pointer-events-none" />
+            </div>
+          </AnimatedSection>
+          
           <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto" staggerDelay={60}>
             {coreAmenities.map((amenity) => (
               <div
@@ -299,7 +335,7 @@ export default function Memberships() {
         </div>
       </section>
 
-      {/* Men's Rates */}
+      {/* Men's Rates - Hidden for now
       <section className="py-20 bg-secondary/30">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center">
@@ -328,6 +364,7 @@ export default function Memberships() {
           </div>
         </div>
       </section>
+      */}
 
       {/* Access Schedule */}
       <section className="py-20 bg-background">
