@@ -321,6 +321,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           stripeCustomerId: member.stripe_customer_id,
           applicantEmail: member.email,
           applicantName: `${member.first_name} ${member.last_name}`,
+          memberId: member.id,  // NEW: Allow edge function to persist customer ID
         },
       });
       

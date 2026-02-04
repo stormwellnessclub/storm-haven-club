@@ -756,8 +756,13 @@ serve(async (req) => {
       }
 
       case 'create_admin_setup_intent': {
-        // Create a SetupIntent for admin to add card on behalf of applicant
-        const { stripeCustomerId: adminSetupCustomerId, applicantEmail: adminApplicantEmail, applicantName: adminApplicantName } = body;
+        // Create a SetupIntent for admin to add card on behalf of applicant/member
+        const { 
+          stripeCustomerId: adminSetupCustomerId, 
+          applicantEmail: adminApplicantEmail, 
+          applicantName: adminApplicantName,
+          memberId: adminSetupMemberId  // NEW: Allow persisting customer ID to member record
+        } = body;
 
         // Verify admin role
         const { data: adminRoleData } = await supabase
@@ -773,7 +778,8 @@ serve(async (req) => {
         logStep("Creating admin setup intent", { 
           customerId: adminSetupCustomerId, 
           email: adminApplicantEmail, 
-          adminUserId: user.id 
+          adminUserId: user.id,
+          memberId: adminSetupMemberId 
         });
 
         let finalCustomerId = adminSetupCustomerId;
@@ -806,12 +812,33 @@ serve(async (req) => {
           throw new Error("stripeCustomerId or applicantEmail required");
         }
 
+        // NEW: Save customer ID to member record if memberId provided
+        if (adminSetupMemberId && finalCustomerId) {
+          const { error: memberUpdateError } = await supabase
+            .from('members')
+            .update({ stripe_customer_id: finalCustomerId })
+            .eq('id', adminSetupMemberId);
+          
+          if (memberUpdateError) {
+            logStep("Warning: Failed to save stripe_customer_id to member", { 
+              error: memberUpdateError.message,
+              memberId: adminSetupMemberId 
+            });
+          } else {
+            logStep("Saved stripe_customer_id to member", { 
+              memberId: adminSetupMemberId, 
+              customerId: finalCustomerId 
+            });
+          }
+        }
+
         const adminSetupIntent = await stripe.setupIntents.create({
           customer: finalCustomerId,
           payment_method_types: ['card'],
           metadata: {
             type: 'admin_card_setup',
             added_by: user.id,
+            member_id: adminSetupMemberId || '',
           },
         });
 
@@ -2175,7 +2202,7 @@ serve(async (req) => {
 
       case 'sync_member_card_metadata': {
         // Sync card metadata from Stripe to the members table
-        const { memberId } = body;
+        const { memberId, stripeCustomerId: providedCustomerId } = body;
         
         if (!memberId) {
           throw new Error("Member ID required");
@@ -2192,7 +2219,10 @@ serve(async (req) => {
           throw new Error("Member not found");
         }
 
-        if (!memberData?.stripe_customer_id) {
+        // Use provided customer ID if member doesn't have one yet
+        const customerIdToUse = memberData?.stripe_customer_id || providedCustomerId;
+
+        if (!customerIdToUse) {
           logStep("No stripe_customer_id, cannot sync card metadata", { memberId });
           return new Response(
             JSON.stringify({ success: false, message: "No Stripe customer ID on file" }),
@@ -2200,15 +2230,34 @@ serve(async (req) => {
           );
         }
 
+        // If member record was missing customer ID but we have one provided, update it now
+        if (!memberData?.stripe_customer_id && providedCustomerId) {
+          const { error: customerUpdateError } = await supabase
+            .from('members')
+            .update({ stripe_customer_id: providedCustomerId })
+            .eq('id', memberId);
+          
+          if (customerUpdateError) {
+            logStep("Warning: Failed to update stripe_customer_id on member", { 
+              error: customerUpdateError.message 
+            });
+          } else {
+            logStep("Updated member with provided stripe_customer_id", { 
+              memberId, 
+              customerId: providedCustomerId 
+            });
+          }
+        }
+
         // Get the default payment method from customer
-        const customer = await stripe.customers.retrieve(memberData.stripe_customer_id);
+        const customer = await stripe.customers.retrieve(customerIdToUse);
         const defaultPaymentMethodId = !customer.deleted 
           ? customer.invoice_settings?.default_payment_method as string | null
           : null;
 
         // List payment methods to find the default or most recent
         const paymentMethods = await stripe.paymentMethods.list({
-          customer: memberData.stripe_customer_id,
+          customer: customerIdToUse,
           type: 'card',
           limit: 10,
         });
@@ -2234,10 +2283,13 @@ serve(async (req) => {
           card_exp_year: cardToSync.card?.exp_year || null,
         };
 
-        // Update member record
+        // Update member record with card details AND ensure stripe_customer_id is set
         const { error: updateError } = await supabase
           .from('members')
-          .update(cardDetails)
+          .update({
+            ...cardDetails,
+            stripe_customer_id: customerIdToUse,
+          })
           .eq('id', memberId);
 
         if (updateError) {

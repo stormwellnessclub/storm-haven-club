@@ -133,7 +133,8 @@ export function AdminAddCardForm({
             const { data: syncData } = await supabase.functions.invoke("stripe-payment", {
               body: { 
                 action: "sync_member_card_metadata",
-                memberId
+                memberId,
+                stripeCustomerId  // Pass as fallback in case member record doesn't have it yet
               }
             });
             console.log("[AdminAddCardForm] Synced card metadata:", syncData);
