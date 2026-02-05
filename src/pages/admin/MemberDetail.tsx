@@ -9,6 +9,8 @@ import { StripeProvider } from "@/components/StripeProvider";
 import { AdminAddCardForm } from "@/components/admin/AdminAddCardForm";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { TierChangeDialog } from "@/components/admin/TierChangeDialog";
+import { CreateSubscriptionDialog } from "@/components/admin/CreateSubscriptionDialog";
+import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
 import { useMemberActivities } from "@/hooks/useMemberActivities";
@@ -56,13 +58,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   ArrowLeft, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, 
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
   Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle,
-  ArrowUpDown, Send
+  ArrowUpDown, Send, Info
 } from "lucide-react";
 import {
   Table,
@@ -176,6 +184,9 @@ export default function MemberDetail() {
 
   // Tier change state
   const [showTierChangeDialog, setShowTierChangeDialog] = useState(false);
+
+  // Create subscription confirmation dialog state
+  const [showCreateSubscriptionDialog, setShowCreateSubscriptionDialog] = useState(false);
 
   // Activation email state
   const [isSendingActivationEmail, setIsSendingActivationEmail] = useState(false);
@@ -752,31 +763,48 @@ export default function MemberDetail() {
                 <Badge className="bg-amber-100 text-amber-800"><Crown className="h-3 w-3 mr-1" />Founding</Badge>
               )}
             </div>
-            <div className="flex gap-2">
-              {member.status === "pending_activation" && isSuperAdmin && (
-                <Button onClick={() => setShowActivateDialog(true)}>
-                  <PlayCircle className="h-4 w-4 mr-2" />Activate
+            <TooltipProvider>
+              <div className="flex gap-2 flex-wrap">
+                {member.status === "pending_activation" && isSuperAdmin && (
+                  <AdminActionButton
+                    label="Activate"
+                    icon={<PlayCircle className="h-4 w-4 mr-2" />}
+                    tooltip={ADMIN_ACTION_TOOLTIPS.activate}
+                    onClick={() => setShowActivateDialog(true)}
+                  />
+                )}
+                {canReactivate && (
+                  <AdminActionButton
+                    label="Reactivate"
+                    icon={<RefreshCcw className="h-4 w-4 mr-2" />}
+                    variant="outline"
+                    tooltip={ADMIN_ACTION_TOOLTIPS.reactivate}
+                    onClick={() => setShowReactivateDialog(true)}
+                  />
+                )}
+                <Button variant="outline" onClick={startEditing}>
+                  <Edit2 className="h-4 w-4 mr-2" />Edit
                 </Button>
-              )}
-              {canReactivate && (
-                <Button variant="outline" onClick={() => setShowReactivateDialog(true)}>
-                  <RefreshCcw className="h-4 w-4 mr-2" />Reactivate
-                </Button>
-              )}
-              <Button variant="outline" onClick={startEditing}>
-                <Edit2 className="h-4 w-4 mr-2" />Edit
-              </Button>
-              {member.status !== "suspended" && (
-                <Button variant="outline" onClick={() => setShowSuspendDialog(true)}>
-                  <XCircle className="h-4 w-4 mr-2" />Suspend
-                </Button>
-              )}
-              {isSuperAdmin && (
-                <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
-                  <Trash2 className="h-4 w-4 mr-2" />Delete
-                </Button>
-              )}
-            </div>
+                {member.status !== "suspended" && (
+                  <AdminActionButton
+                    label="Suspend"
+                    icon={<XCircle className="h-4 w-4 mr-2" />}
+                    variant="outline"
+                    tooltip={ADMIN_ACTION_TOOLTIPS.suspend}
+                    onClick={() => setShowSuspendDialog(true)}
+                  />
+                )}
+                {isSuperAdmin && (
+                  <AdminActionButton
+                    label="Delete"
+                    icon={<Trash2 className="h-4 w-4 mr-2" />}
+                    variant="destructive"
+                    tooltip={ADMIN_ACTION_TOOLTIPS.delete}
+                    onClick={() => setShowDeleteDialog(true)}
+                  />
+                )}
+              </div>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -874,10 +902,12 @@ export default function MemberDetail() {
                     <span className="font-medium">None</span>
                   </div>
                   {member.stripe_customer_id && member.card_brand && (
-                    <Button size="sm" onClick={handleCreateSubscription} disabled={isCreatingSubscription}>
-                      {isCreatingSubscription && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-                      Create
-                    </Button>
+                    <AdminActionButton
+                      label="Create"
+                      tooltip={ADMIN_ACTION_TOOLTIPS.createSubscription}
+                      onClick={() => setShowCreateSubscriptionDialog(true)}
+                      isLoading={isCreatingSubscription}
+                    />
                   )}
                 </div>
               )}
@@ -1044,14 +1074,13 @@ export default function MemberDetail() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Membership Details</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <AdminActionButton
+                    label="Change Tier"
+                    icon={<ArrowUpDown className="h-4 w-4 mr-2" />}
+                    variant="outline"
+                    tooltip={ADMIN_ACTION_TOOLTIPS.changeTier}
                     onClick={() => setShowTierChangeDialog(true)}
-                  >
-                    <ArrowUpDown className="h-4 w-4 mr-2" />
-                    Change Tier
-                  </Button>
+                  />
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -1117,9 +1146,12 @@ export default function MemberDetail() {
                         >
                           {member.annual_fee_subscription_id} <ExternalLink className="h-3 w-3" />
                         </a>
-                        <Button size="sm" variant="destructive" onClick={() => setShowCancelAnnualFeeDialog(true)}>
-                          Cancel
-                        </Button>
+                        <AdminActionButton
+                          label="Cancel"
+                          variant="destructive"
+                          tooltip={ADMIN_ACTION_TOOLTIPS.cancelAnnualFee}
+                          onClick={() => setShowCancelAnnualFeeDialog(true)}
+                        />
                       </div>
                     </div>
                   )}
@@ -1153,9 +1185,13 @@ export default function MemberDetail() {
                           </p>
                         </div>
                       </div>
-                      <Button variant="outline" onClick={() => setShowChargeDialog(true)}>
-                        <DollarSign className="h-4 w-4 mr-2" />Charge Card
-                      </Button>
+                      <AdminActionButton
+                        label="Charge Card"
+                        icon={<DollarSign className="h-4 w-4 mr-2" />}
+                        variant="outline"
+                        tooltip={ADMIN_ACTION_TOOLTIPS.chargeCard}
+                        onClick={() => setShowChargeDialog(true)}
+                      />
                     </div>
                   ) : (
                     <p className="text-muted-foreground text-center py-4">No payment method on file</p>
@@ -1519,6 +1555,15 @@ export default function MemberDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Subscription Confirmation Dialog */}
+      <CreateSubscriptionDialog
+        open={showCreateSubscriptionDialog}
+        onOpenChange={setShowCreateSubscriptionDialog}
+        member={member}
+        isLoading={isCreatingSubscription}
+        onConfirm={handleCreateSubscription}
+      />
 
       {/* Subscription Success Dialog */}
       <Dialog open={showSubscriptionSuccessDialog} onOpenChange={setShowSubscriptionSuccessDialog}>
