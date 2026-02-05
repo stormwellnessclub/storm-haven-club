@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'application_approved_pre_launch' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request';
+  type: 'application_submitted' | 'application_approved' | 'application_approved_pre_launch' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'member_activation_setup';
   to: string;
   data: Record<string, any>;
 }
@@ -1012,6 +1012,95 @@ serve(async (req) => {
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Welcome back,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'member_activation_setup':
+        subject = 'Action Required: Complete Your Membership Setup - Storm Wellness Club';
+        const launchDate = data.launchDate || 'February 9, 2026';
+        const hasCardOnFile = data.hasCardOnFile || false;
+        const hasSignedAgreement = data.hasSignedAgreement || false;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}; font-family: Georgia, 'Times New Roman', Times, serif;">
+              <h2 style="${emailStyles.heading}; font-family: Georgia, 'Times New Roman', Times, serif;">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                We're excited to announce that Storm Wellness Club is opening its doors on <strong>${launchDate}</strong>! 
+                To ensure you're ready to enjoy your membership from day one, please complete the following setup steps.
+              </p>
+              
+              <div style="background: #dbeafe; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0 0 10px 0; font-weight: 600; color: #1e40af; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
+                  📧 Important: Create your account with this email address
+                </p>
+                <p style="margin: 0; font-size: 18px; font-weight: 700; color: #1e40af; font-family: Georgia, 'Times New Roman', Times, serif; background: #eff6ff; padding: 10px; border-radius: 4px; text-align: center;">
+                  ${data.email || to}
+                </p>
+                <p style="margin: 10px 0 0 0; color: #1e40af; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  This is the same email you used when applying. Using a different email will prevent your membership from being linked automatically.
+                </p>
+              </div>
+              
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #312D28; font-family: Georgia, 'Times New Roman', Times, serif;">Complete your setup:</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 12px 0; font-family: Georgia, 'Times New Roman', Times, serif; vertical-align: top; width: 30px;">
+                      ${hasCardOnFile 
+                        ? '<span style="color: #10b981; font-size: 18px;">✓</span>'
+                        : '<span style="color: #6b7280; font-size: 18px;">○</span>'}
+                    </td>
+                    <td style="padding: 12px 0; font-family: Georgia, 'Times New Roman', Times, serif;">
+                      <strong>Add payment method</strong><br>
+                      <span style="color: #6b7280; font-size: 14px;">For your monthly membership dues</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-family: Georgia, 'Times New Roman', Times, serif; vertical-align: top; width: 30px;">
+                      ${hasSignedAgreement 
+                        ? '<span style="color: #10b981; font-size: 18px;">✓</span>'
+                        : '<span style="color: #6b7280; font-size: 18px;">○</span>'}
+                    </td>
+                    <td style="padding: 12px 0; font-family: Georgia, 'Times New Roman', Times, serif;">
+                      <strong>Sign membership agreement</strong><br>
+                      <span style="color: #6b7280; font-size: 14px;">Review and sign your membership terms</span>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+              
+              <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #92400e; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
+                  ⏰ Please complete these steps before ${launchDate}
+                </p>
+                <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  Your membership will be activated on opening day once your setup is complete.
+                </p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/auth" style="${emailStyles.button}; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">Complete Your Setup</a>
+              </div>
+              
+              <p style="font-size: 14px; line-height: 1.8; color: #6b7280; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                After signing in, you can access your payment methods at <a href="${BASE_URL}/member/payment-methods" style="${emailStyles.link}">Payment Methods</a> 
+                and sign agreements at <a href="${BASE_URL}/member/waivers" style="${emailStyles.link}">Waivers & Agreements</a>.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                We look forward to welcoming you to Storm Wellness Club.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Storm</p>
+                <p style="color: #6b7280; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Founder, Storm Wellness Club</p>
               </div>
             </div>
             ${getEmailFooter()}

@@ -62,7 +62,7 @@ import {
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
   Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle,
-  ArrowUpDown
+  ArrowUpDown, Send
 } from "lucide-react";
 import {
   Table,
@@ -176,6 +176,9 @@ export default function MemberDetail() {
 
   // Tier change state
   const [showTierChangeDialog, setShowTierChangeDialog] = useState(false);
+
+  // Activation email state
+  const [isSendingActivationEmail, setIsSendingActivationEmail] = useState(false);
 
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -651,6 +654,43 @@ export default function MemberDetail() {
 
   const canReactivate = member && ["suspended", "cancelled", "inactive", "frozen", "expired"].includes(member.status);
 
+  // Send activation email handler
+  const sendActivationEmail = async () => {
+    if (!member) return;
+    setIsSendingActivationEmail(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "member_activation_setup",
+          to: member.email,
+          data: {
+            name: member.first_name,
+            email: member.email,
+            membershipTier: member.membership_type,
+            launchDate: "February 9, 2026",
+            hasCardOnFile: !!member.card_last4,
+            hasSignedAgreement: false, // Would need to join profiles table
+          },
+        },
+      });
+      if (error) throw error;
+
+      // Update activation_email_sent_at
+      await supabase
+        .from("members")
+        .update({ activation_email_sent_at: new Date().toISOString() })
+        .eq("id", member.id);
+
+      toast.success(`Activation email sent to ${member.first_name}`);
+      queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
+    } catch (error) {
+      console.error("Error sending activation email:", error);
+      toast.error("Failed to send activation email");
+    } finally {
+      setIsSendingActivationEmail(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <AdminLayout title="Member Details">
@@ -844,6 +884,75 @@ export default function MemberDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Activation Status Card - Only for pending_activation members */}
+        {member.status === "pending_activation" && (
+          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="h-5 w-5 text-amber-600" />
+                Activation Setup Status
+              </CardTitle>
+              <CardDescription>
+                Member needs to complete these steps before activation on February 9th
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    {member.stripe_customer_id ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <span className={member.stripe_customer_id ? "text-foreground" : "text-muted-foreground"}>
+                      Account Created
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {member.card_last4 ? (
+                      <>
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <span className="text-foreground">
+                          Card on File ({member.card_brand} •••• {member.card_last4})
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-muted-foreground">Card on File</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <XCircle className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Membership Agreement Signed</span>
+                  </div>
+                </div>
+                <div className="flex flex-col justify-center gap-3">
+                  <Button 
+                    onClick={sendActivationEmail} 
+                    disabled={isSendingActivationEmail}
+                    className="w-full sm:w-auto"
+                  >
+                    {isSendingActivationEmail ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    Send Activation Email
+                  </Button>
+                  {(member as any).activation_email_sent_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Last sent: {format(new Date((member as any).activation_email_sent_at), "MMM d, yyyy 'at' h:mm a")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabbed Content */}
         <Tabs defaultValue="profile" className="space-y-4">
