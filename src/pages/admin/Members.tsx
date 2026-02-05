@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle, DollarSign, ShoppingBag, CheckCircle2 } from "lucide-react";
+import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle, DollarSign, ShoppingBag, CheckCircle2, Send } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,11 +102,16 @@ export default function Members() {
   const [showClassPackageDialog, setShowClassPackageDialog] = useState(false);
   const [foundingMemberFilter, setFoundingMemberFilter] = useState<boolean | null>(null);
   const [billingTypeFilter, setBillingTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   
   // Super Admin Activation state (moved from MemberDetailSheet)
   const [memberToActivate, setMemberToActivate] = useState<typeof members[0] | null>(null);
   const [showActivateDialog, setShowActivateDialog] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
+  
+  // Activation email state
+  const [isSendingActivationEmail, setIsSendingActivationEmail] = useState(false);
+  const [isSendingBulkEmails, setIsSendingBulkEmails] = useState(false);
   
   const queryClient = useQueryClient();
   const { isSuperAdmin } = useUserRoles();
@@ -139,7 +144,8 @@ export default function Members() {
           card_last4,
           card_exp_month,
           card_exp_year,
-          user_id
+          user_id,
+          activation_email_sent_at
         `)
         .order("created_at", { ascending: false });
 
@@ -166,8 +172,104 @@ export default function Members() {
       (billingTypeFilter === "monthly" && (member.billing_type === "monthly" || !member.billing_type)) ||
       (billingTypeFilter === "annual" && member.billing_type === "annual");
 
-    return matchesSearch && matchesFounding && matchesBilling;
+    // Status filter
+    const matchesStatus = statusFilter === "all" || member.status === statusFilter;
+
+    return matchesSearch && matchesFounding && matchesBilling && matchesStatus;
   });
+
+  // Get pending activation members for bulk email
+  const pendingActivationMembers = filteredMembers.filter(m => m.status === "pending_activation");
+
+  // Send activation email to single member
+  const sendActivationEmail = async (member: typeof members[0], e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIsSendingActivationEmail(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "member_activation_setup",
+          to: member.email,
+          data: {
+            name: member.first_name,
+            email: member.email,
+            membershipTier: member.membership_type,
+            launchDate: "February 9, 2026",
+            hasCardOnFile: !!member.card_last4,
+            hasSignedAgreement: false,
+          },
+        },
+      });
+      if (error) throw error;
+
+      // Update activation_email_sent_at
+      await supabase
+        .from("members")
+        .update({ activation_email_sent_at: new Date().toISOString() })
+        .eq("id", member.id);
+
+      toast.success(`Activation email sent to ${member.first_name}`);
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    } catch (error) {
+      console.error("Error sending activation email:", error);
+      toast.error("Failed to send activation email");
+    } finally {
+      setIsSendingActivationEmail(false);
+    }
+  };
+
+  // Send bulk activation emails
+  const sendBulkActivationEmails = async () => {
+    const membersToEmail = pendingActivationMembers;
+    if (membersToEmail.length === 0) {
+      toast.error("No pending activation members to email");
+      return;
+    }
+    
+    setIsSendingBulkEmails(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const member of membersToEmail) {
+      try {
+        const { error } = await supabase.functions.invoke("send-email", {
+          body: {
+            type: "member_activation_setup",
+            to: member.email,
+            data: {
+              name: member.first_name,
+              email: member.email,
+              membershipTier: member.membership_type,
+              launchDate: "February 9, 2026",
+              hasCardOnFile: !!member.card_last4,
+              hasSignedAgreement: false,
+            },
+          },
+        });
+        if (error) throw error;
+
+        await supabase
+          .from("members")
+          .update({ activation_email_sent_at: new Date().toISOString() })
+          .eq("id", member.id);
+
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send email to ${member.email}:`, error);
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Sent ${successCount} activation email${successCount > 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to send ${failCount} email${failCount > 1 ? 's' : ''}`);
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    setIsSendingBulkEmails(false);
+  };
 
   const handleViewProfile = (member: typeof members[0]) => {
     // Navigate to full member detail page
@@ -236,7 +338,21 @@ export default function Members() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="pending_activation">Pending Activation</SelectItem>
+              <SelectItem value="frozen">Frozen</SelectItem>
+              <SelectItem value="suspended">Suspended</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select value={foundingMemberFilter === null ? "all" : foundingMemberFilter ? "founding" : "regular"} onValueChange={(v) => {
             if (v === "all") setFoundingMemberFilter(null);
             else setFoundingMemberFilter(v === "founding");
@@ -261,6 +377,22 @@ export default function Members() {
               <SelectItem value="annual">Annual</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Bulk activation email button */}
+          {pendingActivationMembers.length > 0 && (
+            <Button 
+              variant="outline" 
+              onClick={sendBulkActivationEmails}
+              disabled={isSendingBulkEmails}
+            >
+              {isSendingBulkEmails ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Send Activation Emails ({pendingActivationMembers.length})
+            </Button>
+          )}
         </div>
 
         {/* Members Table */}
@@ -289,6 +421,7 @@ export default function Members() {
                     <TableHead>Member</TableHead>
                     <TableHead>Membership</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Email Sent</TableHead>
                     <TableHead>Join Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -351,6 +484,22 @@ export default function Members() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        {member.status === "pending_activation" ? (
+                          (member as any).activation_email_sent_at ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 text-xs">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Sent {format(new Date((member as any).activation_email_sent_at), "MMM d")}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground text-xs">
+                              Not sent
+                            </Badge>
+                          )
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {member.membership_start_date
                           ? format(new Date(member.membership_start_date), "MMM d, yyyy")
                           : "—"}
@@ -380,6 +529,18 @@ export default function Members() {
                               <ShoppingBag className="h-4 w-4 mr-2" />
                               Sell Package
                             </DropdownMenuItem>
+                            {member.status === "pending_activation" && (
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sendActivationEmail(member, e as any);
+                                }}
+                                disabled={isSendingActivationEmail}
+                              >
+                                <Mail className="h-4 w-4 mr-2" />
+                                Send Activation Email
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => handleCheckIn(member)}>
                               Check In
                             </DropdownMenuItem>
