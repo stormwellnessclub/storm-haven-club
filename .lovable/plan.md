@@ -1,234 +1,277 @@
 
+# Robust Admin Action Safety Improvements
 
-# Class Booking Payment Enforcement - Complete Implementation Plan
+## Problem Analysis
 
-## Problem Summary
+The user has identified critical safety issues with admin actions in the member management interface:
 
-The current class booking system has a **critical gap**: users can select "Pay at front desk" (cash) as a payment method and book classes **without any actual payment or prepaid credits/passes**. This bypasses the payment requirement entirely.
+| Current Problem | Impact | Risk Level |
+|----------------|--------|------------|
+| "Create" subscription button has no confirmation dialog | One click creates a Stripe subscription and may activate member | **CRITICAL** |
+| No explanation of what buttons do before clicking | Staff can make costly mistakes | **HIGH** |
+| No undo capability for irreversible actions | Cannot recover from mistakes | **HIGH** |
+| Actions execute immediately without multi-step review | No chance to verify before action | **HIGH** |
 
-**Evidence from database**:
-- Several bookings exist with `payment_method: cash` and `credits_used: 0`
-- No validation prevents unpaid bookings
-
-**Current Flow Analysis**:
-
-| Payment Method | Requires Pre-Payment? | Current Behavior |
-|----------------|----------------------|------------------|
-| `credits` | Yes | Diamond members use included class credits |
-| `pass` | Yes | User has pre-purchased class pass |
-| `cash` | **NO** | Books immediately, expects front desk payment |
-
-## Solution: Remove Cash Payment & Enforce Pre-Payment
-
-### Phase 1: Remove "Pay at Front Desk" Option (Frontend)
-
-**File: `src/components/booking/BookingModal.tsx`**
-
-Remove the "cash" payment option from the BookingModal. Users must either:
-1. Use Diamond member credits (if available)
-2. Use a pre-purchased class pass
-3. **Purchase a class pass first** (redirect to `/class-passes` page)
+### Current "Create Subscription" Button (Line 877-880 in MemberDetail.tsx)
 
 ```
-Current options:
-- Diamond Member Credit ✓
-- Class Pass ✓
-- Pay at front desk ✗ (REMOVE)
-- [New] Purchase a Class Pass → redirect
-```
-
-### Phase 2: Backend Validation (Edge Function & Database)
-
-**File: `supabase/migrations/` (new migration)**
-
-Update the `create_atomic_class_booking` function to reject `cash` as a payment method:
-
-```sql
--- Add validation at start of function
-IF _payment_method = 'cash' THEN
-  RETURN jsonb_build_object(
-    'success', false,
-    'error', 'Cash payments are not accepted for online bookings. Please purchase a class pass first.'
-  );
-END IF;
-```
-
-This provides server-side enforcement even if someone bypasses the UI.
-
-### Phase 3: Update Booking Hook Validation
-
-**File: `src/hooks/useBooking.ts`**
-
-Add client-side validation before calling the RPC function:
-
-```typescript
-// Validate payment method - reject cash
-if (paymentMethod === "cash") {
-  throw new Error("Please purchase a class pass or use your member credits to book this class.");
-}
-
-// Ensure user has valid payment option
-if (paymentMethod === "credits" && !memberCreditId) {
-  throw new Error("No available class credits. Please purchase a class pass.");
-}
-
-if (paymentMethod === "pass" && !passId) {
-  throw new Error("Please select a class pass to use for this booking.");
-}
-```
-
-### Phase 4: UI Flow for No Payment Options
-
-**File: `src/components/booking/BookingModal.tsx`**
-
-When user has no valid payment options (no credits AND no passes), show:
-
-1. Clear message: "You need a class pass to book"
-2. Primary CTA: "Purchase Class Pass" button → redirects to `/class-passes`
-3. Secondary link to class pass pricing information
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ Book: Reformer Sculpt                                   │
-├─────────────────────────────────────────────────────────┤
-│ Saturday, Feb 8, 2026 at 9:00 AM                       │
-│ 50 min • Studio A • 6 spots remaining                  │
-├─────────────────────────────────────────────────────────┤
-│ ⚠️ No payment method available                         │
-│                                                         │
-│ To book this class, you need:                          │
-│ • Diamond membership credits (included monthly), or    │
-│ • A pre-purchased class pass                           │
-│                                                         │
-│ [Purchase Class Pass]  [View Pricing]                  │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Phase 5: Verify Stripe Webhook Integration
-
-**File: `supabase/functions/stripe-webhook/index.ts`**
-
-The webhook already correctly handles class pass creation on `checkout.session.completed`:
-- ✅ Creates `class_passes` record with correct category
-- ✅ Sets `classes_remaining` correctly (1 or 10)
-- ✅ Sets proper expiration date
-- ✅ Records member status for pricing verification
-
-**Verified Stripe Secrets**: All required secrets are configured:
-- `STRIPE_SECRET_KEY` ✅
-- `STRIPE_WEBHOOK_SECRET` ✅
-
----
-
-## Technical Implementation Details
-
-### BookingModal Changes
-
-```typescript
-// src/components/booking/BookingModal.tsx
-
-// Determine available payment options
-const canUseMemberCredits = creditsData?.hasClassCredits;
-const canUsePass = creditsData?.availablePasses && creditsData.availablePasses.length > 0;
-const hasNoPaymentOptions = !canUseMemberCredits && !canUsePass;
-
-// Remove cash option entirely from RadioGroup
-// Only show: credits (if available) and passes (if available)
-
-// When no options available, show purchase prompt instead of booking form
-{hasNoPaymentOptions && user && (
-  <div className="space-y-4">
-    <Alert variant="warning">
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>No payment method available</AlertTitle>
-      <AlertDescription>
-        Purchase a class pass to book this class.
-      </AlertDescription>
-    </Alert>
-    <Button onClick={() => navigate('/class-passes')} className="w-full">
-      Purchase Class Pass
-    </Button>
-  </div>
+{member.stripe_customer_id && member.card_brand && (
+  <Button size="sm" onClick={handleCreateSubscription} disabled={isCreatingSubscription}>
+    {isCreatingSubscription && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+    Create
+  </Button>
 )}
 ```
 
-### Database Migration
+This single button with no label, no tooltip, and no confirmation:
+- Creates a Stripe subscription (charges member's card)
+- May set member status to "active"
+- Allocates tier-based credits
+- Cannot be easily undone
 
-```sql
--- Enforce payment validation in atomic booking function
-CREATE OR REPLACE FUNCTION public.create_atomic_class_booking(
-  _session_id uuid,
-  _user_id uuid,
-  _payment_method text,
-  _member_credit_id uuid DEFAULT NULL,
-  _pass_id uuid DEFAULT NULL
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
--- ... existing declarations ...
-BEGIN
-  -- ADDED: Reject cash payments
-  IF _payment_method NOT IN ('credits', 'pass') THEN
-    RETURN jsonb_build_object(
-      'success', false,
-      'error', 'Invalid payment method. Please use class credits or a class pass.'
-    );
-  END IF;
-  
-  -- ADDED: Require credit ID for credits payment
-  IF _payment_method = 'credits' AND _member_credit_id IS NULL THEN
-    RETURN jsonb_build_object(
-      'success', false,
-      'error', 'No class credits specified'
-    );
-  END IF;
-  
-  -- ADDED: Require pass ID for pass payment
-  IF _payment_method = 'pass' AND _pass_id IS NULL THEN
-    RETURN jsonb_build_object(
-      'success', false,
-      'error', 'No class pass specified'
-    );
-  END IF;
-  
-  -- ... rest of existing function ...
-END;
-$$;
+---
+
+## Proposed Solution: Multi-Layer Safety System
+
+### 1. Info Tooltips on All Action Buttons
+
+Add an info icon (ℹ️) next to each action button that shows a tooltip explaining:
+- What the action does
+- What gets charged (if applicable)
+- Whether it can be undone
+- Any prerequisites
+
+**Visual Example:**
+```
+┌───────────────────────────────────────┐
+│ Subscription: None                    │
+│                                       │
+│  [Create Subscription] [ℹ]            │
+│                        ↓              │
+│  ┌────────────────────────────────┐   │
+│  │ Creates a recurring Stripe     │   │
+│  │ subscription for monthly dues. │   │
+│  │ The member's card will be      │   │
+│  │ charged automatically.         │   │
+│  │                                │   │
+│  │ ⚠️ This cannot be undone from │   │
+│  │ this portal. Cancellation      │   │
+│  │ requires Stripe Dashboard.     │   │
+│  └────────────────────────────────┘   │
+└───────────────────────────────────────┘
+```
+
+### 2. Multi-Step Confirmation Dialog for Create Subscription
+
+Replace the direct button action with a proper confirmation dialog showing:
+
+**Step 1: Review Action**
+```
+┌────────────────────────────────────────────────────────────┐
+│ ⚠️ Create Subscription                                     │
+├────────────────────────────────────────────────────────────┤
+│ You are about to create a recurring Stripe subscription    │
+│ for [Member Name].                                         │
+│                                                            │
+│ ┌────────────────────────────────────────────────────────┐│
+│ │ Subscription Details                                   ││
+│ │ ─────────────────────────────────────────────────────  ││
+│ │ Tier:           Gold                                   ││
+│ │ Billing:        Monthly                                ││
+│ │ Amount:         $250/month                             ││
+│ │ Card:           Visa •••• 4242                         ││
+│ │ Start Date:     Feb 9, 2026                            ││
+│ │ Credits:        4 Red Light, 2 Dry Cryo                ││
+│ └────────────────────────────────────────────────────────┘│
+│                                                            │
+│ ⚠️ Important:                                              │
+│ • Member's card will be charged automatically              │
+│ • Subscription cannot be undone from this portal           │
+│ • To cancel, use Stripe Dashboard or "Cancel" button       │
+│                                                            │
+│                      [Cancel]    [Confirm & Create]        │
+└────────────────────────────────────────────────────────────┘
+```
+
+### 3. Consistent Pattern for All Dangerous Actions
+
+Apply the same pattern to these existing buttons:
+
+| Button | Current State | Proposed Change |
+|--------|---------------|-----------------|
+| "Create" (subscription) | No dialog, no tooltip | Add tooltip + confirmation dialog |
+| "Charge Card" | Has dialog, no tooltip | Add tooltip explaining it |
+| "Suspend" | Has dialog, no tooltip | Add tooltip |
+| "Delete" | Has dialog, no tooltip | Add tooltip |
+| "Reactivate" | Has dialog, no tooltip | Add tooltip |
+| "Activate" | Has dialog, no tooltip | Add tooltip |
+| "Cancel" (annual fee) | Has dialog, no tooltip | Add tooltip |
+| "Change Tier" | Opens dialog | Add tooltip |
+
+### 4. New ActionButton Component with Built-in Safety
+
+Create a reusable component for admin action buttons:
+
+```typescript
+interface AdminActionButtonProps {
+  label: string;
+  onClick: () => void;
+  tooltip: string;         // Explain what it does
+  variant?: "default" | "destructive" | "outline";
+  requiresConfirmation?: boolean;
+  confirmationConfig?: {
+    title: string;
+    description: React.ReactNode;
+    confirmLabel: string;
+    cancelLabel?: string;
+  };
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  isLoading?: boolean;
+}
 ```
 
 ---
 
-## Files to Modify
+## Technical Implementation
+
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/booking/BookingModal.tsx` | Remove cash option, add "no payment" state with purchase CTA |
-| `src/hooks/useBooking.ts` | Add client-side payment method validation |
-| `supabase/migrations/` (new) | Update `create_atomic_class_booking` to reject cash payments |
+| `src/pages/admin/MemberDetail.tsx` | Add confirmation dialog for subscription, tooltips on all action buttons |
+| `src/components/admin/MemberDetailSheet.tsx` | Same changes for sheet view |
+| `src/components/admin/AdminActionButton.tsx` | **NEW** - Reusable safe action button component |
+
+### New Component: AdminActionButton
+
+```typescript
+// src/components/admin/AdminActionButton.tsx
+
+export function AdminActionButton({
+  label,
+  onClick,
+  tooltip,
+  variant = "default",
+  icon,
+  disabled,
+  isLoading,
+  confirmationConfig,
+}: AdminActionButtonProps) {
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleClick = () => {
+    if (confirmationConfig) {
+      setShowConfirm(true);
+    } else {
+      onClick();
+    }
+  };
+
+  return (
+    <>
+      <div className="inline-flex items-center gap-1">
+        <Button onClick={handleClick} variant={variant} disabled={disabled}>
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          {icon}
+          {label}
+        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" className="text-muted-foreground hover:text-foreground">
+              <Info className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <p className="text-sm">{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+
+      {confirmationConfig && (
+        <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+          {/* Full confirmation dialog */}
+        </AlertDialog>
+      )}
+    </>
+  );
+}
+```
+
+### Create Subscription Dialog Implementation
+
+```typescript
+// New dialog state in MemberDetail.tsx
+const [showCreateSubscriptionDialog, setShowCreateSubscriptionDialog] = useState(false);
+
+// Pre-computed subscription details for preview
+const subscriptionPreview = useMemo(() => {
+  if (!member) return null;
+  const tier = member.membership_type.toLowerCase().replace(' membership', '');
+  const gender = member.gender?.toLowerCase() === 'male' ? 'men' : 'women';
+  const billingType = member.is_founding_member ? 'annual' : (member.billing_type || 'monthly');
+  const credits = getCreditsForTier(tier);
+  const price = getPriceDisplay(tier, billingType, gender);
+  
+  return {
+    tier: normalizeTierDisplay(member.membership_type),
+    billingType: member.is_founding_member ? 'Annual (Founding)' : billingType,
+    price,
+    credits,
+    cardInfo: member.card_brand && member.card_last4 
+      ? `${member.card_brand} •••• ${member.card_last4}` 
+      : 'No card',
+    startDate: member.membership_start_date 
+      ? format(new Date(member.membership_start_date), 'MMM d, yyyy')
+      : format(new Date(), 'MMM d, yyyy'),
+  };
+}, [member]);
+```
+
+---
+
+## Action Tooltips Reference
+
+| Button | Tooltip Text |
+|--------|-------------|
+| Create Subscription | "Creates a recurring Stripe subscription. The member's card will be charged automatically on the billing date. Cannot be undone from this portal." |
+| Charge Card | "Charge a one-time amount to the member's saved card. Enter amount and description before confirming." |
+| Suspend | "Temporarily suspends membership. Member loses access to all benefits until reactivated." |
+| Delete | "Permanently deletes this member record. This action cannot be undone." |
+| Reactivate | "Restores membership to active status. Member regains access to benefits." |
+| Activate | "Bypasses payment requirements and activates member immediately. Super Admin only." |
+| Cancel (annual fee) | "Cancels the recurring annual fee subscription in Stripe. Does not issue a refund." |
+| Change Tier | "Opens tier change dialog. May adjust pricing and credits." |
+
+---
+
+## Undo Considerations
+
+For truly irreversible actions (Stripe subscriptions), we cannot add "undo" but we can:
+
+1. **Show clear warnings** about irreversibility
+2. **Provide recovery paths** (e.g., link to Stripe Dashboard for subscription cancellation)
+3. **Log all admin actions** for audit trail (already exists via member_activities)
+4. **Require explicit confirmation** with action summary
+
+---
+
+## Implementation Summary
+
+1. **Create new `AdminActionButton` component** with tooltip and optional confirmation dialog
+2. **Update MemberDetail.tsx** to use new component for all action buttons
+3. **Add dedicated confirmation dialog** for Create Subscription with full preview
+4. **Add Info tooltips** next to each action button explaining consequences
+5. **Update MemberDetailSheet.tsx** with same safety improvements
 
 ---
 
 ## Expected Outcome
 
-1. **No booking without payment**: Users cannot book without prepaid credits/passes
-2. **Clear path to purchase**: When no payment available, users are directed to purchase page
-3. **Server-side enforcement**: Database function validates payment even if UI is bypassed
-4. **Existing flow preserved**: Diamond members use credits, pass holders use passes
-5. **Stripe integration verified**: Webhooks correctly create passes after purchase
-
----
-
-## Edge Cases Handled
-
-| Scenario | Behavior |
-|----------|----------|
-| User has no credits AND no passes | Show "Purchase Class Pass" prompt |
-| User has credits but no passes | Allow credits option only |
-| User has passes but no credits | Allow pass option only |
-| User has both | Show both options, user selects |
-| Non-logged-in user | Prompt to sign in first |
-| Diamond member with 0 remaining credits | Must purchase additional pass |
-
+After implementation:
+- ✅ Every action button has an adjacent info icon with explanatory tooltip
+- ✅ Create Subscription requires explicit confirmation showing tier, price, card, credits
+- ✅ Staff can hover to understand what each button does before clicking
+- ✅ Confirmation dialogs show clear summaries of what will happen
+- ✅ Irreversible actions are clearly marked with warnings
+- ✅ Recovery paths (Stripe Dashboard links) are provided where applicable
