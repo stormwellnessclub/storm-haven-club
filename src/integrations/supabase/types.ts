@@ -47,6 +47,67 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_action_log: {
+        Row: {
+          action_data: Json
+          action_type: string
+          can_undo: boolean
+          created_at: string
+          id: string
+          member_id: string | null
+          performed_by: string | null
+          undo_expires_at: string | null
+          undone_at: string | null
+          undone_by: string | null
+        }
+        Insert: {
+          action_data?: Json
+          action_type: string
+          can_undo?: boolean
+          created_at?: string
+          id?: string
+          member_id?: string | null
+          performed_by?: string | null
+          undo_expires_at?: string | null
+          undone_at?: string | null
+          undone_by?: string | null
+        }
+        Update: {
+          action_data?: Json
+          action_type?: string
+          can_undo?: boolean
+          created_at?: string
+          id?: string
+          member_id?: string | null
+          performed_by?: string | null
+          undo_expires_at?: string | null
+          undone_at?: string | null
+          undone_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_action_log_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_action_log_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_action_log_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agreements: {
         Row: {
           agreement_type: string
@@ -2480,6 +2541,7 @@ export type Database = {
           kids_care_agreement_signed_at: string | null
           kids_care_service_form_completed: boolean | null
           last_name: string
+          manager_refund_code: string | null
           membership_agreement_signed: boolean
           membership_agreement_signed_at: string | null
           phone: string | null
@@ -2510,6 +2572,7 @@ export type Database = {
           kids_care_agreement_signed_at?: string | null
           kids_care_service_form_completed?: boolean | null
           last_name: string
+          manager_refund_code?: string | null
           membership_agreement_signed?: boolean
           membership_agreement_signed_at?: string | null
           phone?: string | null
@@ -2540,6 +2603,7 @@ export type Database = {
           kids_care_agreement_signed_at?: string | null
           kids_care_service_form_completed?: boolean | null
           last_name?: string
+          manager_refund_code?: string | null
           membership_agreement_signed?: boolean
           membership_agreement_signed_at?: string | null
           phone?: string | null
@@ -2610,6 +2674,98 @@ export type Database = {
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "workout_programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      refund_requests: {
+        Row: {
+          amount_cents: number
+          approved_by: string | null
+          charge_type: string
+          created_at: string
+          currency: string
+          error_message: string | null
+          id: string
+          manager_code: string | null
+          member_id: string | null
+          original_charge_id: string | null
+          original_payment_intent_id: string | null
+          processed_at: string | null
+          reason: string | null
+          refund_type: string
+          requested_by: string | null
+          status: string
+          stripe_refund_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          approved_by?: string | null
+          charge_type: string
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          id?: string
+          manager_code?: string | null
+          member_id?: string | null
+          original_charge_id?: string | null
+          original_payment_intent_id?: string | null
+          processed_at?: string | null
+          reason?: string | null
+          refund_type?: string
+          requested_by?: string | null
+          status?: string
+          stripe_refund_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          approved_by?: string | null
+          charge_type?: string
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          id?: string
+          manager_code?: string | null
+          member_id?: string | null
+          original_charge_id?: string | null
+          original_payment_intent_id?: string | null
+          processed_at?: string | null
+          reason?: string | null
+          refund_type?: string
+          requested_by?: string | null
+          status?: string
+          stripe_refund_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_requests_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_original_charge_id_fkey"
+            columns: ["original_charge_id"]
+            isOneToOne: false
+            referencedRelation: "manual_charges"
             referencedColumns: ["id"]
           },
         ]
