@@ -10,12 +10,15 @@ import { AdminAddCardForm } from "@/components/admin/AdminAddCardForm";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { TierChangeDialog } from "@/components/admin/TierChangeDialog";
 import { CreateSubscriptionDialog } from "@/components/admin/CreateSubscriptionDialog";
+import { RefundDialog } from "@/components/admin/RefundDialog";
+import { UndoActionDialog } from "@/components/admin/UndoActionDialog";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
 import { useMemberActivities } from "@/hooks/useMemberActivities";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAuth } from "@/contexts/AuthContext";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -70,7 +73,7 @@ import {
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
   Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle,
-  ArrowUpDown, Send, Info
+  ArrowUpDown, Send, Info, RotateCcw
 } from "lucide-react";
 import {
   Table,
@@ -190,6 +193,22 @@ export default function MemberDetail() {
 
   // Activation email state
   const [isSendingActivationEmail, setIsSendingActivationEmail] = useState(false);
+
+  // Refund and Undo state
+  const [showRefundDialog, setShowRefundDialog] = useState(false);
+  const [selectedChargeForRefund, setSelectedChargeForRefund] = useState<{
+    id: string;
+    amount: number;
+    description: string;
+    status: string;
+    created_at: string;
+    stripe_payment_intent_id: string | null;
+    charge_type?: string;
+  } | null>(null);
+  const [showUndoDialog, setShowUndoDialog] = useState(false);
+
+  // Undo action hook - fetch last undoable action for this member
+  const lastUndoableAction = useLastUndoableAction(id);
 
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -803,6 +822,15 @@ export default function MemberDetail() {
                     onClick={() => setShowDeleteDialog(true)}
                   />
                 )}
+                {lastUndoableAction && (
+                  <AdminActionButton
+                    label="Undo"
+                    icon={<RotateCcw className="h-4 w-4 mr-2" />}
+                    variant="outline"
+                    tooltip="Reverse the last admin action (available for 24 hours)"
+                    onClick={() => setShowUndoDialog(true)}
+                  />
+                )}
               </div>
             </TooltipProvider>
           </div>
@@ -1204,7 +1232,16 @@ export default function MemberDetail() {
                   <CardTitle>Charge History</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ChargeHistory memberId={member.id} isAdmin={true} />
+                  <ChargeHistory 
+                    memberId={member.id} 
+                    isAdmin={true}
+                    recipientEmail={member.email}
+                    recipientName={`${member.first_name} ${member.last_name}`}
+                    onRefundClick={(charge) => {
+                      setSelectedChargeForRefund(charge);
+                      setShowRefundDialog(true);
+                    }}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -1732,6 +1769,24 @@ export default function MemberDetail() {
         billingType={member.billing_type || 'monthly'}
         hasActiveSubscription={!!member.stripe_subscription_id}
         hasAnnualFeePaid={!!member.annual_fee_paid_at}
+      />
+
+      {/* Refund Dialog */}
+      <RefundDialog
+        open={showRefundDialog}
+        onOpenChange={setShowRefundDialog}
+        charge={selectedChargeForRefund}
+        memberId={member.id}
+        memberName={`${member.first_name} ${member.last_name}`}
+      />
+
+      {/* Undo Action Dialog */}
+      <UndoActionDialog
+        open={showUndoDialog}
+        onOpenChange={setShowUndoDialog}
+        action={lastUndoableAction}
+        memberId={member.id}
+        memberName={`${member.first_name} ${member.last_name}`}
       />
     </AdminLayout>
   );
