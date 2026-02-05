@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -2741,6 +2741,278 @@ serve(async (req) => {
             customerId: feeCustomerId,
             emailSent,
             emailAddress: applicantEmail,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'process_admin_refund': {
+        const { memberId, chargeId, paymentIntentId, chargeType, refundAmount: adminRefundAmount, refundNotes: adminRefundNotes, managerCode, refundMethodType: adminRefundMethod } = body;
+
+        if (!memberId) throw new Error("Member ID is required");
+        if (!adminRefundAmount || adminRefundAmount <= 0) throw new Error("Valid refund amount is required");
+
+        logStep("Processing admin refund", { memberId, chargeId, chargeType, adminRefundAmount, adminRefundMethod });
+
+        // Check user roles
+        const { data: adminRoleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+
+        const userRoles = (adminRoleData || []).map((r: { role: string }) => r.role);
+        const isSuperAdminUser = userRoles.includes('super_admin');
+        const hasAdminRole = userRoles.some((r: string) => ['super_admin', 'admin', 'manager'].includes(r));
+
+        if (!hasAdminRole) throw new Error("Unauthorized: Admin access required");
+
+        // Check if membership charge requires super admin
+        const membershipChargeTypes = ['membership_dues', 'initiation_fee', 'annual_fee'];
+        const isMembershipCharge = membershipChargeTypes.includes(chargeType) || 
+          (chargeType === 'manual_charge' && !chargeId); // Default check for description-based detection
+
+        if (isMembershipCharge && !isSuperAdminUser) {
+          throw new Error("Only Super Admins can refund membership-related charges");
+        }
+
+        // Validate manager code for non-super admins
+        if (!isSuperAdminUser && managerCode) {
+          const { data: codeData } = await supabase
+            .from('profiles')
+            .select('user_id')
+            .eq('manager_refund_code', managerCode)
+            .single();
+
+          if (!codeData) throw new Error("Invalid manager code");
+          logStep("Manager code validated", { managerUserId: codeData.user_id });
+        }
+
+        let stripeRefundId: string | null = null;
+        let stripeRefundStatus: string | null = null;
+
+        // Process Stripe refund if method is stripe and we have payment intent
+        if (adminRefundMethod === 'stripe' && paymentIntentId) {
+          const refund = await stripe.refunds.create({
+            payment_intent: paymentIntentId,
+            amount: adminRefundAmount,
+          });
+          stripeRefundId = refund.id;
+          stripeRefundStatus = refund.status;
+          logStep("Stripe refund created", { refundId: refund.id, status: refund.status, amount: refund.amount });
+        }
+
+        // Log to refund_requests table
+        const { error: refundLogError } = await supabase
+          .from('refund_requests')
+          .insert({
+            member_id: memberId,
+            original_charge_id: chargeId || null,
+            original_payment_intent_id: paymentIntentId || null,
+            charge_type: chargeType,
+            refund_type: adminRefundMethod === 'stripe' ? 'stripe' : adminRefundMethod,
+            amount_cents: adminRefundAmount,
+            currency: 'usd',
+            reason: adminRefundNotes || null,
+            status: stripeRefundId ? 'processed' : 'completed',
+            requested_by: user.id,
+            manager_code: managerCode || null,
+            stripe_refund_id: stripeRefundId,
+            processed_at: new Date().toISOString(),
+          });
+
+        if (refundLogError) {
+          logStep("Warning: Failed to log refund request", { error: refundLogError.message });
+        }
+
+        // Update manual_charges status if we have a chargeId
+        if (chargeId) {
+          const { error: updateError } = await supabase
+            .from('manual_charges')
+            .update({
+              status: 'refunded',
+              refund_method: adminRefundMethod,
+              refund_notes: adminRefundNotes || null,
+              refunded_at: new Date().toISOString(),
+              refunded_by: user.id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', chargeId);
+
+          if (updateError) {
+            logStep("Warning: Failed to update charge status", { error: updateError.message });
+          }
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            refundId: stripeRefundId,
+            status: stripeRefundStatus || 'completed',
+            amount: adminRefundAmount,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'undo_admin_action': {
+        const { actionLogId, includeRefund, managerCode: undoManagerCode } = body;
+
+        if (!actionLogId) throw new Error("Action log ID is required");
+
+        logStep("Processing undo action", { actionLogId, includeRefund });
+
+        // Fetch the action from admin_action_log
+        const { data: actionData, error: actionError } = await supabase
+          .from('admin_action_log')
+          .select('*')
+          .eq('id', actionLogId)
+          .single();
+
+        if (actionError || !actionData) throw new Error("Action not found");
+
+        // Validate action is undoable
+        if (!actionData.can_undo) throw new Error("This action cannot be undone");
+        if (actionData.undone_at) throw new Error("This action has already been undone");
+        if (actionData.undo_expires_at && new Date(actionData.undo_expires_at) < new Date()) {
+          throw new Error("Undo window has expired (24 hours)");
+        }
+
+        // Check user roles
+        const { data: undoRoleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+
+        const undoUserRoles = (undoRoleData || []).map((r: { role: string }) => r.role);
+        const isUndoSuperAdmin = undoUserRoles.includes('super_admin');
+        const hasUndoAdminRole = undoUserRoles.some((r: string) => ['super_admin', 'admin', 'manager'].includes(r));
+
+        if (!hasUndoAdminRole) throw new Error("Unauthorized: Admin access required");
+
+        // Validate manager code for non-super admins
+        if (!isUndoSuperAdmin && undoManagerCode) {
+          const { data: codeData } = await supabase
+            .from('profiles')
+            .select('user_id')
+            .eq('manager_refund_code', undoManagerCode)
+            .single();
+
+          if (!codeData) throw new Error("Invalid manager code");
+        }
+
+        const actionDataParsed = actionData.action_data as Record<string, unknown>;
+        const undoMemberId = actionData.member_id;
+
+        // Process based on action type
+        switch (actionData.action_type) {
+          case 'create_subscription':
+          case 'sell_membership': {
+            // Cancel Stripe subscription if exists
+            const subId = actionDataParsed.subscription_id as string;
+            if (subId) {
+              try {
+                await stripe.subscriptions.cancel(subId);
+                logStep("Cancelled Stripe subscription", { subscriptionId: subId });
+              } catch (stripeErr) {
+                logStep("Warning: Failed to cancel subscription", { error: String(stripeErr) });
+              }
+            }
+
+            // Reset member status to pending_activation
+            const { error: memberUpdateError } = await supabase
+              .from('members')
+              .update({
+                status: 'pending_activation',
+                stripe_subscription_id: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', undoMemberId);
+
+            if (memberUpdateError) {
+              logStep("Warning: Failed to reset member status", { error: memberUpdateError.message });
+            }
+
+            // Remove allocated credits if tracked
+            const creditsAllocated = actionDataParsed.credits_allocated as Record<string, number> | undefined;
+            if (creditsAllocated && undoMemberId) {
+              const { error: creditDeleteError } = await supabase
+                .from('member_credits')
+                .delete()
+                .eq('member_id', undoMemberId)
+                .gte('created_at', actionData.created_at);
+
+              if (creditDeleteError) {
+                logStep("Warning: Failed to remove credits", { error: creditDeleteError.message });
+              }
+            }
+            break;
+          }
+
+          case 'sell_class_package': {
+            const passId = actionDataParsed.pass_id as string;
+            if (passId) {
+              const { error: passUpdateError } = await supabase
+                .from('class_passes')
+                .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+                .eq('id', passId);
+
+              if (passUpdateError) {
+                logStep("Warning: Failed to cancel class pass", { error: passUpdateError.message });
+              }
+            }
+            break;
+          }
+
+          case 'status_change': {
+            const oldStatus = actionDataParsed.old_status as string;
+            if (oldStatus && undoMemberId) {
+              const { error: statusUpdateError } = await supabase
+                .from('members')
+                .update({ status: oldStatus, updated_at: new Date().toISOString() })
+                .eq('id', undoMemberId);
+
+              if (statusUpdateError) {
+                logStep("Warning: Failed to revert status", { error: statusUpdateError.message });
+              }
+            }
+            break;
+          }
+        }
+
+        // Process refund if requested
+        if (includeRefund && actionDataParsed.payment_intent_id) {
+          try {
+            const piId = actionDataParsed.payment_intent_id as string;
+            const chargeAmountVal = actionDataParsed.charge_amount as number;
+            
+            const refund = await stripe.refunds.create({
+              payment_intent: piId,
+              amount: chargeAmountVal || undefined,
+            });
+            logStep("Processed refund as part of undo", { refundId: refund.id, amount: refund.amount });
+          } catch (refundErr) {
+            logStep("Warning: Failed to process refund", { error: String(refundErr) });
+          }
+        }
+
+        // Mark action as undone
+        const { error: markUndoneError } = await supabase
+          .from('admin_action_log')
+          .update({
+            undone_at: new Date().toISOString(),
+            undone_by: user.id,
+          })
+          .eq('id', actionLogId);
+
+        if (markUndoneError) {
+          logStep("Warning: Failed to mark action as undone", { error: markUndoneError.message });
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            memberId: undoMemberId,
+            actionType: actionData.action_type,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );

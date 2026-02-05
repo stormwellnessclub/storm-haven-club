@@ -34,9 +34,11 @@ interface ChargeHistoryProps {
   isAdmin?: boolean;
   recipientEmail?: string;
   recipientName?: string;
+  // External refund dialog callback (for MemberDetail integration)
+  onRefundClick?: (charge: Charge) => void;
 }
 
-interface Charge {
+export interface Charge {
   id: string;
   amount: number;
   description: string;
@@ -47,6 +49,7 @@ interface Charge {
   refund_method: string | null;
   refunded_at: string | null;
   refunded_by: string | null;
+  charge_type?: string;
 }
 
 export function ChargeHistory({ 
@@ -57,6 +60,7 @@ export function ChargeHistory({
   isAdmin = false,
   recipientEmail,
   recipientName,
+  onRefundClick,
 }: ChargeHistoryProps) {
   const queryClient = useQueryClient();
   const [resendingId, setResendingId] = useState<string | null>(null);
@@ -392,7 +396,7 @@ export function ChargeHistory({
                           size="sm"
                           variant="ghost"
                           className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setRefundingCharge(charge)}
+                          onClick={() => onRefundClick ? onRefundClick(charge) : setRefundingCharge(charge)}
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
                         </Button>
