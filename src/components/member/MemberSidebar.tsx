@@ -22,6 +22,7 @@ import {
   Sparkles,
   Receipt,
   ScanLine,
+  Zap,
 } from "lucide-react";
 import {
   Sidebar,
@@ -56,6 +57,7 @@ const memberMenuItems: MenuItem[] = [
   { title: "My Bookings", url: "/member/bookings", icon: Calendar },
   { title: "Book Classes", url: "/schedule", icon: CalendarPlus },
   { title: "Buy Passes", url: "/class-passes", icon: Ticket },
+  { title: "Wellness Booking", url: "/member/wellness", icon: Zap },
   { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
   { title: "Waivers", url: "/member/waivers", icon: FileCheck },
   { title: "Support", url: "/member/support", icon: MessageCircle },
