@@ -5,6 +5,8 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { StripeProvider } from "@/components/StripeProvider";
 import { AdminAddCardForm } from "./AdminAddCardForm";
+import { CreateSubscriptionDialog } from "./CreateSubscriptionDialog";
+import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "./AdminActionButton";
 import {
   Sheet,
   SheetContent,
@@ -41,9 +43,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
@@ -137,6 +142,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   
   // Create subscription state
   const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
+  const [showCreateSubscriptionDialog, setShowCreateSubscriptionDialog] = useState(false);
   
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -720,19 +726,12 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                                   <div className="flex items-center gap-2">
                                     <Badge variant="destructive">Not Started</Badge>
                                     {member.stripe_customer_id && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-6 px-2 text-xs"
-                                        onClick={handleCreateSubscription}
-                                        disabled={isCreatingSubscription}
-                                      >
-                                        {isCreatingSubscription ? (
-                                          <Loader2 className="h-3 w-3 animate-spin" />
-                                        ) : (
-                                          "Create"
-                                        )}
-                                      </Button>
+                                      <AdminActionButton
+                                        label="Create"
+                                        tooltip={ADMIN_ACTION_TOOLTIPS.createSubscription}
+                                        onClick={() => setShowCreateSubscriptionDialog(true)}
+                                        isLoading={isCreatingSubscription}
+                                      />
                                     )}
                                   </div>
                                 )}
@@ -867,15 +866,13 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                               Last Paid: {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
                             </p>
                           )}
-                          <Button
+                          <AdminActionButton
+                            label="Cancel Annual Fee"
+                            icon={<XCircle className="h-4 w-4 mr-2" />}
                             variant="outline"
-                            size="sm"
-                            className="w-full mt-2 text-destructive hover:bg-destructive/10"
+                            tooltip={ADMIN_ACTION_TOOLTIPS.cancelAnnualFee}
                             onClick={() => setShowCancelAnnualFeeDialog(true)}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Cancel Annual Fee Subscription
-                          </Button>
+                          />
                         </div>
                       ) : member.annual_fee_paid_at ? (
                         <div className="space-y-1">
@@ -1302,6 +1299,15 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           </Tabs>
         </SheetContent>
       </Sheet>
+
+      {/* Create Subscription Confirmation Dialog */}
+      <CreateSubscriptionDialog
+        open={showCreateSubscriptionDialog}
+        onOpenChange={setShowCreateSubscriptionDialog}
+        member={member}
+        isLoading={isCreatingSubscription}
+        onConfirm={handleCreateSubscription}
+      />
 
       <AlertDialog open={showSuspendDialog} onOpenChange={setShowSuspendDialog}>
         <AlertDialogContent>
