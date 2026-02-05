@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, Info, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type MembershipTier = "silver" | "gold" | "platinum" | "diamond";
@@ -34,6 +34,7 @@ interface TierChangeDialogProps {
   memberGender: string;
   billingType: string;
   hasActiveSubscription: boolean;
+  hasAnnualFeePaid?: boolean;
 }
 
 const TIER_ORDER: MembershipTier[] = ["silver", "gold", "platinum", "diamond"];
@@ -109,6 +110,7 @@ export function TierChangeDialog({
   memberGender,
   billingType,
   hasActiveSubscription,
+  hasAnnualFeePaid = false,
 }: TierChangeDialogProps) {
   const queryClient = useQueryClient();
   const normalizedCurrentTier = normalizeTier(currentTier);
@@ -130,7 +132,31 @@ export function TierChangeDialog({
   const isDowngrade = TIER_ORDER.indexOf(selectedTier) < TIER_ORDER.indexOf(normalizedCurrentTier);
   const isSameTier = selectedTier === normalizedCurrentTier;
 
-  const tierChangeMutation = useMutation({
+  // Database-only mutation for members without subscriptions
+  const databaseTierChangeMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("members")
+        .update({ membership_type: selectedTier })
+        .eq("id", memberId);
+
+      if (error) throw new Error(error.message || "Failed to update tier");
+      return { success: true };
+    },
+    onSuccess: () => {
+      const action = isUpgrade ? "upgraded" : "downgraded";
+      toast.success(`Membership tier ${action} to ${TIER_LABELS[selectedTier]}`);
+      queryClient.invalidateQueries({ queryKey: ["admin-member-detail", memberId] });
+      queryClient.invalidateQueries({ queryKey: ["member-credits", memberId] });
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to change tier");
+    },
+  });
+
+  // Stripe subscription mutation for active members
+  const stripeTierChangeMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("stripe-payment", {
         body: {
@@ -145,7 +171,7 @@ export function TierChangeDialog({
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       const action = isUpgrade ? "upgraded" : "downgraded";
       toast.success(`Member ${action} to ${TIER_LABELS[selectedTier]} successfully`);
       queryClient.invalidateQueries({ queryKey: ["admin-member-detail", memberId] });
@@ -157,12 +183,19 @@ export function TierChangeDialog({
     },
   });
 
+  const isPending = databaseTierChangeMutation.isPending || stripeTierChangeMutation.isPending;
+
   const handleConfirm = () => {
     if (isSameTier) {
       toast.error("Please select a different tier");
       return;
     }
-    tierChangeMutation.mutate();
+    
+    if (hasActiveSubscription) {
+      stripeTierChangeMutation.mutate();
+    } else {
+      databaseTierChangeMutation.mutate();
+    }
   };
 
   return (
@@ -171,7 +204,10 @@ export function TierChangeDialog({
         <DialogHeader>
           <DialogTitle>Change Membership Tier</DialogTitle>
           <DialogDescription>
-            Update this member's membership tier. This will modify their Stripe subscription.
+            {hasActiveSubscription 
+              ? "Update this member's membership tier. This will modify their Stripe subscription."
+              : "Update this member's membership tier before activation."
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -229,12 +265,12 @@ export function TierChangeDialog({
                   <p className="mt-1 font-medium">{formatPrice(newPrice, normalizedBilling)}</p>
                 </div>
               </div>
-              {isUpgrade && (
+              {hasActiveSubscription && isUpgrade && (
                 <p className="text-sm text-emerald-600 dark:text-emerald-400 text-center mt-3">
                   ↑ Upgrade: Member will be charged prorated difference
                 </p>
               )}
-              {isDowngrade && (
+              {hasActiveSubscription && isDowngrade && (
                 <p className="text-sm text-amber-600 dark:text-amber-400 text-center mt-3">
                   ↓ Downgrade: Member will receive credit toward next invoice
                 </p>
@@ -242,8 +278,8 @@ export function TierChangeDialog({
             </div>
           )}
 
-          {/* Proration Options */}
-          {!isSameTier && (
+          {/* Proration Options - Only for active subscriptions */}
+          {!isSameTier && hasActiveSubscription && (
             <div className="space-y-2">
               <Label>Proration Behavior</Label>
               <Select 
@@ -267,12 +303,22 @@ export function TierChangeDialog({
             </div>
           )}
 
-          {/* No Subscription Warning */}
+          {/* Info Notice for Non-Subscribed Members */}
           {!hasActiveSubscription && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                This member doesn't have an active subscription yet. The tier change will update their membership record, and the new tier will apply when their subscription is created during activation.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Initiation Fee Warning for Non-Subscribed Members Who Already Paid */}
+          {!hasActiveSubscription && hasAnnualFeePaid && isDowngrade && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                This member has no active Stripe subscription. Please create a subscription first before changing tiers.
+                This member has already paid the initiation fee. If there's a price difference between tiers, you may need to process a partial refund separately.
               </AlertDescription>
             </Alert>
           )}
@@ -284,10 +330,10 @@ export function TierChangeDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isSameTier || !hasActiveSubscription || tierChangeMutation.isPending}
+            disabled={isSameTier || isPending}
           >
-            {tierChangeMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isUpgrade ? "Upgrade" : isDowngrade ? "Downgrade" : "Confirm"}
+            {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {isUpgrade ? "Upgrade" : isDowngrade ? `Change to ${TIER_LABELS[selectedTier]}` : "Confirm"}
           </Button>
         </DialogFooter>
       </DialogContent>

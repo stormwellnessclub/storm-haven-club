@@ -1731,6 +1731,7 @@ export default function MemberDetail() {
         memberGender={member.gender || 'female'}
         billingType={member.billing_type || 'monthly'}
         hasActiveSubscription={!!member.stripe_subscription_id}
+        hasAnnualFeePaid={!!member.annual_fee_paid_at}
       />
     </AdminLayout>
   );
