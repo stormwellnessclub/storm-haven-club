@@ -228,10 +228,10 @@ FROM payment_attempts;
 
 | Task | Priority | Effort |
 |------|----------|--------|
-| Replace Payments.tsx mock data | Critical | Medium |
-| Add real stats queries | Critical | Low |
-| Fix RevenueAnalytics date filter | High | Trivial |
-| Create useAdminTransactions hook | High | Medium |
+ | ~~Replace Payments.tsx mock data~~ | ✅ Done | Medium |
+ | ~~Add real stats queries~~ | ✅ Done | Low |
+ | ~~Fix RevenueAnalytics date filter~~ | ✅ Done | Trivial |
+ | ~~Create useAdminTransactions hook~~ | ✅ Done | Medium |
 | Add webhook success payment logging | Medium | Medium |
 | Create admin_transactions view | Low | Low |
 
@@ -240,9 +240,9 @@ FROM payment_attempts;
 ## Testing Checklist
 
 After implementation:
-- [ ] Payments page shows real `manual_charges` data
-- [ ] Stats cards show accurate counts from database
-- [ ] Payment Reports page shows real (possibly zero) data
-- [ ] Revenue Analytics shows current applications
-- [ ] Search/filter works on real transaction data
+ - [x] Payments page shows real `manual_charges` data
+ - [x] Stats cards show accurate counts from database
+ - [x] Payment Reports page shows real (possibly zero) data
+ - [x] Revenue Analytics shows current applications
+ - [x] Search/filter works on real transaction data
 - [ ] Refund functionality still works from charge history
