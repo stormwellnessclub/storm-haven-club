@@ -28,6 +28,7 @@ export interface MemberCredit {
 export interface UserCreditsData {
   isMember: boolean;
   membershipType: string | null;
+  memberId: string | null;
   classCredits: MemberCredit | null;
   redLightCredits: MemberCredit | null;
   dryCredits: MemberCredit | null;
@@ -41,9 +42,11 @@ export function useUserCredits() {
     queryKey: ["user-credits", user?.id],
     queryFn: async (): Promise<UserCreditsData> => {
       if (!user) {
+        console.log("[useUserCredits] No user found");
         return {
           isMember: false,
           membershipType: null,
+          memberId: null,
           classCredits: null,
           redLightCredits: null,
           dryCredits: null,
@@ -51,35 +54,52 @@ export function useUserCredits() {
         };
       }
 
+      console.log("[useUserCredits] Fetching credits for user:", user.id);
+
       // Check if user is a member
-      const { data: member } = await supabase
+      const { data: member, error: memberError } = await supabase
         .from("members")
         .select("id, membership_type, status")
         .eq("user_id", user.id)
         .eq("status", "active")
         .maybeSingle();
 
+      if (memberError) {
+        console.error("[useUserCredits] Error fetching member:", memberError);
+      }
+
       const isMember = !!member;
       const membershipType = member?.membership_type || null;
+      const memberId = member?.id || null;
+
+      console.log("[useUserCredits] Member data:", { isMember, membershipType, memberId });
 
       // Get active member credits (not expired)
       let classCredits: MemberCredit | null = null;
       let redLightCredits: MemberCredit | null = null;
       let dryCredits: MemberCredit | null = null;
 
-      if (isMember) {
+      if (isMember && memberId) {
         const now = new Date().toISOString();
-        const { data: credits } = await supabase
+        // Use member_id instead of user_id for credits query
+        const { data: credits, error: creditsError } = await supabase
           .from("member_credits")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("member_id", memberId)
           .gt("expires_at", now)
           .order("expires_at", { ascending: true });
+
+        if (creditsError) {
+          console.error("[useUserCredits] Error fetching credits:", creditsError);
+        }
+
+        console.log("[useUserCredits] Credits query result:", { credits, creditsError, memberId });
 
         if (credits) {
           // Get the most recent active credit for each type
           for (const credit of credits) {
             const typedCredit = credit as unknown as MemberCredit;
+            console.log("[useUserCredits] Processing credit:", typedCredit.credit_type, typedCredit.credits_remaining);
             switch (typedCredit.credit_type) {
               case "class":
                 if (!classCredits) classCredits = typedCredit;
@@ -93,11 +113,13 @@ export function useUserCredits() {
             }
           }
         }
+
+        console.log("[useUserCredits] Parsed credits:", { classCredits, redLightCredits, dryCredits });
       }
 
       // Get active class passes
       const today = new Date().toISOString();
-      const { data: passes } = await supabase
+      const { data: passes, error: passesError } = await supabase
         .from("class_passes")
         .select("*")
         .eq("user_id", user.id)
@@ -106,9 +128,14 @@ export function useUserCredits() {
         .gt("classes_remaining", 0)
         .order("expires_at");
 
+      if (passesError) {
+        console.error("[useUserCredits] Error fetching passes:", passesError);
+      }
+
       return {
         isMember,
         membershipType,
+        memberId,
         classCredits,
         redLightCredits,
         dryCredits,

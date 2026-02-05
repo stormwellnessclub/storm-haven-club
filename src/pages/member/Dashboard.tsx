@@ -34,6 +34,8 @@ import {
   TrendingUp,
   TrendingDown,
   Lock,
+  Zap,
+  Snowflake,
 } from "lucide-react";
 import { format, parseISO, isValid, startOfToday } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -208,6 +210,46 @@ export default function MemberDashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* Red Light Therapy Credits - Show for Gold/Platinum/Diamond */}
+          {credits?.redLightCredits && (
+            <Card variant="interactive" className="hover-lift-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Red Light Therapy</CardTitle>
+                <div className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/20">
+                  <Zap className="h-4 w-4 text-orange-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold font-serif">
+                  {credits.redLightCredits.credits_remaining}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  of {credits.redLightCredits.credits_total} sessions
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Dry Cryo Credits - Show for Gold/Platinum/Diamond */}
+          {credits?.dryCredits && (
+            <Card variant="interactive" className="hover-lift-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Dry Cryotherapy</CardTitle>
+                <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/20">
+                  <Snowflake className="h-4 w-4 text-blue-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold font-serif">
+                  {credits.dryCredits.credits_remaining}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  of {credits.dryCredits.credits_total} sessions
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </StaggerContainer>
 
         {/* Health & Wellness Overview */}

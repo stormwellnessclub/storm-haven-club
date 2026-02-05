@@ -27,6 +27,7 @@ import Workouts from "@/pages/member/Workouts";
 import Habits from "@/pages/member/Habits";
 import Goals from "@/pages/member/Goals";
 import FitnessProfile from "@/pages/member/FitnessProfile";
+import MemberWellness from "@/pages/member/Wellness";
 import Index from "./pages/Index";
 import Classes from "./pages/Classes";
 import Spa from "./pages/Spa";
@@ -120,6 +121,7 @@ const App = () => (
               <Route path="/member/habits" element={<ProtectedMemberRoute><Habits /></ProtectedMemberRoute>} />
               <Route path="/member/goals" element={<ProtectedMemberRoute><Goals /></ProtectedMemberRoute>} />
               <Route path="/member/fitness-profile" element={<ProtectedMemberRoute><FitnessProfile /></ProtectedMemberRoute>} />
+              <Route path="/member/wellness" element={<ProtectedMemberRoute><MemberWellness /></ProtectedMemberRoute>} />
               
               {/* Admin Routes - Protected by Role */}
               <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />
