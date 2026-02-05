@@ -322,12 +322,15 @@ export default function ClassSchedules() {
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="instructor">Instructor</Label>
-                    <Select value={instructorId} onValueChange={setInstructorId}>
+                    <Select 
+                      value={instructorId || "none"} 
+                      onValueChange={(v) => setInstructorId(v === "none" ? "" : v)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select instructor (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">No instructor assigned</SelectItem>
+                        <SelectItem value="none">No instructor assigned</SelectItem>
                         {instructors.map((i) => (
                           <SelectItem key={i.id} value={i.id}>
                             {i.first_name} {i.last_name}
