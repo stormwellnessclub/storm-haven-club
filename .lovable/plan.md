@@ -1,338 +1,156 @@
 
-# Member Portal Comprehensive Audit
+# Member Portal Credits & Wellness Booking Fixes
 
-## Executive Summary
+## Issues Identified
 
-This audit covers all 18 member portal pages and their supporting infrastructure. The member portal is generally well-structured with robust patterns, but there are several issues that need attention before launch.
+### Issue 1: Dashboard Missing Wellness Credits Display
+**Current State**: The dashboard only shows "Monthly Credits" which displays `classCredits` (the 10 class credits). It does NOT display:
+- Red Light Therapy credits (10 remaining)
+- Dry Cryo credits (6 remaining)
 
-## Current State Overview
+**Location**: `src/pages/member/Dashboard.tsx` lines 142-166
 
-**Members:**
-- 1 Active member (fully set up with subscription)
-- 127 Pending Activation members (needs Feb 9th activation)
-  - 32 have initiation fee paid
-  - 20 have card on file
-  - 44 have Stripe customer ID
-  - 0 have active subscriptions (expected until Feb 9th activation)
-
-**Infrastructure:**
-- 16 active class types
-- 1,459 upcoming class sessions
-- 71 active equipment items
-- 5 instructors set up
+**Impact**: Diamond members don't see their valuable wellness credits on their main dashboard.
 
 ---
 
-## Page-by-Page Analysis
+### Issue 2: Credits Page Loading/Lag Issue
+**Current State**: The Credits page (`src/pages/member/Credits.tsx`) uses `useUserCredits()` hook which queries:
+1. `members` table for active member status
+2. `member_credits` table filtered by `user_id` and `expires_at > now`
+3. `class_passes` table for purchased passes
 
-### 1. Dashboard (`/member`)
-**Status: Working**
-- Displays member stats, health score, habits, goals, achievements
-- Shows frozen benefits notice when applicable
-- Links to all major features
+**Potential Causes of Lag**:
+- No error handling visible in the hook - if one query fails, data may never load
+- The `member_credits` query may be returning empty due to:
+  - RLS policy issue
+  - Query using `user_id` but credits stored with different ID
+  - Date comparison issue with `expires_at`
 
-**Issue Found:** None
-
----
-
-### 2. Member Entry (`/member/entry`)
-**Status: Working**
-- QR token generation working (4.5 min refresh)
-- Waits for auth session before fetching
-- Photo upload prompt for members without photos
-
-**Issue Found:** None
+**Investigation Needed**: Add console logging to verify data flow
 
 ---
 
-### 3. My Profile (`/member/profile`)
-**Status: Working**
-- Form properly populates from profile data
-- Photo upload component functional
-- Saves to profiles table
+### Issue 3: No Wellness Booking in Member Portal
+**Current State**: Members must navigate to the PUBLIC `/spa` page to book Red Light Therapy and Dry Cryo sessions. There is:
+- No "Book Wellness" or "Book Recovery" option in member sidebar
+- No dedicated wellness booking page in `/member/` routes
+- The Spa page does support credit-based booking via `SpaBookingModal`
 
-**Issue Found:** None
-
----
-
-### 4. My Credits (`/member/credits`)
-**Status: Partially Working**
-
-**Issue Found - Missing Kids Care Agreement Column:**
-The Waivers page references `profile?.kids_care_agreement_signed` but this column does not exist in the profiles table. The database only has:
-- `waiver_signed`
-- `membership_agreement_signed`
-- `guest_pass_agreement_signed`
-- `single_class_pass_agreement_signed`
-- `private_event_agreement_signed` (MISSING from profiles)
-- `kids_care_agreement_signed` (MISSING from profiles)
-- `kids_care_service_form_completed` (MISSING from profiles)
-
-**Impact:** Kids Care and Private Event agreement signing will fail silently.
+**Impact**: Members may not realize they can book these services or how to use their credits.
 
 ---
 
-### 5. My Membership (`/member/membership`)
-**Status: Working**
-- Correctly shows pending activation state vs active membership
-- BillingSummary and InlineBillingSection working
-- Payment method display working
-- Charge history integration working
+## Proposed Fixes
 
-**Issue Found:** None
+### Fix 1: Add Wellness Credits to Dashboard Quick Stats
 
----
+Add two new stat cards to the dashboard grid showing:
+- **Red Light Credits**: X of Y remaining (with Zap icon)
+- **Dry Cryo Credits**: X of Y remaining (with Snowflake icon)
 
-### 6. Payment Methods (`/member/payment-methods`)
-**Status: Working**
-- Lists cards from Stripe
-- Add/remove cards functional
-- Nickname editing working
-- Default card selection working
-- Last card protection (cannot delete last card)
+These should only appear for Gold/Platinum/Diamond members.
 
-**Issue Found:** None
+**Files to modify**: `src/pages/member/Dashboard.tsx`
 
 ---
 
-### 7. Payment History (`/member/payment-history`)
-**Status: Working**
-- Uses RPC `get_member_payment_history`
-- Displays payment attempts with status badges
+### Fix 2: Add Debug Logging to Credits Hook
 
-**Potential Issue:** Need to verify RPC function exists and returns correct data.
+Add error handling and console logs to diagnose why wellness credits aren't loading:
 
----
+```typescript
+const { data: credits, error: creditsError } = await supabase
+  .from("member_credits")
+  .select("*")
+  .eq("user_id", user.id)
+  .gt("expires_at", now);
 
-### 8. My Bookings (`/member/bookings`)
-**Status: Working**
-- Tabs for upcoming/past
-- Cancel booking with 12-hour policy
-- Links to schedule and class passes
+console.log("Credits query result:", { credits, creditsError, userId: user.id });
+```
 
-**Issue Found:** None
-
----
-
-### 9. Waivers (`/member/waivers`)
-**Status: Partially Working**
-
-**Critical Issue - Missing Database Columns:**
-The page tries to render agreements that depend on profile columns that don't exist:
-- `kids_care_agreement_signed` - NOT IN DATABASE
-- `kids_care_agreement_signed_at` - NOT IN DATABASE  
-- `private_event_agreement_signed` - NOT IN DATABASE
-- `private_event_agreement_signed_at` - NOT IN DATABASE
-
-The hook `useUserProfile` likely has methods like `signKidsCareAgreement` that will fail.
-
-**Critical Issue - Missing Agreements:**
-Only 2 agreements exist in the database:
-- `membership_agreement` (1)
-- `single_class_pass` (1)
-
-Missing from `agreements` table:
-- `liability_waiver`
-- `kids_care`
-- `guest_pass`
-- `private_event`
-
-**Impact:** The waivers page will show no content for most agreement types, and signing Kids Care/Private Event agreements will fail.
+**Files to modify**: `src/hooks/useUserCredits.ts`
 
 ---
 
-### 10. Freeze Request (`/member/freeze`)
-**Status: Working**
-- Eligibility checking working
-- Freeze fee checkout integration
-- Cancel request functionality
-- History display
+### Fix 3: Add Wellness Booking to Member Portal
 
-**Issue Found:** None
+**Option A: Add Sidebar Links to Spa Page (Quick)**
+Add links in member sidebar:
+- "Book Red Light" → `/spa?category=Recovery`
+- "Book Cryo" → `/spa?category=Recovery`
 
----
+**Option B: Create Dedicated Member Wellness Page (Better UX)**
+Create new page `src/pages/member/Wellness.tsx` that:
+1. Shows current wellness credit balances
+2. Lists only Recovery services (Red Light, Cryo)
+3. Has direct "Book Now" buttons that open `SpaBookingModal`
+4. Shows upcoming wellness appointments
 
-### 11. Support (`/member/support`)
-**Status: Working**
-- Email conversations system
-- Create/send messages
-- Status tracking
-
-**Issue Found:** None
+Add to sidebar: "Wellness Booking" with Sparkles icon
 
 ---
 
-### 12. Health Score (`/member/health-score`)
-**Status: Partially Working**
-- UI implemented correctly
-- Depends on `member_health_scores` table
+## Recommended Implementation Order
 
-**Potential Issue:** Health scores may not be calculated automatically. Need to verify trigger/function that populates scores based on activity.
-
----
-
-### 13. Achievements (`/member/achievements`)
-**Status: Not Working**
-
-**Critical Issue - Missing Table:**
-The code references an `achievements` table (master list of possible achievements), but only `member_achievements` table exists.
-
-**Impact:** The achievements page will crash or show nothing since `useAchievements()` hook tries to fetch from non-existent table.
+1. **Debug First**: Add logging to `useUserCredits.ts` to confirm data is being fetched
+2. **Dashboard Credits**: Add wellness credit cards to dashboard (visible feedback)
+3. **Wellness Booking Page**: Create dedicated booking interface in member portal
+4. **Update Sidebar**: Add wellness booking link
 
 ---
 
-### 14. Workouts (`/member/workouts`)
-**Status: Working**
-- Log workouts manually
-- AI workout generation (needs fitness profile)
-- Program generation working
-- Tables exist: `workout_logs`, `ai_workouts`, `workout_programs`, `program_workouts`
+## Technical Details
 
-**Issue Found:** None
+### Dashboard Wellness Credits Widget
 
----
+```tsx
+{/* Wellness Credits - Show for Gold/Platinum/Diamond */}
+{credits?.redLightCredits && (
+  <Card variant="interactive" className="hover-lift-sm">
+    <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <CardTitle className="text-sm font-medium">Red Light Therapy</CardTitle>
+      <div className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/20">
+        <Zap className="h-4 w-4 text-orange-500" />
+      </div>
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold font-serif">
+        {credits.redLightCredits.credits_remaining}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        of {credits.redLightCredits.credits_total} sessions
+      </p>
+    </CardContent>
+  </Card>
+)}
+```
 
-### 15. Habits (`/member/habits`)
-**Status: Working**
-- Create/edit/delete habits
-- Log habit completion
-- Streak tracking
-- Week/month view
-- Tables exist: `habits`, `habit_logs`
+### Member Wellness Page Structure
 
-**Potential Issue:** Need `habit_streaks` table for streak tracking - need to verify it exists.
+```
+/member/wellness
+├── Credit Balance Cards (Red Light + Dry Cryo)
+├── Quick Actions
+│   ├── Book Red Light Session
+│   └── Book Dry Cryo Session
+├── Available Time Slots (today/this week)
+└── My Upcoming Wellness Appointments
+```
 
----
+### Sidebar Update
 
-### 16. Goals (`/member/goals`)
-**Status: Working**
-- CRUD operations on goals
-- Progress logging
-- Milestones
-- Tables exist: `member_goals`, `goal_milestones`, `goal_progress_logs`
-
-**Issue Found:** None
-
----
-
-### 17. Fitness Profile (`/member/fitness-profile`)
-**Status: Working**
-- Equipment selection from database (71 items)
-- Goal/preference settings
-- Required for AI workouts
-
-**Issue Found:** None
-
----
-
-### 18. Kids Care Service Form (`/member/kids-care-service-form`)
-**Status: Not Working**
-
-**Critical Issue - Missing Column:**
-References `profile?.kids_care_service_form_completed` which doesn't exist in profiles table.
-
-**Impact:** Form completion tracking won't persist.
+Add to `wellnessMenuItems` array:
+```typescript
+{ title: "Wellness Booking", url: "/member/wellness", icon: Sparkles },
+```
 
 ---
 
-## Critical Issues Summary
+## Questions Answered
 
-### Must Fix Before Launch
+**Q: Why are class passes empty for Sahar?**
+A: Correct behavior. Class passes are **purchased separately** (e.g., 5-class pilates pack). Sahar hasn't bought any passes - she uses her Diamond membership **credits** instead. The credits come automatically with her membership tier.
 
- 1. ~~**Missing Profile Columns**~~ ✅ FIXED - Added to profiles table
-
- 2. ~~**Missing Achievements Table**~~ ✅ FIXED - Created and seeded with 15 achievements
-
- 3. ~~**Missing Agreements Data**~~ ✅ FIXED - Added liability_waiver, kids_care, guest_pass, private_event
-
- 4. ~~**Verify Habit Streaks Table**~~ ✅ FIXED - Created habit_streaks table with RLS
-
----
-
-## Working Features Summary
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Dashboard | Working | All widgets functional |
-| Member Entry (QR) | Working | Token refresh working |
-| Profile | Working | Photo upload included |
-| Credits Display | Working | Tier-based display |
-| Membership Page | Working | Activation flow ready |
-| Payment Methods | Working | Full CRUD |
-| Payment History | Working | Uses RPC |
-| Bookings | Working | Cancel with policy |
-| Freeze Request | Working | Full workflow |
-| Support | Working | Email conversations |
-| Workouts | Working | AI generation ready |
-| Goals | Working | Full CRUD + progress |
-| Habits | Working | Streak tracking |
-| Fitness Profile | Working | Equipment selection |
-| Health Score | Partial | Needs score calculation |
-| Waivers | Partial | Missing agreements |
-| Achievements | Broken | Missing master table |
-| Kids Care Form | Broken | Missing column |
-
----
-
-## Benefit Freezing Logic
-
-The `useMemberBenefitsStatus` hook correctly freezes benefits when:
-- Status is `pending_activation`
-- Initiation fee not paid
-- No active subscription
-- Status is `past_due`, `frozen`, or `cancelled`
-
-This is working correctly.
-
----
-
-## Payment Flow Analysis
-
-The payment infrastructure is solid:
-- `PaymentDueNotice` handles all payment states
-- Initiation fee checkout uses correct action
-- Dues setup uses `create_member_dues_checkout`
-- Past due redirects to customer portal
-
----
-
-## Sidebar Navigation
-
-All 13 member menu items + 6 wellness items are correctly linked to their routes.
-
----
-
-## Recommendations
-
-### Immediate Actions (Before Feb 9th)
-
-1. Run database migration to add missing profile columns
-2. Create achievements master table and seed data
-3. Add missing agreements to agreements table
-4. Verify habit_streaks table exists
-5. Test waivers page end-to-end
-
-### Optional Improvements
-
-1. Add health score calculation trigger based on activities
-2. Add real instructor names instead of placeholders
-3. Consider adding more agreements (liability waiver is critical)
-
----
-
-## Technical Notes
-
-**Edge Functions:**
-- `stripe-payment` - Comprehensive payment handling
-- `generate-entry-token` - QR token generation
-- `send-email` - Email templates including new `member_activation_setup`
-
-**Hooks:**
-- All hooks follow consistent patterns
-- Error handling implemented
-- Loading states managed
-
-**Security:**
-- RLS policies in place
-- Server-side membership verification for pricing
-- JWT validation on entry tokens
+**Q: Where do members book Red Light / Cryo?**
+A: Currently only via the public `/spa` page. The `SpaBookingModal` already supports credit-based payment, but members need a more obvious path to access this.
