@@ -132,7 +132,7 @@ export function usePastBookings() {
 
 interface BookClassParams {
   sessionId: string;
-  paymentMethod: "credits" | "pass" | "cash";
+  paymentMethod: "credits" | "pass";
   passId?: string;
 }
 

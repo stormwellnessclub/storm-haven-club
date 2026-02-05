@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Clock,
   MapPin,
@@ -24,9 +24,10 @@ import {
   CreditCard,
   Ticket,
   AlertCircle,
+  ShoppingBag,
 } from "lucide-react";
 import { format, parse, parseISO } from "date-fns";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 interface BookingModalProps {
@@ -38,12 +39,27 @@ interface BookingModalProps {
 export function BookingModal({ session, open, onOpenChange }: BookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass" | "cash">("credits");
+  const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass">("credits");
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
 
   const bookClass = useBookClass();
   const category = session?.class_type.category || "aerobics";
   const { data: creditsData, isLoading: creditsLoading } = useAvailableCreditsForCategory(category);
+
+  // Determine available payment options
+  const canUseMemberCredits = creditsData?.hasClassCredits;
+  const canUsePass = creditsData?.availablePasses && creditsData.availablePasses.length > 0;
+  const hasNoPaymentOptions = !canUseMemberCredits && !canUsePass;
+
+  // Set default payment method based on availability
+  useEffect(() => {
+    if (canUseMemberCredits) {
+      setPaymentMethod("credits");
+    } else if (canUsePass && creditsData?.availablePasses?.[0]) {
+      setPaymentMethod("pass");
+      setSelectedPassId(creditsData.availablePasses[0].id);
+    }
+  }, [canUseMemberCredits, canUsePass, creditsData?.availablePasses]);
 
   if (!session) return null;
 
@@ -58,6 +74,11 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       return;
     }
 
+    // Validate payment method selection
+    if (paymentMethod === "pass" && !selectedPassId) {
+      return;
+    }
+
     await bookClass.mutateAsync({
       sessionId: session.id,
       paymentMethod,
@@ -67,8 +88,10 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     onOpenChange(false);
   };
 
-  const canUseMemberCredits = creditsData?.hasClassCredits;
-  const canUsePass = creditsData?.availablePasses && creditsData.availablePasses.length > 0;
+  const handlePurchasePass = () => {
+    onOpenChange(false);
+    navigate("/class-passes");
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -124,20 +147,61 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Free cancellation up to 24 hours before class. Late cancellations
+              Free cancellation up to 12 hours before class. Late cancellations
               will forfeit your credit or pass.
             </AlertDescription>
           </Alert>
 
-          {/* Payment Method Selection */}
-          {user && !creditsLoading && (
+          {/* Loading State */}
+          {user && creditsLoading && (
+            <div className="py-4 text-center text-muted-foreground">
+              Checking payment options...
+            </div>
+          )}
+
+          {/* No Payment Options Available - Prompt to Purchase */}
+          {user && !creditsLoading && hasNoPaymentOptions && (
+            <div className="space-y-4">
+              <Alert variant="destructive">
+                <ShoppingBag className="h-4 w-4" />
+                <AlertTitle>No payment method available</AlertTitle>
+                <AlertDescription className="mt-2">
+                  <p className="mb-2">To book this class, you need:</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li>Diamond membership credits (included monthly), or</li>
+                    <li>A pre-purchased class pass</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+              <div className="flex gap-2">
+                <Button onClick={handlePurchasePass} className="flex-1">
+                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  Purchase Class Pass
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate("/memberships");
+                  }}
+                >
+                  View Memberships
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Method Selection - Only show if user has valid options */}
+          {user && !creditsLoading && !hasNoPaymentOptions && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Method</Label>
               <RadioGroup
                 value={paymentMethod}
                 onValueChange={(v) => {
-                  setPaymentMethod(v as "credits" | "pass" | "cash");
-                  setSelectedPassId(null);
+                  setPaymentMethod(v as "credits" | "pass");
+                  if (v === "credits") {
+                    setSelectedPassId(null);
+                  }
                 }}
                 className="space-y-2"
               >
@@ -181,19 +245,6 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                       </Label>
                     </div>
                   ))}
-
-                <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                  <RadioGroupItem value="cash" id="cash" />
-                  <Label htmlFor="cash" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-muted-foreground" />
-                      <span>Pay at front desk</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Single class rate applies
-                    </p>
-                  </Label>
-                </div>
               </RadioGroup>
             </div>
           )}
@@ -212,16 +263,19 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={handleBook}
-            disabled={bookClass.isPending}
-          >
-            {bookClass.isPending
-              ? "Booking..."
-              : !user
-              ? "Sign In to Book"
-              : "Confirm Booking"}
-          </Button>
+          {/* Only show book button if user has payment options or is not logged in */}
+          {(!user || !hasNoPaymentOptions) && (
+            <Button
+              onClick={handleBook}
+              disabled={bookClass.isPending || (user && hasNoPaymentOptions)}
+            >
+              {bookClass.isPending
+                ? "Booking..."
+                : !user
+                ? "Sign In to Book"
+                : "Confirm Booking"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
