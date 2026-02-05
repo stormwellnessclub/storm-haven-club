@@ -239,24 +239,13 @@ References `profile?.kids_care_service_form_completed` which doesn't exist in pr
 
 ### Must Fix Before Launch
 
-1. **Missing Profile Columns** - Add to profiles table:
-   - `kids_care_agreement_signed` (boolean)
-   - `kids_care_agreement_signed_at` (timestamptz)
-   - `private_event_agreement_signed` (boolean)
-   - `private_event_agreement_signed_at` (timestamptz)
-   - `kids_care_service_form_completed` (boolean)
+ 1. ~~**Missing Profile Columns**~~ ✅ FIXED - Added to profiles table
 
-2. **Missing Achievements Table** - Create `achievements` table with:
-   - id, name, description, criteria, points_reward, is_active
-   - Seed with achievement definitions
+ 2. ~~**Missing Achievements Table**~~ ✅ FIXED - Created and seeded with 15 achievements
 
-3. **Missing Agreements Data** - Add to agreements table:
-   - `liability_waiver` agreement with PDF
-   - `kids_care` agreement with PDF
-   - `guest_pass` agreement with PDF
-   - `private_event` agreement with PDF
+ 3. ~~**Missing Agreements Data**~~ ✅ FIXED - Added liability_waiver, kids_care, guest_pass, private_event
 
-4. **Verify Habit Streaks Table** - Ensure `habit_streaks` table exists
+ 4. ~~**Verify Habit Streaks Table**~~ ✅ FIXED - Created habit_streaks table with RLS
 
 ---
 

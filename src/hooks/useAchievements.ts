@@ -7,7 +7,7 @@ export interface Achievement {
   name: string;
   description: string | null;
   icon_url: string | null;
-  criteria: Record<string, any>;
+   criteria: Record<string, string | number | boolean | null>;
   points_reward: number;
   is_active: boolean;
   created_at: string;
@@ -21,7 +21,7 @@ export interface MemberAchievement {
   achievement_name: string;
   description: string | null;
   earned_at: string;
-  metadata: Record<string, any>;
+   metadata: Record<string, string | number | boolean | null>;
   achievement?: Achievement;
 }
 
@@ -29,8 +29,17 @@ export function useAchievements() {
   return useQuery({
     queryKey: ["achievements"],
     queryFn: async (): Promise<Achievement[]> => {
-      // Return empty array - achievements table can be created later
-      return [];
+       const { data, error } = await supabase
+         .from("achievements")
+         .select("*")
+         .eq("is_active", true)
+         .order("points_reward", { ascending: true });
+ 
+       if (error) {
+         console.warn("Failed to fetch achievements:", error);
+         return [];
+       }
+       return (data || []) as Achievement[];
     },
   });
 }
