@@ -62,6 +62,7 @@ import Childcare from "./pages/admin/Childcare";
 import AdminClasses from "./pages/admin/Classes";
 import StaffRoles from "./pages/admin/StaffRoles";
 import ClassTypes from "./pages/admin/ClassTypes";
+import ClassTypeDetail from "./pages/admin/ClassTypeDetail";
 import Instructors from "./pages/admin/Instructors";
 import ClassSchedules from "./pages/admin/ClassSchedules";
 import EmailManagement from "./pages/admin/EmailManagement";
@@ -140,6 +141,7 @@ const App = () => (
               <Route path="/admin/childcare" element={<ProtectedAdminRoute><Childcare /></ProtectedAdminRoute>} />
               <Route path="/admin/classes" element={<ProtectedAdminRoute><AdminClasses /></ProtectedAdminRoute>} />
               <Route path="/admin/class-types" element={<ProtectedAdminRoute><ClassTypes /></ProtectedAdminRoute>} />
+              <Route path="/admin/class-types/:id" element={<ProtectedAdminRoute><ClassTypeDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/instructors" element={<ProtectedAdminRoute><Instructors /></ProtectedAdminRoute>} />
               <Route path="/admin/class-schedules" element={<ProtectedAdminRoute><ClassSchedules /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles" element={<ProtectedAdminRoute><StaffRoles /></ProtectedAdminRoute>} />
