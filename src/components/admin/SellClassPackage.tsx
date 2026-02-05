@@ -42,8 +42,20 @@ export function SellClassPackage({
   const [isMember, setIsMember] = useState(false);
   const [sendLink, setSendLink] = useState(false);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [step, setStep] = useState<'form' | 'review'>('form');
 
   const processPackage = useProcessClassPackage();
+
+  // Pricing info
+  const getPriceEstimate = () => {
+    const prices: Record<string, Record<string, Record<string, number>>> = {
+      reformer: { single: { member: 35, nonMember: 45 }, tenPack: { member: 300, nonMember: 400 } },
+      cycling: { single: { member: 35, nonMember: 45 }, tenPack: { member: 300, nonMember: 400 } },
+      aerobics: { single: { member: 20, nonMember: 30 }, tenPack: { member: 180, nonMember: 270 } },
+    };
+    const memberStatus = actualIsMember ? 'member' : 'nonMember';
+    return prices[category]?.[passType]?.[memberStatus] || 0;
+  };
 
   // Search for users (both members and non-members via profiles)
   const { data: users = [] } = useQuery({
@@ -95,6 +107,11 @@ export function SellClassPackage({
     enabled: !selectedUserId && searchQuery.length >= 2,
   });
 
+  const handleContinueToReview = () => {
+    if (!selectedUserId) return;
+    setStep('review');
+  };
+
   const handleSubmit = async () => {
     if (!selectedUserId) {
       toast.error("Please select a customer");
@@ -106,7 +123,7 @@ export function SellClassPackage({
         userId: selectedUserId,
         category,
         passType,
-        isMember,
+        isMember: actualIsMember,
         sendLink,
       });
 
@@ -138,6 +155,19 @@ export function SellClassPackage({
     onOpenChange(false);
   };
 
+  const getCategoryLabel = () => {
+    switch (category) {
+      case 'reformer': return 'Reformer Pilates';
+      case 'cycling': return 'Cycling';
+      case 'aerobics': return 'Aerobics';
+      default: return category;
+    }
+  };
+
+  const getPassTypeLabel = () => {
+    return passType === 'single' ? 'Single Class' : '10-Class Pack';
+  };
+
   // Determine if selected user is a member
   const selectedUser = users.find((u: any) => u.id === selectedUserId);
   const actualIsMember = selectedUser?.isMember || isMember;
@@ -146,160 +176,149 @@ export function SellClassPackage({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Sell Class Package</DialogTitle>
+          <DialogTitle>{step === 'form' ? 'Sell Class Package' : 'Review & Confirm'}</DialogTitle>
           <DialogDescription>
-            Process a class package purchase for a member or non-member customer.
+            {step === 'form' 
+              ? 'Process a class package purchase for a member or non-member customer.'
+              : 'Please review the details below before processing.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {!selectedUserId ? (
-            <div className="space-y-2">
-              <Label>Search Customer</Label>
-              <Input
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {users.length > 0 && (
-                <div className="border rounded-md max-h-40 overflow-y-auto">
-                  {users.map((user: any) => (
-                    <button
-                      key={user.id}
-                      onClick={() => {
-                        setSelectedUserId(user.id);
-                        setIsMember(user.isMember);
-                        setSearchQuery("");
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-muted transition-colors border-b last:border-b-0"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{user.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {user.email}
-                            {user.isMember && (
-                              <span className="ml-2 text-xs bg-green-100 text-green-800 px-1 rounded">
-                                Member
-                              </span>
-                            )}
-                          </p>
+        {step === 'form' ? (
+          <div className="space-y-4 py-4">
+            {!selectedUserId ? (
+              <div className="space-y-2">
+                <Label>Search Customer</Label>
+                <Input
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {users.length > 0 && (
+                  <div className="border rounded-md max-h-40 overflow-y-auto">
+                    {users.map((user: any) => (
+                      <button
+                        key={user.id}
+                        onClick={() => {
+                          setSelectedUserId(user.id);
+                          setIsMember(user.isMember);
+                          setSearchQuery("");
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-muted transition-colors border-b last:border-b-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{user.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {user.email}
+                              {user.isMember && (
+                                <span className="ml-2 text-xs bg-primary/10 text-primary px-1 rounded">
+                                  Member
+                                </span>
+                              )}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Selected Customer</Label>
+                <div className="flex items-center justify-between p-3 border rounded-md">
+                  <span className="text-sm">
+                    {selectedUser?.name || "Unknown"}
+                    {actualIsMember && (
+                      <span className="ml-2 text-xs bg-primary/10 text-primary px-1 rounded">
+                        Member
+                      </span>
+                    )}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedUserId(undefined)}>
+                    Change
+                  </Button>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label>Selected Customer</Label>
-              <div className="flex items-center justify-between p-3 border rounded-md">
-                <span className="text-sm">
-                  {selectedUser?.name || "Unknown"}
-                  {actualIsMember && (
-                    <span className="ml-2 text-xs bg-green-100 text-green-800 px-1 rounded">
-                      Member
-                    </span>
-                  )}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedUserId(undefined)}
-                >
-                  Change
-                </Button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reformer">Reformer</SelectItem>
+                    <SelectItem value="cycling">Cycling</SelectItem>
+                    <SelectItem value="aerobics">Aerobics</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Package Type</Label>
+                <Select value={passType} onValueChange={(v) => setPassType(v as 'single' | 'tenPack')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single Class</SelectItem>
+                    <SelectItem value="tenPack">10-Pack</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="reformer">Reformer</SelectItem>
-                  <SelectItem value="cycling">Cycling</SelectItem>
-                  <SelectItem value="aerobics">Aerobics</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {!selectedUserId && (
+              <div className="flex items-center space-x-2">
+                <Checkbox id="isMember" checked={isMember} onCheckedChange={(checked) => setIsMember(checked === true)} />
+                <Label htmlFor="isMember" className="cursor-pointer">Customer is a member (member pricing)</Label>
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label>Package Type</Label>
-              <Select value={passType} onValueChange={(v) => setPassType(v as 'single' | 'tenPack')}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Single Class</SelectItem>
-                  <SelectItem value="tenPack">10-Pack</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {!selectedUserId && (
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="isMember"
-                checked={isMember}
-                onCheckedChange={(checked) => setIsMember(checked === true)}
-              />
-              <Label htmlFor="isMember" className="cursor-pointer">
-                Customer is a member (member pricing)
-              </Label>
+              <Checkbox id="sendLink" checked={sendLink} onCheckedChange={(checked) => setSendLink(checked === true)} />
+              <Label htmlFor="sendLink" className="cursor-pointer">Generate payment link instead of processing immediately</Label>
             </div>
-          )}
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="sendLink"
-              checked={sendLink}
-              onCheckedChange={(checked) => setSendLink(checked === true)}
-            />
-            <Label htmlFor="sendLink" className="cursor-pointer">
-              Generate payment link instead of processing immediately
-            </Label>
           </div>
-
-          {paymentLink && (
-            <div className="p-3 bg-muted rounded-md space-y-2">
-              <Label>Payment Link</Label>
-              <div className="flex items-center gap-2">
-                <Input value={paymentLink} readOnly className="font-mono text-xs" />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(paymentLink);
-                    toast.success("Link copied to clipboard!");
-                  }}
-                >
-                  Copy
-                </Button>
-              </div>
+        ) : (
+          <div className="space-y-4 py-4">
+            <div className="p-4 bg-muted rounded-lg space-y-3">
+              <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span className="font-medium">{selectedUser?.name}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Category</span><span className="font-medium">{getCategoryLabel()}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Package</span><span className="font-medium">{getPassTypeLabel()}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Pricing</span><span className="font-medium">{actualIsMember ? 'Member' : 'Non-Member'}</span></div>
+              <div className="pt-2 border-t flex justify-between"><span className="font-medium">Price</span><span className="text-xl font-bold">${getPriceEstimate()}</span></div>
             </div>
-          )}
-        </div>
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+              {sendLink ? 'A payment link will be generated.' : 'This will immediately charge the customer and create the class pass.'}
+            </div>
+          </div>
+        )}
+
+        {paymentLink && (
+          <div className="p-3 bg-muted rounded-md space-y-2">
+            <Label>Payment Link</Label>
+            <div className="flex items-center gap-2">
+              <Input value={paymentLink} readOnly className="font-mono text-xs" />
+              <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(paymentLink); toast.success("Link copied!"); }}>Copy</Button>
+            </div>
+          </div>
+        )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!selectedUserId || processPackage.isPending}
-          >
-            {processPackage.isPending && (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            )}
-            {sendLink ? "Generate Link" : "Process Payment"}
-          </Button>
+          {step === 'form' ? (
+            <>
+              <Button variant="outline" onClick={handleClose}>Cancel</Button>
+              <Button onClick={handleContinueToReview} disabled={!selectedUserId}>Review Details</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setStep('form')}>Back</Button>
+              <Button onClick={handleSubmit} disabled={processPackage.isPending}>
+                {processPackage.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {sendLink ? "Generate Link" : "Confirm & Process"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
