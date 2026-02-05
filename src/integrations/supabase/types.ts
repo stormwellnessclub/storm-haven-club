@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          created_at: string | null
+          criteria: Json | null
+          description: string | null
+          icon_url: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          points_reward: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          criteria?: Json | null
+          description?: string | null
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          points_reward?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          criteria?: Json | null
+          description?: string | null
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          points_reward?: number | null
+        }
+        Relationships: []
+      }
       agreements: {
         Row: {
           agreement_type: string
@@ -1120,6 +1153,65 @@ export type Database = {
             columns: ["habit_id"]
             isOneToOne: false
             referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habit_streaks: {
+        Row: {
+          current_streak: number | null
+          habit_id: string
+          id: string
+          last_logged_date: string | null
+          longest_streak: number | null
+          member_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          current_streak?: number | null
+          habit_id: string
+          id?: string
+          last_logged_date?: string | null
+          longest_streak?: number | null
+          member_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          current_streak?: number | null
+          habit_id?: string
+          id?: string
+          last_logged_date?: string | null
+          longest_streak?: number | null
+          member_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_streaks_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "habit_streaks_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "habit_streaks_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "habit_streaks_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
             referencedColumns: ["id"]
           },
         ]
@@ -2384,10 +2476,15 @@ export type Database = {
           fitness_goals: string | null
           guest_pass_agreement_signed: boolean | null
           id: string
+          kids_care_agreement_signed: boolean | null
+          kids_care_agreement_signed_at: string | null
+          kids_care_service_form_completed: boolean | null
           last_name: string
           membership_agreement_signed: boolean
           membership_agreement_signed_at: string | null
           phone: string | null
+          private_event_agreement_signed: boolean | null
+          private_event_agreement_signed_at: string | null
           single_class_pass_agreement_signed: boolean | null
           state: string | null
           updated_at: string
@@ -2409,10 +2506,15 @@ export type Database = {
           fitness_goals?: string | null
           guest_pass_agreement_signed?: boolean | null
           id?: string
+          kids_care_agreement_signed?: boolean | null
+          kids_care_agreement_signed_at?: string | null
+          kids_care_service_form_completed?: boolean | null
           last_name: string
           membership_agreement_signed?: boolean
           membership_agreement_signed_at?: string | null
           phone?: string | null
+          private_event_agreement_signed?: boolean | null
+          private_event_agreement_signed_at?: string | null
           single_class_pass_agreement_signed?: boolean | null
           state?: string | null
           updated_at?: string
@@ -2434,10 +2536,15 @@ export type Database = {
           fitness_goals?: string | null
           guest_pass_agreement_signed?: boolean | null
           id?: string
+          kids_care_agreement_signed?: boolean | null
+          kids_care_agreement_signed_at?: string | null
+          kids_care_service_form_completed?: boolean | null
           last_name?: string
           membership_agreement_signed?: boolean
           membership_agreement_signed_at?: string | null
           phone?: string | null
+          private_event_agreement_signed?: boolean | null
+          private_event_agreement_signed_at?: string | null
           single_class_pass_agreement_signed?: boolean | null
           state?: string | null
           updated_at?: string
