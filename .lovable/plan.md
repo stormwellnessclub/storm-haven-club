@@ -1,277 +1,284 @@
 
-# Robust Admin Action Safety Improvements
+
+# Comprehensive Admin Safety & Refund System Implementation
 
 ## Problem Analysis
 
-The user has identified critical safety issues with admin actions in the member management interface:
+Based on your screenshot and feedback, I've identified several critical issues with the current admin system:
 
-| Current Problem | Impact | Risk Level |
-|----------------|--------|------------|
-| "Create" subscription button has no confirmation dialog | One click creates a Stripe subscription and may activate member | **CRITICAL** |
-| No explanation of what buttons do before clicking | Staff can make costly mistakes | **HIGH** |
-| No undo capability for irreversible actions | Cannot recover from mistakes | **HIGH** |
-| Actions execute immediately without multi-step review | No chance to verify before action | **HIGH** |
+### Current Problems
 
-### Current "Create Subscription" Button (Line 877-880 in MemberDetail.tsx)
-
-```
-{member.stripe_customer_id && member.card_brand && (
-  <Button size="sm" onClick={handleCreateSubscription} disabled={isCreatingSubscription}>
-    {isCreatingSubscription && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-    Create
-  </Button>
-)}
-```
-
-This single button with no label, no tooltip, and no confirmation:
-- Creates a Stripe subscription (charges member's card)
-- May set member status to "active"
-- Allocates tier-based credits
-- Cannot be easily undone
+| Issue | Impact | Severity |
+|-------|--------|----------|
+| **Published vs Preview mismatch** | Safety improvements exist in code but may not be deployed to published site | Critical |
+| **"Sell Package" auto-activates** | Clicking button creates subscription without confirmation/preview | Critical |
+| **No refund capability** | Staff cannot issue refunds from within the portal | Critical |
+| **No undo for dangerous actions** | Cannot reverse status changes, subscriptions, or package sales | High |
+| **No manager tracking** | Refunds not traceable to specific staff member | High |
+| **Insufficient confirmation dialogs** | One-click actions with irreversible consequences | High |
 
 ---
 
 ## Proposed Solution: Multi-Layer Safety System
 
-### 1. Info Tooltips on All Action Buttons
+### Phase 1: Fix Published Site Display
 
-Add an info icon (ℹ️) next to each action button that shows a tooltip explaining:
-- What the action does
-- What gets charged (if applicable)
-- Whether it can be undone
-- Any prerequisites
+**Root Cause**: The `AdminActionButton` component and `CreateSubscriptionDialog` exist in code but the changes may need to be published.
 
-**Visual Example:**
-```
-┌───────────────────────────────────────┐
-│ Subscription: None                    │
-│                                       │
-│  [Create Subscription] [ℹ]            │
-│                        ↓              │
-│  ┌────────────────────────────────┐   │
-│  │ Creates a recurring Stripe     │   │
-│  │ subscription for monthly dues. │   │
-│  │ The member's card will be      │   │
-│  │ charged automatically.         │   │
-│  │                                │   │
-│  │ ⚠️ This cannot be undone from │   │
-│  │ this portal. Cancellation      │   │
-│  │ requires Stripe Dashboard.     │   │
-│  └────────────────────────────────┘   │
-└───────────────────────────────────────┘
-```
+**Action**: Verify that `AdminActionButton` with info icons and tooltips is correctly wired up to all admin action buttons in `MemberDetail.tsx`.
 
-### 2. Multi-Step Confirmation Dialog for Create Subscription
+### Phase 2: Comprehensive Refund System
 
-Replace the direct button action with a proper confirmation dialog showing:
+#### 2.1 Database Changes
 
-**Step 1: Review Action**
-```
-┌────────────────────────────────────────────────────────────┐
-│ ⚠️ Create Subscription                                     │
-├────────────────────────────────────────────────────────────┤
-│ You are about to create a recurring Stripe subscription    │
-│ for [Member Name].                                         │
-│                                                            │
-│ ┌────────────────────────────────────────────────────────┐│
-│ │ Subscription Details                                   ││
-│ │ ─────────────────────────────────────────────────────  ││
-│ │ Tier:           Gold                                   ││
-│ │ Billing:        Monthly                                ││
-│ │ Amount:         $250/month                             ││
-│ │ Card:           Visa •••• 4242                         ││
-│ │ Start Date:     Feb 9, 2026                            ││
-│ │ Credits:        4 Red Light, 2 Dry Cryo                ││
-│ └────────────────────────────────────────────────────────┘│
-│                                                            │
-│ ⚠️ Important:                                              │
-│ • Member's card will be charged automatically              │
-│ • Subscription cannot be undone from this portal           │
-│ • To cancel, use Stripe Dashboard or "Cancel" button       │
-│                                                            │
-│                      [Cancel]    [Confirm & Create]        │
-└────────────────────────────────────────────────────────────┘
+```text
+CREATE TABLE public.refund_requests (
+  id UUID PRIMARY KEY,
+  member_id UUID REFERENCES members(id),
+  original_charge_id UUID,          -- links to manual_charges
+  original_payment_intent_id TEXT,  -- Stripe payment intent
+  refund_type TEXT,                 -- 'full', 'partial'
+  amount_cents INTEGER,
+  reason TEXT,
+  status TEXT,                      -- 'pending_approval', 'approved', 'rejected', 'processed'
+  requested_by UUID,                -- staff user_id
+  manager_code TEXT,                -- tracking code for manager
+  approved_by UUID,                 -- super_admin user_id (for membership charges)
+  stripe_refund_id TEXT,
+  processed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 ```
 
-### 3. Consistent Pattern for All Dangerous Actions
+#### 2.2 Access Control
 
-Apply the same pattern to these existing buttons:
+| Charge Type | Who Can Refund | Approval Required |
+|-------------|----------------|-------------------|
+| Membership dues | Super Admin only | No (direct processing) |
+| Initiation/Annual fee | Super Admin only | No (direct processing) |
+| Class packages | Manager+ with code | No |
+| Spa/Cafe charges | Manager+ with code | No |
 
-| Button | Current State | Proposed Change |
-|--------|---------------|-----------------|
-| "Create" (subscription) | No dialog, no tooltip | Add tooltip + confirmation dialog |
-| "Charge Card" | Has dialog, no tooltip | Add tooltip explaining it |
-| "Suspend" | Has dialog, no tooltip | Add tooltip |
-| "Delete" | Has dialog, no tooltip | Add tooltip |
-| "Reactivate" | Has dialog, no tooltip | Add tooltip |
-| "Activate" | Has dialog, no tooltip | Add tooltip |
-| "Cancel" (annual fee) | Has dialog, no tooltip | Add tooltip |
-| "Change Tier" | Opens dialog | Add tooltip |
+#### 2.3 Manager Code System
 
-### 4. New ActionButton Component with Built-in Safety
+Each manager will have a unique 4-6 character code stored in their profile:
 
-Create a reusable component for admin action buttons:
-
-```typescript
-interface AdminActionButtonProps {
-  label: string;
-  onClick: () => void;
-  tooltip: string;         // Explain what it does
-  variant?: "default" | "destructive" | "outline";
-  requiresConfirmation?: boolean;
-  confirmationConfig?: {
-    title: string;
-    description: React.ReactNode;
-    confirmLabel: string;
-    cancelLabel?: string;
-  };
-  icon?: React.ReactNode;
-  disabled?: boolean;
-  isLoading?: boolean;
-}
+```text
+ALTER TABLE public.profiles ADD COLUMN manager_refund_code TEXT;
 ```
+
+When processing a refund, managers must enter their code which gets logged with the refund record for audit purposes.
+
+### Phase 3: Undo/Reverse System
+
+#### 3.1 Member Status Changes
+
+Add a "Revert Status" button that:
+- Shows the previous status from `subscription_status_history` table
+- Allows reverting to previous status with confirmation
+- Logs the reversion in the activity table
+
+#### 3.2 Subscription Undo (within grace period)
+
+For "Create Subscription" mistakes within 24 hours:
+- Cancel the Stripe subscription (prorated)
+- Revert member status to `pending_activation`
+- Remove allocated credits
+- Log as "Admin Undo" in activity
+
+#### 3.3 "Sell Membership" Undo
+
+- Cancel subscription in Stripe
+- Optionally process full refund
+- Revert member status
+- Clear payment tracking
+
+#### 3.4 "Sell Class Package" Undo
+
+- Mark class pass as `cancelled`
+- Optionally process refund
+- Log cancellation
+
+### Phase 4: Enhanced Confirmation Dialogs
+
+All dangerous actions will use the `AdminActionButton` pattern with:
+
+1. **Info icon tooltip** - Explains what the action does
+2. **Multi-step confirmation dialog** showing:
+   - What will happen
+   - What will be charged (if applicable)
+   - Whether it can be undone
+   - Any dependencies/side effects
 
 ---
 
 ## Technical Implementation
 
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/admin/RefundDialog.tsx` | Refund processing UI with manager code input |
+| `src/components/admin/UndoActionDialog.tsx` | Generic undo confirmation with action preview |
+| `src/hooks/useAdminRefunds.ts` | Refund mutations and queries |
+| `supabase/migrations/xxxxx_refund_system.sql` | Refund tables and functions |
+
 ### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/admin/MemberDetail.tsx` | Add confirmation dialog for subscription, tooltips on all action buttons |
-| `src/components/admin/MemberDetailSheet.tsx` | Same changes for sheet view |
-| `src/components/admin/AdminActionButton.tsx` | **NEW** - Reusable safe action button component |
+| `src/pages/admin/MemberDetail.tsx` | Add refund buttons, undo buttons, ensure AdminActionButton is used everywhere |
+| `src/pages/admin/Payments.tsx` | Connect "Issue Refund" dropdown to actual refund dialog |
+| `src/components/admin/SellMembershipPackage.tsx` | Add confirmation preview before processing |
+| `src/components/admin/SellClassPackage.tsx` | Add confirmation preview before processing |
+| `src/components/ChargeHistory.tsx` | Already has refund dialog - ensure it's properly exposed |
+| `supabase/functions/stripe-payment/index.ts` | Add `process_admin_refund` and `undo_subscription` actions |
 
-### New Component: AdminActionButton
+### Edge Function Additions
 
-```typescript
-// src/components/admin/AdminActionButton.tsx
+#### `process_admin_refund` action:
+- Validates manager code OR super admin role
+- Processes Stripe refund
+- Updates database records
+- Logs refund with manager tracking
 
-export function AdminActionButton({
-  label,
-  onClick,
-  tooltip,
-  variant = "default",
-  icon,
-  disabled,
-  isLoading,
-  confirmationConfig,
-}: AdminActionButtonProps) {
-  const [showConfirm, setShowConfirm] = useState(false);
+#### `undo_subscription` action:
+- Cancels subscription with proration
+- Reverts member status
+- Clears allocated credits
+- Logs undo action
 
-  const handleClick = () => {
-    if (confirmationConfig) {
-      setShowConfirm(true);
-    } else {
-      onClick();
-    }
-  };
+---
 
-  return (
-    <>
-      <div className="inline-flex items-center gap-1">
-        <Button onClick={handleClick} variant={variant} disabled={disabled}>
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-          {icon}
-          {label}
-        </Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button type="button" className="text-muted-foreground hover:text-foreground">
-              <Info className="h-4 w-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs">
-            <p className="text-sm">{tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
+## Sell Package Confirmation Flow
 
-      {confirmationConfig && (
-        <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-          {/* Full confirmation dialog */}
-        </AlertDialog>
-      )}
-    </>
-  );
-}
+### Current (Problematic)
+```text
+Click "Sell Package" → Dialog opens → Click "Process Payment" → Immediate execution
 ```
 
-### Create Subscription Dialog Implementation
-
-```typescript
-// New dialog state in MemberDetail.tsx
-const [showCreateSubscriptionDialog, setShowCreateSubscriptionDialog] = useState(false);
-
-// Pre-computed subscription details for preview
-const subscriptionPreview = useMemo(() => {
-  if (!member) return null;
-  const tier = member.membership_type.toLowerCase().replace(' membership', '');
-  const gender = member.gender?.toLowerCase() === 'male' ? 'men' : 'women';
-  const billingType = member.is_founding_member ? 'annual' : (member.billing_type || 'monthly');
-  const credits = getCreditsForTier(tier);
-  const price = getPriceDisplay(tier, billingType, gender);
-  
-  return {
-    tier: normalizeTierDisplay(member.membership_type),
-    billingType: member.is_founding_member ? 'Annual (Founding)' : billingType,
-    price,
-    credits,
-    cardInfo: member.card_brand && member.card_last4 
-      ? `${member.card_brand} •••• ${member.card_last4}` 
-      : 'No card',
-    startDate: member.membership_start_date 
-      ? format(new Date(member.membership_start_date), 'MMM d, yyyy')
-      : format(new Date(), 'MMM d, yyyy'),
-  };
-}, [member]);
+### Proposed (Safe)
+```text
+Click "Sell Package" → Dialog opens → Configure options → 
+Click "Review" → Preview dialog shows:
+  - Member: John Doe
+  - Package: Gold Membership (Monthly)
+  - Price: $250/mo
+  - Card: Visa •••• 4242
+  - Credits: 4 Red Light, 2 Dry Cryo
+  - ⚠️ This will charge the card and activate the membership
+→ Click "Confirm & Process" → Execution
 ```
 
 ---
 
-## Action Tooltips Reference
+## Refund UI Design
 
-| Button | Tooltip Text |
-|--------|-------------|
-| Create Subscription | "Creates a recurring Stripe subscription. The member's card will be charged automatically on the billing date. Cannot be undone from this portal." |
-| Charge Card | "Charge a one-time amount to the member's saved card. Enter amount and description before confirming." |
-| Suspend | "Temporarily suspends membership. Member loses access to all benefits until reactivated." |
-| Delete | "Permanently deletes this member record. This action cannot be undone." |
-| Reactivate | "Restores membership to active status. Member regains access to benefits." |
-| Activate | "Bypasses payment requirements and activates member immediately. Super Admin only." |
-| Cancel (annual fee) | "Cancels the recurring annual fee subscription in Stripe. Does not issue a refund." |
-| Change Tier | "Opens tier change dialog. May adjust pricing and credits." |
+### In Payments Tab (MemberDetail.tsx)
+
+Each charge row will show:
+```text
+┌─────────────────────────────────────────────────────────┐
+│ Jan 15, 2026 • Initiation Fee                          │
+│ $300.00 • Paid                                         │
+│ Visa •••• 4242                                         │
+│                                                        │
+│ [View Receipt] [Issue Refund] [Resend Receipt]         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Refund Dialog
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Process Refund                                             │
+├────────────────────────────────────────────────────────────┤
+│ Original Charge: Initiation Fee                            │
+│ Amount: $300.00                                            │
+│ Date: Jan 15, 2026                                         │
+│                                                            │
+│ Refund Amount: [$300.00    ] (max: $300.00)               │
+│                                                            │
+│ Refund Method:                                             │
+│ ○ Stripe (back to card)                                    │
+│ ○ Check (manual)                                           │
+│ ○ Other (manual)                                           │
+│                                                            │
+│ Manager Code: [______] (required for tracking)             │
+│                                                            │
+│ Notes: [________________________________]                  │
+│                                                            │
+│ ⚠️ This action cannot be undone.                          │
+│                                                            │
+│                        [Cancel] [Process Refund]           │
+└────────────────────────────────────────────────────────────┘
+```
+
+For membership-related charges, only Super Admins see the refund button.
 
 ---
 
-## Undo Considerations
+## Undo Actions UI
 
-For truly irreversible actions (Stripe subscriptions), we cannot add "undo" but we can:
+### In Member Header Actions
 
-1. **Show clear warnings** about irreversibility
-2. **Provide recovery paths** (e.g., link to Stripe Dashboard for subscription cancellation)
-3. **Log all admin actions** for audit trail (already exists via member_activities)
-4. **Require explicit confirmation** with action summary
+```text
+┌─────────────────────────────────────────────────────────┐
+│ Storm Text                                              │
+│ [Active ✓]  STM-000124                                  │
+│                                                         │
+│ [Edit] [Suspend] [Delete] [Undo Last Action ↩]         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Undo Dialog
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Undo Last Action                                           │
+├────────────────────────────────────────────────────────────┤
+│ Last action: Created Subscription                          │
+│ When: 5 minutes ago                                        │
+│ By: admin@storm.com                                        │
+│                                                            │
+│ This will:                                                 │
+│ ✗ Cancel the Stripe subscription (no refund)              │
+│ ✗ Revert status to "pending_activation"                   │
+│ ✗ Remove 4 Red Light, 2 Dry Cryo credits                  │
+│                                                            │
+│ □ Also process refund for initial charge ($250.00)        │
+│                                                            │
+│                        [Cancel] [Undo Action]              │
+└────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Implementation Summary
+## Implementation Priority
 
-1. **Create new `AdminActionButton` component** with tooltip and optional confirmation dialog
-2. **Update MemberDetail.tsx** to use new component for all action buttons
-3. **Add dedicated confirmation dialog** for Create Subscription with full preview
-4. **Add Info tooltips** next to each action button explaining consequences
-5. **Update MemberDetailSheet.tsx** with same safety improvements
+| Priority | Feature | Effort |
+|----------|---------|--------|
+| 1 | Verify AdminActionButton is working on published site | Low |
+| 2 | Add confirmation dialog to SellMembershipPackage | Medium |
+| 3 | Add confirmation dialog to SellClassPackage | Medium |
+| 4 | Implement refund system (DB + Edge Function + UI) | High |
+| 5 | Add manager code tracking | Medium |
+| 6 | Implement undo for subscription creation | High |
+| 7 | Implement undo for status changes | Medium |
+| 8 | Implement undo for package sales | Medium |
 
 ---
 
 ## Expected Outcome
 
 After implementation:
-- ✅ Every action button has an adjacent info icon with explanatory tooltip
-- ✅ Create Subscription requires explicit confirmation showing tier, price, card, credits
-- ✅ Staff can hover to understand what each button does before clicking
-- ✅ Confirmation dialogs show clear summaries of what will happen
-- ✅ Irreversible actions are clearly marked with warnings
-- ✅ Recovery paths (Stripe Dashboard links) are provided where applicable
+
+- Every dangerous action requires multi-step confirmation with clear preview
+- Refunds can be processed for all charge types with proper access control
+- Super Admins can refund membership-related charges
+- Managers can refund other charges with their tracking code
+- All refunds are logged with who processed them and why
+- Recent actions can be undone within a grace period
+- Staff can hover over info icons to understand button consequences
+- Accidental clicks cannot execute irreversible actions
+
