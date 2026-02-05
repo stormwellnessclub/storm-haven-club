@@ -83,7 +83,6 @@ export default function RevenueAnalytics() {
       const { data, error } = await supabase
         .from("membership_applications")
         .select("id, membership_plan, founding_member, status, created_at")
-        .lte("created_at", "2025-12-27T15:00:00+00:00")
         .order("created_at", { ascending: true });
 
       if (error) throw error;
