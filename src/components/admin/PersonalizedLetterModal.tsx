@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Send, RefreshCw } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Sparkles, Send, RefreshCw, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -45,12 +46,18 @@ export function PersonalizedLetterModal({
   const [subject, setSubject] = useState("Welcome to Storm Wellness Club - Application Approved!");
   const [body, setBody] = useState("");
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const handleGenerate = async () => {
     if (!applicant) return;
 
     setIsGenerating(true);
+    setGenerationError(null);
+    
     try {
+      console.log("[PersonalizedLetter] Generating letter for:", applicant.name);
+      
       const { data, error } = await supabase.functions.invoke("generate-approval-letter", {
         body: {
           applicant: {
@@ -64,19 +71,40 @@ export function PersonalizedLetterModal({
         },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        console.error("[PersonalizedLetter] Edge function error:", error);
+        // Check for specific error types
+        if (error.message?.includes("404") || error.message?.includes("not found")) {
+          throw new Error("AI service temporarily unavailable. Please try again in a moment.");
+        }
+        throw error;
+      }
+      
+      if (data?.error) {
+        console.error("[PersonalizedLetter] Response error:", data.error);
+        throw new Error(data.error);
+      }
 
+      console.log("[PersonalizedLetter] Letter generated successfully");
       setSubject(data.subject || "Welcome to Storm Wellness Club - Application Approved!");
       setBody(data.body || "");
       setHasGenerated(true);
+      setGenerationError(null);
       toast.success("Letter generated! Review and edit as needed.");
     } catch (err: any) {
-      console.error("Failed to generate letter:", err);
-      toast.error(err.message || "Failed to generate letter");
+      console.error("[PersonalizedLetter] Failed to generate letter:", err);
+      const errorMessage = err.message || "Failed to generate letter. Please try again.";
+      setGenerationError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    setGenerationError(null);
+    handleGenerate();
   };
 
   const handleSend = async () => {
@@ -141,6 +169,7 @@ export function PersonalizedLetterModal({
     // Reset state on close
     setBody("");
     setHasGenerated(false);
+    setGenerationError(null);
     setSubject("Welcome to Storm Wellness Club - Application Approved!");
   };
 
@@ -190,6 +219,26 @@ export function PersonalizedLetterModal({
               )}
             </div>
           </div>
+
+          {/* Error State with Retry */}
+          {generationError && !hasGenerated && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>{generationError}</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRetry}
+                  disabled={isGenerating}
+                  className="ml-4 gap-1"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Try Again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Generate Button (before generation) */}
           {!hasGenerated && (
