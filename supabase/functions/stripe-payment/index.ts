@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -4290,6 +4290,266 @@ serve(async (req) => {
             message: Object.keys(updates).length > 0 
               ? `Updated ${Object.keys(updates).length} fields`
               : 'Already in sync'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      // ==================== DETECT DUPLICATE CUSTOMERS ====================
+      case 'detect_duplicate_customers': {
+        // Admin only
+        const { data: adminRoleDupe } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user?.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!adminRoleDupe || adminRoleDupe.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Detecting duplicate Stripe customers");
+
+        // Get all members with Stripe customer IDs
+        const { data: membersWithCustomers, error: fetchError } = await supabase
+          .from('members')
+          .select('id, email, first_name, last_name, stripe_customer_id, status')
+          .not('stripe_customer_id', 'is', null);
+
+        if (fetchError) throw fetchError;
+
+        interface DuplicateInfo {
+          email: string;
+          members: Array<{
+            member_id: string;
+            member_name: string;
+            stripe_customer_id: string;
+            status: string;
+          }>;
+          stripe_customers: Array<{
+            customer_id: string;
+            email: string;
+            created: number;
+            has_payment_method: boolean;
+            has_subscription: boolean;
+          }>;
+        }
+
+        const duplicates: DuplicateInfo[] = [];
+        const processedEmails = new Set<string>();
+
+        // Group members by email (case-insensitive)
+        const emailGroups: Record<string, typeof membersWithCustomers> = {};
+        for (const member of membersWithCustomers || []) {
+          const emailKey = member.email?.toLowerCase();
+          if (!emailKey) continue;
+          if (!emailGroups[emailKey]) emailGroups[emailKey] = [];
+          emailGroups[emailKey].push(member);
+        }
+
+        // Check each unique email for duplicates in Stripe
+        for (const [email, members] of Object.entries(emailGroups)) {
+          if (processedEmails.has(email)) continue;
+          processedEmails.add(email);
+
+          try {
+            // Search Stripe for all customers with this email
+            const stripeCustomers = await stripe.customers.list({
+              email: email,
+              limit: 10
+            });
+
+            if (stripeCustomers.data.length > 1 || members.length > 1) {
+              // We have potential duplicates
+              const customerDetails = await Promise.all(
+                stripeCustomers.data.map(async (customer) => {
+                  // Check for payment methods
+                  const pms = await stripe.paymentMethods.list({
+                    customer: customer.id,
+                    type: 'card',
+                    limit: 1
+                  });
+
+                  // Check for subscriptions
+                  const subs = await stripe.subscriptions.list({
+                    customer: customer.id,
+                    limit: 1
+                  });
+
+                  return {
+                    customer_id: customer.id,
+                    email: customer.email || '',
+                    created: customer.created,
+                    has_payment_method: pms.data.length > 0,
+                    has_subscription: subs.data.length > 0
+                  };
+                })
+              );
+
+              duplicates.push({
+                email,
+                members: members.map(m => ({
+                  member_id: m.id,
+                  member_name: `${m.first_name} ${m.last_name}`,
+                  stripe_customer_id: m.stripe_customer_id,
+                  status: m.status
+                })),
+                stripe_customers: customerDetails
+              });
+            }
+          } catch (e) {
+            logStep("Error checking email", { email, error: String(e) });
+          }
+        }
+
+        logStep("Duplicate detection complete", { 
+          totalEmails: processedEmails.size,
+          duplicatesFound: duplicates.length 
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            duplicates,
+            summary: {
+              emails_checked: processedEmails.size,
+              duplicates_found: duplicates.length
+            }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      // ==================== CONSOLIDATE CUSTOMER ====================
+      case 'consolidate_customer': {
+        const { memberId } = body as { memberId: string };
+
+        // Admin only
+        const { data: adminRoleConsolidate } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user?.id)
+          .in('role', ['super_admin', 'admin']);
+
+        if (!adminRoleConsolidate || adminRoleConsolidate.length === 0) {
+          throw new Error("Unauthorized: Super Admin or Admin access required");
+        }
+
+        if (!memberId) throw new Error("memberId is required");
+
+        logStep("Consolidating customer for member", { memberId });
+
+        // Get member data
+        const { data: memberCons, error: memberConsError } = await supabase
+          .from('members')
+          .select('*')
+          .eq('id', memberId)
+          .single();
+
+        if (memberConsError || !memberCons) {
+          throw new Error("Member not found");
+        }
+
+        if (!memberCons.email) {
+          throw new Error("Member has no email address");
+        }
+
+        // Find all Stripe customers for this email
+        const allCustomers = await stripe.customers.list({
+          email: memberCons.email.toLowerCase(),
+          limit: 10
+        });
+
+        if (allCustomers.data.length <= 1) {
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: "No duplicate customers to consolidate",
+              customer_id: allCustomers.data[0]?.id || memberCons.stripe_customer_id
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Determine primary customer (prefer one with subscription, then one with payment method, then newest)
+        let primaryCustomer: Stripe.Customer | null = null;
+        let primaryHasSubscription = false;
+        let primaryHasPaymentMethod = false;
+
+        for (const customer of allCustomers.data) {
+          const subs = await stripe.subscriptions.list({ customer: customer.id, limit: 1 });
+          const pms = await stripe.paymentMethods.list({ customer: customer.id, type: 'card', limit: 1 });
+
+          const hasSub = subs.data.length > 0;
+          const hasPm = pms.data.length > 0;
+
+          // Priority: has subscription > has payment method > newest
+          if (hasSub && !primaryHasSubscription) {
+            primaryCustomer = customer;
+            primaryHasSubscription = true;
+            primaryHasPaymentMethod = hasPm;
+          } else if (!primaryHasSubscription && hasPm && !primaryHasPaymentMethod) {
+            primaryCustomer = customer;
+            primaryHasPaymentMethod = true;
+          } else if (!primaryHasSubscription && !primaryHasPaymentMethod && !primaryCustomer) {
+            primaryCustomer = customer;
+          }
+        }
+
+        if (!primaryCustomer) {
+          primaryCustomer = allCustomers.data[0];
+        }
+
+        // Update member to use primary customer
+        const { error: updateConsError } = await supabase
+          .from('members')
+          .update({ 
+            stripe_customer_id: primaryCustomer.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', memberId);
+
+        if (updateConsError) {
+          throw new Error(`Failed to update member: ${updateConsError.message}`);
+        }
+
+        // Sync card metadata from primary customer
+        const primaryPms = await stripe.paymentMethods.list({
+          customer: primaryCustomer.id,
+          type: 'card',
+          limit: 1
+        });
+
+        if (primaryPms.data.length > 0) {
+          const pm = primaryPms.data[0];
+          await supabase
+            .from('members')
+            .update({
+              card_brand: pm.card?.brand,
+              card_last4: pm.card?.last4,
+              card_exp_month: pm.card?.exp_month,
+              card_exp_year: pm.card?.exp_year
+            })
+            .eq('id', memberId);
+        }
+
+        const otherCustomerIds = allCustomers.data
+          .filter(c => c.id !== primaryCustomer!.id)
+          .map(c => c.id);
+
+        logStep("Customer consolidated", { 
+          memberId, 
+          primaryCustomerId: primaryCustomer.id,
+          otherCustomerIds
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Consolidated to customer ${primaryCustomer.id}`,
+            primary_customer_id: primaryCustomer.id,
+            other_customer_ids: otherCustomerIds,
+            note: "Other customer IDs were NOT deleted. Review them in Stripe dashboard if needed."
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
