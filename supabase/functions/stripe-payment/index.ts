@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -3912,6 +3912,384 @@ serve(async (req) => {
             cardBrand: cardBrandNoCharge,
             cardLast4: cardLast4NoCharge,
             nextBillingDate: oneYearFromNow.toISOString(),
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'get_member_billing_health': {
+        // Get comprehensive billing health data for admin view
+        const { memberId } = body;
+
+        if (!memberId) {
+          throw new Error("memberId is required");
+        }
+
+        // Verify admin role
+        const { data: adminRoleBilling } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!adminRoleBilling || adminRoleBilling.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Getting billing health for member", { memberId });
+
+        // Get member data
+        const { data: memberBilling, error: memberBillingError } = await supabase
+          .from('members')
+          .select('*')
+          .eq('id', memberId)
+          .single();
+
+        if (memberBillingError || !memberBilling) {
+          throw new Error("Member not found");
+        }
+
+        const issues: Array<{ type: 'error' | 'warning' | 'info'; code: string; message: string }> = [];
+        const discrepancies: string[] = [];
+
+        // Get Stripe customer data
+        let stripeCustomer: any = null;
+        let stripeCustomerId = memberBilling.stripe_customer_id;
+
+        // If no customer ID in database, try to find by email
+        if (!stripeCustomerId && memberBilling.email) {
+          const searchResult = await stripe.customers.list({ email: memberBilling.email, limit: 1 });
+          if (searchResult.data.length > 0) {
+            stripeCustomerId = searchResult.data[0].id;
+            discrepancies.push(`Stripe customer found by email but not in database: ${stripeCustomerId}`);
+          }
+        }
+
+        if (stripeCustomerId) {
+          try {
+            stripeCustomer = await stripe.customers.retrieve(stripeCustomerId);
+          } catch (e) {
+            logStep("Could not retrieve Stripe customer", { error: String(e) });
+            issues.push({ type: 'warning', code: 'CUSTOMER_NOT_FOUND', message: 'Stripe customer ID exists but customer not found in Stripe' });
+          }
+        } else {
+          issues.push({ type: 'warning', code: 'NO_STRIPE_CUSTOMER', message: 'No Stripe customer linked to this member' });
+        }
+
+        // Get dues subscription details
+        let duesSubscription: any = null;
+        if (memberBilling.stripe_subscription_id) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(memberBilling.stripe_subscription_id, {
+              expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+            });
+            
+            const latestInvoice = sub.latest_invoice as any;
+            
+            duesSubscription = {
+              id: sub.id,
+              status: sub.status,
+              currentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString(),
+              currentPeriodStart: new Date(sub.current_period_start * 1000).toISOString(),
+              cancelAtPeriodEnd: sub.cancel_at_period_end,
+              amountDue: sub.items.data[0]?.price?.unit_amount || null,
+              interval: sub.items.data[0]?.price?.recurring?.interval || null,
+              lastPaymentDate: latestInvoice?.status_transitions?.paid_at 
+                ? new Date(latestInvoice.status_transitions.paid_at * 1000).toISOString() 
+                : null,
+              lastPaymentStatus: latestInvoice?.status || null,
+              nextInvoiceAmount: sub.items.data.reduce((sum: number, item: any) => sum + (item.price?.unit_amount || 0), 0),
+            };
+
+            // Check for issues
+            if (sub.status === 'past_due') {
+              issues.push({ type: 'error', code: 'DUES_PAST_DUE', message: 'Membership dues subscription is past due' });
+            } else if (sub.status === 'canceled') {
+              issues.push({ type: 'error', code: 'DUES_CANCELED', message: 'Membership dues subscription has been canceled' });
+            } else if (sub.cancel_at_period_end) {
+              issues.push({ type: 'warning', code: 'DUES_CANCELING', message: 'Subscription will cancel at end of current period' });
+            }
+
+            // Check if DB status matches Stripe
+            if (memberBilling.status === 'active' && sub.status !== 'active') {
+              discrepancies.push(`DB status is 'active' but Stripe subscription is '${sub.status}'`);
+            }
+          } catch (e) {
+            logStep("Could not retrieve dues subscription", { error: String(e) });
+            issues.push({ type: 'error', code: 'SUBSCRIPTION_NOT_FOUND', message: 'Subscription ID exists but not found in Stripe' });
+          }
+        } else if (memberBilling.status === 'active') {
+          issues.push({ type: 'error', code: 'NO_SUBSCRIPTION', message: 'Member is active but has no dues subscription' });
+        }
+
+        // Get initiation fee subscription details
+        let initiationFeeSubscription: any = null;
+        if (memberBilling.annual_fee_subscription_id) {
+          try {
+            const feeSub = await stripe.subscriptions.retrieve(memberBilling.annual_fee_subscription_id);
+            initiationFeeSubscription = {
+              id: feeSub.id,
+              status: feeSub.status,
+              currentPeriodEnd: new Date(feeSub.current_period_end * 1000).toISOString(),
+              amountDue: feeSub.items.data[0]?.price?.unit_amount || null,
+            };
+          } catch (e) {
+            logStep("Could not retrieve initiation fee subscription", { error: String(e) });
+          }
+        }
+
+        // Check initiation fee status
+        if (!memberBilling.annual_fee_paid_at && memberBilling.status !== 'pending_activation') {
+          issues.push({ type: 'error', code: 'INITIATION_FEE_UNPAID', message: 'Initiation fee has not been paid' });
+        }
+
+        // Get payment method health
+        let paymentMethodHealth = {
+          hasPaymentMethod: false,
+          cardBrand: memberBilling.card_brand || null,
+          cardLast4: memberBilling.card_last4 || null,
+          cardExpMonth: memberBilling.card_exp_month || null,
+          cardExpYear: memberBilling.card_exp_year || null,
+          isExpiringSoon: false,
+          expirationWarning: null as string | null,
+        };
+
+        if (stripeCustomerId) {
+          try {
+            const paymentMethods = await stripe.paymentMethods.list({
+              customer: stripeCustomerId,
+              type: 'card',
+              limit: 1,
+            });
+
+            if (paymentMethods.data.length > 0) {
+              const pm = paymentMethods.data[0];
+              paymentMethodHealth.hasPaymentMethod = true;
+              paymentMethodHealth.cardBrand = pm.card?.brand || null;
+              paymentMethodHealth.cardLast4 = pm.card?.last4 || null;
+              paymentMethodHealth.cardExpMonth = pm.card?.exp_month || null;
+              paymentMethodHealth.cardExpYear = pm.card?.exp_year || null;
+
+              // Check if card is expiring soon (within 60 days)
+              if (pm.card?.exp_month && pm.card?.exp_year) {
+                const expDate = new Date(pm.card.exp_year, pm.card.exp_month - 1, 28);
+                const now = new Date();
+                const daysUntilExpiry = Math.floor((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                
+                if (daysUntilExpiry < 0) {
+                  paymentMethodHealth.isExpiringSoon = true;
+                  paymentMethodHealth.expirationWarning = 'Card expired';
+                  issues.push({ type: 'error', code: 'CARD_EXPIRED', message: 'Payment method has expired' });
+                } else if (daysUntilExpiry < 30) {
+                  paymentMethodHealth.isExpiringSoon = true;
+                  paymentMethodHealth.expirationWarning = `Expires in ${daysUntilExpiry} days`;
+                  issues.push({ type: 'warning', code: 'CARD_EXPIRING_SOON', message: `Card expires in ${daysUntilExpiry} days` });
+                } else if (daysUntilExpiry < 60) {
+                  paymentMethodHealth.isExpiringSoon = true;
+                  paymentMethodHealth.expirationWarning = `Expires in ${daysUntilExpiry} days`;
+                }
+              }
+
+              // Check for discrepancy between DB and Stripe
+              if (memberBilling.card_last4 && pm.card?.last4 !== memberBilling.card_last4) {
+                discrepancies.push(`Card in Stripe (${pm.card?.last4}) differs from database (${memberBilling.card_last4})`);
+              }
+            } else if (memberBilling.card_last4) {
+              discrepancies.push('Database shows card on file but none found in Stripe');
+            }
+          } catch (e) {
+            logStep("Could not list payment methods", { error: String(e) });
+          }
+        }
+
+        if (!paymentMethodHealth.hasPaymentMethod && memberBilling.status === 'active') {
+          issues.push({ type: 'error', code: 'NO_PAYMENT_METHOD', message: 'Active member has no payment method on file' });
+        }
+
+        // Get recent payment attempts
+        const recentPaymentAttempts: Array<{
+          id: string;
+          date: string;
+          amount: number;
+          status: 'succeeded' | 'failed' | 'pending';
+          description: string | null;
+          failureReason: string | null;
+        }> = [];
+
+        // From manual_charges table
+        const { data: manualCharges } = await supabase
+          .from('manual_charges')
+          .select('*')
+          .eq('member_id', memberId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        (manualCharges || []).forEach((charge: any) => {
+          recentPaymentAttempts.push({
+            id: charge.id,
+            date: charge.created_at,
+            amount: charge.amount,
+            status: charge.status as 'succeeded' | 'failed' | 'pending',
+            description: charge.description,
+            failureReason: null,
+          });
+        });
+
+        // From payment_attempts table (failed payments from webhook)
+        const { data: failedAttempts } = await supabase
+          .from('payment_attempts')
+          .select('*')
+          .eq('member_id', memberId)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        (failedAttempts || []).forEach((attempt: any) => {
+          recentPaymentAttempts.push({
+            id: attempt.id,
+            date: attempt.created_at,
+            amount: attempt.amount || 0,
+            status: 'failed',
+            description: attempt.event_type,
+            failureReason: attempt.decline_reason || attempt.failure_code,
+          });
+        });
+
+        // Sort by date
+        recentPaymentAttempts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        const billingHealth = {
+          stripeCustomerId,
+          customerCreatedAt: stripeCustomer?.created ? new Date(stripeCustomer.created * 1000).toISOString() : null,
+          duesSubscription,
+          initiationFeeSubscription,
+          paymentMethodHealth,
+          recentPaymentAttempts: recentPaymentAttempts.slice(0, 10),
+          issues,
+          syncStatus: {
+            lastSynced: new Date().toISOString(),
+            dbMatchesStripe: discrepancies.length === 0,
+            discrepancies,
+          },
+        };
+
+        logStep("Billing health retrieved", { 
+          memberId, 
+          issueCount: issues.length,
+          discrepancyCount: discrepancies.length 
+        });
+
+        return new Response(
+          JSON.stringify(billingHealth),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'sync_member_billing_data': {
+        // Sync billing data from Stripe to database
+        const { memberId } = body;
+
+        if (!memberId) {
+          throw new Error("memberId is required");
+        }
+
+        // Verify admin role
+        const { data: adminRoleSync } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!adminRoleSync || adminRoleSync.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Syncing billing data for member", { memberId });
+
+        // Get member data
+        const { data: memberSync, error: memberSyncError } = await supabase
+          .from('members')
+          .select('*')
+          .eq('id', memberId)
+          .single();
+
+        if (memberSyncError || !memberSync) {
+          throw new Error("Member not found");
+        }
+
+        const updates: Record<string, any> = {};
+
+        // Find or verify Stripe customer
+        let stripeCustomerId = memberSync.stripe_customer_id;
+        if (!stripeCustomerId && memberSync.email) {
+          const searchResult = await stripe.customers.list({ email: memberSync.email, limit: 1 });
+          if (searchResult.data.length > 0) {
+            stripeCustomerId = searchResult.data[0].id;
+            updates.stripe_customer_id = stripeCustomerId;
+            logStep("Found and linking Stripe customer", { stripeCustomerId });
+          }
+        }
+
+        if (!stripeCustomerId) {
+          throw new Error("No Stripe customer found for this member");
+        }
+
+        // Sync payment method metadata
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: stripeCustomerId,
+          type: 'card',
+          limit: 1,
+        });
+
+        if (paymentMethods.data.length > 0) {
+          const pm = paymentMethods.data[0];
+          updates.card_brand = pm.card?.brand ? 
+            pm.card.brand.charAt(0).toUpperCase() + pm.card.brand.slice(1) : null;
+          updates.card_last4 = pm.card?.last4 || null;
+          updates.card_exp_month = pm.card?.exp_month || null;
+          updates.card_exp_year = pm.card?.exp_year || null;
+        }
+
+        // Sync subscription status if there's a subscription
+        if (memberSync.stripe_subscription_id) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(memberSync.stripe_subscription_id);
+            
+            // Update member status based on subscription
+            if (sub.status === 'active' && memberSync.status !== 'active' && memberSync.status !== 'frozen') {
+              updates.status = 'active';
+            } else if (sub.status === 'past_due' && memberSync.status !== 'past_due') {
+              updates.status = 'past_due';
+            } else if (sub.status === 'canceled' && memberSync.status === 'active') {
+              updates.status = 'cancelled';
+            }
+          } catch (e) {
+            logStep("Could not sync subscription status", { error: String(e) });
+          }
+        }
+
+        // Apply updates
+        if (Object.keys(updates).length > 0) {
+          const { error: updateError } = await supabase
+            .from('members')
+            .update(updates)
+            .eq('id', memberId);
+
+          if (updateError) {
+            throw new Error(`Failed to update member: ${updateError.message}`);
+          }
+
+          logStep("Member billing data synced", { memberId, updates });
+        } else {
+          logStep("No updates needed", { memberId });
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            updatedFields: Object.keys(updates),
+            message: Object.keys(updates).length > 0 
+              ? `Updated ${Object.keys(updates).length} fields`
+              : 'Already in sync'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );

@@ -17,6 +17,7 @@ import { UndoActionDialog } from "@/components/admin/UndoActionDialog";
 import { AdminChargeWith3DSProvider } from "@/components/admin/AdminChargeWith3DS";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
 import { PaymentsTabContent } from "@/components/admin/PaymentsTabContent";
+import { BillingHealthCard } from "@/components/admin/BillingHealthCard";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
 import { useMemberActivities } from "@/hooks/useMemberActivities";
@@ -1213,6 +1214,15 @@ export default function MemberDetail() {
 
           {/* Membership Tab */}
           <TabsContent value="membership">
+            {/* Billing Health Card - Full Width at Top */}
+            <div className="mb-6">
+              <BillingHealthCard 
+                memberId={member.id} 
+                memberEmail={member.email}
+                memberName={`${member.first_name} ${member.last_name}`}
+              />
+            </div>
+            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
