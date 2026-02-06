@@ -20,14 +20,20 @@ const logError = (error: unknown, context?: string) => {
   console.error(`[SYNC-SUBSCRIPTION-STATUS] ERROR ${contextStr}${errorMessage}`, errorStack || '');
 };
 
+interface SyncResult {
+  member_id: string;
+  member_name: string;
+  issue_type: string;
+  details: string;
+  fixed: boolean;
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: CORS_HEADERS, status: 204 });
   }
 
   try {
-    // Validate environment variables
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -43,14 +49,32 @@ serve(async (req) => {
     const stripe = new Stripe(stripeSecretKey, { apiVersion: '2025-08-27.basil' });
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    logStep("Starting subscription status sync");
+    // Parse request body for options
+    let options = { 
+      syncSubscriptions: true, 
+      syncPaymentMethods: true,
+      syncCustomerIds: true,
+      dryRun: false 
+    };
+    
+    try {
+      const body = await req.json();
+      options = { ...options, ...body };
+    } catch {
+      // Use defaults if no body
+    }
 
-    // Get all members with Stripe subscriptions
+    logStep("Starting comprehensive sync", options);
+
+    const results: SyncResult[] = [];
+    let fixedCount = 0;
+    let issueCount = 0;
+
+    // Get all active/past_due members
     const { data: members, error: membersError } = await supabase
       .from('members')
-      .select('id, stripe_subscription_id, status, email, first_name, last_name')
-      .not('stripe_subscription_id', 'is', null)
-      .in('status', ['active', 'past_due', 'cancelled']); // Only sync these statuses
+      .select('id, stripe_customer_id, stripe_subscription_id, status, email, first_name, last_name, card_last4, card_brand, card_exp_month, card_exp_year')
+      .in('status', ['active', 'past_due', 'pending_activation', 'frozen']);
 
     if (membersError) {
       logError(membersError, "MEMBERS_FETCH");
@@ -58,189 +82,207 @@ serve(async (req) => {
     }
 
     if (!members || members.length === 0) {
-      logStep("No members with subscriptions found");
+      logStep("No members found to sync");
       return new Response(
-        JSON.stringify({ 
-          synced: 0, 
-          discrepancies: 0, 
-          errors: 0,
-          message: "No members with subscriptions found"
-        }),
+        JSON.stringify({ success: true, message: "No members to sync", results: [] }),
         { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
 
-    logStep(`Found ${members.length} members with subscriptions`);
+    logStep(`Found ${members.length} members to process`);
 
-    let syncedCount = 0;
-    let discrepancyCount = 0;
-    let errorCount = 0;
-    const discrepancies: Array<{
-      member_id: string;
-      member_name: string;
-      current_status: string;
-      stripe_status: string;
-      subscription_id: string;
-    }> = [];
-    const errors: Array<{
-      member_id: string;
-      subscription_id: string;
-      error: string;
-    }> = [];
-
-    // Process each member
     for (const member of members) {
+      const memberName = `${member.first_name} ${member.last_name}`;
+      
       try {
-        if (!member.stripe_subscription_id) continue;
-
-        // Fetch subscription from Stripe
-        const subscription = await stripe.subscriptions.retrieve(member.stripe_subscription_id);
-
-        // Map Stripe subscription status to member status
-        let expectedStatus: string;
-        let reason: string;
-
-        if (subscription.status === 'active' || subscription.status === 'trialing') {
-          expectedStatus = 'active';
-          reason = 'sync_active';
-        } else if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
-          expectedStatus = 'past_due';
-          reason = 'sync_past_due';
-        } else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
-          expectedStatus = 'cancelled';
-          reason = 'sync_cancelled';
-        } else {
-          // For other statuses (incomplete, etc.), skip or handle appropriately
-          logStep(`Skipping subscription with status: ${subscription.status}`, { 
-            subscriptionId: subscription.id,
-            memberId: member.id
-          });
-          continue;
+        // === SYNC CUSTOMER IDs ===
+        if (options.syncCustomerIds && !member.stripe_customer_id && member.email) {
+          logStep("Member missing Stripe customer ID, searching by email", { memberId: member.id, email: member.email });
+          
+          const customers = await stripe.customers.list({ email: member.email, limit: 1 });
+          
+          if (customers.data.length > 0) {
+            const customerId = customers.data[0].id;
+            issueCount++;
+            
+            if (!options.dryRun) {
+              await supabase
+                .from('members')
+                .update({ stripe_customer_id: customerId, updated_at: new Date().toISOString() })
+                .eq('id', member.id);
+              fixedCount++;
+            }
+            
+            results.push({
+              member_id: member.id,
+              member_name: memberName,
+              issue_type: 'missing_customer_id',
+              details: `Found customer ${customerId} by email lookup`,
+              fixed: !options.dryRun
+            });
+            
+            // Update local reference for subsequent checks
+            member.stripe_customer_id = customerId;
+          }
         }
 
-        // Check if status differs
-        if (member.status !== expectedStatus) {
-          discrepancyCount++;
-          const memberName = `${member.first_name} ${member.last_name}`;
-          discrepancies.push({
-            member_id: member.id,
-            member_name: memberName,
-            current_status: member.status,
-            stripe_status: subscription.status,
-            subscription_id: subscription.id
+        // === SYNC PAYMENT METHODS ===
+        if (options.syncPaymentMethods && member.stripe_customer_id) {
+          const paymentMethods = await stripe.paymentMethods.list({
+            customer: member.stripe_customer_id,
+            type: 'card',
+            limit: 1
           });
 
-          logStep("Discrepancy found", {
-            memberId: member.id,
-            memberName,
-            currentStatus: member.status,
-            stripeStatus: subscription.status,
-            expectedStatus
-          });
-
-          // Update status with history tracking
-          const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
-            p_member_id: member.id,
-            p_stripe_subscription_id: subscription.id,
-            p_new_status: expectedStatus,
-            p_reason: reason,
-            p_stripe_event_id: null, // Manual sync, no event ID
-            p_changed_by: 'system_sync',
-            p_metadata: {
-              sync_timestamp: new Date().toISOString(),
-              stripe_status: subscription.status,
-              previous_status: member.status
+          if (paymentMethods.data.length > 0) {
+            const pm = paymentMethods.data[0];
+            const card = pm.card;
+            
+            if (card) {
+              const dbCard = {
+                last4: member.card_last4,
+                brand: member.card_brand,
+                exp_month: member.card_exp_month,
+                exp_year: member.card_exp_year
+              };
+              
+              const stripeCard = {
+                last4: card.last4,
+                brand: card.brand,
+                exp_month: card.exp_month,
+                exp_year: card.exp_year
+              };
+              
+              // Check for mismatches
+              const hasMismatch = 
+                dbCard.last4 !== stripeCard.last4 ||
+                dbCard.brand !== stripeCard.brand ||
+                dbCard.exp_month !== stripeCard.exp_month ||
+                dbCard.exp_year !== stripeCard.exp_year;
+              
+              if (hasMismatch) {
+                issueCount++;
+                logStep("Payment method mismatch", { memberId: member.id, db: dbCard, stripe: stripeCard });
+                
+                if (!options.dryRun) {
+                  await supabase
+                    .from('members')
+                    .update({
+                      card_last4: stripeCard.last4,
+                      card_brand: stripeCard.brand,
+                      card_exp_month: stripeCard.exp_month,
+                      card_exp_year: stripeCard.exp_year,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', member.id);
+                  fixedCount++;
+                }
+                
+                results.push({
+                  member_id: member.id,
+                  member_name: memberName,
+                  issue_type: 'payment_method_mismatch',
+                  details: `DB: ${dbCard.brand || 'none'} ****${dbCard.last4 || 'none'} → Stripe: ${stripeCard.brand} ****${stripeCard.last4}`,
+                  fixed: !options.dryRun
+                });
+              }
             }
-          });
-
-          if (updateError) {
-            logError(updateError, "STATUS_UPDATE");
-            errors.push({
+          } else if (member.card_last4) {
+            // Member has card data but no payment method in Stripe
+            issueCount++;
+            results.push({
               member_id: member.id,
-              subscription_id: subscription.id,
-              error: updateError.message
-            });
-            errorCount++;
-          } else {
-            syncedCount++;
-            logStep("Status updated", {
-              memberId: member.id,
-              oldStatus: member.status,
-              newStatus: expectedStatus
+              member_name: memberName,
+              issue_type: 'orphaned_card_data',
+              details: `DB has card ****${member.card_last4} but no payment method in Stripe`,
+              fixed: false
             });
           }
-        } else {
-          syncedCount++;
-          logStep("Status matches", {
-            memberId: member.id,
-            status: member.status
-          });
+        }
+
+        // === SYNC SUBSCRIPTION STATUS ===
+        if (options.syncSubscriptions && member.stripe_subscription_id) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(member.stripe_subscription_id);
+            
+            let expectedStatus: string;
+            if (subscription.status === 'active' || subscription.status === 'trialing') {
+              expectedStatus = 'active';
+            } else if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
+              expectedStatus = 'past_due';
+            } else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
+              expectedStatus = 'cancelled';
+            } else {
+              continue; // Skip incomplete, etc.
+            }
+
+            if (member.status !== expectedStatus && member.status !== 'frozen') {
+              issueCount++;
+              logStep("Status mismatch", { memberId: member.id, db: member.status, expected: expectedStatus });
+              
+              if (!options.dryRun) {
+                await supabase.rpc('update_subscription_status_with_history', {
+                  p_member_id: member.id,
+                  p_new_status: expectedStatus,
+                  p_change_reason: `sync_from_stripe_${subscription.status}`,
+                  p_changed_by: 'system_sync'
+                });
+                fixedCount++;
+              }
+              
+              results.push({
+                member_id: member.id,
+                member_name: memberName,
+                issue_type: 'status_mismatch',
+                details: `DB: ${member.status} → Stripe subscription: ${subscription.status} (expected: ${expectedStatus})`,
+                fixed: !options.dryRun
+              });
+            }
+          } catch (subError) {
+            if (subError instanceof Error && subError.message.includes('No such subscription')) {
+              issueCount++;
+              results.push({
+                member_id: member.id,
+                member_name: memberName,
+                issue_type: 'orphaned_subscription_id',
+                details: `Subscription ${member.stripe_subscription_id} not found in Stripe`,
+                fixed: false
+              });
+            }
+          }
         }
       } catch (memberError) {
-        errorCount++;
         const errorMessage = memberError instanceof Error ? memberError.message : String(memberError);
-        logError(memberError, "MEMBER_SYNC");
-        errors.push({
+        logError(memberError, `MEMBER_${member.id}`);
+        results.push({
           member_id: member.id,
-          subscription_id: member.stripe_subscription_id || 'unknown',
-          error: errorMessage
+          member_name: memberName,
+          issue_type: 'error',
+          details: errorMessage,
+          fixed: false
         });
-
-        // If subscription not found in Stripe, mark as cancelled
-        if (memberError instanceof Error && memberError.message.includes('No such subscription')) {
-          logStep("Subscription not found in Stripe - marking as cancelled", {
-            memberId: member.id,
-            subscriptionId: member.stripe_subscription_id
-          });
-
-          const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
-            p_member_id: member.id,
-            p_stripe_subscription_id: member.stripe_subscription_id || '',
-            p_new_status: 'cancelled',
-            p_reason: 'subscription_not_found_in_stripe',
-            p_stripe_event_id: null,
-            p_changed_by: 'system_sync',
-            p_metadata: {
-              sync_timestamp: new Date().toISOString(),
-              error: errorMessage
-            }
-          });
-
-          if (updateError) {
-            logError(updateError, "STATUS_UPDATE_NOT_FOUND");
-          }
-        }
       }
     }
 
-    logStep("Sync completed", {
-      total: members.length,
-      synced: syncedCount,
-      discrepancies: discrepancyCount,
-      errors: errorCount
-    });
+    logStep("Sync completed", { total: members.length, issues: issueCount, fixed: fixedCount });
 
     return new Response(
       JSON.stringify({
         success: true,
         summary: {
           total_members: members.length,
-          synced: syncedCount,
-          discrepancies: discrepancyCount,
-          errors: errorCount
+          issues_found: issueCount,
+          issues_fixed: fixedCount,
+          dry_run: options.dryRun
         },
-        discrepancies: discrepancies,
-        errors: errors
+        results
       }),
       { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
     logError(error, "SYNC_ERROR");
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
       { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
