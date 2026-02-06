@@ -58,6 +58,7 @@ import { StripeProvider } from "@/components/StripeProvider";
 import { useApplicationStatusHistory } from "@/hooks/useApplicationStatusHistory";
 import { History } from "lucide-react";
 import { AddApplicantCardModal } from "@/components/admin/AddApplicantCardModal";
+import { MarkPaidDialog, ManualPaymentMethod } from "@/components/admin/MarkPaidDialog";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -246,6 +247,11 @@ export default function Applications() {
   const [paymentLinkEmailSent, setPaymentLinkEmailSent] = useState(false);
   const [paymentLinkEmailAddress, setPaymentLinkEmailAddress] = useState<string | null>(null);
   
+  // Mark Paid Dialog state
+  const [showMarkPaidDialog, setShowMarkPaidDialog] = useState(false);
+  const [markPaidTarget, setMarkPaidTarget] = useState<Application | null>(null);
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading, isError, error, refetch } = useQuery({
@@ -395,7 +401,8 @@ export default function Applications() {
         const memberStatus = autoActivate ? "active" : "pending_activation";
         const membershipStartDate = autoActivate && startDate ? format(startDate, "yyyy-MM-dd") : format(now, "yyyy-MM-dd");
         const activatedAt = autoActivate ? now.toISOString() : null;
-        const annualFeePaidAt = autoActivate && application.annual_fee_status === "paid" ? now.toISOString() : null;
+        // Set annual_fee_paid_at if already paid in application, regardless of autoActivate
+        const annualFeePaidAt = application.annual_fee_status === "paid" ? now.toISOString() : null;
         
         // Create member record - include locked_start_date if provided
         const memberInsertData: any = {
@@ -563,16 +570,71 @@ export default function Applications() {
   });
 
   const updateAnnualFeeMutation = useMutation({
-    mutationFn: async ({ id, annual_fee_status }: { id: string; annual_fee_status: string }) => {
+    mutationFn: async ({ 
+      id, 
+      annual_fee_status, 
+      paymentMethod, 
+      note 
+    }: { 
+      id: string; 
+      annual_fee_status: string; 
+      paymentMethod?: ManualPaymentMethod; 
+      note?: string;
+    }) => {
+      // Get application email for member lookup
+      const { data: appData, error: appError } = await supabase
+        .from("membership_applications")
+        .select("email")
+        .eq("id", id)
+        .single();
+      
+      if (appError) throw appError;
+      
+      // Update application
       const { error } = await supabase
         .from("membership_applications")
         .update({ annual_fee_status })
         .eq("id", id);
       if (error) throw error;
+      
+      // CRITICAL: If marking as paid, sync to member table
+      if (annual_fee_status === "paid" && appData?.email) {
+        const { data: memberData } = await supabase
+          .from("members")
+          .select("id")
+          .ilike("email", appData.email)
+          .maybeSingle();
+        
+        if (memberData) {
+          await supabase
+            .from("members")
+            .update({ 
+              annual_fee_paid_at: new Date().toISOString() 
+            })
+            .eq("id", memberData.id);
+          console.log("Synced annual_fee_paid_at to member:", memberData.id);
+        }
+        
+        // Record manual charge for audit trail (only if paymentMethod provided)
+        if (paymentMethod && user) {
+          await supabase
+            .from("manual_charges")
+            .insert({
+              application_id: id,
+              user_id: user.id,
+              amount: 30000, // $300 in cents - standard initiation fee
+              description: `Initiation Fee - Manual (${paymentMethod})${note ? `: ${note}` : ''}`,
+              status: 'succeeded',
+              charged_by: user.id,
+            });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
       toast.success("Annual fee status updated");
+      setShowMarkPaidDialog(false);
+      setMarkPaidTarget(null);
     },
     onError: () => {
       toast.error("Failed to update annual fee status");
@@ -2117,7 +2179,11 @@ export default function Applications() {
                       <Button 
                         size="sm" 
                         variant={selectedApplication.annual_fee_status === "paid" ? "default" : "outline"}
-                        onClick={() => updateAnnualFeeMutation.mutate({ id: selectedApplication.id, annual_fee_status: "paid" })}
+                        onClick={() => {
+                          setMarkPaidTarget(selectedApplication);
+                          setShowMarkPaidDialog(true);
+                        }}
+                        disabled={selectedApplication.annual_fee_status === "paid"}
                       >
                         <DollarSign className="h-4 w-4 mr-1" />
                         Mark as Paid
@@ -2632,6 +2698,32 @@ export default function Applications() {
             )}
           </DialogContent>
         </Dialog>
+        
+        {/* Mark as Paid Confirmation Dialog */}
+        <MarkPaidDialog
+          open={showMarkPaidDialog}
+          onOpenChange={(open) => {
+            setShowMarkPaidDialog(open);
+            if (!open) setMarkPaidTarget(null);
+          }}
+          applicantName={markPaidTarget ? (markPaidTarget.first_name || markPaidTarget.full_name.split(" ")[0]) : ""}
+          feeAmount={markPaidTarget?.gender?.toLowerCase() === "male" ? 175 : 300}
+          isLoading={isMarkingPaid}
+          onConfirm={async (paymentMethod, note) => {
+            if (!markPaidTarget) return;
+            setIsMarkingPaid(true);
+            try {
+              await updateAnnualFeeMutation.mutateAsync({
+                id: markPaidTarget.id,
+                annual_fee_status: "paid",
+                paymentMethod,
+                note,
+              });
+            } finally {
+              setIsMarkingPaid(false);
+            }
+          }}
+        />
       </div>
     </AdminLayout>
   );

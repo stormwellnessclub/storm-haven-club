@@ -753,6 +753,53 @@ serve(async (req) => {
                 // Don't fail webhook for card sync issues
               }
 
+              // CRITICAL: Sync annual fee payment to member table if member exists
+              // This ensures Application Portal and Member Portal stay in sync
+              try {
+                // Get application email to find member record
+                const { data: appForSync } = await supabase
+                  .from('membership_applications')
+                  .select('email')
+                  .eq('id', applicationId)
+                  .single();
+
+                if (appForSync?.email) {
+                  const { data: memberForSync } = await supabase
+                    .from('members')
+                    .select('id')
+                    .ilike('email', appForSync.email)
+                    .maybeSingle();
+
+                  if (memberForSync) {
+                    const { error: memberSyncError } = await supabase
+                      .from('members')
+                      .update({
+                        annual_fee_paid_at: new Date().toISOString(),
+                        stripe_customer_id: session.customer as string,
+                      })
+                      .eq('id', memberForSync.id);
+
+                    if (memberSyncError) {
+                      logError(memberSyncError, "ANNUAL_FEE_MEMBER_SYNC");
+                    } else {
+                      logStep("Synced annual fee to member record", { 
+                        memberId: memberForSync.id, 
+                        applicationId,
+                        customerId: session.customer 
+                      });
+                    }
+                  } else {
+                    logStep("No member record found for application email - will sync on member creation", {
+                      email: appForSync.email,
+                      applicationId,
+                    });
+                  }
+                }
+              } catch (memberSyncError) {
+                logError(memberSyncError, "ANNUAL_FEE_MEMBER_SYNC");
+                // Don't fail webhook for member sync issues
+              }
+
               logStep("Annual fee payment link processed", { applicationId, customerId: session.customer });
             } catch (annualFeeLinkError) {
               logError(annualFeeLinkError, "ANNUAL_FEE_LINK");
