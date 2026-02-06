@@ -1035,6 +1035,60 @@ export type Database = {
           },
         ]
       }
+      email_audit_log: {
+        Row: {
+          application_id: string | null
+          created_at: string | null
+          custom_content: string | null
+          email_type: string
+          error_message: string | null
+          id: string
+          member_id: string | null
+          recipient_email: string
+          recipient_name: string | null
+          sent_at: string | null
+          status: string
+          subject: string | null
+          template_data: Json | null
+          trigger_source: string
+          triggered_by: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          created_at?: string | null
+          custom_content?: string | null
+          email_type: string
+          error_message?: string | null
+          id?: string
+          member_id?: string | null
+          recipient_email: string
+          recipient_name?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template_data?: Json | null
+          trigger_source?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          created_at?: string | null
+          custom_content?: string | null
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          member_id?: string | null
+          recipient_email?: string
+          recipient_name?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          template_data?: Json | null
+          trigger_source?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       email_conversations: {
         Row: {
           created_at: string

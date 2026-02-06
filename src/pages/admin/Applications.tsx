@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX, Plus, Wallet, Rocket, Trash2 } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX, Plus, Wallet, Rocket, Trash2, Sparkles, FileText, Settings } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -59,6 +59,7 @@ import { useApplicationStatusHistory } from "@/hooks/useApplicationStatusHistory
 import { History } from "lucide-react";
 import { AddApplicantCardModal } from "@/components/admin/AddApplicantCardModal";
 import { MarkPaidDialog, ManualPaymentMethod } from "@/components/admin/MarkPaidDialog";
+import { PersonalizedLetterModal } from "@/components/admin/PersonalizedLetterModal";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -251,6 +252,10 @@ export default function Applications() {
   const [showMarkPaidDialog, setShowMarkPaidDialog] = useState(false);
   const [markPaidTarget, setMarkPaidTarget] = useState<Application | null>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  
+  // Personalized Letter Modal state
+  const [showPersonalizedLetterModal, setShowPersonalizedLetterModal] = useState(false);
+  const [personalizedLetterTarget, setPersonalizedLetterTarget] = useState<Application | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -1750,6 +1755,26 @@ export default function Applications() {
           isLoading={isBatchActivating}
         />
 
+        {/* Personalized Letter Modal */}
+        <PersonalizedLetterModal
+          open={showPersonalizedLetterModal}
+          onOpenChange={setShowPersonalizedLetterModal}
+          applicant={personalizedLetterTarget ? {
+            id: personalizedLetterTarget.id,
+            name: personalizedLetterTarget.first_name || personalizedLetterTarget.full_name.split(" ")[0],
+            email: personalizedLetterTarget.email,
+            tier: personalizedLetterTarget.membership_plan,
+            wellness_goals: personalizedLetterTarget.wellness_goals,
+            services_interested: personalizedLetterTarget.services_interested,
+            holistic_wellness: personalizedLetterTarget.holistic_wellness || undefined,
+            lifestyle_integration: personalizedLetterTarget.lifestyle_integration || undefined,
+          } : null}
+          onSendSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+            setPersonalizedLetterTarget(null);
+          }}
+        />
+
         {/* Bulk Action Confirmation Dialog */}
         <AlertDialog open={!!pendingBulkAction} onOpenChange={() => setPendingBulkAction(null)}>
           <AlertDialogContent>
@@ -1971,24 +1996,63 @@ export default function Applications() {
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
-                                className="text-muted-foreground" 
-                                onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app })}
-                              >
-                                <Send className="h-4 w-4 mr-2" />
-                                Approve & Send Email
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, isPreLaunch: true })}
-                              >
-                                <Rocket className="h-4 w-4 mr-2" />
-                                Approve & Send Pre-Launch Email
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
                                 onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, suppressEmail: true })}
                               >
                                 <MailX className="h-4 w-4 mr-2" />
                                 Approve (No Email)
                               </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, isPreLaunch: true })}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Approve + Approval Letter
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  setPersonalizedLetterTarget(app);
+                                  setShowPersonalizedLetterModal(true);
+                                  // Also approve the application (no email yet)
+                                  updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, suppressEmail: true });
+                                }}
+                              >
+                                <Sparkles className="h-4 w-4 mr-2" />
+                                Approve + AI Personalized Letter ✨
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-muted-foreground"
+                                onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app })}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Approve + 7-Day Selection Email
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  // Send member_activation_setup email
+                                  updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, suppressEmail: true });
+                                  // Then send the setup email
+                                  supabase.functions.invoke("send-email", {
+                                    body: {
+                                      type: "member_activation_setup",
+                                      to: app.email,
+                                      data: {
+                                        name: app.first_name || app.full_name.split(" ")[0],
+                                        email: app.email,
+                                        membershipTier: app.membership_plan,
+                                      },
+                                    },
+                                  }).then(() => {
+                                    toast.success("Application approved & setup email sent");
+                                  }).catch((err) => {
+                                    console.error("Failed to send setup email:", err);
+                                    toast.error("Approved but failed to send setup email");
+                                  });
+                                }}
+                              >
+                                <Settings className="h-4 w-4 mr-2" />
+                                Approve + Setup Required Email
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 className="text-primary"
                                 onClick={() => openSingleActivationDialog(app)}
