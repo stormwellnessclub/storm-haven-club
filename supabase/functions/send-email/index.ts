@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'application_approved_pre_launch' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'member_activation_setup';
+  type: 'application_submitted' | 'application_approved' | 'application_approved_pre_launch' | 'application_approved_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'member_activation_setup';
   to: string;
   data: Record<string, any>;
 }
@@ -1104,6 +1104,40 @@ serve(async (req) => {
               </div>
             </div>
             ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'application_approved_personalized':
+        // AI-generated personalized approval letter
+        subject = data.customSubject || 'Welcome to Storm Wellness Club - Application Approved!';
+        const customBody = data.customBody || '';
+        // Convert plain text body to HTML paragraphs
+        const formattedBody = customBody
+          .split('\n\n')
+          .filter((p: string) => p.trim())
+          .map((p: string) => `<p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">${p.replace(/\n/g, '<br>')}</p>`)
+          .join('');
+        
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}; font-family: Georgia, 'Times New Roman', Times, serif;">Dear ${data.name},</h2>
+              
+              ${formattedBody}
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Storm</p>
+                <p style="color: #6b7280; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Founder, Storm Wellness Club</p>
+              </div>
+            </div>
+            <div style="${emailStyles.footer}">
+              <p style="${emailStyles.muted}">
+                Storm Wellness Club
+              </p>
+            </div>
           </div>
         `;
         break;
