@@ -7,12 +7,12 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'setup_instructions' | 'member_activation_setup';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions';
   to: string;
   data: Record<string, any>;
 }
 
-const BASE_URL = Deno.env.get('APP_BASE_URL') ?? 'https://storm-haven-club.lovable.app';
+const BASE_URL = Deno.env.get('APP_BASE_URL') ?? 'https://stormwellnessclub.com';
 
 // Email template styling - Brand colors: Gold #C9A227, Charcoal #312D28
 const emailStyles = {
@@ -1139,6 +1139,67 @@ serve(async (req) => {
                 Storm Wellness Club
               </p>
             </div>
+          </div>
+        `;
+        break;
+
+      case 'pwa_reinstall_instructions':
+        subject = 'Important: Update Your Storm App';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}; font-family: Georgia, 'Times New Roman', Times, serif;">
+              <h2 style="${emailStyles.heading}; font-family: Georgia, 'Times New Roman', Times, serif;">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                We've moved to our official domain! To ensure the best experience with your Storm Wellness Club app, 
+                please follow the steps below to reinstall from our new address.
+              </p>
+              
+              <div style="background: #dbeafe; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0 0 15px 0; font-weight: 600; color: #1e40af; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
+                  📱 For iPhone / iPad:
+                </p>
+                <ol style="margin: 0; padding-left: 20px; color: #1e40af; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  <li style="margin-bottom: 8px;">Delete the old "Storm" app from your home screen</li>
+                  <li style="margin-bottom: 8px;">Open <strong>Safari</strong> and visit <strong>stormwellnessclub.com</strong></li>
+                  <li style="margin-bottom: 8px;">Tap the <strong>Share</strong> button (□↑)</li>
+                  <li>Tap <strong>"Add to Home Screen"</strong></li>
+                </ol>
+              </div>
+              
+              <div style="background: #dcfce7; border: 2px solid #22c55e; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0 0 15px 0; font-weight: 600; color: #166534; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
+                  📱 For Android:
+                </p>
+                <ol style="margin: 0; padding-left: 20px; color: #166534; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  <li style="margin-bottom: 8px;">Delete the old "Storm" app</li>
+                  <li style="margin-bottom: 8px;">Open <strong>Chrome</strong> and visit <strong>stormwellnessclub.com</strong></li>
+                  <li>Tap the menu (⋮) → <strong>"Install app"</strong></li>
+                </ol>
+              </div>
+              
+              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #065f46; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  <strong>✓ Your account, preferences, and membership are fully preserved.</strong><br>
+                  Simply sign in with your email after reinstalling.
+                </p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://stormwellnessclub.com" style="${emailStyles.button}; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">Visit stormwellnessclub.com</a>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                Thank you for being part of Storm Wellness Club!
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
           </div>
         `;
         break;
