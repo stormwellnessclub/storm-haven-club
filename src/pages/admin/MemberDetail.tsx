@@ -11,6 +11,7 @@ import { ChargeHistory } from "@/components/ChargeHistory";
 import { TierChangeDialog } from "@/components/admin/TierChangeDialog";
 import { CreateSubscriptionDialog } from "@/components/admin/CreateSubscriptionDialog";
 import { RefundDialog } from "@/components/admin/RefundDialog";
+import { InitiationFeeChargeDialog } from "@/components/admin/InitiationFeeChargeDialog";
 import { UndoActionDialog } from "@/components/admin/UndoActionDialog";
 import { AdminChargeWith3DSProvider } from "@/components/admin/AdminChargeWith3DS";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
@@ -24,6 +25,7 @@ import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useAuth } from "@/contexts/AuthContext";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
+import { getAnnualFeeAmount, normalizeGender } from "@/lib/stripeProducts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +182,9 @@ export default function MemberDetail() {
   // Cancel annual fee state
   const [showCancelAnnualFeeDialog, setShowCancelAnnualFeeDialog] = useState(false);
   const [isCancelingAnnualFee, setIsCancelingAnnualFee] = useState(false);
+
+  // Initiation fee charge state
+  const [showInitiationFeeDialog, setShowInitiationFeeDialog] = useState(false);
 
   // Credit adjustment state
   const [showAdjustCreditDialog, setShowAdjustCreditDialog] = useState(false);
@@ -416,6 +421,10 @@ export default function MemberDetail() {
   const deleteNote = useDeleteMemberNote();
   const createTag = useCreateMemberTag();
   const deleteTag = useDeleteMemberTag();
+
+  // Fetch payment methods from Stripe for initiation fee charging
+  const { data: stripePaymentMethodsData } = useAdminMemberPaymentMethods(member?.id);
+  const stripePaymentMethods = stripePaymentMethodsData?.paymentMethods || [];
 
   // Payment status
   const paymentStatus = member ? checkMemberPaymentStatus({
@@ -915,9 +924,41 @@ export default function MemberDetail() {
                   <span className="font-medium">Paid</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-amber-600">
-                  <AlertCircle className="h-4 w-4" />
-                  <span className="font-medium">Unpaid</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="font-medium">Unpaid</span>
+                  </div>
+                  {(member.stripe_customer_id && (member.card_brand || stripePaymentMethods.length > 0)) ? (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setShowInitiationFeeDialog(true)}
+                    >
+                      <CreditCard className="h-3 w-3 mr-1" />
+                      Charge ${getAnnualFeeAmount(normalizeGender(member.gender))}
+                    </Button>
+                  ) : (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="w-full"
+                            disabled
+                          >
+                            <CreditCard className="h-3 w-3 mr-1" />
+                            Charge Fee
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Add a payment method first</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -1762,6 +1803,17 @@ export default function MemberDetail() {
         action={lastUndoableAction}
         memberId={member.id}
         memberName={`${member.first_name} ${member.last_name}`}
+      />
+
+      {/* Initiation Fee Charge Dialog */}
+      <InitiationFeeChargeDialog
+        open={showInitiationFeeDialog}
+        onOpenChange={setShowInitiationFeeDialog}
+        member={member}
+        paymentMethod={stripePaymentMethods[0] || null}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
+        }}
       />
     </AdminLayout>
   );
