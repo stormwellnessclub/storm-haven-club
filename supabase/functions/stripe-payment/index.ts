@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -3734,6 +3734,182 @@ serve(async (req) => {
             status: initiationFeeSubscription.status,
             cardBrand: cardBrandForFee,
             cardLast4: cardLast4ForFee,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'admin_create_initiation_fee_subscription_no_charge': {
+        // Admin creates subscription for member who already paid (no immediate charge)
+        // Uses billing_cycle_anchor to delay first charge to 1 year from now
+        const { memberId, originalPaymentMethod, note } = body as { 
+          memberId: string; 
+          originalPaymentMethod: string; 
+          note: string | null;
+        };
+
+        if (!memberId) {
+          throw new Error("memberId is required");
+        }
+
+        // Verify admin role
+        const { data: adminRoleCheckNoCharge } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!adminRoleCheckNoCharge || adminRoleCheckNoCharge.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Admin creating no-charge initiation fee subscription", { memberId, originalPaymentMethod });
+
+        // Get member data
+        const { data: memberDataNoCharge, error: memberErrorNoCharge } = await supabase
+          .from('members')
+          .select('stripe_customer_id, user_id, email, first_name, last_name, gender, annual_fee_paid_at, annual_fee_subscription_id')
+          .eq('id', memberId)
+          .single();
+
+        if (memberErrorNoCharge || !memberDataNoCharge) {
+          throw new Error("Member not found");
+        }
+
+        // Verify the initiation fee was already paid
+        if (!memberDataNoCharge.annual_fee_paid_at) {
+          throw new Error("This action is only for members whose initiation fee is already marked as paid.");
+        }
+
+        if (memberDataNoCharge.annual_fee_subscription_id) {
+          throw new Error("Member already has an initiation fee subscription");
+        }
+
+        let customerIdNoCharge = memberDataNoCharge.stripe_customer_id;
+
+        // If no stripe_customer_id in database, try to find by email in Stripe
+        if (!customerIdNoCharge && memberDataNoCharge.email) {
+          logStep("No stripe_customer_id in database, searching Stripe by email", { 
+            email: memberDataNoCharge.email 
+          });
+          
+          const customersSearchNoCharge = await stripe.customers.list({ 
+            email: memberDataNoCharge.email, 
+            limit: 1 
+          });
+          
+          if (customersSearchNoCharge.data.length > 0) {
+            customerIdNoCharge = customersSearchNoCharge.data[0].id;
+            logStep("Found customer in Stripe by email", { customerId: customerIdNoCharge });
+            
+            // Update the member record with the discovered customer ID
+            await supabase
+              .from('members')
+              .update({ stripe_customer_id: customerIdNoCharge })
+              .eq('id', memberId);
+          }
+        }
+
+        if (!customerIdNoCharge) {
+          throw new Error("Member has no Stripe customer ID. Add a payment method first.");
+        }
+
+        // Get default payment method
+        const paymentMethodsNoCharge = await stripe.paymentMethods.list({
+          customer: customerIdNoCharge,
+          type: 'card',
+          limit: 1,
+        });
+
+        if (paymentMethodsNoCharge.data.length === 0) {
+          throw new Error("No payment method on file. Add a card first.");
+        }
+
+        const paymentMethodNoCharge = paymentMethodsNoCharge.data[0];
+        const paymentMethodIdNoCharge = paymentMethodNoCharge.id;
+        const cardBrandNoCharge = paymentMethodNoCharge.card?.brand ? 
+          paymentMethodNoCharge.card.brand.charAt(0).toUpperCase() + paymentMethodNoCharge.card.brand.slice(1) : 'Card';
+        const cardLast4NoCharge = paymentMethodNoCharge.card?.last4 || '****';
+
+        // Determine gender for pricing
+        const normalizedGenderNoCharge = (memberDataNoCharge.gender?.toLowerCase() === 'male' || 
+                                          memberDataNoCharge.gender?.toLowerCase() === 'men') ? 'men' : 'women';
+        const annualFeePriceIdNoCharge = STRIPE_PRODUCTS.annualFee[normalizedGenderNoCharge];
+
+        if (!annualFeePriceIdNoCharge) {
+          throw new Error("Annual fee price not found");
+        }
+
+        // Calculate billing_cycle_anchor to 1 year from now (no immediate charge)
+        const oneYearFromNow = new Date();
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+        const billingAnchorNoCharge = Math.floor(oneYearFromNow.getTime() / 1000);
+
+        // Create the initiation fee subscription with delayed first charge
+        const initiationFeeSubNoCharge = await stripe.subscriptions.create({
+          customer: customerIdNoCharge,
+          items: [{ price: annualFeePriceIdNoCharge }],
+          default_payment_method: paymentMethodIdNoCharge,
+          billing_cycle_anchor: billingAnchorNoCharge,
+          proration_behavior: 'none',
+          metadata: {
+            member_id: memberId,
+            user_id: memberDataNoCharge.user_id || '',
+            type: 'annual_fee',
+            created_by_admin: user.id,
+            no_charge_reason: 'already_paid',
+            original_payment_method: originalPaymentMethod || 'unknown',
+            admin_note: note || '',
+          },
+        });
+
+        logStep("No-charge initiation fee subscription created", { 
+          subscriptionId: initiationFeeSubNoCharge.id,
+          memberId,
+          status: initiationFeeSubNoCharge.status,
+          nextBillingDate: oneYearFromNow.toISOString(),
+        });
+
+        // Update member record with annual fee subscription ID (don't update annual_fee_paid_at - it's already set)
+        const { error: updateErrorNoCharge } = await supabase
+          .from('members')
+          .update({
+            annual_fee_subscription_id: initiationFeeSubNoCharge.id,
+            stripe_customer_id: customerIdNoCharge,
+          })
+          .eq('id', memberId);
+
+        if (updateErrorNoCharge) {
+          logStep("Error updating member with annual fee subscription", updateErrorNoCharge);
+          // Don't throw - subscription was created successfully
+        }
+
+        // Record in admin_action_log for audit trail
+        await supabase
+          .from('admin_action_log')
+          .insert({
+            action_type: 'create_initiation_fee_subscription_no_charge',
+            member_id: memberId,
+            performed_by: user.id,
+            action_data: {
+              subscription_id: initiationFeeSubNoCharge.id,
+              original_payment_method: originalPaymentMethod,
+              note: note,
+              next_billing_date: oneYearFromNow.toISOString(),
+              price_id: annualFeePriceIdNoCharge,
+              gender: normalizedGenderNoCharge,
+            },
+            can_undo: false, // Can't undo subscription creation easily
+          });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true,
+            subscriptionId: initiationFeeSubNoCharge.id,
+            status: initiationFeeSubNoCharge.status,
+            cardBrand: cardBrandNoCharge,
+            cardLast4: cardLast4NoCharge,
+            nextBillingDate: oneYearFromNow.toISOString(),
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
