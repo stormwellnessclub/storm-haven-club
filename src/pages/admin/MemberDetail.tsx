@@ -12,6 +12,7 @@ import { TierChangeDialog } from "@/components/admin/TierChangeDialog";
 import { CreateSubscriptionDialog } from "@/components/admin/CreateSubscriptionDialog";
 import { RefundDialog } from "@/components/admin/RefundDialog";
 import { InitiationFeeChargeDialog } from "@/components/admin/InitiationFeeChargeDialog";
+import { CreateInitiationFeeSubscriptionDialog } from "@/components/admin/CreateInitiationFeeSubscriptionDialog";
 import { UndoActionDialog } from "@/components/admin/UndoActionDialog";
 import { AdminChargeWith3DSProvider } from "@/components/admin/AdminChargeWith3DS";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
@@ -78,7 +79,7 @@ import {
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
   Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle,
-  ArrowUpDown, Send, Info, RotateCcw
+  ArrowUpDown, Send, Info, RotateCcw, CalendarClock
 } from "lucide-react";
 import {
   Table,
@@ -185,6 +186,7 @@ export default function MemberDetail() {
 
   // Initiation fee charge state
   const [showInitiationFeeDialog, setShowInitiationFeeDialog] = useState(false);
+  const [showCreateInitiationFeeSubDialog, setShowCreateInitiationFeeSubDialog] = useState(false);
 
   // Credit adjustment state
   const [showAdjustCreditDialog, setShowAdjustCreditDialog] = useState(false);
@@ -919,9 +921,61 @@ export default function MemberDetail() {
             </CardHeader>
             <CardContent>
               {member.annual_fee_paid_at ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span className="font-medium">Paid</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="font-medium">Paid</span>
+                  </div>
+                  {/* Show warning and Create Subscription button if paid but no subscription */}
+                  {!member.annual_fee_subscription_id && (
+                    <>
+                      <div className="flex items-center gap-1.5 text-amber-600 text-xs">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>No recurring subscription</span>
+                      </div>
+                      {(member.stripe_customer_id && (member.card_brand || stripePaymentMethods.length > 0)) ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => setShowCreateInitiationFeeSubDialog(true)}
+                        >
+                          <CalendarClock className="h-3 w-3 mr-1" />
+                          Create Subscription
+                        </Button>
+                      ) : (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="w-full"
+                                disabled
+                              >
+                                <CalendarClock className="h-3 w-3 mr-1" />
+                                Create Subscription
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Add a payment method first</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </>
+                  )}
+                  {/* Show link to subscription if it exists */}
+                  {member.annual_fee_subscription_id && (
+                    <a 
+                      href={getStripeSubscriptionLink(member.annual_fee_subscription_id)} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      View in Stripe <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -1809,6 +1863,17 @@ export default function MemberDetail() {
       <InitiationFeeChargeDialog
         open={showInitiationFeeDialog}
         onOpenChange={setShowInitiationFeeDialog}
+        member={member}
+        paymentMethod={stripePaymentMethods[0] || null}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
+        }}
+      />
+
+      {/* Create Initiation Fee Subscription Dialog (for already-paid members) */}
+      <CreateInitiationFeeSubscriptionDialog
+        open={showCreateInitiationFeeSubDialog}
+        onOpenChange={setShowCreateInitiationFeeSubDialog}
         member={member}
         paymentMethod={stripePaymentMethods[0] || null}
         onSuccess={() => {
