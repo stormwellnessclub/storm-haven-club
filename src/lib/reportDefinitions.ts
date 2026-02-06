@@ -97,6 +97,14 @@ const PAYMENT_STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
 ];
 
+const CARD_SETUP_STATUS_OPTIONS = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'initiated', label: 'In Progress' },
+  { value: 'succeeded', label: 'Succeeded' },
+  { value: 'failed', label: 'Failed/Declined' },
+  { value: 'abandoned', label: 'Abandoned' },
+];
+
 export const REPORTS: ReportDefinition[] = [
   // Financial Reports
   {
@@ -127,6 +135,17 @@ export const REPORTS: ReportDefinition[] = [
     icon: CreditCard,
     filters: [
       { id: 'status', label: 'Payment Status', type: 'select', options: PAYMENT_STATUS_OPTIONS },
+    ],
+    defaultDateRange: 'last30days',
+  },
+  {
+    id: 'payment-follow-up',
+    name: 'Payment Follow-Up',
+    description: 'Card setup attempts: who clicked but failed, declines vs abandonments',
+    category: 'financial',
+    icon: CreditCard,
+    filters: [
+      { id: 'status', label: 'Attempt Status', type: 'select', options: CARD_SETUP_STATUS_OPTIONS },
     ],
     defaultDateRange: 'last30days',
   },

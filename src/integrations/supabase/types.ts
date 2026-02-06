@@ -325,6 +325,89 @@ export type Database = {
           },
         ]
       }
+      card_setup_attempts: {
+        Row: {
+          application_id: string | null
+          card_brand: string | null
+          card_last4: string | null
+          completed_at: string | null
+          created_at: string | null
+          decline_code: string | null
+          decline_message: string | null
+          id: string
+          initiated_by: string | null
+          member_id: string | null
+          metadata: Json | null
+          source: string
+          status: string
+          stripe_customer_id: string
+          stripe_setup_intent: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          card_brand?: string | null
+          card_last4?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          decline_code?: string | null
+          decline_message?: string | null
+          id?: string
+          initiated_by?: string | null
+          member_id?: string | null
+          metadata?: Json | null
+          source: string
+          status?: string
+          stripe_customer_id: string
+          stripe_setup_intent?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          card_brand?: string | null
+          card_last4?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          decline_code?: string | null
+          decline_message?: string | null
+          id?: string
+          initiated_by?: string | null
+          member_id?: string | null
+          metadata?: Json | null
+          source?: string
+          status?: string
+          stripe_customer_id?: string
+          stripe_setup_intent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_setup_attempts_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "membership_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_setup_attempts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_setup_attempts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_setup_attempts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       check_ins: {
         Row: {
           checked_in_at: string

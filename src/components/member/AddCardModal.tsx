@@ -68,6 +68,22 @@ function CardForm({ onSuccess, onCancel, nickname, onNicknameChange, memberId }:
       });
 
       if (error) {
+        // Log the failure for audit trail
+        try {
+          await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "log_card_setup_failure",
+              memberId,
+              source: "member_portal",
+              declineCode: error.decline_code || error.code || undefined,
+              declineMessage: error.message || "Card declined",
+            },
+          });
+          console.log("[AddCardModal] Logged card setup failure");
+        } catch (logErr) {
+          console.warn("[AddCardModal] Failed to log card setup failure:", logErr);
+        }
+        
         toast.error(formatSetupError(error));
         setIsSubmitting(false);
         return;

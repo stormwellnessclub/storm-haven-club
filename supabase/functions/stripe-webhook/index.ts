@@ -1554,9 +1554,92 @@ serve(async (req) => {
             }
           }
 
+          // Update card_setup_attempts to succeeded (audit trail)
+          try {
+            await supabase
+              .from('card_setup_attempts')
+              .update({
+                status: 'succeeded',
+                completed_at: new Date().toISOString(),
+                card_brand: cardBrand,
+                card_last4: cardLast4,
+              })
+              .eq('stripe_setup_intent', setupIntent.id);
+            logStep("Updated card_setup_attempt to succeeded", { setupIntentId: setupIntent.id });
+          } catch (auditErr) {
+            logError(auditErr, "SETUP_INTENT_AUDIT_UPDATE");
+          }
+
         } catch (setupError) {
           logError(setupError, "SETUP_INTENT_SUCCEEDED");
           return errorResponse(setupError, "SETUP_INTENT_SUCCEEDED");
+        }
+        break;
+      }
+
+      case 'setup_intent.setup_failed': {
+        // Handle card setup failures (declines)
+        try {
+          const setupIntent = event.data.object as Stripe.SetupIntent;
+          const customerId = setupIntent.customer as string;
+          const lastError = setupIntent.last_setup_error;
+
+          const declineCode = lastError?.decline_code || lastError?.code || null;
+          const declineMessage = lastError?.message || 'Card setup failed';
+
+          logStep("SetupIntent failed", { 
+            setupIntentId: setupIntent.id, 
+            customerId, 
+            declineCode,
+            declineMessage,
+          });
+
+          // Update card_setup_attempts to failed
+          try {
+            const { data: existingAttempt } = await supabase
+              .from('card_setup_attempts')
+              .select('id')
+              .eq('stripe_setup_intent', setupIntent.id)
+              .maybeSingle();
+
+            if (existingAttempt) {
+              await supabase
+                .from('card_setup_attempts')
+                .update({
+                  status: 'failed',
+                  completed_at: new Date().toISOString(),
+                  decline_code: declineCode,
+                  decline_message: declineMessage,
+                })
+                .eq('id', existingAttempt.id);
+              
+              logStep("Updated card_setup_attempt to failed", { 
+                id: existingAttempt.id, 
+                declineCode 
+              });
+            } else {
+              // Insert new record if not found (shouldn't happen but safety net)
+              await supabase.from('card_setup_attempts').insert({
+                stripe_customer_id: customerId || 'unknown',
+                stripe_setup_intent: setupIntent.id,
+                source: 'unknown', // We don't have context here
+                status: 'failed',
+                completed_at: new Date().toISOString(),
+                decline_code: declineCode,
+                decline_message: declineMessage,
+                metadata: { logged_from: 'webhook' },
+              });
+              logStep("Inserted card_setup_attempt as failed (webhook)", { 
+                setupIntentId: setupIntent.id 
+              });
+            }
+          } catch (auditErr) {
+            logError(auditErr, "SETUP_INTENT_FAILED_AUDIT");
+          }
+
+        } catch (setupFailedError) {
+          logError(setupFailedError, "SETUP_INTENT_FAILED");
+          return errorResponse(setupFailedError, "SETUP_INTENT_FAILED");
         }
         break;
       }

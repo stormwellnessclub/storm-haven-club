@@ -47,6 +47,25 @@ export function AdminAddCardForm({
 
       if (error) {
         console.error("Card setup error:", error);
+        
+        // Log the failure for audit trail
+        try {
+          await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "log_card_setup_failure",
+              stripeCustomerId: stripeCustomerId || undefined,
+              applicationId: applicationId || undefined,
+              memberId: memberId || undefined,
+              source: "admin_portal",
+              declineCode: error.decline_code || error.code || undefined,
+              declineMessage: error.message || "Card declined",
+            },
+          });
+          console.log("[AdminAddCardForm] Logged card setup failure");
+        } catch (logErr) {
+          console.warn("[AdminAddCardForm] Failed to log card setup failure:", logErr);
+        }
+        
         toast.error(formatSetupError(error));
         setIsSubmitting(false);
         return;
