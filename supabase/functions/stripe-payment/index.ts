@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -3583,6 +3583,157 @@ serve(async (req) => {
             hasPaymentMethod: formattedMethods.length > 0,
             stripeCustomerId: customerId,
             customerSource,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'admin_create_initiation_fee_subscription': {
+        // Admin-initiated initiation fee subscription creation (as recurring yearly subscription)
+        const { memberId } = body;
+
+        if (!memberId) {
+          throw new Error("memberId is required");
+        }
+
+        // Verify admin role
+        const { data: adminRoleCheck } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!adminRoleCheck || adminRoleCheck.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Admin creating initiation fee subscription", { memberId });
+
+        // Get member data
+        const { data: memberDataForFee, error: memberErrorForFee } = await supabase
+          .from('members')
+          .select('stripe_customer_id, user_id, email, first_name, last_name, gender, annual_fee_subscription_id')
+          .eq('id', memberId)
+          .single();
+
+        if (memberErrorForFee || !memberDataForFee) {
+          throw new Error("Member not found");
+        }
+
+        if (memberDataForFee.annual_fee_subscription_id) {
+          throw new Error("Member already has an initiation fee subscription");
+        }
+
+        let customerIdForFee = memberDataForFee.stripe_customer_id;
+
+        // If no stripe_customer_id in database, try to find by email in Stripe
+        if (!customerIdForFee && memberDataForFee.email) {
+          logStep("No stripe_customer_id in database, searching Stripe by email", { 
+            email: memberDataForFee.email 
+          });
+          
+          const customersSearch = await stripe.customers.list({ 
+            email: memberDataForFee.email, 
+            limit: 1 
+          });
+          
+          if (customersSearch.data.length > 0) {
+            customerIdForFee = customersSearch.data[0].id;
+            logStep("Found customer in Stripe by email", { customerId: customerIdForFee });
+            
+            // Update the member record with the discovered customer ID
+            await supabase
+              .from('members')
+              .update({ stripe_customer_id: customerIdForFee })
+              .eq('id', memberId);
+          }
+        }
+
+        if (!customerIdForFee) {
+          throw new Error("Member has no Stripe customer ID. Add a payment method first.");
+        }
+
+        // Get default payment method
+        const paymentMethodsForFee = await stripe.paymentMethods.list({
+          customer: customerIdForFee,
+          type: 'card',
+          limit: 1,
+        });
+
+        if (paymentMethodsForFee.data.length === 0) {
+          throw new Error("No payment method on file. Add a card first.");
+        }
+
+        const paymentMethodForFee = paymentMethodsForFee.data[0];
+        const paymentMethodIdForFee = paymentMethodForFee.id;
+        const cardBrandForFee = paymentMethodForFee.card?.brand ? 
+          paymentMethodForFee.card.brand.charAt(0).toUpperCase() + paymentMethodForFee.card.brand.slice(1) : 'Card';
+        const cardLast4ForFee = paymentMethodForFee.card?.last4 || '****';
+
+        // Determine gender for pricing
+        const normalizedGenderForFee = (memberDataForFee.gender?.toLowerCase() === 'male' || 
+                                        memberDataForFee.gender?.toLowerCase() === 'men') ? 'men' : 'women';
+        const annualFeePriceIdForMember = STRIPE_PRODUCTS.annualFee[normalizedGenderForFee];
+
+        if (!annualFeePriceIdForMember) {
+          throw new Error("Annual fee price not found");
+        }
+
+        // Create the initiation fee subscription (recurring yearly)
+        const initiationFeeSubscription = await stripe.subscriptions.create({
+          customer: customerIdForFee,
+          items: [{ price: annualFeePriceIdForMember }],
+          default_payment_method: paymentMethodIdForFee,
+          proration_behavior: 'none',
+          metadata: {
+            member_id: memberId,
+            user_id: memberDataForFee.user_id || '',
+            type: 'annual_fee',
+            created_by_admin: user.id,
+          },
+        });
+
+        logStep("Initiation fee subscription created", { 
+          subscriptionId: initiationFeeSubscription.id,
+          memberId,
+          status: initiationFeeSubscription.status,
+        });
+
+        // Update member record with annual fee subscription ID
+        const { error: updateErrorForFee } = await supabase
+          .from('members')
+          .update({
+            annual_fee_subscription_id: initiationFeeSubscription.id,
+            annual_fee_paid_at: new Date().toISOString(),
+            stripe_customer_id: customerIdForFee,
+          })
+          .eq('id', memberId);
+
+        if (updateErrorForFee) {
+          logStep("Error updating member with annual fee subscription", updateErrorForFee);
+          // Don't throw - subscription was created successfully
+        }
+
+        // Record in manual_charges for audit trail
+        await supabase
+          .from('manual_charges')
+          .insert({
+            member_id: memberId,
+            user_id: memberDataForFee.user_id || user.id,
+            amount: normalizedGenderForFee === 'women' ? 30000 : 17500, // in cents
+            description: 'Initiation Fee (Subscription)',
+            stripe_payment_intent_id: initiationFeeSubscription.latest_invoice as string || initiationFeeSubscription.id,
+            status: initiationFeeSubscription.status === 'active' ? 'succeeded' : 'pending',
+            charged_by: user.id,
+          });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true,
+            subscriptionId: initiationFeeSubscription.id,
+            status: initiationFeeSubscription.status,
+            cardBrand: cardBrandForFee,
+            cardLast4: cardLast4ForFee,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
