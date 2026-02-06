@@ -466,7 +466,7 @@ export default function Applications() {
               // Send pre-launch email (no links to website/auth)
               await supabase.functions.invoke("send-email", {
                 body: {
-                  type: "application_approved_pre_launch",
+                  type: "approval_letter",
                   to: application.email,
                   data: {
                     name: firstName,
@@ -490,7 +490,7 @@ export default function Applications() {
               // Send approval email with activation instructions
               await supabase.functions.invoke("send-email", {
                 body: {
-                  type: "application_approved",
+                  type: "approval_with_deadline",
                   to: application.email,
                   data: {
                     name: firstName,
@@ -2024,16 +2024,16 @@ export default function Applications() {
                                 onClick={() => updateStatusMutation.mutate({ id: app.id, status: "approved", application: app })}
                               >
                                 <Send className="h-4 w-4 mr-2" />
-                                Approve + 7-Day Selection Email
+                                Approve + Deadline Email (7-Day Selection)
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => {
-                                  // Send member_activation_setup email
+                                  // Send setup_instructions email
                                   updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, suppressEmail: true });
                                   // Then send the setup email
                                   supabase.functions.invoke("send-email", {
                                     body: {
-                                      type: "member_activation_setup",
+                                      type: "setup_instructions",
                                       to: app.email,
                                       data: {
                                         name: app.first_name || app.full_name.split(" ")[0],
@@ -2050,7 +2050,7 @@ export default function Applications() {
                                 }}
                               >
                                 <Settings className="h-4 w-4 mr-2" />
-                                Approve + Setup Required Email
+                                Approve + Setup Instructions
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 

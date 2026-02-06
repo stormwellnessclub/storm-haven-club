@@ -89,7 +89,7 @@ export function PersonalizedLetterModal({
     try {
       const { error } = await supabase.functions.invoke("send-email", {
         body: {
-          type: "application_approved_personalized",
+          type: "approval_letter_personalized",
           to: applicant.email,
           data: {
             name: applicant.name,
@@ -106,7 +106,7 @@ export function PersonalizedLetterModal({
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from("email_audit_log" as any).insert({
-          email_type: "application_approved_personalized",
+          email_type: "approval_letter_personalized",
           recipient_email: applicant.email,
           recipient_name: applicant.name,
           triggered_by: user.id,

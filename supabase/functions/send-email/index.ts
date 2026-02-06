@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'application_approved' | 'application_approved_pre_launch' | 'application_approved_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'member_activation_setup';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'setup_instructions';
   to: string;
   data: Record<string, any>;
 }
@@ -105,7 +105,7 @@ serve(async (req) => {
         `;
         break;
 
-      case 'application_approved':
+      case 'approval_with_deadline':
         subject = 'Your Application to Storm Wellness Club is Approved';
         html = `
           <div style="${emailStyles.container}">
@@ -159,7 +159,7 @@ serve(async (req) => {
         `;
         break;
 
-      case 'application_approved_pre_launch':
+      case 'approval_letter':
         subject = 'Welcome to Storm Wellness Club - Application Approved!';
         html = `
           <div style="${emailStyles.container}">
@@ -1019,7 +1019,7 @@ serve(async (req) => {
         `;
         break;
 
-      case 'member_activation_setup':
+      case 'setup_instructions':
         subject = 'Action Required: Complete Your Membership Setup - Storm Wellness Club';
         const launchDate = data.launchDate || 'February 9, 2026';
         const hasCardOnFile = data.hasCardOnFile || false;
@@ -1108,7 +1108,7 @@ serve(async (req) => {
         `;
         break;
 
-      case 'application_approved_personalized':
+      case 'approval_letter_personalized':
         // AI-generated personalized approval letter
         subject = data.customSubject || 'Welcome to Storm Wellness Club - Application Approved!';
         const customBody = data.customBody || '';
