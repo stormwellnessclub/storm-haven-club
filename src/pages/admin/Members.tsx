@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -40,6 +40,8 @@ import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { format } from "date-fns";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
+import { MemberIssuesBadges } from "@/components/admin/MemberIssuesBadges";
 
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
@@ -95,6 +97,7 @@ const formatStatus = (status: string) => {
 
 export default function Members() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState<typeof members[0] | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -103,6 +106,7 @@ export default function Members() {
   const [foundingMemberFilter, setFoundingMemberFilter] = useState<boolean | null>(null);
   const [billingTypeFilter, setBillingTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [issuesFilter, setIssuesFilter] = useState<boolean>(searchParams.get("filter") === "issues");
   
   // Super Admin Activation state (moved from MemberDetailSheet)
   const [memberToActivate, setMemberToActivate] = useState<typeof members[0] | null>(null);
@@ -115,6 +119,7 @@ export default function Members() {
   
   const queryClient = useQueryClient();
   const { isSuperAdmin } = useUserRoles();
+  const { data: billingIssues } = useMembersBillingIssues();
 
   const { data: members = [], isLoading, error } = useQuery({
     queryKey: ["admin-members"],
@@ -175,7 +180,11 @@ export default function Members() {
     // Status filter
     const matchesStatus = statusFilter === "all" || member.status === statusFilter;
 
-    return matchesSearch && matchesFounding && matchesBilling && matchesStatus;
+    // Issues filter
+    const hasIssues = billingIssues?.memberIssues?.[member.id]?.length > 0;
+    const matchesIssues = !issuesFilter || hasIssues;
+
+    return matchesSearch && matchesFounding && matchesBilling && matchesStatus && matchesIssues;
   });
 
   // Get pending activation members for bulk email
@@ -378,6 +387,21 @@ export default function Members() {
             </SelectContent>
           </Select>
 
+          {/* Issues filter toggle */}
+          <Button 
+            variant={issuesFilter ? "default" : "outline"}
+            onClick={() => setIssuesFilter(!issuesFilter)}
+            className="gap-2"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Issues Only
+            {billingIssues && billingIssues.totalWithIssues > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {billingIssues.totalWithIssues}
+              </Badge>
+            )}
+          </Button>
+
           {/* Bulk activation email button */}
           {pendingActivationMembers.length > 0 && (
             <Button 
@@ -421,6 +445,7 @@ export default function Members() {
                     <TableHead>Member</TableHead>
                     <TableHead>Membership</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Issues</TableHead>
                     <TableHead>Email Sent</TableHead>
                     <TableHead>Join Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -482,6 +507,12 @@ export default function Members() {
                             {member.annual_fee_paid_at || member.annual_fee_subscription_id ? "Initiation Fee Paid" : "Initiation Fee Unpaid"}
                           </Badge>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <MemberIssuesBadges 
+                          issues={billingIssues?.memberIssues?.[member.id]} 
+                          compact 
+                        />
                       </TableCell>
                       <TableCell>
                         {member.status === "pending_activation" ? (
