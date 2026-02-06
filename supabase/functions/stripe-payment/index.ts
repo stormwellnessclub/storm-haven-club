@@ -138,11 +138,13 @@ serve(async (req) => {
     logStep(`Processing action: ${action}`, body);
 
     // Handle unauthenticated action: create_application_setup
+    // Note: successUrl and cancelUrl are optional - only used by admin portal
+    // The self-service flow uses embedded PaymentElement which doesn't redirect
     if (action === 'create_application_setup') {
-      const { applicantEmail, applicantName, successUrl, cancelUrl } = body;
+      const { applicantEmail, applicantName } = body;
 
-      if (!applicantEmail || !applicantName || !successUrl || !cancelUrl) {
-        throw new Error("Missing required fields for application setup");
+      if (!applicantEmail || !applicantName) {
+        throw new Error("Missing required fields for application setup (email, name)");
       }
 
       // Validate email format
