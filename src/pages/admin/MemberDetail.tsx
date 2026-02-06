@@ -12,6 +12,7 @@ import { TierChangeDialog } from "@/components/admin/TierChangeDialog";
 import { CreateSubscriptionDialog } from "@/components/admin/CreateSubscriptionDialog";
 import { RefundDialog } from "@/components/admin/RefundDialog";
 import { UndoActionDialog } from "@/components/admin/UndoActionDialog";
+import { AdminChargeWith3DSProvider } from "@/components/admin/AdminChargeWith3DS";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
@@ -206,6 +207,13 @@ export default function MemberDetail() {
     charge_type?: string;
   } | null>(null);
   const [showUndoDialog, setShowUndoDialog] = useState(false);
+
+  // 3DS charge state
+  const [show3DSDialog, setShow3DSDialog] = useState(false);
+  const [pending3DSCharge, setPending3DSCharge] = useState<{
+    amount: number;
+    description: string;
+  } | null>(null);
 
   // Undo action hook - fetch last undoable action for this member
   const lastUndoableAction = useLastUndoableAction(id);
@@ -540,7 +548,7 @@ export default function MemberDetail() {
     try {
       const { data, error } = await supabase.functions.invoke('stripe-payment', {
         body: {
-          action: 'charge_saved_card',
+          action: 'charge_saved_card_with_3ds',
           memberId: member.id,
           amount: amountInCents,
           description: chargeDescription.trim(),
@@ -548,6 +556,16 @@ export default function MemberDetail() {
       });
 
       if (error) throw error;
+      
+      // Check if 3DS is required
+      if (data?.requires_action) {
+        // Store pending charge info and show 3DS dialog
+        setPending3DSCharge({ amount: amountInCents, description: chargeDescription.trim() });
+        setShow3DSDialog(true);
+        setShowChargeDialog(false);
+        return;
+      }
+      
       if (!data?.success) throw new Error(data?.error || "Charge failed");
 
       toast.success(`Successfully charged $${chargeAmount}`);

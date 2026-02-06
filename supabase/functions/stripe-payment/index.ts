@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -1052,6 +1052,197 @@ serve(async (req) => {
             status: paymentIntent.status,
             cardBrand,
             cardLast4,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      // NEW: 3DS-aware charging for admin card charges
+      case 'charge_saved_card_with_3ds': {
+        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description } = body;
+
+        if (!amount || !description) {
+          throw new Error("Amount and description are required");
+        }
+
+        if (!memberId && !directCustomerId) {
+          throw new Error("Either memberId or stripeCustomerId is required");
+        }
+
+        if (amount < 50) {
+          throw new Error("Minimum charge amount is $0.50");
+        }
+
+        let customerId: string;
+        let customerName: string;
+        let memberIdForLog: string | null = null;
+        let userIdForLog: string | null = null;
+        let applicationIdForLog: string | null = applicationId || null;
+
+        if (directCustomerId) {
+          customerId = directCustomerId;
+          customerName = applicantName || 'Applicant';
+          logStep("Using direct stripeCustomerId for 3DS charge", { customerId, customerName });
+        } else if (memberId) {
+          const { data: memberData3ds, error: memberError3ds } = await supabase
+            .from('members')
+            .select('stripe_customer_id, first_name, last_name, user_id')
+            .eq('id', memberId)
+            .single();
+
+          if (memberError3ds || !memberData3ds) {
+            throw new Error("Member not found");
+          }
+
+          if (!memberData3ds.stripe_customer_id) {
+            throw new Error("Member has no payment method on file");
+          }
+
+          customerId = memberData3ds.stripe_customer_id;
+          customerName = `${memberData3ds.first_name} ${memberData3ds.last_name}`;
+          memberIdForLog = memberId;
+          userIdForLog = memberData3ds.user_id;
+          logStep("Found member stripe customer for 3DS charge", { customerId, customerName, memberId });
+        } else {
+          throw new Error("Either memberId or stripeCustomerId is required");
+        }
+
+        // Get the customer's payment method
+        const paymentMethods3ds = await stripe.paymentMethods.list({
+          customer: customerId,
+          type: 'card',
+          limit: 1,
+        });
+
+        if (paymentMethods3ds.data.length === 0) {
+          throw new Error("No payment method on file");
+        }
+
+        const paymentMethod3ds = paymentMethods3ds.data[0];
+        const cardBrand3ds = paymentMethod3ds.card?.brand ? 
+          paymentMethod3ds.card.brand.charAt(0).toUpperCase() + paymentMethod3ds.card.brand.slice(1) : 'Card';
+        const cardLast43ds = paymentMethod3ds.card?.last4 || '****';
+
+        // Create payment intent WITHOUT confirm: true to allow 3DS
+        const paymentIntent3ds = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: 'usd',
+          customer: customerId,
+          payment_method: paymentMethod3ds.id,
+          description: description,
+          confirmation_method: 'manual',
+          confirm: true, // Confirm but don't require off_session
+          return_url: `${Deno.env.get('SUPABASE_URL') || 'https://localhost'}/`,
+          metadata: {
+            type: 'manual_charge',
+            member_id: memberIdForLog || 'application',
+            application_id: applicationIdForLog || '',
+            charged_by: user.id,
+            customer_name: customerName,
+          },
+        });
+
+        logStep("3DS Payment intent created", { 
+          paymentIntentId: paymentIntent3ds.id, 
+          status: paymentIntent3ds.status,
+          amount,
+          customerName,
+        });
+
+        // Check if 3DS is required
+        if (paymentIntent3ds.status === 'requires_action') {
+          logStep("3DS required", { paymentIntentId: paymentIntent3ds.id });
+          return new Response(
+            JSON.stringify({ 
+              requires_action: true,
+              clientSecret: paymentIntent3ds.client_secret,
+              paymentIntentId: paymentIntent3ds.id,
+              cardBrand: cardBrand3ds,
+              cardLast4: cardLast43ds,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // If succeeded directly without 3DS
+        if (paymentIntent3ds.status === 'succeeded') {
+          // Record the charge in manual_charges table
+          if (memberIdForLog && userIdForLog) {
+            await supabase
+              .from('manual_charges')
+              .insert({
+                member_id: memberIdForLog,
+                user_id: userIdForLog,
+                amount: amount,
+                description: description,
+                stripe_payment_intent_id: paymentIntent3ds.id,
+                status: 'succeeded',
+                charged_by: user.id,
+              });
+          } else if (applicationIdForLog) {
+            await supabase
+              .from('manual_charges')
+              .insert({
+                application_id: applicationIdForLog,
+                user_id: user.id,
+                amount: amount,
+                description: description,
+                stripe_payment_intent_id: paymentIntent3ds.id,
+                status: 'succeeded',
+                charged_by: user.id,
+              });
+          }
+
+          // Sync to member profile if initiation fee
+          const isInitiationFee3ds = description.toLowerCase().includes('initiation') || 
+                                     description.toLowerCase().includes('annual fee');
+          
+          if (isInitiationFee3ds && applicationIdForLog) {
+            const { data: appData3ds } = await supabase
+              .from('membership_applications')
+              .select('email')
+              .eq('id', applicationIdForLog)
+              .single();
+            
+            if (appData3ds?.email) {
+              const { data: memberDataSync3ds } = await supabase
+                .from('members')
+                .select('id')
+                .ilike('email', appData3ds.email)
+                .maybeSingle();
+              
+              if (memberDataSync3ds) {
+                await supabase
+                  .from('members')
+                  .update({ 
+                    annual_fee_paid_at: new Date().toISOString(),
+                    stripe_customer_id: customerId 
+                  })
+                  .eq('id', memberDataSync3ds.id);
+                logStep("Synced annual_fee_paid_at to member (3DS)", { memberId: memberDataSync3ds.id });
+              }
+            }
+          }
+
+          return new Response(
+            JSON.stringify({ 
+              success: true,
+              paymentIntentId: paymentIntent3ds.id,
+              status: paymentIntent3ds.status,
+              cardBrand: cardBrand3ds,
+              cardLast4: cardLast43ds,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Handle other statuses
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            paymentIntentId: paymentIntent3ds.id,
+            status: paymentIntent3ds.status,
+            error: `Unexpected payment status: ${paymentIntent3ds.status}`,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
