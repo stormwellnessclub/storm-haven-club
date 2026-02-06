@@ -8,21 +8,28 @@
 
 ### 1. Payment Failure Email Notifications ✅
 
-**Status:** ✅ **COMPLETED**
+**Status:** ✅ **VERIFIED COMPLETE**
 
-**Changes:**
-- Added `payment_failed` email type to `send-email` Edge Function
-- Updated webhook handler to send emails when payments fail
-- Email includes failure reason, retry date, and instructions
+**Implementation Details:**
+- `payment_failed` email type exists in `send-email` Edge Function (line 10)
+- Webhook handler sends emails on `invoice.payment_failed` events (lines 1305-1339)
+- Email includes:
+  - Member name
+  - Amount due
+  - Failure reason / decline reason
+  - Next retry date (if applicable)
+  - Clear instructions for updating payment method
+  - Direct link to member portal
 
-**Files Modified:**
-- `supabase/functions/send-email/index.ts`
-- `supabase/functions/stripe-webhook/index.ts`
+**Files Containing Implementation:**
+- `supabase/functions/send-email/index.ts` (template at lines 845-919)
+- `supabase/functions/stripe-webhook/index.ts` (email sending at lines 1305-1339)
 
 **Impact:**
-- Better member communication
-- Members notified immediately when payments fail
-- Clear instructions for updating payment methods
+- ✅ Members notified immediately when payments fail
+- ✅ Human-readable decline reasons (insufficient funds, expired card, etc.)
+- ✅ Next retry date shown when Stripe will auto-retry
+- ✅ Clear call-to-action to update payment method
 
 ---
 
