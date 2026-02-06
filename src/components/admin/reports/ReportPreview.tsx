@@ -26,6 +26,7 @@ import { GuestPassUsageReport } from "./reports/GuestPassUsageReport";
 import { CreditBalancesReport } from "./reports/CreditBalancesReport";
 import { WorkoutActivityReport } from "./reports/WorkoutActivityReport";
 import { GoalsProgressReport } from "./reports/GoalsProgressReport";
+import { PaymentFollowUpReport } from "./reports/PaymentFollowUpReport";
 
 interface ReportPreviewProps {
   report: ReportDefinition | null;
@@ -109,6 +110,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'cash-flow-projection': CashFlowProjectionReport,
     'class-revenue-projection': ClassRevenueProjectionReport,
     'payment-analysis': PaymentAnalysisReport,
+    'payment-follow-up': PaymentFollowUpReport,
     'member-status-distribution': MemberStatusReport,
     'tier-distribution': TierDistributionReport,
     'founding-members': FoundingMembersReport,

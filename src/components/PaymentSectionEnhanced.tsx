@@ -80,6 +80,22 @@ function PaymentFormInner({ clientSecret, customerId, onSuccess, onCancel }: Pay
       });
 
       if (confirmError) {
+        // Log the failure for audit trail
+        try {
+          await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "log_card_setup_failure",
+              stripeCustomerId: customerId || undefined,
+              source: "self_service",
+              declineCode: confirmError.decline_code || confirmError.code || undefined,
+              declineMessage: confirmError.message || "Card declined",
+            },
+          });
+          console.log("[PaymentSectionEnhanced] Logged card setup failure");
+        } catch (logErr) {
+          console.warn("[PaymentSectionEnhanced] Failed to log card setup failure:", logErr);
+        }
+        
         setError(formatSetupError(confirmError));
         setIsSubmitting(false);
         return;

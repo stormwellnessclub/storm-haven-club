@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -183,6 +183,30 @@ serve(async (req) => {
       });
 
       logStep("Setup intent created", { setupIntentId: setupIntent.id, customerId });
+
+      // Log card setup attempt for audit trail
+      try {
+        // Find application by email
+        const { data: appData } = await supabase
+          .from('membership_applications')
+          .select('id')
+          .ilike('email', applicantEmail)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        await supabase.from('card_setup_attempts').insert({
+          application_id: appData?.id || null,
+          stripe_customer_id: customerId,
+          stripe_setup_intent: setupIntent.id,
+          source: 'self_service',
+          status: 'initiated',
+          metadata: { applicant_email: applicantEmail, applicant_name: applicantName },
+        });
+        logStep("Card setup attempt logged (self_service)", { setupIntentId: setupIntent.id });
+      } catch (auditErr) {
+        logStep("Warning: Failed to log card setup attempt", { error: String(auditErr) });
+      }
 
       return new Response(
         JSON.stringify({ 
@@ -847,6 +871,40 @@ serve(async (req) => {
           customerId: finalCustomerId 
         });
 
+        // Log card setup attempt for audit trail (admin portal)
+        try {
+          // Try to find application ID if we have the email
+          let applicationId: string | null = null;
+          if (adminApplicantEmail) {
+            const { data: appData } = await supabase
+              .from('membership_applications')
+              .select('id')
+              .ilike('email', adminApplicantEmail)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            applicationId = appData?.id || null;
+          }
+
+          await supabase.from('card_setup_attempts').insert({
+            member_id: adminSetupMemberId || null,
+            application_id: applicationId,
+            stripe_customer_id: finalCustomerId,
+            stripe_setup_intent: adminSetupIntent.id,
+            source: 'admin_portal',
+            initiated_by: user.id,
+            status: 'initiated',
+            metadata: { 
+              applicant_email: adminApplicantEmail || null, 
+              applicant_name: adminApplicantName || null,
+              admin_user_id: user.id,
+            },
+          });
+          logStep("Card setup attempt logged (admin_portal)", { setupIntentId: adminSetupIntent.id });
+        } catch (auditErr) {
+          logStep("Warning: Failed to log admin card setup attempt", { error: String(auditErr) });
+        }
+
         return new Response(
           JSON.stringify({ 
             clientSecret: adminSetupIntent.client_secret,
@@ -1360,6 +1418,32 @@ serve(async (req) => {
         });
 
         logStep("SetupIntent created", { setupIntentId: setupIntent.id, customerId, stripeMode });
+
+        // Log card setup attempt for audit trail (member portal)
+        try {
+          // Get member ID from user if not provided
+          let memberIdForAudit = memberId;
+          if (!memberIdForAudit) {
+            const { data: memberData } = await supabase
+              .from('members')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            memberIdForAudit = memberData?.id || null;
+          }
+
+          await supabase.from('card_setup_attempts').insert({
+            member_id: memberIdForAudit,
+            stripe_customer_id: customerId,
+            stripe_setup_intent: setupIntent.id,
+            source: 'member_portal',
+            status: 'initiated',
+            metadata: { user_id: user.id },
+          });
+          logStep("Card setup attempt logged (member_portal)", { setupIntentId: setupIntent.id });
+        } catch (auditErr) {
+          logStep("Warning: Failed to log member card setup attempt", { error: String(auditErr) });
+        }
 
         return new Response(
           JSON.stringify({ 
@@ -2544,6 +2628,25 @@ serve(async (req) => {
           cardLast4: cardDetails.card_last4 
         });
 
+        // Update card_setup_attempts to succeeded (find by customer ID, most recent initiated)
+        try {
+          await supabase
+            .from('card_setup_attempts')
+            .update({
+              status: 'succeeded',
+              completed_at: new Date().toISOString(),
+              card_brand: cardDetails.card_brand,
+              card_last4: cardDetails.card_last4,
+            })
+            .eq('stripe_customer_id', customerIdToUse)
+            .eq('status', 'initiated')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          logStep("Updated card_setup_attempt to succeeded", { customerId: customerIdToUse });
+        } catch (auditErr) {
+          logStep("Warning: Failed to update card_setup_attempt", { error: String(auditErr) });
+        }
+
         return new Response(
           JSON.stringify({ 
             success: true, 
@@ -3205,6 +3308,78 @@ serve(async (req) => {
             memberId: undoMemberId,
             actionType: actionData.action_type,
           }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'log_card_setup_failure': {
+        // Log a failed card setup attempt (called from frontend on decline)
+        const { 
+          stripeCustomerId: failureCustomerId, 
+          setupIntentId: failureSetupIntentId,
+          applicationId: failureAppId,
+          memberId: failureMemberId,
+          source: failureSource,
+          declineCode,
+          declineMessage,
+          initiatedBy,
+        } = body;
+
+        logStep("Logging card setup failure", { 
+          customerId: failureCustomerId, 
+          setupIntentId: failureSetupIntentId,
+          declineCode 
+        });
+
+        // Try to find and update existing attempt record by setupIntentId first
+        if (failureSetupIntentId) {
+          const { data: existingAttempt } = await supabase
+            .from('card_setup_attempts')
+            .select('id')
+            .eq('stripe_setup_intent', failureSetupIntentId)
+            .maybeSingle();
+
+          if (existingAttempt) {
+            await supabase
+              .from('card_setup_attempts')
+              .update({
+                status: 'failed',
+                completed_at: new Date().toISOString(),
+                decline_code: declineCode || null,
+                decline_message: declineMessage || null,
+              })
+              .eq('id', existingAttempt.id);
+            
+            logStep("Updated existing card_setup_attempt to failed", { id: existingAttempt.id });
+            
+            return new Response(
+              JSON.stringify({ success: true, updated: true }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+            );
+          }
+        }
+
+        // If no existing record, insert a new one
+        await supabase.from('card_setup_attempts').insert({
+          member_id: failureMemberId || null,
+          application_id: failureAppId || null,
+          stripe_customer_id: failureCustomerId || 'unknown',
+          stripe_setup_intent: failureSetupIntentId || null,
+          source: failureSource || 'unknown',
+          initiated_by: initiatedBy || null,
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          decline_code: declineCode || null,
+          decline_message: declineMessage || null,
+          metadata: { logged_from: 'frontend' },
+        });
+
+        logStep("Inserted new card_setup_attempt as failed", { 
+          customerId: failureCustomerId 
+        });
+
+        return new Response(
+          JSON.stringify({ success: true, inserted: true }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
