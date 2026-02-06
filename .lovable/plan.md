@@ -1,248 +1,205 @@
 
 
-# Comprehensive Payment Flow Streamlining Plan
+# Card Attempt Audit Logging System
 
-## Executive Summary
+## Overview
 
-After thorough analysis of the codebase, database records, and Stripe integration, I've identified **7 critical bugs** causing the issues you described. This plan addresses all of them with a unified, streamlined approach.
-
----
-
-## Problems Identified
-
-### Problem 1: Receipt Emails Sent Without Real Payment
-**Current behavior**: When an admin clicks "Mark as Paid" for offline payments, the system updates `annual_fee_status` but no receipt is sent. However, when a payment link checkout completes, the webhook updates the application status AND should sync to member - but the sync is incomplete.
-
-**Evidence**: Applications marked "paid" with no `stripe_customer_id` and no charge records.
-
-### Problem 2: Application-to-Member Sync Gap (Core Issue)
-**Current behavior**: The `updateAnnualFeeMutation` in Applications.tsx only updates `membership_applications.annual_fee_status`. It does NOT sync to `members.annual_fee_paid_at`.
-
-**Location**: `src/pages/admin/Applications.tsx` lines 565-580
-
-**Evidence**: Database shows applications with `annual_fee_status='paid'` but corresponding members have `annual_fee_paid_at=null`:
-- Jessica Seagull: app paid, member has card but `annual_fee_paid_at=null`
-- Sarah Kawar: app paid, member has card but `annual_fee_paid_at=null`
-- 30+ other records with same mismatch
-
-### Problem 3: Payment Link Webhook Incomplete Sync
-**Current behavior**: The `annual_fee_payment_link` handler in stripe-webhook updates `membership_applications` but does NOT sync to `members` table.
-
-**Location**: `supabase/functions/stripe-webhook/index.ts` lines 685-760
-
-**Missing**: After updating application, find member by email and update `annual_fee_paid_at`
-
-### Problem 4: Card Saved But No Charge Capability in Admin Portals
-**Current behavior**: Members can have a card saved (visible in both portals), but:
-- Application Portal: "Charge Card" button only appears if `stripe_customer_id` exists on the application
-- Member Portal admin view: Can charge card if member has `stripe_customer_id`
-
-**Gap**: If card is saved during application but `stripe_customer_id` wasn't copied to member on activation, admin can't charge from member detail page.
-
-### Problem 5: Manual "Charge Card" Doesn't Support 3D Secure
-**Current behavior**: The `charge_saved_card` action uses `off_session: true, confirm: true` which fails for cards requiring 3DS.
-
-**Location**: `supabase/functions/stripe-payment/index.ts` lines 933-948
-
-### Problem 6: Duplicate Records Causing Confusion
-**Evidence**: Same email appears multiple times in applications with different statuses, and multiple member records for same email with different `stripe_customer_id` values.
-
-### Problem 7: No Admin Visibility Into Payment Verification
-**Current behavior**: Admin sees badges for "Paid"/"Pending" but cannot easily verify if actual Stripe payment exists vs. manual override.
+This plan adds comprehensive audit logging for all card addition attempts, capturing:
+- **Source attribution**: Whether the attempt was `self_service` (applicant/member), `admin_portal`, or `checkout_link`
+- **Success/failure tracking**: Record if the card save succeeded or was declined
+- **Decline reasons**: Capture Stripe's decline codes for failed attempts
+- **Full timeline**: Track when someone started AND when they completed/failed
 
 ---
 
-## Solution Architecture
+## What You'll Get
 
-```text
-+-------------------+     +------------------+     +----------------+
-| Application Portal| --> | Stripe Checkout  | --> | Webhook        |
-| (Mark Paid / Link)|     | (payment link)   |     | Handler        |
-+-------------------+     +------------------+     +----------------+
-         |                        |                       |
-         v                        v                       v
-+------------------------------------------------------------------------+
-|                    UNIFIED SYNC LAYER                                  |
-|                                                                         |
-|  syncInitiationFeeStatus(applicationId OR memberEmail, {               |
-|    status: 'paid' | 'pending' | 'failed',                              |
-|    source: 'stripe_checkout' | 'admin_charge' | 'manual_override',     |
-|    stripeCustomerId?: string,                                          |
-|    chargeId?: string,                                                  |
-|  })                                                                     |
-|                                                                         |
-|  Updates BOTH tables atomically:                                       |
-|    - membership_applications.annual_fee_status                         |
-|    - members.annual_fee_paid_at (if member exists)                     |
-|    - members.stripe_customer_id (if provided)                          |
-+------------------------------------------------------------------------+
-```
+After implementation, you'll be able to answer:
+- "Who clicked the payment link but failed to complete?"
+- "Which cards were declined vs abandoned?"
+- "Did the admin add this card or did the member add it themselves?"
+- "What was the specific decline reason?"
 
 ---
 
-## Technical Implementation
+## Implementation
 
-### Part 1: Fix Manual "Mark as Paid" to Sync Both Tables
+### 1. New Database Table: `card_setup_attempts`
 
-**File**: `src/pages/admin/Applications.tsx`
-
-**Changes**:
-1. Update `updateAnnualFeeMutation` to also sync to member record
-2. Add confirmation dialog with payment method selection (Cash, Check, External, Manual Override)
-3. Require a note for audit trail
-
-**New behavior**:
-```text
-Admin clicks "Mark as Paid"
-  -> Confirmation dialog opens
-  -> Admin selects payment method (Cash/Check/External/Other)
-  -> Admin enters optional note ("Check #1234 received Feb 5")
-  -> System updates membership_applications.annual_fee_status = 'paid'
-  -> System finds member by email
-  -> System updates members.annual_fee_paid_at = now()
-  -> System records in manual_charges table (for audit)
-  -> NO receipt email sent (per your preference)
-```
-
-### Part 2: Fix Webhook to Sync to Member Table
-
-**File**: `supabase/functions/stripe-webhook/index.ts`
-
-**Changes**: After updating application in `annual_fee_payment_link` handler, add member sync:
+A dedicated audit table to track every card addition attempt:
 
 ```text
-// After line 756 in webhook handler:
-// Look up member by application email and sync
-const { data: memberData } = await supabase
-  .from('members')
-  .select('id')
-  .ilike('email', application.email)
-  .maybeSingle();
-
-if (memberData) {
-  await supabase
-    .from('members')
-    .update({
-      annual_fee_paid_at: new Date().toISOString(),
-      stripe_customer_id: session.customer,
-    })
-    .eq('id', memberData.id);
-  logStep("Synced annual fee to member", { memberId: memberData.id });
-}
+┌─────────────────────────────────────────────────────────────────┐
+│                    card_setup_attempts                          │
+├─────────────────────────────────────────────────────────────────┤
+│ id                  UUID (primary key)                          │
+│ member_id           UUID (nullable, FK → members)               │
+│ application_id      UUID (nullable, FK → membership_applications)│
+│ stripe_customer_id  TEXT                                        │
+│ stripe_setup_intent TEXT (nullable - SI id for correlation)    │
+│ source              TEXT: 'self_service' | 'admin_portal' |     │
+│                           'checkout_link' | 'member_portal'     │
+│ initiated_by        UUID (nullable - admin user who started it) │
+│ status              TEXT: 'initiated' | 'succeeded' | 'failed'  │
+│                           | 'abandoned'                         │
+│ decline_code        TEXT (nullable - Stripe decline_code)       │
+│ decline_message     TEXT (nullable - friendly error)            │
+│ card_brand          TEXT (nullable - on success)                │
+│ card_last4          TEXT (nullable - on success)                │
+│ created_at          TIMESTAMPTZ (when attempt started)          │
+│ completed_at        TIMESTAMPTZ (nullable - when succeeded/failed)│
+│ metadata            JSONB (extra context)                       │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Part 3: Add 3DS Support for Admin Card Charges
+### 2. Edge Function Updates
 
-**File**: `supabase/functions/stripe-payment/index.ts`
+Modify `stripe-payment` to log attempts at each stage:
 
-**Changes**: Modify `charge_saved_card` to detect 3DS requirement and return action needed:
+**On `create_setup_intent` / `create_admin_setup_intent` / `create_application_setup`:**
+- Insert a new `card_setup_attempts` record with `status = 'initiated'`
+- Record the `source` based on which action was called
+- Store the `setup_intent.id` for correlation
 
-```text
-New flow:
-1. Create PaymentIntent with confirm: false
-2. Check if paymentIntent.status === 'requires_action'
-3. If 3DS required, return { requires_action: true, clientSecret: ... }
-4. Frontend shows Stripe confirmation modal
-5. After 3DS, frontend calls 'confirm_charge_after_3ds' action
-```
+**On card save success (sync_member_card_metadata action):**
+- Find the matching attempt by `stripe_setup_intent` or `stripe_customer_id`
+- Update to `status = 'succeeded'`, set `completed_at`, card details
 
-**New frontend component**: `AdminChargeWith3DS.tsx`
-- Wraps charge dialog with StripeProvider when 3DS is needed
-- Uses Stripe.js `stripe.handleNextAction()` to complete 3DS
+**On Stripe webhook `setup_intent.succeeded`:**
+- Update matching attempt record to `succeeded` (backup for webhook-only flows)
 
-### Part 4: Create MarkPaidDialog Component
+**On Stripe webhook `setup_intent.setup_failed`:**
+- Update matching attempt to `status = 'failed'`
+- Capture `decline_code` and `decline_message` from the event
 
-**File**: `src/components/admin/MarkPaidDialog.tsx`
+### 3. Frontend Integration
 
-```text
-+-------------------------------------------------------+
-| Confirm Manual Payment                                 |
-+-------------------------------------------------------+
-|                                                        |
-| [!] Warning: This marks the initiation fee as paid     |
-|     WITHOUT processing a Stripe payment.               |
-|                                                        |
-| Only use this if the member paid through another       |
-| method (cash, check, or previous payment system).      |
-|                                                        |
-| Payment Method: [Cash / Check / External / Other v]    |
-|                                                        |
-| Note (optional):                                       |
-| +--------------------------------------------------+   |
-| | e.g., "Check #1234 received Feb 5"               |   |
-| +--------------------------------------------------+   |
-|                                                        |
-|                    [Cancel] [Confirm Payment Received] |
-+-------------------------------------------------------+
-```
+**Apply.tsx (PaymentSectionEnhanced):**
+- Already uses `create_application_setup` → will be logged automatically
 
-### Part 5: Ensure Card Metadata Syncs During Activation
+**AddCardModal.tsx (Member Portal):**
+- Uses `create_setup_intent` → will be logged automatically
+- On error, call a new action to log the failure with decline reason
 
-**File**: `src/pages/admin/Applications.tsx` (in `updateStatusMutation`)
+**AdminAddCardForm.tsx:**
+- Uses `create_admin_setup_intent` → will log with `source = 'admin_portal'`
+- Pass the admin's user_id as `initiated_by`
+- On error, log the decline with reason
 
-**Changes**: When creating member record from application, copy:
-- `stripe_customer_id`
-- `card_brand`, `card_last4`, `card_exp_month`, `card_exp_year`
-- If `annual_fee_status === 'paid'`, set `annual_fee_paid_at`
+### 4. New Admin Report: Payment Follow-Up Report
 
-This already exists partially at line 414-421, but needs to also copy `annual_fee_paid_at` when `annual_fee_status === 'paid'`.
+A new report in the Reports section showing:
+- All `initiated` but not `succeeded` attempts
+- Grouped by time period (today, this week, this month)
+- Shows source, member/applicant name, decline reason
+- Filterable by status (declined vs abandoned)
 
-### Part 6: Add Payment Verification UI in Application Details
+---
 
-Show a visual indicator comparing:
-- Application status vs. actual Stripe subscription data
-- Display mismatch warning when statuses don't align
-- Add "Sync to Member" button for manual correction
+## Technical Details
 
-### Part 7: One-Time Data Cleanup
-
-After implementation, provide a SQL query to fix existing mismatched records:
+### Database Migration
 
 ```sql
--- Sync applications marked 'paid' to their corresponding member records
-UPDATE members m
-SET annual_fee_paid_at = ma.updated_at
-FROM membership_applications ma
-WHERE LOWER(m.email) = LOWER(ma.email)
-  AND ma.annual_fee_status = 'paid'
-  AND m.annual_fee_paid_at IS NULL;
+-- Create card setup attempts audit table
+CREATE TABLE public.card_setup_attempts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  member_id UUID REFERENCES public.members(id) ON DELETE SET NULL,
+  application_id UUID REFERENCES public.membership_applications(id) ON DELETE SET NULL,
+  stripe_customer_id TEXT NOT NULL,
+  stripe_setup_intent TEXT,
+  source TEXT NOT NULL CHECK (source IN ('self_service', 'admin_portal', 'checkout_link', 'member_portal')),
+  initiated_by UUID,
+  status TEXT NOT NULL DEFAULT 'initiated' CHECK (status IN ('initiated', 'succeeded', 'failed', 'abandoned')),
+  decline_code TEXT,
+  decline_message TEXT,
+  card_brand TEXT,
+  card_last4 TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  metadata JSONB DEFAULT '{}'::jsonb
+);
+
+-- Index for quick lookups
+CREATE INDEX idx_card_setup_attempts_customer ON public.card_setup_attempts(stripe_customer_id);
+CREATE INDEX idx_card_setup_attempts_setup_intent ON public.card_setup_attempts(stripe_setup_intent);
+CREATE INDEX idx_card_setup_attempts_status ON public.card_setup_attempts(status);
+CREATE INDEX idx_card_setup_attempts_created ON public.card_setup_attempts(created_at DESC);
+
+-- RLS policy for admins only
+ALTER TABLE public.card_setup_attempts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can view card setup attempts"
+  ON public.card_setup_attempts
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.user_roles
+      WHERE user_id = auth.uid()
+      AND role IN ('super_admin', 'admin', 'manager')
+    )
+  );
+
+CREATE POLICY "System can insert card setup attempts"
+  ON public.card_setup_attempts
+  FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "System can update card setup attempts"
+  ON public.card_setup_attempts
+  FOR UPDATE
+  USING (true);
 ```
 
----
+### Edge Function Changes
 
-## Files to Modify
+1. **`create_application_setup`**: Log with `source = 'self_service'`
+2. **`create_setup_intent`**: Log with `source = 'member_portal'`
+3. **`create_admin_setup_intent`**: Log with `source = 'admin_portal'`, include `initiated_by`
+4. **New action `log_card_setup_failure`**: Called from frontend on decline
+5. **`sync_member_card_metadata`**: Update attempt to `succeeded`
 
-| File | Changes |
-|------|---------|
-| `src/pages/admin/Applications.tsx` | Update mutation to sync both tables, add confirmation dialog, copy fee status on activation |
-| `src/components/admin/MarkPaidDialog.tsx` | NEW - Confirmation dialog for manual payment marking |
-| `supabase/functions/stripe-webhook/index.ts` | Add member sync after application update in payment link handler |
-| `supabase/functions/stripe-payment/index.ts` | Add 3DS support for `charge_saved_card` action |
-| `src/components/admin/AdminChargeWith3DS.tsx` | NEW - Charge dialog with 3DS confirmation support |
-| `src/pages/admin/MemberDetail.tsx` | Update charge flow to handle 3DS response |
+### Frontend Changes
 
----
-
-## Receipt Email Behavior (Confirmed)
-
-Per your preference, receipts will ONLY be sent when:
-1. A real Stripe charge succeeds (via checkout or off-session charge)
-2. An admin manually charges a card successfully
-
-Receipts will NOT be sent for:
-- "Mark as Paid" manual overrides (these are for offline payments)
-- Saving a card (setup intent)
-- Generating payment links (until actually paid)
+1. **PaymentSectionEnhanced.tsx**: On error, call `log_card_setup_failure`
+2. **AddCardModal.tsx**: On error, call `log_card_setup_failure`
+3. **AdminAddCardForm.tsx**: On error, call `log_card_setup_failure` with admin context
+4. **New report component**: `PaymentFollowUpReport.tsx`
 
 ---
 
-## Expected Outcomes
+## Files to Create/Modify
 
-After implementation:
-1. "Mark as Paid" in Application Portal will sync to Member Portal instantly
-2. Payment links that complete will sync to both tables automatically
-3. Admins can charge cards that require 3DS authentication
-4. Card metadata will always be copied when member is created from application
-5. Existing mismatched records can be fixed with one-time sync query
-6. Clear audit trail for all payment status changes
+| File | Action |
+|------|--------|
+| `supabase/functions/stripe-payment/index.ts` | Modify - add logging to setup intent actions |
+| `supabase/functions/stripe-webhook/index.ts` | Modify - handle `setup_intent.setup_failed` |
+| `src/components/PaymentSectionEnhanced.tsx` | Modify - log failures |
+| `src/components/member/AddCardModal.tsx` | Modify - log failures |
+| `src/components/admin/AdminAddCardForm.tsx` | Modify - log failures |
+| `src/components/admin/reports/reports/PaymentFollowUpReport.tsx` | Create - new report |
+| `src/lib/reportDefinitions.ts` | Modify - add new report |
+| Database migration | Create table + indexes + RLS |
+
+---
+
+## Sample Query for "Who Tried But Failed"
+
+After implementation, you can run:
+```sql
+SELECT 
+  csa.created_at,
+  csa.source,
+  csa.status,
+  csa.decline_code,
+  csa.decline_message,
+  COALESCE(m.first_name, ma.first_name) as first_name,
+  COALESCE(m.last_name, ma.last_name) as last_name,
+  COALESCE(m.email, ma.email) as email
+FROM card_setup_attempts csa
+LEFT JOIN members m ON csa.member_id = m.id
+LEFT JOIN membership_applications ma ON csa.application_id = ma.id
+WHERE csa.status IN ('failed', 'initiated')
+ORDER BY csa.created_at DESC;
+```
 
