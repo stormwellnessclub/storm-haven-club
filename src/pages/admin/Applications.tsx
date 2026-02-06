@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -273,6 +273,39 @@ export default function Applications() {
     retry: 2,
   });
 
+  // Query email audit log to show what emails were sent
+  const { data: emailAuditData = [] } = useQuery({
+    queryKey: ["email-audit-applications"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_audit_log")
+        .select("application_id, email_type, sent_at, status")
+        .not("application_id", "is", null)
+        .order("sent_at", { ascending: false });
+      if (error) {
+        console.error("Failed to fetch email audit log:", error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  // Create a map of application_id -> latest email info
+  const emailStatusByApplication = useMemo(() => {
+    const map = new Map<string, { type: string; sentAt: string; status: string }>();
+    for (const log of emailAuditData) {
+      if (log.application_id && !map.has(log.application_id)) {
+        map.set(log.application_id, {
+          type: log.email_type,
+          sentAt: log.sent_at || "",
+          status: log.status,
+        });
+      }
+    }
+    return map;
+  }, [emailAuditData]);
+
   // Check member link status when viewing an approved application
   const checkMemberLinkStatus = async (email: string) => {
     setMemberLinkStatus(null);
@@ -449,54 +482,82 @@ export default function Applications() {
         // Send appropriate email based on options
         if (!suppressEmail) {
           try {
+            // Get current admin user for audit logging
+            const { data: { user: adminUser } } = await supabase.auth.getUser();
+            let emailType = "";
+            let emailData: any = {};
+            
             if (autoActivate) {
               // Send welcome email for auto-activated members
+              emailType = "membership_activated";
+              emailData = {
+                name: firstName,
+                membershipType: application.membership_plan,
+                startDate: format(startDate || now, "MMMM d, yyyy"),
+              };
               await supabase.functions.invoke("send-email", {
                 body: {
-                  type: "membership_activated",
+                  type: emailType,
                   to: application.email,
-                  data: {
-                    name: firstName,
-                    membershipType: application.membership_plan,
-                    startDate: format(startDate || now, "MMMM d, yyyy"),
-                  },
+                  data: emailData,
                 },
               });
             } else if (isPreLaunch) {
               // Send pre-launch email (no links to website/auth)
+              emailType = "approval_letter";
+              emailData = {
+                name: firstName,
+                membershipTier: normalizeTierName(application.membership_plan) + " Membership",
+              };
               await supabase.functions.invoke("send-email", {
                 body: {
-                  type: "approval_letter",
+                  type: emailType,
                   to: application.email,
-                  data: {
-                    name: firstName,
-                    membershipTier: normalizeTierName(application.membership_plan) + " Membership",
-                  },
+                  data: emailData,
                 },
               });
             } else if (lockedStartDate) {
               // Send locked date email
+              emailType = "application_approved_locked_date";
+              emailData = {
+                name: firstName,
+                lockedStartDate: format(lockedStartDate, "MMMM d, yyyy"),
+              };
               await supabase.functions.invoke("send-email", {
                 body: {
-                  type: "application_approved_locked_date",
+                  type: emailType,
                   to: application.email,
-                  data: {
-                    name: firstName,
-                    lockedStartDate: format(lockedStartDate, "MMMM d, yyyy"),
-                  },
+                  data: emailData,
                 },
               });
             } else {
               // Send approval email with activation instructions
+              emailType = "approval_with_deadline";
+              emailData = {
+                name: firstName,
+                activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
+              };
               await supabase.functions.invoke("send-email", {
                 body: {
-                  type: "approval_with_deadline",
+                  type: emailType,
                   to: application.email,
-                  data: {
-                    name: firstName,
-                    activationDeadline: format(activationDeadline, "MMMM d, yyyy"),
-                  },
+                  data: emailData,
                 },
+              });
+            }
+            
+            // Log to email audit for all approval emails
+            if (adminUser && emailType) {
+              await supabase.from("email_audit_log" as any).insert({
+                email_type: emailType,
+                recipient_email: application.email,
+                recipient_name: firstName,
+                triggered_by: adminUser.id,
+                trigger_source: "admin_approval",
+                application_id: id,
+                template_data: emailData,
+                status: "sent",
+                sent_at: new Date().toISOString(),
               });
             }
           } catch (emailError) {
@@ -527,6 +588,7 @@ export default function Applications() {
     },
     onSuccess: (_, { status, suppressEmail, autoActivate, lockedStartDate, isPreLaunch }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["email-audit-applications"] });
       if (status === "approved") {
         if (autoActivate) {
           toast.success("Application approved & member auto-activated");
@@ -1769,9 +1831,22 @@ export default function Applications() {
             holistic_wellness: personalizedLetterTarget.holistic_wellness || undefined,
             lifestyle_integration: personalizedLetterTarget.lifestyle_integration || undefined,
           } : null}
+          isAlreadyApproved={personalizedLetterTarget?.status === "approved"}
           onSendSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
             setPersonalizedLetterTarget(null);
+          }}
+          onApproveAfterSend={async (applicantId: string) => {
+            // This is called ONLY after email is successfully sent
+            const app = applications.find(a => a.id === applicantId);
+            if (!app) return;
+            
+            await updateStatusMutation.mutateAsync({
+              id: applicantId,
+              status: "approved",
+              application: app,
+              suppressEmail: true, // Don't send another email, we just sent the personalized one
+            });
           }}
         />
 
@@ -1876,6 +1951,7 @@ export default function Applications() {
                   <TableHead>Founding Member</TableHead>
                   <TableHead>Card</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Email Sent</TableHead>
                   <TableHead>Initiation Fee</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -1939,6 +2015,58 @@ export default function Applications() {
                       </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(app.status)}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const emailInfo = emailStatusByApplication.get(app.id);
+                        if (!emailInfo) {
+                          // No email sent for this application
+                          if (app.status === "approved") {
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="text-destructive border-destructive gap-1">
+                                      <AlertCircle className="h-3 w-3" />
+                                      No Email
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Approved but no email was sent</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          }
+                          return <span className="text-muted-foreground text-xs">—</span>;
+                        }
+                        
+                        // Format email type for display
+                        const typeLabels: Record<string, string> = {
+                          "approval_letter_personalized": "AI Letter",
+                          "approval_letter": "Approval",
+                          "approval_with_deadline": "Deadline",
+                          "setup_instructions": "Setup",
+                          "application_approved_locked_date": "Locked Date",
+                        };
+                        const label = typeLabels[emailInfo.type] || emailInfo.type;
+                        
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge className="bg-muted/20 text-muted-foreground gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {label}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Sent {emailInfo.sentAt ? format(new Date(emailInfo.sentAt), "MMM d 'at' h:mm a") : "recently"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell>{getAnnualFeeBadge(app.annual_fee_status)}</TableCell>
                     <TableCell>{format(new Date(app.created_at), "MMM d, yyyy")}</TableCell>
                     <TableCell className="text-right">
@@ -2009,10 +2137,9 @@ export default function Applications() {
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => {
+                                  // Open modal ONLY - approval happens after email is sent successfully
                                   setPersonalizedLetterTarget(app);
                                   setShowPersonalizedLetterModal(true);
-                                  // Also approve the application (no email yet)
-                                  updateStatusMutation.mutate({ id: app.id, status: "approved", application: app, suppressEmail: true });
                                 }}
                               >
                                 <Sparkles className="h-4 w-4 mr-2" />
@@ -2068,6 +2195,101 @@ export default function Applications() {
                               >
                                 <CalendarIcon className="h-4 w-4 mr-2" />
                                 Approve with Locked Start Date
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {/* Resend Email options - only for already approved applications */}
+                          {app.status === "approved" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  // Open personalized letter modal for resend
+                                  setPersonalizedLetterTarget(app);
+                                  setShowPersonalizedLetterModal(true);
+                                }}
+                              >
+                                <Sparkles className="h-4 w-4 mr-2" />
+                                Send AI Personalized Letter
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={async () => {
+                                  try {
+                                    const firstName = app.first_name || app.full_name.split(" ")[0];
+                                    await supabase.functions.invoke("send-email", {
+                                      body: {
+                                        type: "approval_letter",
+                                        to: app.email,
+                                        data: {
+                                          name: firstName,
+                                          membershipTier: app.membership_plan,
+                                        },
+                                      },
+                                    });
+                                    // Log to audit
+                                    const { data: { user: currentUser } } = await supabase.auth.getUser();
+                                    if (currentUser) {
+                                      await supabase.from("email_audit_log" as any).insert({
+                                        email_type: "approval_letter",
+                                        recipient_email: app.email,
+                                        recipient_name: firstName,
+                                        triggered_by: currentUser.id,
+                                        trigger_source: "admin_resend",
+                                        application_id: app.id,
+                                        status: "sent",
+                                        sent_at: new Date().toISOString(),
+                                      });
+                                    }
+                                    queryClient.invalidateQueries({ queryKey: ["email-audit-applications"] });
+                                    toast.success("Approval letter sent!");
+                                  } catch (err) {
+                                    console.error("Failed to send approval letter:", err);
+                                    toast.error("Failed to send email");
+                                  }
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Send Standard Approval Letter
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={async () => {
+                                  try {
+                                    const firstName = app.first_name || app.full_name.split(" ")[0];
+                                    await supabase.functions.invoke("send-email", {
+                                      body: {
+                                        type: "setup_instructions",
+                                        to: app.email,
+                                        data: {
+                                          name: firstName,
+                                          email: app.email,
+                                          membershipTier: app.membership_plan,
+                                        },
+                                      },
+                                    });
+                                    // Log to audit
+                                    const { data: { user: currentUser } } = await supabase.auth.getUser();
+                                    if (currentUser) {
+                                      await supabase.from("email_audit_log" as any).insert({
+                                        email_type: "setup_instructions",
+                                        recipient_email: app.email,
+                                        recipient_name: firstName,
+                                        triggered_by: currentUser.id,
+                                        trigger_source: "admin_resend",
+                                        application_id: app.id,
+                                        status: "sent",
+                                        sent_at: new Date().toISOString(),
+                                      });
+                                    }
+                                    queryClient.invalidateQueries({ queryKey: ["email-audit-applications"] });
+                                    toast.success("Setup instructions sent!");
+                                  } catch (err) {
+                                    console.error("Failed to send setup instructions:", err);
+                                    toast.error("Failed to send email");
+                                  }
+                                }}
+                              >
+                                <Settings className="h-4 w-4 mr-2" />
+                                Send Setup Instructions
                               </DropdownMenuItem>
                             </>
                           )}

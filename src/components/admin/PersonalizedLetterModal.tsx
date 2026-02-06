@@ -33,6 +33,10 @@ interface PersonalizedLetterModalProps {
   onOpenChange: (open: boolean) => void;
   applicant: ApplicantInfo | null;
   onSendSuccess: () => void;
+  /** Called after email is successfully sent - parent should approve application here */
+  onApproveAfterSend?: (applicantId: string) => Promise<void>;
+  /** If true, application is already approved (for resend scenarios) */
+  isAlreadyApproved?: boolean;
 }
 
 export function PersonalizedLetterModal({
@@ -40,6 +44,8 @@ export function PersonalizedLetterModal({
   onOpenChange,
   applicant,
   onSendSuccess,
+  onApproveAfterSend,
+  isAlreadyApproved = false,
 }: PersonalizedLetterModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -47,7 +53,6 @@ export function PersonalizedLetterModal({
   const [body, setBody] = useState("");
   const [hasGenerated, setHasGenerated] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
 
   const handleGenerate = async () => {
     if (!applicant) return;
@@ -73,7 +78,6 @@ export function PersonalizedLetterModal({
 
       if (error) {
         console.error("[PersonalizedLetter] Edge function error:", error);
-        // Check for specific error types
         if (error.message?.includes("404") || error.message?.includes("not found")) {
           throw new Error("AI service temporarily unavailable. Please try again in a moment.");
         }
@@ -102,7 +106,6 @@ export function PersonalizedLetterModal({
   };
 
   const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
     setGenerationError(null);
     handleGenerate();
   };
@@ -115,6 +118,7 @@ export function PersonalizedLetterModal({
 
     setIsSending(true);
     try {
+      // Step 1: Send the email
       const { error } = await supabase.functions.invoke("send-email", {
         body: {
           type: "approval_letter_personalized",
@@ -130,7 +134,7 @@ export function PersonalizedLetterModal({
 
       if (error) throw error;
 
-      // Log to email audit
+      // Step 2: Log to email audit
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from("email_audit_log" as any).insert({
@@ -146,31 +150,48 @@ export function PersonalizedLetterModal({
             membershipTier: applicant.tier,
             wellness_goals: applicant.wellness_goals,
           },
+          status: "sent",
+          sent_at: new Date().toISOString(),
         });
+      }
+
+      // Step 3: ONLY NOW approve the application (if not already approved)
+      if (onApproveAfterSend && !isAlreadyApproved) {
+        try {
+          await onApproveAfterSend(applicant.id);
+        } catch (approveError: any) {
+          console.error("Failed to approve after email send:", approveError);
+          toast.error("Email sent but failed to approve application. Please approve manually.");
+          // Still close modal since email was sent successfully
+          onSendSuccess();
+          onOpenChange(false);
+          resetState();
+          return;
+        }
       }
 
       toast.success("Personalized approval letter sent!");
       onSendSuccess();
       onOpenChange(false);
-      
-      // Reset state
-      setBody("");
-      setHasGenerated(false);
+      resetState();
     } catch (err: any) {
       console.error("Failed to send email:", err);
-      toast.error(err.message || "Failed to send email");
+      toast.error(err.message || "Failed to send email. Application NOT approved.");
     } finally {
       setIsSending(false);
     }
   };
 
-  const handleClose = () => {
-    onOpenChange(false);
-    // Reset state on close
+  const resetState = () => {
     setBody("");
+    setSubject("Welcome to Storm Wellness Club - Application Approved!");
     setHasGenerated(false);
     setGenerationError(null);
-    setSubject("Welcome to Storm Wellness Club - Application Approved!");
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+    resetState();
   };
 
   if (!applicant) return null;
@@ -185,6 +206,11 @@ export function PersonalizedLetterModal({
           </DialogTitle>
           <DialogDescription>
             Generate a personalized approval letter based on {applicant.name}'s application data.
+            {!isAlreadyApproved && (
+              <span className="block mt-1 text-amber-600 dark:text-amber-500 font-medium">
+                ⚠️ Application will only be approved after the email is successfully sent.
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -322,12 +348,12 @@ export function PersonalizedLetterModal({
               {isSending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Sending...
+                  {isAlreadyApproved ? "Sending..." : "Sending & Approving..."}
                 </>
               ) : (
                 <>
                   <Send className="h-4 w-4" />
-                  Send Email
+                  {isAlreadyApproved ? "Send Email" : "Send Email & Approve"}
                 </>
               )}
             </Button>
