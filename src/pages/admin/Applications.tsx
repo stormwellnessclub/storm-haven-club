@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX, Plus, Wallet, Rocket, Trash2, Sparkles, FileText, Settings } from "lucide-react";
+import { Search, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, Loader2, Ban, DollarSign, AlertCircle, StickyNote, Save, Download, CalendarIcon, X, RefreshCw, Link2, CreditCard, Mail, ChevronDown, Send, Zap, MailX, Plus, Wallet, Rocket, Trash2, Sparkles, FileText, Settings, Smartphone } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -2290,6 +2290,44 @@ export default function Applications() {
                               >
                                 <Settings className="h-4 w-4 mr-2" />
                                 Send Setup Instructions
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={async () => {
+                                  try {
+                                    const firstName = app.first_name || app.full_name.split(" ")[0];
+                                    await supabase.functions.invoke("send-email", {
+                                      body: {
+                                        type: "pwa_reinstall_instructions",
+                                        to: app.email,
+                                        data: {
+                                          name: firstName,
+                                        },
+                                      },
+                                    });
+                                    // Log to audit
+                                    const { data: { user: currentUser } } = await supabase.auth.getUser();
+                                    if (currentUser) {
+                                      await supabase.from("email_audit_log" as any).insert({
+                                        email_type: "pwa_reinstall_instructions",
+                                        recipient_email: app.email,
+                                        recipient_name: firstName,
+                                        triggered_by: currentUser.id,
+                                        trigger_source: "admin_resend",
+                                        application_id: app.id,
+                                        status: "sent",
+                                        sent_at: new Date().toISOString(),
+                                      });
+                                    }
+                                    queryClient.invalidateQueries({ queryKey: ["email-audit-applications"] });
+                                    toast.success("PWA reinstall instructions sent!");
+                                  } catch (err) {
+                                    console.error("Failed to send PWA reinstall instructions:", err);
+                                    toast.error("Failed to send email");
+                                  }
+                                }}
+                              >
+                                <Smartphone className="h-4 w-4 mr-2" />
+                                Send PWA Reinstall Instructions
                               </DropdownMenuItem>
                             </>
                           )}
