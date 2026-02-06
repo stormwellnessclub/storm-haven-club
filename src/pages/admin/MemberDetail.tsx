@@ -18,6 +18,7 @@ import { AdminChargeWith3DSProvider } from "@/components/admin/AdminChargeWith3D
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
 import { PaymentsTabContent } from "@/components/admin/PaymentsTabContent";
 import { BillingHealthCard } from "@/components/admin/BillingHealthCard";
+import { PaymentTimeline } from "@/components/admin/PaymentTimeline";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
 import { useMemberActivities } from "@/hooks/useMemberActivities";
@@ -1221,6 +1222,11 @@ export default function MemberDetail() {
                 memberEmail={member.email}
                 memberName={`${member.first_name} ${member.last_name}`}
               />
+            </div>
+            
+            {/* Payment Timeline - Chronological view of all payment events */}
+            <div className="mb-6">
+              <PaymentTimeline memberId={member.id} maxItems={50} />
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
