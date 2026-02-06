@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { DollarSign, CheckCircle, Clock, XCircle, Mail, Loader2, RotateCcw, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { DollarSign, CheckCircle, Clock, XCircle, Mail, Loader2, RotateCcw, Download, ChevronLeft, ChevronRight, Search, Filter, Calendar, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 const ITEMS_PER_PAGE = 10;
 import {
@@ -20,10 +23,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
 
 type RefundMethod = "stripe" | "check" | "other";
+type ServiceType = "all" | "initiation_fee" | "annual_fee" | "membership_dues" | "spa" | "class" | "cafe" | "other";
+
+// Map descriptions to service types
+const getServiceType = (description: string): ServiceType => {
+  const lower = description.toLowerCase();
+  if (lower.includes("initiation fee")) return "initiation_fee";
+  if (lower.includes("annual") && lower.includes("fee")) return "annual_fee";
+  if (lower.includes("membership") || lower.includes("dues")) return "membership_dues";
+  if (lower.includes("spa") || lower.includes("massage") || lower.includes("treatment")) return "spa";
+  if (lower.includes("class") || lower.includes("pilates") || lower.includes("cycling") || lower.includes("yoga")) return "class";
+  if (lower.includes("cafe") || lower.includes("food") || lower.includes("drink")) return "cafe";
+  return "other";
+};
+
+const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
+  all: "All Types",
+  initiation_fee: "Initiation Fee",
+  annual_fee: "Annual Fee",
+  membership_dues: "Membership Dues",
+  spa: "Spa Services",
+  class: "Classes",
+  cafe: "Cafe",
+  other: "Other",
+};
 
 interface ChargeHistoryProps {
   applicationId?: string;
@@ -70,6 +97,12 @@ export function ChargeHistory({
   const [refundMethod, setRefundMethod] = useState<RefundMethod>("stripe");
   const [refundNotes, setRefundNotes] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Filter states
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceType>("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Reset refund form when dialog opens/closes
   useEffect(() => {
@@ -111,17 +144,46 @@ export function ChargeHistory({
     enabled: !!(applicationId || memberId),
   });
 
-  // Reset to page 1 when data changes
+  // Reset to page 1 when data or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [applicationId, memberId]);
+  }, [applicationId, memberId, serviceTypeFilter, dateFrom, dateTo]);
 
-  // Calculate pagination
-  const totalItems = charges?.length ?? 0;
+  // Filter charges based on service type and date range
+  const filteredCharges = useMemo(() => {
+    if (!charges) return [];
+    
+    return charges.filter((charge) => {
+      // Service type filter
+      if (serviceTypeFilter !== "all") {
+        const chargeType = getServiceType(charge.description);
+        if (chargeType !== serviceTypeFilter) return false;
+      }
+      
+      // Date range filter
+      const chargeDate = parseISO(charge.created_at);
+      if (dateFrom && chargeDate < startOfDay(dateFrom)) return false;
+      if (dateTo && chargeDate > endOfDay(dateTo)) return false;
+      
+      return true;
+    });
+  }, [charges, serviceTypeFilter, dateFrom, dateTo]);
+
+  // Calculate pagination based on filtered charges
+  const totalItems = filteredCharges.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedCharges = charges?.slice(startIndex, endIndex) ?? [];
+  const paginatedCharges = filteredCharges.slice(startIndex, endIndex);
+
+  // Check if any filters are active
+  const hasActiveFilters = serviceTypeFilter !== "all" || dateFrom || dateTo;
+
+  const clearFilters = () => {
+    setServiceTypeFilter("all");
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
 
   const handlePreviousPage = () => {
     setCurrentPage((prev) => Math.max(1, prev - 1));
@@ -301,11 +363,14 @@ export function ChargeHistory({
   };
 
   const exportToCSV = () => {
-    if (!charges || charges.length === 0) return;
+    // Export filtered charges, not all charges
+    const chargesForExport = hasActiveFilters ? filteredCharges : (charges || []);
+    if (chargesForExport.length === 0) return;
 
     const headers = [
       "Date",
       "Description",
+      "Service Type",
       "Amount",
       "Status",
       "Refund Method",
@@ -313,9 +378,10 @@ export function ChargeHistory({
       "Refund Notes",
     ];
 
-    const rows = charges.map((charge) => [
+    const rows = chargesForExport.map((charge) => [
       format(parseISO(charge.created_at), "yyyy-MM-dd HH:mm:ss"),
-      `"${charge.description.replace(/"/g, '""')}"`, // Escape quotes in description
+      `"${charge.description.replace(/"/g, '""')}"`,
+      SERVICE_TYPE_LABELS[getServiceType(charge.description)],
       (charge.amount / 100).toFixed(2),
       charge.status,
       charge.refund_method || "",
@@ -332,44 +398,170 @@ export function ChargeHistory({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `charge-history-${format(new Date(), "yyyy-MM-dd")}.csv`);
+    const filterSuffix = hasActiveFilters ? "-filtered" : "";
+    link.setAttribute("download", `charge-history${filterSuffix}-${format(new Date(), "yyyy-MM-dd")}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
-    toast.success("Charge history exported to CSV");
+    toast.success(`Exported ${chargesForExport.length} charges to CSV`);
   };
 
   return (
     <div className="space-y-3">
       {showTitle && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">Charge History</p>
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="text-xs">
+                {filteredCharges.length} of {charges?.length || 0}
+              </Badge>
+            )}
           </div>
-          {isAdmin && charges && charges.length > 0 && (
+          <div className="flex items-center gap-1">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant={showFilters ? "secondary" : "ghost"}
                     className="h-7 px-2"
-                    onClick={exportToCSV}
+                    onClick={() => setShowFilters(!showFilters)}
                   >
-                    <Download className="h-3.5 w-3.5" />
+                    <Filter className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Export to CSV</p>
+                  <p>Filter charges</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          )}
+            {isAdmin && charges && charges.length > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2"
+                      onClick={exportToCSV}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Export to CSV</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </div>
       )}
+
+      {/* Filter Controls */}
+      {showFilters && (
+        <div className="p-3 rounded-lg bg-muted/50 border space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Filters</span>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={clearFilters}
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Service Type Filter */}
+            <div className="space-y-1">
+              <Label className="text-xs">Service Type</Label>
+              <Select 
+                value={serviceTypeFilter} 
+                onValueChange={(v) => setServiceTypeFilter(v as ServiceType)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(SERVICE_TYPE_LABELS) as ServiceType[]).map((type) => (
+                    <SelectItem key={type} value={type} className="text-xs">
+                      {SERVICE_TYPE_LABELS[type]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date From */}
+            <div className="space-y-1">
+              <Label className="text-xs">From Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-8 w-full justify-start text-left font-normal text-xs"
+                  >
+                    <Calendar className="mr-2 h-3 w-3" />
+                    {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Date To */}
+            <div className="space-y-1">
+              <Label className="text-xs">To Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-8 w-full justify-start text-left font-normal text-xs"
+                  >
+                    <Calendar className="mr-2 h-3 w-3" />
+                    {dateTo ? format(dateTo, "MMM d, yyyy") : "End date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={setDateTo}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Results Message */}
+      {filteredCharges.length === 0 && charges && charges.length > 0 && (
+        <div className="text-center py-4 text-sm text-muted-foreground">
+          No charges match the current filters.
+          <Button variant="link" size="sm" onClick={clearFilters} className="ml-1">
+            Clear filters
+          </Button>
+        </div>
+      )}
+
       <div className="space-y-2">
         {paginatedCharges.map((charge) => (
           <div
@@ -378,7 +570,12 @@ export function ChargeHistory({
           >
             <div className="flex items-center justify-between gap-2">
               <div className="space-y-1 min-w-0 flex-1">
-                <p className="font-medium text-sm truncate">{charge.description}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm truncate">{charge.description}</p>
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {SERVICE_TYPE_LABELS[getServiceType(charge.description)]}
+                  </Badge>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {format(parseISO(charge.created_at), "MMM d, yyyy 'at' h:mm a")}
                 </p>
