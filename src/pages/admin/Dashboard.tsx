@@ -20,6 +20,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
+import { BillingHealthWidget } from "@/components/admin/BillingHealthWidget";
 
 export default function Dashboard() {
   const currentDate = new Date().toLocaleDateString('en-US', { 
@@ -225,7 +226,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-4">
           {/* Recent Check-Ins */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -368,6 +369,9 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* Billing Health Widget */}
+          <BillingHealthWidget />
         </div>
 
         {/* Quick Stats Row */}
