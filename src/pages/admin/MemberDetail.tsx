@@ -14,12 +14,14 @@ import { RefundDialog } from "@/components/admin/RefundDialog";
 import { UndoActionDialog } from "@/components/admin/UndoActionDialog";
 import { AdminChargeWith3DSProvider } from "@/components/admin/AdminChargeWith3DS";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
+import { PaymentsTabContent } from "@/components/admin/PaymentsTabContent";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
 import { useMemberActivities } from "@/hooks/useMemberActivities";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
+import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useAuth } from "@/contexts/AuthContext";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -1208,61 +1210,16 @@ export default function MemberDetail() {
 
           {/* Payments Tab */}
           <TabsContent value="payments">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Payment Methods</CardTitle>
-                    <Button onClick={handleAddCard} disabled={isCreatingSetupIntent}>
-                      {isCreatingSetupIntent && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                      <Plus className="h-4 w-4 mr-2" />Add Card
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {member.card_brand && member.card_last4 ? (
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <CreditCard className="h-6 w-6" />
-                        <div>
-                          <p className="font-medium capitalize">{member.card_brand} •••• {member.card_last4}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Expires {member.card_exp_month}/{member.card_exp_year}
-                          </p>
-                        </div>
-                      </div>
-                      <AdminActionButton
-                        label="Charge Card"
-                        icon={<DollarSign className="h-4 w-4 mr-2" />}
-                        variant="outline"
-                        tooltip={ADMIN_ACTION_TOOLTIPS.chargeCard}
-                        onClick={() => setShowChargeDialog(true)}
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-4">No payment method on file</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Charge History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ChargeHistory 
-                    memberId={member.id} 
-                    isAdmin={true}
-                    recipientEmail={member.email}
-                    recipientName={`${member.first_name} ${member.last_name}`}
-                    onRefundClick={(charge) => {
-                      setSelectedChargeForRefund(charge);
-                      setShowRefundDialog(true);
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            </div>
+            <PaymentsTabContent 
+              member={member}
+              onAddCard={handleAddCard}
+              isCreatingSetupIntent={isCreatingSetupIntent}
+              onChargeCard={() => setShowChargeDialog(true)}
+              onRefundClick={(charge) => {
+                setSelectedChargeForRefund(charge);
+                setShowRefundDialog(true);
+              }}
+            />
           </TabsContent>
 
           {/* Credits Tab */}

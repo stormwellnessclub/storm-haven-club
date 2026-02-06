@@ -59,7 +59,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -941,10 +941,10 @@ serve(async (req) => {
           customerName = applicantName || 'Applicant';
           logStep("Using direct stripeCustomerId for charge", { customerId, customerName });
         } else if (memberId) {
-          // Look up from members table (existing behavior)
+          // Look up from members table
           const { data: memberData, error: memberError } = await supabase
             .from('members')
-            .select('stripe_customer_id, first_name, last_name, user_id')
+            .select('stripe_customer_id, first_name, last_name, user_id, email')
             .eq('id', memberId)
             .single();
 
@@ -952,14 +952,38 @@ serve(async (req) => {
             throw new Error("Member not found");
           }
 
-          if (!memberData.stripe_customer_id) {
-            throw new Error("Member has no payment method on file");
-          }
-
           customerId = memberData.stripe_customer_id;
           customerName = `${memberData.first_name} ${memberData.last_name}`;
           memberIdForLog = memberId;
           userIdForLog = memberData.user_id;
+
+          // If no stripe_customer_id in database, try to find by email in Stripe
+          if (!customerId && memberData.email) {
+            logStep("No stripe_customer_id in database, searching Stripe by email", { 
+              email: memberData.email 
+            });
+            
+            const customers = await stripe.customers.list({ 
+              email: memberData.email, 
+              limit: 1 
+            });
+            
+            if (customers.data.length > 0) {
+              customerId = customers.data[0].id;
+              logStep("Found customer in Stripe by email", { customerId });
+              
+              // Update the member record with the discovered customer ID
+              await supabase
+                .from('members')
+                .update({ stripe_customer_id: customerId })
+                .eq('id', memberId);
+            }
+          }
+
+          if (!customerId) {
+            throw new Error("Member has no payment method on file. Card may have been added under a different email.");
+          }
+
           logStep("Found member stripe customer", { customerId, customerName, memberId });
         } else {
           throw new Error("Either memberId or stripeCustomerId is required");
@@ -1144,7 +1168,7 @@ serve(async (req) => {
         } else if (memberId) {
           const { data: memberData3ds, error: memberError3ds } = await supabase
             .from('members')
-            .select('stripe_customer_id, first_name, last_name, user_id')
+            .select('stripe_customer_id, first_name, last_name, user_id, email')
             .eq('id', memberId)
             .single();
 
@@ -1152,14 +1176,38 @@ serve(async (req) => {
             throw new Error("Member not found");
           }
 
-          if (!memberData3ds.stripe_customer_id) {
-            throw new Error("Member has no payment method on file");
-          }
-
           customerId = memberData3ds.stripe_customer_id;
           customerName = `${memberData3ds.first_name} ${memberData3ds.last_name}`;
           memberIdForLog = memberId;
           userIdForLog = memberData3ds.user_id;
+
+          // If no stripe_customer_id in database, try to find by email in Stripe
+          if (!customerId && memberData3ds.email) {
+            logStep("No stripe_customer_id in database for 3DS, searching Stripe by email", { 
+              email: memberData3ds.email 
+            });
+            
+            const customers = await stripe.customers.list({ 
+              email: memberData3ds.email, 
+              limit: 1 
+            });
+            
+            if (customers.data.length > 0) {
+              customerId = customers.data[0].id;
+              logStep("Found customer in Stripe by email for 3DS", { customerId });
+              
+              // Update the member record with the discovered customer ID
+              await supabase
+                .from('members')
+                .update({ stripe_customer_id: customerId })
+                .eq('id', memberId);
+            }
+          }
+
+          if (!customerId) {
+            throw new Error("Member has no payment method on file. Card may have been added under a different email.");
+          }
+
           logStep("Found member stripe customer for 3DS charge", { customerId, customerName, memberId });
         } else {
           throw new Error("Either memberId or stripeCustomerId is required");
@@ -3380,6 +3428,162 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ success: true, inserted: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'admin_list_member_payment_methods': {
+        // Admin action to list ALL payment methods for a member directly from Stripe
+        // This bypasses cached metadata and queries Stripe directly
+        const { memberId } = body;
+
+        if (!memberId) {
+          throw new Error("memberId is required");
+        }
+
+        logStep("Admin listing member payment methods", { memberId, adminUserId: user.id });
+
+        // Verify admin role
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager', 'front_desk']);
+
+        if (!roleData || roleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        // Get member data including email for Stripe lookup
+        const { data: memberData, error: memberError } = await supabase
+          .from('members')
+          .select('id, email, stripe_customer_id, first_name, last_name, user_id')
+          .eq('id', memberId)
+          .single();
+
+        if (memberError || !memberData) {
+          throw new Error("Member not found");
+        }
+
+        let customerId = memberData.stripe_customer_id;
+        let customerSource: 'database' | 'stripe_lookup' = 'database';
+
+        // If no stripe_customer_id in database, try to find by email in Stripe
+        if (!customerId && memberData.email) {
+          logStep("No stripe_customer_id in database, searching Stripe by email", { 
+            email: memberData.email 
+          });
+          
+          const customers = await stripe.customers.list({ 
+            email: memberData.email, 
+            limit: 1 
+          });
+          
+          if (customers.data.length > 0) {
+            customerId = customers.data[0].id;
+            customerSource = 'stripe_lookup';
+            logStep("Found customer in Stripe by email", { customerId });
+            
+            // Update the member record with the discovered customer ID
+            const { error: updateError } = await supabase
+              .from('members')
+              .update({ stripe_customer_id: customerId })
+              .eq('id', memberId);
+            
+            if (updateError) {
+              logStep("Warning: Failed to update stripe_customer_id", { error: updateError.message });
+            } else {
+              logStep("Updated member with discovered stripe_customer_id", { memberId, customerId });
+            }
+          }
+        }
+
+        if (!customerId) {
+          return new Response(
+            JSON.stringify({ 
+              paymentMethods: [], 
+              hasPaymentMethod: false,
+              message: "No Stripe customer found for this member. They may not have added a card yet.",
+              memberEmail: memberData.email,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Get customer to find default payment method
+        const customer = await stripe.customers.retrieve(customerId);
+        const defaultPaymentMethodId = !customer.deleted 
+          ? customer.invoice_settings?.default_payment_method as string | null
+          : null;
+
+        // List all payment methods
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: customerId,
+          type: 'card',
+        });
+
+        const formattedMethods = paymentMethods.data.map((pm: { 
+          id: string; 
+          created: number;
+          card?: { brand?: string; last4?: string; exp_month?: number; exp_year?: number };
+          metadata?: Record<string, string>;
+        }) => ({
+          id: pm.id,
+          brand: pm.card?.brand,
+          last4: pm.card?.last4,
+          expMonth: pm.card?.exp_month,
+          expYear: pm.card?.exp_year,
+          nickname: pm.metadata?.nickname || null,
+          isDefault: pm.id === defaultPaymentMethodId,
+          createdAt: new Date(pm.created * 1000).toISOString(),
+        }));
+
+        logStep("Admin fetched member payment methods", { 
+          memberId, 
+          customerId, 
+          customerSource,
+          count: formattedMethods.length 
+        });
+
+        // If we found cards but member metadata is not synced, sync it now
+        if (formattedMethods.length > 0) {
+          const primaryCard = formattedMethods.find((pm: { isDefault: boolean }) => pm.isDefault) || formattedMethods[0];
+          
+          // Check if member metadata needs updating
+          const { data: currentMember } = await supabase
+            .from('members')
+            .select('card_brand, card_last4')
+            .eq('id', memberId)
+            .single();
+          
+          if (!currentMember?.card_brand || !currentMember?.card_last4 || 
+              currentMember.card_brand !== primaryCard.brand || 
+              currentMember.card_last4 !== primaryCard.last4) {
+            await supabase
+              .from('members')
+              .update({
+                card_brand: primaryCard.brand,
+                card_last4: primaryCard.last4,
+                card_exp_month: primaryCard.expMonth,
+                card_exp_year: primaryCard.expYear,
+                stripe_customer_id: customerId,
+              })
+              .eq('id', memberId);
+            logStep("Synced card metadata to member during admin fetch", { 
+              memberId, 
+              brand: primaryCard.brand,
+              last4: primaryCard.last4 
+            });
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            paymentMethods: formattedMethods, 
+            hasPaymentMethod: formattedMethods.length > 0,
+            stripeCustomerId: customerId,
+            customerSource,
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
