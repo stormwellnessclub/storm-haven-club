@@ -1,207 +1,117 @@
 
-# Redirect to Member Portal for Missing Waivers
+# Waiver System Consistency Review and Bug Fixes
 
-## Problem Summary
+## Issues Found
 
-Currently, when a user tries to purchase a service that requires a waiver they haven't signed:
-1. The `InlineWaiverGate` blocks them with an inline signing experience
-2. This causes UI issues (shaking, loading states)
-3. Users must sign waivers repeatedly in-context instead of managing them centrally
+### 1. Missing Class Package Agreement in Waivers Page
 
-## Solution
+**Bug**: The `src/pages/member/Waivers.tsx` page does NOT include the `class_package` agreement type, but the system supports it in:
+- `InlineWaiverGate.tsx` (line 74-80)
+- `useUserProfile.ts` (has `signClassPackageAgreement` mutation)
+- Database schema has `class_package_agreement_signed` field
 
-Instead of blocking with inline signing, show a friendly message directing users to the member portal `/member/waivers` page to sign the relevant waiver. This:
-- Creates a cleaner separation of concerns
-- Eliminates the "shaking" UI issue from inline waiver components
-- Centralizes all agreement management in one place
-- Makes the flow more intuitive for users
+**Impact**: Users cannot sign the Class Package Agreement from the portal, but the system expects it to be signed.
 
-## Architecture Change
+### 2. Missing Class Package Agreement PDF in SimpleAgreementCard
 
-### Current Flow
-```text
-User tries to purchase → InlineWaiverGate checks waivers → 
-Shows inline signing UI (causes loading/shaking) → User signs inline → 
-Form appears
-```
+**Bug**: The `pdfMap` in `SimpleAgreementCard.tsx` does NOT include any `class-package-agreement.pdf` entry. If a class_package agreement is configured in the database, the PDF resolution will fail.
 
-### New Flow
-```text
-User tries to purchase → Check if waiver signed → 
-If missing: Show friendly alert with link to /member/waivers → 
-User signs in portal → Returns to purchase → Form ready
-```
+**Current pdfMap includes**:
+- liability-waiver.pdf
+- membership-agreement.pdf  
+- kids-care-agreement.pdf
+- kids-care-agreement-parent-consent-form.pdf
+- guest-pass-agreement-general.pdf
+- guest-pass-agreement.pdf
+- private-event-agreement.pdf
+- single-class-pass-agreement.pdf
+- single-class-pass-agreement-2.pdf
 
-## Technical Changes
+**Missing**: No `class-package-agreement.pdf`
 
-### 1. Create `WaiverRequiredAlert` Component
+### 3. ClassPasses.tsx Shows Pricing Tables Even When Agreement Alert is Shown
 
-A new component that shows a friendly message when a required waiver is missing:
+**Bug**: In `ClassPasses.tsx` (lines 352-371), when `needsAgreement` is true, it shows BOTH the `InlineWaiverGate` alert AND the pricing tables below it. This is confusing because:
+- Users see the "Agreement Required" alert
+- BUT also see purchase buttons they cannot use
+- Clicking purchase shows a toast "Please sign the Single Class Pass Agreement first"
 
+**Expected Behavior**: Either hide the pricing tables until agreement is signed, OR make the flow clearer.
+
+### 4. Inconsistent Waiver Check in useBooking.ts
+
+**Bug**: The `useBooking.ts` hook (lines 190-207) checks for `guest_pass_agreement_signed` and `single_class_pass_agreement_signed` during class booking, but this is a server-side backup check that throws an error. This creates an inconsistent UX where:
+- User sees the waiver alert before purchasing passes
+- But if they somehow bypass it, they get an error message during booking
+- The error message says "Please sign the agreement on the Waivers & Agreements page before booking" but doesn't provide a link
+
+### 5. Auth.tsx Immediate Navigation After Sign-Up
+
+**Potential Bug**: In `Auth.tsx` (line 200), after successful sign-up, the code calls `navigate(getRedirectTarget())` immediately. However, the profile check and waiver step happen in a separate `useEffect` (lines 99-112). This could cause a race condition where:
+- User signs up
+- Navigate is called
+- useEffect tries to show waiver step but navigation already happened
+
+The code SHOULD rely entirely on the useEffect for post-auth navigation to ensure the waiver step is shown.
+
+### 6. Missing Kids Care Agreement Check Before Booking Modal Opens
+
+**Observation**: The `KidsCareBookingModal.tsx` correctly checks for `kids_care_agreement_signed` (line 92) and redirects to `/member/waivers`. This is good but uses a different pattern than `InlineWaiverGate`. It's consistent in outcome but inconsistent in implementation.
+
+## Proposed Fixes
+
+### Fix 1: Add Class Package Agreement to Waivers Page
+
+Add the Class Package Agreement section to `src/pages/member/Waivers.tsx`:
+- Fetch class package agreements
+- Add AgreementSection for class_package
+- Wire up `signClassPackageAgreement` mutation
+
+### Fix 2: Add Class Package PDF to SimpleAgreementCard
+
+If a class package agreement PDF exists, add it to the pdfMap:
 ```typescript
-interface WaiverRequiredAlertProps {
-  waiverType: WaiverType;
-  serviceName: string;  // e.g., "Guest Pass", "Kids Care"
-  onNavigate?: () => void;
-}
+'class-package-agreement.pdf': classPackageAgreement,
 ```
 
-Features:
-- Shows which waiver is needed
-- Provides a link to `/member/waivers` page
-- Can optionally preserve the return URL
+If no PDF exists yet, this should be flagged as a missing asset.
 
-### 2. Simplify `InlineWaiverGate` 
+### Fix 3: Improve ClassPasses.tsx UX
 
-Update to show the redirect alert instead of the inline signing UI:
-- Remove the complex accordion-based inline signing
-- Replace with `WaiverRequiredAlert` that links to portal
-- Keep the same `requiredWaivers` prop interface for backwards compatibility
+Option A: Hide pricing tables when agreement is needed
+Option B: Keep tables visible but show a clearer overlay/banner explaining the required step
 
-### 3. Update All Purchase Flows
+Recommend Option A for consistency with guest pass flow.
 
-Each purchase page should check waivers and show the alert:
+### Fix 4: Fix Auth.tsx Race Condition
 
-| Service | Required Waiver | File |
-|---------|-----------------|------|
-| Guest Pass | `guest_pass` | `GuestPass.tsx` |
-| Class Passes (Single) | `single_class_pass` | `ClassPasses.tsx` |
-| Kids Care | `kids_care` | `KidsCareBookingModal.tsx` |
-| Private Events | `private_event` | (if exists) |
+Remove the `navigate(getRedirectTarget())` call from the `handleSubmit` success path (lines 200 and 222). Let the useEffect handle all post-auth navigation to ensure waiver step is always shown when needed.
 
-### 4. Enhance Member Waivers Page
+### Fix 5: Add Return URL Support to useBooking Error Messages
 
-Update `/member/waivers` to:
-- Show which waivers are "needed for" which services
-- Display clear status (signed/unsigned) 
-- Remember the return URL so users can go back to their purchase
+Update the error messages in `useBooking.ts` to be more helpful, though the primary fix should be preventing users from reaching this state in the first place.
 
-## UI Design
-
-### Purchase Page Alert (when waiver missing)
-```text
-+------------------------------------------------------------+
-|  ⚠ Agreement Required                                       |
-|  --------------------------------------------------------  |
-|                                                             |
-|  To purchase a Guest Pass, you need to sign our            |
-|  Guest Pass Agreement first.                                |
-|                                                             |
-|  [Go to Waivers & Agreements →]                             |
-|                                                             |
-|  This only needs to be done once.                           |
-+------------------------------------------------------------+
-```
-
-### After signing, user can return to purchase flow and form loads immediately.
-
-## Files to Change
+## File Changes Summary
 
 | File | Change |
 |------|--------|
-| `src/components/WaiverRequiredAlert.tsx` | **NEW** - Alert component with portal link |
-| `src/components/InlineWaiverGate.tsx` | Simplify to show redirect alert instead of inline signing |
-| `src/pages/GuestPass.tsx` | Use simplified waiver check |
-| `src/pages/ClassPasses.tsx` | Already has similar logic, ensure consistent |
-| `src/components/booking/KidsCareBookingModal.tsx` | Already redirects, ensure consistent messaging |
+| `src/pages/member/Waivers.tsx` | Add Class Package Agreement section |
+| `src/components/SimpleAgreementCard.tsx` | Add class-package-agreement.pdf to pdfMap (if PDF exists) |
+| `src/pages/ClassPasses.tsx` | Hide pricing tables when agreement is required (match GuestPass pattern) |
+| `src/pages/Auth.tsx` | Remove redundant navigate calls from handleSubmit, rely on useEffect for waiver flow |
+| `src/hooks/useBooking.ts` | Improve error message wording (low priority) |
 
-## Implementation Details
+## Assets to Verify
 
-### WaiverRequiredAlert.tsx
+Check if `src/assets/agreements/class-package-agreement.pdf` exists:
+- If YES: Add import and pdfMap entry
+- If NO: Either create a placeholder or skip this agreement type
 
-```typescript
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { AlertCircle, ArrowRight } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+## Testing Checklist
 
-const WAIVER_DISPLAY_NAMES: Record<string, string> = {
-  liability: "Liability Waiver",
-  guest_pass: "Guest Pass Agreement",
-  single_class_pass: "Single Class Pass Agreement", 
-  kids_care: "Kids Care Agreement",
-  membership: "Membership Agreement",
-  class_package: "Class Package Agreement",
-  private_event: "Private Event Agreement",
-};
-
-interface WaiverRequiredAlertProps {
-  waiverType: string;
-  serviceName: string;
-}
-
-export function WaiverRequiredAlert({ waiverType, serviceName }: WaiverRequiredAlertProps) {
-  const location = useLocation();
-  const returnUrl = encodeURIComponent(location.pathname + location.search);
-  
-  return (
-    <Alert className="border-accent/50 bg-accent/5">
-      <AlertCircle className="h-4 w-4 text-accent" />
-      <AlertTitle>Agreement Required</AlertTitle>
-      <AlertDescription className="mt-2">
-        <p className="mb-4">
-          To purchase {serviceName}, please sign our {WAIVER_DISPLAY_NAMES[waiverType] || waiverType} first.
-        </p>
-        <Button asChild>
-          <Link to={`/member/waivers?return=${returnUrl}`}>
-            Go to Waivers & Agreements
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
-        <p className="text-xs text-muted-foreground mt-3">
-          This only needs to be done once.
-        </p>
-      </AlertDescription>
-    </Alert>
-  );
-}
-```
-
-### Updated InlineWaiverGate.tsx
-
-Simplify to use the redirect pattern:
-
-```typescript
-export function InlineWaiverGate({
-  requiredWaivers,
-  children,
-  serviceName = "this service",
-}: InlineWaiverGateProps) {
-  // ... existing profile/agreement checks ...
-
-  // Find first unsigned waiver
-  const unsignedWaiver = requiredWaivers.find(w => {
-    const config = waiverConfigs[w];
-    return config.agreements.length > 0 && !config.signed;
-  });
-
-  // If any required waiver is missing, show redirect alert
-  if (unsignedWaiver) {
-    return (
-      <WaiverRequiredAlert 
-        waiverType={unsignedWaiver} 
-        serviceName={serviceName}
-      />
-    );
-  }
-
-  // All waivers signed, show children
-  return <>{children}</>;
-}
-```
-
-## Benefits
-
-1. **No more shaking UI** - No inline loading states for agreement fetching/signing
-2. **Centralized management** - All waivers managed in one place (`/member/waivers`)
-3. **One-time signing** - Clear messaging that this only needs to be done once
-4. **Consistent UX** - Same pattern across all purchase flows
-5. **Simpler code** - Remove complex inline signing logic
-6. **Return URL support** - Users return to their purchase after signing
-
-## Edge Cases
-
-1. **Non-authenticated users**: Show login prompt first, then check waivers after auth
-2. **Already signed**: Form appears immediately (no alert shown)
-3. **Multiple missing waivers**: Show alert for first missing one; after signing, they return and see next (rare case)
-4. **Deep linking**: Return URL preserves query params for proper navigation back
+After fixes, verify:
+1. Guest Pass flow: Account creation -> Liability waiver -> Guest Pass agreement -> Purchase
+2. Class Pass flow: Sign in -> Single Class agreement shown if needed -> Purchase
+3. Kids Care flow: Check agreement -> Service form -> Booking
+4. Member Waivers page: All 7 agreement types displayed correctly
+5. Return URL: After signing, user returns to original purchase page
