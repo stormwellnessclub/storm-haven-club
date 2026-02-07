@@ -227,6 +227,45 @@ export default function Members() {
     }
   };
 
+  // Send Phase 1 setup email to pre-paid members
+  const sendPhase1SetupEmail = async (member: typeof members[0], e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIsSendingActivationEmail(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "phase_one_setup",
+          to: member.email,
+          data: {
+            name: member.first_name,
+            email: member.email,
+            membershipTier: member.membership_type,
+            isFoundingMember: member.is_founding_member,
+            tier: member.membership_type?.toLowerCase(),
+            allowTierChange: true, // Allow tier change if pending_activation
+            launchDate: "February 9, 2026",
+            hasCardOnFile: !!member.card_last4,
+          },
+        },
+      });
+      if (error) throw error;
+
+      // Update activation_email_sent_at
+      await supabase
+        .from("members")
+        .update({ activation_email_sent_at: new Date().toISOString() })
+        .eq("id", member.id);
+
+      toast.success(`Phase 1 setup email sent to ${member.first_name}`);
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    } catch (error) {
+      console.error("Error sending Phase 1 email:", error);
+      toast.error("Failed to send Phase 1 setup email");
+    } finally {
+      setIsSendingActivationEmail(false);
+    }
+  };
+
   // Send bulk activation emails
   const sendBulkActivationEmails = async () => {
     const membersToEmail = pendingActivationMembers;
@@ -570,6 +609,18 @@ export default function Members() {
                               >
                                 <Mail className="h-4 w-4 mr-2" />
                                 Send Activation Email
+                              </DropdownMenuItem>
+                            )}
+                            {member.status === "pending_activation" && member.annual_fee_paid_at && (
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sendPhase1SetupEmail(member, e as any);
+                                }}
+                                disabled={isSendingActivationEmail}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Send Phase 1 Setup Email
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem onClick={() => handleCheckIn(member)}>

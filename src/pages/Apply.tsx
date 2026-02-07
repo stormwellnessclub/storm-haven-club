@@ -604,6 +604,50 @@ export default function Apply() {
     }
   };
 
+  // Check for duplicate application before submission
+  const checkForDuplicateApplication = async (emailToCheck: string): Promise<{
+    isDuplicate: boolean;
+    message: string;
+  }> => {
+    try {
+      // Check for existing member (case-insensitive)
+      const { data: memberData } = await supabase
+        .from("members")
+        .select("id, status, email")
+        .ilike("email", emailToCheck)
+        .maybeSingle();
+
+      if (memberData) {
+        return {
+          isDuplicate: true,
+          message: `A member account already exists for ${emailToCheck}. Please contact support if you need to update your information.`,
+        };
+      }
+
+      // Check for pending/approved application (case-insensitive)
+      const { data: appData } = await supabase
+        .from("membership_applications")
+        .select("id, status, email")
+        .ilike("email", emailToCheck)
+        .neq("status", "rejected")
+        .neq("status", "cancelled")
+        .maybeSingle();
+
+      if (appData) {
+        const statusDisplay = appData.status.replace(/_/g, " ").toUpperCase();
+        return {
+          isDuplicate: true,
+          message: `An application already exists for ${emailToCheck} with status: ${statusDisplay}. Only one application per email address is allowed.`,
+        };
+      }
+
+      return { isDuplicate: false, message: "" };
+    } catch (error) {
+      console.warn("[Apply] Duplicate check failed:", error);
+      return { isDuplicate: false, message: "" };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -616,6 +660,13 @@ export default function Apply() {
         !formData.creditCardAuth || !formData.paymentAcknowledged || !formData.membershipAgreementSigned ||
         !formData.oneYearCommitment || !formData.authAcknowledgment || !formData.submissionConfirmation) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Check for duplicate application before proceeding
+    const dupeCheck = await checkForDuplicateApplication(formData.email);
+    if (dupeCheck.isDuplicate) {
+      toast.error(dupeCheck.message);
       return;
     }
 
