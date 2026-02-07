@@ -56,10 +56,17 @@ const STRIPE_PRODUCTS = {
     },
   },
   guestPass: 'price_1SxATYLyZrsSqLhs6vDu1QWg',  // $60 - Guest Pass (gym and amenities access, subject to availability)
+  guestAddons: {
+    rlt10: 'price_1Sy3qVLyZrsSqLhsgs55vadk',    // $18 - Full Body Red Light Therapy 10 min
+    rlt20: 'price_1Sy3y3LyZrsSqLhsN3WxRig0',    // $28 - Full Body Red Light Therapy 20 min
+    cryo: 'price_1Sy3ytLyZrsSqLhsziHR3pw1',     // $45 - ZeroBody Cryo Session
+    classPilatesCycling: 'price_1SlA38LyZrsSqLhsMjRhYzpT', // $40 - Non-member Pilates/Cycling
+    classOther: 'price_1SlABFLyZrsSqLhsGOpvWGFE',          // $30 - Non-member Other Classes
+  },
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -78,6 +85,12 @@ interface PaymentRequest {
   // For guest pass
   guestName?: string;
   guestEmail?: string;
+  phoneNumber?: string;
+  validDate?: string;
+  memberReferral?: string | null;
+  visitInterests?: string[];
+  visitNotes?: string | null;
+  addons?: Array<{ id: string; label: string; price: number }>;
   // For freeze fee
   freezeId?: string;
   freezeFeeAmount?: number;
@@ -515,6 +528,104 @@ serve(async (req) => {
         });
 
         logStep("Guest pass checkout created", { sessionId: session.id, url: session.url, guestName });
+
+        return new Response(
+          JSON.stringify({ sessionId: session.id, url: session.url }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_guest_pass_experience_checkout': {
+        const { 
+          guestName, 
+          guestEmail, 
+          phoneNumber, 
+          validDate, 
+          memberReferral, 
+          visitInterests, 
+          visitNotes, 
+          addons,
+          successUrl, 
+          cancelUrl 
+        } = body;
+
+        if (!guestName || !guestEmail || !phoneNumber || !validDate || !successUrl || !cancelUrl) {
+          throw new Error("Missing required fields for guest pass experience checkout");
+        }
+
+        if (!visitInterests || visitInterests.length === 0) {
+          throw new Error("Please select at least one visit interest");
+        }
+
+        // Build line items starting with base guest pass
+        const lineItems: { price: string; quantity: number }[] = [
+          { price: STRIPE_PRODUCTS.guestPass, quantity: 1 },
+        ];
+
+        // Add selected add-ons
+        if (addons && addons.length > 0) {
+          for (const addon of addons) {
+            let priceId: string | null = null;
+            
+            // Map addon IDs to Stripe price IDs
+            switch (addon.id) {
+              case 'rlt_10':
+                priceId = STRIPE_PRODUCTS.guestAddons.rlt10;
+                break;
+              case 'rlt_20':
+                priceId = STRIPE_PRODUCTS.guestAddons.rlt20;
+                break;
+              case 'cryo':
+                priceId = STRIPE_PRODUCTS.guestAddons.cryo;
+                break;
+              case 'class_pilates_cycling':
+                priceId = STRIPE_PRODUCTS.guestAddons.classPilatesCycling;
+                break;
+              case 'class_other':
+                priceId = STRIPE_PRODUCTS.guestAddons.classOther;
+                break;
+            }
+
+            if (priceId) {
+              lineItems.push({ price: priceId, quantity: 1 });
+            }
+          }
+        }
+
+        const customerId = await getOrCreateCustomer();
+
+        // Create checkout session with all line items
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: lineItems,
+          mode: 'payment',
+          payment_intent_data: {
+            setup_future_usage: 'off_session',
+          },
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: cancelUrl,
+          metadata: {
+            type: 'guest_pass_experience',
+            user_id: user.id,
+            guest_name: guestName,
+            guest_email: guestEmail,
+            phone_number: phoneNumber,
+            valid_date: validDate,
+            member_referral: memberReferral || '',
+            visit_interests: JSON.stringify(visitInterests),
+            visit_notes: visitNotes || '',
+            add_ons: JSON.stringify(addons || []),
+          },
+        });
+
+        logStep("Guest pass experience checkout created", { 
+          sessionId: session.id, 
+          url: session.url, 
+          guestName,
+          validDate,
+          addonsCount: addons?.length || 0,
+          lineItemsCount: lineItems.length,
+        });
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),

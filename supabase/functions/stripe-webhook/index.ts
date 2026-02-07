@@ -499,6 +499,100 @@ serve(async (req) => {
               return errorResponse(passError, "GUEST_PASS_CREATION");
             }
 
+          } else if (metadata.type === 'guest_pass_experience') {
+            // Handle enhanced guest pass experience purchase
+            const userId = metadata.user_id;
+            const guestName = metadata.guest_name;
+            const guestEmail = metadata.guest_email || null;
+            const phoneNumber = metadata.phone_number || null;
+            const validDate = metadata.valid_date;
+            const memberReferral = metadata.member_referral || null;
+            const visitInterests = metadata.visit_interests ? JSON.parse(metadata.visit_interests) : [];
+            const visitNotes = metadata.visit_notes || null;
+            const addOns = metadata.add_ons ? JSON.parse(metadata.add_ons) : [];
+
+            if (!userId || !guestName || !validDate) {
+              logError("Missing required metadata for guest_pass_experience", "GUEST_PASS_EXPERIENCE");
+              return errorResponse(new Error("Missing required metadata: user_id, guest_name, or valid_date"), "GUEST_PASS_EXPERIENCE");
+            }
+
+            // Calculate expiration: 11:59 PM on valid_date
+            const validDateObj = new Date(validDate + 'T23:59:59');
+            
+            try {
+              // Create guest pass record with all personalization data
+              const { error: passError } = await supabase
+                .from('guest_passes')
+                .insert({
+                  guest_name: guestName,
+                  guest_email: guestEmail,
+                  phone_number: phoneNumber,
+                  user_id: userId,
+                  valid_date: validDate,
+                  member_referral: memberReferral,
+                  visit_interests: visitInterests,
+                  visit_notes: visitNotes,
+                  add_ons: addOns,
+                  price_paid: session.amount_total ? session.amount_total / 100 : 60.00,
+                  status: 'active',
+                  expires_at: validDateObj.toISOString(),
+                  stripe_payment_id: session.payment_intent as string,
+                  stripe_customer_id: session.customer as string,
+                });
+
+              if (passError) {
+                logError(passError, "GUEST_PASS_EXPERIENCE_CREATION");
+                return errorResponse(passError, "GUEST_PASS_EXPERIENCE_CREATION");
+              }
+
+              logStep("Guest pass experience created", { 
+                userId, 
+                guestName, 
+                validDate,
+                expiresAt: validDateObj.toISOString(),
+                addOnsCount: addOns.length,
+              });
+
+              // Create class passes if class add-ons were purchased
+              const classAddons = addOns.filter((addon: { id: string }) => 
+                addon.id === 'class_pilates_cycling' || addon.id === 'class_other'
+              );
+
+              for (const classAddon of classAddons) {
+                try {
+                  const category = classAddon.id === 'class_pilates_cycling' ? 'pilates_cycling' : 'aerobics';
+                  const expiresAt = new Date(validDateObj);
+                  expiresAt.setDate(expiresAt.getDate() + 7); // 7 day validity for class pass
+
+                  const { error: classPassError } = await supabase
+                    .from('class_passes')
+                    .insert({
+                      user_id: userId,
+                      category: category,
+                      pass_type: 'single',
+                      classes_total: 1,
+                      classes_remaining: 1,
+                      price_paid: classAddon.price || 0,
+                      is_member_price: false,
+                      expires_at: expiresAt.toISOString(),
+                      status: 'active',
+                    });
+
+                  if (classPassError) {
+                    logError(classPassError, `CLASS_PASS_CREATION_${classAddon.id}`);
+                  } else {
+                    logStep(`Class pass created for guest`, { category, userId });
+                  }
+                } catch (classErr) {
+                  logError(classErr, `CLASS_PASS_CREATION_${classAddon.id}`);
+                }
+              }
+
+            } catch (passError) {
+              logError(passError, "GUEST_PASS_EXPERIENCE_CREATION");
+              return errorResponse(passError, "GUEST_PASS_EXPERIENCE_CREATION");
+            }
+
           } else if (metadata.type === 'freeze_fee') {
             // Handle freeze fee payment
             const freezeId = metadata.freeze_id;

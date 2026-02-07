@@ -78,6 +78,11 @@ export const STRIPE_PRODUCTS = {
     },
   },
   guestPass: 'price_1SxATYLyZrsSqLhs6vDu1QWg',  // $60 - Guest Pass (gym and amenities access, subject to availability)
+  guestAddons: {
+    rlt10: 'price_1Sy3qVLyZrsSqLhsgs55vadk',    // $18 - Full Body Red Light Therapy 10 min
+    rlt20: 'price_1Sy3y3LyZrsSqLhsN3WxRig0',    // $28 - Full Body Red Light Therapy 20 min
+    cryo: 'price_1Sy3ytLyZrsSqLhsziHR3pw1',     // $45 - ZeroBody Cryo Session
+  },
 } as const;
 
 // Pricing data (in dollars)

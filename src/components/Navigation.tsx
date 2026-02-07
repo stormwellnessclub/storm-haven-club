@@ -13,6 +13,7 @@ const navLinks = [
   { href: "/cafe", label: "Café" },
   { href: "/amenities", label: "Amenities" },
   { href: "/class-passes", label: "Class Passes" },
+  { href: "/guest-pass", label: "Guest Pass" },
 ];
 
 export function Navigation() {
