@@ -197,7 +197,7 @@ export default function Auth() {
             title: "Welcome to Storm Wellness Club!",
             description: "Your account has been created successfully.",
           });
-          navigate(getRedirectTarget());
+          // Don't navigate here - let useEffect handle navigation to ensure waiver step is shown
         }
       } else {
         const { error } = await signIn(email, password);
@@ -219,7 +219,7 @@ export default function Auth() {
         } else {
           // Attempt member link after sign-in
           await attemptMemberLink();
-          navigate(getRedirectTarget());
+          // Don't navigate here - let useEffect handle navigation to ensure waiver step is shown
         }
       }
     } catch (err) {
