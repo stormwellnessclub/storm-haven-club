@@ -30,12 +30,16 @@ export function useAdminMemberPaymentMethods(memberId: string | undefined) {
         return { paymentMethods: [], hasPaymentMethod: false };
       }
 
+      console.log("[useAdminMemberPaymentMethods] Fetching for member:", memberId);
+
       const { data, error } = await supabase.functions.invoke("stripe-payment", {
         body: {
           action: "admin_list_member_payment_methods",
           memberId,
         },
       });
+
+      console.log("[useAdminMemberPaymentMethods] Response:", data, "Error:", error);
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

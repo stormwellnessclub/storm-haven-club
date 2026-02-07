@@ -379,6 +379,22 @@ export default function MemberPaymentMethods() {
           </CardContent>
         </Card>
 
+        {/* Default Card Guidance */}
+        <Card className="border-accent/30 bg-accent/5">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <Star className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-foreground mb-1">Your default card is used for membership dues</p>
+                <p className="text-muted-foreground">
+                  The card marked with a <strong>"Default"</strong> badge will be automatically charged for your recurring membership fees. 
+                  Click "Set Default" on any card to change which card is used for billing.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Info Card */}
         <Card className="bg-secondary/30">
           <CardContent className="py-4">
@@ -388,7 +404,6 @@ export default function MemberPaymentMethods() {
                 <p className="font-medium text-foreground mb-1">About Payment Methods</p>
                 <p>
                   Your saved cards are used for membership billing and any purchases you make.
-                  The card marked as "Default" will be used for your recurring membership charges.
                   You can add nicknames to help identify your cards.
                 </p>
               </div>

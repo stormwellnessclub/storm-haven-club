@@ -14,35 +14,42 @@ interface EmailRequest {
 
 const BASE_URL = Deno.env.get('APP_BASE_URL') ?? 'https://stormwellnessclub.com';
 
-// Email template styling - Brand colors: Gold #C9A227, Charcoal #312D28
+// Email template styling - Brand colors: Smoked Umber #1C170F, Limestone Haze #DEDACE, Still Sand #C1B19C, Golden Dune #F0DFC4, Gold Accent #B8A068
 const emailStyles = {
-  container: 'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;',
-  header: 'background: linear-gradient(135deg, #312D28 0%, #3D3830 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;',
-  content: 'background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none;',
-  footer: 'background: #f9fafb; padding: 20px; text-align: center; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;',
-  button: 'display: inline-block; background: #C9A227; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px 5px;',
-  buttonSecondary: 'display: inline-block; background: #312D28; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 500; margin: 10px 5px;',
-  link: 'color: #C9A227; text-decoration: none;',
-  muted: 'color: #6b7280; font-size: 14px;',
-  heading: 'color: #312D28; margin-top: 0;',
+  container: 'font-family: Georgia, "Times New Roman", Times, serif; max-width: 600px; margin: 0 auto; padding: 0;',
+  header: 'background: #DEDACE; padding: 40px 30px; text-align: center;',
+  content: 'background: #ffffff; padding: 30px; border-left: 1px solid #C1B19C; border-right: 1px solid #C1B19C;',
+  footer: 'background: #1C170F; padding: 25px; text-align: center; color: #DEDACE;',
+  button: 'display: inline-block; background: #1C170F; color: #DEDACE; padding: 14px 32px; text-decoration: none; border-radius: 4px; font-weight: 600; font-family: Georgia, serif; letter-spacing: 0.5px; margin: 10px 5px;',
+  buttonSecondary: 'display: inline-block; background: #C1B19C; color: #1C170F; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 500; font-family: Georgia, serif; margin: 10px 5px;',
+  link: 'color: #6C5D3E; text-decoration: underline;',
+  muted: 'color: #88766B; font-size: 14px; font-family: Georgia, serif;',
+  heading: 'color: #1C170F; margin-top: 0; font-family: Georgia, serif; font-weight: 500;',
+  // Brand accent boxes
+  infoBox: 'background: #F0DFC4; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;',
+  warningBox: 'background: #F0DFC4; border: 2px solid #B8A068; border-radius: 8px; padding: 20px; margin: 25px 0;',
+  successBox: 'background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 20px 0;',
 };
 
 const getEmailHeader = () => `
   <div style="${emailStyles.header}">
-    <img src="${BASE_URL}/storm-logo-gold.png" alt="Storm Wellness Club" height="60" style="display: block; margin: 0 auto;" />
+    <img src="${BASE_URL}/storm-logo-gold.png" alt="Storm Wellness Club" height="80" style="display: block; margin: 0 auto;" />
   </div>
+  <div style="height: 4px; background: linear-gradient(90deg, #B8A068, #C1B19C, #B8A068);"></div>
 `;
 
 const getEmailFooter = () => `
+  <div style="height: 1px; background: #C1B19C;"></div>
   <div style="${emailStyles.footer}">
-    <p style="${emailStyles.muted}">
-      Have questions? Visit your member portal:<br>
-      <a href="${BASE_URL}/member/support" style="${emailStyles.link}">Contact Support</a> · 
-      <a href="${BASE_URL}/member/bookings" style="${emailStyles.link}">Manage Bookings</a>
+    <p style="color: #B8A068; font-size: 14px; margin: 0 0 15px 0; font-family: Georgia, serif;">
+      Have questions? Visit your member portal
     </p>
-    <p style="${emailStyles.muted}">
-      Storm Wellness Club<br>
-      <a href="${BASE_URL}" style="${emailStyles.link}">stormwellnessclub.com</a>
+    <p style="margin: 0 0 15px 0;">
+      <a href="${BASE_URL}/member/support" style="color: #DEDACE; text-decoration: none; margin: 0 10px;">Contact Support</a> · 
+      <a href="${BASE_URL}/member/bookings" style="color: #DEDACE; text-decoration: none; margin: 0 10px;">Manage Bookings</a>
+    </p>
+    <p style="color: #88766B; font-size: 12px; margin: 15px 0 0 0; font-family: Georgia, serif;">
+      Storm Wellness Club · <a href="${BASE_URL}" style="color: #88766B;">stormwellnessclub.com</a>
     </p>
   </div>
 `;
@@ -125,17 +132,17 @@ serve(async (req) => {
                 Every element of Storm Wellness Club is designed with care and precision, so your time, energy, and well-being are respected the moment you step inside.
               </p>
               
-              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
-                <p style="margin: 0; font-weight: 600; color: #92400e;">
+              <div style="background: #F0DFC4; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, serif;">
                   ⏰ Please sign in to your member portal within the next 7 days to select your membership start date.
                 </p>
-                <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px;">
+                <p style="margin: 10px 0 0 0; color: #6C5D3E; font-size: 14px; font-family: Georgia, serif;">
                   Your billing will begin on the date you choose. If no date is selected by <strong>${data.activationDeadline || 'the deadline'}</strong>, your membership will automatically begin on that date.
                 </p>
               </div>
               
-              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 14px; color: #0369a1;">
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #1C170F; font-family: Georgia, serif;">
                   <strong>📧 Important:</strong> When creating your member account, please use the same email address you applied with: <strong>${data.email || to}</strong>. This ensures your membership is automatically linked to your account.
                 </p>
               </div>
@@ -179,8 +186,8 @@ serve(async (req) => {
                 We are currently finalizing the last details before our opening. Please keep an eye out in the coming days for more emails from us with instructions on how to create your account and complete your membership setup.
               </p>
               
-              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <p style="margin: 0; font-weight: 600; color: #065f46;">
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, serif;">
                   ✓ Your spot is secured as a <strong>${data.membershipTier}</strong> member.
                 </p>
               </div>
@@ -258,8 +265,8 @@ serve(async (req) => {
                 Sign in to your member portal to select your start date. You have <strong>4 days remaining</strong> to make your selection before your membership automatically begins.
               </p>
               
-              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 14px; color: #0369a1;">
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #1C170F; font-family: Georgia, serif;">
                   <strong>📧 Important:</strong> When signing in or creating your account, please use the same email address you applied with: <strong>${data.email || to}</strong>.
                 </p>
               </div>
@@ -286,18 +293,18 @@ serve(async (req) => {
             <div style="${emailStyles.content}">
               <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
               
-              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <p style="margin: 0; font-weight: 600; color: #92400e;">
+              <div style="background: #F0DFC4; border: 2px solid #B8A068; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, serif;">
                   ⏰ Your membership activation window closes in 2 days.
                 </p>
               </div>
               
-              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, serif;">
                 Please sign in to select your preferred start date. If no date is selected by <strong>${data.activationDeadline}</strong>, your membership will automatically begin on that date.
               </p>
               
-              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 14px; color: #0369a1;">
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #1C170F; font-family: Georgia, serif;">
                   <strong>📧 Important:</strong> When signing in or creating your account, please use the same email address you applied with: <strong>${data.email || to}</strong>.
                 </p>
               </div>
@@ -328,15 +335,15 @@ serve(async (req) => {
                 Your membership is now active. We're thrilled to have you as part of the Storm Wellness Club community.
               </p>
               
-              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <table style="width: 100%; border-collapse: collapse;">
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Membership Tier</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.membershipType}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Membership Tier</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.membershipType}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Start Date</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.startDate}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Start Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.startDate}</td>
                   </tr>
                 </table>
               </div>
@@ -473,8 +480,8 @@ serve(async (req) => {
             <div style="${emailStyles.content}">
               <h2 style="${emailStyles.heading}">Class Reminder ⏰</h2>
               <p>Don't forget - you have a class coming up tomorrow!</p>
-              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <table style="width: 100%; border-collapse: collapse;">
+              <div style="background: #F0DFC4; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
                   <tr>
                     <td style="padding: 8px 0; color: #6b7280;">Class</td>
                     <td style="padding: 8px 0; font-weight: 600;">${data.class_name}</td>
@@ -518,24 +525,24 @@ serve(async (req) => {
             <div style="${emailStyles.content}">
               <h2 style="${emailStyles.heading}">A Spot Just Opened Up! 🎉</h2>
               <p>Great news! A spot has become available in a class you're on the waitlist for:</p>
-              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <table style="width: 100%; border-collapse: collapse;">
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Class</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.class_name}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Class</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.class_name}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Date</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.date}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.date}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Time</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.time}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Time</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.time}</td>
                   </tr>
                 </table>
               </div>
-              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0; font-weight: 600; color: #92400e;">⏰ Act fast! You have 5 minutes to claim this spot.</p>
+              <div style="background: #F0DFC4; border: 2px solid #B8A068; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, serif;">⏰ Act fast! You have 5 minutes to claim this spot.</p>
               </div>
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/schedule" style="${emailStyles.button}">Claim Your Spot Now</a>
@@ -555,33 +562,33 @@ serve(async (req) => {
             <div style="${emailStyles.content}">
               <h2 style="${emailStyles.heading}">You Got the Spot! 🎉</h2>
               <p>Congratulations! You successfully claimed your spot from the waitlist:</p>
-              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <table style="width: 100%; border-collapse: collapse;">
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Class</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.class_name}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Class</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.class_name}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Date</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.date}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.date}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Time</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.time}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Time</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.time}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Instructor</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.instructor}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Instructor</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.instructor}</td>
                   </tr>
                   ${data.room ? `
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Room</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.room}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Room</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.room}</td>
                   </tr>
                   ` : ''}
                 </table>
               </div>
-              <p style="color: #10b981; font-weight: 500;">✓ Your spot is now confirmed!</p>
+              <p style="color: #1C170F; font-weight: 500; font-family: Georgia, serif;">✓ Your spot is now confirmed!</p>
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/member/bookings" style="${emailStyles.button}">View My Bookings</a>
               </div>
@@ -608,8 +615,8 @@ serve(async (req) => {
                 To complete your membership application, we need your payment information on file. This allows us to process your annual membership fee and set up your billing.
               </p>
               
-              <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
-                <p style="margin: 0; font-weight: 600; color: #92400e;">
+              <div style="background: #F0DFC4; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, serif;">
                   Sign in or create an account using the same email address you applied with (${data.email}), and you'll be able to add your payment method securely.
                 </p>
               </div>
@@ -649,24 +656,24 @@ serve(async (req) => {
                 This email confirms that your payment has been successfully processed.
               </p>
               
-              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 25px 0;">
-                <h3 style="margin: 0 0 15px 0; color: #065f46;">Receipt Details</h3>
-                <table style="width: 100%; border-collapse: collapse;">
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #1C170F; font-family: Georgia, serif;">Receipt Details</h3>
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Description</td>
-                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.description}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Description</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.description}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Amount</td>
-                    <td style="padding: 8px 0; font-weight: 600; text-align: right; font-size: 18px; color: #065f46;">$${data.amount}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Amount</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; font-size: 18px; color: #1C170F;">$${data.amount}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Date</td>
-                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.date}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.date}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Payment Method</td>
-                    <td style="padding: 8px 0; font-weight: 600; text-align: right;">${data.cardBrand} •••• ${data.cardLast4}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Payment Method</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.cardBrand} •••• ${data.cardLast4}</td>
                   </tr>
                 </table>
               </div>
@@ -1090,51 +1097,53 @@ serve(async (req) => {
                 To ensure you're ready to enjoy your membership from day one, please complete the following setup steps.
               </p>
               
-              <div style="background: #dbeafe; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 25px 0;">
-                <p style="margin: 0 0 10px 0; font-weight: 600; color: #1e40af; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
+              <div style="background: #DEDACE; border: 2px solid #B8A068; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0 0 10px 0; font-weight: 600; color: #1C170F; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
                   📧 Important: Create your account with this email address
                 </p>
-                <p style="margin: 0; font-size: 18px; font-weight: 700; color: #1e40af; font-family: Georgia, 'Times New Roman', Times, serif; background: #eff6ff; padding: 10px; border-radius: 4px; text-align: center;">
+                <p style="margin: 0; font-size: 18px; font-weight: 700; color: #1C170F; font-family: Georgia, 'Times New Roman', Times, serif; background: #F0DFC4; padding: 10px; border-radius: 4px; text-align: center;">
                   ${data.email || to}
                 </p>
-                <p style="margin: 10px 0 0 0; color: #1e40af; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                <p style="margin: 10px 0 0 0; color: #6C5D3E; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
                   This is the same email you used when applying. Using a different email will prevent your membership from being linked automatically.
                 </p>
               </div>
               
-              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
-                <h3 style="margin: 0 0 15px 0; color: #312D28; font-family: Georgia, 'Times New Roman', Times, serif;">Complete your setup:</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 12px 0; font-family: Georgia, 'Times New Roman', Times, serif; vertical-align: top; width: 30px;">
-                      ${hasCardOnFile 
-                        ? '<span style="color: #10b981; font-size: 18px;">✓</span>'
-                        : '<span style="color: #6b7280; font-size: 18px;">○</span>'}
-                    </td>
-                    <td style="padding: 12px 0; font-family: Georgia, 'Times New Roman', Times, serif;">
-                      <strong>Add payment method</strong><br>
-                      <span style="color: #6b7280; font-size: 14px;">For your monthly membership dues</span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-family: Georgia, 'Times New Roman', Times, serif; vertical-align: top; width: 30px;">
-                      ${hasSignedAgreement 
-                        ? '<span style="color: #10b981; font-size: 18px;">✓</span>'
-                        : '<span style="color: #6b7280; font-size: 18px;">○</span>'}
-                    </td>
-                    <td style="padding: 12px 0; font-family: Georgia, 'Times New Roman', Times, serif;">
-                      <strong>Sign membership agreement</strong><br>
-                      <span style="color: #6b7280; font-size: 14px;">Review and sign your membership terms</span>
-                    </td>
-                  </tr>
-                </table>
+              <div style="background: #F0DFC4; border: 1px solid #C1B19C; border-radius: 8px; padding: 25px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #1C170F; font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 600;">
+                  Complete Your Membership Setup:
+                </h3>
+                <ol style="color: #1C170F; line-height: 2.2; margin: 0; padding-left: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  <li><strong>Sign in or create your account</strong> using the email above</li>
+                  <li>Go to the <strong>Waivers</strong> tab and sign any required waivers</li>
+                  <li>Sign your <strong>Membership Agreement</strong> (also in the Waivers tab)</li>
+                  <li>Add a <strong>Payment Method</strong> for monthly dues and mark one as default</li>
+                  <li>Review your setup checklist in the <strong>My Membership</strong> tab</li>
+                </ol>
               </div>
               
-              <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
-                <p style="margin: 0; font-weight: 600; color: #92400e; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #1C170F; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  <strong>💳 Important:</strong> When adding payment methods, please indicate which card 
+                  you'd like us to use for your membership dues by setting it as your <em>default</em>.
+                </p>
+              </div>
+              
+              <div style="background: #DEDACE; border: 1px solid #88766B; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0; font-size: 14px; color: #1C170F; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  <strong>One-Time Courtesy:</strong> If you'd like to change your membership tier, 
+                  you may do so once from the My Membership page before activation.
+                </p>
+                <p style="margin: 0; font-size: 14px; color: #6C5D3E; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  Founding members can also contact us to discuss opt-in or opt-out of founding status if needed.
+                </p>
+              </div>
+              
+              <div style="background: #F0DFC4; border: 2px solid #B8A068; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
                   ⏰ Please complete these steps before ${launchDate}
                 </p>
-                <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                <p style="margin: 10px 0 0 0; color: #6C5D3E; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
                   Your membership will be activated on opening day once your setup is complete.
                 </p>
               </div>
