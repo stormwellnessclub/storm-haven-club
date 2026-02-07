@@ -483,9 +483,8 @@ serve(async (req) => {
                   price_paid: session.amount_total ? session.amount_total / 100 : 60.00,
                   status: 'active',
                   expires_at: expiresAt.toISOString(),
-                  stripe_payment_intent_id: session.payment_intent as string,
-                  stripe_session_id: session.id,
-                  purchased_by: userId,
+                  stripe_payment_id: session.payment_intent as string,
+                  sold_by: userId,
                 });
 
               if (passError) {
