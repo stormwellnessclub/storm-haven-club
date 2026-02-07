@@ -1,34 +1,75 @@
 
+# Fix Guest Pass Waiver Signing Flow
 
-# Fix Remaining Agreement Filenames
+## Problem Summary
 
-## Database Update
+1. **Guest Pass page requires 2 agreements** (Liability Waiver + Guest Pass Agreement)
+2. **Guest Pass has 2 documents** that display in tabs - the second document shows 404
+3. **Iframe embed is unreliable** - PDFs fail to load in production, blocking the purchase form
+4. **User cannot proceed** - Cannot sign waivers → Cannot see guest pass purchase form
 
-Normalize the 3 remaining agreement types to use simple filenames matching the `pdfMap` keys:
+## Solution
 
-| Agreement Type | Current `pdf_url` | New `pdf_url` |
-|----------------|-------------------|---------------|
-| kids_care | `/assets/agreements/kids-care-agreement.pdf` | `kids-care-agreement.pdf` |
-| membership_agreement | `/assets/agreements/membership-agreement.pdf` | `membership-agreement.pdf` |
-| private_event | `/assets/agreements/private-event-agreement.pdf` | `private-event-agreement.pdf` |
+Replace the error-prone embedded PDF iframe viewer with a simple, reliable **Download/Open + Acknowledge + Sign** pattern.
 
-## SQL to Execute
+## Technical Changes
 
-```sql
-UPDATE public.agreements 
-SET pdf_url = 'kids-care-agreement.pdf'
-WHERE agreement_type = 'kids_care';
+### 1. Create `SimpleAgreementCard.tsx`
 
-UPDATE public.agreements 
-SET pdf_url = 'membership-agreement.pdf'
-WHERE agreement_type = 'membership_agreement';
+New component that shows:
+- Agreement title and description
+- Download PDF button for each document
+- Open in New Tab button for each document
+- Checkbox: "I have reviewed this agreement"
+- Sign button (enabled only after checkbox)
 
-UPDATE public.agreements 
-SET pdf_url = 'private-event-agreement.pdf'
-WHERE agreement_type = 'private_event';
+### 2. Update `InlineWaiverGate.tsx`
+
+Replace `AgreementPDFViewer` with `SimpleAgreementCard`:
+- For single-document agreements: Show one card
+- For multi-document agreements (like guest_pass with 2 PDFs): Show each document with download/open buttons
+- Keep the accordion structure for multiple waiver types
+
+### 3. Update `src/pages/member/Waivers.tsx`
+
+Replace `AgreementCard` component to use the same simple pattern:
+- Remove iframe-based `AgreementPDFViewer`
+- Use download/open buttons instead
+- Add acknowledgment checkbox before signing
+
+## UI Design
+
+```text
++------------------------------------------------------------------+
+|  Guest Pass Agreement                               [Required]   |
+|  ----------------------------------------------------------------|
+|                                                                  |
+|  Please review the following document(s):                        |
+|                                                                  |
+|  Document 1: Guest Pass Agreement                                |
+|  [Download PDF]  [Open in New Tab]                               |
+|                                                                  |
+|  Document 2: Guest Pass - General Agreement                      |
+|  [Download PDF]  [Open in New Tab]                               |
+|                                                                  |
+|  [ ] I have reviewed all documents above                         |
+|                                                                  |
+|  [I Agree - Sign Guest Pass Agreement] (disabled until checked)  |
++------------------------------------------------------------------+
 ```
 
-## Result
+## Files to Change
 
-All 6 agreement types will use simple filenames that directly match the bundled asset keys in `AgreementPDFViewer`, ensuring PDFs load reliably across all environments.
+| File | Action |
+|------|--------|
+| `src/components/SimpleAgreementCard.tsx` | Create new component |
+| `src/components/InlineWaiverGate.tsx` | Replace AgreementPDFViewer with SimpleAgreementCard |
+| `src/pages/member/Waivers.tsx` | Update to use simple download/open pattern |
 
+## Benefits
+
+- **No more 404 errors** - No iframe loading issues
+- **Faster loading** - No waiting for PDF to embed
+- **Works everywhere** - Downloads/opens work on all browsers
+- **Explicit acknowledgment** - User must confirm they reviewed before signing
+- **Guest pass form visible** - Users can complete purchase after signing
