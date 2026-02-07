@@ -1,120 +1,207 @@
 
-# Sign Liability Waiver at Account Creation
+# Redirect to Member Portal for Missing Waivers
 
 ## Problem Summary
 
-1. **Shaking Form**: The guest pass form "shakes" due to loading state transitions in `InlineWaiverGate` as it checks profile, fetches agreements, and renders the waiver UI
-2. **Repeated Signing**: Users must sign waivers every time they purchase a guest pass instead of once per account
-3. **Poor UX**: Creates friction for returning users who have already agreed to the liability waiver
+Currently, when a user tries to purchase a service that requires a waiver they haven't signed:
+1. The `InlineWaiverGate` blocks them with an inline signing experience
+2. This causes UI issues (shaking, loading states)
+3. Users must sign waivers repeatedly in-context instead of managing them centrally
 
 ## Solution
 
-Move the liability waiver signing into the account creation flow, so users sign once when they join and don't need to re-sign for each purchase.
+Instead of blocking with inline signing, show a friendly message directing users to the member portal `/member/waivers` page to sign the relevant waiver. This:
+- Creates a cleaner separation of concerns
+- Eliminates the "shaking" UI issue from inline waiver components
+- Centralizes all agreement management in one place
+- Makes the flow more intuitive for users
 
 ## Architecture Change
 
 ### Current Flow
 ```text
-Sign Up → Redirect to /guest-pass → Show Waiver Gate → Sign Waivers → Show Form
+User tries to purchase → InlineWaiverGate checks waivers → 
+Shows inline signing UI (causes loading/shaking) → User signs inline → 
+Form appears
 ```
 
 ### New Flow
 ```text
-Sign Up → Show Liability Waiver Step → Complete → Redirect to /guest-pass → Form Ready
+User tries to purchase → Check if waiver signed → 
+If missing: Show friendly alert with link to /member/waivers → 
+User signs in portal → Returns to purchase → Form ready
 ```
 
 ## Technical Changes
 
-### 1. Create `WaiverSigningStep` Component
+### 1. Create `WaiverRequiredAlert` Component
 
-A new component shown after successful account creation that requires the user to sign the liability waiver before proceeding:
+A new component that shows a friendly message when a required waiver is missing:
 
-- Displays the liability waiver using `SimpleAgreementCard`
-- Once signed, redirects to the original destination
-- Blocks navigation until waiver is signed
+```typescript
+interface WaiverRequiredAlertProps {
+  waiverType: WaiverType;
+  serviceName: string;  // e.g., "Guest Pass", "Kids Care"
+  onNavigate?: () => void;
+}
+```
 
-### 2. Modify `Auth.tsx` Sign-Up Flow
+Features:
+- Shows which waiver is needed
+- Provides a link to `/member/waivers` page
+- Can optionally preserve the return URL
 
-After successful sign-up:
-1. Wait for profile creation (trigger)
-2. Check if `waiver_signed = false`
-3. If not signed, show the `WaiverSigningStep` component
-4. Once signed, redirect to intended destination
+### 2. Simplify `InlineWaiverGate` 
 
-### 3. Simplify `GuestPass.tsx`
+Update to show the redirect alert instead of the inline signing UI:
+- Remove the complex accordion-based inline signing
+- Replace with `WaiverRequiredAlert` that links to portal
+- Keep the same `requiredWaivers` prop interface for backwards compatibility
 
-- Remove `liability` from `requiredWaivers` array
-- Only require `guest_pass` agreement (product-specific)
-- Liability waiver is always signed at account creation
+### 3. Update All Purchase Flows
 
-### 4. Update Other Purchase Flows (Class Passes, etc.)
+Each purchase page should check waivers and show the alert:
 
-For each purchase type:
-- Liability waiver: Always signed at account creation (no longer in waiver gate)
-- Product-specific waiver: Still required inline (e.g., `guest_pass`, `single_class_pass`)
+| Service | Required Waiver | File |
+|---------|-----------------|------|
+| Guest Pass | `guest_pass` | `GuestPass.tsx` |
+| Class Passes (Single) | `single_class_pass` | `ClassPasses.tsx` |
+| Kids Care | `kids_care` | `KidsCareBookingModal.tsx` |
+| Private Events | `private_event` | (if exists) |
 
-## Database Schema
+### 4. Enhance Member Waivers Page
 
-No changes needed - the `profiles` table already has:
-- `waiver_signed` (boolean, default false)
-- `waiver_signed_at` (timestamp)
-
-## File Changes
-
-| File | Change |
-|------|--------|
-| `src/components/WaiverSigningStep.tsx` | **NEW** - Post-signup waiver signing component |
-| `src/pages/Auth.tsx` | Add waiver signing step after successful sign-up |
-| `src/pages/GuestPass.tsx` | Remove `liability` from `requiredWaivers`, keep only `guest_pass` |
-| `src/pages/ClassPasses.tsx` | Remove `liability` from required waivers if present |
+Update `/member/waivers` to:
+- Show which waivers are "needed for" which services
+- Display clear status (signed/unsigned) 
+- Remember the return URL so users can go back to their purchase
 
 ## UI Design
 
-### Post Sign-Up Waiver Screen
+### Purchase Page Alert (when waiver missing)
 ```text
-+----------------------------------------------------------+
-|                    [Storm Wellness Logo]                  |
-|                                                          |
-|                  Almost There!                           |
-|     Please review and sign our liability waiver          |
-|            to complete your account setup.               |
-|                                                          |
-|  +----------------------------------------------------+  |
-|  |  Liability Waiver                                  |  |
-|  |  ------------------------------------------------  |  |
-|  |  Please review the following document:             |  |
-|  |                                                    |  |
-|  |  Liability Waiver                                  |  |
-|  |  [Download PDF]  [Open in New Tab]                 |  |
-|  |                                                    |  |
-|  |  [ ] I have reviewed this document                 |  |
-|  |                                                    |  |
-|  |  [I Agree — Sign Liability Waiver]                 |  |
-|  +----------------------------------------------------+  |
-|                                                          |
-|           This is required for all club activities       |
-+----------------------------------------------------------+
++------------------------------------------------------------+
+|  ⚠ Agreement Required                                       |
+|  --------------------------------------------------------  |
+|                                                             |
+|  To purchase a Guest Pass, you need to sign our            |
+|  Guest Pass Agreement first.                                |
+|                                                             |
+|  [Go to Waivers & Agreements →]                             |
+|                                                             |
+|  This only needs to be done once.                           |
++------------------------------------------------------------+
 ```
 
-### Simplified Guest Pass Flow (After Change)
-```text
-User already signed liability waiver at signup
-         ↓
-Only guest_pass agreement shown (if not already signed)
-         ↓
-Form appears immediately for returning users
+### After signing, user can return to purchase flow and form loads immediately.
+
+## Files to Change
+
+| File | Change |
+|------|--------|
+| `src/components/WaiverRequiredAlert.tsx` | **NEW** - Alert component with portal link |
+| `src/components/InlineWaiverGate.tsx` | Simplify to show redirect alert instead of inline signing |
+| `src/pages/GuestPass.tsx` | Use simplified waiver check |
+| `src/pages/ClassPasses.tsx` | Already has similar logic, ensure consistent |
+| `src/components/booking/KidsCareBookingModal.tsx` | Already redirects, ensure consistent messaging |
+
+## Implementation Details
+
+### WaiverRequiredAlert.tsx
+
+```typescript
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, ArrowRight } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+
+const WAIVER_DISPLAY_NAMES: Record<string, string> = {
+  liability: "Liability Waiver",
+  guest_pass: "Guest Pass Agreement",
+  single_class_pass: "Single Class Pass Agreement", 
+  kids_care: "Kids Care Agreement",
+  membership: "Membership Agreement",
+  class_package: "Class Package Agreement",
+  private_event: "Private Event Agreement",
+};
+
+interface WaiverRequiredAlertProps {
+  waiverType: string;
+  serviceName: string;
+}
+
+export function WaiverRequiredAlert({ waiverType, serviceName }: WaiverRequiredAlertProps) {
+  const location = useLocation();
+  const returnUrl = encodeURIComponent(location.pathname + location.search);
+  
+  return (
+    <Alert className="border-accent/50 bg-accent/5">
+      <AlertCircle className="h-4 w-4 text-accent" />
+      <AlertTitle>Agreement Required</AlertTitle>
+      <AlertDescription className="mt-2">
+        <p className="mb-4">
+          To purchase {serviceName}, please sign our {WAIVER_DISPLAY_NAMES[waiverType] || waiverType} first.
+        </p>
+        <Button asChild>
+          <Link to={`/member/waivers?return=${returnUrl}`}>
+            Go to Waivers & Agreements
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+        <p className="text-xs text-muted-foreground mt-3">
+          This only needs to be done once.
+        </p>
+      </AlertDescription>
+    </Alert>
+  );
+}
+```
+
+### Updated InlineWaiverGate.tsx
+
+Simplify to use the redirect pattern:
+
+```typescript
+export function InlineWaiverGate({
+  requiredWaivers,
+  children,
+  serviceName = "this service",
+}: InlineWaiverGateProps) {
+  // ... existing profile/agreement checks ...
+
+  // Find first unsigned waiver
+  const unsignedWaiver = requiredWaivers.find(w => {
+    const config = waiverConfigs[w];
+    return config.agreements.length > 0 && !config.signed;
+  });
+
+  // If any required waiver is missing, show redirect alert
+  if (unsignedWaiver) {
+    return (
+      <WaiverRequiredAlert 
+        waiverType={unsignedWaiver} 
+        serviceName={serviceName}
+      />
+    );
+  }
+
+  // All waivers signed, show children
+  return <>{children}</>;
+}
 ```
 
 ## Benefits
 
-- **No more shaking**: Form loads immediately for users who've already signed the liability waiver
-- **One-time signing**: Liability waiver is signed once at account creation
-- **Faster checkout**: Returning guests see the form immediately
-- **Cleaner code**: Waiver gate only handles product-specific agreements
-- **Better UX**: Clear, linear onboarding flow
+1. **No more shaking UI** - No inline loading states for agreement fetching/signing
+2. **Centralized management** - All waivers managed in one place (`/member/waivers`)
+3. **One-time signing** - Clear messaging that this only needs to be done once
+4. **Consistent UX** - Same pattern across all purchase flows
+5. **Simpler code** - Remove complex inline signing logic
+6. **Return URL support** - Users return to their purchase after signing
 
-## Edge Cases Handled
+## Edge Cases
 
-1. **Existing users without waiver**: They'll be prompted to sign when they next try to access a protected feature (the `InlineWaiverGate` still works as fallback)
-2. **Multiple products**: Each product-specific waiver (guest pass, single class, etc.) is still checked independently
-3. **Redirect preservation**: The redirect target is preserved through the waiver signing step
+1. **Non-authenticated users**: Show login prompt first, then check waivers after auth
+2. **Already signed**: Form appears immediately (no alert shown)
+3. **Multiple missing waivers**: Show alert for first missing one; after signing, they return and see next (rare case)
+4. **Deep linking**: Return URL preserves query params for proper navigation back
