@@ -152,6 +152,50 @@ export default function Auth() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Check for duplicate accounts before signup
+  const checkForDuplicateAccount = async (emailToCheck: string): Promise<{
+    isDuplicate: boolean;
+    reason: string;
+  }> => {
+    try {
+      // Check for existing member (case-insensitive)
+      const { data: memberData } = await supabase
+        .from("members")
+        .select("id, status, email")
+        .ilike("email", emailToCheck)
+        .maybeSingle();
+
+      if (memberData) {
+        return {
+          isDuplicate: true,
+          reason: `An account already exists for this email address (Status: ${memberData.status}).`,
+        };
+      }
+
+      // Check for pending/approved application (case-insensitive)
+      const { data: appData } = await supabase
+        .from("membership_applications")
+        .select("id, status, email")
+        .ilike("email", emailToCheck)
+        .neq("status", "rejected")
+        .neq("status", "cancelled")
+        .maybeSingle();
+
+      if (appData) {
+        return {
+          isDuplicate: true,
+          reason: `An application already exists for this email address (Status: ${appData.status}). Please sign in with this email instead.`,
+        };
+      }
+
+      return { isDuplicate: false, reason: "" };
+    } catch (error) {
+      // Log but don't block signup if check fails
+      console.warn("[Auth] Duplicate check failed:", error);
+      return { isDuplicate: false, reason: "" };
+    }
+  };
+
   // Try to link member after auth success (belt-and-suspenders with server trigger)
   const attemptMemberLink = useCallback(async () => {
     try {
@@ -166,6 +210,21 @@ export default function Auth() {
     e.preventDefault();
     
     if (!validateForm()) return;
+
+    // Check for duplicates on signup
+    if (isSignUp) {
+      setIsLoading(true);
+      const dupeCheck = await checkForDuplicateAccount(email);
+      if (dupeCheck.isDuplicate) {
+        toast({
+          title: "Account Already Exists",
+          description: dupeCheck.reason,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+    }
 
     setIsLoading(true);
 

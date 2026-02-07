@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
 import { BillingHealthWidget } from "@/components/admin/BillingHealthWidget";
+import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
 
 export default function Dashboard() {
   const currentDate = new Date().toLocaleDateString('en-US', { 
@@ -374,7 +375,11 @@ export default function Dashboard() {
           <BillingHealthWidget />
         </div>
 
+        {/* Card Sync Failures Widget - Critical Alert for Pre-Launch */}
+        <CardSyncFailuresWidget />
+
         {/* Quick Stats Row */}
+
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-950/50 dark:to-yellow-900/20 border-yellow-200 dark:border-yellow-800">
             <CardContent className="p-4">
