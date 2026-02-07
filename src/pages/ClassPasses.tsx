@@ -302,7 +302,9 @@ export default function ClassPasses() {
           category,
           passType,
           isMember,
-          successUrl: `${origin}/member/credits?purchase=success`,
+          successUrl: isMember 
+            ? `${origin}/member/credits?purchase=success`
+            : `${origin}/class-passes?purchase=success`,
           cancelUrl: `${origin}/class-passes?purchase=cancelled`,
         },
       });
