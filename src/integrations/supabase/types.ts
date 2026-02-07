@@ -2689,6 +2689,8 @@ export type Database = {
           address_line1: string | null
           address_line2: string | null
           city: string | null
+          class_package_agreement_signed: boolean | null
+          class_package_agreement_signed_at: string | null
           created_at: string
           date_of_birth: string | null
           email: string
@@ -2697,10 +2699,12 @@ export type Database = {
           first_name: string
           fitness_goals: string | null
           guest_pass_agreement_signed: boolean | null
+          guest_pass_agreement_signed_at: string | null
           id: string
           kids_care_agreement_signed: boolean | null
           kids_care_agreement_signed_at: string | null
           kids_care_service_form_completed: boolean | null
+          kids_care_service_form_completed_at: string | null
           last_name: string
           manager_refund_code: string | null
           membership_agreement_signed: boolean
@@ -2709,6 +2713,7 @@ export type Database = {
           private_event_agreement_signed: boolean | null
           private_event_agreement_signed_at: string | null
           single_class_pass_agreement_signed: boolean | null
+          single_class_pass_agreement_signed_at: string | null
           state: string | null
           updated_at: string
           user_id: string
@@ -2720,6 +2725,8 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
+          class_package_agreement_signed?: boolean | null
+          class_package_agreement_signed_at?: string | null
           created_at?: string
           date_of_birth?: string | null
           email: string
@@ -2728,10 +2735,12 @@ export type Database = {
           first_name: string
           fitness_goals?: string | null
           guest_pass_agreement_signed?: boolean | null
+          guest_pass_agreement_signed_at?: string | null
           id?: string
           kids_care_agreement_signed?: boolean | null
           kids_care_agreement_signed_at?: string | null
           kids_care_service_form_completed?: boolean | null
+          kids_care_service_form_completed_at?: string | null
           last_name: string
           manager_refund_code?: string | null
           membership_agreement_signed?: boolean
@@ -2740,6 +2749,7 @@ export type Database = {
           private_event_agreement_signed?: boolean | null
           private_event_agreement_signed_at?: string | null
           single_class_pass_agreement_signed?: boolean | null
+          single_class_pass_agreement_signed_at?: string | null
           state?: string | null
           updated_at?: string
           user_id: string
@@ -2751,6 +2761,8 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
+          class_package_agreement_signed?: boolean | null
+          class_package_agreement_signed_at?: string | null
           created_at?: string
           date_of_birth?: string | null
           email?: string
@@ -2759,10 +2771,12 @@ export type Database = {
           first_name?: string
           fitness_goals?: string | null
           guest_pass_agreement_signed?: boolean | null
+          guest_pass_agreement_signed_at?: string | null
           id?: string
           kids_care_agreement_signed?: boolean | null
           kids_care_agreement_signed_at?: string | null
           kids_care_service_form_completed?: boolean | null
+          kids_care_service_form_completed_at?: string | null
           last_name?: string
           manager_refund_code?: string | null
           membership_agreement_signed?: boolean
@@ -2771,6 +2785,7 @@ export type Database = {
           private_event_agreement_signed?: boolean | null
           private_event_agreement_signed_at?: string | null
           single_class_pass_agreement_signed?: boolean | null
+          single_class_pass_agreement_signed_at?: string | null
           state?: string | null
           updated_at?: string
           user_id?: string
