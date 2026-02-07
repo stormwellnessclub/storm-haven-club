@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Loader2, Check, FileText } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAgreements } from "@/hooks/useAgreements";
-import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
+import { SimpleAgreementCard } from "@/components/SimpleAgreementCard";
 
 type WaiverType = "liability" | "guest_pass" | "single_class_pass" | "kids_care" | "membership" | "class_package" | "private_event";
 
@@ -188,34 +187,19 @@ export function InlineWaiverGate({
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="space-y-4 pt-2">
-                    {/* Only render PDF viewer when this accordion item is open */}
+                  <div className="pt-2">
+                    {/* Only render when this accordion item is open */}
                     {effectiveOpenItem === waiverType && pdfUrls.length > 0 && (
-                      <AgreementPDFViewer
-                        pdfUrl={pdfUrls.length === 1 ? pdfUrls[0] : pdfUrls}
-                        height="400px"
-                        showControls
+                      <SimpleAgreementCard
+                        title={config.title}
+                        documents={config.agreements.map((a: any) => ({
+                          name: a.title || undefined,
+                          url: a.pdf_url,
+                        }))}
+                        onSign={() => config.signFn()}
+                        isSigning={config.isPending}
                       />
                     )}
-                    
-                    <Button
-                      onClick={() => config.signFn()}
-                      disabled={config.isPending}
-                      className="w-full"
-                      size="lg"
-                    >
-                      {config.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Signing...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="h-4 w-4 mr-2" />
-                          I Agree — Sign {config.title}
-                        </>
-                      )}
-                    </Button>
                   </div>
                 </AccordionContent>
               </AccordionItem>
