@@ -45,12 +45,20 @@ export function WaiverRequiredAlert({
       <AlertCircle className="h-4 w-4 text-accent" />
       <AlertTitle>Agreement Required</AlertTitle>
       <AlertDescription className="mt-2">
-        <p className="mb-4">
-          To {contextText}, please sign our <strong>{displayName}</strong> first.
+        <p className="mb-3">
+          To {contextText}, you'll need to sign our <strong>{displayName}</strong>.
         </p>
+        <div className="mb-4 p-3 bg-muted/50 rounded-md text-sm space-y-1">
+          <p className="font-medium">Here's how:</p>
+          <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+            <li>Create an account or sign in</li>
+            <li>Go to the <strong className="text-foreground">Waivers</strong> tab in your portal</li>
+            <li>Sign the {displayName}</li>
+          </ol>
+        </div>
         <Button asChild>
           <Link to={`/member/waivers?return=${returnUrl}`}>
-            Go to Waivers & Agreements
+            Sign In & Go to Waivers
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
