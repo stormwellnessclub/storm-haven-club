@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,6 +143,32 @@ export default function MemberMembership() {
 
     const hasPaymentMethod = !!(membership.card_brand && membership.card_last4);
     const tierChangeUsed = membership.tier_change_used ?? false;
+    
+    // Initiation fee payment handler
+    const [isPayingInitiationFee, setIsPayingInitiationFee] = useState(false);
+
+    const handlePayInitiationFee = async () => {
+      if (!membership) return;
+      setIsPayingInitiationFee(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "pay_annual_fee",
+            memberId: membership.id,
+            successUrl: `${window.location.origin}/member/membership?annual_fee_paid=true`,
+            cancelUrl: `${window.location.origin}/member/membership`,
+          },
+        });
+        if (error) throw error;
+        if (data?.url) {
+          window.location.href = data.url;
+        }
+      } catch (error) {
+        toast.error("Failed to start payment. Please try again.");
+      } finally {
+        setIsPayingInitiationFee(false);
+      }
+    };
 
     return (
       <MemberLayout title="Complete Your Membership">
@@ -164,6 +190,9 @@ export default function MemberMembership() {
             hasMembershipAgreement={membershipAgreementSigned}
             hasLiabilityWaiver={liabilityWaiverSigned}
             isFoundingMember={membership.is_founding_member}
+            isInitiationFeePaid={isInitiationFeePaid}
+            onPayInitiationFee={handlePayInitiationFee}
+            isPayingInitiationFee={isPayingInitiationFee}
           />
 
           {/* Super Admin Override - PRESERVED */}

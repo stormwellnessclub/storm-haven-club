@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup';
   to: string;
   data: Record<string, any>;
 }
@@ -966,6 +966,60 @@ serve(async (req) => {
           </div>
         `;
         break;
+
+      case 'annual_fee_final_notice':
+        subject = '⚠️ FINAL NOTICE: Complete Your Payment Today - Storm Wellness Club';
+        const finalFeeAmount = data.amount || 300;
+        html = `
+          <div style="${emailStyles.container}">
+            <!-- RED Warning Banner -->
+            <div style="background-color: #DC2626; padding: 20px; text-align: center; border-radius: 12px 12px 0 0;">
+              <p style="color: white; font-weight: bold; font-size: 20px; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">
+                ⚠️ FINAL NOTICE - ACTION REQUIRED TODAY
+              </p>
+            </div>
+            
+            ${getEmailHeader()}
+            
+            <div style="${emailStyles.content}; font-family: Georgia, 'Times New Roman', Times, serif;">
+              <h2 style="${emailStyles.heading}; font-family: Georgia, 'Times New Roman', Times, serif;">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                <strong>Your initiation fee payment of $${finalFeeAmount} must be completed TODAY.</strong>
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                This is your final notice. If payment is not received by end of day, your membership approval will expire and you will need to resubmit your application.
+              </p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${data.paymentUrl}" style="background-color: #DC2626; color: white; padding: 16px 40px; text-decoration: none; font-weight: bold; border-radius: 8px; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 18px; display: inline-block;">
+                  PAY NOW - $${finalFeeAmount}
+                </a>
+              </div>
+              
+              <!-- Grace Period Option -->
+              <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #92400e; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
+                  Need more time?
+                </p>
+                <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  Contact us immediately at <a href="mailto:info@stormwellnessclub.com" style="color: #92400e;">info@stormwellnessclub.com</a> to request a one-week grace period. Extensions are granted on a case-by-case basis.
+                </p>
+              </div>
+              
+              <p style="font-size: 14px; color: #6b7280; margin-top: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                If you have already completed payment, please disregard this notice.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Regards,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getReceiptFooter()}
+          </div>
+        `;
 
       case 'freeze_completed':
         subject = 'Membership Reactivated - Welcome Back to Storm Wellness Club!';
