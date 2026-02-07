@@ -5,11 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { useAgreements } from "@/hooks/useAgreements";
+import { useAllAgreements } from "@/hooks/useAllAgreements";
 import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
 import { FileCheck, Check, AlertCircle, ArrowLeft } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Agreement } from "@/hooks/useAgreements";
 
 interface AgreementSectionProps {
   title: string;
@@ -85,6 +86,16 @@ function AgreementSection({
   );
 }
 
+// Helper to convert agreements to document info
+const getDocuments = (agreements: Agreement[]): DocumentInfo[] => {
+  return agreements
+    .filter((a) => a.pdf_url)
+    .map((a) => ({
+      name: a.title || undefined,
+      url: a.pdf_url,
+    }));
+};
+
 export default function MemberWaivers() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -109,14 +120,8 @@ export default function MemberWaivers() {
     isSigningSingleClassPassAgreement,
   } = useUserProfile();
 
-  // Fetch all agreements
-  const { data: liabilityWaivers, isLoading: agreementsLoading } = useAgreements("liability_waiver");
-  const { data: membershipAgreements } = useAgreements("membership_agreement");
-  const { data: kidsCareAgreements } = useAgreements("kids_care");
-  const { data: classPackageAgreements } = useAgreements("class_package");
-  const { data: guestPassAgreements } = useAgreements("guest_pass");
-  const { data: privateEventAgreements } = useAgreements("private_event");
-  const { data: singleClassPassAgreements } = useAgreements("single_class_pass");
+  // Fetch ALL agreements in a single query to prevent shaking/re-renders
+  const { data: agreements, isLoading: agreementsLoading } = useAllAgreements();
 
   // Handle return URL after signing
   const handleReturnClick = () => {
@@ -125,7 +130,10 @@ export default function MemberWaivers() {
     }
   };
 
-  if (profileLoading || agreementsLoading) {
+  // Show loading only when BOTH profile and agreements are loading
+  const isLoading = profileLoading || agreementsLoading;
+
+  if (isLoading) {
     return (
       <MemberLayout title="Waivers & Agreements">
         <div className="space-y-6">
@@ -136,16 +144,14 @@ export default function MemberWaivers() {
     );
   }
 
-  // Get document info for each agreement type
-  const getDocuments = (agreements: any[] | undefined): DocumentInfo[] => {
-    if (!agreements || agreements.length === 0) return [];
-    return agreements
-      .filter((a) => a.pdf_url)
-      .map((a) => ({
-        name: a.title || undefined,
-        url: a.pdf_url,
-      }));
-  };
+  // Extract grouped agreements (already loaded, no more re-renders)
+  const liabilityWaivers = agreements?.liability_waiver || [];
+  const membershipAgreements = agreements?.membership_agreement || [];
+  const kidsCareAgreements = agreements?.kids_care || [];
+  const classPackageAgreements = agreements?.class_package || [];
+  const guestPassAgreements = agreements?.guest_pass || [];
+  const privateEventAgreements = agreements?.private_event || [];
+  const singleClassPassAgreements = agreements?.single_class_pass || [];
 
   return (
     <MemberLayout title="Waivers & Agreements">
@@ -176,7 +182,7 @@ export default function MemberWaivers() {
         </div>
 
         {/* Liability Waiver */}
-        {liabilityWaivers && liabilityWaivers.length > 0 && (
+        {liabilityWaivers.length > 0 && (
           <AgreementSection
             title="Liability Waiver"
             description="Required for participation in fitness classes and use of equipment"
@@ -190,7 +196,7 @@ export default function MemberWaivers() {
         )}
 
         {/* Membership Agreement */}
-        {membershipAgreements && membershipAgreements.length > 0 && (
+        {membershipAgreements.length > 0 && (
           <AgreementSection
             title="Membership Agreement"
             description="Terms and conditions of your membership"
@@ -204,7 +210,7 @@ export default function MemberWaivers() {
         )}
 
         {/* Kids Care Agreement */}
-        {kidsCareAgreements && kidsCareAgreements.length > 0 && (
+        {kidsCareAgreements.length > 0 && (
           <AgreementSection
             title="Kids Care Agreement"
             description="Required for booking Kids Care services. Please review both documents."
@@ -218,7 +224,7 @@ export default function MemberWaivers() {
         )}
 
         {/* Guest Pass Agreement */}
-        {guestPassAgreements && guestPassAgreements.length > 0 && (
+        {guestPassAgreements.length > 0 && (
           <AgreementSection
             title="Guest Pass Agreement"
             description="Required for guest pass purchases. Please review both documents."
@@ -232,7 +238,7 @@ export default function MemberWaivers() {
         )}
 
         {/* Private Event Agreement */}
-        {privateEventAgreements && privateEventAgreements.length > 0 && (
+        {privateEventAgreements.length > 0 && (
           <AgreementSection
             title="Private Event Agreement"
             description="Required for booking private events"
@@ -246,7 +252,7 @@ export default function MemberWaivers() {
         )}
 
         {/* Class Package Agreement */}
-        {classPackageAgreements && classPackageAgreements.length > 0 && (
+        {classPackageAgreements.length > 0 && (
           <AgreementSection
             title="Class Package Agreement"
             description="Required for class package purchases (10-class packs)"
@@ -260,7 +266,7 @@ export default function MemberWaivers() {
         )}
 
         {/* Single Class Pass Agreement */}
-        {singleClassPassAgreements && singleClassPassAgreements.length > 0 && (
+        {singleClassPassAgreements.length > 0 && (
           <AgreementSection
             title="Single Class Pass Agreement"
             description="Required for single class pass purchases. Please review both documents."
