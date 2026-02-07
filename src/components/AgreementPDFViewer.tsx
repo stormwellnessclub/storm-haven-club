@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ZoomIn, ZoomOut, Download, Printer, FileText, Loader2, ExternalLink } from "lucide-react";
@@ -116,6 +116,12 @@ export function AgreementPDFViewer({
   const [error, setError] = useState<string | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const iframeLoadedRef = useRef(false);
+
+  // Keep ref in sync with state to avoid stale closures in timeouts
+  useEffect(() => {
+    iframeLoadedRef.current = iframeLoaded;
+  }, [iframeLoaded]);
 
   // Handle both single PDF and multiple PDFs
   const pdfs = Array.isArray(pdfUrl) ? pdfUrl : [pdfUrl];
@@ -128,6 +134,7 @@ export function AgreementPDFViewer({
     setLoading(true);
     setError(null);
     setIframeLoaded(false);
+    iframeLoadedRef.current = false;
 
     // Clear any existing timeout
     if (timeoutRef.current) {
@@ -152,7 +159,8 @@ export function AgreementPDFViewer({
 
     // Set a timeout to detect if PDF fails to load (10 seconds - allow time for larger PDFs)
     timeoutRef.current = setTimeout(() => {
-      if (!iframeLoaded) {
+      // Use ref to get current value, avoiding stale closure
+      if (!iframeLoadedRef.current) {
         console.warn(`[PDF] Load timeout for: ${currentPdf}`);
         console.warn(`[PDF] Resolved path was: ${pdfSrc}`);
         setError("PDF preview unavailable");
@@ -167,9 +175,10 @@ export function AgreementPDFViewer({
     };
   }, [currentPdf]);
 
-  // Handle successful iframe load
-  const handleIframeLoad = () => {
+  // Handle successful iframe load - wrapped in useCallback to prevent unnecessary re-renders
+  const handleIframeLoad = useCallback(() => {
     console.log(`[PDF] Loaded successfully: ${currentPdf}`);
+    iframeLoadedRef.current = true;
     setIframeLoaded(true);
     setLoading(false);
     setError(null);
@@ -177,17 +186,17 @@ export function AgreementPDFViewer({
       clearTimeout(timeoutRef.current);
     }
     onDocumentLoad?.();
-  };
+  }, [currentPdf, onDocumentLoad]);
 
-  // Handle iframe error
-  const handleIframeError = () => {
+  // Handle iframe error - wrapped in useCallback
+  const handleIframeError = useCallback(() => {
     console.error(`[PDF] Failed to load: ${currentPdf}`);
     setError("Failed to load PDF");
     setLoading(false);
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-  };
+  }, [currentPdf]);
 
   const handleDownload = () => {
     const filename = typeof currentPdf === 'string' ? currentPdf : `agreement-${selectedPdfIndex + 1}.pdf`;
