@@ -1,26 +1,19 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, Check, FileText } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAgreements } from "@/hooks/useAgreements";
-import { SimpleAgreementCard } from "@/components/SimpleAgreementCard";
+import { WaiverRequiredAlert } from "@/components/WaiverRequiredAlert";
 
 type WaiverType = "liability" | "guest_pass" | "single_class_pass" | "kids_care" | "membership" | "class_package" | "private_event";
 
 interface InlineWaiverGateProps {
   requiredWaivers: WaiverType[];
   children: React.ReactNode;
-  title?: string;
-  description?: string;
+  serviceName?: string;
   loadingComponent?: React.ReactNode;
 }
 
 interface WaiverConfig {
   signed: boolean;
-  signFn: () => void;
-  isPending: boolean;
   agreementType: string;
   title: string;
 }
@@ -28,28 +21,10 @@ interface WaiverConfig {
 export function InlineWaiverGate({
   requiredWaivers,
   children,
-  title = "Sign Required Agreements",
-  description = "Please review and sign the following agreements to continue.",
+  serviceName,
   loadingComponent,
 }: InlineWaiverGateProps) {
-  const {
-    profile,
-    isLoading: profileLoading,
-    signWaiver,
-    isSigningWaiver,
-    signGuestPassAgreement,
-    isSigningGuestPassAgreement,
-    signSingleClassPassAgreement,
-    isSigningSingleClassPassAgreement,
-    signKidsCareAgreement,
-    isSigningKidsCareAgreement,
-    signMembershipAgreement,
-    isSigningAgreement,
-    signClassPackageAgreement,
-    isSigningClassPackageAgreement,
-    signPrivateEventAgreement,
-    isSigningPrivateEventAgreement,
-  } = useUserProfile();
+  const { profile, isLoading: profileLoading } = useUserProfile();
 
   // Fetch agreements for each required waiver type
   const { data: liabilityAgreements, isLoading: liabilityLoading } = useAgreements("liability_waiver");
@@ -60,15 +35,10 @@ export function InlineWaiverGate({
   const { data: classPackageAgreements, isLoading: classPackageLoading } = useAgreements("class_package");
   const { data: privateEventAgreements, isLoading: privateEventLoading } = useAgreements("private_event");
 
-  // Track which accordion item is open
-  const [openItem, setOpenItem] = useState<string | undefined>(undefined);
-
   // Build waiver config map
   const waiverConfigs: Record<WaiverType, WaiverConfig & { agreements: any[]; agreementsLoading: boolean }> = {
     liability: {
       signed: !!profile?.waiver_signed,
-      signFn: signWaiver,
-      isPending: isSigningWaiver,
       agreementType: "liability_waiver",
       title: "Liability Waiver",
       agreements: liabilityAgreements || [],
@@ -76,8 +46,6 @@ export function InlineWaiverGate({
     },
     guest_pass: {
       signed: !!profile?.guest_pass_agreement_signed,
-      signFn: signGuestPassAgreement,
-      isPending: isSigningGuestPassAgreement,
       agreementType: "guest_pass",
       title: "Guest Pass Agreement",
       agreements: guestPassAgreements || [],
@@ -85,8 +53,6 @@ export function InlineWaiverGate({
     },
     single_class_pass: {
       signed: !!profile?.single_class_pass_agreement_signed,
-      signFn: signSingleClassPassAgreement,
-      isPending: isSigningSingleClassPassAgreement,
       agreementType: "single_class_pass",
       title: "Single Class Pass Agreement",
       agreements: singleClassAgreements || [],
@@ -94,8 +60,6 @@ export function InlineWaiverGate({
     },
     kids_care: {
       signed: !!profile?.kids_care_agreement_signed,
-      signFn: signKidsCareAgreement,
-      isPending: isSigningKidsCareAgreement,
       agreementType: "kids_care",
       title: "Kids Care Agreement",
       agreements: kidsCareAgreements || [],
@@ -103,8 +67,6 @@ export function InlineWaiverGate({
     },
     membership: {
       signed: !!profile?.membership_agreement_signed,
-      signFn: signMembershipAgreement,
-      isPending: isSigningAgreement,
       agreementType: "membership_agreement",
       title: "Membership Agreement",
       agreements: membershipAgreements || [],
@@ -112,8 +74,6 @@ export function InlineWaiverGate({
     },
     class_package: {
       signed: !!profile?.class_package_agreement_signed,
-      signFn: signClassPackageAgreement,
-      isPending: isSigningClassPackageAgreement,
       agreementType: "class_package",
       title: "Class Package Agreement",
       agreements: classPackageAgreements || [],
@@ -121,8 +81,6 @@ export function InlineWaiverGate({
     },
     private_event: {
       signed: !!profile?.private_event_agreement_signed,
-      signFn: signPrivateEventAgreement,
-      isPending: isSigningPrivateEventAgreement,
       agreementType: "private_event",
       title: "Private Event Agreement",
       agreements: privateEventAgreements || [],
@@ -141,90 +99,23 @@ export function InlineWaiverGate({
     );
   }
 
-  // Filter to only waivers that have agreements configured AND are not signed
-  const unsignedWaivers = requiredWaivers.filter(waiverType => {
+  // Find first unsigned waiver that has agreements configured
+  const unsignedWaiver = requiredWaivers.find(waiverType => {
     const config = waiverConfigs[waiverType];
-    // Only show if there are agreements configured and user hasn't signed
+    // Only consider waivers that have agreements configured and are not signed
     return config.agreements.length > 0 && !config.signed;
   });
 
-  // All required waivers are signed (or no agreements configured for them)
-  if (unsignedWaivers.length === 0) {
-    return <>{children}</>;
+  // If any required waiver is missing, show redirect alert
+  if (unsignedWaiver) {
+    return (
+      <WaiverRequiredAlert 
+        waiverType={unsignedWaiver} 
+        serviceName={serviceName}
+      />
+    );
   }
 
-  // Auto-expand first unsigned waiver if none selected
-  const effectiveOpenItem = openItem ?? unsignedWaivers[0];
-
-  return (
-    <Card className="max-w-3xl mx-auto">
-      <CardHeader>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-            <FileText className="h-5 w-5 text-accent" />
-          </div>
-          <CardTitle>{title}</CardTitle>
-        </div>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Accordion 
-          type="single" 
-          collapsible 
-          value={effectiveOpenItem}
-          onValueChange={setOpenItem}
-        >
-          {unsignedWaivers.map((waiverType) => {
-            const config = waiverConfigs[waiverType];
-            const pdfUrls = config.agreements.map(a => a.pdf_url).filter(Boolean);
-            
-            return (
-              <AccordionItem key={waiverType} value={waiverType}>
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium">{config.title}</span>
-                    <Badge variant="outline" className="text-xs">Required</Badge>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="pt-2">
-                    {/* Only render when this accordion item is open */}
-                    {effectiveOpenItem === waiverType && pdfUrls.length > 0 && (
-                      <SimpleAgreementCard
-                        title={config.title}
-                        documents={config.agreements.map((a: any) => ({
-                          name: a.title || undefined,
-                          url: a.pdf_url,
-                        }))}
-                        onSign={() => config.signFn()}
-                        isSigning={config.isPending}
-                      />
-                    )}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            );
-          })}
-        </Accordion>
-
-        {/* Show progress for signed waivers */}
-        {requiredWaivers.filter(w => waiverConfigs[w].signed).length > 0 && (
-          <div className="mt-6 pt-6 border-t">
-            <p className="text-sm text-muted-foreground mb-3">Completed:</p>
-            <div className="space-y-2">
-              {requiredWaivers
-                .filter(w => waiverConfigs[w].signed)
-                .map(waiverType => (
-                  <div key={waiverType} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="h-4 w-4 text-accent" />
-                    <span>{waiverConfigs[waiverType].title}</span>
-                    <Badge variant="secondary" className="text-xs">Signed</Badge>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+  // All waivers signed (or no agreements configured), show children
+  return <>{children}</>;
 }

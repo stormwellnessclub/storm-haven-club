@@ -1,12 +1,15 @@
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAgreements } from "@/hooks/useAgreements";
 import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
-import { FileCheck, Check, AlertCircle } from "lucide-react";
+import { FileCheck, Check, AlertCircle, ArrowLeft } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 interface AgreementSectionProps {
   title: string;
@@ -83,6 +86,10 @@ function AgreementSection({
 }
 
 export default function MemberWaivers() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnUrl = searchParams.get("return");
+
   const {
     profile,
     isLoading: profileLoading,
@@ -107,6 +114,13 @@ export default function MemberWaivers() {
   const { data: guestPassAgreements } = useAgreements("guest_pass");
   const { data: privateEventAgreements } = useAgreements("private_event");
   const { data: singleClassPassAgreements } = useAgreements("single_class_pass");
+
+  // Handle return URL after signing
+  const handleReturnClick = () => {
+    if (returnUrl) {
+      navigate(decodeURIComponent(returnUrl));
+    }
+  };
 
   if (profileLoading || agreementsLoading) {
     return (
@@ -133,6 +147,25 @@ export default function MemberWaivers() {
   return (
     <MemberLayout title="Waivers & Agreements">
       <div className="space-y-6 max-w-4xl">
+        {/* Return URL Banner */}
+        {returnUrl && (
+          <Alert className="bg-accent/10 border-accent/30">
+            <AlertCircle className="h-4 w-4 text-accent" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>Sign the required agreement below, then continue your purchase.</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleReturnClick}
+                className="ml-4"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Return to Purchase
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="mb-6">
           <p className="text-muted-foreground">
             Please review and sign the required waivers and agreements to participate in classes and use club facilities.

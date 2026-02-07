@@ -535,8 +535,7 @@ export default function GuestPass() {
           {/* Inline Waiver Gate - only guest_pass needed since liability is signed at account creation */}
           <InlineWaiverGate 
             requiredWaivers={["guest_pass"]}
-            title="Sign Guest Pass Agreement"
-            description="Before purchasing your guest pass, please review and sign the following agreement."
+            serviceName="purchase a Guest Pass"
           >
             <GuestPassForm />
           </InlineWaiverGate>

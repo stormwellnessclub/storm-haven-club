@@ -355,8 +355,7 @@ export default function ClassPasses() {
           <div className="container mx-auto px-6 mb-8">
             <InlineWaiverGate 
               requiredWaivers={["single_class_pass"]}
-              title="Sign Required Agreement"
-              description="To purchase single class passes, please review and sign the following agreement."
+              serviceName="purchase single class passes"
             >
               {/* Empty div - just need to get the agreement signed */}
               <div className="hidden" />
