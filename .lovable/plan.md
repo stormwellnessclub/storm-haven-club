@@ -1,419 +1,235 @@
 
-# Complete Phase 1 Implementation - Detailed Plan
+# Password Reset Workflow Implementation
 
-## Overview
-This plan implements the three remaining components:
-1. **CardSyncFailuresWidget** integration in Admin Dashboard
-2. **"Send Phase 1 Setup Email"** action in Members page
-3. **Duplicate account prevention** in Auth.tsx and Apply.tsx
-
----
-
-## Part 1: Add CardSyncFailuresWidget to Dashboard.tsx
-
-### What to Do
-Import and add the `CardSyncFailuresWidget` to the admin dashboard to display card sync failures prominently.
-
-### Implementation Details
-
-**File**: `src/pages/admin/Dashboard.tsx`
-
-**Changes**:
-1. Import the widget at the top
-2. Add it to the main dashboard grid after the BillingHealthWidget (alongside other critical alerts)
-3. Position it with appropriate spacing and visual priority
-
-**Code Pattern**:
-```typescript
-// Add import
-import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
-
-// Add to the grid in the JSX (around line 375, after BillingHealthWidget)
-// This widget handles its own loading/error states and returns null if no failures
-<CardSyncFailuresWidget />
-```
-
-**Why**: The widget already exists with all the retry logic built in. We just need to display it in the dashboard. It's designed to:
-- Show green success state if no failures
-- Show critical red alert if failures exist
-- Allow one-click retry per failure or "Retry All"
-- Silently fail if there's an error loading failures (doesn't block dashboard)
+## The Problem
+Members who receive Phase 1 activation emails and try to sign in but forgot their password (or never set one properly) have **no way to recover their account**. This will cause:
+- Support burden (members emailing you to reset passwords manually)
+- Frustration and potential member loss
+- Blocked onboarding flow
 
 ---
 
-## Part 2: "Send Phase 1 Setup Email" Action in Members.tsx
+## Solution Overview
+Implement a complete password reset workflow using the authentication system's built-in `resetPasswordForEmail` function:
 
-### What to Do
-Add a new dropdown menu item in the Members table row actions that sends the `phase_one_setup` email specifically for pre-paid members.
+1. **"Forgot Password?" link** on the Auth page sign-in form
+2. **Password Reset Request page** (`/reset-password`) where users enter their email
+3. **Password Update page** (`/update-password`) where users set a new password after clicking the email link
+4. **Password reset email template** in the send-email edge function (branded)
 
-### Current State
-- The Members page already has `sendActivationEmail()` function (lines 194-228)
-- It currently sends `member_activation_setup` email type
-- Row action dropdown already exists (lines 545-582)
+---
 
-### Implementation Details
+## Part 1: Add resetPassword to AuthContext
 
-**File**: `src/pages/admin/Members.tsx`
+**File**: `src/contexts/AuthContext.tsx`
 
 **Changes**:
-1. Create a new function `sendPhase1SetupEmail()` similar to `sendActivationEmail()` but:
-   - Uses email type `phase_one_setup` instead of `member_activation_setup`
-   - Only available if member has `annual_fee_paid_at` (initiation fee was paid)
-   - Includes founding member status and tier change option in template data
-   - Includes data about initial tier selection (for tier change reminder)
+1. Add `resetPassword` function to the context interface
+2. Implement using `supabase.auth.resetPasswordForEmail()`
+3. Set redirect URL to `/update-password`
 
-2. Add a new dropdown menu item in the row actions that:
-   - Is conditionally visible: `member.status === "pending_activation" && member.annual_fee_paid_at`
-   - Icon: `Send` (already imported)
-   - Label: "Send Phase 1 Setup Email"
-   - Calls `sendPhase1SetupEmail(member)`
-   - Disabled state during sending
-
-**Code Pattern** (added after `sendActivationEmail` function):
 ```typescript
-const sendPhase1SetupEmail = async (member: typeof members[0], e?: React.MouseEvent) => {
-  e?.stopPropagation();
-  setIsSendingActivationEmail(true);
-  try {
-    const { error } = await supabase.functions.invoke("send-email", {
-      body: {
-        type: "phase_one_setup",
-        to: member.email,
-        data: {
-          name: member.first_name,
-          email: member.email,
-          membershipTier: member.membership_type,
-          isFoundingMember: member.is_founding_member,
-          tier: member.membership_type?.toLowerCase(),
-          allowTierChange: true, // Allow tier change if pending_activation
-          launchDate: "February 9, 2026",
-          hasCardOnFile: !!member.card_last4,
-        },
-      },
-    });
-    if (error) throw error;
+// Add to AuthContextType interface
+resetPassword: (email: string) => Promise<{ error: Error | null }>;
 
-    // Update activation_email_sent_at
-    await supabase
-      .from("members")
-      .update({ activation_email_sent_at: new Date().toISOString() })
-      .eq("id", member.id);
-
-    toast.success(`Phase 1 setup email sent to ${member.first_name}`);
-    queryClient.invalidateQueries({ queryKey: ["admin-members"] });
-  } catch (error) {
-    console.error("Error sending Phase 1 email:", error);
-    toast.error("Failed to send Phase 1 setup email");
-  } finally {
-    setIsSendingActivationEmail(false);
-  }
+// Add function implementation
+const resetPassword = async (email: string) => {
+  const redirectUrl = `${window.location.origin}/update-password`;
+  
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: redirectUrl,
+  });
+  return { error };
 };
 ```
 
-**Row Action Menu Update** (added to dropdown menu around line 574, right after the existing "Send Activation Email"):
-```typescript
-{member.status === "pending_activation" && member.annual_fee_paid_at && (
-  <DropdownMenuItem 
-    onClick={(e) => {
-      e.stopPropagation();
-      sendPhase1SetupEmail(member, e as any);
-    }}
-    disabled={isSendingActivationEmail}
-  >
-    <Send className="h-4 w-4 mr-2" />
-    Send Phase 1 Setup Email
-  </DropdownMenuItem>
-)}
-```
-
-**Why**: 
-- Targets only members who have already paid their initiation fee
-- Sends the specialized email template with founding perks, tier options, and payment method setup instructions
-- Reuses existing email infrastructure and state management
-
 ---
 
-## Part 3: Duplicate Account Prevention
-
-### 3.1 Prevention in Auth.tsx (Sign In / Sign Up)
+## Part 2: Add "Forgot Password?" Link to Auth.tsx
 
 **File**: `src/pages/Auth.tsx`
 
-**What to Do**:
-Before allowing signup, check if an email is already associated with an application or existing member record.
-
-**Implementation Details**:
-
-Add a new function after the `validateForm()` function:
+**Changes**:
+1. Import `Link` from react-router-dom (already imported)
+2. Add "Forgot your password?" link below the password field (only in sign-in mode)
+3. Style consistently with existing UI
 
 ```typescript
-const checkForDuplicateAccount = async (email: string): Promise<{
-  isDuplicate: boolean;
-  reason: string;
-}> => {
-  try {
-    // Check for existing member
-    const { data: memberData, error: memberError } = await supabase
-      .from("members")
-      .select("id, status, email")
-      .ilike("email", email) // Case-insensitive
-      .maybeSingle();
-
-    if (memberData) {
-      return {
-        isDuplicate: true,
-        reason: `An account already exists for this email address (Status: ${memberData.status}).`,
-      };
-    }
-
-    // Check for pending application
-    const { data: appData, error: appError } = await supabase
-      .from("membership_applications")
-      .select("id, status, email")
-      .ilike("email", email)
-      .neq("status", "rejected")
-      .neq("status", "cancelled")
-      .maybeSingle();
-
-    if (appData) {
-      return {
-        isDuplicate: true,
-        reason: `An application already exists for this email address (Status: ${appData.status}). Please sign in with this email instead.`,
-      };
-    }
-
-    return { isDuplicate: false, reason: "" };
-  } catch (error) {
-    // Log but don't block signup if check fails
-    console.warn("[Auth] Duplicate check failed:", error);
-    return { isDuplicate: false, reason: "" };
-  }
-};
+// Add below the password field, before the submit button (around line 395)
+{!isSignUp && (
+  <div className="text-right">
+    <Link 
+      to="/reset-password" 
+      className="text-accent text-sm hover:underline"
+    >
+      Forgot your password?
+    </Link>
+  </div>
+)}
 ```
 
-Update the `handleSubmit()` function to call this check:
+---
 
+## Part 3: Create Reset Password Request Page
+
+**File**: `src/pages/ResetPassword.tsx` (new file)
+
+**Purpose**: User enters their email to receive a password reset link
+
+**Features**:
+- Email input with validation
+- Submit button that calls `resetPassword()`
+- Success message after submission
+- Link back to sign in
+- Same visual styling as Auth page
+
+**Key Code Pattern**:
 ```typescript
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  
-  if (!validateForm()) return;
-
-  // NEW: Check for duplicates on signup
-  if (isSignUp) {
-    const dupeCheck = await checkForDuplicateAccount(email);
-    if (dupeCheck.isDuplicate) {
-      toast({
-        title: "Account Already Exists",
-        description: dupeCheck.reason,
-        variant: "destructive",
-      });
-      return;
-    }
-  }
-
   setIsLoading(true);
-  // ... rest of existing handleSubmit logic
+  
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/update-password`,
+  });
+  
+  if (error) {
+    toast.error("Failed to send reset email. Please try again.");
+  } else {
+    setEmailSent(true);
+    toast.success("Password reset email sent! Check your inbox.");
+  }
+  
+  setIsLoading(false);
 };
 ```
-
-**Why**: 
-- Prevents users from creating accounts with emails that already have applications or member records
-- Case-insensitive matching ensures consistency
-- Provides helpful messaging pointing users to sign in instead
-- Silent fail on check errors to avoid blocking legitimate signups
 
 ---
 
-### 3.2 Prevention in Apply.tsx (Application Submission)
+## Part 4: Create Update Password Page
 
-**File**: `src/pages/Apply.tsx`
+**File**: `src/pages/UpdatePassword.tsx` (new file)
 
-**What to Do**:
-Before allowing application submission, verify the email doesn't have an active application or member record.
+**Purpose**: User sets their new password after clicking the email link
 
-**Implementation Details**:
+**Features**:
+- Password input with confirmation field
+- Show/hide password toggle
+- Password strength validation (min 6 chars)
+- Calls `supabase.auth.updateUser({ password })`
+- Redirects to /auth on success
 
-Add a new function after form validation helpers (around line 650):
-
-```typescript
-const checkForDuplicateApplication = async (email: string): Promise<{
-  isDuplicate: boolean;
-  message: string;
-}> => {
-  try {
-    // Check for existing member
-    const { data: memberData } = await supabase
-      .from("members")
-      .select("id, status, email")
-      .ilike("email", email)
-      .maybeSingle();
-
-    if (memberData) {
-      return {
-        isDuplicate: true,
-        message: `A member account already exists for ${email}. Please contact support if you need to update your information.`,
-      };
-    }
-
-    // Check for pending/approved application
-    const { data: appData } = await supabase
-      .from("membership_applications")
-      .select("id, status, email")
-      .ilike("email", email)
-      .neq("status", "rejected")
-      .neq("status", "cancelled")
-      .maybeSingle();
-
-    if (appData) {
-      const statusDisplay = appData.status.replace(/_/g, " ").toUpperCase();
-      return {
-        isDuplicate: true,
-        message: `An application already exists for ${email} with status: ${statusDisplay}. Only one application per email address is allowed.`,
-      };
-    }
-
-    return { isDuplicate: false, message: "" };
-  } catch (error) {
-    console.warn("[Apply] Duplicate check failed:", error);
-    return { isDuplicate: false, message: "" };
-  }
-};
-```
-
-Update the `handleSubmit()` function to call this check (around line 607):
-
+**Key Code Pattern**:
 ```typescript
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   
-  // Validate required fields
-  if (!formData.firstName || !formData.lastName || ... /* existing checks */) {
-    toast.error("Please fill in all required fields");
+  if (password !== confirmPassword) {
+    toast.error("Passwords do not match");
     return;
   }
-
-  // NEW: Check for duplicate application
-  const dupeCheck = await checkForDuplicateApplication(formData.email);
-  if (dupeCheck.isDuplicate) {
-    toast.error(dupeCheck.message);
+  
+  if (password.length < 6) {
+    toast.error("Password must be at least 6 characters");
     return;
   }
-
-  // ... rest of existing handleSubmit logic
+  
+  setIsLoading(true);
+  
+  const { error } = await supabase.auth.updateUser({ password });
+  
+  if (error) {
+    toast.error("Failed to update password: " + error.message);
+  } else {
+    toast.success("Password updated successfully!");
+    navigate("/auth");
+  }
+  
+  setIsLoading(false);
 };
 ```
 
-**Why**:
-- Prevents duplicate applications from same email
-- Allows users to see application status if it exists
-- Uses case-insensitive matching to catch variations (John@example.com vs john@example.com)
-- Fails gracefully if check errors
-
 ---
 
-## Part 4: Database Constraints (Already Implemented)
+## Part 5: Add Routes
 
-The migrations already created:
-- `idx_members_email_unique` - Case-insensitive unique constraint on members email
-- `idx_applications_active_email` - Case-insensitive unique constraint on active applications
+**File**: `src/App.tsx`
 
-These provide a safety net against duplicate records even if the UI checks are bypassed.
+**Changes**:
+1. Import the new pages
+2. Add routes for `/reset-password` and `/update-password`
 
----
+```typescript
+import ResetPassword from "@/pages/ResetPassword";
+import UpdatePassword from "@/pages/UpdatePassword";
 
-## Technical Architecture
-
-### Data Flow for Phase 1 Email
-```
-Admin clicks "Send Phase 1 Setup Email"
-  ↓
-sendPhase1SetupEmail() function invoked
-  ↓
-supabase.functions.invoke("send-email", { type: "phase_one_setup", ... })
-  ↓
-send-email edge function receives request
-  ↓
-Renders phase_one_setup template with:
-  - Member name & tier
-  - Founding member perks (if applicable)
-  - Setup steps (account creation, card save, agreements)
-  - Tier change reminder (if tier_change_used = false)
-  - Launch date info
-  ↓
-Email sent via Resend API
-  ↓
-activation_email_sent_at updated in database
-  ↓
-Toast confirmation shown to admin
-```
-
-### Duplicate Prevention Flow
-```
-User enters email in Auth.tsx or Apply.tsx
-  ↓
-User clicks "Sign Up" or "Submit Application"
-  ↓
-checkForDuplicate*() function queries database:
-  - Query members table (case-insensitive)
-  - Query membership_applications (case-insensitive, exclude rejected/cancelled)
-  ↓
-If found: Show error message, prevent submission
-If not found: Continue with signup/application
-  ↓
-Database constraint acts as final safety net:
-  - If duplicate somehow inserted, constraint violation occurs
-  - Error is caught and reported to user
+// Add to routes
+<Route path="/reset-password" element={<ResetPassword />} />
+<Route path="/update-password" element={<UpdatePassword />} />
 ```
 
 ---
 
-## Files to Modify
+## Part 6: Add Password Reset Email Template (Optional Enhancement)
 
-| File | Type | Changes |
-|------|------|---------|
-| `src/pages/admin/Dashboard.tsx` | Modify | Import and add CardSyncFailuresWidget component |
-| `src/pages/admin/Members.tsx` | Modify | Add sendPhase1SetupEmail() function + dropdown menu item |
-| `src/pages/Auth.tsx` | Modify | Add checkForDuplicateAccount() function + call in handleSubmit |
-| `src/pages/Apply.tsx` | Modify | Add checkForDuplicateApplication() function + call in handleSubmit |
+**File**: `supabase/functions/send-email/index.ts`
+
+The authentication system handles password reset emails automatically through the backend's email settings. However, we can optionally add a branded template if you want control over the email appearance.
+
+**Note**: The built-in password reset email from the authentication system will be used by default. If you want a custom branded email, we can configure that separately in the backend email templates.
+
+---
+
+## Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/contexts/AuthContext.tsx` | Modify | Add `resetPassword` function |
+| `src/pages/Auth.tsx` | Modify | Add "Forgot password?" link |
+| `src/pages/ResetPassword.tsx` | Create | Password reset request page |
+| `src/pages/UpdatePassword.tsx` | Create | New password entry page |
+| `src/App.tsx` | Modify | Add routes |
+
+---
+
+## User Flow
+
+```text
+User clicks "Sign In" → Enters email → Forgot password?
+                                            ↓
+                               /reset-password page
+                                            ↓
+                           Enter email → Submit
+                                            ↓
+                        Email sent with reset link
+                                            ↓
+                     User clicks link in email
+                                            ↓
+                        /update-password page
+                                            ↓
+                     Enter new password → Submit
+                                            ↓
+                    Password updated → /auth page
+```
+
+---
+
+## Security Considerations
+
+1. **Rate limiting**: The authentication system has built-in rate limiting for password reset requests
+2. **Token expiration**: Reset tokens expire after 1 hour by default
+3. **No email enumeration**: We always show "email sent" even if email doesn't exist (prevents attackers from discovering valid emails)
+4. **HTTPS only**: Reset links only work over HTTPS
 
 ---
 
 ## Testing Checklist
 
-### CardSyncFailuresWidget Display
-- [ ] Widget appears on admin Dashboard
-- [ ] Widget shows green "All synced" when no failures
-- [ ] Widget shows red alert with failures list when failures exist
-- [ ] "Retry All" button works and retries all failures
-- [ ] Individual retry buttons work per failure
-- [ ] X (dismiss) buttons work per failure
-
-### Phase 1 Email
-- [ ] Menu item only shows for pending_activation members with annual_fee_paid_at
-- [ ] Email button sends phase_one_setup template
-- [ ] Email includes founding member perks if applicable
-- [ ] Email includes tier change reminder
-- [ ] activation_email_sent_at timestamp updates in database
-- [ ] Sent status appears in "Email Sent" column after sending
-- [ ] Toast confirms successful send
-
-### Duplicate Prevention - Auth.tsx
-- [ ] Try to sign up with email that has existing member → blocked with message
-- [ ] Try to sign up with email that has pending application → blocked with message
-- [ ] Try to sign up with new email → succeeds
-- [ ] Try to sign up with rejected application email → succeeds (different person)
-- [ ] Check works case-insensitively (John@example.com blocks john@example.com)
-
-### Duplicate Prevention - Apply.tsx
-- [ ] Try to apply with email that has existing member → blocked with message
-- [ ] Try to apply with email that has pending application → blocked with message
-- [ ] Try to apply with email that has approved application → blocked with message
-- [ ] Try to apply with new email → succeeds
-- [ ] Try to apply with rejected application email → succeeds
-- [ ] Check works case-insensitively
-
-### Database Constraints
-- [ ] If somehow a duplicate slips past UI, database constraint prevents it
-- [ ] Error message is shown to user when constraint violated
-
+- [ ] "Forgot password?" link appears only on sign-in form (not sign-up)
+- [ ] Reset password page accepts email and shows success message
+- [ ] Email is received with valid reset link
+- [ ] Clicking reset link opens /update-password page
+- [ ] Password confirmation must match
+- [ ] Password must be at least 6 characters
+- [ ] After successful reset, user is redirected to sign in
+- [ ] User can sign in with new password
