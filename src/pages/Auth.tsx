@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,26 @@ export default function Auth() {
 
   const { user, signUp, signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Helper to get safe redirect target from query param or state
+  const getRedirectTarget = useCallback(() => {
+    // Check query parameter first
+    const searchParams = new URLSearchParams(window.location.search);
+    const fromQuery = searchParams.get("redirect");
+    
+    // Check router state as fallback
+    const fromState = (location.state as { from?: { pathname: string } })?.from?.pathname;
+    
+    const target = fromQuery || fromState || "/member";
+    
+    // Security: only allow internal paths (starts with / but not //)
+    if (target.startsWith("/") && !target.startsWith("//")) {
+      return target;
+    }
+    return "/member";
+  }, [location.state]);
 
   // Check for and clean corrupted sessions on mount
   useEffect(() => {
@@ -75,9 +94,9 @@ export default function Auth() {
   // Redirect if already logged in
   useEffect(() => {
     if (!isCleaningSession && user) {
-      navigate("/member");
+      navigate(getRedirectTarget());
     }
-  }, [user, navigate, isCleaningSession]);
+  }, [user, navigate, isCleaningSession, getRedirectTarget]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -165,7 +184,7 @@ export default function Auth() {
             title: "Welcome to Storm Wellness Club!",
             description: "Your account has been created successfully.",
           });
-          navigate("/member");
+          navigate(getRedirectTarget());
         }
       } else {
         const { error } = await signIn(email, password);
@@ -187,7 +206,7 @@ export default function Auth() {
         } else {
           // Attempt member link after sign-in
           await attemptMemberLink();
-          navigate("/member");
+          navigate(getRedirectTarget());
         }
       }
     } catch (err) {
