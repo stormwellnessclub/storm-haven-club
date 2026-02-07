@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup';
   to: string;
   data: Record<string, any>;
 }
@@ -1197,6 +1197,95 @@ serve(async (req) => {
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Warmly,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'phase_one_setup':
+        // Phase 1: Pre-paid members who need to complete setup
+        subject = 'Complete Your Membership Setup - Storm Opens February 9th';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thank you for your initiation fee payment! Your spot at Storm Wellness Club is secured.
+              </p>
+              
+              <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: 600; color: #065f46;">
+                  ✓ Your <strong>${data.membershipTier}</strong> membership is confirmed
+                </p>
+                ${data.isFoundingMember ? `
+                <p style="margin: 10px 0 0 0; color: #065f46;">
+                  🌟 Founding Member Status: Exclusive perks await you!
+                </p>
+                ` : ''}
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                To be ready for opening day on <strong>February 9th, 2026</strong>, please complete these steps:
+              </p>
+              
+              <ol style="line-height: 2.2; color: #374151; font-size: 16px; padding-left: 20px;">
+                <li><strong>Sign in or create your account</strong> using: <span style="color: #C9A227;">${data.email || to}</span></li>
+                <li><strong>Add your payment method</strong> for monthly dues (first charge: Feb 9th)</li>
+                <li><strong>Sign your membership agreement and liability waiver</strong></li>
+                ${data.allowTierChange ? `
+                <li><strong>Review your tier</strong> - You have one chance to change before we lock it in</li>
+                ` : ''}
+              </ol>
+              
+              ${data.isDiamondFoundingMember ? `
+              <div style="background: #f5f3ff; border: 1px solid #8b5cf6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h3 style="margin: 0 0 10px 0; color: #6d28d9;">💎 Diamond Founding Member Privileges</h3>
+                <ul style="margin: 0; padding-left: 20px; color: #5b21b6; line-height: 1.8;">
+                  <li>Personalized Storm Wellness Club sweater (exclusive founding design)</li>
+                  <li>Diamond Member personalized gym bag</li>
+                  <li>VIP amenity kit with premium products</li>
+                  <li>Diamond member personalized clothing line</li>
+                  <li>Priority booking for ALL classes and events</li>
+                </ul>
+              </div>
+              ` : data.isFoundingMember ? `
+              <div style="background: #fef3c7; border: 1px solid #C9A227; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h3 style="margin: 0 0 10px 0; color: #92400e;">🌟 Founding Member Privileges</h3>
+                <ul style="margin: 0; padding-left: 20px; color: #854d0e; line-height: 1.8;">
+                  <li>Personalized Storm Wellness Club sweater (founding members only)</li>
+                  <li>Personalized gear package</li>
+                  <li>Priority booking for all classes and events</li>
+                </ul>
+              </div>
+              ` : ''}
+              
+              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #0369a1;">
+                  <strong>📧 Important:</strong> When creating your member account, please use the same email address you applied with: <strong>${data.email || to}</strong>. This ensures your membership is automatically linked to your account.
+                </p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Complete Your Setup</a>
+              </div>
+              
+              <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: 600; color: #374151;">
+                  💳 Your first dues charge: <strong>February 9th, 2026</strong>
+                </p>
+                <p style="${emailStyles.muted}; margin: 8px 0 0 0;">
+                  Your card will be securely saved but NOT charged until opening day.
+                </p>
+              </div>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
+                <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
               </div>
             </div>
             ${getEmailFooter()}
