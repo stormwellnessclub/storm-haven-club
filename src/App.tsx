@@ -38,6 +38,8 @@ import ClassPasses from "./pages/ClassPasses";
 import Memberships from "./pages/Memberships";
 import Apply from "./pages/Apply";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
+import UpdatePassword from "./pages/UpdatePassword";
 import Schedule from "./pages/Schedule";
 import MyBookings from "./pages/MyBookings";
 import Terms from "./pages/Terms";
@@ -97,6 +99,8 @@ const App = () => (
               <Route path="/memberships" element={<Memberships />} />
               <Route path="/apply" element={<Apply />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/update-password" element={<UpdatePassword />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/terms" element={<Terms />} />

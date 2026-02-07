@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Button } from "@/components/ui/button";
@@ -391,6 +391,16 @@ export default function Auth() {
               </div>
               {errors.password && (
                 <p className="text-destructive text-xs">{errors.password}</p>
+              )}
+              {!isSignUp && (
+                <div className="text-right">
+                  <Link 
+                    to="/reset-password" 
+                    className="text-accent text-sm hover:underline"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
               )}
             </div>
 
