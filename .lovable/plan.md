@@ -1,75 +1,120 @@
 
-# Fix Guest Pass Waiver Signing Flow
+# Sign Liability Waiver at Account Creation
 
 ## Problem Summary
 
-1. **Guest Pass page requires 2 agreements** (Liability Waiver + Guest Pass Agreement)
-2. **Guest Pass has 2 documents** that display in tabs - the second document shows 404
-3. **Iframe embed is unreliable** - PDFs fail to load in production, blocking the purchase form
-4. **User cannot proceed** - Cannot sign waivers → Cannot see guest pass purchase form
+1. **Shaking Form**: The guest pass form "shakes" due to loading state transitions in `InlineWaiverGate` as it checks profile, fetches agreements, and renders the waiver UI
+2. **Repeated Signing**: Users must sign waivers every time they purchase a guest pass instead of once per account
+3. **Poor UX**: Creates friction for returning users who have already agreed to the liability waiver
 
 ## Solution
 
-Replace the error-prone embedded PDF iframe viewer with a simple, reliable **Download/Open + Acknowledge + Sign** pattern.
+Move the liability waiver signing into the account creation flow, so users sign once when they join and don't need to re-sign for each purchase.
+
+## Architecture Change
+
+### Current Flow
+```text
+Sign Up → Redirect to /guest-pass → Show Waiver Gate → Sign Waivers → Show Form
+```
+
+### New Flow
+```text
+Sign Up → Show Liability Waiver Step → Complete → Redirect to /guest-pass → Form Ready
+```
 
 ## Technical Changes
 
-### 1. Create `SimpleAgreementCard.tsx`
+### 1. Create `WaiverSigningStep` Component
 
-New component that shows:
-- Agreement title and description
-- Download PDF button for each document
-- Open in New Tab button for each document
-- Checkbox: "I have reviewed this agreement"
-- Sign button (enabled only after checkbox)
+A new component shown after successful account creation that requires the user to sign the liability waiver before proceeding:
 
-### 2. Update `InlineWaiverGate.tsx`
+- Displays the liability waiver using `SimpleAgreementCard`
+- Once signed, redirects to the original destination
+- Blocks navigation until waiver is signed
 
-Replace `AgreementPDFViewer` with `SimpleAgreementCard`:
-- For single-document agreements: Show one card
-- For multi-document agreements (like guest_pass with 2 PDFs): Show each document with download/open buttons
-- Keep the accordion structure for multiple waiver types
+### 2. Modify `Auth.tsx` Sign-Up Flow
 
-### 3. Update `src/pages/member/Waivers.tsx`
+After successful sign-up:
+1. Wait for profile creation (trigger)
+2. Check if `waiver_signed = false`
+3. If not signed, show the `WaiverSigningStep` component
+4. Once signed, redirect to intended destination
 
-Replace `AgreementCard` component to use the same simple pattern:
-- Remove iframe-based `AgreementPDFViewer`
-- Use download/open buttons instead
-- Add acknowledgment checkbox before signing
+### 3. Simplify `GuestPass.tsx`
+
+- Remove `liability` from `requiredWaivers` array
+- Only require `guest_pass` agreement (product-specific)
+- Liability waiver is always signed at account creation
+
+### 4. Update Other Purchase Flows (Class Passes, etc.)
+
+For each purchase type:
+- Liability waiver: Always signed at account creation (no longer in waiver gate)
+- Product-specific waiver: Still required inline (e.g., `guest_pass`, `single_class_pass`)
+
+## Database Schema
+
+No changes needed - the `profiles` table already has:
+- `waiver_signed` (boolean, default false)
+- `waiver_signed_at` (timestamp)
+
+## File Changes
+
+| File | Change |
+|------|--------|
+| `src/components/WaiverSigningStep.tsx` | **NEW** - Post-signup waiver signing component |
+| `src/pages/Auth.tsx` | Add waiver signing step after successful sign-up |
+| `src/pages/GuestPass.tsx` | Remove `liability` from `requiredWaivers`, keep only `guest_pass` |
+| `src/pages/ClassPasses.tsx` | Remove `liability` from required waivers if present |
 
 ## UI Design
 
+### Post Sign-Up Waiver Screen
 ```text
-+------------------------------------------------------------------+
-|  Guest Pass Agreement                               [Required]   |
-|  ----------------------------------------------------------------|
-|                                                                  |
-|  Please review the following document(s):                        |
-|                                                                  |
-|  Document 1: Guest Pass Agreement                                |
-|  [Download PDF]  [Open in New Tab]                               |
-|                                                                  |
-|  Document 2: Guest Pass - General Agreement                      |
-|  [Download PDF]  [Open in New Tab]                               |
-|                                                                  |
-|  [ ] I have reviewed all documents above                         |
-|                                                                  |
-|  [I Agree - Sign Guest Pass Agreement] (disabled until checked)  |
-+------------------------------------------------------------------+
++----------------------------------------------------------+
+|                    [Storm Wellness Logo]                  |
+|                                                          |
+|                  Almost There!                           |
+|     Please review and sign our liability waiver          |
+|            to complete your account setup.               |
+|                                                          |
+|  +----------------------------------------------------+  |
+|  |  Liability Waiver                                  |  |
+|  |  ------------------------------------------------  |  |
+|  |  Please review the following document:             |  |
+|  |                                                    |  |
+|  |  Liability Waiver                                  |  |
+|  |  [Download PDF]  [Open in New Tab]                 |  |
+|  |                                                    |  |
+|  |  [ ] I have reviewed this document                 |  |
+|  |                                                    |  |
+|  |  [I Agree — Sign Liability Waiver]                 |  |
+|  +----------------------------------------------------+  |
+|                                                          |
+|           This is required for all club activities       |
++----------------------------------------------------------+
 ```
 
-## Files to Change
-
-| File | Action |
-|------|--------|
-| `src/components/SimpleAgreementCard.tsx` | Create new component |
-| `src/components/InlineWaiverGate.tsx` | Replace AgreementPDFViewer with SimpleAgreementCard |
-| `src/pages/member/Waivers.tsx` | Update to use simple download/open pattern |
+### Simplified Guest Pass Flow (After Change)
+```text
+User already signed liability waiver at signup
+         ↓
+Only guest_pass agreement shown (if not already signed)
+         ↓
+Form appears immediately for returning users
+```
 
 ## Benefits
 
-- **No more 404 errors** - No iframe loading issues
-- **Faster loading** - No waiting for PDF to embed
-- **Works everywhere** - Downloads/opens work on all browsers
-- **Explicit acknowledgment** - User must confirm they reviewed before signing
-- **Guest pass form visible** - Users can complete purchase after signing
+- **No more shaking**: Form loads immediately for users who've already signed the liability waiver
+- **One-time signing**: Liability waiver is signed once at account creation
+- **Faster checkout**: Returning guests see the form immediately
+- **Cleaner code**: Waiver gate only handles product-specific agreements
+- **Better UX**: Clear, linear onboarding flow
+
+## Edge Cases Handled
+
+1. **Existing users without waiver**: They'll be prompted to sign when they next try to access a protected feature (the `InlineWaiverGate` still works as fallback)
+2. **Multiple products**: Each product-specific waiver (guest pass, single class, etc.) is still checked independently
+3. **Redirect preservation**: The redirect target is preserved through the waiver signing step
