@@ -99,6 +99,8 @@ export default function MemberWaivers() {
     isSigningAgreement,
     signKidsCareAgreement,
     isSigningKidsCareAgreement,
+    signClassPackageAgreement,
+    isSigningClassPackageAgreement,
     signGuestPassAgreement,
     isSigningGuestPassAgreement,
     signPrivateEventAgreement,
@@ -111,6 +113,7 @@ export default function MemberWaivers() {
   const { data: liabilityWaivers, isLoading: agreementsLoading } = useAgreements("liability_waiver");
   const { data: membershipAgreements } = useAgreements("membership_agreement");
   const { data: kidsCareAgreements } = useAgreements("kids_care");
+  const { data: classPackageAgreements } = useAgreements("class_package");
   const { data: guestPassAgreements } = useAgreements("guest_pass");
   const { data: privateEventAgreements } = useAgreements("private_event");
   const { data: singleClassPassAgreements } = useAgreements("single_class_pass");
@@ -238,6 +241,20 @@ export default function MemberWaivers() {
             documents={getDocuments(privateEventAgreements)}
             onSign={() => signPrivateEventAgreement()}
             isSigning={isSigningPrivateEventAgreement}
+            required={false}
+          />
+        )}
+
+        {/* Class Package Agreement */}
+        {classPackageAgreements && classPackageAgreements.length > 0 && (
+          <AgreementSection
+            title="Class Package Agreement"
+            description="Required for class package purchases (10-class packs)"
+            isSigned={profile?.class_package_agreement_signed || false}
+            signedAt={profile?.class_package_agreement_signed_at || null}
+            documents={getDocuments(classPackageAgreements)}
+            onSign={() => signClassPackageAgreement()}
+            isSigning={isSigningClassPackageAgreement}
             required={false}
           />
         )}

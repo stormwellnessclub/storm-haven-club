@@ -348,25 +348,21 @@ export default function ClassPasses() {
       );
     }
 
-    // If single class agreement is required and not signed, show the gate above pricing
+    // If single class agreement is required and not signed, show only the gate (no pricing tables)
     if (needsAgreement) {
       return (
         <div className="py-16">
-          <div className="container mx-auto px-6 mb-8">
-            <InlineWaiverGate 
-              requiredWaivers={["single_class_pass"]}
-              serviceName="purchase single class passes"
-            >
-              {/* Empty div - just need to get the agreement signed */}
-              <div className="hidden" />
-            </InlineWaiverGate>
+          <div className="container mx-auto px-6">
+            <div className="max-w-2xl mx-auto">
+              <InlineWaiverGate 
+                requiredWaivers={["single_class_pass"]}
+                serviceName="purchase single class passes"
+              >
+                {/* Empty div - just need to get the agreement signed */}
+                <div className="hidden" />
+              </InlineWaiverGate>
+            </div>
           </div>
-          <ClassPassPricingTables 
-            onPurchase={handlePurchase}
-            loadingPass={loadingPass}
-            isMember={isMember}
-            user={user}
-          />
         </div>
       );
     }
