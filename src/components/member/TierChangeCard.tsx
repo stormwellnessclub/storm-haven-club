@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowRightLeft, Lock, Info, Check } from "lucide-react";
+import { ArrowRightLeft, Lock, Info, Check, Crown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -134,6 +134,31 @@ export function TierChangeCard({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Founding Member Status Alert */}
+          {isFoundingMember ? (
+            <Alert className="mb-4 border-accent/30 bg-accent/10">
+              <Crown className="h-4 w-4 text-accent" />
+              <AlertDescription>
+                <strong>You're a Founding Member</strong>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Your founding rate is locked in with annual prepaid billing. 
+                  If you need to switch to monthly billing, please contact us.
+                </p>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="mb-4">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Become a Founding Member?</strong>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Lock in special founding rates with annual prepaid billing. 
+                  Contact us for details.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <Alert className="mb-4">
             <Info className="h-4 w-4" />
             <AlertDescription>

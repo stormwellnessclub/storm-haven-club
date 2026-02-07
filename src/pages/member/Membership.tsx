@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUserMembership, getMembershipTierBenefits } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { IdCard, Check, FileCheck, Crown, Receipt, AlertCircle, Shield, CreditCard, Clock } from "lucide-react";
+import { IdCard, Check, FileCheck, Crown, Receipt, AlertCircle, Shield, CreditCard, Clock, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { InlineBillingSection } from "@/components/member/InlineBillingSection";
@@ -26,8 +27,12 @@ export default function MemberMembership() {
   const queryClient = useQueryClient();
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { profile, isLoading: profileLoading } = useUserProfile();
-  const { isSuperAdmin } = useUserRoles();
+  const { isSuperAdmin, isAdmin } = useUserRoles();
   const isLoading = membershipLoading || profileLoading;
+
+  // Admin view mode - allows admins to view a member's portal
+  const adminViewMemberId = searchParams.get('admin_view');
+  const isAdminViewMode = (isSuperAdmin() || isAdmin()) && !!adminViewMemberId;
 
   // Handle subscription creation success from Stripe checkout return
   useEffect(() => {
@@ -227,6 +232,22 @@ export default function MemberMembership() {
   return (
     <MemberLayout title="My Membership">
       <div className="space-y-6 max-w-3xl">
+        {/* Admin View Mode Banner */}
+        {isAdminViewMode && (
+          <Alert className="border-accent bg-accent/10">
+            <Eye className="h-4 w-4 text-accent" />
+            <AlertDescription className="text-accent-foreground">
+              <strong>Admin View Mode</strong> — You are viewing this member's portal (read-only). 
+              <Button 
+                variant="link" 
+                className="p-0 h-auto ml-2 text-accent"
+                onClick={() => window.close()}
+              >
+                Close Tab
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Membership Card */}
         <Card className="overflow-hidden">
           <div className="bg-gradient-to-r from-primary to-primary/80 p-6 text-primary-foreground">

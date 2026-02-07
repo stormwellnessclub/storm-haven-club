@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
@@ -797,9 +797,19 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                     <p>{member.gender || "Not specified"}</p>
                   </div>
 
-                  <Button onClick={startEditing} variant="outline" className="w-full">
-                    Edit Details
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={startEditing} variant="outline" className="flex-1">
+                      Edit Details
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => window.open(`/member/membership?admin_view=${member.id}`, '_blank')}
+                      className="flex-1"
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Portal
+                    </Button>
+                  </div>
 
                   {/* Account Linking Section */}
                   <Card className="mt-4">
