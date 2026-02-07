@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ import logo from "@/assets/storm-logo.png";
 import { clearAuthStorage, hasAuthData } from "@/lib/authStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { isJwtError, forceAuthReset } from "@/lib/jwtErrorHandler";
+import { WaiverSigningStep } from "@/components/WaiverSigningStep";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -26,8 +28,10 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCleaningSession, setIsCleaningSession] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showWaiverStep, setShowWaiverStep] = useState(false);
 
   const { user, signUp, signIn } = useAuth();
+  const { profile, isLoading: profileLoading } = useUserProfile();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -91,12 +95,21 @@ export default function Auth() {
     checkAndCleanSession();
   }, []);
 
-  // Redirect if already logged in
+  // Check if user needs to sign waiver or should be redirected
   useEffect(() => {
-    if (!isCleaningSession && user) {
+    if (isCleaningSession || !user || profileLoading) return;
+    
+    // If waiver not signed, show waiver step
+    if (profile && !profile.waiver_signed) {
+      setShowWaiverStep(true);
+      return;
+    }
+    
+    // Waiver is signed (or profile check complete), redirect
+    if (profile?.waiver_signed) {
       navigate(getRedirectTarget());
     }
-  }, [user, navigate, isCleaningSession, getRedirectTarget]);
+  }, [user, profile, profileLoading, navigate, isCleaningSession, getRedirectTarget]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -220,13 +233,18 @@ export default function Auth() {
     }
   };
 
-  // Show loading while cleaning corrupted sessions
-  if (isCleaningSession) {
+  // Show loading while cleaning corrupted sessions or loading profile
+  if (isCleaningSession || (user && profileLoading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Preparing...</div>
       </div>
     );
+  }
+
+  // Show waiver signing step if user is logged in but hasn't signed liability waiver
+  if (showWaiverStep && user) {
+    return <WaiverSigningStep redirectTo={getRedirectTarget()} />;
   }
 
   return (
