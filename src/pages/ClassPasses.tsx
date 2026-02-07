@@ -266,11 +266,17 @@ export default function ClassPasses() {
   const { data: membership } = useUserMembership();
   const { profile } = useUserProfile();
   const { data: singleClassAgreements } = useAgreements("single_class_pass");
+  const { data: classPackageAgreements } = useAgreements("class_package");
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
 
   const isMember = membership?.status === 'active';
-  const hasAgreementConfigured = singleClassAgreements && singleClassAgreements.length > 0;
-  const needsAgreement = hasAgreementConfigured && !profile?.single_class_pass_agreement_signed;
+  
+  // Check which agreements are configured and needed
+  const hasSingleClassAgreementConfigured = singleClassAgreements && singleClassAgreements.length > 0;
+  const hasClassPackageAgreementConfigured = classPackageAgreements && classPackageAgreements.length > 0;
+  
+  const needsSingleClassAgreement = hasSingleClassAgreementConfigured && !profile?.single_class_pass_agreement_signed;
+  const needsClassPackageAgreement = hasClassPackageAgreementConfigured && !profile?.class_package_agreement_signed;
 
   const handlePurchase = async (
     category: 'pilatesCycling' | 'otherClasses',
@@ -281,10 +287,14 @@ export default function ClassPasses() {
       return;
     }
 
-    // For single class purchases that need agreement, the InlineWaiverGate will handle it
-    // This check is a backup for edge cases
-    if (passType === 'single' && needsAgreement) {
+    // Check if the specific agreement is needed for this purchase type
+    if (passType === 'single' && needsSingleClassAgreement) {
       toast.info("Please sign the Single Class Pass Agreement first");
+      return;
+    }
+    
+    if (passType === 'tenPack' && needsClassPackageAgreement) {
+      toast.info("Please sign the Class Package Agreement first");
       return;
     }
 
@@ -332,10 +342,9 @@ export default function ClassPasses() {
     }
   };
 
-  // Wrapper component that conditionally shows waiver gate for single class purchases
+  // Wrapper component that conditionally shows waiver gate for purchases
   const renderPricingContent = () => {
-    // If user needs to sign agreement for single class, show inline gate
-    // But only wrap when they actually need to purchase single classes
+    // If user is not logged in, show account required
     if (!user) {
       return (
         <div className="py-16">
@@ -348,8 +357,8 @@ export default function ClassPasses() {
       );
     }
 
-    // If single class agreement is required and not signed, show only the gate (no pricing tables)
-    if (needsAgreement) {
+    // If single class agreement is required and not signed, show gate for single passes
+    if (needsSingleClassAgreement) {
       return (
         <div className="py-16">
           <div className="container mx-auto px-6">
@@ -367,7 +376,26 @@ export default function ClassPasses() {
       );
     }
 
-    // User is signed in and has signed agreement (or no agreement configured)
+    // If class package agreement is required and not signed, show gate for 10-packs
+    if (needsClassPackageAgreement) {
+      return (
+        <div className="py-16">
+          <div className="container mx-auto px-6">
+            <div className="max-w-2xl mx-auto">
+              <InlineWaiverGate 
+                requiredWaivers={["class_package"]}
+                serviceName="purchase class packages (10-class packs)"
+              >
+                {/* Empty div - just need to get the agreement signed */}
+                <div className="hidden" />
+              </InlineWaiverGate>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // User is signed in and has signed all required agreements
     return (
       <ClassPassPricingTables 
         onPurchase={handlePurchase}
