@@ -1,288 +1,419 @@
 
-# Phase 1 Membership Activation System - Complete Implementation Plan
+# Complete Phase 1 Implementation - Detailed Plan
 
-## Executive Summary
-
-This plan implements the pre-paid member onboarding workflow for Storm Wellness Club's February 9th, 2026 opening. It addresses:
-1. **Founding Member Exclusive Perks** (including Diamond-specific benefits)
-2. **One-Time Tier Change** (members can switch before locking in)
-3. **Duplicate Account Prevention** (CRITICAL for launch)
-4. **Card Metadata Sync Failure Handling** (CRITICAL)
-5. **Pre-Paid Member Onboarding Flow** (Phase 1 email workflow)
+## Overview
+This plan implements the three remaining components:
+1. **CardSyncFailuresWidget** integration in Admin Dashboard
+2. **"Send Phase 1 Setup Email"** action in Members page
+3. **Duplicate account prevention** in Auth.tsx and Apply.tsx
 
 ---
 
-## Part 1: Founding Member Benefits Structure
+## Part 1: Add CardSyncFailuresWidget to Dashboard.tsx
 
-### Diamond Founding Member Perks
-- Personalized Storm Wellness Club sweater (founding members only - exclusive design)
-- Diamond Member personalized gym bag
-- VIP amenity kit with premium products
-- Diamond member personalized clothing line
-- Priority booking for ALL classes and events
+### What to Do
+Import and add the `CardSyncFailuresWidget` to the admin dashboard to display card sync failures prominently.
 
-### Regular Diamond Member Perks
-- Diamond member personalized clothes
-- Diamond member gear package  
-- VIP amenity kit
-- Priority booking for all classes and events
+### Implementation Details
 
-### All Other Founding Members (Silver/Gold/Platinum)
-- Personalized Storm Wellness Club sweater (founding members only)
-- Personalized gear package
-- Priority booking for all classes and events
+**File**: `src/pages/admin/Dashboard.tsx`
 
----
+**Changes**:
+1. Import the widget at the top
+2. Add it to the main dashboard grid after the BillingHealthWidget (alongside other critical alerts)
+3. Position it with appropriate spacing and visual priority
 
-## Part 2: Database Changes
+**Code Pattern**:
+```typescript
+// Add import
+import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
 
-### New Columns for `members` Table
-
-```sql
--- Founding member perks tracking
-ALTER TABLE public.members
-ADD COLUMN IF NOT EXISTS founding_privileges_granted BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS founding_privileges_granted_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS founding_perks_delivered_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS founding_sweater_size TEXT,
-ADD COLUMN IF NOT EXISTS founding_bag_size TEXT;
-
--- One-time tier change tracking
-ALTER TABLE public.members
-ADD COLUMN IF NOT EXISTS tier_change_used BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS tier_change_used_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS original_tier_at_application TEXT;
+// Add to the grid in the JSX (around line 375, after BillingHealthWidget)
+// This widget handles its own loading/error states and returns null if no failures
+<CardSyncFailuresWidget />
 ```
 
-### New Table: `member_perk_deliveries`
+**Why**: The widget already exists with all the retry logic built in. We just need to display it in the dashboard. It's designed to:
+- Show green success state if no failures
+- Show critical red alert if failures exist
+- Allow one-click retry per failure or "Retry All"
+- Silently fail if there's an error loading failures (doesn't block dashboard)
 
-```sql
-CREATE TABLE IF NOT EXISTS public.member_perk_deliveries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  member_id UUID REFERENCES public.members(id) ON DELETE CASCADE,
-  perk_type TEXT NOT NULL, -- 'sweater', 'bag', 'amenity_kit', 'clothing'
-  perk_variant TEXT, -- 'diamond', 'founding', 'regular'
-  size TEXT,
-  status TEXT DEFAULT 'pending', -- 'pending', 'ordered', 'shipped', 'delivered'
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+---
+
+## Part 2: "Send Phase 1 Setup Email" Action in Members.tsx
+
+### What to Do
+Add a new dropdown menu item in the Members table row actions that sends the `phase_one_setup` email specifically for pre-paid members.
+
+### Current State
+- The Members page already has `sendActivationEmail()` function (lines 194-228)
+- It currently sends `member_activation_setup` email type
+- Row action dropdown already exists (lines 545-582)
+
+### Implementation Details
+
+**File**: `src/pages/admin/Members.tsx`
+
+**Changes**:
+1. Create a new function `sendPhase1SetupEmail()` similar to `sendActivationEmail()` but:
+   - Uses email type `phase_one_setup` instead of `member_activation_setup`
+   - Only available if member has `annual_fee_paid_at` (initiation fee was paid)
+   - Includes founding member status and tier change option in template data
+   - Includes data about initial tier selection (for tier change reminder)
+
+2. Add a new dropdown menu item in the row actions that:
+   - Is conditionally visible: `member.status === "pending_activation" && member.annual_fee_paid_at`
+   - Icon: `Send` (already imported)
+   - Label: "Send Phase 1 Setup Email"
+   - Calls `sendPhase1SetupEmail(member)`
+   - Disabled state during sending
+
+**Code Pattern** (added after `sendActivationEmail` function):
+```typescript
+const sendPhase1SetupEmail = async (member: typeof members[0], e?: React.MouseEvent) => {
+  e?.stopPropagation();
+  setIsSendingActivationEmail(true);
+  try {
+    const { error } = await supabase.functions.invoke("send-email", {
+      body: {
+        type: "phase_one_setup",
+        to: member.email,
+        data: {
+          name: member.first_name,
+          email: member.email,
+          membershipTier: member.membership_type,
+          isFoundingMember: member.is_founding_member,
+          tier: member.membership_type?.toLowerCase(),
+          allowTierChange: true, // Allow tier change if pending_activation
+          launchDate: "February 9, 2026",
+          hasCardOnFile: !!member.card_last4,
+        },
+      },
+    });
+    if (error) throw error;
+
+    // Update activation_email_sent_at
+    await supabase
+      .from("members")
+      .update({ activation_email_sent_at: new Date().toISOString() })
+      .eq("id", member.id);
+
+    toast.success(`Phase 1 setup email sent to ${member.first_name}`);
+    queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+  } catch (error) {
+    console.error("Error sending Phase 1 email:", error);
+    toast.error("Failed to send Phase 1 setup email");
+  } finally {
+    setIsSendingActivationEmail(false);
+  }
+};
 ```
 
-### New Table: `card_sync_failures` (CRITICAL)
-
-```sql
-CREATE TABLE IF NOT EXISTS public.card_sync_failures (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  member_id UUID REFERENCES public.members(id),
-  stripe_customer_id TEXT,
-  error_message TEXT,
-  retry_count INTEGER DEFAULT 0,
-  resolved_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+**Row Action Menu Update** (added to dropdown menu around line 574, right after the existing "Send Activation Email"):
+```typescript
+{member.status === "pending_activation" && member.annual_fee_paid_at && (
+  <DropdownMenuItem 
+    onClick={(e) => {
+      e.stopPropagation();
+      sendPhase1SetupEmail(member, e as any);
+    }}
+    disabled={isSendingActivationEmail}
+  >
+    <Send className="h-4 w-4 mr-2" />
+    Send Phase 1 Setup Email
+  </DropdownMenuItem>
+)}
 ```
 
-### Duplicate Prevention Constraints
-
-```sql
--- Unique constraint on email (case-insensitive)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_members_email_unique 
-ON public.members (LOWER(email));
-
--- Unique constraint on active applications
-CREATE UNIQUE INDEX IF NOT EXISTS idx_applications_active_email 
-ON public.membership_applications (LOWER(email)) 
-WHERE status NOT IN ('rejected', 'cancelled');
-```
+**Why**: 
+- Targets only members who have already paid their initiation fee
+- Sends the specialized email template with founding perks, tier options, and payment method setup instructions
+- Reuses existing email infrastructure and state management
 
 ---
 
-## Part 3: One-Time Tier Change Feature
+## Part 3: Duplicate Account Prevention
 
-### Member Portal Flow
+### 3.1 Prevention in Auth.tsx (Sign In / Sign Up)
 
-**Location**: `src/pages/member/Membership.tsx` (pending_activation state)
+**File**: `src/pages/Auth.tsx`
 
-**UI Components**:
-1. Alert banner: "You have one opportunity to change your membership tier before activation"
-2. Tier comparison card showing current vs. available tiers with pricing
-3. Confirm dialog with initiation fee difference info
-4. Success: "Your tier has been updated. This change is final."
+**What to Do**:
+Before allowing signup, check if an email is already associated with an application or existing member record.
 
-### Business Rules
+**Implementation Details**:
 
-| Current State | Action | Result |
-|---------------|--------|--------|
-| `tier_change_used = false` | Member clicks "Change Tier" | Show tier selection UI |
-| Member selects new tier | Confirm | Update `membership_type`, set `tier_change_used = true` |
-| `tier_change_used = true` | Member views page | Hide tier change option, show "Tier locked" message |
-
----
-
-## Part 4: Duplicate Account Prevention (CRITICAL)
-
-### Prevention Measures
-
-1. **Auth Flow** (`src/pages/Auth.tsx`): Check for existing applications/members before account creation
-2. **Application Submission** (`src/pages/Apply.tsx`): Block duplicate submissions with same email
-3. **Stripe Customer**: Check for existing customer by email before creating new one
-4. **Database Constraints**: Unique indexes on email fields
-
----
-
-## Part 5: Card Metadata Sync Failure Handling (CRITICAL)
-
-### Multi-Layer Protection
-
-1. **Frontend Retry**: Exponential backoff (3 attempts) on sync failure
-2. **Failure Logging**: Track all failures in `card_sync_failures` table
-3. **Admin Dashboard Alert**: Widget showing unresolved sync failures
-4. **Pre-Billing Check**: Verify all active members have card data before billing date
-
----
-
-## Part 6: Phase 1 Email Template
-
-### New Template: `phase_one_setup`
-
-For pre-paid members who need to complete setup:
-- Highlights their confirmed tier
-- Shows founding member perks (Diamond Founding vs Regular Founding)
-- Lists setup steps: account creation, card save, agreement signing
-- Optional tier change reminder
-- Clear statement: "First charge: February 9th, 2026"
-
----
-
-## Part 7: Updated Benefits Display
-
-### Changes to `getMembershipTierBenefits()`
+Add a new function after the `validateForm()` function:
 
 ```typescript
-export function getMembershipTierBenefits(
-  tier: string, 
-  isFoundingMember: boolean = false
-): string[] {
-  const baseBenefits = tierBenefits[matchedTier] || tierBenefits["Silver"];
-  const isDiamond = matchedTier === "Diamond";
-  
-  if (isDiamond && isFoundingMember) {
-    return [
-      ...baseBenefits,
-      "---",
-      "Diamond Founding Member Exclusives:",
-      "Personalized Storm Wellness Club sweater (exclusive founding design)",
-      "Diamond Member personalized gym bag",
-      "VIP amenity kit with premium products",
-      "Diamond member personalized clothing line",
-      "Priority booking for ALL classes and events",
-    ];
+const checkForDuplicateAccount = async (email: string): Promise<{
+  isDuplicate: boolean;
+  reason: string;
+}> => {
+  try {
+    // Check for existing member
+    const { data: memberData, error: memberError } = await supabase
+      .from("members")
+      .select("id, status, email")
+      .ilike("email", email) // Case-insensitive
+      .maybeSingle();
+
+    if (memberData) {
+      return {
+        isDuplicate: true,
+        reason: `An account already exists for this email address (Status: ${memberData.status}).`,
+      };
+    }
+
+    // Check for pending application
+    const { data: appData, error: appError } = await supabase
+      .from("membership_applications")
+      .select("id, status, email")
+      .ilike("email", email)
+      .neq("status", "rejected")
+      .neq("status", "cancelled")
+      .maybeSingle();
+
+    if (appData) {
+      return {
+        isDuplicate: true,
+        reason: `An application already exists for this email address (Status: ${appData.status}). Please sign in with this email instead.`,
+      };
+    }
+
+    return { isDuplicate: false, reason: "" };
+  } catch (error) {
+    // Log but don't block signup if check fails
+    console.warn("[Auth] Duplicate check failed:", error);
+    return { isDuplicate: false, reason: "" };
   }
+};
+```
+
+Update the `handleSubmit()` function to call this check:
+
+```typescript
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
   
-  if (isDiamond) {
-    return [
-      ...baseBenefits,
-      "---",
-      "Diamond Member Perks:",
-      "Diamond member personalized clothes",
-      "Diamond member gear package",
-      "VIP amenity kit",
-      "Priority booking for all classes and events",
-    ];
+  if (!validateForm()) return;
+
+  // NEW: Check for duplicates on signup
+  if (isSignUp) {
+    const dupeCheck = await checkForDuplicateAccount(email);
+    if (dupeCheck.isDuplicate) {
+      toast({
+        title: "Account Already Exists",
+        description: dupeCheck.reason,
+        variant: "destructive",
+      });
+      return;
+    }
   }
-  
-  if (isFoundingMember) {
-    return [
-      ...baseBenefits,
-      "---",
-      "Founding Member Perks:",
-      "Personalized Storm Wellness Club sweater (founding members only)",
-      "Personalized gear package",
-      "Priority booking for all classes and events",
-    ];
+
+  setIsLoading(true);
+  // ... rest of existing handleSubmit logic
+};
+```
+
+**Why**: 
+- Prevents users from creating accounts with emails that already have applications or member records
+- Case-insensitive matching ensures consistency
+- Provides helpful messaging pointing users to sign in instead
+- Silent fail on check errors to avoid blocking legitimate signups
+
+---
+
+### 3.2 Prevention in Apply.tsx (Application Submission)
+
+**File**: `src/pages/Apply.tsx`
+
+**What to Do**:
+Before allowing application submission, verify the email doesn't have an active application or member record.
+
+**Implementation Details**:
+
+Add a new function after form validation helpers (around line 650):
+
+```typescript
+const checkForDuplicateApplication = async (email: string): Promise<{
+  isDuplicate: boolean;
+  message: string;
+}> => {
+  try {
+    // Check for existing member
+    const { data: memberData } = await supabase
+      .from("members")
+      .select("id, status, email")
+      .ilike("email", email)
+      .maybeSingle();
+
+    if (memberData) {
+      return {
+        isDuplicate: true,
+        message: `A member account already exists for ${email}. Please contact support if you need to update your information.`,
+      };
+    }
+
+    // Check for pending/approved application
+    const { data: appData } = await supabase
+      .from("membership_applications")
+      .select("id, status, email")
+      .ilike("email", email)
+      .neq("status", "rejected")
+      .neq("status", "cancelled")
+      .maybeSingle();
+
+    if (appData) {
+      const statusDisplay = appData.status.replace(/_/g, " ").toUpperCase();
+      return {
+        isDuplicate: true,
+        message: `An application already exists for ${email} with status: ${statusDisplay}. Only one application per email address is allowed.`,
+      };
+    }
+
+    return { isDuplicate: false, message: "" };
+  } catch (error) {
+    console.warn("[Apply] Duplicate check failed:", error);
+    return { isDuplicate: false, message: "" };
   }
+};
+```
+
+Update the `handleSubmit()` function to call this check (around line 607):
+
+```typescript
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
   
-  return baseBenefits;
-}
+  // Validate required fields
+  if (!formData.firstName || !formData.lastName || ... /* existing checks */) {
+    toast.error("Please fill in all required fields");
+    return;
+  }
+
+  // NEW: Check for duplicate application
+  const dupeCheck = await checkForDuplicateApplication(formData.email);
+  if (dupeCheck.isDuplicate) {
+    toast.error(dupeCheck.message);
+    return;
+  }
+
+  // ... rest of existing handleSubmit logic
+};
+```
+
+**Why**:
+- Prevents duplicate applications from same email
+- Allows users to see application status if it exists
+- Uses case-insensitive matching to catch variations (John@example.com vs john@example.com)
+- Fails gracefully if check errors
+
+---
+
+## Part 4: Database Constraints (Already Implemented)
+
+The migrations already created:
+- `idx_members_email_unique` - Case-insensitive unique constraint on members email
+- `idx_applications_active_email` - Case-insensitive unique constraint on active applications
+
+These provide a safety net against duplicate records even if the UI checks are bypassed.
+
+---
+
+## Technical Architecture
+
+### Data Flow for Phase 1 Email
+```
+Admin clicks "Send Phase 1 Setup Email"
+  ↓
+sendPhase1SetupEmail() function invoked
+  ↓
+supabase.functions.invoke("send-email", { type: "phase_one_setup", ... })
+  ↓
+send-email edge function receives request
+  ↓
+Renders phase_one_setup template with:
+  - Member name & tier
+  - Founding member perks (if applicable)
+  - Setup steps (account creation, card save, agreements)
+  - Tier change reminder (if tier_change_used = false)
+  - Launch date info
+  ↓
+Email sent via Resend API
+  ↓
+activation_email_sent_at updated in database
+  ↓
+Toast confirmation shown to admin
+```
+
+### Duplicate Prevention Flow
+```
+User enters email in Auth.tsx or Apply.tsx
+  ↓
+User clicks "Sign Up" or "Submit Application"
+  ↓
+checkForDuplicate*() function queries database:
+  - Query members table (case-insensitive)
+  - Query membership_applications (case-insensitive, exclude rejected/cancelled)
+  ↓
+If found: Show error message, prevent submission
+If not found: Continue with signup/application
+  ↓
+Database constraint acts as final safety net:
+  - If duplicate somehow inserted, constraint violation occurs
+  - Error is caught and reported to user
 ```
 
 ---
 
-## Part 8: Implementation Priority
+## Files to Modify
 
-### CRITICAL (Must Complete Before Launch)
-
-| Task | Risk if Not Done |
-|------|------------------|
-| Card sync failure retry + alerts | Lost revenue, no visibility |
-| Duplicate account prevention | Billing chaos, support overhead |
-| Phase 1 email template | Can't onboard pre-paid members |
-| Database migrations | Features won't work |
-
-### HIGH (Complete This Week)
-
-| Task | Impact |
-|------|--------|
-| One-time tier change UI | Member frustration, support tickets |
-| Founding member perks display | Member expectations not met |
-| Admin "Send Phase 1" action | Manual process required |
+| File | Type | Changes |
+|------|------|---------|
+| `src/pages/admin/Dashboard.tsx` | Modify | Import and add CardSyncFailuresWidget component |
+| `src/pages/admin/Members.tsx` | Modify | Add sendPhase1SetupEmail() function + dropdown menu item |
+| `src/pages/Auth.tsx` | Modify | Add checkForDuplicateAccount() function + call in handleSubmit |
+| `src/pages/Apply.tsx` | Modify | Add checkForDuplicateApplication() function + call in handleSubmit |
 
 ---
 
-## Part 9: Files to Create/Modify
+## Testing Checklist
 
-### New Files
-- `src/components/member/TierChangeCard.tsx` - One-time tier change UI
-- `src/components/admin/CardSyncFailuresWidget.tsx` - Dashboard alert widget
-- `src/hooks/useCardSyncStatus.ts` - Track sync failures
+### CardSyncFailuresWidget Display
+- [ ] Widget appears on admin Dashboard
+- [ ] Widget shows green "All synced" when no failures
+- [ ] Widget shows red alert with failures list when failures exist
+- [ ] "Retry All" button works and retries all failures
+- [ ] Individual retry buttons work per failure
+- [ ] X (dismiss) buttons work per failure
 
-### Modified Files
+### Phase 1 Email
+- [ ] Menu item only shows for pending_activation members with annual_fee_paid_at
+- [ ] Email button sends phase_one_setup template
+- [ ] Email includes founding member perks if applicable
+- [ ] Email includes tier change reminder
+- [ ] activation_email_sent_at timestamp updates in database
+- [ ] Sent status appears in "Email Sent" column after sending
+- [ ] Toast confirms successful send
 
-| File | Changes |
-|------|---------|
-| `supabase/migrations/` | Add new columns and tables |
-| `supabase/functions/send-email/index.ts` | Add `phase_one_setup` template |
-| `supabase/functions/stripe-payment/index.ts` | Add `member_self_tier_change`, enhance sync retry |
-| `src/hooks/useUserMembership.ts` | Update `getMembershipTierBenefits()` with founding/diamond perks |
-| `src/pages/member/Membership.tsx` | Add tier change card, founding perks display |
-| `src/pages/admin/Members.tsx` | Add "Send Phase 1 Email" action |
-| `src/pages/admin/Dashboard.tsx` | Add card sync failures widget |
-| `src/pages/Auth.tsx` | Add duplicate account prevention checks |
-| `src/pages/Apply.tsx` | Add duplicate application check |
-| `src/components/member/MemberOnboardingChecklist.tsx` | Add tier change task if available |
+### Duplicate Prevention - Auth.tsx
+- [ ] Try to sign up with email that has existing member → blocked with message
+- [ ] Try to sign up with email that has pending application → blocked with message
+- [ ] Try to sign up with new email → succeeds
+- [ ] Try to sign up with rejected application email → succeeds (different person)
+- [ ] Check works case-insensitively (John@example.com blocks john@example.com)
 
----
+### Duplicate Prevention - Apply.tsx
+- [ ] Try to apply with email that has existing member → blocked with message
+- [ ] Try to apply with email that has pending application → blocked with message
+- [ ] Try to apply with email that has approved application → blocked with message
+- [ ] Try to apply with new email → succeeds
+- [ ] Try to apply with rejected application email → succeeds
+- [ ] Check works case-insensitively
 
-## Part 10: Testing Checklist
+### Database Constraints
+- [ ] If somehow a duplicate slips past UI, database constraint prevents it
+- [ ] Error message is shown to user when constraint violated
 
-### Pre-Paid Member Flow
-- Admin marks initiation fee as paid
-- Admin sends Phase 1 email
-- Member receives email with correct perks section
-- Member creates account with application email
-- Member sees tier change option (one-time)
-- Member changes tier successfully
-- Tier change option disappears after use
-- Member adds card (no immediate charge)
-- Card metadata syncs to database
-- Member signs agreements
-- Checklist shows 100% complete
-
-### Duplicate Prevention
-- Try to apply with existing application email - blocked
-- Try to create account that conflicts - clear messaging
-- Stripe customer lookup finds existing customer
-
-### Card Sync Failure
-- Simulate sync failure - logged to database
-- Retry mechanism works
-- Admin dashboard shows alert
-- "Retry All" button works
-
-### Founding Member Perks
-- Diamond Founding sees exclusive perks list (no concierge service)
-- Regular Founding sees founding perks
-- Non-founding Diamond sees Diamond perks
-- Regular member sees standard benefits only
