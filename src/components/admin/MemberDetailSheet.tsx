@@ -137,16 +137,20 @@ function PaymentMethodsSection({
         </div>
       ) : stripePaymentMethods?.paymentMethods && stripePaymentMethods.paymentMethods.length > 0 ? (
         <div className="space-y-2">
-          {stripePaymentMethods.paymentMethods.map((pm) => (
-            <div key={pm.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{pm.brand?.toUpperCase()} •••• {pm.last4}</span>
-              {pm.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
-              <span className="text-muted-foreground text-xs ml-auto">
-                Exp: {String(pm.expMonth).padStart(2, '0')}/{pm.expYear}
-              </span>
-            </div>
-          ))}
+           {stripePaymentMethods.paymentMethods.map((pm) => (
+             <div key={pm.id} className={`flex items-center gap-2 p-2 rounded-md border ${pm.isDefault ? 'bg-accent/10 border-accent/50' : 'bg-muted/30 border-transparent'}`}>
+               {pm.isDefault ? (
+                 <span className="text-accent text-lg">★</span>
+               ) : (
+                 <CreditCard className="h-4 w-4 text-muted-foreground" />
+               )}
+               <span className="font-medium">{pm.brand?.toUpperCase()} •••• {pm.last4}</span>
+               {pm.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
+               <span className="text-muted-foreground text-xs ml-auto">
+                 Exp: {String(pm.expMonth).padStart(2, '0')}/{pm.expYear}
+               </span>
+             </div>
+           ))}
           <Button 
             variant="ghost" 
             size="sm" 
