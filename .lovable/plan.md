@@ -1,186 +1,288 @@
 
-# Complete Waiver System Fix - Database, Workflow, and Enforcement
+# Phase 1 Membership Activation System - Complete Implementation Plan
 
-## Critical Issues Identified
+## Executive Summary
 
-### Issue 1: Database Schema Mismatch (BLOCKING ERROR)
-**Error**: "Could not find the 'guest_pass_agreement_signed_at' column of 'profiles' in the schema cache"
+This plan implements the pre-paid member onboarding workflow for Storm Wellness Club's February 9th, 2026 opening. It addresses:
+1. **Founding Member Exclusive Perks** (including Diamond-specific benefits)
+2. **One-Time Tier Change** (members can switch before locking in)
+3. **Duplicate Account Prevention** (CRITICAL for launch)
+4. **Card Metadata Sync Failure Handling** (CRITICAL)
+5. **Pre-Paid Member Onboarding Flow** (Phase 1 email workflow)
 
-The `profiles` table is **missing** these columns that the code expects:
-- `guest_pass_agreement_signed_at` (timestamp)
-- `single_class_pass_agreement_signed_at` (timestamp)
-- `kids_care_service_form_completed_at` (timestamp)
-- `class_package_agreement_signed` (boolean)
-- `class_package_agreement_signed_at` (timestamp)
+---
 
-**Database HAS**:
-- `guest_pass_agreement_signed` (boolean only, no `_at`)
-- `single_class_pass_agreement_signed` (boolean only, no `_at`)
-- `kids_care_service_form_completed` (boolean only, no `_at`)
-- NO `class_package_agreement_*` columns at all
+## Part 1: Founding Member Benefits Structure
 
-### Issue 2: Missing Agreement Workflow Logic
-Currently there is no enforcement of WHO should sign WHICH agreements:
+### Diamond Founding Member Perks
+- Personalized Storm Wellness Club sweater (founding members only - exclusive design)
+- Diamond Member personalized gym bag
+- VIP amenity kit with premium products
+- Diamond member personalized clothing line
+- Priority booking for ALL classes and events
 
-| User Type | Should Sign | Currently Enforced? |
-|-----------|-------------|---------------------|
-| Guest (buying guest pass) | Liability + Guest Pass | Partial (Guest Pass only) |
-| Non-member (buying single class) | Liability + Single Class Pass | Partial |
-| Member (booking classes) | Liability + Membership | Only at activation |
-| Member (using Kids Care) | Liability + Kids Care | Yes |
-| Member (10-class pack) | Liability + Class Package | No enforcement |
+### Regular Diamond Member Perks
+- Diamond member personalized clothes
+- Diamond member gear package  
+- VIP amenity kit
+- Priority booking for all classes and events
 
-### Issue 3: No Enforcement During Booking
-When a user with a pass tries to book a class, there's a backup check in `useBooking.ts` but it just throws an error. Users should be redirected to sign agreements before reaching this point.
+### All Other Founding Members (Silver/Gold/Platinum)
+- Personalized Storm Wellness Club sweater (founding members only)
+- Personalized gear package
+- Priority booking for all classes and events
 
-### Issue 4: Member Waivers Page Shows Everything
-The `/member/waivers` page shows ALL agreement types to ALL users, even though:
-- Guests don't need membership agreements
-- Non-members don't need class package agreements
-- The "signed at" timestamps fail for missing columns
+---
 
-## Solution Overview
+## Part 2: Database Changes
 
-### Phase 1: Database Migration
-Add the missing columns to the `profiles` table:
+### New Columns for `members` Table
 
 ```sql
-ALTER TABLE public.profiles
-ADD COLUMN IF NOT EXISTS guest_pass_agreement_signed_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS single_class_pass_agreement_signed_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS kids_care_service_form_completed_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS class_package_agreement_signed BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS class_package_agreement_signed_at TIMESTAMPTZ;
+-- Founding member perks tracking
+ALTER TABLE public.members
+ADD COLUMN IF NOT EXISTS founding_privileges_granted BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS founding_privileges_granted_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS founding_perks_delivered_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS founding_sweater_size TEXT,
+ADD COLUMN IF NOT EXISTS founding_bag_size TEXT;
+
+-- One-time tier change tracking
+ALTER TABLE public.members
+ADD COLUMN IF NOT EXISTS tier_change_used BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS tier_change_used_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS original_tier_at_application TEXT;
 ```
 
-### Phase 2: Smart Waivers Page
-Update the waivers page to only show relevant agreements based on user context:
+### New Table: `member_perk_deliveries`
 
-| Agreement | Show When |
-|-----------|-----------|
-| Liability Waiver | Always (required for all) |
-| Membership Agreement | User is a member OR has pending application |
-| Kids Care | Has kids care pass OR is member |
-| Guest Pass | Has guest pass OR visiting from guest-pass page |
-| Single Class Pass | Has single class pass OR visiting from class-passes page |
-| Class Package | Has 10-pack OR visiting from class-passes page |
-| Private Event | Has event booking OR visiting from events page |
+```sql
+CREATE TABLE IF NOT EXISTS public.member_perk_deliveries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  member_id UUID REFERENCES public.members(id) ON DELETE CASCADE,
+  perk_type TEXT NOT NULL, -- 'sweater', 'bag', 'amenity_kit', 'clothing'
+  perk_variant TEXT, -- 'diamond', 'founding', 'regular'
+  size TEXT,
+  status TEXT DEFAULT 'pending', -- 'pending', 'ordered', 'shipped', 'delivered'
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
 
-The `returnUrl` parameter already passed from purchase pages can be used to detect context.
+### New Table: `card_sync_failures` (CRITICAL)
 
-### Phase 3: Enhanced Blocking Logic
-Create a centralized hook to check agreement requirements before actions:
+```sql
+CREATE TABLE IF NOT EXISTS public.card_sync_failures (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  member_id UUID REFERENCES public.members(id),
+  stripe_customer_id TEXT,
+  error_message TEXT,
+  retry_count INTEGER DEFAULT 0,
+  resolved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Duplicate Prevention Constraints
+
+```sql
+-- Unique constraint on email (case-insensitive)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_email_unique 
+ON public.members (LOWER(email));
+
+-- Unique constraint on active applications
+CREATE UNIQUE INDEX IF NOT EXISTS idx_applications_active_email 
+ON public.membership_applications (LOWER(email)) 
+WHERE status NOT IN ('rejected', 'cancelled');
+```
+
+---
+
+## Part 3: One-Time Tier Change Feature
+
+### Member Portal Flow
+
+**Location**: `src/pages/member/Membership.tsx` (pending_activation state)
+
+**UI Components**:
+1. Alert banner: "You have one opportunity to change your membership tier before activation"
+2. Tier comparison card showing current vs. available tiers with pricing
+3. Confirm dialog with initiation fee difference info
+4. Success: "Your tier has been updated. This change is final."
+
+### Business Rules
+
+| Current State | Action | Result |
+|---------------|--------|--------|
+| `tier_change_used = false` | Member clicks "Change Tier" | Show tier selection UI |
+| Member selects new tier | Confirm | Update `membership_type`, set `tier_change_used = true` |
+| `tier_change_used = true` | Member views page | Hide tier change option, show "Tier locked" message |
+
+---
+
+## Part 4: Duplicate Account Prevention (CRITICAL)
+
+### Prevention Measures
+
+1. **Auth Flow** (`src/pages/Auth.tsx`): Check for existing applications/members before account creation
+2. **Application Submission** (`src/pages/Apply.tsx`): Block duplicate submissions with same email
+3. **Stripe Customer**: Check for existing customer by email before creating new one
+4. **Database Constraints**: Unique indexes on email fields
+
+---
+
+## Part 5: Card Metadata Sync Failure Handling (CRITICAL)
+
+### Multi-Layer Protection
+
+1. **Frontend Retry**: Exponential backoff (3 attempts) on sync failure
+2. **Failure Logging**: Track all failures in `card_sync_failures` table
+3. **Admin Dashboard Alert**: Widget showing unresolved sync failures
+4. **Pre-Billing Check**: Verify all active members have card data before billing date
+
+---
+
+## Part 6: Phase 1 Email Template
+
+### New Template: `phase_one_setup`
+
+For pre-paid members who need to complete setup:
+- Highlights their confirmed tier
+- Shows founding member perks (Diamond Founding vs Regular Founding)
+- Lists setup steps: account creation, card save, agreement signing
+- Optional tier change reminder
+- Clear statement: "First charge: February 9th, 2026"
+
+---
+
+## Part 7: Updated Benefits Display
+
+### Changes to `getMembershipTierBenefits()`
 
 ```typescript
-// New hook: useAgreementEnforcement
-function useAgreementEnforcement() {
-  // For booking a class:
-  // - Check if using guest pass -> need guest_pass_agreement
-  // - Check if using single class pass -> need single_class_pass_agreement
-  // - Check if using 10-pack -> need class_package_agreement
-  // - Check if using member credits -> need membership_agreement
+export function getMembershipTierBenefits(
+  tier: string, 
+  isFoundingMember: boolean = false
+): string[] {
+  const baseBenefits = tierBenefits[matchedTier] || tierBenefits["Silver"];
+  const isDiamond = matchedTier === "Diamond";
+  
+  if (isDiamond && isFoundingMember) {
+    return [
+      ...baseBenefits,
+      "---",
+      "Diamond Founding Member Exclusives:",
+      "Personalized Storm Wellness Club sweater (exclusive founding design)",
+      "Diamond Member personalized gym bag",
+      "VIP amenity kit with premium products",
+      "Diamond member personalized clothing line",
+      "Priority booking for ALL classes and events",
+    ];
+  }
+  
+  if (isDiamond) {
+    return [
+      ...baseBenefits,
+      "---",
+      "Diamond Member Perks:",
+      "Diamond member personalized clothes",
+      "Diamond member gear package",
+      "VIP amenity kit",
+      "Priority booking for all classes and events",
+    ];
+  }
+  
+  if (isFoundingMember) {
+    return [
+      ...baseBenefits,
+      "---",
+      "Founding Member Perks:",
+      "Personalized Storm Wellness Club sweater (founding members only)",
+      "Personalized gear package",
+      "Priority booking for all classes and events",
+    ];
+  }
+  
+  return baseBenefits;
 }
 ```
 
-### Phase 4: Flow Enforcement Points
+---
 
-**Point 1: Before Purchasing**
-Already implemented with `InlineWaiverGate`:
-- Guest Pass page: requires `guest_pass` agreement
-- Class Passes page: requires `single_class_pass` agreement (for single)
+## Part 8: Implementation Priority
 
-Need to add:
-- Class Passes page: requires `class_package` agreement (for 10-packs)
+### CRITICAL (Must Complete Before Launch)
 
-**Point 2: Before Booking**
-Update `BookingModal.tsx` to check agreements based on selected payment method:
-- Using guest pass → check `guest_pass_agreement_signed`
-- Using single class pass → check `single_class_pass_agreement_signed`
-- Using class pack → check `class_package_agreement_signed`
-- Using member credits → check `membership_agreement_signed`
+| Task | Risk if Not Done |
+|------|------------------|
+| Card sync failure retry + alerts | Lost revenue, no visibility |
+| Duplicate account prevention | Billing chaos, support overhead |
+| Phase 1 email template | Can't onboard pre-paid members |
+| Database migrations | Features won't work |
 
-If not signed, show redirect to `/member/waivers?return=...`
+### HIGH (Complete This Week)
 
-**Point 3: Member Portal Access**
-Keep current behavior: members can access portal regardless of agreement status, but see notices for required actions.
+| Task | Impact |
+|------|--------|
+| One-time tier change UI | Member frustration, support tickets |
+| Founding member perks display | Member expectations not met |
+| Admin "Send Phase 1" action | Manual process required |
 
-## Technical Changes
+---
 
-### File: Database Migration (NEW)
-Add missing columns to profiles table.
+## Part 9: Files to Create/Modify
 
-### File: `src/hooks/useUserProfile.ts`
-Update to handle the new columns properly (already has correct interface, just needs DB columns).
+### New Files
+- `src/components/member/TierChangeCard.tsx` - One-time tier change UI
+- `src/components/admin/CardSyncFailuresWidget.tsx` - Dashboard alert widget
+- `src/hooks/useCardSyncStatus.ts` - Track sync failures
 
-### File: `src/pages/member/Waivers.tsx`
-- Extract context from `returnUrl` to prioritize relevant agreements
-- Group agreements into "Required for Your Purchase" and "Other Agreements"
-- Only show "signed at" dates for columns that exist
-- Add logic to detect user type (guest vs member)
+### Modified Files
 
-### File: `src/components/InlineWaiverGate.tsx`
-- Already working correctly for redirect pattern
-- Add handling for `class_package` waiver type
+| File | Changes |
+|------|---------|
+| `supabase/migrations/` | Add new columns and tables |
+| `supabase/functions/send-email/index.ts` | Add `phase_one_setup` template |
+| `supabase/functions/stripe-payment/index.ts` | Add `member_self_tier_change`, enhance sync retry |
+| `src/hooks/useUserMembership.ts` | Update `getMembershipTierBenefits()` with founding/diamond perks |
+| `src/pages/member/Membership.tsx` | Add tier change card, founding perks display |
+| `src/pages/admin/Members.tsx` | Add "Send Phase 1 Email" action |
+| `src/pages/admin/Dashboard.tsx` | Add card sync failures widget |
+| `src/pages/Auth.tsx` | Add duplicate account prevention checks |
+| `src/pages/Apply.tsx` | Add duplicate application check |
+| `src/components/member/MemberOnboardingChecklist.tsx` | Add tier change task if available |
 
-### File: `src/pages/ClassPasses.tsx`
-- Split waiver requirements: single passes need `single_class_pass`, 10-packs need `class_package`
-- Show appropriate gate based on what user is trying to purchase
+---
 
-### File: `src/components/booking/BookingModal.tsx`
-- Add agreement check before booking based on payment method
-- Show inline redirect alert if agreement not signed
-- Use `WaiverRequiredAlert` component for consistency
+## Part 10: Testing Checklist
 
-### File: `src/hooks/useBooking.ts`
-- Keep backup server-side check as safety net
-- Improve error messages with direct links
+### Pre-Paid Member Flow
+- Admin marks initiation fee as paid
+- Admin sends Phase 1 email
+- Member receives email with correct perks section
+- Member creates account with application email
+- Member sees tier change option (one-time)
+- Member changes tier successfully
+- Tier change option disappears after use
+- Member adds card (no immediate charge)
+- Card metadata syncs to database
+- Member signs agreements
+- Checklist shows 100% complete
 
-## Implementation Order
+### Duplicate Prevention
+- Try to apply with existing application email - blocked
+- Try to create account that conflicts - clear messaging
+- Stripe customer lookup finds existing customer
 
-1. **Database Migration** (fixes the blocking error)
-2. **Update Waivers Page** (show relevant agreements, fix timestamp display)
-3. **Add Class Package Gate** to ClassPasses page
-4. **Add Agreement Check** to BookingModal
-5. **Test Full Flows**:
-   - Guest: create account → sign liability → buy guest pass → sign guest pass agreement → book class
-   - Non-member: create account → sign liability → buy single pass → sign single pass agreement → book class
-   - Member: apply → activate → sign membership agreement → book with credits
+### Card Sync Failure
+- Simulate sync failure - logged to database
+- Retry mechanism works
+- Admin dashboard shows alert
+- "Retry All" button works
 
-## UI/UX Improvements
-
-### Waivers Page Sections
-```text
-+------------------------------------------+
-| 🔔 Required for Your Purchase             |
-|   [Guest Pass Agreement] - Sign Now       |
-+------------------------------------------+
-| ✅ Completed                              |
-|   [Liability Waiver] - Signed Jan 5       |
-+------------------------------------------+
-| 📋 Other Agreements (Optional)            |
-|   [Kids Care] - Sign when needed          |
-|   [Private Events] - Sign when needed     |
-+------------------------------------------+
-```
-
-### Booking Modal Check
-```text
-+------------------------------------------+
-| ⚠️ Agreement Required                     |
-|                                           |
-| To book using your Single Class Pass,     |
-| please sign the Single Class Pass         |
-| Agreement first.                          |
-|                                           |
-| [Go to Waivers & Agreements →]            |
-+------------------------------------------+
-```
-
-## Success Criteria
-
-1. No database errors when signing any agreement
-2. Guest users only see/need guest-related agreements
-3. Members see membership agreements prominently
-4. Users cannot book classes without required agreements
-5. Clear, contextual messaging at each checkpoint
-6. Return URL flow works smoothly after signing
+### Founding Member Perks
+- Diamond Founding sees exclusive perks list (no concierge service)
+- Regular Founding sees founding perks
+- Non-founding Diamond sees Diamond perks
+- Regular member sees standard benefits only
