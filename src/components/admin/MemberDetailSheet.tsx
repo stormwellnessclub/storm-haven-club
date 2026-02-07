@@ -56,6 +56,7 @@ import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/u
 import { useMemberActivities } from "@/hooks/useMemberActivities";
 import { useQuery } from "@tanstack/react-query";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
+import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 
 interface Member {
   id: string;
@@ -110,6 +111,169 @@ const getStatusColor = (status: string) => {
 const formatStatus = (status: string) => {
   return status?.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Unknown";
 };
+
+// Component to display all payment methods from Stripe
+function PaymentMethodsSection({ 
+  member, 
+  onShowChargeDialog, 
+  setShowCancelAnnualFeeDialog,
+  getStripeSubscriptionLink 
+}: { 
+  member: Member; 
+  onShowChargeDialog: () => void;
+  setShowCancelAnnualFeeDialog: (show: boolean) => void;
+  getStripeSubscriptionLink: (id: string) => string;
+}) {
+  const { data: stripePaymentMethods, isLoading: isLoadingPMs } = useAdminMemberPaymentMethods(member.id);
+  const refreshPaymentMethods = useRefreshAdminMemberPaymentMethods();
+
+  return (
+    <div className="text-sm space-y-2">
+      {/* Card details display from Stripe */}
+      {isLoadingPMs ? (
+        <div className="flex items-center gap-2 p-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading cards...</span>
+        </div>
+      ) : stripePaymentMethods?.paymentMethods && stripePaymentMethods.paymentMethods.length > 0 ? (
+        <div className="space-y-2">
+          {stripePaymentMethods.paymentMethods.map((pm) => (
+            <div key={pm.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{pm.brand?.toUpperCase()} •••• {pm.last4}</span>
+              {pm.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
+              <span className="text-muted-foreground text-xs ml-auto">
+                Exp: {String(pm.expMonth).padStart(2, '0')}/{pm.expYear}
+              </span>
+            </div>
+          ))}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => refreshPaymentMethods.mutate(member.id)}
+            disabled={refreshPaymentMethods.isPending}
+            className="text-xs"
+          >
+            <RefreshCcw className={`h-3 w-3 mr-1 ${refreshPaymentMethods.isPending ? 'animate-spin' : ''}`} />
+            Refresh from Stripe
+          </Button>
+        </div>
+      ) : member.card_brand && member.card_last4 ? (
+        // Fallback to cached metadata if Stripe fetch failed
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium">{member.card_brand.toUpperCase()} •••• {member.card_last4}</span>
+            {member.card_exp_month && member.card_exp_year && (
+              <span className="text-muted-foreground text-xs ml-auto">
+                Exp: {String(member.card_exp_month).padStart(2, '0')}/{member.card_exp_year}
+              </span>
+            )}
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => refreshPaymentMethods.mutate(member.id)}
+            disabled={refreshPaymentMethods.isPending}
+            className="text-xs"
+          >
+            <RefreshCcw className={`h-3 w-3 mr-1 ${refreshPaymentMethods.isPending ? 'animate-spin' : ''}`} />
+            Fetch from Stripe
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">No cards on file</p>
+      )}
+      
+      <p className="text-muted-foreground text-xs">
+        Stripe Customer: <span className="font-mono">{member.stripe_customer_id}</span>
+      </p>
+      {member.stripe_subscription_id && (
+        <div className="flex items-center gap-2 text-muted-foreground text-xs">
+          <span>Membership Subscription:</span>
+          <a 
+            href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="font-mono text-primary hover:underline inline-flex items-center gap-1"
+          >
+            {member.stripe_subscription_id.substring(0, 18)}...
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      )}
+      
+      {/* Annual Fee Subscription Section */}
+      <div className="mt-3 pt-3 border-t border-border">
+        <p className="text-sm font-medium mb-2">Initiation Fee Status</p>
+        {member.annual_fee_subscription_id ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium text-primary">Active Subscription</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground text-xs">
+              <span>Subscription ID:</span>
+              <a 
+                href={getStripeSubscriptionLink(member.annual_fee_subscription_id)} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="font-mono text-primary hover:underline inline-flex items-center gap-1"
+              >
+                {member.annual_fee_subscription_id.substring(0, 18)}...
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+            {member.annual_fee_paid_at && (
+              <p className="text-xs text-muted-foreground">
+                Last Paid: {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
+              </p>
+            )}
+            <AdminActionButton
+              label="Cancel Annual Fee"
+              icon={<XCircle className="h-4 w-4 mr-2" />}
+              variant="outline"
+              tooltip={ADMIN_ACTION_TOOLTIPS.cancelAnnualFee}
+              onClick={() => setShowCancelAnnualFeeDialog(true)}
+            />
+          </div>
+        ) : member.annual_fee_paid_at ? (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium text-primary">Paid (One-time)</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Paid on: {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-medium text-destructive">Not Paid</span>
+          </div>
+        )}
+      </div>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="w-full mt-2"
+        onClick={onShowChargeDialog}
+      >
+        <DollarSign className="h-4 w-4 mr-2" />
+        Charge Saved Card
+      </Button>
+      <div className="mt-4">
+        <ChargeHistory 
+          memberId={member.id}
+          isAdmin={true}
+          recipientEmail={member.email}
+          recipientName={member.first_name}
+        />
+      </div>
+    </div>
+  );
+}
 
 export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperActivate }: MemberDetailSheetProps) {
   const queryClient = useQueryClient();
@@ -807,108 +971,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   Payment Information
                 </p>
                 {member.stripe_customer_id ? (
-                  <div className="text-sm space-y-2">
-                    {/* Card details display */}
-                    {member.card_brand && member.card_last4 && (
-                      <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
-                        <CreditCard className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">
-                          {member.card_brand.toUpperCase()} •••• {member.card_last4}
-                        </span>
-                        {member.card_exp_month && member.card_exp_year && (
-                          <span className="text-muted-foreground text-xs ml-auto">
-                            Exp: {String(member.card_exp_month).padStart(2, '0')}/{member.card_exp_year}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <p className="text-muted-foreground text-xs">
-                      Stripe Customer: <span className="font-mono">{member.stripe_customer_id}</span>
-                    </p>
-                    {member.stripe_subscription_id && (
-                      <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                        <span>Membership Subscription:</span>
-                        <a 
-                          href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="font-mono text-primary hover:underline inline-flex items-center gap-1"
-                        >
-                          {member.stripe_subscription_id.substring(0, 18)}...
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </div>
-                    )}
-                    
-                    {/* Annual Fee Subscription Section */}
-                    <div className="mt-3 pt-3 border-t border-border">
-                      <p className="text-sm font-medium mb-2">Initiation Fee Status</p>
-                      {member.annual_fee_subscription_id ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10">
-                            <CheckCircle2 className="h-4 w-4 text-primary" />
-                            <span className="text-sm font-medium text-primary">Active Subscription</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                            <span>Subscription ID:</span>
-                            <a 
-                              href={getStripeSubscriptionLink(member.annual_fee_subscription_id)} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="font-mono text-primary hover:underline inline-flex items-center gap-1"
-                            >
-                              {member.annual_fee_subscription_id.substring(0, 18)}...
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </div>
-                          {member.annual_fee_paid_at && (
-                            <p className="text-xs text-muted-foreground">
-                              Last Paid: {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
-                            </p>
-                          )}
-                          <AdminActionButton
-                            label="Cancel Annual Fee"
-                            icon={<XCircle className="h-4 w-4 mr-2" />}
-                            variant="outline"
-                            tooltip={ADMIN_ACTION_TOOLTIPS.cancelAnnualFee}
-                            onClick={() => setShowCancelAnnualFeeDialog(true)}
-                          />
-                        </div>
-                      ) : member.annual_fee_paid_at ? (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10">
-                            <CheckCircle2 className="h-4 w-4 text-primary" />
-                            <span className="text-sm font-medium text-primary">Paid (One-time)</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Paid on: {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10">
-                          <AlertCircle className="h-4 w-4 text-destructive" />
-                          <span className="text-sm font-medium text-destructive">Not Paid</span>
-                        </div>
-                      )}
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full mt-2"
-                      onClick={() => setShowChargeDialog(true)}
-                    >
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      Charge Saved Card
-                    </Button>
-                    <div className="mt-4">
-                      <ChargeHistory 
-                        memberId={member.id}
-                        isAdmin={true}
-                        recipientEmail={member.email}
-                        recipientName={member.first_name}
-                      />
-                    </div>
-                  </div>
+                  <PaymentMethodsSection member={member} onShowChargeDialog={() => setShowChargeDialog(true)} setShowCancelAnnualFeeDialog={setShowCancelAnnualFeeDialog} getStripeSubscriptionLink={getStripeSubscriptionLink} />
                 ) : (
                   <p className="text-sm text-muted-foreground">No payment method on file</p>
                 )}

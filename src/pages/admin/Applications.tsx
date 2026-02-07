@@ -257,6 +257,10 @@ export default function Applications() {
   const [showPersonalizedLetterModal, setShowPersonalizedLetterModal] = useState(false);
   const [personalizedLetterTarget, setPersonalizedLetterTarget] = useState<Application | null>(null);
   
+  // Email sending state
+  const [isSendingPaymentRequest, setIsSendingPaymentRequest] = useState(false);
+  const [isSendingFinalNotice, setIsSendingFinalNotice] = useState(false);
+  
   const queryClient = useQueryClient();
 
   const { data: applications = [], isLoading, isError, error, refetch } = useQuery({
@@ -380,6 +384,33 @@ export default function Applications() {
         .update({ status })
         .eq("id", id);
       if (error) throw error;
+      
+      // Sync member status when cancelling/rejecting application
+      if (status === "cancelled" || status === "rejected") {
+        // Get the application email first
+        const { data: appData } = await supabase
+          .from("membership_applications")
+          .select("email")
+          .eq("id", id)
+          .single();
+        
+        if (appData?.email) {
+          const { error: memberUpdateError } = await supabase
+            .from("members")
+            .update({ 
+              status: "cancelled",
+              updated_at: new Date().toISOString()
+            })
+            .ilike("email", appData.email)
+            .eq("status", "pending_activation");
+          
+          if (memberUpdateError) {
+            console.error("Failed to sync member status:", memberUpdateError);
+          } else {
+            console.log("Synced member status to cancelled for:", appData.email);
+          }
+        }
+      }
       
       // Create member record when status is approved
       if (status === "approved" && application) {
@@ -1210,6 +1241,90 @@ export default function Applications() {
       toast.error(err.message || "Failed to send email");
     } finally {
       setIsRequestingPayment(false);
+    }
+  };
+
+  // Send initiation fee payment request email
+  const handleSendPaymentRequest = async (app: Application) => {
+    setIsSendingPaymentRequest(true);
+    const firstName = app.first_name || app.full_name.trim().split(" ")[0];
+    
+    try {
+      // Generate payment link
+      const { data: linkData, error: linkError } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_annual_fee_payment_link",
+          applicationId: app.id,
+          gender: app.gender || "Women",
+          successUrl: window.location.origin + "/payment-success?type=annual_fee",
+          cancelUrl: window.location.origin,
+        },
+      });
+      
+      if (linkError) throw linkError;
+      
+      // Send email
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "annual_fee_payment_request",
+          to: app.email,
+          data: {
+            name: firstName,
+            amount: 300,
+            paymentUrl: linkData?.url || `${window.location.origin}/auth`,
+          },
+        },
+      });
+      
+      if (error) throw error;
+      toast.success(`Payment request sent to ${app.email}`);
+    } catch (err: any) {
+      console.error("Send payment request error:", err);
+      toast.error(err.message || "Failed to send payment request");
+    } finally {
+      setIsSendingPaymentRequest(false);
+    }
+  };
+
+  // Send final notice email
+  const handleSendFinalNotice = async (app: Application) => {
+    setIsSendingFinalNotice(true);
+    const firstName = app.first_name || app.full_name.trim().split(" ")[0];
+    
+    try {
+      // Generate payment link
+      const { data: linkData, error: linkError } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_annual_fee_payment_link",
+          applicationId: app.id,
+          gender: app.gender || "Women",
+          successUrl: window.location.origin + "/payment-success?type=annual_fee",
+          cancelUrl: window.location.origin,
+        },
+      });
+      
+      if (linkError) throw linkError;
+      
+      // Send final notice email
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "annual_fee_final_notice",
+          to: app.email,
+          data: {
+            name: firstName,
+            amount: 300,
+            paymentUrl: linkData?.url || `${window.location.origin}/auth`,
+          },
+        },
+      });
+      
+      if (error) throw error;
+      toast.success(`Final notice sent to ${app.email}`);
+    } catch (err: any) {
+      console.error("Send final notice error:", err);
+      toast.error(err.message || "Failed to send final notice");
+    } finally {
+      setIsSendingFinalNotice(false);
     }
   };
 
@@ -2202,6 +2317,27 @@ export default function Applications() {
                           {app.status === "approved" && (
                             <>
                               <DropdownMenuSeparator />
+                              {/* Payment request options for unpaid initiation fee */}
+                              {app.annual_fee_status !== "paid" && (
+                                <>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleSendPaymentRequest(app)}
+                                    disabled={isSendingPaymentRequest}
+                                  >
+                                    <Wallet className="h-4 w-4 mr-2" />
+                                    Request Initiation Fee
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleSendFinalNotice(app)}
+                                    disabled={isSendingFinalNotice}
+                                    className="text-destructive"
+                                  >
+                                    <AlertCircle className="h-4 w-4 mr-2" />
+                                    Send Final Notice
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
                               <DropdownMenuItem 
                                 onClick={() => {
                                   // Open personalized letter modal for resend

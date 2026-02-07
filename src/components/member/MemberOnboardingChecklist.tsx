@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, CreditCard, FileCheck, Clock, ChevronRight, PartyPopper } from "lucide-react";
+import { Check, CreditCard, FileCheck, Clock, ChevronRight, PartyPopper, DollarSign, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OnboardingTask {
@@ -13,6 +13,8 @@ interface OnboardingTask {
   complete: boolean;
   action?: string;
   actionLabel?: string;
+  onClick?: () => void;
+  isLoading?: boolean;
 }
 
 interface MemberOnboardingChecklistProps {
@@ -22,6 +24,9 @@ interface MemberOnboardingChecklistProps {
   hasMembershipAgreement: boolean;
   hasLiabilityWaiver: boolean;
   isFoundingMember?: boolean;
+  isInitiationFeePaid?: boolean;
+  onPayInitiationFee?: () => void;
+  isPayingInitiationFee?: boolean;
 }
 
 export function MemberOnboardingChecklist({
@@ -31,8 +36,28 @@ export function MemberOnboardingChecklist({
   hasMembershipAgreement,
   hasLiabilityWaiver,
   isFoundingMember,
+  isInitiationFeePaid = true, // Default to true for backwards compatibility
+  onPayInitiationFee,
+  isPayingInitiationFee = false,
 }: MemberOnboardingChecklistProps) {
-  const tasks: OnboardingTask[] = [
+  // Build tasks array conditionally
+  const tasks: OnboardingTask[] = [];
+
+  // Add initiation fee task FIRST if not paid
+  if (!isInitiationFeePaid) {
+    tasks.push({
+      id: "initiation-fee",
+      label: "Pay Initiation Fee",
+      description: "One-time fee of $300 to activate your membership",
+      complete: false,
+      actionLabel: isPayingInitiationFee ? "Processing..." : "Pay Now",
+      onClick: onPayInitiationFee,
+      isLoading: isPayingInitiationFee,
+    });
+  }
+
+  // Add the standard tasks
+  tasks.push(
     {
       id: "payment",
       label: "Add Payment Method",
@@ -56,8 +81,8 @@ export function MemberOnboardingChecklist({
       complete: hasLiabilityWaiver,
       action: "/member/waivers",
       actionLabel: "Sign Now",
-    },
-  ];
+    }
+  );
 
   const completedCount = tasks.filter((t) => t.complete).length;
   const totalTasks = tasks.length;
@@ -134,6 +159,8 @@ export function MemberOnboardingChecklist({
                 >
                   {task.complete ? (
                     <Check className="h-4 w-4" />
+                  ) : task.id === "initiation-fee" ? (
+                    <DollarSign className="h-4 w-4" />
                   ) : task.id === "payment" ? (
                     <CreditCard className="h-4 w-4" />
                   ) : (
@@ -155,7 +182,22 @@ export function MemberOnboardingChecklist({
                 </div>
               </div>
 
-              {task.action && !task.complete && (
+              {/* Action button for task with onClick handler */}
+              {task.onClick && !task.complete && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={task.onClick}
+                  disabled={task.isLoading}
+                >
+                  {task.isLoading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                  {task.actionLabel}
+                  {!task.isLoading && <ChevronRight className="ml-1 h-4 w-4" />}
+                </Button>
+              )}
+
+              {/* Action button for task with link */}
+              {task.action && !task.complete && !task.onClick && (
                 <Button asChild size="sm" variant="outline">
                   <Link to={task.action}>
                     {task.actionLabel}
