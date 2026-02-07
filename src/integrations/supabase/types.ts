@@ -1277,43 +1277,67 @@ export type Database = {
       }
       guest_passes: {
         Row: {
+          add_ons: Json | null
           created_at: string | null
           expires_at: string | null
           guest_email: string | null
           guest_name: string
           id: string
+          member_referral: string | null
+          phone_number: string | null
           price_paid: number
           purchased_at: string | null
           sold_by: string | null
           status: string
+          stripe_customer_id: string | null
           stripe_payment_id: string | null
           used_at: string | null
+          user_id: string | null
+          valid_date: string | null
+          visit_interests: string[] | null
+          visit_notes: string | null
         }
         Insert: {
+          add_ons?: Json | null
           created_at?: string | null
           expires_at?: string | null
           guest_email?: string | null
           guest_name: string
           id?: string
+          member_referral?: string | null
+          phone_number?: string | null
           price_paid?: number
           purchased_at?: string | null
           sold_by?: string | null
           status?: string
+          stripe_customer_id?: string | null
           stripe_payment_id?: string | null
           used_at?: string | null
+          user_id?: string | null
+          valid_date?: string | null
+          visit_interests?: string[] | null
+          visit_notes?: string | null
         }
         Update: {
+          add_ons?: Json | null
           created_at?: string | null
           expires_at?: string | null
           guest_email?: string | null
           guest_name?: string
           id?: string
+          member_referral?: string | null
+          phone_number?: string | null
           price_paid?: number
           purchased_at?: string | null
           sold_by?: string | null
           status?: string
+          stripe_customer_id?: string | null
           stripe_payment_id?: string | null
           used_at?: string | null
+          user_id?: string | null
+          valid_date?: string | null
+          visit_interests?: string[] | null
+          visit_notes?: string | null
         }
         Relationships: []
       }
