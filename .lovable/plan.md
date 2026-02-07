@@ -1,264 +1,135 @@
 
 
-# Inline Waiver Gate for Guest Pass & Class Passes
+# Root Cause and Complete Fix
 
-## Your Approach - Why It's Better
+## The Problem
 
-Instead of navigating away to `/member/waivers` (which causes the full-page blinking), the user flow becomes:
+I traced through the entire flow. Here's exactly what's happening:
 
-```text
-Guest Pass / Class Pass Page
-         ↓
-[Not signed in?] → Show "Create Account" section → Auth inline or redirect to /auth
-         ↓
-[Signed in but waiver not signed?] → Show inline waiver signing section
-         ↓
-[Waiver signed?] → Show purchase form
+### Issue 1: Auth Page Ignores Redirect Parameter
+
+When you click "Create Account" on `/guest-pass`, `AccountRequiredSection` correctly builds the URL:
+```
+/auth?redirect=/guest-pass
 ```
 
-**Benefits:**
-- No navigation = no route guard flickering
-- Real-time status updates via React Query
-- User stays focused on their goal
-- Simpler, more predictable experience
+But `Auth.tsx` **completely ignores this parameter** and hardcodes `/member` in three places:
+- **Line 78**: When user is already logged in → `navigate("/member")`
+- **Line 168**: After signup success → `navigate("/member")`
+- **Line 190**: After signin success → `navigate("/member")`
+
+So after login, users are forced to `/member` which is wrapped in `ProtectedMemberRoute`, triggering the "Checking membership status..." screen.
+
+### Issue 2: PDF Database Values
+
+I checked the database. The agreements table contains:
+
+| agreement_type | pdf_url |
+|----------------|---------|
+| guest_pass | `guest-pass-agreement-general.pdf` |
+| guest_pass | `guest-pass-agreement.pdf` |
+| liability_waiver | `/assets/agreements/liability-waiver.pdf` |
+| single_class_pass | `/agreements/single-class-pass-agreement.pdf` |
+
+The `AgreementPDFViewer` component extracts filenames and maps them via `pdfMap`. This SHOULD work, but the paths with `/assets/` or `/agreements/` prefixes are inconsistent with the expected simple filenames.
+
+### Issue 3: ClassPasses Success URL
+
+In `ClassPasses.tsx` line 305, the success URL is hardcoded:
+```typescript
+successUrl: `${origin}/member/credits?purchase=success`
+```
+
+This sends **non-members** to `/member/credits` after checkout, triggering "Checking membership status..." again.
 
 ---
 
-## Implementation Overview
+## The Fix (3 Files)
 
-### Step-by-Step User Flow
+### File 1: `src/pages/Auth.tsx`
 
-1. **Not Signed In**: User sees a "Create an Account to Continue" section with a link to `/auth?redirect=/guest-pass`
-2. **Signed In, Waiver Not Signed**: User sees an inline waiver signing section with:
-   - The PDF viewer showing the liability waiver
-   - An "I Agree - Sign Waiver" button
-   - When clicked, waiver is signed via `useUserProfile().signWaiver()`
-   - React Query invalidates and UI updates instantly
-3. **Waiver Signed**: User sees the full purchase form
+**Add redirect parsing and use it for all navigations:**
 
-### Component Structure
-
-Create a new reusable component: `InlineWaiverGate.tsx`
-
-```text
-<InlineWaiverGate 
-  requiredWaivers={["liability"]}  // or ["liability", "guest_pass"]
-  onAllSigned={() => void}         // Optional callback
->
-  {/* Purchase form only renders when all waivers signed */}
-  <GuestPassPurchaseForm />
-</InlineWaiverGate>
-```
-
----
-
-## Files to Create/Modify
-
-### 1. Create: `src/components/InlineWaiverGate.tsx`
-
-A reusable gate component that:
-- Uses `useUserProfile()` to check waiver status
-- Uses `useAgreements()` to fetch the PDF URLs
-- Shows a loading state while checking
-- If waivers needed, shows the signing UI
-- If all signed, renders children
-
-**Key features:**
-- Accordion layout (only one PDF loads at a time)
-- Auto-expands the first unsigned waiver
-- Uses existing `AgreementPDFViewer` component
-- Calls existing `signWaiver()`, `signGuestPassAgreement()` etc. mutations
-
-### 2. Modify: `src/pages/GuestPass.tsx`
-
-**Remove:**
-- The `hasLiabilityWaiver` state and manual check
-- The Alert with "Sign Waiver" link
-- The redirect logic to `/member/waivers`
-
-**Add:**
-- Import `InlineWaiverGate`
-- Wrap the purchase form with the gate
-- Add an auth check section for non-logged-in users
-
-**New structure:**
-```tsx
-export default function GuestPass() {
-  const { user, loading: authLoading } = useAuth();
-
-  if (authLoading) return <LoadingSpinner />;
-
-  // Not logged in - show account creation prompt
-  if (!user) {
-    return (
-      <Layout>
-        <AccountRequiredSection redirectTo="/guest-pass" />
-      </Layout>
-    );
+1. Import `useLocation` and `useSearchParams` (or parse `window.location.search`)
+2. Create a helper to get the safe redirect target:
+```typescript
+const getRedirectTarget = () => {
+  const params = new URLSearchParams(window.location.search);
+  const redirect = params.get("redirect");
+  
+  // Validate: must start with / but not //
+  if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
+    return redirect;
   }
+  return "/member"; // default
+};
+```
+3. Replace these three navigations:
+   - Line 78: `navigate("/member")` → `navigate(getRedirectTarget())`
+   - Line 168: `navigate("/member")` → `navigate(getRedirectTarget())`
+   - Line 190: `navigate("/member")` → `navigate(getRedirectTarget())`
 
-  // Logged in - check waivers inline
-  return (
-    <Layout>
-      <InlineWaiverGate requiredWaivers={["liability", "guest_pass"]}>
-        {/* Only renders when both waivers are signed */}
-        <GuestPassForm />
-      </InlineWaiverGate>
-    </Layout>
-  );
-}
+### File 2: `src/pages/ClassPasses.tsx`
+
+**Make success URL conditional based on membership:**
+
+Change line 305:
+```typescript
+// Before
+successUrl: `${origin}/member/credits?purchase=success`,
+
+// After  
+successUrl: isMember 
+  ? `${origin}/member/credits?purchase=success`
+  : `${origin}/class-passes?purchase=success`,
 ```
 
-### 3. Modify: `src/pages/ClassPasses.tsx`
+### File 3: Database Update (optional cleanup)
 
-**Remove:**
-- The redirect to `/member/waivers` for single class pass agreements
-- The `needsAgreement` check that navigates away
+Update the `pdf_url` values to use simple filenames (matching the `pdfMap` keys):
 
-**Add:**
-- Import `InlineWaiverGate`
-- For single class purchases, wrap with `InlineWaiverGate` checking `single_class_pass` agreement
+```sql
+UPDATE public.agreements 
+SET pdf_url = 'liability-waiver.pdf'
+WHERE agreement_type = 'liability_waiver';
 
-### 4. Create: `src/components/AccountRequiredSection.tsx`
-
-A simple component for non-authenticated users:
-- Shows a message: "Create an account to purchase a guest pass"
-- "Create Account" button → `/auth?redirect=/guest-pass`
-- "Already have an account? Sign In" link
-
----
-
-## Technical Details
-
-### InlineWaiverGate Component
-
-```tsx
-interface InlineWaiverGateProps {
-  requiredWaivers: ("liability" | "guest_pass" | "single_class_pass" | "kids_care")[];
-  children: React.ReactNode;
-  title?: string;
-  description?: string;
-}
-
-export function InlineWaiverGate({ 
-  requiredWaivers, 
-  children, 
-  title = "Sign Required Agreements",
-  description = "Please review and sign the following agreements to continue."
-}: InlineWaiverGateProps) {
-  const { profile, isLoading, signWaiver, signGuestPassAgreement, ... } = useUserProfile();
-  const { data: liabilityAgreements } = useAgreements("liability_waiver");
-  const { data: guestPassAgreements } = useAgreements("guest_pass");
-  // ... other agreement types as needed
-
-  // Map waiver type to profile field and sign function
-  const waiverConfig = {
-    liability: {
-      signed: profile?.waiver_signed,
-      signFn: signWaiver,
-      agreements: liabilityAgreements,
-      title: "Liability Waiver"
-    },
-    guest_pass: {
-      signed: profile?.guest_pass_agreement_signed,
-      signFn: signGuestPassAgreement,
-      agreements: guestPassAgreements,
-      title: "Guest Pass Agreement"
-    },
-    // ... etc
-  };
-
-  const unsignedWaivers = requiredWaivers.filter(
-    w => !waiverConfig[w].signed
-  );
-
-  // All signed - render children
-  if (unsignedWaivers.length === 0) {
-    return <>{children}</>;
-  }
-
-  // Show signing UI
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Accordion type="single" collapsible defaultValue={unsignedWaivers[0]}>
-          {unsignedWaivers.map(waiverType => {
-            const config = waiverConfig[waiverType];
-            return (
-              <AccordionItem key={waiverType} value={waiverType}>
-                <AccordionTrigger>
-                  {config.title}
-                  <Badge variant="outline">Required</Badge>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <AgreementPDFViewer 
-                    pdfUrl={config.agreements?.map(a => a.pdf_url) || []}
-                    height="400px"
-                  />
-                  <Button 
-                    onClick={() => config.signFn()}
-                    className="w-full mt-4"
-                  >
-                    I Agree - Sign {config.title}
-                  </Button>
-                </AccordionContent>
-              </AccordionItem>
-            );
-          })}
-        </Accordion>
-      </CardContent>
-    </Card>
-  );
-}
+UPDATE public.agreements 
+SET pdf_url = 'single-class-pass-agreement.pdf'
+WHERE agreement_type = 'single_class_pass';
 ```
 
-### Real-time Updates
-
-When `signWaiver()` completes:
-1. React Query invalidates `["user-profile", user?.id]`
-2. `useUserProfile()` refetches
-3. `profile.waiver_signed` becomes `true`
-4. `InlineWaiverGate` re-renders
-5. `unsignedWaivers` becomes empty
-6. Children (purchase form) now render
-
-This happens instantly with no navigation or page flicker.
+This ensures consistent filename matching in the PDF viewer.
 
 ---
 
-## Summary of Changes
+## What This Fixes
 
-| File | Action |
-|------|--------|
-| `src/components/InlineWaiverGate.tsx` | **Create** - Reusable inline waiver signing gate |
-| `src/components/AccountRequiredSection.tsx` | **Create** - Auth prompt for non-logged-in users |
-| `src/pages/GuestPass.tsx` | **Modify** - Use inline gate instead of navigating away |
-| `src/pages/ClassPasses.tsx` | **Modify** - Use inline gate for single class pass agreement |
+After these changes:
 
-**No changes needed to:**
-- `useUserProfile.ts` (already has all sign functions)
-- `useAgreements.ts` (already fetches PDFs)
-- `AgreementPDFViewer.tsx` (already works)
-- Any routing or protected route components
+1. **Guest Pass flow**: 
+   - User on `/guest-pass` → clicks "Create Account" → `/auth?redirect=/guest-pass`
+   - Signs in → Auth reads redirect → navigates to `/guest-pass`
+   - `InlineWaiverGate` shows PDFs → user signs → form appears
+   - **No "Checking membership status..." anywhere**
+
+2. **Class Pass flow**:
+   - Same pattern for `/class-passes`
+   - After Stripe checkout, non-members return to `/class-passes?purchase=success`
+   - **No member portal redirect**
+
+3. **PDF display**:
+   - Database values normalized to match `pdfMap` keys
+   - PDFs load reliably via bundled imports
 
 ---
 
-## Testing Plan
+## Technical Summary
 
-1. Sign out completely
-2. Go to `/guest-pass`
-3. **Expected**: See "Create Account" section, not redirected
-4. Click "Create Account" → `/auth?redirect=/guest-pass`
-5. Create account or sign in
-6. **Expected**: Return to `/guest-pass`, see inline waiver section
-7. Expand liability waiver, review PDF, click "I Agree"
-8. **Expected**: UI updates instantly, shows guest pass form (or next required waiver)
-9. Complete purchase
-10. **Expected**: Smooth checkout redirect
-
-Same test for `/class-passes` single class purchase.
+| File | Line(s) | Current | Change To |
+|------|---------|---------|-----------|
+| `Auth.tsx` | 78 | `navigate("/member")` | `navigate(getRedirectTarget())` |
+| `Auth.tsx` | 168 | `navigate("/member")` | `navigate(getRedirectTarget())` |
+| `Auth.tsx` | 190 | `navigate("/member")` | `navigate(getRedirectTarget())` |
+| `ClassPasses.tsx` | 305 | Hardcoded `/member/credits` | Conditional based on `isMember` |
+| Database | agreements | Various paths | Simple filenames |
 
