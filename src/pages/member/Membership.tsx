@@ -13,6 +13,7 @@ import { ChargeHistory } from "@/components/ChargeHistory";
 import { InlineBillingSection } from "@/components/member/InlineBillingSection";
 import { BillingSummary } from "@/components/member/BillingSummary";
 import { MemberOnboardingChecklist } from "@/components/member/MemberOnboardingChecklist";
+import { TierChangeCard } from "@/components/member/TierChangeCard";
 import { useMemberAgreementStatus } from "@/hooks/useMemberAgreementStatus";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,10 +142,20 @@ export default function MemberMembership() {
     };
 
     const hasPaymentMethod = !!(membership.card_brand && membership.card_last4);
+    const tierChangeUsed = membership.tier_change_used ?? false;
 
     return (
       <MemberLayout title="Complete Your Membership">
         <div className="space-y-6">
+          {/* One-Time Tier Change Option */}
+          <TierChangeCard
+            memberId={membership.id}
+            currentTier={membership.membership_type}
+            gender={membership.gender}
+            tierChangeUsed={tierChangeUsed}
+            isFoundingMember={membership.is_founding_member || false}
+          />
+
           {/* Onboarding Checklist */}
           <MemberOnboardingChecklist
             memberName={membership.first_name || "Member"}
@@ -182,7 +193,7 @@ export default function MemberMembership() {
     );
   }
 
-  const tierBenefits = getMembershipTierBenefits(membership.membership_type);
+  const tierBenefits = getMembershipTierBenefits(membership.membership_type, membership.is_founding_member || false);
 
   return (
     <MemberLayout title="My Membership">

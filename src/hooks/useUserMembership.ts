@@ -31,6 +31,16 @@ export interface UserMembership {
   card_last4: string | null;
   card_exp_month: number | null;
   card_exp_year: number | null;
+  // Phase 1: Founding perks tracking
+  founding_privileges_granted: boolean | null;
+  founding_privileges_granted_at: string | null;
+  founding_perks_delivered_at: string | null;
+  founding_sweater_size: string | null;
+  founding_bag_size: string | null;
+  // Phase 1: Tier change tracking
+  tier_change_used: boolean | null;
+  tier_change_used_at: string | null;
+  original_tier_at_application: string | null;
 }
 
 export function useUserMembership() {
@@ -54,7 +64,10 @@ export function useUserMembership() {
   });
 }
 
-export function getMembershipTierBenefits(tier: string): string[] {
+export function getMembershipTierBenefits(
+  tier: string, 
+  isFoundingMember: boolean = false
+): string[] {
   const tierBenefits: Record<string, string[]> = {
     Silver: [
       "Full access to state-of-the-art gym",
@@ -100,5 +113,47 @@ export function getMembershipTierBenefits(tier: string): string[] {
   };
   
   const matchedTier = tierMap[normalizedTier] || "Silver";
-  return tierBenefits[matchedTier] || tierBenefits["Silver"];
+  const baseBenefits = tierBenefits[matchedTier] || tierBenefits["Silver"];
+  const isDiamond = matchedTier === "Diamond";
+  
+  // Diamond Founding Member - exclusive top-tier perks
+  if (isDiamond && isFoundingMember) {
+    return [
+      ...baseBenefits,
+      "---",
+      "💎 Diamond Founding Member Exclusives:",
+      "Personalized Storm Wellness Club sweater (exclusive founding design)",
+      "Diamond Member personalized gym bag",
+      "VIP amenity kit with premium products",
+      "Diamond member personalized clothing line",
+      "Priority booking for ALL classes and events",
+    ];
+  }
+  
+  // Regular Diamond Member perks
+  if (isDiamond) {
+    return [
+      ...baseBenefits,
+      "---",
+      "💎 Diamond Member Perks:",
+      "Diamond member personalized clothes",
+      "Diamond member gear package",
+      "VIP amenity kit",
+      "Priority booking for all classes and events",
+    ];
+  }
+  
+  // All other Founding Members (Silver/Gold/Platinum)
+  if (isFoundingMember) {
+    return [
+      ...baseBenefits,
+      "---",
+      "🌟 Founding Member Perks:",
+      "Personalized Storm Wellness Club sweater (founding members only)",
+      "Personalized gear package",
+      "Priority booking for all classes and events",
+    ];
+  }
+  
+  return baseBenefits;
 }
