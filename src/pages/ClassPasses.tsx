@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,8 @@ import { useUserMembership } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAgreements } from "@/hooks/useAgreements";
 import { toast } from "sonner";
+import { InlineWaiverGate } from "@/components/InlineWaiverGate";
+import { AccountRequiredSection } from "@/components/AccountRequiredSection";
 
 interface PricingTier {
   type: string;
@@ -29,76 +30,13 @@ const otherClassesPricing: PricingTier[] = [
   { type: "10 Class Pack", passType: 'tenPack', memberPrice: 150, nonMemberPrice: 200 },
 ];
 
-export default function ClassPasses() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const { data: membership } = useUserMembership();
-  const { profile } = useUserProfile();
-  const { data: singleClassAgreements } = useAgreements("single_class_pass");
-  const [loadingPass, setLoadingPass] = useState<string | null>(null);
-
-  const isMember = membership?.status === 'active';
-  const hasAgreementConfigured = singleClassAgreements && singleClassAgreements.length > 0;
-  const needsAgreement = hasAgreementConfigured && !profile?.single_class_pass_agreement_signed;
-
-  const handlePurchase = async (
-    category: 'pilatesCycling' | 'otherClasses',
-    passType: 'single' | 'tenPack'
-  ) => {
-    if (!user) {
-      toast.error("Please sign in to purchase class passes");
-      return;
-    }
-
-    // Check if single class pass and agreement is required (only if agreement is configured)
-    if (passType === 'single' && needsAgreement) {
-      toast.info("Please sign the Single Class Pass Agreement before purchasing");
-      navigate("/member/waivers");
-      return;
-    }
-
-    console.log("[ClassPasses] Starting purchase:", { category, passType, isMember });
-
-    const passKey = `${category}-${passType}`;
-    setLoadingPass(passKey);
-
-    try {
-      const origin = window.location.origin;
-
-      const { data, error } = await supabase.functions.invoke("stripe-payment", {
-        body: {
-          action: "create_class_pass_checkout",
-          category,
-          passType,
-          isMember,
-          successUrl: `${origin}/member/credits?purchase=success`,
-          cancelUrl: `${origin}/class-passes?purchase=cancelled`,
-        },
-      });
-
-      if (error) {
-        console.error("[ClassPasses] Edge function error:", error);
-        throw error;
-      }
-
-      console.log("[ClassPasses] Stripe response:", data);
-
-      if (data?.url) {
-        // Redirect in same tab instead of opening new tab
-        window.location.href = data.url;
-      } else {
-        console.error("[ClassPasses] No checkout URL in response:", data);
-        throw new Error("No checkout URL returned from payment service");
-      }
-    } catch (error: any) {
-      console.error("[ClassPasses] Checkout error:", error);
-      const errorMessage = error?.message || "Failed to start checkout. Please try again.";
-      toast.error(errorMessage);
-    } finally {
-      setLoadingPass(null);
-    }
-  };
-
+// Extracted pricing tables component
+function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
+  onPurchase: (category: 'pilatesCycling' | 'otherClasses', passType: 'single' | 'tenPack') => void;
+  loadingPass: string | null;
+  isMember: boolean;
+  user: any;
+}) {
   const PurchaseButton = ({ 
     category, 
     passType, 
@@ -114,7 +52,7 @@ export default function ClassPasses() {
     return (
       <Button
         size="sm"
-        onClick={() => handlePurchase(category, passType)}
+        onClick={() => onPurchase(category, passType)}
         disabled={isLoading || loadingPass !== null}
         className="min-w-[100px]"
       >
@@ -131,27 +69,7 @@ export default function ClassPasses() {
   };
 
   return (
-    <Layout>
-      {/* Hero */}
-      <section className="pt-32 pb-16 bg-secondary/30">
-        <div className="container mx-auto px-6">
-          <div className="max-w-3xl">
-            <p className="text-gold text-sm uppercase tracking-widest mb-4">Flexible Options</p>
-            <h1 className="heading-display mb-6">Class Passes</h1>
-            <p className="text-muted-foreground text-lg leading-relaxed">
-              Purchase class passes for our Reformer Pilates, Cycling, and Aerobics studios. 
-              Members receive discounted pricing on all class packages.
-            </p>
-            {user && (
-              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold/10 text-gold text-sm">
-                <Check className="h-4 w-4" />
-                {isMember ? "Member pricing applied" : "Non-member pricing"}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
+    <>
       {/* Pilates & Cycling Pricing */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-6">
@@ -339,6 +257,153 @@ export default function ClassPasses() {
           </div>
         </div>
       </section>
+    </>
+  );
+}
+
+export default function ClassPasses() {
+  const { user } = useAuth();
+  const { data: membership } = useUserMembership();
+  const { profile } = useUserProfile();
+  const { data: singleClassAgreements } = useAgreements("single_class_pass");
+  const [loadingPass, setLoadingPass] = useState<string | null>(null);
+
+  const isMember = membership?.status === 'active';
+  const hasAgreementConfigured = singleClassAgreements && singleClassAgreements.length > 0;
+  const needsAgreement = hasAgreementConfigured && !profile?.single_class_pass_agreement_signed;
+
+  const handlePurchase = async (
+    category: 'pilatesCycling' | 'otherClasses',
+    passType: 'single' | 'tenPack'
+  ) => {
+    if (!user) {
+      toast.error("Please sign in to purchase class passes");
+      return;
+    }
+
+    // For single class purchases that need agreement, the InlineWaiverGate will handle it
+    // This check is a backup for edge cases
+    if (passType === 'single' && needsAgreement) {
+      toast.info("Please sign the Single Class Pass Agreement first");
+      return;
+    }
+
+    console.log("[ClassPasses] Starting purchase:", { category, passType, isMember });
+
+    const passKey = `${category}-${passType}`;
+    setLoadingPass(passKey);
+
+    try {
+      const origin = window.location.origin;
+
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_class_pass_checkout",
+          category,
+          passType,
+          isMember,
+          successUrl: `${origin}/member/credits?purchase=success`,
+          cancelUrl: `${origin}/class-passes?purchase=cancelled`,
+        },
+      });
+
+      if (error) {
+        console.error("[ClassPasses] Edge function error:", error);
+        throw error;
+      }
+
+      console.log("[ClassPasses] Stripe response:", data);
+
+      if (data?.url) {
+        // Redirect in same tab instead of opening new tab
+        window.location.href = data.url;
+      } else {
+        console.error("[ClassPasses] No checkout URL in response:", data);
+        throw new Error("No checkout URL returned from payment service");
+      }
+    } catch (error: any) {
+      console.error("[ClassPasses] Checkout error:", error);
+      const errorMessage = error?.message || "Failed to start checkout. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      setLoadingPass(null);
+    }
+  };
+
+  // Wrapper component that conditionally shows waiver gate for single class purchases
+  const renderPricingContent = () => {
+    // If user needs to sign agreement for single class, show inline gate
+    // But only wrap when they actually need to purchase single classes
+    if (!user) {
+      return (
+        <div className="py-16">
+          <AccountRequiredSection 
+            redirectTo="/class-passes"
+            title="Sign In to Purchase"
+            description="Please sign in or create an account to purchase class passes."
+          />
+        </div>
+      );
+    }
+
+    // If single class agreement is required and not signed, show the gate above pricing
+    if (needsAgreement) {
+      return (
+        <div className="py-16">
+          <div className="container mx-auto px-6 mb-8">
+            <InlineWaiverGate 
+              requiredWaivers={["single_class_pass"]}
+              title="Sign Required Agreement"
+              description="To purchase single class passes, please review and sign the following agreement."
+            >
+              {/* Empty div - just need to get the agreement signed */}
+              <div className="hidden" />
+            </InlineWaiverGate>
+          </div>
+          <ClassPassPricingTables 
+            onPurchase={handlePurchase}
+            loadingPass={loadingPass}
+            isMember={isMember}
+            user={user}
+          />
+        </div>
+      );
+    }
+
+    // User is signed in and has signed agreement (or no agreement configured)
+    return (
+      <ClassPassPricingTables 
+        onPurchase={handlePurchase}
+        loadingPass={loadingPass}
+        isMember={isMember}
+        user={user}
+      />
+    );
+  };
+
+  return (
+    <Layout>
+      {/* Hero */}
+      <section className="pt-32 pb-16 bg-secondary/30">
+        <div className="container mx-auto px-6">
+          <div className="max-w-3xl">
+            <p className="text-gold text-sm uppercase tracking-widest mb-4">Flexible Options</p>
+            <h1 className="heading-display mb-6">Class Passes</h1>
+            <p className="text-muted-foreground text-lg leading-relaxed">
+              Purchase class passes for our Reformer Pilates, Cycling, and Aerobics studios. 
+              Members receive discounted pricing on all class packages.
+            </p>
+            {user && (
+              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold/10 text-gold text-sm">
+                <Check className="h-4 w-4" />
+                {isMember ? "Member pricing applied" : "Non-member pricing"}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {renderPricingContent()}
     </Layout>
   );
 }
