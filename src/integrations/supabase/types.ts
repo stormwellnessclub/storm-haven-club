@@ -408,6 +408,58 @@ export type Database = {
           },
         ]
       }
+      card_sync_failures: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          member_id: string | null
+          resolved_at: string | null
+          retry_count: number | null
+          stripe_customer_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          member_id?: string | null
+          resolved_at?: string | null
+          retry_count?: number | null
+          stripe_customer_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          member_id?: string | null
+          resolved_at?: string | null
+          retry_count?: number | null
+          stripe_customer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_sync_failures_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_sync_failures_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_sync_failures_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       check_ins: {
         Row: {
           checked_in_at: string
@@ -2231,6 +2283,64 @@ export type Database = {
           },
         ]
       }
+      member_perk_deliveries: {
+        Row: {
+          created_at: string | null
+          id: string
+          member_id: string | null
+          notes: string | null
+          perk_type: string
+          perk_variant: string | null
+          size: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          perk_type: string
+          perk_variant?: string | null
+          size?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          perk_type?: string
+          perk_variant?: string | null
+          size?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_perk_deliveries_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_perk_deliveries_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_perk_deliveries_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_tags: {
         Row: {
           created_at: string
@@ -2293,6 +2403,11 @@ export type Database = {
           created_at: string | null
           email: string
           first_name: string
+          founding_bag_size: string | null
+          founding_perks_delivered_at: string | null
+          founding_privileges_granted: boolean | null
+          founding_privileges_granted_at: string | null
+          founding_sweater_size: string | null
           gender: string | null
           id: string
           is_founding_member: boolean | null
@@ -2302,11 +2417,14 @@ export type Database = {
           membership_end_date: string | null
           membership_start_date: string
           membership_type: string
+          original_tier_at_application: string | null
           phone: string | null
           photo_url: string | null
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
+          tier_change_used: boolean | null
+          tier_change_used_at: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -2325,6 +2443,11 @@ export type Database = {
           created_at?: string | null
           email: string
           first_name: string
+          founding_bag_size?: string | null
+          founding_perks_delivered_at?: string | null
+          founding_privileges_granted?: boolean | null
+          founding_privileges_granted_at?: string | null
+          founding_sweater_size?: string | null
           gender?: string | null
           id?: string
           is_founding_member?: boolean | null
@@ -2334,11 +2457,14 @@ export type Database = {
           membership_end_date?: string | null
           membership_start_date?: string
           membership_type?: string
+          original_tier_at_application?: string | null
           phone?: string | null
           photo_url?: string | null
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          tier_change_used?: boolean | null
+          tier_change_used_at?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -2357,6 +2483,11 @@ export type Database = {
           created_at?: string | null
           email?: string
           first_name?: string
+          founding_bag_size?: string | null
+          founding_perks_delivered_at?: string | null
+          founding_privileges_granted?: boolean | null
+          founding_privileges_granted_at?: string | null
+          founding_sweater_size?: string | null
           gender?: string | null
           id?: string
           is_founding_member?: boolean | null
@@ -2366,11 +2497,14 @@ export type Database = {
           membership_end_date?: string | null
           membership_start_date?: string
           membership_type?: string
+          original_tier_at_application?: string | null
           phone?: string | null
           photo_url?: string | null
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          tier_change_used?: boolean | null
+          tier_change_used_at?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
