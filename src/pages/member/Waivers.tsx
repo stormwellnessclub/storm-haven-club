@@ -1,37 +1,34 @@
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAgreements } from "@/hooks/useAgreements";
-import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
-import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
+import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
 import { FileCheck, Check, AlertCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
-interface AgreementCardProps {
-  agreementType: string;
+interface AgreementSectionProps {
   title: string;
   description: string;
   isSigned: boolean;
   signedAt: string | null;
-  pdfUrls: string[];
+  documents: DocumentInfo[];
   onSign: () => void;
   isSigning: boolean;
   required?: boolean;
 }
 
-function AgreementCard({
+function AgreementSection({
   title,
   description,
   isSigned,
   signedAt,
-  pdfUrls,
+  documents,
   onSign,
   isSigning,
   required = true,
-}: AgreementCardProps) {
+}: AgreementSectionProps) {
   return (
     <Card>
       <CardHeader>
@@ -59,13 +56,6 @@ function AgreementCard({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <AgreementPDFViewer
-          pdfUrl={pdfUrls}
-          title={title}
-          height="500px"
-          showControls={true}
-        />
-
         {isSigned ? (
           <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -78,11 +68,15 @@ function AgreementCard({
               </p>
             )}
           </div>
-        ) : (
-          <Button onClick={onSign} disabled={isSigning} className="w-full">
-            {isSigning ? "Signing..." : "I Agree - Sign Agreement"}
-          </Button>
-        )}
+        ) : documents.length > 0 ? (
+          <SimpleAgreementCard
+            title={title}
+            documents={documents}
+            onSign={onSign}
+            isSigning={isSigning}
+            required={required}
+          />
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -98,8 +92,6 @@ export default function MemberWaivers() {
     isSigningAgreement,
     signKidsCareAgreement,
     isSigningKidsCareAgreement,
-    signClassPackageAgreement,
-    isSigningClassPackageAgreement,
     signGuestPassAgreement,
     isSigningGuestPassAgreement,
     signPrivateEventAgreement,
@@ -107,9 +99,6 @@ export default function MemberWaivers() {
     signSingleClassPassAgreement,
     isSigningSingleClassPassAgreement,
   } = useUserProfile();
-
-  const { data: kidsCarePasses } = useKidsCarePasses();
-  const hasKidsCareAccess = (kidsCarePasses && kidsCarePasses.length > 0) || false;
 
   // Fetch all agreements
   const { data: liabilityWaivers, isLoading: agreementsLoading } = useAgreements("liability_waiver");
@@ -130,10 +119,15 @@ export default function MemberWaivers() {
     );
   }
 
-  // Get PDF URLs for each agreement type
-  const getPdfUrls = (agreements: any[] | undefined) => {
+  // Get document info for each agreement type
+  const getDocuments = (agreements: any[] | undefined): DocumentInfo[] => {
     if (!agreements || agreements.length === 0) return [];
-    return agreements.map((a) => a.pdf_url).filter(Boolean);
+    return agreements
+      .filter((a) => a.pdf_url)
+      .map((a) => ({
+        name: a.title || undefined,
+        url: a.pdf_url,
+      }));
   };
 
   return (
@@ -147,13 +141,12 @@ export default function MemberWaivers() {
 
         {/* Liability Waiver */}
         {liabilityWaivers && liabilityWaivers.length > 0 && (
-          <AgreementCard
-            agreementType="liability_waiver"
+          <AgreementSection
             title="Liability Waiver"
             description="Required for participation in fitness classes and use of equipment"
             isSigned={profile?.waiver_signed || false}
             signedAt={profile?.waiver_signed_at || null}
-            pdfUrls={getPdfUrls(liabilityWaivers)}
+            documents={getDocuments(liabilityWaivers)}
             onSign={() => signWaiver()}
             isSigning={isSigningWaiver}
             required={true}
@@ -162,28 +155,26 @@ export default function MemberWaivers() {
 
         {/* Membership Agreement */}
         {membershipAgreements && membershipAgreements.length > 0 && (
-          <AgreementCard
-            agreementType="membership_agreement"
+          <AgreementSection
             title="Membership Agreement"
             description="Terms and conditions of your membership"
             isSigned={profile?.membership_agreement_signed || false}
             signedAt={profile?.membership_agreement_signed_at || null}
-            pdfUrls={getPdfUrls(membershipAgreements)}
+            documents={getDocuments(membershipAgreements)}
             onSign={() => signMembershipAgreement()}
             isSigning={isSigningAgreement}
             required={true}
           />
         )}
 
-        {/* Kids Care Agreement - Show for all members (they may want to sign before purchasing pass) */}
+        {/* Kids Care Agreement */}
         {kidsCareAgreements && kidsCareAgreements.length > 0 && (
-          <AgreementCard
-            agreementType="kids_care"
+          <AgreementSection
             title="Kids Care Agreement"
             description="Required for booking Kids Care services. Please review both documents."
             isSigned={profile?.kids_care_agreement_signed || false}
             signedAt={profile?.kids_care_agreement_signed_at || null}
-            pdfUrls={getPdfUrls(kidsCareAgreements)}
+            documents={getDocuments(kidsCareAgreements)}
             onSign={() => signKidsCareAgreement()}
             isSigning={isSigningKidsCareAgreement}
             required={true}
@@ -192,13 +183,12 @@ export default function MemberWaivers() {
 
         {/* Guest Pass Agreement */}
         {guestPassAgreements && guestPassAgreements.length > 0 && (
-          <AgreementCard
-            agreementType="guest_pass"
+          <AgreementSection
             title="Guest Pass Agreement"
             description="Required for guest pass purchases. Please review both documents."
             isSigned={profile?.guest_pass_agreement_signed || false}
             signedAt={profile?.guest_pass_agreement_signed_at || null}
-            pdfUrls={getPdfUrls(guestPassAgreements)}
+            documents={getDocuments(guestPassAgreements)}
             onSign={() => signGuestPassAgreement()}
             isSigning={isSigningGuestPassAgreement}
             required={false}
@@ -207,13 +197,12 @@ export default function MemberWaivers() {
 
         {/* Private Event Agreement */}
         {privateEventAgreements && privateEventAgreements.length > 0 && (
-          <AgreementCard
-            agreementType="private_event"
+          <AgreementSection
             title="Private Event Agreement"
             description="Required for booking private events"
             isSigned={profile?.private_event_agreement_signed || false}
             signedAt={profile?.private_event_agreement_signed_at || null}
-            pdfUrls={getPdfUrls(privateEventAgreements)}
+            documents={getDocuments(privateEventAgreements)}
             onSign={() => signPrivateEventAgreement()}
             isSigning={isSigningPrivateEventAgreement}
             required={false}
@@ -222,21 +211,17 @@ export default function MemberWaivers() {
 
         {/* Single Class Pass Agreement */}
         {singleClassPassAgreements && singleClassPassAgreements.length > 0 && (
-          <AgreementCard
-            agreementType="single_class_pass"
+          <AgreementSection
             title="Single Class Pass Agreement"
             description="Required for single class pass purchases. Please review both documents."
             isSigned={profile?.single_class_pass_agreement_signed || false}
             signedAt={profile?.single_class_pass_agreement_signed_at || null}
-            pdfUrls={getPdfUrls(singleClassPassAgreements)}
+            documents={getDocuments(singleClassPassAgreements)}
             onSign={() => signSingleClassPassAgreement()}
             isSigning={isSigningSingleClassPassAgreement}
             required={false}
           />
         )}
-
-        {/* Class Package Agreement - Only show if needed (for non-members) */}
-        {/* Note: This might need conditional display based on member status */}
       </div>
     </MemberLayout>
   );
