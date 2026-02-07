@@ -1,155 +1,121 @@
 
-# Guest Pass System - Comprehensive Review Report
+# Guest Pass Sign Waiver Step - Page Blinking/Flickering Fix
 
-## Summary
-I've conducted a thorough review of the Guest Pass implementation. Overall the system is well-structured, but I found **2 critical bugs** that will cause webhook failures, plus several minor issues.
-
----
-
-## Critical Issues Found
-
-### 1. Webhook Column Name Mismatch (OLD GUEST PASS HANDLER)
-
-**Location**: `supabase/functions/stripe-webhook/index.ts` lines 476-489
-
-**Problem**: The `guest_pass` (admin quick sale) webhook handler tries to insert columns that **don't exist** in the database:
-
-| Webhook Uses | Database Has |
-|--------------|--------------|
-| `stripe_payment_intent_id` | `stripe_payment_id` |
-| `stripe_session_id` | (doesn't exist) |
-| `purchased_by` | `sold_by` |
-
-**Impact**: Admin quick sales from `/admin/guest-passes` will **fail silently** — the Stripe payment succeeds but no record is created in the database.
-
-**Fix Required**: Update the old `guest_pass` webhook handler to use correct column names.
+## Problem Summary
+When navigating to the waiver signing step from the Guest Pass page, the page blinks on and off rapidly. This is caused by **multiple interconnected bugs** that create an unstable rendering loop.
 
 ---
 
-### 2. Admin GuestPasses Page Uses Wrong Columns
+## Root Causes Identified
 
-**Location**: `src/pages/admin/GuestPasses.tsx` line 34
+### 1. Critical Bug: Wrong Column in Waiver Check Query (GuestPass.tsx)
 
-**Problem**: The TypeScript interface includes `stripe_payment_id` but the old webhook inserts to `stripe_payment_intent_id`. The admin list will show incomplete data for old-style guest passes.
+**Location**: `src/pages/GuestPass.tsx` line 81
 
----
+**Problem**: The waiver status check queries the wrong column:
+```typescript
+// WRONG - queries `id` column
+.eq("id", user.id)
 
-## Minor Issues & Recommendations
+// CORRECT - should query `user_id` column  
+.eq("user_id", user.id)
+```
 
-### 3. RLS Policy for User SELECT May Be Too Permissive
-
-**Current Policy**: `Users can view their own guest passes`  
-**Condition**: `(user_id = auth.uid()) OR (sold_by IS NOT NULL)`
-
-This means if `sold_by` is NOT NULL, **any authenticated user** can see that guest pass. This is likely unintentional — it should probably be `OR (sold_by = auth.uid())`.
-
----
-
-### 4. Date Calendar Doesn't Exclude Today if After Certain Hours
-
-**Location**: `src/pages/GuestPass.tsx` line 210
-
-The `minDate` is set to `new Date()` which allows booking for today. If someone books at 11pm, they get a pass that expires in 1 hour. Consider:
-- Either block same-day purchases after a cutoff time (e.g., 6pm)
-- Or show a warning if booking for today
+**Impact**: The query likely returns no data (or wrong data), causing `hasLiabilityWaiver` to always be `false`, which forces the user to repeatedly see the "Sign Waiver" alert even after signing.
 
 ---
 
-### 5. Missing Success Page UX Enhancement
+### 2. Stale Closure Bug: AgreementPDFViewer (AgreementPDFViewer.tsx)
 
-**Current**: After purchase success, the user returns to `/guest-pass?purchase=success` and sees a toast message.
+**Location**: `src/components/AgreementPDFViewer.tsx` lines 154-161
 
-**Suggestion**: Consider a dedicated success state showing:
-- Visit date confirmation
-- Purchased add-ons
-- Check-in instructions
-- Link to book class/recovery if add-ons purchased
+**Problem**: The `setTimeout` callback captures a stale `iframeLoaded` value:
+```typescript
+// Line 130 resets iframeLoaded to false
+setIframeLoaded(false);
 
----
+// Line 154-160: timeout callback captures the STALE false value
+timeoutRef.current = setTimeout(() => {
+  if (!iframeLoaded) {  // Always reads false (stale closure)
+    setError("PDF preview unavailable");
+    setLoading(false);
+  }
+}, 10000);
+```
 
-## Verified Working Components
-
-| Component | Status |
-|-----------|--------|
-| Public `/guest-pass` route | ✅ Configured in App.tsx |
-| Navigation link | ✅ Added to navLinks |
-| Waiver check logic | ✅ Checks `waiver_signed` in profiles |
-| Stripe price IDs | ✅ Synced between frontend and edge function |
-| `create_guest_pass_experience_checkout` action | ✅ Builds line items correctly |
-| `guest_pass_experience` webhook handler | ✅ Uses correct column names |
-| Class pass creation from add-ons | ✅ Creates `class_passes` records |
-| Admin GuestPasses page | ✅ Has search, date filters, detail sheet |
-| GuestDetailSheet component | ✅ Shows all personalization fields |
-| Database schema | ✅ Has all required columns |
+**Impact**: Even after the iframe loads successfully and `iframeLoaded` is set to `true`, the timeout still sees `false` and sets an error. This can cause the error state to flicker between `null` and `"PDF preview unavailable"`.
 
 ---
 
-## Required Fixes
+### 3. Race Condition: Rapid State Transitions
 
-### Fix 1: Update Old Guest Pass Webhook Handler
+The combination of:
+- Multiple `useAgreements` calls on the Waivers page (6 separate queries)
+- `useUserProfile` query
+- `useKidsCarePasses` query
+- PDF preflight fetch calls
+- iframe load/error handlers
+- 10-second timeout watchers
+
+Can create a cascade of state updates that cause the component to re-render rapidly, especially if any query returns quickly followed by cache invalidation.
+
+---
+
+## Fixes Required
+
+### Fix 1: Correct the Column Name in GuestPass.tsx
+
+Change line 81 from:
+```typescript
+.eq("id", user.id)
+```
+To:
+```typescript
+.eq("user_id", user.id)
+```
+
+---
+
+### Fix 2: Use Ref for Stale Closure in AgreementPDFViewer.tsx
+
+Replace the stale closure pattern with a ref that always has the current value:
 
 ```typescript
-// supabase/functions/stripe-webhook/index.ts - lines 477-489
-// Change FROM:
-.insert({
-  guest_name: guestName,
-  guest_email: guestEmail,
-  user_id: userId,
-  price_paid: session.amount_total ? session.amount_total / 100 : 60.00,
-  status: 'active',
-  expires_at: expiresAt.toISOString(),
-  stripe_payment_intent_id: session.payment_intent as string,  // WRONG
-  stripe_session_id: session.id,  // DOESN'T EXIST
-  purchased_by: userId,  // WRONG
-});
+// Add a ref to track the current loaded state
+const iframeLoadedRef = useRef(false);
 
-// Change TO:
-.insert({
-  guest_name: guestName,
-  guest_email: guestEmail,
-  user_id: userId,
-  price_paid: session.amount_total ? session.amount_total / 100 : 60.00,
-  status: 'active',
-  expires_at: expiresAt.toISOString(),
-  stripe_payment_id: session.payment_intent as string,  // CORRECT
-  sold_by: userId,  // CORRECT
-});
-```
+// Update the ref when state changes
+useEffect(() => {
+  iframeLoadedRef.current = iframeLoaded;
+}, [iframeLoaded]);
 
-### Fix 2: Update RLS Policy (Optional but Recommended)
-
-```sql
--- Fix the SELECT policy to prevent data leakage
-DROP POLICY IF EXISTS "Users can view their own guest passes" ON guest_passes;
-CREATE POLICY "Users can view their own guest passes" 
-  ON guest_passes FOR SELECT 
-  USING (user_id = auth.uid());
+// In the timeout callback, use the ref instead of state
+timeoutRef.current = setTimeout(() => {
+  if (!iframeLoadedRef.current) {
+    setError("PDF preview unavailable");
+    setLoading(false);
+  }
+}, 10000);
 ```
 
 ---
 
-## Testing Recommendations
+### Fix 3: Stabilize handleIframeLoad with useCallback
 
-After fixes, test these flows:
+Wrap the iframe handlers in `useCallback` to prevent unnecessary re-renders:
 
-1. **Public Guest Pass Purchase**
-   - Navigate to `/guest-pass`
-   - Verify waiver check works
-   - Complete checkout with add-ons
-   - Verify record created in database
-   - Verify class passes created for class add-ons
-
-2. **Admin Quick Sale**
-   - Navigate to `/admin/guest-passes`
-   - Create a quick sale guest pass
-   - Verify record appears in list
-   - Verify Stripe link works in detail sheet
-
-3. **Admin Guest Management**
-   - Filter by date range
-   - Search by name/email/phone
-   - Click to view detail sheet
-   - Verify all personalization data displays
+```typescript
+const handleIframeLoad = useCallback(() => {
+  console.log(`[PDF] Loaded successfully: ${currentPdf}`);
+  setIframeLoaded(true);
+  setLoading(false);
+  setError(null);
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
+  }
+  onDocumentLoad?.();
+}, [currentPdf, onDocumentLoad]);
+```
 
 ---
 
@@ -157,5 +123,32 @@ After fixes, test these flows:
 
 | File | Change |
 |------|--------|
-| `supabase/functions/stripe-webhook/index.ts` | Fix column names in old guest_pass handler |
-| Database RLS policy | Optional: Fix SELECT policy condition |
+| `src/pages/GuestPass.tsx` | Fix `.eq("id"` to `.eq("user_id"` |
+| `src/components/AgreementPDFViewer.tsx` | Add ref for iframe loaded state, use `useCallback` for handlers |
+
+---
+
+## Technical Details
+
+### GuestPass.tsx Change
+- Line 81: Change column name from `id` to `user_id`
+- This ensures the waiver status is correctly read from the user's profile
+
+### AgreementPDFViewer.tsx Changes
+1. Add `useRef` import and create `iframeLoadedRef`
+2. Add effect to sync ref with state
+3. Update timeout callback to read from ref
+4. Wrap `handleIframeLoad` and `handleIframeError` in `useCallback`
+5. Add proper dependencies to `useEffect`
+
+---
+
+## Testing After Fix
+
+1. Navigate to `/guest-pass` as an authenticated user
+2. Click "Sign Waiver" button
+3. Verify the Waivers page loads smoothly without blinking
+4. Sign the liability waiver
+5. Navigate back to `/guest-pass`
+6. Verify the waiver alert no longer appears
+7. Complete a guest pass purchase to confirm the full flow works
