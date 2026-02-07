@@ -1,502 +1,417 @@
 
-# Comprehensive Multi-Phase Implementation Plan
 
-## Summary of All Issues to Address
+# Complete Implementation Plan (With Email Branding Fix)
 
-Based on our discussions, here are ALL the items that need to be implemented:
+## Summary
 
-| # | Issue | Current State | Priority |
-|---|-------|---------------|----------|
-| 1 | Password Reset Workflow | ✅ DONE | - |
-| 2 | Admin sees only 1 card (not all saved cards) | `MemberDetailSheet` shows cached metadata only | HIGH |
-| 3 | Onboarding checklist missing "Pay Initiation Fee" step | Members without fee paid have no guidance | HIGH |
-| 4 | Cancelled apps leave orphaned member records | 10 orphaned members exist | HIGH |
-| 5 | No "Final Notice" email for unpaid members | Need TODAY deadline template | HIGH |
-| 6 | Admin email logic doesn't differentiate paid/unpaid | Always sends same email type | MEDIUM |
-| 7 | "Request Initiation Fee" admin action missing | Need dedicated button in Applications | MEDIUM |
+This plan addresses all outstanding issues plus the email branding fix you just mentioned:
 
----
-
-## Phase 1: Fix Admin Payment Method Display
-
-**Goal**: Allow admins to see ALL payment methods saved in Stripe, not just cached metadata.
-
-### File: `src/components/admin/MemberDetailSheet.tsx`
-
-**Current** (lines 812-823): Only shows one card from `member.card_brand`/`member.card_last4`
-
-**Changes**:
-1. Import `useAdminMemberPaymentMethods` hook
-2. Replace single card display with loop through all Stripe payment methods
-3. Add a "Refresh from Stripe" button to force-sync
-4. Show default card indicator and all expiration dates
-
-```typescript
-// Add import at top
-import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
-
-// Inside component, after member check
-const { data: stripePaymentMethods, isLoading: isLoadingPMs } = 
-  useAdminMemberPaymentMethods(member?.id);
-const refreshPaymentMethods = useRefreshAdminMemberPaymentMethods();
-
-// Replace the single card display block with:
-{isLoadingPMs ? (
-  <div className="flex items-center gap-2 p-2">
-    <Loader2 className="h-4 w-4 animate-spin" />
-    <span className="text-sm text-muted-foreground">Loading cards...</span>
-  </div>
-) : stripePaymentMethods?.paymentMethods?.length > 0 ? (
-  <div className="space-y-2">
-    {stripePaymentMethods.paymentMethods.map((pm) => (
-      <div key={pm.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
-        <CreditCard className="h-4 w-4 text-muted-foreground" />
-        <span className="font-medium">{pm.brand?.toUpperCase()} •••• {pm.last4}</span>
-        {pm.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
-        <span className="text-muted-foreground text-xs ml-auto">
-          Exp: {String(pm.expMonth).padStart(2, '0')}/{pm.expYear}
-        </span>
-      </div>
-    ))}
-    <Button 
-      variant="ghost" 
-      size="sm" 
-      onClick={() => refreshPaymentMethods.mutate(member.id)}
-      disabled={refreshPaymentMethods.isPending}
-    >
-      <RefreshCcw className="h-3 w-3 mr-1" />
-      Refresh from Stripe
-    </Button>
-  </div>
-) : (
-  <p className="text-sm text-muted-foreground">No cards on file</p>
-)}
-```
+| Issue | Priority |
+|-------|----------|
+| Email templates use wrong colors (blue/yellow instead of brand) | HIGH |
+| Logo too small and poor contrast on dark header | HIGH |
+| Admin sees only 1 card (not all Stripe cards) | HIGH |
+| Onboarding checklist missing detailed setup steps in email | HIGH |
+| Missing founding tier options | MEDIUM |
+| No "View as Member" for admins | MEDIUM |
+| No default card guidance for members | LOW |
 
 ---
 
-## Phase 2: Add "Pay Initiation Fee" to Onboarding Checklist
+## Phase 1: Fix Email Template Branding
 
-**Goal**: Members who haven't paid the initiation fee see it as the FIRST task.
+**File:** `supabase/functions/send-email/index.ts`
 
-### File: `src/components/member/MemberOnboardingChecklist.tsx`
+### Current Problems:
+- Using Tailwind default colors: `#fef3c7` (yellow), `#f59e0b` (amber), `#e0f2fe` (blue)
+- Logo height only 60px - too small
+- Dark header (`#312D28`) makes the black logo hard to see
 
-**Changes**:
-1. Add new props: `isInitiationFeePaid: boolean`, `onPayInitiationFee: () => void`, `gender?: string`
-2. Conditionally prepend "Pay Initiation Fee" task when not paid
-3. Add dollar icon for the initiation fee task
-
-```typescript
-interface MemberOnboardingChecklistProps {
-  memberName: string;
-  membershipType: string;
-  hasPaymentMethod: boolean;
-  hasMembershipAgreement: boolean;
-  hasLiabilityWaiver: boolean;
-  isFoundingMember?: boolean;
-  isInitiationFeePaid: boolean;           // NEW
-  onPayInitiationFee?: () => void;        // NEW
-  isPayingInitiationFee?: boolean;        // NEW - loading state
-}
-
-// Build tasks array conditionally
-const tasks: OnboardingTask[] = [];
-
-// Add initiation fee task FIRST if not paid
-if (!isInitiationFeePaid) {
-  tasks.push({
-    id: "initiation-fee",
-    label: "Pay Initiation Fee",
-    description: "One-time fee of $300 to activate your membership",
-    complete: false,
-    actionLabel: "Pay Now",
-    // Custom handler instead of link
-  });
-}
-
-// Then add the other tasks...
-tasks.push(
-  { id: "payment", ... },
-  { id: "membership-agreement", ... },
-  { id: "liability-waiver", ... }
-);
+### Brand Colors to Use:
+```
+Smoked Umber (Primary):  #1C170F
+Limestone Haze (Cream):  #DEDACE  
+Still Sand (Secondary):  #C1B19C
+Golden Dune (Accent):    #F0DFC4
+Clay Veil (Muted):       #88766B
+Earth Smoke:             #6C5D3E
+Gold Accent:             #B8A068 (refined)
 ```
 
-### File: `src/pages/member/Membership.tsx`
+### Changes:
 
-**Changes**:
-1. Add `handlePayInitiationFee` function
-2. Pass `isInitiationFeePaid` to checklist
-3. Handle Stripe redirect on success
-
+**1. Update `emailStyles` object (lines 17-28):**
 ```typescript
-const [isPayingInitiationFee, setIsPayingInitiationFee] = useState(false);
-
-const handlePayInitiationFee = async () => {
-  if (!membership) return;
-  setIsPayingInitiationFee(true);
-  try {
-    const { data, error } = await supabase.functions.invoke("stripe-payment", {
-      body: {
-        action: "pay_annual_fee",
-        memberId: membership.id,
-        successUrl: `${window.location.origin}/member/membership?annual_fee_paid=true`,
-        cancelUrl: `${window.location.origin}/member/membership`,
-      },
-    });
-    if (error) throw error;
-    if (data?.url) {
-      window.location.href = data.url;
-    }
-  } catch (error) {
-    toast.error("Failed to start payment. Please try again.");
-  } finally {
-    setIsPayingInitiationFee(false);
-  }
+const emailStyles = {
+  container: 'font-family: Georgia, "Times New Roman", Times, serif; max-width: 600px; margin: 0 auto; padding: 0;',
+  header: 'background: #DEDACE; padding: 40px 30px; text-align: center;', // Limestone Haze - LIGHT background for logo visibility
+  content: 'background: #ffffff; padding: 30px; border-left: 1px solid #C1B19C; border-right: 1px solid #C1B19C;',
+  footer: 'background: #1C170F; padding: 25px; text-align: center; color: #DEDACE;', // Smoked Umber footer
+  button: 'display: inline-block; background: #1C170F; color: #DEDACE; padding: 14px 32px; text-decoration: none; border-radius: 4px; font-weight: 600; font-family: Georgia, serif; letter-spacing: 0.5px;', // Dark button
+  buttonSecondary: 'display: inline-block; background: #C1B19C; color: #1C170F; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 500; font-family: Georgia, serif;',
+  link: 'color: #6C5D3E; text-decoration: underline;', // Earth Smoke links
+  muted: 'color: #88766B; font-size: 14px; font-family: Georgia, serif;', // Clay Veil
+  heading: 'color: #1C170F; margin-top: 0; font-family: Georgia, serif; font-weight: 500;',
+  // Brand accent boxes
+  infoBox: 'background: #F0DFC4; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;', // Golden Dune
+  warningBox: 'background: #F0DFC4; border: 2px solid #B8A068; border-radius: 8px; padding: 20px; margin: 25px 0;',
+  successBox: 'background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 20px 0;',
 };
-
-// Pass to checklist
-<MemberOnboardingChecklist
-  ...
-  isInitiationFeePaid={isInitiationFeePaid}
-  onPayInitiationFee={handlePayInitiationFee}
-  isPayingInitiationFee={isPayingInitiationFee}
-/>
 ```
+
+**2. Update `getEmailHeader()` (lines 30-34):**
+```typescript
+const getEmailHeader = () => `
+  <div style="${emailStyles.header}">
+    <img src="${BASE_URL}/storm-logo-gold.png" alt="Storm Wellness Club" height="80" style="display: block; margin: 0 auto;" />
+  </div>
+  <div style="height: 4px; background: linear-gradient(90deg, #B8A068, #C1B19C, #B8A068);"></div>
+`;
+```
+
+Key changes:
+- **Light cream header** (`#DEDACE`) so the gold logo is visible
+- **Larger logo** (80px instead of 60px)
+- **Gold gradient accent line** below header for elegance
+
+**3. Update `getEmailFooter()` (lines 36-48):**
+```typescript
+const getEmailFooter = () => `
+  <div style="height: 1px; background: #C1B19C;"></div>
+  <div style="${emailStyles.footer}">
+    <p style="color: #B8A068; font-size: 14px; margin: 0 0 15px 0; font-family: Georgia, serif;">
+      Have questions? Visit your member portal
+    </p>
+    <p style="margin: 0 0 15px 0;">
+      <a href="${BASE_URL}/member/support" style="color: #DEDACE; text-decoration: none; margin: 0 10px;">Contact Support</a> · 
+      <a href="${BASE_URL}/member/bookings" style="color: #DEDACE; text-decoration: none; margin: 0 10px;">Manage Bookings</a>
+    </p>
+    <p style="color: #88766B; font-size: 12px; margin: 15px 0 0 0; font-family: Georgia, serif;">
+      Storm Wellness Club · <a href="${BASE_URL}" style="color: #88766B;">stormwellnessclub.com</a>
+    </p>
+  </div>
+`;
+```
+
+**4. Replace all info/warning boxes throughout the file:**
+
+Replace these colors:
+- `#fef3c7` → `#F0DFC4` (Golden Dune)
+- `#f59e0b` → `#B8A068` (Brand Gold)
+- `#92400e` → `#6C5D3E` (Earth Smoke)
+- `#e0f2fe` (blue info box) → `#DEDACE` (Limestone Haze)
+- `#0284c7` (blue border) → `#C1B19C` (Still Sand)
+- `#0369a1` (blue text) → `#1C170F` (Smoked Umber)
+- `#ecfdf5` (green success) → `#DEDACE` (Limestone Haze)
+- `#10b981` (green border) → `#88766B` (Clay Veil)
+- `#065f46` (green text) → `#1C170F` (Smoked Umber)
 
 ---
 
-## Phase 3: Fix Orphaned Members on Application Cancel
+## Phase 2: Debug Admin Payment Methods Display
 
-**Goal**: When an application is cancelled/rejected, also update the member record.
+**File:** `src/hooks/useAdminMemberPaymentMethods.ts`
 
-### File: `src/pages/admin/Applications.tsx`
-
-**Changes** to `updateStatusMutation` (around line 378):
+Add debugging to understand why only 1 card shows:
 
 ```typescript
-// After updating application status...
-const { error } = await supabase
-  .from("membership_applications")
-  .update({ status })
-  .eq("id", id);
-if (error) throw error;
-
-// NEW: Sync member status when cancelling/rejecting
-if (status === "cancelled" || status === "rejected") {
-  // Get the application email first
-  const { data: appData } = await supabase
-    .from("membership_applications")
-    .select("email")
-    .eq("id", id)
+queryFn: async () => {
+  console.log("[useAdminMemberPaymentMethods] Fetching for member:", memberId);
+  
+  // First check if member has stripe_customer_id
+  const { data: memberData } = await supabase
+    .from("members")
+    .select("stripe_customer_id")
+    .eq("id", memberId)
     .single();
   
-  if (appData?.email) {
-    const { error: memberUpdateError } = await supabase
-      .from("members")
-      .update({ 
-        status: "cancelled",
-        updated_at: new Date().toISOString()
-      })
-      .ilike("email", appData.email)
-      .eq("status", "pending_activation"); // Only affect pending members
-    
-    if (memberUpdateError) {
-      console.error("Failed to sync member status:", memberUpdateError);
-    } else {
-      console.log("Synced member status to cancelled for:", appData.email);
-    }
+  console.log("[useAdminMemberPaymentMethods] Member stripe_customer_id:", memberData?.stripe_customer_id);
+  
+  if (!memberData?.stripe_customer_id) {
+    console.log("[useAdminMemberPaymentMethods] No Stripe customer ID found");
+    return { paymentMethods: [] };
   }
+  
+  const { data, error } = await supabase.functions.invoke("stripe-payment", {
+    body: { 
+      action: "admin_list_member_payment_methods", 
+      memberId,
+      stripeCustomerId: memberData.stripe_customer_id  // Pass directly
+    },
+  });
+  
+  console.log("[useAdminMemberPaymentMethods] Response:", data, "Error:", error);
+  return data;
 }
 ```
 
-### Database Migration (One-Time Cleanup)
+**File:** `supabase/functions/stripe-payment/index.ts`
 
-Fix the 10 existing orphaned records:
+Verify the `admin_list_member_payment_methods` action returns ALL cards:
 
-```sql
--- One-time fix for orphaned member records
-UPDATE members m
-SET status = 'cancelled', updated_at = NOW()
-FROM membership_applications ma
-WHERE LOWER(m.email) = LOWER(ma.email)
-  AND ma.status = 'cancelled'
-  AND m.status = 'pending_activation';
+```typescript
+case "admin_list_member_payment_methods": {
+  const { memberId, stripeCustomerId } = body;
+  
+  let customerId = stripeCustomerId;
+  if (!customerId) {
+    const { data: member } = await supabaseAdmin
+      .from("members")
+      .select("stripe_customer_id")
+      .eq("id", memberId)
+      .single();
+    customerId = member?.stripe_customer_id;
+  }
+  
+  if (!customerId) {
+    return jsonResponse({ paymentMethods: [], error: "No Stripe customer" });
+  }
+  
+  // Get ALL payment methods
+  const paymentMethods = await stripe.paymentMethods.list({
+    customer: customerId,
+    type: "card",
+  });
+  
+  // Get default payment method
+  const customer = await stripe.customers.retrieve(customerId);
+  const defaultPmId = customer.invoice_settings?.default_payment_method;
+  
+  console.log(`[admin_list_member_payment_methods] Found ${paymentMethods.data.length} cards for ${customerId}`);
+  
+  return jsonResponse({
+    paymentMethods: paymentMethods.data.map(pm => ({
+      id: pm.id,
+      brand: pm.card?.brand,
+      last4: pm.card?.last4,
+      expMonth: pm.card?.exp_month,
+      expYear: pm.card?.exp_year,
+      isDefault: pm.id === defaultPmId,
+    })),
+  });
+}
 ```
 
 ---
 
-## Phase 4: Add Final Notice Email Template
+## Phase 3: Enhanced Setup Email with Full Instructions
 
-**Goal**: Create `annual_fee_final_notice` with TODAY deadline and grace period option.
+**File:** `supabase/functions/send-email/index.ts`
 
-### File: `supabase/functions/send-email/index.ts`
+Update `setup_instructions` / `member_activation_setup` / `phase_one_setup` templates:
 
-**Add new case** (after `annual_fee_payment_request` around line 968):
+```html
+<div style="background: #F0DFC4; border: 1px solid #C1B19C; border-radius: 8px; padding: 25px; margin: 25px 0;">
+  <h3 style="margin: 0 0 15px 0; color: #1C170F; font-family: Georgia, serif; font-weight: 600;">
+    Complete Your Membership Setup:
+  </h3>
+  <ol style="color: #1C170F; line-height: 2.2; margin: 0; padding-left: 20px; font-family: Georgia, serif;">
+    <li><strong>Sign in or create your account</strong> using this email: <code style="background: #DEDACE; padding: 2px 6px; border-radius: 3px;">${data.email || to}</code></li>
+    <li>Go to the <strong>Waivers</strong> tab and sign any required waivers</li>
+    <li>Sign your <strong>Membership Agreement</strong> (also in the Waivers tab)</li>
+    <li>Add a <strong>Payment Method</strong> for monthly dues and mark one as default</li>
+    <li>Review your setup checklist in the <strong>My Membership</strong> tab</li>
+  </ol>
+</div>
 
-```typescript
-case 'annual_fee_final_notice':
-  subject = '⚠️ FINAL NOTICE: Complete Your Payment Today - Storm Wellness Club';
-  const finalFeeAmount = data.amount || 300;
-  html = `
-    <div style="${emailStyles.container}">
-      <!-- RED Warning Banner -->
-      <div style="background-color: #DC2626; padding: 20px; text-align: center;">
-        <p style="color: white; font-weight: bold; font-size: 20px; margin: 0; font-family: Georgia, serif;">
-          ⚠️ FINAL NOTICE - ACTION REQUIRED TODAY
-        </p>
-      </div>
-      
-      ${getEmailHeader()}
-      
-      <div style="${emailStyles.content}; font-family: Georgia, 'Times New Roman', Times, serif;">
-        <h2 style="${emailStyles.heading}; font-family: Georgia, serif;">Dear ${data.name},</h2>
-        
-        <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, serif;">
-          <strong>Your initiation fee payment of $${finalFeeAmount} must be completed TODAY.</strong>
-        </p>
-        
-        <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, serif;">
-          This is your final notice. If payment is not received by end of day, your membership approval will expire and you will need to resubmit your application.
-        </p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${data.paymentUrl}" style="background-color: #DC2626; color: white; padding: 16px 40px; text-decoration: none; font-weight: bold; border-radius: 4px; font-family: Georgia, serif; font-size: 18px; display: inline-block;">
-            PAY NOW - $${finalFeeAmount}
-          </a>
-        </div>
-        
-        <!-- Grace Period Option -->
-        <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; border-radius: 8px; padding: 20px; margin: 25px 0;">
-          <p style="margin: 0; font-weight: 600; color: #92400e; font-family: Georgia, serif; font-size: 16px;">
-            Need more time?
-          </p>
-          <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px; font-family: Georgia, serif;">
-            Contact us immediately at <a href="mailto:info@stormwellnessclub.com" style="color: #92400e;">info@stormwellnessclub.com</a> to request a one-week grace period. Extensions are granted on a case-by-case basis.
-          </p>
-        </div>
-        
-        <p style="font-size: 14px; color: #6b7280; margin-top: 20px; font-family: Georgia, serif;">
-          If you have already completed payment, please disregard this notice.
-        </p>
-        
-        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-          <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, serif;">Regards,</p>
-          <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, serif;">Storm Wellness Club</p>
-        </div>
-      </div>
-      ${getReceiptFooter()}
-    </div>
-  `;
-  break;
+<div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 16px; margin: 20px 0;">
+  <p style="margin: 0; font-size: 14px; color: #1C170F; font-family: Georgia, serif;">
+    <strong>💳 Important:</strong> When adding payment methods, please indicate which card 
+    you'd like us to use for your membership dues by setting it as your <em>default</em>.
+  </p>
+</div>
+
+<div style="background: #DEDACE; border: 1px solid #88766B; border-radius: 8px; padding: 16px; margin: 20px 0;">
+  <p style="margin: 0 0 10px 0; font-size: 14px; color: #1C170F; font-family: Georgia, serif;">
+    <strong>One-Time Courtesy:</strong> If you'd like to change your membership tier, 
+    you may do so once from the My Membership page before activation.
+  </p>
+  <p style="margin: 0; font-size: 14px; color: #6C5D3E; font-family: Georgia, serif;">
+    Founding members can also opt-in or out of founding status if needed.
+  </p>
+</div>
 ```
 
 ---
 
-## Phase 5: Add Admin Actions for Payment Request Emails
+## Phase 4: Add Founding Tier Options
 
-**Goal**: Add "Request Initiation Fee" and "Send Final Notice" buttons.
+**File:** `src/components/member/TierChangeCard.tsx`
 
-### File: `src/pages/admin/Applications.tsx`
-
-**Add handler functions**:
+Add founding tier visibility and opt-in/opt-out options:
 
 ```typescript
-// Send initiation fee payment request
-const sendPaymentRequest = async (application: Application) => {
-  const firstName = application.first_name || application.full_name.trim().split(" ")[0];
-  
-  try {
-    // Generate payment link
-    const { data: linkData } = await supabase.functions.invoke("stripe-payment", {
-      body: {
-        action: "create_annual_fee_payment_link",
-        stripeCustomerId: application.stripe_customer_id,
-        applicantEmail: application.email,
-        applicantName: `${application.first_name} ${application.last_name}`,
-        gender: application.gender || "Women",
-      },
-    });
-    
-    await supabase.functions.invoke("send-email", {
-      body: {
-        type: "annual_fee_payment_request",
-        to: application.email,
-        data: {
-          name: firstName,
-          amount: 300,
-          paymentUrl: linkData?.url || `${window.location.origin}/auth`,
-        },
-      },
-    });
-    
-    toast.success(`Payment request sent to ${application.email}`);
-  } catch (error) {
-    toast.error("Failed to send payment request");
-  }
-};
+// Extended tier options
+const TIER_OPTIONS = [
+  { value: "silver", label: "Silver", monthlyPrice: 129 },
+  { value: "gold", label: "Gold", monthlyPrice: 189 },
+  { value: "platinum", label: "Platinum", monthlyPrice: 249 },
+  { value: "diamond", label: "Diamond", monthlyPrice: 349 },
+  // Founding versions (annual prepaid)
+  { value: "founding-silver", label: "Founding Silver", annualPrice: 1299, isFounding: true },
+  { value: "founding-gold", label: "Founding Gold", annualPrice: 1899, isFounding: true },
+  { value: "founding-platinum", label: "Founding Platinum", annualPrice: 2499, isFounding: true },
+  { value: "founding-diamond", label: "Founding Diamond", annualPrice: 3499, isFounding: true },
+];
 
-// Send final notice
-const sendFinalNotice = async (application: Application) => {
-  const firstName = application.first_name || application.full_name.trim().split(" ")[0];
-  
-  try {
-    const { data: linkData } = await supabase.functions.invoke("stripe-payment", {
-      body: {
-        action: "create_annual_fee_payment_link",
-        stripeCustomerId: application.stripe_customer_id,
-        applicantEmail: application.email,
-        applicantName: `${application.first_name} ${application.last_name}`,
-        gender: application.gender || "Women",
-      },
-    });
-    
-    await supabase.functions.invoke("send-email", {
-      body: {
-        type: "annual_fee_final_notice",
-        to: application.email,
-        data: {
-          name: firstName,
-          amount: 300,
-          paymentUrl: linkData?.url || `${window.location.origin}/auth`,
-        },
-      },
-    });
-    
-    toast.success(`Final notice sent to ${application.email}`);
-  } catch (error) {
-    toast.error("Failed to send final notice");
-  }
-};
-```
-
-**Add to dropdown menu** (for approved apps with unpaid fee):
-
-```typescript
-{application.status === 'approved' && application.annual_fee_status !== 'paid' && (
-  <>
-    <DropdownMenuSeparator />
-    <DropdownMenuItem onClick={() => sendPaymentRequest(application)}>
-      <Wallet className="mr-2 h-4 w-4" />
-      Request Initiation Fee
-    </DropdownMenuItem>
-    <DropdownMenuItem onClick={() => sendFinalNotice(application)}>
-      <AlertCircle className="mr-2 h-4 w-4 text-destructive" />
-      Send Final Notice
-    </DropdownMenuItem>
-  </>
-)}
-```
-
-### File: `src/pages/admin/Members.tsx`
-
-**Update email logic** to differentiate based on payment status:
-
-```typescript
-// Modify the sendPhase1SetupEmail function or add conditional logic
-// For members WITHOUT annual_fee_paid_at - send payment request instead
-// For members WITH annual_fee_paid_at - send setup email
-
-{member.annual_fee_paid_at ? (
-  <DropdownMenuItem onClick={(e) => sendPhase1SetupEmail(member, e)}>
-    <Mail className="mr-2 h-4 w-4" />
-    Send Setup Email
-  </DropdownMenuItem>
+// Show founding toggle
+{isFoundingMember ? (
+  <Alert className="mb-4 border-accent/30 bg-accent/5">
+    <Crown className="h-4 w-4 text-accent" />
+    <AlertDescription>
+      <strong>You're a Founding Member</strong>
+      <p className="text-sm text-muted-foreground mt-1">
+        Your founding rate is locked in with annual billing. 
+        If you need to switch to monthly billing, please contact us.
+      </p>
+    </AlertDescription>
+  </Alert>
 ) : (
-  <>
-    <DropdownMenuItem onClick={(e) => sendPaymentRequest(member, e)}>
-      <Wallet className="mr-2 h-4 w-4" />
-      Request Initiation Fee
-    </DropdownMenuItem>
-    <DropdownMenuItem onClick={(e) => sendFinalNotice(member, e)}>
-      <AlertCircle className="mr-2 h-4 w-4 text-destructive" />
-      Send Final Notice
-    </DropdownMenuItem>
-  </>
+  <Alert className="mb-4">
+    <Info className="h-4 w-4" />
+    <AlertDescription>
+      <strong>Become a Founding Member?</strong>
+      <p className="text-sm text-muted-foreground mt-1">
+        Lock in special founding rates with annual prepaid billing. 
+        Contact us for details.
+      </p>
+    </AlertDescription>
+  </Alert>
 )}
 ```
 
 ---
 
-## Files Summary
+## Phase 5: Add Default Card Guidance
 
-| Phase | File | Action |
-|-------|------|--------|
-| 1 | `src/components/admin/MemberDetailSheet.tsx` | Add all Stripe cards display |
-| 2 | `src/components/member/MemberOnboardingChecklist.tsx` | Add initiation fee task |
-| 2 | `src/pages/member/Membership.tsx` | Add payment handler |
-| 3 | `src/pages/admin/Applications.tsx` | Sync member status on cancel |
-| 3 | Database | One-time cleanup migration |
-| 4 | `supabase/functions/send-email/index.ts` | Add final notice template |
-| 5 | `src/pages/admin/Applications.tsx` | Add email action buttons |
-| 5 | `src/pages/admin/Members.tsx` | Differentiate email by payment status |
+**File:** `src/pages/member/PaymentMethods.tsx`
+
+Add explanation about default card:
+
+```typescript
+<Alert className="mb-6 border-accent/30">
+  <CreditCard className="h-4 w-4" />
+  <AlertDescription>
+    <strong>Your default card will be used for membership dues.</strong>
+    <p className="text-sm text-muted-foreground mt-1">
+      Click the star icon on any card to set it as your default payment method.
+    </p>
+  </AlertDescription>
+</Alert>
+```
 
 ---
 
-## User Flow After Implementation
+## Phase 6: Admin "View Member Portal" Feature
 
-**For members who have NOT paid initiation fee:**
-```text
-Admin sends "Request Initiation Fee" or "Final Notice" email
-           ↓
-Member clicks link → Signs in
-           ↓
-Sees onboarding checklist with 4 tasks:
-  ○ Pay Initiation Fee ($300) ← NEW FIRST TASK
-  ○ Add Payment Method
-  ○ Sign Membership Agreement
-  ○ Sign Liability Waiver
-           ↓
-Clicks "Pay Now" → Stripe Checkout
-           ↓
-Returns with success → Task complete
-           ↓
-Complete remaining tasks → Awaiting activation
+**File:** `src/components/admin/MemberDetailSheet.tsx`
+
+Add button to view member's portal:
+
+```typescript
+<Button 
+  variant="outline" 
+  size="sm"
+  onClick={() => window.open(`/member/membership?admin_view=${member.id}`, '_blank')}
+>
+  <Eye className="mr-2 h-4 w-4" />
+  View Member Portal
+</Button>
 ```
 
-**For members who HAVE paid initiation fee:**
+**File:** `src/pages/member/Membership.tsx`
+
+Support `admin_view` query parameter to load different member's data:
+
+```typescript
+const [searchParams] = useSearchParams();
+const adminViewMemberId = searchParams.get('admin_view');
+const { isAdmin } = useUserRoles();
+
+// If admin is viewing another member
+const effectiveMemberId = (isAdmin && adminViewMemberId) ? adminViewMemberId : membership?.id;
+
+// Show admin banner
+{isAdmin && adminViewMemberId && (
+  <Alert className="mb-4 border-destructive bg-destructive/5">
+    <Shield className="h-4 w-4" />
+    <AlertDescription>
+      <strong>Admin View Mode</strong> - Viewing as member (read-only)
+    </AlertDescription>
+  </Alert>
+)}
+```
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/send-email/index.ts` | Update all colors to brand palette, larger logo, light header |
+| `src/hooks/useAdminMemberPaymentMethods.ts` | Add debugging, pass stripe_customer_id |
+| `supabase/functions/stripe-payment/index.ts` | Verify admin_list_member_payment_methods returns all cards |
+| `src/components/member/TierChangeCard.tsx` | Add founding tiers, opt-in/opt-out info |
+| `src/pages/member/PaymentMethods.tsx` | Add default card guidance |
+| `src/components/admin/MemberDetailSheet.tsx` | Add "View Member Portal" button |
+| `src/pages/member/Membership.tsx` | Support admin_view query param |
+
+---
+
+## Email Visual Preview (After Changes)
+
 ```text
-Admin sends "Setup Email"
-           ↓
-Member clicks link → Signs in
-           ↓
-Sees onboarding checklist with 3 tasks:
-  ○ Add Payment Method
-  ○ Sign Membership Agreement
-  ○ Sign Liability Waiver
-           ↓
-All complete → Awaiting staff activation
-           ↓
-Admin activates → Subscription starts Feb 9th
+┌─────────────────────────────────────────┐
+│   [Limestone Haze Cream Background]     │
+│                                         │
+│         ⚜ STORM WELLNESS CLUB ⚜         │  ← 80px gold logo on light bg
+│                                         │
+├═════════════════════════════════════════┤  ← Gold gradient accent line
+│                                         │
+│   Dear [Name],                          │
+│                                         │
+│   [Content with Georgia serif font]     │
+│                                         │
+│   ┌─────────────────────────────────┐   │
+│   │  Golden Dune info box (#F0DFC4) │   │  ← Brand color, not yellow
+│   │  with Earth Smoke text          │   │
+│   └─────────────────────────────────┘   │
+│                                         │
+│        [ DARK CHARCOAL BUTTON ]         │  ← #1C170F with cream text
+│                                         │
+│   Warmly,                               │
+│   Storm Wellness Club                   │
+│                                         │
+├─────────────────────────────────────────┤
+│   [Smoked Umber Dark Footer #1C170F]    │
+│   Gold accent links                     │
+│   stormwellnessclub.com                 │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
 ## Testing Checklist
 
-**Phase 1 - Admin Card Display:**
-- [ ] Open MemberDetailSheet for member with 3 cards
-- [ ] Verify all 3 cards appear with brand, last4, expiration
-- [ ] Verify "Default" badge on correct card
-- [ ] "Refresh from Stripe" button works
+**Email Branding:**
+- [ ] Send test email, verify cream header (not dark brown)
+- [ ] Verify logo is larger and clearly visible
+- [ ] Verify info boxes use Golden Dune (#F0DFC4), not yellow
+- [ ] Verify no blue colors anywhere
+- [ ] Verify footer is dark with gold/cream text
 
-**Phase 2 - Onboarding Checklist:**
-- [ ] Member without initiation fee paid sees "Pay Initiation Fee" as task 1
-- [ ] Clicking "Pay Now" redirects to Stripe
-- [ ] After payment, task marked complete
-- [ ] Member WITH fee paid doesn't see this task
+**Admin Card Display:**
+- [ ] Check console logs for debug output
+- [ ] Verify all 3 cards appear for test member
+- [ ] Refresh button works
 
-**Phase 3 - Orphan Cleanup:**
-- [ ] Cancel application → member status becomes "cancelled"
-- [ ] Cancelled members don't appear in active lists
-- [ ] One-time migration fixes 10 existing orphans
+**Setup Email:**
+- [ ] Instructions mention creating account
+- [ ] Waivers tab mentioned
+- [ ] Default card note included
+- [ ] Founding member info included
 
-**Phase 4 - Final Notice Email:**
-- [ ] Email has red warning banner
-- [ ] Payment button works
-- [ ] Grace period text present
+**Tier Change:**
+- [ ] Founding tiers visible
+- [ ] Opt-in/opt-out info shown
 
-**Phase 5 - Admin Actions:**
-- [ ] "Request Initiation Fee" appears for unpaid approved apps
-- [ ] "Send Final Notice" appears for unpaid approved apps
-- [ ] Members page shows correct email option based on payment status
