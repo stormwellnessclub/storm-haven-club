@@ -78,7 +78,7 @@ export default function GuestPass() {
         const { data } = await supabase
           .from("profiles")
           .select("waiver_signed, guest_pass_agreement_signed")
-          .eq("id", user.id)
+          .eq("user_id", user.id)
           .single();
         
         setHasLiabilityWaiver(!!data?.waiver_signed);
