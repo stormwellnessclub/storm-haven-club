@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert';
   to: string;
   data: Record<string, any>;
 }
@@ -641,6 +641,12 @@ serve(async (req) => {
         break;
 
       case 'charge_confirmation':
+        // Enhanced receipt with optional Benefits Start date for "Charge Now, Activate Later" flow
+        const paymentDate = data.paymentDate || data.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const benefitsStartDate = data.benefitsStartDate;
+        const nextBillingDate = data.nextBillingDate;
+        const showBenefitsStart = benefitsStartDate && benefitsStartDate !== paymentDate;
+        
         subject = `Payment Receipt - Storm Wellness Club`;
         html = `
           <div style="${emailStyles.container}">
@@ -668,9 +674,21 @@ serve(async (req) => {
                     <td style="padding: 8px 0; font-weight: 600; text-align: right; font-size: 18px; color: #1C170F;">$${data.amount}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #88766B;">Date</td>
-                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.date}</td>
+                    <td style="padding: 8px 0; color: #88766B;">Payment Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${paymentDate}</td>
                   </tr>
+                  ${showBenefitsStart ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Benefits Start</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${benefitsStartDate}</td>
+                  </tr>
+                  ` : ''}
+                  ${nextBillingDate ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Next Billing</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${nextBillingDate}</td>
+                  </tr>
+                  ` : ''}
                   <tr>
                     <td style="padding: 8px 0; color: #88766B;">Payment Method</td>
                     <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.cardBrand} •••• ${data.cardLast4}</td>
@@ -1414,6 +1432,87 @@ serve(async (req) => {
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Warmly,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'admin_payment_failed_alert':
+        // Admin notification when a member's payment fails
+        const alertAmount = data.amount ? `$${typeof data.amount === 'number' ? data.amount.toFixed(2) : data.amount}` : 'Unknown';
+        const alertMemberName = data.memberName || 'Unknown Member';
+        const alertMemberEmail = data.memberEmail || '';
+        const alertMemberId = data.memberId || '';
+        const alertFailureReason = data.failureReason || 'Payment declined';
+        const alertSubscriptionType = data.subscriptionType || 'Membership Dues';
+        const alertWillRetry = data.willRetry !== false;
+        const alertNextRetryDate = data.nextRetryDate ? 
+          new Date(data.nextRetryDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
+        
+        subject = `⚠️ Payment Failed - ${alertMemberName}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">⚠️ Payment Failed Alert</h2>
+              
+              <div style="background: #fee2e2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0 0 10px 0; font-weight: 600; color: #991b1b; font-size: 16px;">
+                  A member's payment has failed and requires attention.
+                </p>
+              </div>
+              
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #1C170F; font-family: Georgia, serif;">Payment Details</h3>
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Member</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${alertMemberName}</td>
+                  </tr>
+                  ${alertMemberEmail ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Email</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${alertMemberEmail}</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Charge Type</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${alertSubscriptionType}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Amount</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; font-size: 18px; color: #1C170F;">${alertAmount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Reason</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #991b1b;">${alertFailureReason}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <div style="background: ${alertWillRetry ? '#fef3c7' : '#fee2e2'}; border: 1px solid ${alertWillRetry ? '#f59e0b' : '#ef4444'}; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: ${alertWillRetry ? '#92400e' : '#991b1b'};">
+                  ${alertWillRetry 
+                    ? `⏰ Status: Stripe will automatically retry ${alertNextRetryDate ? `on ${alertNextRetryDate}` : 'in 3-5 days'}`
+                    : '❌ Status: No automatic retry scheduled - manual intervention required'}
+                </p>
+              </div>
+              
+              ${alertMemberId ? `
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/admin/members/${alertMemberId}" style="${emailStyles.button}">View Member</a>
+              </div>
+              ` : ''}
+              
+              <p style="font-size: 14px; color: #6b7280; margin-bottom: 20px;">
+                Consider reaching out to the member to help them update their payment method.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Automated Alert</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
               </div>
             </div>
             ${getEmailFooter()}
