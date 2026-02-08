@@ -980,13 +980,13 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             
-            <!-- YOUR MEMBERSHIP AWAITS Header -->
+            <!-- COMPLETE INITIATION PAYMENT Header -->
             <div style="background: #DEDACE; padding: 30px 20px; text-align: center; border-bottom: 3px solid #B8A068;">
               <h1 style="color: #1C170F; font-size: 28px; font-weight: 500; margin: 0 0 8px 0; font-family: Georgia, 'Times New Roman', Times, serif; letter-spacing: 2px;">
-                YOUR MEMBERSHIP AWAITS
+                COMPLETE INITIATION PAYMENT
               </h1>
-              <p style="color: #6C5D3E; font-size: 14px; font-weight: 600; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif; letter-spacing: 1px;">
-                Action Required
+              <p style="color: #6C5D3E; font-size: 14px; font-weight: 700; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif; letter-spacing: 1px;">
+                <strong>Action Required</strong>
               </p>
             </div>
             
