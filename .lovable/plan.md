@@ -1,145 +1,139 @@
 
+# Plan: Add Receipt Emails & Admin Payment Failure Alerts
 
-# Plan: Add "Charge Now, Activate Later" Feature
+## Overview
+This plan adds two key features:
+1. **Branded Receipt Emails** - Sent to members when dues are charged (with clear charge date vs. activation date when different)
+2. **Admin Payment Failure Alerts** - Notify admins when a card declines so they can follow up
 
-## Problem
-The current "Create Subscription" dialog for membership dues only lets admins select a start date, but:
-- **Future dates** delay the first charge until that date (using `billing_cycle_anchor`)
-- Admins want to **charge the card today** but set the membership to **activate on a future date** (e.g., Feb 9th grand opening)
+---
 
-## Solution
-Add a toggle in the Create Subscription dialog that allows admins to choose between:
-1. **Charge on start date** (current behavior) - First charge happens when membership begins
-2. **Charge now** - Immediately charges the first payment, but records the future date as the billing cycle start
+## Part 1: Enhanced Receipt Emails
+
+### What Changes
+
+**Update `charge_confirmation` Email Template**
+- Add optional "Benefits Start" date field (only shows when different from payment date)
+- Add billing cycle info (next charge date)
+
+**Trigger Receipt on Subscription Creation**
+- When `admin_create_member_subscription` charges a card, invoke send-email with receipt details
+- Include `benefits_start_date` when using "Charge Now, Activate Later" flow
+
+### Email Preview (Charge Now, Activate Later)
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│              [Storm Logo]                                  │
+├────────────────────────────────────────────────────────────┤
+│  Payment Confirmation                                      │
+│                                                            │
+│  Dear Jane,                                                │
+│                                                            │
+│  This email confirms your payment was successful.          │
+│                                                            │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  Receipt Details                                     │  │
+│  ├──────────────────────────────────────────────────────┤  │
+│  │  Description      │  Membership Dues - Gold          │  │
+│  │  Amount           │  $250.00                         │  │
+│  │  Payment Date     │  Feb 8, 2026                     │  │
+│  │  Benefits Start   │  Feb 9, 2026                     │  │
+│  │  Next Billing     │  Mar 9, 2026                     │  │
+│  │  Payment Method   │  Visa •••• 4242                  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                            │
+│  Please keep this email for your records.                  │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Email Preview (Same Day Charge & Activation)
+
+When charge date equals activation date, the "Benefits Start" row is hidden to keep it simple.
+
+---
+
+## Part 2: Admin Payment Failure Alerts
+
+### What Changes
+
+**Create Admin Alert Email Template**
+- New type: `admin_payment_failed_alert`
+- Includes member name, amount, failure reason, and link to member detail page
+
+**Update Webhook to Notify Admins**
+- On `invoice.payment_failed`, also send email to admin inbox (configured via environment or support email)
+
+### Admin Alert Email Preview
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│  ⚠️ Payment Failed Alert                                   │
+├────────────────────────────────────────────────────────────┤
+│  Member: Jane Smith                                        │
+│  Amount: $250.00 (Membership Dues)                         │
+│  Reason: Insufficient funds                                │
+│  Status: Past due - will retry in 3 days                   │
+│                                                            │
+│  [View Member] → links to admin/members/[id]               │
+└────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Technical Implementation
 
-### 1. Update Create Subscription Dialog UI
-**File:** `src/components/admin/CreateSubscriptionDialog.tsx`
+### Files to Modify
 
-Add a new toggle when a **future start date** is selected:
+| File | Changes |
+|------|---------|
+| `supabase/functions/send-email/index.ts` | Update `charge_confirmation` template, add `admin_payment_failed_alert` type |
+| `supabase/functions/stripe-payment/index.ts` | Send receipt email after subscription creation |
+| `supabase/functions/stripe-webhook/index.ts` | Send admin alert on payment failure |
 
-```text
-┌─────────────────────────────────────────────────────┐
-│  When should the first payment occur?               │
-│                                                     │
-│  ○ Charge on start date (Feb 9, 2026)              │
-│    Card will be charged when membership begins      │
-│                                                     │
-│  ● Charge now                                       │
-│    Charge card today, start benefits on Feb 9th     │
-└─────────────────────────────────────────────────────┘
-```
+### New Email Template Fields
 
-**Changes:**
-- Add state: `chargeImmediately` (boolean, default `true` for future dates)
-- Only show toggle when `startDate > today`
-- Update `onConfirm` signature to include `chargeImmediately` flag
-
-### 2. Update Dialog Props & Handler
-**File:** `src/components/admin/CreateSubscriptionDialog.tsx`
-
+**charge_confirmation** (enhanced):
 ```typescript
-interface CreateSubscriptionDialogProps {
-  // ... existing props
-  onConfirm: (startDate: Date, chargeImmediately: boolean) => void;
+data: {
+  name: string;
+  description: string;
+  amount: string; // e.g., "250.00"
+  paymentDate: string; // e.g., "Feb 8, 2026"
+  benefitsStartDate?: string; // Only if different from paymentDate
+  nextBillingDate?: string; // e.g., "Mar 9, 2026"
+  cardBrand: string;
+  cardLast4: string;
 }
 ```
 
-### 3. Update MemberDetail Page Handler
-**File:** `src/pages/admin/MemberDetail.tsx`
-
-Pass the new flag to the backend:
-
+**admin_payment_failed_alert** (new):
 ```typescript
-const handleCreateSubscription = async (startDate: Date, chargeImmediately: boolean) => {
-  await supabase.functions.invoke('stripe-payment', {
-    body: {
-      action: 'admin_create_member_subscription',
-      memberId: member.id,
-      // ... other params
-      startDate: startDate.toISOString(),
-      chargeImmediately: chargeImmediately, // NEW
-    }
-  });
-};
-```
-
-### 4. Update Backend Edge Function
-**File:** `supabase/functions/stripe-payment/index.ts`
-
-Modify `admin_create_member_subscription` action:
-
-```typescript
-case 'admin_create_member_subscription': {
-  const { memberId, tier, gender, billingType, startDate, isFoundingMember, chargeImmediately } = body;
-  
-  const subscriptionStartDate = startDate ? new Date(startDate) : new Date();
-  const now = new Date();
-  const isFutureDate = subscriptionStartDate > now;
-
-  // Build subscription params
-  const subscriptionParams = {
-    customer: customerStripeId,
-    items: [{ price: priceId }],
-    default_payment_method: paymentMethodId,
-    metadata: {
-      member_id: memberId,
-      original_start_date: startDate,
-      // ...
-    }
-  };
-
-  if (isFutureDate && chargeImmediately) {
-    // CHARGE NOW, but set billing cycle to future date
-    // Leave billing_cycle_anchor unset (charges immediately)
-    // Set the next billing date using billing_cycle_anchor_config
-    subscriptionParams.billing_cycle_anchor_config = {
-      day_of_month: subscriptionStartDate.getDate(),
-      month: subscriptionStartDate.getMonth() + 1,
-    };
-    // OR use proration_behavior + backdate_start_date approach
-    
-    // Actually, simpler approach: Create subscription now, 
-    // record original_start_date in metadata
-    logStep("Charging immediately with future start date recorded");
-  } else if (isFutureDate) {
-    // Defer first charge to start date (current behavior)
-    subscriptionParams.billing_cycle_anchor = Math.floor(subscriptionStartDate.getTime() / 1000);
-  }
-  // else: past or today = charge immediately (current behavior)
+data: {
+  memberName: string;
+  memberEmail: string;
+  memberId: string;
+  amount: number;
+  failureReason: string;
+  subscriptionType: string; // "Membership Dues" or "Annual Fee"
+  willRetry: boolean;
+  nextRetryDate?: string;
 }
 ```
 
-### 5. Update MemberDetailSheet (Quick View)
-**File:** `src/components/admin/MemberDetailSheet.tsx`
+### Configuration
 
-Apply the same changes to maintain consistency with the full member detail page.
-
----
-
-## Implementation Summary
-
-| Component | Change |
-|-----------|--------|
-| `CreateSubscriptionDialog.tsx` | Add "Charge Now" toggle for future dates |
-| `MemberDetail.tsx` | Pass `chargeImmediately` flag to backend |
-| `MemberDetailSheet.tsx` | Same as MemberDetail |
-| `stripe-payment/index.ts` | Handle `chargeImmediately` flag in subscription creation |
+The admin email recipient will be:
+1. First check for `ADMIN_ALERT_EMAIL` secret
+2. Fallback to `hello@stormwellnessclub.com` (or configurable)
 
 ---
 
-## User Experience
+## Summary
 
-**Before:**
-- Pick future date → First charge happens on that date
+| Feature | Member Gets | Admin Gets |
+|---------|-------------|------------|
+| Successful charge | Receipt email with charge date & activation date | - |
+| Failed charge | Notification to update card | Alert with member details & failure reason |
 
-**After:**
-- Pick future date → Toggle appears:
-  - "Charge on start date" - Payment waits until Feb 9th
-  - "Charge now" - Payment today, member activates Feb 9th
-
-This gives admins full control over when money is collected vs. when benefits begin.
-
+Both Stripe's built-in emails AND these custom branded emails can work together - Stripe handles immediate transactional receipts while your branded emails provide a better experience with specific details like "Benefits Start" date.
