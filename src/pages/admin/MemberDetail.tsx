@@ -595,7 +595,7 @@ export default function MemberDetail() {
     }
   };
 
-  const handleCreateSubscription = async (startDate: Date) => {
+  const handleCreateSubscription = async (startDate: Date, chargeImmediately: boolean) => {
     if (!member || !member.stripe_customer_id) return;
     
     setIsCreatingSubscription(true);
@@ -616,6 +616,7 @@ export default function MemberDetail() {
           billingType,
           isFoundingMember: member.is_founding_member || false,
           startDate: startDate.toISOString(),
+          chargeImmediately, // NEW: Pass the charge timing preference
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -632,6 +633,7 @@ export default function MemberDetail() {
         billingType: member.is_founding_member ? 'Annual (Founding)' : (member.billing_type === 'annual' ? 'Annual' : 'Monthly'),
         price: getPriceDisplay(tier, billingType, gender),
         creditsAllocated: data.creditsAllocated || getCreditsForTier(tier),
+        chargedImmediately: chargeImmediately && new Date(startDate) > new Date(),
       });
       setShowSubscriptionSuccessDialog(true);
       queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });

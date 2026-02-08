@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { addDays, format, startOfDay } from "date-fns";
+import { addDays, format, startOfDay, isAfter } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,8 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, CreditCard, Calendar, DollarSign, ExternalLink, Loader2 } from "lucide-react";
+import { AlertTriangle, CreditCard, Calendar, DollarSign, Loader2, Zap } from "lucide-react";
 
 interface Member {
   first_name: string;
@@ -36,7 +38,7 @@ interface CreateSubscriptionDialogProps {
   onOpenChange: (open: boolean) => void;
   member: Member;
   isLoading: boolean;
-  onConfirm: (startDate: Date) => void;
+  onConfirm: (startDate: Date, chargeImmediately: boolean) => void;
 }
 
 // Pricing data (matching membershipPricing.ts)
@@ -83,11 +85,13 @@ export function CreateSubscriptionDialog({
     return startOfDay(base);
   });
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [chargeImmediately, setChargeImmediately] = useState(true);
 
   useEffect(() => {
     if (!open) return;
     const base = member.membership_start_date ? new Date(member.membership_start_date) : new Date();
     setStartDate(startOfDay(base));
+    setChargeImmediately(true); // Reset to default when dialog opens
   }, [open, member.membership_start_date]);
 
   const today = startOfDay(new Date());
@@ -100,6 +104,7 @@ export function CreateSubscriptionDialog({
   };
 
   const isPastDate = startOfDay(startDate) < today;
+  const isFutureDate = isAfter(startOfDay(startDate), today);
 
   const subscriptionPreview = useMemo(() => {
     const tier = normalizeTier(member.membership_type);
@@ -228,13 +233,53 @@ export function CreateSubscriptionDialog({
                  </div>
                )}
 
+               {/* Charge timing toggle - only show for future dates */}
+               {isFutureDate && (
+                 <Card className="bg-primary/5 border-primary/20">
+                   <CardContent className="pt-4">
+                     <div className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                       <Zap className="h-4 w-4 text-primary" />
+                       When should the first payment occur?
+                     </div>
+                     <RadioGroup
+                       value={chargeImmediately ? "now" : "start_date"}
+                       onValueChange={(value) => setChargeImmediately(value === "now")}
+                       className="space-y-3"
+                     >
+                       <div className="flex items-start space-x-3">
+                         <RadioGroupItem value="now" id="charge-now" className="mt-0.5" />
+                         <Label htmlFor="charge-now" className="cursor-pointer space-y-1">
+                           <div className="font-medium">Charge now</div>
+                           <div className="text-xs text-muted-foreground">
+                             Charge card today, start benefits on {subscriptionPreview.startDate}
+                           </div>
+                         </Label>
+                       </div>
+                       <div className="flex items-start space-x-3">
+                         <RadioGroupItem value="start_date" id="charge-start-date" className="mt-0.5" />
+                         <Label htmlFor="charge-start-date" className="cursor-pointer space-y-1">
+                           <div className="font-medium">Charge on start date</div>
+                           <div className="text-xs text-muted-foreground">
+                             Card will be charged when membership begins on {subscriptionPreview.startDate}
+                           </div>
+                         </Label>
+                       </div>
+                     </RadioGroup>
+                   </CardContent>
+                 </Card>
+               )}
+
                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 space-y-2">
                 <div className="text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
                   Important
                 </div>
                 <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-1 ml-6 list-disc">
-                  <li>Member's card will be charged automatically on the billing date</li>
+                  <li>
+                    {isFutureDate && chargeImmediately 
+                      ? "Member's card will be charged TODAY" 
+                      : "Member's card will be charged automatically on the billing date"}
+                  </li>
                   <li>Subscription cannot be undone from this portal</li>
                   <li>To cancel, use the Stripe Dashboard or "Cancel" button</li>
                 </ul>
@@ -248,12 +293,13 @@ export function CreateSubscriptionDialog({
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
-              onConfirm(startDate);
+              // For past/today dates, chargeImmediately is irrelevant (always charges immediately)
+              onConfirm(startDate, isFutureDate ? chargeImmediately : true);
             }}
             disabled={isLoading || !subscriptionPreview.hasCard}
           >
             {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Confirm & Create
+            {isFutureDate && chargeImmediately ? "Charge Now & Create" : "Confirm & Create"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

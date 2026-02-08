@@ -118,6 +118,8 @@ interface PaymentRequest {
   // For admin_update_member_tier
   newTier?: 'silver' | 'gold' | 'platinum' | 'diamond';
   prorationBehavior?: 'create_prorations' | 'none' | 'always_invoice';
+  // For admin_create_member_subscription
+  chargeImmediately?: boolean; // If true, charge now even for future start dates
 }
 
 const logStep = (step: string, details?: unknown) => {
@@ -2318,7 +2320,7 @@ serve(async (req) => {
 
       case 'admin_create_member_subscription': {
         // Admin-initiated subscription creation for members
-        const { memberId, tier, gender, billingType: requestedBillingType, startDate, isFoundingMember } = body;
+        const { memberId, tier, gender, billingType: requestedBillingType, startDate, isFoundingMember, chargeImmediately } = body;
 
         if (!memberId || !tier || !gender) {
           throw new Error("memberId, tier, and gender are required");
@@ -2339,7 +2341,7 @@ serve(async (req) => {
         const normalizedGender = (gender.toLowerCase() === 'male' || gender.toLowerCase() === 'men') ? 'men' : 'women';
         const billingType = requestedBillingType || (isFoundingMember ? 'annual' : 'monthly');
 
-        logStep("Admin creating member subscription", { memberId, tier: normalizedTier, gender: normalizedGender, billingType });
+        logStep("Admin creating member subscription", { memberId, tier: normalizedTier, gender: normalizedGender, billingType, chargeImmediately });
 
         // Get membership price
         const membershipPrices = STRIPE_PRODUCTS.memberships[normalizedTier];
@@ -2382,8 +2384,9 @@ serve(async (req) => {
         const subscriptionStartDate = startDate ? new Date(startDate) : new Date();
         const now = new Date();
         const isStartDateInPast = subscriptionStartDate < now;
+        const isStartDateInFuture = subscriptionStartDate > now;
 
-        // Build subscription parameters - handle past dates differently
+        // Build subscription parameters - handle different scenarios
         const subscriptionParams: any = {
           customer: memberData.stripe_customer_id,
           items: [{ price: membershipPriceId }],
@@ -2401,6 +2404,7 @@ serve(async (req) => {
           },
         };
 
+        // Determine billing behavior based on date and chargeImmediately flag
         if (isStartDateInPast) {
           // For past dates, start immediately - Stripe doesn't allow billing_cycle_anchor in past
           logStep("Start date is in past, starting subscription from today", { 
@@ -2408,15 +2412,30 @@ serve(async (req) => {
             now: now.toISOString() 
           });
           // Don't set billing_cycle_anchor - defaults to now
-        } else {
-          // For future dates, use billing_cycle_anchor
+        } else if (isStartDateInFuture && chargeImmediately) {
+          // CHARGE NOW but record the future start date
+          // Don't set billing_cycle_anchor - this charges immediately
+          // The original_start_date in metadata preserves when benefits "should" start
+          logStep("Charging immediately with future activation date", { 
+            originalStartDate: startDate, 
+            chargeNow: true 
+          });
+          subscriptionParams.metadata.charge_now_activate_later = 'true';
+          subscriptionParams.metadata.benefits_start_date = startDate;
+        } else if (isStartDateInFuture) {
+          // Defer first charge to start date (existing behavior)
           subscriptionParams.billing_cycle_anchor = Math.floor(subscriptionStartDate.getTime() / 1000);
+          logStep("Deferring charge to future start date", { 
+            originalStartDate: startDate, 
+            billingAnchor: subscriptionParams.billing_cycle_anchor 
+          });
         }
+        // else: today = charge immediately (default Stripe behavior)
 
         // Create the subscription
         const subscription = await stripe.subscriptions.create(subscriptionParams);
 
-        logStep("Admin subscription created", { subscriptionId: subscription.id, memberId });
+        logStep("Admin subscription created", { subscriptionId: subscription.id, memberId, chargedImmediately: isStartDateInFuture && chargeImmediately });
 
         // Update member record
         await supabase
