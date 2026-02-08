@@ -171,6 +171,8 @@ serve(async (req) => {
                 data: {
                   name: memberName,
                   freezeEndDate: freeze.actual_end_date || new Date().toISOString(),
+                  freezeId: freeze.id,
+                  source: 'process-freeze-expirations', // Track where this email was triggered from
                 },
               },
             });
