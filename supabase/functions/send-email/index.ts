@@ -1297,44 +1297,20 @@ serve(async (req) => {
               
               <ol style="line-height: 2.2; color: #374151; font-size: 16px; padding-left: 20px;">
                 <li><strong>Sign in or create your account</strong> using: <span style="color: #C9A227;">${data.email || to}</span></li>
-                <li><strong>Add your payment method</strong> for monthly dues (first charge: Feb 9th)</li>
-                <li><strong>Sign your membership agreement and liability waiver</strong></li>
+                <li>Go to the <strong>Waivers</strong> tab and sign the <strong>Liability Waiver</strong></li>
+                <li>Sign your <strong>Membership Agreement</strong> (also in the Waivers tab)</li>
+                <li>Go to <strong>Payment Methods</strong> and add your card, then <strong>set it as default</strong> for monthly dues</li>
                 ${data.allowTierChange ? `
                 <li><strong>Review your tier</strong> - You have one chance to change before we lock it in</li>
                 ` : ''}
+                <li>Check the <strong>My Membership</strong> tab to confirm all steps are complete</li>
               </ol>
               
-              ${data.isDiamondFoundingMember ? `
-              <div style="background: #f5f3ff; border: 1px solid #8b5cf6; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <h3 style="margin: 0 0 10px 0; color: #6d28d9;">💎 Diamond Founding Member Privileges</h3>
-                <ul style="margin: 0; padding-left: 20px; color: #5b21b6; line-height: 1.8;">
-                  <li>Personalized Storm Wellness Club sweater (exclusive founding design)</li>
-                  <li>Diamond Member personalized gym bag</li>
-                  <li>VIP amenity kit with premium products</li>
-                  <li>Diamond member personalized clothing line</li>
-                  <li>Priority booking for ALL classes and events</li>
-                </ul>
-              </div>
-              ` : data.isFoundingMember ? `
-              <div style="background: #fef3c7; border: 1px solid #C9A227; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <h3 style="margin: 0 0 10px 0; color: #92400e;">🌟 Founding Member Privileges</h3>
-                <ul style="margin: 0; padding-left: 20px; color: #854d0e; line-height: 1.8;">
-                  <li>Personalized Storm Wellness Club sweater (founding members only)</li>
-                  <li>Personalized gear package</li>
-                  <li>Priority booking for all classes and events</li>
-                </ul>
-              </div>
-              ` : ''}
-              
-              <div style="background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 14px; color: #0369a1;">
-                  <strong>📧 Important:</strong> When creating your member account, please use the same email address you applied with: <strong>${data.email || to}</strong>. This ensures your membership is automatically linked to your account.
-                </p>
-              </div>
-              
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${BASE_URL}/auth" style="${emailStyles.button}">Complete Your Setup</a>
-              </div>
+              <p style="font-size: 14px; line-height: 1.6; color: #6b7280; margin: 20px 0;">
+                <strong>Quick links:</strong><br/>
+                <a href="${BASE_URL}/member/waivers" style="color: #C9A227;">Sign Waivers & Agreements →</a><br/>
+                <a href="${BASE_URL}/member/payment-methods" style="color: #C9A227;">Add Payment Method →</a>
+              </p>
               
               <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0;">
                 <p style="margin: 0; font-weight: 600; color: #374151;">
