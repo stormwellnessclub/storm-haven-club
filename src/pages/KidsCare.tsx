@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Link } from "react-router-dom";
 import { 
   Baby, 
@@ -10,10 +13,16 @@ import {
   Heart, 
   Users,
   Calendar,
-  Lock
+  Lock,
+  Moon,
+  CheckCircle2
 } from "lucide-react";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useJoinKidsCareInterest } from "@/hooks/useKidsCareInterest";
+
+// Soft launch mode flag
+const isSoftLaunch = true;
 
 const features = [
   {
@@ -38,25 +47,86 @@ const features = [
   },
 ];
 
+// Updated hours for regular operation
 const hours = [
-  { day: "Monday - Friday", time: "6:00 AM - 1:00 PM, 4:00 PM - 8:00 PM" },
-  { day: "Saturday", time: "7:00 AM - 1:00 PM" },
-  { day: "Sunday", time: "8:00 AM - 12:00 PM" },
+  { day: "Monday - Thursday", time: "8:00 AM - 8:00 PM" },
+  { day: "Friday - Sunday", time: "8:00 AM - 5:00 PM" },
 ];
 
-const ageGroups = [
-  { age: "Infants", range: "3 months - 1 year", spots: 4 },
-  { age: "Toddlers", range: "1 - 3 years", spots: 8 },
-  { age: "Preschool", range: "3 - 5 years", spots: 10 },
-  { age: "School Age", range: "5 - 10 years", spots: 12 },
+// Two-room structure
+const rooms = [
+  {
+    name: "Little Stars Room",
+    icon: "🍼",
+    ageGroups: [
+      { name: "Infants", range: "3 months - 1 year" },
+      { name: "Toddlers", range: "1 - 3 years" },
+    ],
+    capacity: 8,
+  },
+  {
+    name: "Big Stars Room",
+    icon: "🌟",
+    ageGroups: [
+      { name: "Preschool", range: "3 - 5 years" },
+      { name: "School Age", range: "5 - 10 years" },
+    ],
+    capacity: 6,
+  },
 ];
 
 export default function KidsCare() {
   const { user } = useAuth();
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  
+  // Interest form state
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: user?.email || "",
+    phone: "",
+    childrenCount: 1,
+    childrenAges: "",
+    notes: "",
+  });
+
+  const joinInterest = useJoinKidsCareInterest();
+
+  const handleInterestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.email || !formData.childrenAges) {
+      return;
+    }
+
+    try {
+      await joinInterest.mutateAsync(formData);
+      setSubmitted(true);
+    } catch (error) {
+      // Error handled in hook
+    }
+  };
 
   return (
     <Layout>
+      {/* Soft Launch Banner */}
+      {isSoftLaunch && (
+        <section className="bg-accent/10 border-b border-accent/20">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center gap-3 justify-center text-center">
+              <Moon className="w-5 h-5 text-accent" />
+              <div>
+                <p className="font-medium text-foreground">Coming Soon</p>
+                <p className="text-sm text-muted-foreground">
+                  Kids Care booking will open soon. Soft launch hours will be shared this week.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
         <div className="container mx-auto px-6">
@@ -75,7 +145,7 @@ export default function KidsCare() {
               <div>
                 <p className="text-sm font-medium">Kids Care Pass Required</p>
                 <p className="text-xs text-muted-foreground">
-                  Purchase a Kids Care Pass to access booking. Available in Class Passes.
+                  Each pass covers one child only. Purchase in Class Passes.
                 </p>
               </div>
               <Link to="/class-passes" className="ml-auto">
@@ -103,7 +173,7 @@ export default function KidsCare() {
         </div>
       </section>
 
-      {/* Hours & Info */}
+      {/* Hours & Rooms */}
       <section className="py-16 bg-secondary/30">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12">
@@ -121,25 +191,38 @@ export default function KidsCare() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-6">
-                * Hours may vary on holidays. Check the app for current availability.
-              </p>
+              {isSoftLaunch && (
+                <p className="text-xs text-accent mt-6 flex items-center gap-2">
+                  <Moon className="w-4 h-4" />
+                  Soft launch hours may vary. Check back for updates.
+                </p>
+              )}
             </div>
 
-            {/* Age Groups */}
+            {/* Two Rooms */}
             <div className="card-luxury p-8">
               <h3 className="font-serif text-2xl mb-6 flex items-center gap-3">
                 <Users className="w-6 h-6 text-accent" />
-                Age Groups
+                Our Two Rooms
               </h3>
-              <div className="space-y-4">
-                {ageGroups.map((group, index) => (
-                  <div key={index} className="flex justify-between items-center py-3 border-b border-border last:border-0">
-                    <div>
-                      <span className="font-medium">{group.age}</span>
-                      <p className="text-muted-foreground text-sm">{group.range}</p>
+              <div className="space-y-6">
+                {rooms.map((room, index) => (
+                  <div key={index} className="pb-6 border-b border-border last:border-0 last:pb-0">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-2xl">{room.icon}</span>
+                      <h4 className="font-medium text-lg">{room.name}</h4>
                     </div>
-                    <span className="text-sm text-accent">{group.spots} spots</span>
+                    <div className="space-y-2 ml-10">
+                      {room.ageGroups.map((group, gIndex) => (
+                        <div key={gIndex} className="text-sm">
+                          <span className="text-foreground">{group.name}</span>
+                          <span className="text-muted-foreground ml-2">({group.range})</span>
+                        </div>
+                      ))}
+                      <p className="text-sm text-accent mt-2">
+                        Capacity: {room.capacity} children
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -148,45 +231,164 @@ export default function KidsCare() {
         </div>
       </section>
 
-      {/* Booking */}
+      {/* Booking / Interest Waitlist Section */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-6">
           <div className="max-w-2xl mx-auto text-center">
-            <Calendar className="w-12 h-12 mx-auto mb-6 text-accent" />
-            <h2 className="heading-section mb-4">Book Your Session</h2>
-            <p className="text-muted-foreground mb-8">
-              Reservations can be made up to 48 hours in advance. 
-              Walk-ins accepted based on availability.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              {user ? (
-                <Button 
-                  size="lg" 
-                  onClick={() => setShowBookingModal(true)}
-                >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Book Kids Care Session
-                </Button>
-              ) : (
-                <Button 
-                  size="lg" 
-                  onClick={() => {
-                    window.location.href = "/auth";
-                  }}
-                >
-                  <Lock className="w-4 h-4 mr-2" />
-                  Login to Book
-                </Button>
-              )}
-              <Link to="/class-passes">
-                <Button variant="outline" size="lg">
-                  Purchase Kids Care Pass
-                </Button>
-              </Link>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4">
-              Must have active Kids Care Pass to make reservations.
-            </p>
+            {isSoftLaunch ? (
+              <>
+                {submitted ? (
+                <div className="card-luxury p-8">
+                    <CheckCircle2 className="w-16 h-16 mx-auto mb-6 text-accent" />
+                    <h2 className="heading-section mb-4">You're on the List!</h2>
+                    <p className="text-muted-foreground">
+                      Thank you for your interest in Storm Kids Care. We'll notify you when booking opens.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <Calendar className="w-12 h-12 mx-auto mb-6 text-accent" />
+                    <h2 className="heading-section mb-4">Join the Interest Waitlist</h2>
+                    <p className="text-muted-foreground mb-8">
+                      Be the first to know when Kids Care booking opens. 
+                      Help us gauge demand by signing up below.
+                    </p>
+                    
+                    <form onSubmit={handleInterestSubmit} className="card-luxury p-8 text-left space-y-6">
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName">First Name</Label>
+                          <Input
+                            id="firstName"
+                            value={formData.firstName}
+                            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                            placeholder="Your first name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName">Last Name</Label>
+                          <Input
+                            id="lastName"
+                            value={formData.lastName}
+                            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                            placeholder="Your last name"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email *</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          required
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="your@email.com"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone (Optional)</Label>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="(555) 123-4567"
+                        />
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="childrenCount">Number of Children</Label>
+                          <Input
+                            id="childrenCount"
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={formData.childrenCount}
+                            onChange={(e) => setFormData({ ...formData, childrenCount: parseInt(e.target.value) || 1 })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="childrenAges">Children's Ages *</Label>
+                          <Input
+                            id="childrenAges"
+                            required
+                            value={formData.childrenAges}
+                            onChange={(e) => setFormData({ ...formData, childrenAges: e.target.value })}
+                            placeholder="e.g., 2, 4, 6"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Any Notes (Optional)</Label>
+                        <Textarea
+                          id="notes"
+                          value={formData.notes}
+                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                          placeholder="Tell us about your childcare needs..."
+                          rows={3}
+                        />
+                      </div>
+
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        size="lg"
+                        disabled={joinInterest.isPending}
+                      >
+                        {joinInterest.isPending ? "Submitting..." : "Join Interest Waitlist"}
+                      </Button>
+
+                      <p className="text-xs text-muted-foreground text-center">
+                        Each Kids Care Pass covers one child only. Separate passes required for multiple children.
+                      </p>
+                    </form>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <Calendar className="w-12 h-12 mx-auto mb-6 text-accent" />
+                <h2 className="heading-section mb-4">Book Your Session</h2>
+                <p className="text-muted-foreground mb-8">
+                  Reservations can be made up to 48 hours in advance. 
+                  Walk-ins accepted based on availability.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  {user ? (
+                    <Button 
+                      size="lg" 
+                      onClick={() => setShowBookingModal(true)}
+                    >
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Book Kids Care Session
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="lg" 
+                      onClick={() => {
+                        window.location.href = "/auth";
+                      }}
+                    >
+                      <Lock className="w-4 h-4 mr-2" />
+                      Login to Book
+                    </Button>
+                  )}
+                  <Link to="/class-passes">
+                    <Button variant="outline" size="lg">
+                      Purchase Kids Care Pass
+                    </Button>
+                  </Link>
+                </div>
+                <p className="text-xs text-muted-foreground mt-4">
+                  Must have active Kids Care Pass to make reservations. Each pass covers one child only.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -201,6 +403,10 @@ export default function KidsCare() {
             />
             <div className="card-luxury p-8">
               <ul className="space-y-4 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 bg-accent rounded-full mt-2 flex-shrink-0" />
+                  <strong className="text-foreground">Each Kids Care Pass is valid for one child only.</strong> Separate passes required for multiple children.
+                </li>
                 <li className="flex items-start gap-2">
                   <span className="w-1.5 h-1.5 bg-accent rounded-full mt-2 flex-shrink-0" />
                   Maximum 2-hour session per child per day
@@ -227,7 +433,7 @@ export default function KidsCare() {
         </div>
       </section>
 
-      {/* Booking Modal */}
+      {/* Booking Modal (for when soft launch ends) */}
       <KidsCareBookingModal
         open={showBookingModal}
         onOpenChange={setShowBookingModal}
