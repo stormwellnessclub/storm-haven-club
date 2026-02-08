@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { format, addDays } from "date-fns";
+import { useState, useMemo } from "react";
+import { format, addDays, startOfDay, isAfter } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -12,13 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, CreditCard, AlertTriangle, CheckCircle2, CalendarClock, CalendarIcon } from "lucide-react";
+import { Loader2, CreditCard, AlertTriangle, CheckCircle2, CalendarClock, CalendarIcon, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getAnnualFeeAmount, normalizeGender } from "@/lib/stripeProducts";
@@ -65,20 +67,20 @@ export function InitiationFeeChargeDialog({
   const [chargeResult, setChargeResult] = useState<"success" | "error" | null>(null);
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [chargeImmediately, setChargeImmediately] = useState(true);
 
   // Date constraints: -30 days to +90 days
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfDay(new Date());
   const minDate = addDays(today, -30);
   const maxDate = addDays(today, 90);
 
   const isDateDisabled = (date: Date) => {
-    const dateToCheck = new Date(date);
-    dateToCheck.setHours(0, 0, 0, 0);
+    const dateToCheck = startOfDay(new Date(date));
     return dateToCheck < minDate || dateToCheck > maxDate;
   };
 
-  const isPastDate = startDate < today;
+  const isPastDate = startOfDay(startDate) < today;
+  const isFutureDate = isAfter(startOfDay(startDate), today);
 
   // Calculate amount based on gender
   const gender = normalizeGender(member.gender);
@@ -101,6 +103,7 @@ export function InitiationFeeChargeDialog({
           action: "admin_create_initiation_fee_subscription",
           memberId: member.id,
           startDate: startDate.toISOString(),
+          chargeImmediately: isFutureDate ? chargeImmediately : true, // Only relevant for future dates
         },
       });
 
@@ -113,8 +116,11 @@ export function InitiationFeeChargeDialog({
       if (data?.success) {
         // Subscription created successfully
         setChargeResult("success");
+        const chargeMsg = isFutureDate && chargeImmediately 
+          ? "Card charged now, subscription starts " + format(startDate, 'MMM d, yyyy')
+          : `Subscription created ($${amount.toFixed(2)}/year)`;
         toast.success(
-          `Successfully created Initiation Fee subscription ($${amount.toFixed(2)}/year) - ${data.cardBrand || 'Card'} •••• ${data.cardLast4 || '****'}`
+          `${chargeMsg} - ${data.cardBrand || 'Card'} •••• ${data.cardLast4 || '****'}`
         );
         
         // Close after a brief delay to show success state
@@ -141,9 +147,18 @@ export function InitiationFeeChargeDialog({
     return null;
   };
 
+  const handleClose = () => {
+    if (!isCharging && chargeResult !== "success") {
+      setChargeImmediately(true);
+      setStartDate(new Date());
+      setChargeResult(null);
+      onOpenChange(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px]">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
@@ -217,6 +232,40 @@ export function InitiationFeeChargeDialog({
             </Alert>
           )}
 
+          {/* Charge timing toggle - only show for future dates */}
+          {isFutureDate && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+              <div className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                <Zap className="h-4 w-4 text-primary" />
+                When should the first payment occur?
+              </div>
+              <RadioGroup
+                value={chargeImmediately ? "now" : "start_date"}
+                onValueChange={(value) => setChargeImmediately(value === "now")}
+                className="space-y-3"
+              >
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="now" id="init-charge-now" className="mt-0.5" />
+                  <Label htmlFor="init-charge-now" className="cursor-pointer space-y-1">
+                    <div className="font-medium">Charge now</div>
+                    <div className="text-xs text-muted-foreground">
+                      Charge card today, subscription renews yearly from {format(startDate, 'MMM d, yyyy')}
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="start_date" id="init-charge-start-date" className="mt-0.5" />
+                  <Label htmlFor="init-charge-start-date" className="cursor-pointer space-y-1">
+                    <div className="font-medium">Charge on start date</div>
+                    <div className="text-xs text-muted-foreground">
+                      Card will be charged on {format(startDate, 'MMM d, yyyy')}
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
           <Separator />
 
           {/* Subscription Details */}
@@ -270,7 +319,11 @@ export function InitiationFeeChargeDialog({
             <div className="flex items-start gap-2">
               <CalendarClock className="h-4 w-4 text-blue-600 mt-0.5" />
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                This creates a yearly subscription that will automatically renew. The card will be charged immediately.
+                {isFutureDate && chargeImmediately 
+                  ? "Card will be charged TODAY. The subscription will renew yearly from the selected start date."
+                  : isFutureDate 
+                    ? `Card will be charged on ${format(startDate, 'MMM d, yyyy')}. Subscription renews yearly after that.`
+                    : "This creates a yearly subscription that will automatically renew. The card will be charged immediately."}
               </p>
             </div>
           </div>
@@ -287,7 +340,7 @@ export function InitiationFeeChargeDialog({
         <DialogFooter className="gap-2 sm:gap-0">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={handleClose}
             disabled={isCharging || chargeResult === "success"}
           >
             Cancel
@@ -301,6 +354,8 @@ export function InitiationFeeChargeDialog({
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Creating...
               </>
+            ) : isFutureDate && chargeImmediately ? (
+              `Charge Now ($${amount.toFixed(2)})`
             ) : (
               `Create Subscription ($${amount.toFixed(2)}/yr)`
             )}

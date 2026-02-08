@@ -3722,7 +3722,7 @@ serve(async (req) => {
 
       case 'admin_create_initiation_fee_subscription': {
         // Admin-initiated initiation fee subscription creation (as recurring yearly subscription)
-        const { memberId, startDate: startDateParam } = body;
+        const { memberId, startDate: startDateParam, chargeImmediately: chargeImmediatelyParam } = body;
 
         if (!memberId) {
           throw new Error("memberId is required");
@@ -3739,7 +3739,7 @@ serve(async (req) => {
           throw new Error("Unauthorized: Admin access required");
         }
 
-        logStep("Admin creating initiation fee subscription", { memberId, startDate: startDateParam });
+        logStep("Admin creating initiation fee subscription", { memberId, startDate: startDateParam, chargeImmediately: chargeImmediatelyParam });
 
         // Get member data
         const { data: memberDataForFee, error: memberErrorForFee } = await supabase
@@ -3816,13 +3816,37 @@ serve(async (req) => {
         const subscriptionStart = startDateParam ? new Date(startDateParam) : now;
         const isPastDate = subscriptionStart < now;
         const isFutureDate = subscriptionStart > now;
+        // Default to true if not specified (charge immediately)
+        const chargeImmediatelyForFee = chargeImmediatelyParam !== false;
 
         let initiationFeeSubscription;
 
-        if (isFutureDate) {
-          // Future date: Use billing_cycle_anchor
+        if (isFutureDate && chargeImmediatelyForFee) {
+          // CHARGE NOW, but record the future start date for renewal cycle
+          logStep("Creating subscription with immediate charge and future renewal date", { 
+            startDate: subscriptionStart.toISOString(),
+            chargeImmediately: true
+          });
+
+          initiationFeeSubscription = await stripe.subscriptions.create({
+            customer: customerIdForFee,
+            items: [{ price: annualFeePriceIdForMember }],
+            default_payment_method: paymentMethodIdForFee,
+            proration_behavior: 'none',
+            metadata: {
+              member_id: memberId,
+              user_id: memberDataForFee.user_id || '',
+              type: 'annual_fee',
+              created_by_admin: user.id,
+              original_start_date: subscriptionStart.toISOString(),
+              charge_now_activate_later: 'true',
+              benefits_start_date: subscriptionStart.toISOString(),
+            },
+          });
+        } else if (isFutureDate) {
+          // Future date: Use billing_cycle_anchor (defer charge)
           const billingAnchor = Math.floor(subscriptionStart.getTime() / 1000);
-          logStep("Creating subscription with future billing anchor", { 
+          logStep("Creating subscription with future billing anchor (deferred charge)", { 
             startDate: subscriptionStart.toISOString(), 
             billingAnchor 
           });
@@ -4743,6 +4767,84 @@ serve(async (req) => {
             primary_customer_id: primaryCustomer.id,
             other_customer_ids: otherCustomerIds,
             note: "Other customer IDs were NOT deleted. Review them in Stripe dashboard if needed."
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'update_annual_fee_billing_date': {
+        // Admin action to update the next billing date for an annual fee subscription
+        const { subscriptionId, memberId, newBillingDate } = body;
+
+        if (!subscriptionId || !memberId || !newBillingDate) {
+          throw new Error("subscriptionId, memberId, and newBillingDate are required");
+        }
+
+        // Verify admin role
+        const { data: adminCheck } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!adminCheck || adminCheck.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Updating annual fee billing date", { subscriptionId, memberId, newBillingDate });
+
+        // Verify the subscription belongs to this member
+        const { data: memberCheck, error: memberCheckError } = await supabase
+          .from('members')
+          .select('annual_fee_subscription_id')
+          .eq('id', memberId)
+          .single();
+
+        if (memberCheckError || !memberCheck) {
+          throw new Error("Member not found");
+        }
+
+        if (memberCheck.annual_fee_subscription_id !== subscriptionId) {
+          throw new Error("Subscription does not belong to this member");
+        }
+
+        // Get current subscription
+        const currentSub = await stripe.subscriptions.retrieve(subscriptionId);
+        
+        if (currentSub.status === 'canceled') {
+          throw new Error("Cannot update a canceled subscription");
+        }
+
+        // Calculate new billing anchor timestamp
+        const newBillingDateObj = new Date(newBillingDate);
+        const newAnchorTimestamp = Math.floor(newBillingDateObj.getTime() / 1000);
+
+        // Update the subscription's billing cycle anchor
+        // Note: We use a trial_end to shift the next billing date
+        const updatedSub = await stripe.subscriptions.update(subscriptionId, {
+          trial_end: newAnchorTimestamp,
+          proration_behavior: 'none',
+          metadata: {
+            ...currentSub.metadata,
+            billing_date_updated_at: new Date().toISOString(),
+            billing_date_updated_by: user.id,
+            previous_period_end: new Date(currentSub.current_period_end * 1000).toISOString(),
+          }
+        });
+
+        logStep("Annual fee billing date updated", {
+          subscriptionId,
+          newBillingDate: newBillingDateObj.toISOString(),
+          newTrialEnd: newAnchorTimestamp,
+          status: updatedSub.status
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            subscriptionId: updatedSub.id,
+            newBillingDate: newBillingDateObj.toISOString(),
+            status: updatedSub.status
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
