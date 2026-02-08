@@ -1029,6 +1029,27 @@ serve(async (req) => {
         `;
 
       case 'freeze_completed':
+        // SAFETY CHECK: Only send if this is actually from a freeze completion
+        // This prevents the email from being sent incorrectly during member activation
+        console.log('[SEND-EMAIL] freeze_completed called', { to, data, source: data.source || 'unknown' });
+        
+        if (!data.freezeEndDate && !data.freezeId) {
+          console.error('[SEND-EMAIL] freeze_completed called WITHOUT valid freeze data - BLOCKING email', { 
+            to, 
+            data,
+            reason: 'Missing freezeEndDate and freezeId - likely called incorrectly during activation'
+          });
+          // Return success but don't send the email
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              blocked: true, 
+              reason: 'freeze_completed requires freezeEndDate or freezeId - email blocked to prevent incorrect send'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        
         subject = 'Membership Reactivated - Welcome Back to Storm Wellness Club!';
         const freezeEndDate = data.freezeEndDate ? new Date(data.freezeEndDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'today';
         html = `
