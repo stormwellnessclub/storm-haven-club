@@ -1,102 +1,53 @@
 
 
-## Plan: Admin Support Center with Notifications
+## Plan: Fix Final Notice Email Bug
 
-### Overview
-Build a dedicated **Support** page in the admin portal with real-time notification indicators. Staff will be able to view all member support conversations, reply to messages, and mark conversations as resolved/closed.
+### The Problem
 
----
+I found the bug! In the email function, the `annual_fee_final_notice` email case is **missing a `break;` statement**. This is why you're getting the wrong email.
 
-### What You'll Get
+Here's what's happening:
+1. You trigger the "Final Notice" email
+2. The code builds the Final Notice email content correctly
+3. But then it **falls through** to the next case (`freeze_completed`) because there's no `break;`
+4. The freeze_completed case overwrites the subject and HTML with "Membership Reactivated" content
+5. That wrong email gets sent instead
 
-1. **Rename "Emails" to "Support"** in the admin sidebar for clarity
-2. **Support notification badge** in the header showing unread/open conversation count
-3. **Clicking the notification bell** takes you directly to the Support page
-4. **Clear status workflow**: Open → In Progress → Resolved → Closed
-5. **Visual indicators** for unread messages and open tickets
+### The Fix
 
----
+1. **Add the missing `break;` statement** after the `annual_fee_final_notice` case (line 1029)
+2. **Update the subject line** to simply say "Final Notice" if you prefer that
 
-### Technical Implementation
-
-#### 1. Update Admin Sidebar (`src/components/admin/AdminSidebar.tsx`)
-- Rename "Emails" menu item to "Support" 
-- Keep the route at `/admin/emails` (renamed in UI only to avoid route changes)
-- Add `MessageSquare` icon instead of `Mail` icon for better clarity
-
-#### 2. Create Support Notification Hook (`src/hooks/useAdminSupportNotifications.ts`)
-A new hook to fetch open/unread support tickets count:
-- Query `email_conversations` for status = 'open' or 'in_progress'
-- Count unread messages (where `is_read = false` AND `sender_type = 'member'`)
-- Auto-refresh every 30 seconds to keep count current
-
-#### 3. Update Admin Layout Header (`src/components/admin/AdminLayout.tsx`)
-- Replace static "3" badge with real data from the notification hook
-- Make the bell icon clickable - navigates to `/admin/emails` (Support page)
-- Show badge only when there are open/unread items
-
-#### 4. Enhance Email Management Page (`src/pages/admin/EmailManagement.tsx`)
-- Update page title from "Email Management" to "Member Support"
-- Add "Mark as Resolved" quick action button
-- Add confirmation when closing a ticket
-- Highlight unread conversations with a visual indicator
-- Add summary stats at top: Open | In Progress | Resolved Today
-
-#### 5. Add Read Tracking for Staff
-- When staff opens a conversation, mark member messages as read
-- This feeds into the notification count
-
----
-
-### File Changes Summary
-
-| File | Change |
-|------|--------|
-| `src/hooks/useAdminSupportNotifications.ts` | **NEW** - Hook for notification count |
-| `src/components/admin/AdminLayout.tsx` | Update bell to show real count + link to support |
-| `src/components/admin/AdminSidebar.tsx` | Rename "Emails" to "Support" |
-| `src/pages/admin/EmailManagement.tsx` | Enhance UI with quick actions and better UX |
-
----
-
-### User Experience Flow
-
-```text
-Staff logs into Admin Portal
-       │
-       ▼
-┌─────────────────────────────────────────┐
-│  Header shows bell icon with badge      │
-│  showing "3" (number of open tickets)   │
-└─────────────────────────────────────────┘
-       │
-       ▼ (clicks bell OR clicks "Support" in sidebar)
-       │
-┌─────────────────────────────────────────┐
-│  SUPPORT PAGE                           │
-│  ┌─────────────┐ ┌───────────────────┐  │
-│  │ Ticket List │ │ Conversation View │  │
-│  │ [Open: 3]   │ │                   │  │
-│  │ - Ticket 1  │ │ Messages here...  │  │
-│  │ - Ticket 2  │ │                   │  │
-│  │ - Ticket 3  │ │ [Reply box]       │  │
-│  └─────────────┘ │ [Mark Resolved]   │  │
-│                  └───────────────────┘  │
-└─────────────────────────────────────────┘
-       │
-       ▼ (staff replies and marks resolved)
-       │
-┌─────────────────────────────────────────┐
-│  Notification count decreases           │
-│  Ticket moves to "Resolved" status      │
-└─────────────────────────────────────────┘
+### Current Subject Line
+```
+⚠️ FINAL NOTICE: Complete Your Payment Today - Storm Wellness Club
 ```
 
----
+### Suggested Subject Line Options
+- **Option A:** `Final Notice - Storm Wellness Club`
+- **Option B:** `⚠️ Final Notice: Complete Your Payment Today`
+- **Option C:** `FINAL NOTICE - Payment Required Today`
 
-### Status Workflow
-- **Open**: New message from member (default)
-- **In Progress**: Staff has replied but not resolved
-- **Resolved**: Issue addressed (staff marks this)
-- **Closed**: Conversation archived (optional final state)
+### Technical Details
+
+**File to modify:** `supabase/functions/send-email/index.ts`
+
+**Change:** Add `break;` after line 1029 (after the closing template literal and before `case 'freeze_completed':`)
+
+```typescript
+// Line ~1029 - currently missing break!
+          </div>
+        `;
+        break;  // ← ADD THIS LINE
+
+      case 'freeze_completed':
+```
+
+### After the Fix
+
+Once deployed, when you send a Final Notice email:
+- Subject will be: "Final Notice - Storm Wellness Club" (or your preferred wording)
+- Body will show the red warning banner with "FINAL NOTICE - ACTION REQUIRED TODAY"
+- The PAY NOW button will be prominent in red
+- The grace period option will be included
 
