@@ -13,6 +13,7 @@ import { CreateSubscriptionDialog } from "@/components/admin/CreateSubscriptionD
 import { RefundDialog } from "@/components/admin/RefundDialog";
 import { InitiationFeeChargeDialog } from "@/components/admin/InitiationFeeChargeDialog";
 import { CreateInitiationFeeSubscriptionDialog } from "@/components/admin/CreateInitiationFeeSubscriptionDialog";
+import { EditAnnualFeeSubscriptionDialog } from "@/components/admin/EditAnnualFeeSubscriptionDialog";
 import { UndoActionDialog } from "@/components/admin/UndoActionDialog";
 import { AdminChargeWith3DSProvider } from "@/components/admin/AdminChargeWith3DS";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
@@ -189,6 +190,7 @@ export default function MemberDetail() {
   // Initiation fee charge state
   const [showInitiationFeeDialog, setShowInitiationFeeDialog] = useState(false);
   const [showCreateInitiationFeeSubDialog, setShowCreateInitiationFeeSubDialog] = useState(false);
+  const [showEditAnnualFeeSubDialog, setShowEditAnnualFeeSubDialog] = useState(false);
 
   // Credit adjustment state
   const [showAdjustCreditDialog, setShowAdjustCreditDialog] = useState(false);
@@ -971,14 +973,24 @@ export default function MemberDetail() {
                   )}
                   {/* Show link to subscription if it exists */}
                   {member.annual_fee_subscription_id && (
-                    <a 
-                      href={getStripeSubscriptionLink(member.annual_fee_subscription_id)} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline flex items-center gap-1"
-                    >
-                      View in Stripe <ExternalLink className="h-3 w-3" />
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <a 
+                        href={getStripeSubscriptionLink(member.annual_fee_subscription_id)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        View in Stripe <ExternalLink className="h-3 w-3" />
+                      </a>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setShowEditAnnualFeeSubDialog(true)}
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -1894,6 +1906,16 @@ export default function MemberDetail() {
         onOpenChange={setShowCreateInitiationFeeSubDialog}
         member={member}
         paymentMethod={stripePaymentMethods[0] || null}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
+        }}
+      />
+
+      {/* Edit Annual Fee Subscription Dialog */}
+      <EditAnnualFeeSubscriptionDialog
+        open={showEditAnnualFeeSubDialog}
+        onOpenChange={setShowEditAnnualFeeSubDialog}
+        member={member}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
         }}
