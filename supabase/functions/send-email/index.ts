@@ -975,7 +975,7 @@ serve(async (req) => {
         break;
 
       case 'annual_fee_final_notice':
-        subject = '⚠️ FINAL NOTICE: Complete Your Payment Today - Storm Wellness Club';
+        subject = 'Final Notice - Storm Wellness Club';
         const finalFeeAmount = data.amount || 300;
         html = `
           <div style="${emailStyles.container}">
@@ -1027,6 +1027,7 @@ serve(async (req) => {
             ${getReceiptFooter()}
           </div>
         `;
+        break;
 
       case 'freeze_completed':
         // SAFETY CHECK: Only send if this is actually from a freeze completion
