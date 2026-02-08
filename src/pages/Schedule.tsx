@@ -99,6 +99,9 @@ export default function Schedule() {
     }
   };
 
+  // Soft launch mode - disable booking
+  const isSoftLaunch = true;
+
   return (
     <Layout>
       {/* Hero */}
@@ -113,6 +116,27 @@ export default function Schedule() {
           </div>
         </div>
       </section>
+
+      {/* Soft Launch Banner */}
+      {isSoftLaunch && (
+        <div className="bg-accent/10 border-b border-accent/30">
+          <div className="container py-4 px-6">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🌙</span>
+              <div>
+                <h3 className="font-semibold text-foreground">Soft Launch Week</h3>
+                <p className="text-sm text-muted-foreground">
+                  This is our preliminary class schedule. A special <strong className="text-foreground">soft launch schedule</strong> with 
+                  extended <strong className="text-foreground">Ramadan hours</strong> will be released this week.
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Booking will open once the soft launch schedule is live. Check back soon!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="container py-6">
         {/* Week Navigation */}
@@ -274,6 +298,7 @@ export default function Schedule() {
             onBook={handleBook}
             bookedSessionIds={bookedSessionIds}
             weekStartDate={weekStart}
+            bookingDisabled={isSoftLaunch}
           />
         ) : (
           <div className="space-y-3 max-w-2xl">
@@ -324,19 +349,35 @@ export default function Schedule() {
                           <div>50 min • {session.room}</div>
                           <div>{spotsRemaining} spots left</div>
                         </div>
-                        <Button
-                          onClick={() => handleBook(session)}
-                          disabled={spotsRemaining <= 0 || bookedSessionIds.includes(session.id)}
-                          variant={bookedSessionIds.includes(session.id) ? "secondary" : "default"}
-                          size="sm"
-                          className="w-full"
-                        >
-                          {bookedSessionIds.includes(session.id) 
-                            ? "Booked" 
-                            : spotsRemaining <= 0 
-                            ? "Full" 
-                            : "Book Class"}
-                        </Button>
+                        {isSoftLaunch ? (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              disabled
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 opacity-50"
+                            >
+                              Book Class
+                            </Button>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              Booking opens soon
+                            </span>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => handleBook(session)}
+                            disabled={spotsRemaining <= 0 || bookedSessionIds.includes(session.id)}
+                            variant={bookedSessionIds.includes(session.id) ? "secondary" : "default"}
+                            size="sm"
+                            className="w-full"
+                          >
+                            {bookedSessionIds.includes(session.id) 
+                              ? "Booked" 
+                              : spotsRemaining <= 0 
+                              ? "Full" 
+                              : "Book Class"}
+                          </Button>
+                        )}
                       </div>
                     );
                   })}
