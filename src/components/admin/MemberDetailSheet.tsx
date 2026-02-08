@@ -577,7 +577,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   };
 
   // Create membership subscription handler
-  const handleCreateSubscription = async () => {
+  const handleCreateSubscription = async (startDate: Date) => {
     if (!member || !member.stripe_customer_id) return;
     
     setIsCreatingSubscription(true);
@@ -598,7 +598,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           gender,
           billingType,
           isFoundingMember: member.is_founding_member || false,
-          startDate: member.membership_start_date || new Date().toISOString().split('T')[0],
+          startDate: startDate.toISOString(),
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,

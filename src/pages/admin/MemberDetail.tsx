@@ -595,7 +595,7 @@ export default function MemberDetail() {
     }
   };
 
-  const handleCreateSubscription = async () => {
+  const handleCreateSubscription = async (startDate: Date) => {
     if (!member || !member.stripe_customer_id) return;
     
     setIsCreatingSubscription(true);
@@ -615,7 +615,7 @@ export default function MemberDetail() {
           gender,
           billingType,
           isFoundingMember: member.is_founding_member || false,
-          startDate: member.membership_start_date || new Date().toISOString().split('T')[0],
+          startDate: startDate.toISOString(),
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
