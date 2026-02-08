@@ -2521,6 +2521,60 @@ serve(async (req) => {
           }
         }
 
+        // Send receipt email to member
+        if (memberData.email && (subscription.status === 'active' || subscription.status === 'trialing')) {
+          try {
+            const memberName = memberData.first_name && memberData.last_name 
+              ? `${memberData.first_name} ${memberData.last_name}`
+              : memberData.first_name || memberData.last_name || 'Member';
+            
+            // Get pricing info
+            const priceInfo = await stripe.prices.retrieve(membershipPriceId);
+            const priceAmount = priceInfo.unit_amount ? (priceInfo.unit_amount / 100).toFixed(2) : '0.00';
+            
+            // Get card info
+            const cardBrand = paymentMethods.data[0].card?.brand 
+              ? paymentMethods.data[0].card.brand.charAt(0).toUpperCase() + paymentMethods.data[0].card.brand.slice(1)
+              : 'Card';
+            const cardLast4 = paymentMethods.data[0].card?.last4 || '****';
+            
+            // Format dates
+            const paymentDateFormatted = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const benefitsStartFormatted = subscriptionStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            // Calculate next billing date
+            const nextBillingDt = new Date(subscriptionStartDate);
+            nextBillingDt.setMonth(nextBillingDt.getMonth() + (billingType === 'annual' ? 12 : 1));
+            const nextBillingFormatted = nextBillingDt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            // Determine description
+            const tierDisplay = normalizedTier.charAt(0).toUpperCase() + normalizedTier.slice(1);
+            const description = `Membership Dues - ${tierDisplay}${billingType === 'annual' ? ' (Annual)' : ''}`;
+
+            await supabase.functions.invoke('send-email', {
+              body: {
+                type: 'charge_confirmation',
+                to: memberData.email,
+                data: {
+                  name: memberName,
+                  description: description,
+                  amount: priceAmount,
+                  paymentDate: paymentDateFormatted,
+                  benefitsStartDate: isStartDateInFuture && chargeImmediately ? benefitsStartFormatted : undefined,
+                  nextBillingDate: nextBillingFormatted,
+                  cardBrand: cardBrand,
+                  cardLast4: cardLast4,
+                },
+              },
+            });
+
+            logStep("Receipt email sent to member", { memberId, email: memberData.email });
+          } catch (emailError) {
+            console.error(`[STRIPE-PAYMENT] ERROR SENDING_RECEIPT_EMAIL - ${emailError instanceof Error ? emailError.message : String(emailError)}`);
+            // Don't fail - subscription is already created
+          }
+        }
+
         return new Response(
           JSON.stringify({ 
             success: true, 

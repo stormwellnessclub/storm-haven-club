@@ -1395,7 +1395,7 @@ serve(async (req) => {
               }
             }
 
-            // Send payment failure email notification
+            // Send payment failure email notification to member
             if (memberData.email && (memberData.first_name || memberData.last_name)) {
               try {
                 const memberName = memberData.first_name && memberData.last_name 
@@ -1429,6 +1429,48 @@ serve(async (req) => {
               }
             } else {
               logStep("Skipping payment failure email - no email or name", { memberId: memberData.id });
+            }
+
+            // Send admin alert email
+            try {
+              const memberNameForAdmin = memberData.first_name && memberData.last_name 
+                ? `${memberData.first_name} ${memberData.last_name}`
+                : memberData.first_name || memberData.last_name || 'Unknown Member';
+              
+              // Check if this is an annual fee subscription
+              const annualFeePriceIds = ['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN'];
+              const isAnnualFeeFailure = invoice.lines?.data?.some((line: Stripe.InvoiceLineItem) => 
+                line.price && annualFeePriceIds.includes(line.price.id as string)
+              ) || false;
+              
+              // Determine admin email recipient
+              const adminAlertEmail = Deno.env.get('ADMIN_ALERT_EMAIL') || 'hello@stormwellnessclub.com';
+              
+              const { error: adminEmailError } = await supabase.functions.invoke('send-email', {
+                body: {
+                  type: 'admin_payment_failed_alert',
+                  to: adminAlertEmail,
+                  data: {
+                    memberName: memberNameForAdmin,
+                    memberEmail: memberData.email || '',
+                    memberId: memberData.id,
+                    amount: invoice.amount_due / 100,
+                    failureReason: declineReason || failureMessage || 'Payment processing failed',
+                    subscriptionType: isAnnualFeeFailure ? 'Initiation Fee (Annual)' : 'Membership Dues',
+                    willRetry: willRetry,
+                    nextRetryDate: invoice.next_payment_attempt ? new Date(invoice.next_payment_attempt * 1000).toISOString() : null,
+                  },
+                },
+              });
+
+              if (adminEmailError) {
+                logError(adminEmailError, "INVOICE_PAYMENT_FAILED_ADMIN_ALERT");
+              } else {
+                logStep("Admin payment failure alert sent", { memberId: memberData.id, adminEmail: adminAlertEmail });
+              }
+            } catch (adminAlertError) {
+              logError(adminAlertError, "INVOICE_PAYMENT_FAILED_ADMIN_ALERT");
+              // Don't fail the webhook if admin alert fails
             }
           } else {
             logStep("Member not found for failed invoice", { subscriptionId: invoice.subscription });
