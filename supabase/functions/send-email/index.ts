@@ -1011,7 +1011,7 @@ serve(async (req) => {
                   Need more time?
                 </p>
                 <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
-                  Contact us immediately at <a href="mailto:info@stormwellnessclub.com" style="color: #92400e;">info@stormwellnessclub.com</a> to request a one-week grace period. Extensions are granted on a case-by-case basis.
+                  Contact us immediately at <a href="mailto:admin@stormwellnessclub.com" style="color: #92400e;">admin@stormwellnessclub.com</a> to request a one-week grace period. Extensions are granted on a case-by-case basis.
                 </p>
               </div>
               
