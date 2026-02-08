@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageCircle, Send, Clock, CheckCircle2, AlertCircle, Loader2, User, Mail } from "lucide-react";
-import { format } from "date-fns";
+import { MessageCircle, Send, Clock, CheckCircle2, AlertCircle, Loader2, User, Mail, CircleDot } from "lucide-react";
+import { format, isToday } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -43,7 +43,7 @@ interface Profile {
 }
 
 const statusConfig: Record<EmailConversation['status'], { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: React.ReactNode }> = {
-  open: { label: 'Open', variant: 'default', icon: <AlertCircle className="h-3 w-3" /> },
+  open: { label: 'Open', variant: 'destructive', icon: <AlertCircle className="h-3 w-3" /> },
   in_progress: { label: 'In Progress', variant: 'secondary', icon: <Clock className="h-3 w-3" /> },
   resolved: { label: 'Resolved', variant: 'outline', icon: <CheckCircle2 className="h-3 w-3" /> },
   closed: { label: 'Closed', variant: 'outline', icon: <CheckCircle2 className="h-3 w-3" /> },
@@ -55,9 +55,9 @@ export default function EmailManagement() {
   const queryClient = useQueryClient();
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("open");
 
-  // Fetch all conversations with user profiles
+  // Fetch all conversations with user profiles and unread counts
   const { data: conversationsWithProfiles, isLoading: loadingConversations } = useQuery({
     queryKey: ['admin-email-conversations'],
     queryFn: async () => {
@@ -77,11 +77,27 @@ export default function EmailManagement() {
 
       if (profileError) throw profileError;
 
+      // Fetch unread message counts per conversation
+      const { data: unreadMessages, error: unreadError } = await supabase
+        .from('email_messages')
+        .select('conversation_id')
+        .eq('sender_type', 'member')
+        .eq('is_read', false);
+
+      if (unreadError) throw unreadError;
+
+      const unreadCountMap = new Map<string, number>();
+      (unreadMessages || []).forEach(msg => {
+        const count = unreadCountMap.get(msg.conversation_id) || 0;
+        unreadCountMap.set(msg.conversation_id, count + 1);
+      });
+
       const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
 
       return (conversations as EmailConversation[]).map(conv => ({
         ...conv,
         profile: profileMap.get(conv.user_id) || null,
+        unreadCount: unreadCountMap.get(conv.id) || 0,
       }));
     },
   });
@@ -103,6 +119,28 @@ export default function EmailManagement() {
     },
     enabled: !!selectedConversation,
   });
+
+  // Mark messages as read when conversation is selected
+  useEffect(() => {
+    const markAsRead = async () => {
+      if (!selectedConversation) return;
+      
+      const { error } = await supabase
+        .from('email_messages')
+        .update({ is_read: true })
+        .eq('conversation_id', selectedConversation)
+        .eq('sender_type', 'member')
+        .eq('is_read', false);
+
+      if (!error) {
+        // Invalidate to refresh counts
+        queryClient.invalidateQueries({ queryKey: ['admin-email-conversations'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-support-notifications'] });
+      }
+    };
+
+    markAsRead();
+  }, [selectedConversation, queryClient]);
 
   // Send message mutation
   const sendMessage = useMutation({
@@ -196,12 +234,20 @@ export default function EmailManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-email-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-support-notifications'] });
       toast({
         title: "Status updated",
         description: "Conversation status has been updated.",
       });
     },
   });
+
+  // Quick mark as resolved
+  const handleMarkResolved = () => {
+    if (selectedConversation) {
+      updateStatus.mutate({ conversationId: selectedConversation, status: 'resolved' });
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
@@ -216,19 +262,74 @@ export default function EmailManagement() {
   );
 
   const selectedConv = conversationsWithProfiles?.find(c => c.id === selectedConversation);
-  const unreadCount = conversationsWithProfiles?.filter(c => c.status === 'open').length || 0;
+  
+  // Stats
+  const openCount = conversationsWithProfiles?.filter(c => c.status === 'open').length || 0;
+  const inProgressCount = conversationsWithProfiles?.filter(c => c.status === 'in_progress').length || 0;
+  const resolvedTodayCount = conversationsWithProfiles?.filter(c => 
+    c.status === 'resolved' && isToday(new Date(c.updated_at))
+  ).length || 0;
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Member Support">
       <div className="space-y-6">
+        {/* Stats Summary */}
+        <div className="grid gap-4 grid-cols-3">
+          <Card 
+            className={`cursor-pointer transition-colors ${statusFilter === 'open' ? 'ring-2 ring-primary' : ''}`}
+            onClick={() => setStatusFilter('open')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-destructive/10">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{openCount}</p>
+                  <p className="text-xs text-muted-foreground">Open Tickets</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card 
+            className={`cursor-pointer transition-colors ${statusFilter === 'in_progress' ? 'ring-2 ring-primary' : ''}`}
+            onClick={() => setStatusFilter('in_progress')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-secondary">
+                  <Clock className="h-5 w-5 text-secondary-foreground" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{inProgressCount}</p>
+                  <p className="text-xs text-muted-foreground">In Progress</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card 
+            className={`cursor-pointer transition-colors ${statusFilter === 'resolved' ? 'ring-2 ring-primary' : ''}`}
+            onClick={() => setStatusFilter('resolved')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-accent">
+                  <CheckCircle2 className="h-5 w-5 text-accent-foreground" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{resolvedTodayCount}</p>
+                  <p className="text-xs text-muted-foreground">Resolved Today</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Email Management</h1>
-            <p className="text-muted-foreground">
-              Manage member support conversations
-              {unreadCount > 0 && (
-                <Badge variant="destructive" className="ml-2">{unreadCount} open</Badge>
-              )}
+            <h1 className="text-2xl font-bold tracking-tight">Support Inbox</h1>
+            <p className="text-muted-foreground text-sm">
+              Manage and respond to member support requests
             </p>
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -274,19 +375,25 @@ export default function EmailManagement() {
                       const memberName = conversation.profile 
                         ? `${conversation.profile.first_name} ${conversation.profile.last_name}`.trim()
                         : 'Unknown Member';
+                      const hasUnread = conversation.unreadCount > 0;
                       return (
                         <button
                           key={conversation.id}
                           onClick={() => setSelectedConversation(conversation.id)}
                           className={`w-full text-left p-4 hover:bg-muted/50 transition-colors ${
                             selectedConversation === conversation.id ? 'bg-muted' : ''
-                          }`}
+                          } ${hasUnread ? 'border-l-2 border-l-primary' : ''}`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <p className="font-medium text-sm line-clamp-1">
-                                {conversation.subject}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                {hasUnread && (
+                                  <CircleDot className="h-3 w-3 text-primary shrink-0" />
+                                )}
+                                <p className={`font-medium text-sm line-clamp-1 ${hasUnread ? 'font-semibold' : ''}`}>
+                                  {conversation.subject}
+                                </p>
+                              </div>
                               <div className="flex items-center gap-1 mt-1">
                                 <User className="h-3 w-3 text-muted-foreground" />
                                 <p className="text-xs text-muted-foreground line-clamp-1">
@@ -332,23 +439,36 @@ export default function EmailManagement() {
                   )}
                 </div>
                 {selectedConv && (
-                  <Select
-                    value={selectedConv.status}
-                    onValueChange={(value) => updateStatus.mutate({ 
-                      conversationId: selectedConv.id, 
-                      status: value as EmailConversation['status']
-                    })}
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="open">Open</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="resolved">Resolved</SelectItem>
-                      <SelectItem value="closed">Closed</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    {selectedConv.status !== 'resolved' && selectedConv.status !== 'closed' && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleMarkResolved}
+                        disabled={updateStatus.isPending}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        Mark Resolved
+                      </Button>
+                    )}
+                    <Select
+                      value={selectedConv.status}
+                      onValueChange={(value) => updateStatus.mutate({ 
+                        conversationId: selectedConv.id, 
+                        status: value as EmailConversation['status']
+                      })}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="resolved">Resolved</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
               </div>
             </CardHeader>

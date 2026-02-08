@@ -2,6 +2,8 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AdminSidebar } from "./AdminSidebar";
 import { Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -9,6 +11,11 @@ interface AdminLayoutProps {
 }
 
 export function AdminLayout({ children, title }: AdminLayoutProps) {
+  const navigate = useNavigate();
+  const { data: notifications } = useAdminSupportNotifications();
+  
+  const notificationCount = notifications?.openCount || 0;
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex flex-col md:flex-row w-full bg-background">
@@ -22,11 +29,19 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               )}
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
-              <Button variant="ghost" size="icon" className="relative touch-target">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative touch-target"
+                onClick={() => navigate('/admin/emails')}
+                title="Support Messages"
+              >
                 <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
-                  3
-                </span>
+                {notificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                    {notificationCount > 9 ? '9+' : notificationCount}
+                  </span>
+                )}
               </Button>
               <Button variant="ghost" size="icon" className="touch-target">
                 <User className="h-5 w-5" />
