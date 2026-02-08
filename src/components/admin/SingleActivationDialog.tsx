@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { format, addDays } from "date-fns";
-import { CalendarIcon, Zap, CreditCard, AlertCircle, Loader2, Lock, CalendarCheck } from "lucide-react";
+import { format, addDays, startOfDay } from "date-fns";
+import { CalendarIcon, Zap, CreditCard, AlertCircle, Loader2, Lock, CalendarCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -74,12 +74,20 @@ export function SingleActivationDialog({
   }, [open, initialMode]);
 
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  // Allow up to 30 days in the past for backdating
+  const minDate = addDays(today, -30);
   // For locked mode, allow up to 90 days out (grand opening flexibility)
   const maxDate = activationMode === "locked" ? addDays(today, 90) : addDays(today, 30);
 
   const isDateDisabled = (date: Date) => {
-    return date < today || date > maxDate;
+    const dateToCheck = new Date(date);
+    dateToCheck.setHours(0, 0, 0, 0);
+    return dateToCheck < minDate || dateToCheck > maxDate;
   };
+
+  // Check if selected date is in the past
+  const isPastDate = startDate ? startDate < today : false;
 
   const handleConfirm = () => {
     if (!startDate || !application) return;
@@ -255,10 +263,21 @@ export function SingleActivationDialog({
             </Popover>
             <p className="text-xs text-muted-foreground">
               {activationMode === "locked" 
-                ? "Up to 90 days out (e.g., grand opening date)"
-                : "Today to 30 days from now"}
+                ? "30 days back to 90 days out (for backdating or grand opening)"
+                : "30 days back to 30 days out"}
             </p>
           </div>
+
+          {/* Past Date Warning */}
+          {isPastDate && (
+            <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+                <strong>Past date selected.</strong> Membership will be backdated to {startDate && format(startDate, 'MMM d, yyyy')}. 
+                Subscription billing will be calculated from this date.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Locked Mode Info */}
           {activationMode === "locked" && (

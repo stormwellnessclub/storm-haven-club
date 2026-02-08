@@ -3703,7 +3703,7 @@ serve(async (req) => {
 
       case 'admin_create_initiation_fee_subscription': {
         // Admin-initiated initiation fee subscription creation (as recurring yearly subscription)
-        const { memberId } = body;
+        const { memberId, startDate: startDateParam } = body;
 
         if (!memberId) {
           throw new Error("memberId is required");
@@ -3720,7 +3720,7 @@ serve(async (req) => {
           throw new Error("Unauthorized: Admin access required");
         }
 
-        logStep("Admin creating initiation fee subscription", { memberId });
+        logStep("Admin creating initiation fee subscription", { memberId, startDate: startDateParam });
 
         // Get member data
         const { data: memberDataForFee, error: memberErrorForFee } = await supabase
@@ -3792,24 +3792,78 @@ serve(async (req) => {
           throw new Error("Annual fee price not found");
         }
 
-        // Create the initiation fee subscription (recurring yearly)
-        const initiationFeeSubscription = await stripe.subscriptions.create({
-          customer: customerIdForFee,
-          items: [{ price: annualFeePriceIdForMember }],
-          default_payment_method: paymentMethodIdForFee,
-          proration_behavior: 'none',
-          metadata: {
-            member_id: memberId,
-            user_id: memberDataForFee.user_id || '',
-            type: 'annual_fee',
-            created_by_admin: user.id,
-          },
-        });
+        // Handle start date logic
+        const now = new Date();
+        const subscriptionStart = startDateParam ? new Date(startDateParam) : now;
+        const isPastDate = subscriptionStart < now;
+        const isFutureDate = subscriptionStart > now;
+
+        let initiationFeeSubscription;
+
+        if (isFutureDate) {
+          // Future date: Use billing_cycle_anchor
+          const billingAnchor = Math.floor(subscriptionStart.getTime() / 1000);
+          logStep("Creating subscription with future billing anchor", { 
+            startDate: subscriptionStart.toISOString(), 
+            billingAnchor 
+          });
+
+          initiationFeeSubscription = await stripe.subscriptions.create({
+            customer: customerIdForFee,
+            items: [{ price: annualFeePriceIdForMember }],
+            default_payment_method: paymentMethodIdForFee,
+            billing_cycle_anchor: billingAnchor,
+            proration_behavior: 'none',
+            metadata: {
+              member_id: memberId,
+              user_id: memberDataForFee.user_id || '',
+              type: 'annual_fee',
+              created_by_admin: user.id,
+              start_date: subscriptionStart.toISOString(),
+            },
+          });
+        } else if (isPastDate) {
+          // Past date: Start immediately, record original_start_date in metadata
+          logStep("Creating subscription immediately with backdated start", { 
+            originalStartDate: subscriptionStart.toISOString() 
+          });
+
+          initiationFeeSubscription = await stripe.subscriptions.create({
+            customer: customerIdForFee,
+            items: [{ price: annualFeePriceIdForMember }],
+            default_payment_method: paymentMethodIdForFee,
+            proration_behavior: 'none',
+            metadata: {
+              member_id: memberId,
+              user_id: memberDataForFee.user_id || '',
+              type: 'annual_fee',
+              created_by_admin: user.id,
+              original_start_date: subscriptionStart.toISOString(),
+              backdated: 'true',
+            },
+          });
+        } else {
+          // Today: Normal immediate subscription
+          initiationFeeSubscription = await stripe.subscriptions.create({
+            customer: customerIdForFee,
+            items: [{ price: annualFeePriceIdForMember }],
+            default_payment_method: paymentMethodIdForFee,
+            proration_behavior: 'none',
+            metadata: {
+              member_id: memberId,
+              user_id: memberDataForFee.user_id || '',
+              type: 'annual_fee',
+              created_by_admin: user.id,
+            },
+          });
+        }
 
         logStep("Initiation fee subscription created", { 
           subscriptionId: initiationFeeSubscription.id,
           memberId,
           status: initiationFeeSubscription.status,
+          isPastDate,
+          isFutureDate,
         });
 
         // Update member record with annual fee subscription ID
@@ -3855,9 +3909,10 @@ serve(async (req) => {
       case 'admin_create_initiation_fee_subscription_no_charge': {
         // Admin creates subscription for member who already paid (no immediate charge)
         // Uses billing_cycle_anchor to delay first charge to 1 year from now
-        const { memberId, originalPaymentMethod, note } = body as { 
+        const { memberId, originalPaymentMethod, originalPaymentDate, note } = body as { 
           memberId: string; 
           originalPaymentMethod: string; 
+          originalPaymentDate?: string;
           note: string | null;
         };
 
@@ -3953,10 +4008,16 @@ serve(async (req) => {
           throw new Error("Annual fee price not found");
         }
 
-        // Calculate billing_cycle_anchor to 1 year from now (no immediate charge)
-        const oneYearFromNow = new Date();
-        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-        const billingAnchorNoCharge = Math.floor(oneYearFromNow.getTime() / 1000);
+        // Calculate billing_cycle_anchor to 1 year from original payment date (or from now if not provided)
+        const paymentDate = originalPaymentDate ? new Date(originalPaymentDate) : new Date();
+        const oneYearFromPayment = new Date(paymentDate);
+        oneYearFromPayment.setFullYear(oneYearFromPayment.getFullYear() + 1);
+        const billingAnchorNoCharge = Math.floor(oneYearFromPayment.getTime() / 1000);
+        
+        logStep("Calculating billing anchor from original payment date", { 
+          originalPaymentDate: paymentDate.toISOString(),
+          nextBillingDate: oneYearFromPayment.toISOString(),
+        });
 
         // Create the initiation fee subscription with delayed first charge
         const initiationFeeSubNoCharge = await stripe.subscriptions.create({
@@ -3980,7 +4041,8 @@ serve(async (req) => {
           subscriptionId: initiationFeeSubNoCharge.id,
           memberId,
           status: initiationFeeSubNoCharge.status,
-          nextBillingDate: oneYearFromNow.toISOString(),
+          originalPaymentDate: paymentDate.toISOString(),
+          nextBillingDate: oneYearFromPayment.toISOString(),
         });
 
         // Update member record with annual fee subscription ID (don't update annual_fee_paid_at - it's already set)
@@ -4008,7 +4070,8 @@ serve(async (req) => {
               subscription_id: initiationFeeSubNoCharge.id,
               original_payment_method: originalPaymentMethod,
               note: note,
-              next_billing_date: oneYearFromNow.toISOString(),
+              next_billing_date: oneYearFromPayment.toISOString(),
+              original_payment_date: paymentDate.toISOString(),
               price_id: annualFeePriceIdNoCharge,
               gender: normalizedGenderNoCharge,
             },
@@ -4022,7 +4085,7 @@ serve(async (req) => {
             status: initiationFeeSubNoCharge.status,
             cardBrand: cardBrandNoCharge,
             cardLast4: cardLast4NoCharge,
-            nextBillingDate: oneYearFromNow.toISOString(),
+            nextBillingDate: oneYearFromPayment.toISOString(),
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
