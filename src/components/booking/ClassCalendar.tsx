@@ -9,6 +9,7 @@ interface ClassCalendarProps {
   onBook: (session: ClassSession) => void;
   bookedSessionIds: string[];
   weekStartDate: Date;
+  bookingDisabled?: boolean;
 }
 
 export function ClassCalendar({
@@ -17,6 +18,7 @@ export function ClassCalendar({
   onBook,
   bookedSessionIds,
   weekStartDate,
+  bookingDisabled = false,
 }: ClassCalendarProps) {
   // Group sessions by date
   const sessionsByDate = sessions.reduce((acc, session) => {
@@ -85,6 +87,7 @@ export function ClassCalendar({
                   <ClassCard
                     key={session.id}
                     session={session}
+                    bookingDisabled={bookingDisabled}
                     onBook={onBook}
                     isBooked={bookedSessionIds.includes(session.id)}
                   />

@@ -9,9 +9,10 @@ interface ClassCardProps {
   session: ClassSession;
   onBook: (session: ClassSession) => void;
   isBooked?: boolean;
+  bookingDisabled?: boolean;
 }
 
-export function ClassCard({ session, onBook, isBooked = false }: ClassCardProps) {
+export function ClassCard({ session, onBook, isBooked = false, bookingDisabled = false }: ClassCardProps) {
   const spotsRemaining = session.max_capacity - session.current_enrollment;
   const isFull = spotsRemaining <= 0;
   const isLowSpots = spotsRemaining > 0 && spotsRemaining <= 3;
@@ -92,15 +93,31 @@ export function ClassCard({ session, onBook, isBooked = false }: ClassCardProps)
           </div>
         </div>
 
-        <Button
-          onClick={() => onBook(session)}
-          disabled={isFull || isBooked}
-          variant={isBooked ? "secondary" : isFull ? "outline" : "default"}
-          className="w-full"
-          size="sm"
-        >
-          {isBooked ? "Booked" : isFull ? "Join Waitlist" : "Book Class"}
-        </Button>
+        {bookingDisabled ? (
+          <div className="flex items-center gap-2">
+            <Button
+              disabled
+              variant="outline"
+              size="sm"
+              className="flex-1 opacity-50"
+            >
+              Book
+            </Button>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              Opens soon
+            </span>
+          </div>
+        ) : (
+          <Button
+            onClick={() => onBook(session)}
+            disabled={isFull || isBooked}
+            variant={isBooked ? "secondary" : isFull ? "outline" : "default"}
+            className="w-full"
+            size="sm"
+          >
+            {isBooked ? "Booked" : isFull ? "Join Waitlist" : "Book Class"}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
