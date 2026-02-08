@@ -1,53 +1,64 @@
 
 
-## Plan: Fix Final Notice Email Bug
+## Plan: Final Notice Email - Refined Copy
 
-### The Problem
+### Overview
+Update the `annual_fee_final_notice` email template with luxury tone, clear action requirement upfront, and grace period option via email response.
 
-I found the bug! In the email function, the `annual_fee_final_notice` email case is **missing a `break;` statement**. This is why you're getting the wrong email.
+---
 
-Here's what's happening:
-1. You trigger the "Final Notice" email
-2. The code builds the Final Notice email content correctly
-3. But then it **falls through** to the next case (`freeze_completed`) because there's no `break;`
-4. The freeze_completed case overwrites the subject and HTML with "Membership Reactivated" content
-5. That wrong email gets sent instead
+### Proposed Email Copy
 
-### The Fix
+**Subject:** Action Required by Sunday - Storm Wellness Club
 
-1. **Add the missing `break;` statement** after the `annual_fee_final_notice` case (line 1029)
-2. **Update the subject line** to simply say "Final Notice" if you prefer that
+---
 
-### Current Subject Line
+**Email Body:**
+
 ```
-⚠️ FINAL NOTICE: Complete Your Payment Today - Storm Wellness Club
-```
+[Storm Wellness Club Logo]
 
-### Suggested Subject Line Options
-- **Option A:** `Final Notice - Storm Wellness Club`
-- **Option B:** `⚠️ Final Notice: Complete Your Payment Today`
-- **Option C:** `FINAL NOTICE - Payment Required Today`
+YOUR MEMBERSHIP AWAITS
+Action Required
 
-### Technical Details
+Dear [First Name],
 
-**File to modify:** `supabase/functions/send-email/index.ts`
+We are thrilled to have you as part of our founding member community and cannot wait to welcome you to Storm Wellness Club.
 
-**Change:** Add `break;` after line 1029 (after the closing template literal and before `case 'freeze_completed':`)
+To confirm your place for our soft launch, we kindly ask that you complete your initiation fee payment by Sunday, February 8th at 5:00 PM.
 
-```typescript
-// Line ~1029 - currently missing break!
-          </div>
-        `;
-        break;  // ← ADD THIS LINE
+As we personalize each member's experience, we need to finalize our confirmed membership count to ensure we can deliver the exceptional service you deserve from day one. Unfortunately, we are unable to hold spots indefinitely for members who have not completed their enrollment.
 
-      case 'freeze_completed':
+If you need additional time, we are able to offer a seven-day grace period to complete your payment. Simply reply to this email to request an extension.
+
+                    [ Complete Payment ]
+
+We truly hope to see you at the club soon.
+
+Warmly,
+The Storm Wellness Club Team
 ```
 
-### After the Fix
+---
 
-Once deployed, when you send a Final Notice email:
-- Subject will be: "Final Notice - Storm Wellness Club" (or your preferred wording)
-- Body will show the red warning banner with "FINAL NOTICE - ACTION REQUIRED TODAY"
-- The PAY NOW button will be prominent in red
-- The grace period option will be included
+### Key Changes from Previous Version
+
+| Element | Previous Draft | This Version |
+|---------|---------------|--------------|
+| Header | Just "YOUR MEMBERSHIP AWAITS" | "YOUR MEMBERSHIP AWAITS" + "Action Required" subtitle |
+| Grace period | "If this timing does not work..." | "If you need additional time, we are able to offer a seven-day grace period... Simply reply to this email to request an extension." |
+| Contact method | Links to admin email | "Reply to this email" (simpler) |
+
+---
+
+### Technical Changes
+
+**File:** `supabase/functions/send-email/index.ts`
+
+Update the `annual_fee_final_notice` case with:
+- Subject: `Action Required by Sunday - Storm Wellness Club`
+- Gold header with "YOUR MEMBERSHIP AWAITS" and "Action Required" subtitle
+- Updated body copy with the refined text
+- Gold "Complete Payment" button
+- Warm sign-off
 
