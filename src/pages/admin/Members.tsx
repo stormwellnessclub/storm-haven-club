@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle, DollarSign, ShoppingBag, CheckCircle2, Send } from "lucide-react";
+import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle, DollarSign, ShoppingBag, CheckCircle2, Send, FileCheck } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,15 +116,19 @@ export default function Members() {
   // Activation email state
   const [isSendingActivationEmail, setIsSendingActivationEmail] = useState(false);
   const [isSendingBulkEmails, setIsSendingBulkEmails] = useState(false);
+  const [isSendingWaiverReminder, setIsSendingWaiverReminder] = useState(false);
+  const [isSendingBulkWaiverReminders, setIsSendingBulkWaiverReminders] = useState(false);
   
   const queryClient = useQueryClient();
   const { isSuperAdmin } = useUserRoles();
   const { data: billingIssues } = useMembersBillingIssues();
 
+  // Fetch members with their waiver status from profiles
   const { data: members = [], isLoading, error } = useQuery({
     queryKey: ["admin-members"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get all members
+      const { data: membersData, error: membersError } = await supabase
         .from("members")
         .select(`
           id,
@@ -154,8 +158,35 @@ export default function Members() {
         `)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (membersError) throw membersError;
+
+      // Get waiver status from profiles for members with user_id
+      const userIds = membersData.filter(m => m.user_id).map(m => m.user_id);
+      let profilesMap: Record<string, { waiver_signed: boolean; membership_agreement_signed: boolean }> = {};
+      
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, waiver_signed, membership_agreement_signed")
+          .in("id", userIds);
+        
+        if (profilesData) {
+          profilesMap = profilesData.reduce((acc, p) => {
+            acc[p.id] = { 
+              waiver_signed: p.waiver_signed || false, 
+              membership_agreement_signed: p.membership_agreement_signed || false 
+            };
+            return acc;
+          }, {} as Record<string, { waiver_signed: boolean; membership_agreement_signed: boolean }>);
+        }
+      }
+
+      // Merge waiver status into members
+      return membersData.map(m => ({
+        ...m,
+        waiver_signed: m.user_id ? profilesMap[m.user_id]?.waiver_signed || false : false,
+        membership_agreement_signed: m.user_id ? profilesMap[m.user_id]?.membership_agreement_signed || false : false,
+      }));
     },
   });
 
@@ -319,6 +350,79 @@ export default function Members() {
     setIsSendingBulkEmails(false);
   };
 
+  // Send waiver reminder email to single member
+  const sendWaiverReminderEmail = async (member: typeof members[0], e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIsSendingWaiverReminder(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "waiver_reminder",
+          to: member.email,
+          data: {
+            name: member.first_name,
+            email: member.email,
+          },
+        },
+      });
+      if (error) throw error;
+      toast.success(`Waiver reminder sent to ${member.first_name}`);
+    } catch (error) {
+      console.error("Error sending waiver reminder:", error);
+      toast.error("Failed to send waiver reminder");
+    } finally {
+      setIsSendingWaiverReminder(false);
+    }
+  };
+
+  // Get members who haven't signed waivers (active or pending_activation, with user_id linked)
+  const membersNeedingWaivers = members.filter(m => 
+    m.user_id && 
+    (m.status === "active" || m.status === "pending_activation") &&
+    (!m.waiver_signed || !m.membership_agreement_signed)
+  );
+
+  // Send bulk waiver reminder emails
+  const sendBulkWaiverReminderEmails = async () => {
+    if (membersNeedingWaivers.length === 0) {
+      toast.error("No members need waiver reminders");
+      return;
+    }
+    
+    setIsSendingBulkWaiverReminders(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const member of membersNeedingWaivers) {
+      try {
+        const { error } = await supabase.functions.invoke("send-email", {
+          body: {
+            type: "waiver_reminder",
+            to: member.email,
+            data: {
+              name: member.first_name,
+              email: member.email,
+            },
+          },
+        });
+        if (error) throw error;
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send waiver reminder to ${member.email}:`, error);
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Sent ${successCount} waiver reminder${successCount > 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to send ${failCount} reminder${failCount > 1 ? 's' : ''}`);
+    }
+    
+    setIsSendingBulkWaiverReminders(false);
+  };
+
   const handleViewProfile = (member: typeof members[0]) => {
     // Navigate to full member detail page
     navigate(`/admin/members/${member.id}`);
@@ -454,6 +558,23 @@ export default function Members() {
                 <Send className="h-4 w-4 mr-2" />
               )}
               Send Activation Emails ({pendingActivationMembers.length})
+            </Button>
+          )}
+
+          {/* Bulk waiver reminder button */}
+          {membersNeedingWaivers.length > 0 && (
+            <Button 
+              variant="outline" 
+              onClick={sendBulkWaiverReminderEmails}
+              disabled={isSendingBulkWaiverReminders}
+              className="text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950"
+            >
+              {isSendingBulkWaiverReminders ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileCheck className="h-4 w-4 mr-2" />
+              )}
+              Send Waiver Reminders ({membersNeedingWaivers.length})
             </Button>
           )}
         </div>
@@ -621,6 +742,19 @@ export default function Members() {
                               >
                                 <Send className="h-4 w-4 mr-2" />
                                 Send Phase 1 Setup Email
+                              </DropdownMenuItem>
+                            )}
+                            {/* Waiver reminder - show for members who haven't signed */}
+                            {member.user_id && (!member.waiver_signed || !member.membership_agreement_signed) && (
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sendWaiverReminderEmail(member, e as any);
+                                }}
+                                disabled={isSendingWaiverReminder}
+                              >
+                                <FileCheck className="h-4 w-4 mr-2" />
+                                Send Waiver Reminder
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem onClick={() => handleCheckIn(member)}>
