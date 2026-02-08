@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { format, addDays, addYears } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -13,13 +14,20 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar } from "@/components/ui/calendar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { 
-  Loader2, CreditCard, AlertTriangle, CheckCircle2, CalendarClock, Info 
+  Loader2, CreditCard, AlertTriangle, CheckCircle2, CalendarClock, Info, CalendarIcon 
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getAnnualFeeAmount, normalizeGender } from "@/lib/stripeProducts";
-import { addYears, format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface PaymentMethod {
   id: string;
@@ -72,13 +80,27 @@ export function CreateInitiationFeeSubscriptionDialog({
   const [createResult, setCreateResult] = useState<"success" | "error" | null>(null);
   const [originalPaymentMethod, setOriginalPaymentMethod] = useState<PaymentMethodOption>("stripe");
   const [note, setNote] = useState("");
+  const [originalPaymentDate, setOriginalPaymentDate] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Date constraints: -365 days (1 year back) to today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const minDate = addDays(today, -365);
+  const maxDate = today;
+
+  const isDateDisabled = (date: Date) => {
+    const dateToCheck = new Date(date);
+    dateToCheck.setHours(0, 0, 0, 0);
+    return dateToCheck < minDate || dateToCheck > maxDate;
+  };
 
   // Calculate amount based on gender
   const gender = normalizeGender(member.gender);
   const amount = getAnnualFeeAmount(gender);
 
-  // Calculate next billing date (1 year from now)
-  const nextBillingDate = addYears(new Date(), 1);
+  // Calculate next billing date (1 year from original payment date)
+  const nextBillingDate = addYears(originalPaymentDate, 1);
 
   // Get card info - prefer fetched payment method, fallback to member's cached card
   const cardBrand = paymentMethod?.brand || member.card_brand || null;
@@ -102,6 +124,7 @@ export function CreateInitiationFeeSubscriptionDialog({
           action: "admin_create_initiation_fee_subscription_no_charge",
           memberId: member.id,
           originalPaymentMethod,
+          originalPaymentDate: originalPaymentDate.toISOString(),
           note: note.trim() || null,
         },
       });
@@ -146,6 +169,7 @@ export function CreateInitiationFeeSubscriptionDialog({
     if (!isCreating) {
       setOriginalPaymentMethod("stripe");
       setNote("");
+      setOriginalPaymentDate(new Date());
       setCreateResult(null);
       onOpenChange(false);
     }
@@ -184,6 +208,40 @@ export function CreateInitiationFeeSubscriptionDialog({
           </div>
 
           <Separator />
+
+          {/* Original Payment Date Picker */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">When was the initiation fee originally paid?</Label>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(originalPaymentDate, "MMMM d, yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={originalPaymentDate}
+                  onSelect={(date) => {
+                    if (date) setOriginalPaymentDate(date);
+                    setCalendarOpen(false);
+                  }}
+                  disabled={isDateDisabled}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">
+              The renewal date will be 1 year from this date ({format(nextBillingDate, 'MMM d, yyyy')})
+            </p>
+          </div>
 
           {/* Payment Method Verification */}
           <div className="space-y-3">
@@ -265,8 +323,8 @@ export function CreateInitiationFeeSubscriptionDialog({
               <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
               <p className="text-sm text-blue-800 dark:text-blue-200">
                 <strong>The card will NOT be charged today.</strong> The first charge will occur 
-                on the annual renewal date (~1 year from now). This creates a recurring subscription 
-                for automatic yearly billing going forward.
+                on {format(nextBillingDate, 'MMM d, yyyy')} (1 year from original payment). This creates a recurring 
+                subscription for automatic yearly billing going forward.
               </p>
             </div>
           </div>

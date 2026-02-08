@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { format, addDays } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -10,10 +11,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, CreditCard, AlertTriangle, CheckCircle2, CalendarClock } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Loader2, CreditCard, AlertTriangle, CheckCircle2, CalendarClock, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getAnnualFeeAmount, normalizeGender } from "@/lib/stripeProducts";
+import { cn } from "@/lib/utils";
 
 interface PaymentMethod {
   id: string;
@@ -54,6 +63,22 @@ export function InitiationFeeChargeDialog({
 }: InitiationFeeChargeDialogProps) {
   const [isCharging, setIsCharging] = useState(false);
   const [chargeResult, setChargeResult] = useState<"success" | "error" | null>(null);
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Date constraints: -30 days to +90 days
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const minDate = addDays(today, -30);
+  const maxDate = addDays(today, 90);
+
+  const isDateDisabled = (date: Date) => {
+    const dateToCheck = new Date(date);
+    dateToCheck.setHours(0, 0, 0, 0);
+    return dateToCheck < minDate || dateToCheck > maxDate;
+  };
+
+  const isPastDate = startDate < today;
 
   // Calculate amount based on gender
   const gender = normalizeGender(member.gender);
@@ -75,6 +100,7 @@ export function InitiationFeeChargeDialog({
         body: {
           action: "admin_create_initiation_fee_subscription",
           memberId: member.id,
+          startDate: startDate.toISOString(),
         },
       });
 
@@ -142,6 +168,54 @@ export function InitiationFeeChargeDialog({
               </Badge>
             </div>
           </div>
+
+          <Separator />
+
+          {/* Start Date Picker */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Subscription Start Date</h4>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(startDate, "MMMM d, yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={(date) => {
+                    if (date) setStartDate(date);
+                    setCalendarOpen(false);
+                  }}
+                  disabled={isDateDisabled}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">
+              30 days back to 90 days forward
+            </p>
+          </div>
+
+          {/* Past Date Warning */}
+          {isPastDate && (
+            <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+                <strong>Past date selected.</strong> Subscription starts immediately, 
+                with {format(startDate, 'MMM d, yyyy')} recorded as the original start date.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <Separator />
 

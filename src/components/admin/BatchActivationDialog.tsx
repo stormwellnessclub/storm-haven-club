@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format, addDays, startOfDay, isBefore } from "date-fns";
-import { Calendar, Loader2, AlertCircle, CheckCircle, CreditCard, Users } from "lucide-react";
+import { Calendar, Loader2, AlertCircle, CheckCircle, CreditCard, Users, AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -77,7 +77,11 @@ export function BatchActivationDialog({
   const [chargeUnpaidFees, setChargeUnpaidFees] = useState(true);
 
   const today = startOfDay(new Date());
+  const minDate = addDays(today, -30); // Allow up to 30 days in the past
   const maxDate = addDays(today, 30); // Allow up to 30 days in the future
+  
+  // Check if selected date is in the past
+  const isPastDate = selectedDate ? startOfDay(selectedDate) < today : false;
 
   // Analyze applications
   const analysis = useMemo(() => {
@@ -122,7 +126,7 @@ export function BatchActivationDialog({
 
   const isDateDisabled = (date: Date) => {
     const dateStart = startOfDay(date);
-    return isBefore(dateStart, today) || dateStart > maxDate;
+    return isBefore(dateStart, minDate) || dateStart > maxDate;
   };
 
   const canProceed = selectedDate && (analysis.paidFee.length > 0 || (chargeUnpaidFees && analysis.unpaidWithCard.length > 0));
@@ -188,6 +192,17 @@ export function BatchActivationDialog({
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* Past Date Warning */}
+          {isPastDate && (
+            <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+                <strong>Past date selected.</strong> Memberships will be backdated to {selectedDate && format(selectedDate, 'MMM d, yyyy')}. 
+                Subscription billing will be calculated from this date.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Charge option */}
           {analysis.unpaidWithCard.length > 0 && (
