@@ -1,241 +1,190 @@
 
 
-## Plan: Kids Care Soft Launch Mode with Interest Waitlist
+## Plan: Flexible Date Selection for Activation & Initiation Fee
 
-### Overview
-Update the Kids Care page for soft launch mode with:
-1. Correct future hours (Mon-Thu: 8am-8pm, Fri-Sun: 8am-5pm)
-2. Soft launch banner with disabled booking
-3. Interest waitlist for gauging demand
-4. Two-room structure with correct capacities
+### Problem Summary
+Currently, you cannot:
+1. Pick a past date (like Feb 6th) when activating members - dates are restricted to today and future only
+2. Pick a specific date when charging/creating initiation fee subscriptions - it always uses today's date
+3. Specify a custom billing anchor date for initiation fees
 
----
+### Solution Overview
 
-### Updated Hours Configuration
-
-| Days | Regular Hours |
-|------|--------------|
-| Monday - Thursday | 8:00 AM - 8:00 PM |
-| Friday - Sunday | 8:00 AM - 5:00 PM |
-
-**Note:** For soft launch, actual hours will be shared later. We'll display a "Soft launch hours will be shared soon" message.
+Add flexible date pickers to all relevant dialogs, allowing:
+- **Past dates** (up to 30 days back) for backdating
+- **Future dates** (up to 90 days out)
+- Clear warnings when selecting past dates about billing implications
 
 ---
 
-### Two-Room Structure
+### Components to Update
 
-| Room | Age Groups | Capacity |
-|------|-----------|----------|
-| **Little Stars Room** | Infants (3mo - 1yr) + Toddlers (1-3 yrs) | 8 kids |
-| **Big Stars Room** | Preschool (3-5 yrs) + School Age (5-10 yrs) | 6 kids |
+| Component | Current Behavior | New Behavior |
+|-----------|-----------------|--------------|
+| `SingleActivationDialog.tsx` | Today → 30/90 days only | -30 days → +90 days |
+| `InitiationFeeChargeDialog.tsx` | No date picker, charges immediately | Add date picker, allow backdated subscriptions |
+| `CreateInitiationFeeSubscriptionDialog.tsx` | First charge = 1 year from today | Add date picker for custom billing anchor |
+| `BatchActivationDialog.tsx` | Today → 30 days | -30 days → +30 days |
 
 ---
 
-### Database Changes
+### Detailed Changes
 
-**New Table: `kids_care_interest_waitlist`**
+#### 1. SingleActivationDialog.tsx
 
-Track potential demand for Kids Care before soft launch:
+**Current code (line 80-82):**
+```typescript
+const isDateDisabled = (date: Date) => {
+  return date < today || date > maxDate;
+};
+```
 
-```sql
-CREATE TABLE kids_care_interest_waitlist (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id),
-  email TEXT NOT NULL,
-  first_name TEXT,
-  last_name TEXT,
-  phone TEXT,
-  children_count INTEGER DEFAULT 1,
-  children_ages TEXT, -- e.g., "2, 4" or "infant, toddler"
-  notes TEXT,
-  status TEXT DEFAULT 'waiting', -- waiting, contacted, converted
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+**Updated code:**
+```typescript
+const minDate = addDays(today, -30); // Allow 30 days back
+const isDateDisabled = (date: Date) => {
+  return date < minDate || date > maxDate;
+};
+```
+
+**Add warning alert when past date selected:**
+```typescript
+{startDate && startDate < today && (
+  <Alert className="bg-amber-50 border-amber-200">
+    <AlertTriangle className="h-4 w-4 text-amber-600" />
+    <AlertDescription>
+      <strong>Past date selected.</strong> Membership will be backdated to {format(startDate, 'MMM d')}. 
+      Subscription billing will be calculated from this date.
+    </AlertDescription>
+  </Alert>
+)}
 ```
 
 ---
 
-### UI Changes
+#### 2. InitiationFeeChargeDialog.tsx
 
-#### 1. KidsCare.tsx - Public Page
-
-**Changes:**
-- Add `isSoftLaunch = true` flag (mirrors Schedule.tsx pattern)
-- Add soft launch banner at top
-- Update hours display to show future regular hours with soft launch note
-- Update age groups to show two-room structure
-- Disable booking button (grayed out, "Booking opens soon")
-- Replace booking section with "Join Interest Waitlist" form
-
-**Soft Launch Banner:**
-```text
-┌────────────────────────────────────────────────┐
-│ 🌙 Coming Soon                                 │
-│ Kids Care booking will open soon. Soft launch │
-│ hours will be shared this week.               │
-│                                                │
-│ [ Join Interest Waitlist ]                     │
-└────────────────────────────────────────────────┘
-```
-
-**Interest Waitlist Form Fields:**
-- First Name
-- Last Name  
-- Email
-- Phone (optional)
-- Number of children
-- Children's ages (text field: "2, 4, 6")
-- Any notes (optional)
-
-#### 2. Hours Section Update
-
-Display future regular hours but with soft launch note:
-
-```text
-Hours of Operation
-──────────────────────────────────────
-Monday - Thursday    8:00 AM - 8:00 PM
-Friday - Sunday      8:00 AM - 5:00 PM
-──────────────────────────────────────
-* Soft launch hours may vary. Check back for updates.
-```
-
-#### 3. Age Groups / Rooms Section
-
-Update to show two-room layout:
-
-```text
-Our Two Rooms
-──────────────────────────────────────
-🍼 Little Stars Room
-   Infants (3 months - 1 year)
-   Toddlers (1 - 3 years)
-   Capacity: 8 children
-   
-🌟 Big Stars Room
-   Preschool (3 - 5 years)
-   School Age (5 - 10 years)
-   Capacity: 6 children
-```
-
-#### 4. Booking Section → Interest Waitlist
-
-When `isSoftLaunch = true`:
-- Hide "Book Kids Care Session" button
-- Show interest waitlist form
-- Add note: "Each Kids Care Pass covers one child only"
-
----
-
-### Files to Create/Modify
-
-| File | Changes |
-|------|---------|
-| `src/pages/KidsCare.tsx` | Add soft launch mode, update hours, rooms, add interest form |
-| `src/hooks/useKidsCareInterest.ts` | New hook for interest waitlist submission |
-| `src/pages/admin/Childcare.tsx` | Add tab to view interest waitlist entries |
-| **Database** | Create `kids_care_interest_waitlist` table |
-
----
-
-### Technical Implementation
-
-#### KidsCare.tsx Key Changes
+**Add date picker for subscription start:**
 
 ```typescript
-// Soft launch mode
-const isSoftLaunch = true;
+// New state
+const [startDate, setStartDate] = useState<Date>(new Date());
+const [calendarOpen, setCalendarOpen] = useState(false);
 
-// Updated hours for display
-const hours = [
-  { day: "Monday - Thursday", time: "8:00 AM - 8:00 PM" },
-  { day: "Friday - Sunday", time: "8:00 AM - 5:00 PM" },
-];
-
-// Two-room structure
-const rooms = [
-  {
-    name: "Little Stars Room",
-    icon: "🍼",
-    ageGroups: [
-      { name: "Infants", range: "3 months - 1 year" },
-      { name: "Toddlers", range: "1 - 3 years" },
-    ],
-    capacity: 8,
-  },
-  {
-    name: "Big Stars Room", 
-    icon: "🌟",
-    ageGroups: [
-      { name: "Preschool", range: "3 - 5 years" },
-      { name: "School Age", range: "5 - 10 years" },
-    ],
-    capacity: 6,
-  },
-];
+// Date range: -30 days to +90 days
+const today = new Date();
+const minDate = addDays(today, -30);
+const maxDate = addDays(today, 90);
 ```
 
-#### Interest Waitlist Hook
+**Update subscription creation to use selected date:**
+- If date is past: Start subscription immediately, record `original_start_date` in metadata
+- If date is today: Normal behavior
+- If date is future: Use `billing_cycle_anchor` to start on that date
+
+**UI addition:**
+```text
+┌────────────────────────────────────────────┐
+│ Subscription Start Date                    │
+│ [📅 February 6, 2026        ▼]            │
+│                                            │
+│ ⚠️ Past date - subscription backdated     │
+└────────────────────────────────────────────┘
+```
+
+---
+
+#### 3. CreateInitiationFeeSubscriptionDialog.tsx
+
+**Add date picker for "original payment date":**
+
+This dialog is for members who already paid. Currently it just sets billing anchor to 1 year from today. With a date picker:
+- Admin can specify the actual date the initiation fee was originally paid
+- Billing anchor is set to 1 year from that date (not from today)
+
+**Example:** If member paid on Feb 6, 2026, the renewal will be Feb 6, 2027.
 
 ```typescript
-// useKidsCareInterest.ts
-export function useJoinKidsCareInterest() {
-  return useMutation({
-    mutationFn: async (data: {
-      email: string;
-      firstName?: string;
-      lastName?: string;
-      phone?: string;
-      childrenCount: number;
-      childrenAges: string;
-      notes?: string;
-    }) => {
-      const { data: result, error } = await supabase
-        .from("kids_care_interest_waitlist")
-        .insert({
-          user_id: user?.id || null,
-          email: data.email,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          phone: data.phone,
-          children_count: data.childrenCount,
-          children_ages: data.childrenAges,
-          notes: data.notes,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return result;
+// New state
+const [originalPaymentDate, setOriginalPaymentDate] = useState<Date>(new Date());
+
+// Calculate next billing from original payment date
+const nextBillingDate = addYears(originalPaymentDate, 1);
+```
+
+---
+
+#### 4. BatchActivationDialog.tsx
+
+Apply the same -30 days flexibility for batch activations.
+
+---
+
+### Edge Function Updates
+
+**stripe-payment/index.ts - `admin_create_initiation_fee_subscription`:**
+
+Accept new `startDate` parameter:
+- If past date: Create subscription immediately, store `original_start_date` in metadata
+- If future date: Use `billing_cycle_anchor`
+
+```typescript
+const { memberId, startDate } = body;
+
+// Parse start date
+const subscriptionStart = startDate ? new Date(startDate) : new Date();
+const now = new Date();
+
+// If start date is in the past, subscription starts now but we record the backdated date
+if (subscriptionStart < now) {
+  // Create immediately, no anchor
+  const subscription = await stripe.subscriptions.create({
+    customer: customerId,
+    items: [{ price: priceId }],
+    metadata: {
+      original_start_date: subscriptionStart.toISOString(),
+      backdated: 'true',
     },
-    onSuccess: () => {
-      toast.success("You've been added to our interest list!");
-    },
+  });
+} else if (subscriptionStart > now) {
+  // Future date - use billing anchor
+  const subscription = await stripe.subscriptions.create({
+    customer: customerId,
+    items: [{ price: priceId }],
+    billing_cycle_anchor: Math.floor(subscriptionStart.getTime() / 1000),
   });
 }
 ```
 
 ---
 
-### Admin View
+### Post-Activation Editing
 
-Add a new section in `/admin/childcare` to view interest waitlist:
+Already available at:
+**Admin → Members → [Member] → Contract Tab**
 
-```text
-Interest Waitlist (12 families)
-─────────────────────────────────────────────
-Name          Email              Children  Signed Up
-Sarah M.      sarah@...          2 (ages   Feb 7
-                                 2, 4)
-John D.       john@...           1 (age 6) Feb 6
-...
-```
+The Start Date field is editable - changes save directly to the database. No additional changes needed here.
 
 ---
 
-### Policy Note Addition
+### Files to Modify
 
-Add to policies section:
-- "Each Kids Care Pass is valid for one child only. Separate passes required for multiple children."
+| File | Changes |
+|------|---------|
+| `src/components/admin/SingleActivationDialog.tsx` | Allow -30 days, add backdating warning |
+| `src/components/admin/BatchActivationDialog.tsx` | Allow -30 days, add backdating warning |
+| `src/components/admin/InitiationFeeChargeDialog.tsx` | Add date picker, pass date to edge function |
+| `src/components/admin/CreateInitiationFeeSubscriptionDialog.tsx` | Add original payment date picker |
+| `supabase/functions/stripe-payment/index.ts` | Handle startDate parameter in initiation fee actions |
+
+---
+
+### Summary
+
+After implementation, you'll be able to:
+
+1. **Membership Activation**: Pick any date from -30 days to +90 days, with clear warnings for past dates
+2. **Initiation Fee Charge**: Pick the billing start date (same range), with backdating support
+3. **Initiation Fee Subscription (no charge)**: Specify when the original payment was made, so renewal aligns correctly
+4. **Edit after activation**: Already works in the Contract tab
 
