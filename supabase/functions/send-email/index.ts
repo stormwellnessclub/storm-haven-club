@@ -975,53 +975,56 @@ serve(async (req) => {
         break;
 
       case 'annual_fee_final_notice':
-        subject = 'Final Notice - Storm Wellness Club';
-        const finalFeeAmount = data.amount || 300;
+        subject = 'Action Required by Sunday - Storm Wellness Club';
         html = `
           <div style="${emailStyles.container}">
-            <!-- RED Warning Banner -->
-            <div style="background-color: #DC2626; padding: 20px; text-align: center; border-radius: 12px 12px 0 0;">
-              <p style="color: white; font-weight: bold; font-size: 20px; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">
-                ⚠️ FINAL NOTICE - ACTION REQUIRED TODAY
+            ${getEmailHeader()}
+            
+            <!-- YOUR MEMBERSHIP AWAITS Header -->
+            <div style="background: #DEDACE; padding: 30px 20px; text-align: center; border-bottom: 3px solid #B8A068;">
+              <h1 style="color: #1C170F; font-size: 28px; font-weight: 500; margin: 0 0 8px 0; font-family: Georgia, 'Times New Roman', Times, serif; letter-spacing: 2px;">
+                YOUR MEMBERSHIP AWAITS
+              </h1>
+              <p style="color: #6C5D3E; font-size: 14px; font-weight: 600; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif; letter-spacing: 1px;">
+                Action Required
               </p>
             </div>
-            
-            ${getEmailHeader()}
             
             <div style="${emailStyles.content}; font-family: Georgia, 'Times New Roman', Times, serif;">
               <h2 style="${emailStyles.heading}; font-family: Georgia, 'Times New Roman', Times, serif;">Dear ${data.name},</h2>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
-                <strong>Your initiation fee payment of $${finalFeeAmount} must be completed TODAY.</strong>
+                We are thrilled to have you as part of our founding member community and cannot wait to welcome you to Storm Wellness Club.
               </p>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
-                This is your final notice. If payment is not received by end of day, your membership approval will expire and you will need to resubmit your application.
+                To confirm your place for our soft launch, we kindly ask that you complete your initiation fee payment by <strong>Sunday, February 8th at 5:00 PM</strong>.
               </p>
               
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                As we personalize each member's experience, we need to finalize our confirmed membership count to ensure we can deliver the exceptional service you deserve from day one. Unfortunately, we are unable to hold spots indefinitely for members who have not completed their enrollment.
+              </p>
+              
+              <!-- Grace Period Option -->
+              <div style="background: #F0DFC4; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; color: #1C170F; font-size: 15px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  If you need additional time, we are able to offer a seven-day grace period to complete your payment. Simply reply to this email to request an extension.
+                </p>
+              </div>
+              
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${data.paymentUrl}" style="background-color: #DC2626; color: white; padding: 16px 40px; text-decoration: none; font-weight: bold; border-radius: 8px; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 18px; display: inline-block;">
-                  PAY NOW - $${finalFeeAmount}
+                <a href="${data.paymentUrl}" style="display: inline-block; background: #B8A068; color: #1C170F; padding: 16px 40px; text-decoration: none; font-weight: 600; border-radius: 4px; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px; letter-spacing: 0.5px;">
+                  Complete Payment
                 </a>
               </div>
               
-              <!-- Grace Period Option -->
-              <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; border-radius: 8px; padding: 20px; margin: 25px 0;">
-                <p style="margin: 0; font-weight: 600; color: #92400e; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
-                  Need more time?
-                </p>
-                <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
-                  Contact us immediately at <a href="mailto:admin@stormwellnessclub.com" style="color: #92400e;">admin@stormwellnessclub.com</a> to request a one-week grace period. Extensions are granted on a case-by-case basis.
-                </p>
-              </div>
-              
-              <p style="font-size: 14px; color: #6b7280; margin-top: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
-                If you have already completed payment, please disregard this notice.
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                We truly hope to see you at the club soon.
               </p>
               
-              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Regards,</p>
-                <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Storm Wellness Club</p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-style: italic; color: #6C5D3E; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Warmly,</p>
+                <p style="font-weight: 600; color: #1C170F; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">The Storm Wellness Club Team</p>
               </div>
             </div>
             ${getReceiptFooter()}
