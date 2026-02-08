@@ -577,7 +577,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   };
 
   // Create membership subscription handler
-  const handleCreateSubscription = async (startDate: Date) => {
+  const handleCreateSubscription = async (startDate: Date, chargeImmediately: boolean) => {
     if (!member || !member.stripe_customer_id) return;
     
     setIsCreatingSubscription(true);
@@ -599,6 +599,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           billingType,
           isFoundingMember: member.is_founding_member || false,
           startDate: startDate.toISOString(),
+          chargeImmediately, // NEW: Pass the charge timing preference
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -608,7 +609,11 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Membership subscription created successfully!");
+      const chargedNow = chargeImmediately && new Date(startDate) > new Date();
+      toast.success(chargedNow 
+        ? "Card charged! Membership subscription created successfully." 
+        : "Membership subscription created successfully!"
+      );
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
     } catch (error) {
       console.error("Error creating subscription:", error);
