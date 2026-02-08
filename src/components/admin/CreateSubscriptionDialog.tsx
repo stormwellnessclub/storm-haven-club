@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { format } from "date-fns";
+import React, { useEffect, useMemo, useState } from "react";
+import { addDays, format, startOfDay } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,6 +12,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { AlertTriangle, CreditCard, Calendar, DollarSign, ExternalLink, Loader2 } from "lucide-react";
 
 interface Member {
@@ -32,7 +36,7 @@ interface CreateSubscriptionDialogProps {
   onOpenChange: (open: boolean) => void;
   member: Member;
   isLoading: boolean;
-  onConfirm: () => void;
+  onConfirm: (startDate: Date) => void;
 }
 
 // Pricing data (matching membershipPricing.ts)
@@ -74,6 +78,29 @@ export function CreateSubscriptionDialog({
   isLoading,
   onConfirm,
 }: CreateSubscriptionDialogProps) {
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const base = member.membership_start_date ? new Date(member.membership_start_date) : new Date();
+    return startOfDay(base);
+  });
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const base = member.membership_start_date ? new Date(member.membership_start_date) : new Date();
+    setStartDate(startOfDay(base));
+  }, [open, member.membership_start_date]);
+
+  const today = startOfDay(new Date());
+  const minDate = addDays(today, -30);
+  const maxDate = addDays(today, 90);
+
+  const isDateDisabled = (date: Date) => {
+    const d = startOfDay(new Date(date));
+    return d < minDate || d > maxDate;
+  };
+
+  const isPastDate = startOfDay(startDate) < today;
+
   const subscriptionPreview = useMemo(() => {
     const tier = normalizeTier(member.membership_type);
     const gender = member.gender?.toLowerCase() === "male" ? "men" : "women";
@@ -91,12 +118,10 @@ export function CreateSubscriptionDialog({
         member.card_brand && member.card_last4
           ? `${member.card_brand} •••• ${member.card_last4}`
           : "No card on file",
-      startDate: member.membership_start_date
-        ? format(new Date(member.membership_start_date), "MMM d, yyyy")
-        : format(new Date(), "MMM d, yyyy"),
+      startDate: format(startDate, "MMM d, yyyy"),
       hasCard: !!(member.card_brand && member.card_last4),
     };
-  }, [member]);
+  }, [member, startDate]);
 
   const formatCredits = () => {
     const parts = [];
@@ -163,15 +188,47 @@ export function CreateSubscriptionDialog({
                       <Calendar className="h-3 w-3" />
                       Start Date:
                     </div>
-                    <div className="font-medium">{subscriptionPreview.startDate}</div>
+                    <div className="font-medium">
+                      <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={cn("h-8 w-full justify-start px-2 text-left font-medium")}
+                          >
+                            {subscriptionPreview.startDate}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarPicker
+                            mode="single"
+                            selected={startDate}
+                            onSelect={(date) => {
+                              if (date) setStartDate(date);
+                              setCalendarOpen(false);
+                            }}
+                            disabled={isDateDisabled}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <p className="mt-1 text-xs text-muted-foreground">30 days back to 90 days forward</p>
+                    </div>
 
                     <div className="text-muted-foreground">Credits:</div>
                     <div className="font-medium">{formatCredits()}</div>
                   </div>
                 </CardContent>
-              </Card>
+               </Card>
 
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 space-y-2">
+               {isPastDate && (
+                 <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                   <span className="font-medium text-foreground">Past date selected.</span> The subscription will start immediately, and this date will be saved as the original start date.
+                 </div>
+               )}
+
+               <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 space-y-2">
                 <div className="text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
                   Important
@@ -191,7 +248,7 @@ export function CreateSubscriptionDialog({
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
-              onConfirm();
+              onConfirm(startDate);
             }}
             disabled={isLoading || !subscriptionPreview.hasCard}
           >
