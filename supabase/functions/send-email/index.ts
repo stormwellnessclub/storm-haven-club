@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email';
   to: string;
   data: Record<string, any>;
 }
@@ -1347,6 +1347,70 @@ serve(async (req) => {
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
                 <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'waiver_reminder':
+        subject = 'Action Required: Sign Your Waivers - Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}; font-family: Georgia, 'Times New Roman', Times, serif;">
+              <h2 style="${emailStyles.heading}; font-family: Georgia, 'Times New Roman', Times, serif;">Hi ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                We noticed you haven't signed your required waivers yet. Before you can use certain services at Storm Wellness Club, we need these documents on file.
+              </p>
+              
+              <div style="${emailStyles.warningBox}">
+                <p style="margin: 0 0 10px 0; font-weight: 600; color: #1C170F; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  📋 What You Need to Sign:
+                </p>
+                <ul style="margin: 0; padding-left: 20px; color: #374151; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  <li style="margin-bottom: 8px;"><strong>Liability Waiver</strong> — Required for all members</li>
+                  <li style="margin-bottom: 8px;"><strong>Membership Agreement</strong> — Required for all members</li>
+                </ul>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                <strong>Optional waivers</strong> are also available for specific services you may want to use:
+              </p>
+              
+              <ul style="color: #6b7280; font-size: 14px; margin: 0 0 20px 0; padding-left: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                <li style="margin-bottom: 6px;">Kids Care Agreement — For childcare services</li>
+                <li style="margin-bottom: 6px;">Guest Pass Agreement — To bring guests</li>
+                <li style="margin-bottom: 6px;">Class Pass Agreement — For class packages</li>
+                <li style="margin-bottom: 6px;">Spa & Wellness Agreement — For spa treatments</li>
+              </ul>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/waivers" style="${emailStyles.button}; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
+                  Sign Waivers Now
+                </a>
+              </div>
+              
+              <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: 600; color: #374151; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  📍 How to Sign:
+                </p>
+                <ol style="margin: 10px 0 0 0; padding-left: 20px; color: #6b7280; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                  <li style="margin-bottom: 6px;">Log into your member portal</li>
+                  <li style="margin-bottom: 6px;">Click on <strong>Waivers</strong> in the sidebar</li>
+                  <li style="margin-bottom: 6px;">Review and sign each required document</li>
+                </ol>
+              </div>
+              
+              <p style="font-size: 14px; color: #6b7280; margin-top: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
+                If you've already signed your waivers, you can disregard this email.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px; font-family: Georgia, 'Times New Roman', Times, serif;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0; font-family: Georgia, 'Times New Roman', Times, serif;">Storm Wellness Club</p>
               </div>
             </div>
             ${getEmailFooter()}

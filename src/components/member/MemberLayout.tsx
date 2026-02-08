@@ -3,6 +3,7 @@ import { MemberSidebar } from "./MemberSidebar";
 import { AnnualFeeNotice } from "./AnnualFeeNotice";
 import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
+import { WaiverReminderNotice } from "./WaiverReminderNotice";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,9 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         
         {/* Annual fee renewal notice (only for members who have paid initially but need to renew) */}
         {!isPendingActivation && isInitiationFeePaid && <AnnualFeeNotice />}
+        
+        {/* Waiver reminder notice for members who haven't signed required waivers */}
+        <WaiverReminderNotice />
         
         <div className="flex flex-1 flex-col md:flex-row">
           <MemberSidebar />
