@@ -117,11 +117,13 @@ function PaymentMethodsSection({
   member, 
   onShowChargeDialog, 
   setShowCancelAnnualFeeDialog,
+  setShowClearInitiationFeeDialog,
   getStripeSubscriptionLink 
 }: { 
   member: Member; 
   onShowChargeDialog: () => void;
   setShowCancelAnnualFeeDialog: (show: boolean) => void;
+  setShowClearInitiationFeeDialog: (show: boolean) => void;
   getStripeSubscriptionLink: (id: string) => string;
 }) {
   const { data: stripePaymentMethods, isLoading: isLoadingPMs } = useAdminMemberPaymentMethods(member.id);
@@ -233,16 +235,25 @@ function PaymentMethodsSection({
                 Last Paid: {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
               </p>
             )}
-            <AdminActionButton
-              label="Cancel Annual Fee"
-              icon={<XCircle className="h-4 w-4 mr-2" />}
-              variant="outline"
-              tooltip={ADMIN_ACTION_TOOLTIPS.cancelAnnualFee}
-              onClick={() => setShowCancelAnnualFeeDialog(true)}
-            />
+            <div className="flex gap-2">
+              <AdminActionButton
+                label="Cancel Subscription"
+                icon={<XCircle className="h-4 w-4 mr-2" />}
+                variant="outline"
+                tooltip={ADMIN_ACTION_TOOLTIPS.cancelAnnualFee}
+                onClick={() => setShowCancelAnnualFeeDialog(true)}
+              />
+              <AdminActionButton
+                label="Clear Fee Status"
+                icon={<Trash2 className="h-4 w-4 mr-2" />}
+                variant="destructive"
+                tooltip="Clear the initiation fee payment status if it was incorrectly marked as paid. This does NOT issue a refund."
+                onClick={() => setShowClearInitiationFeeDialog(true)}
+              />
+            </div>
           </div>
         ) : member.annual_fee_paid_at ? (
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10">
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-primary">Paid (One-time)</span>
@@ -250,6 +261,13 @@ function PaymentMethodsSection({
             <p className="text-xs text-muted-foreground">
               Paid on: {format(new Date(member.annual_fee_paid_at), "MMM d, yyyy")}
             </p>
+            <AdminActionButton
+              label="Clear Fee Status"
+              icon={<Trash2 className="h-4 w-4 mr-2" />}
+              variant="destructive"
+              tooltip="Clear the initiation fee payment status if it was incorrectly marked as paid. This does NOT issue a refund."
+              onClick={() => setShowClearInitiationFeeDialog(true)}
+            />
           </div>
         ) : (
           <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10">
@@ -307,6 +325,10 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   // Annual fee subscription cancel state
   const [showCancelAnnualFeeDialog, setShowCancelAnnualFeeDialog] = useState(false);
   const [isCancelingAnnualFee, setIsCancelingAnnualFee] = useState(false);
+  
+  // Clear initiation fee state (for incorrect accounting)
+  const [showClearInitiationFeeDialog, setShowClearInitiationFeeDialog] = useState(false);
+  const [isClearingInitiationFee, setIsClearingInitiationFee] = useState(false);
   
   // Create subscription state
   const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
@@ -573,6 +595,35 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
       toast.error(error instanceof Error ? error.message : "Failed to cancel subscription");
     } finally {
       setIsCancelingAnnualFee(false);
+    }
+  };
+
+  // Clear initiation fee status handler (for incorrect accounting)
+  const handleClearInitiationFee = async () => {
+    if (!member) return;
+    
+    setIsClearingInitiationFee(true);
+    try {
+      // Update the member record to clear the fee status
+      const { error } = await supabase
+        .from("members")
+        .update({ 
+          annual_fee_paid_at: null,
+          annual_fee_subscription_id: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      toast.success("Initiation fee status cleared. Member will need to pay the fee.");
+      setShowClearInitiationFeeDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    } catch (error) {
+      console.error("Error clearing initiation fee:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to clear initiation fee status");
+    } finally {
+      setIsClearingInitiationFee(false);
     }
   };
 
@@ -990,7 +1041,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   Payment Information
                 </p>
                 {member.stripe_customer_id ? (
-                  <PaymentMethodsSection member={member} onShowChargeDialog={() => setShowChargeDialog(true)} setShowCancelAnnualFeeDialog={setShowCancelAnnualFeeDialog} getStripeSubscriptionLink={getStripeSubscriptionLink} />
+                  <PaymentMethodsSection member={member} onShowChargeDialog={() => setShowChargeDialog(true)} setShowCancelAnnualFeeDialog={setShowCancelAnnualFeeDialog} setShowClearInitiationFeeDialog={setShowClearInitiationFeeDialog} getStripeSubscriptionLink={getStripeSubscriptionLink} />
                 ) : (
                   <p className="text-sm text-muted-foreground">No payment method on file</p>
                 )}
@@ -1532,6 +1583,39 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
             >
               {isCancelingAnnualFee && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Confirm Cancellation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Clear Initiation Fee Status Dialog */}
+      <AlertDialog open={showClearInitiationFeeDialog} onOpenChange={setShowClearInitiationFeeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Clear Initiation Fee Status?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear the initiation fee payment status for <strong>{member.first_name} {member.last_name}</strong>.
+              <br /><br />
+              <strong className="text-destructive">Warning:</strong> Use this only if the member was incorrectly marked as paid 
+              (e.g., payment failed but status wasn't updated, or data entry error).
+              <br /><br />
+              After clearing:
+              <ul className="list-disc ml-5 mt-2 space-y-1">
+                <li>The member will be required to pay the initiation fee</li>
+                <li>Their benefits will be frozen until payment is received</li>
+                <li>This does NOT issue a refund - handle refunds separately in Stripe</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isClearingInitiationFee}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearInitiationFee}
+              disabled={isClearingInitiationFee}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isClearingInitiationFee && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Clear Fee Status
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
