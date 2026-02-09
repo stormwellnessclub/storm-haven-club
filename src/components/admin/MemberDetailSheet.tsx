@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { StripeProvider } from "@/components/StripeProvider";
 import { AdminAddCardForm } from "./AdminAddCardForm";
 import { CreateSubscriptionDialog } from "./CreateSubscriptionDialog";
+import { ChargeItemSelector } from "./ChargeItemSelector";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "./AdminActionButton";
 import {
   Sheet,
@@ -348,6 +349,11 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
     phone: "",
     membership_type: "",
     status: "",
+    gender: "",
+    billing_type: "",
+    membership_start_date: "",
+    activated_at: "",
+    is_founding_member: false,
   });
 
   const startEditing = () => {
@@ -359,6 +365,11 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
         phone: member.phone || "",
         membership_type: member.membership_type,
         status: member.status,
+        gender: member.gender || "",
+        billing_type: member.billing_type || "monthly",
+        membership_start_date: member.membership_start_date || "",
+        activated_at: (member as any).activated_at || "",
+        is_founding_member: member.is_founding_member || false,
       });
       setIsEditing(true);
     }
@@ -382,6 +393,11 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           phone: editForm.phone || null,
           membership_type: editForm.membership_type,
           status: editForm.status,
+          gender: editForm.gender || null,
+          billing_type: editForm.billing_type || null,
+          membership_start_date: editForm.membership_start_date || null,
+          activated_at: editForm.activated_at || null,
+          is_founding_member: editForm.is_founding_member,
         })
         .eq("id", member.id);
 
@@ -785,40 +801,81 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                       onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="membership_type">Membership Type</Label>
-                    <Select
-                      value={editForm.membership_type}
-                      onValueChange={(value) => setEditForm({ ...editForm, membership_type: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Silver">Silver</SelectItem>
-                        <SelectItem value="Gold">Gold</SelectItem>
-                        <SelectItem value="Platinum">Platinum</SelectItem>
-                        <SelectItem value="Diamond">Diamond</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Gender</Label>
+                      <Select value={editForm.gender} onValueChange={(v) => setEditForm({ ...editForm, gender: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="male">Male</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Billing Type</Label>
+                      <Select value={editForm.billing_type} onValueChange={(v) => setEditForm({ ...editForm, billing_type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="annual">Annual</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select
-                      value={editForm.status}
-                      onValueChange={(value) => setEditForm({ ...editForm, status: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="pending_activation">Pending Activation</SelectItem>
-                        <SelectItem value="frozen">Frozen</SelectItem>
-                        <SelectItem value="suspended">Suspended</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Membership Type</Label>
+                      <Select
+                        value={editForm.membership_type}
+                        onValueChange={(value) => setEditForm({ ...editForm, membership_type: value })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Silver">Silver</SelectItem>
+                          <SelectItem value="Gold">Gold</SelectItem>
+                          <SelectItem value="Platinum">Platinum</SelectItem>
+                          <SelectItem value="Diamond">Diamond</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select
+                        value={editForm.status}
+                        onValueChange={(value) => setEditForm({ ...editForm, status: value })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="pending_activation">Pending Activation</SelectItem>
+                          <SelectItem value="frozen">Frozen</SelectItem>
+                          <SelectItem value="suspended">Suspended</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Start Date</Label>
+                      <Input type="date" value={editForm.membership_start_date?.split('T')[0] || ''} onChange={(e) => setEditForm({ ...editForm, membership_start_date: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Activated At</Label>
+                      <Input type="date" value={editForm.activated_at?.split('T')[0] || ''} onChange={(e) => setEditForm({ ...editForm, activated_at: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="sheet_edit_founding"
+                      checked={editForm.is_founding_member}
+                      onChange={(e) => setEditForm({ ...editForm, is_founding_member: e.target.checked })}
+                      className="rounded"
+                    />
+                    <Label htmlFor="sheet_edit_founding">Founding Member</Label>
                   </div>
                   <div className="flex gap-2 pt-4">
                     <Button onClick={saveChanges} disabled={isSaving}>
@@ -1578,53 +1635,14 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
 
       {/* Activation AlertDialog moved to Members.tsx to fix z-index issues with Sheet */}
 
-      <Dialog open={showChargeDialog} onOpenChange={setShowChargeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Charge Saved Card</DialogTitle>
-            <DialogDescription>
-              Charge {member.first_name} {member.last_name}'s saved payment method for an off-cycle purchase (café, late fees, etc.)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="chargeAmount">Amount (USD)</Label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="chargeAmount"
-                  type="number"
-                  step="0.01"
-                  min="0.50"
-                  placeholder="0.00"
-                  value={chargeAmount}
-                  onChange={(e) => setChargeAmount(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="chargeDescription">Description</Label>
-              <Textarea
-                id="chargeDescription"
-                placeholder="e.g., Café purchase, Late cancellation fee, Guest pass"
-                value={chargeDescription}
-                onChange={(e) => setChargeDescription(e.target.value)}
-                rows={2}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowChargeDialog(false)} disabled={isCharging}>
-              Cancel
-            </Button>
-            <Button onClick={handleChargeCard} disabled={isCharging}>
-              {isCharging && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Charge ${chargeAmount || "0.00"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ChargeItemSelector
+        open={showChargeDialog}
+        onOpenChange={setShowChargeDialog}
+        member={member}
+        onChargeSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+        }}
+      />
       {/* Cancel Annual Fee Subscription Dialog */}
       <AlertDialog open={showCancelAnnualFeeDialog} onOpenChange={setShowCancelAnnualFeeDialog}>
         <AlertDialogContent>
