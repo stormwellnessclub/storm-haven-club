@@ -1,155 +1,159 @@
 
-## Payment Status Visibility & Enforcement Plan
+## Enhanced Admin Member Filtering Plan
 
 ### Problem Summary
-Members with failed payments are showing as "Active" in the system, which can confuse staff and allow members who haven't paid to access the club. The root cause is a disconnect between Stripe payment status and what staff see in the admin UI.
+The current member list filtering is too limited. When you navigate into a member's detail and return, filter selections are lost. Cancelled members are mixed with active ones. There are no filters for:
+- Membership tier (Silver, Gold, Platinum, Diamond)
+- Initiation fee status (paid vs. unpaid)
+- Payment method status (card on file vs. no card)
+- Subscription status (active subscription vs. no subscription)
+- Gender
+- Waiver status (signed vs. unsigned)
 
-### Specific Issues Found
-1. Members like Kinda Turaani, Deana Boussi, and Jacquelyne Olson have subscriptions that may have failed payments, but their displayed status doesn't clearly communicate this to staff
-2. The webhook handler only updates status to `past_due` when the member is already `active` - pending activation members with failed payments are not flagged
-3. Staff see database status badges ("Active") without seeing payment health indicators inline
-
----
-
-### Solution: Dual Status Display System
-
-We'll implement an "Effective Status" system that shows staff what really matters - can this member access the club?
-
----
-
-### Part 1: Backend Webhook Improvements
-
-**File:** `supabase/functions/stripe-webhook/index.ts`
-
-**Changes:**
-- Remove the condition that only updates status for `active` members
-- Also check `annual_fee_subscription_id` when looking up members for payment failed events
-- Improve error logging to show actual error messages (not `[object Object]`)
-- Add proper handling for subscription payment failures regardless of current member status
+### Solution Overview
+We will implement a comprehensive, URL-persisted filter system that:
+1. Preserves filters when navigating to/from member details
+2. Defaults to hiding cancelled/expired members (with easy toggle to show them)
+3. Adds multiple new filter categories
+4. Shows filter counts for quick reference
+5. Allows quick filter clearing
 
 ---
 
-### Part 2: New "Effective Status" Badge Component
+### Part 1: URL-Persisted Filter State
 
-**File:** `src/components/admin/EffectiveStatusBadge.tsx` (new file)
+**Current Problem:**
+- Filters use `useState` which resets on navigation
+- When you click a member, navigate to their detail page, then go back, all filters reset
 
-**Purpose:** Display a single, clear status badge that combines:
-- Database status (active, pending_activation, frozen, etc.)
-- Payment health (missing subscription, failed payments, missing card)
+**Solution:**
+- Move all filter state to URL search params using `useSearchParams`
+- When filters change, update the URL
+- When the page loads, read filters from URL
+- Back navigation will preserve filters automatically
 
-**Status Display Priority:**
-1. **🔴 Payment Failed** - If there are recent failed payments
-2. **🔴 No Subscription** - Active member without stripe_subscription_id
-3. **🔴 No Card** - Active member without payment method
-4. **🟡 Pending Activation** - Awaiting first payment
-5. **🔵 Frozen** - Membership on hold
-6. **🟢 Active** - All good, can check in
-7. **⚫ Cancelled/Expired** - Membership ended
-
----
-
-### Part 3: Update Member List Display
-
-**File:** `src/pages/admin/Members.tsx`
-
-**Changes:**
-- Replace simple status badge with new EffectiveStatusBadge
-- Add clear visual distinction between "Active (Good)" and "Active (Issues)"
-- Show billing issues inline in the table row
-
----
-
-### Part 4: Update Check-In Page
-
-**File:** `src/pages/admin/CheckIn.tsx`
-
-**Changes:**
-- Use EffectiveStatusBadge for member status display
-- Add prominent warning banner when member has payment issues
-- Staff message: "This member has payment issues. Check with a manager before allowing access."
-
----
-
-### Part 5: Update Scanner Display
-
-**File:** `src/pages/admin/Scanner.tsx`
-
-**Changes:**
-- Use EffectiveStatusBadge in scan results
-- Add clear denial reasons for payment-related access denials
-- Show specific issue: "Payment Failed", "No Active Subscription", etc.
-
----
-
-### Part 6: Update Member Detail Sheet
-
-**File:** `src/components/admin/MemberDetailSheet.tsx`
-
-**Changes:**
-- Add prominent payment status section at top of detail view
-- Show billing health summary with clear action items
-- Add "Sync with Stripe" button to refresh payment status
-
----
-
-### Part 7: Database Function Update
-
-**Database Migration**
-
-Update `process_member_scan` function to:
-- Check recent payment_attempts for failed payments
-- Return specific denial reasons for different payment issues
-- Log detailed payment status in scanner_access_logs
-
----
-
-### Technical Details
-
-**New EffectiveStatusBadge Component Logic:**
-```text
-function getEffectiveStatus(member, billingIssues):
-  if member.status === 'cancelled' or 'expired':
-    return { status: 'cancelled', canCheckIn: false }
-  
-  if member.status === 'frozen':
-    return { status: 'frozen', canCheckIn: false }
-  
-  if member.status === 'pending_activation':
-    return { status: 'pending_activation', canCheckIn: false }
-  
-  // Member is "active" in database - check payment health
-  issues = billingIssues[member.id] || []
-  
-  if issues.has('failed_payment'):
-    return { status: 'payment_failed', canCheckIn: false }
-  
-  if issues.has('missing_subscription'):
-    return { status: 'no_subscription', canCheckIn: false }
-  
-  if issues.has('missing_payment_method'):
-    return { status: 'no_card', canCheckIn: false }
-  
-  return { status: 'active', canCheckIn: true }
+**Example URL:**
+```
+/admin/members?status=active&tier=Gold&initiation=unpaid&hasCard=true
 ```
 
 ---
 
-### Staff-Facing Changes
+### Part 2: New Filter Categories
 
-**Member List:**
-- Status column will show effective status with color coding
-- Red for any access-blocking issues
-- Green only for fully paid, active members
+We will add these new filters:
 
-**Check-In Screen:**
-- Large, clear status indicator
-- Payment issues shown prominently before check-in button
-- Override option with reason logging
+| Filter | Options | Current Count |
+|--------|---------|---------------|
+| **Membership Tier** | All, Silver, Gold, Platinum, Diamond | 5 tiers |
+| **Initiation Fee** | All, Paid, Unpaid | 101 paid, 32 unpaid |
+| **Payment Method** | All, Has Card, No Card | 69 with card, 64 without |
+| **Subscription** | All, Active, None | 33 active, 100 none |
+| **Waiver Status** | All, Signed, Unsigned | - |
+| **Gender** | All, Women, Men | - |
 
-**Scanner:**
-- Clear "Access Denied" with specific reason
-- Payment-related denials get special messaging
-- Staff instructions on what to do
+---
+
+### Part 3: Quick Preset Filters
+
+Add preset filter buttons for common workflows:
+
+- **Active Members** - Status = Active, hide cancelled
+- **Needs Attention** - Has billing issues OR no card OR no subscription
+- **Pending Setup** - Status = Pending Activation
+- **Payment Issues** - Failed payments or past due
+- **Initiation Unpaid** - Initiation fee not paid
+- **No Card on File** - Missing payment method
+- **All Members** - Clear all filters, include cancelled
+
+---
+
+### Part 4: Default Behavior Change
+
+**Current:** Shows all members including cancelled/expired
+
+**New Default:**
+- Exclude cancelled and expired members by default
+- Add "Include Cancelled/Expired" toggle that is OFF by default
+- This keeps the main list focused on members who need attention
+
+---
+
+### Part 5: UI/UX Improvements
+
+**Filter Bar Layout:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  [Search...]                                                        │
+├─────────────────────────────────────────────────────────────────────┤
+│  Quick Filters: [Active] [Needs Attention] [Pending] [Payment ⚠️]  │
+├─────────────────────────────────────────────────────────────────────┤
+│  Status: [▼ Active]  Tier: [▼ All]  Initiation: [▼ All]           │
+│  Card: [▼ All]  Subscription: [▼ All]  Gender: [▼ All]            │
+│  [ ] Show Cancelled/Expired                          [Clear Filters]│
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Active Filter Pills:**
+When filters are applied, show them as dismissible pills:
+```
+Showing: [Status: Active ✕] [Initiation: Unpaid ✕] [Clear All]
+```
+
+---
+
+### Part 6: Filter Counts
+
+Show counts next to filter options where helpful:
+- "Pending Activation (45)"
+- "Initiation Unpaid (32)"
+- "No Card (64)"
+- "Issues Only (12)"
+
+---
+
+### Technical Implementation
+
+**File:** `src/pages/admin/Members.tsx`
+
+**Changes:**
+
+1. **Replace useState with URL params:**
+```typescript
+// BEFORE
+const [statusFilter, setStatusFilter] = useState<string>("all");
+
+// AFTER
+const [searchParams, setSearchParams] = useSearchParams();
+const statusFilter = searchParams.get("status") || "active_only";
+const setStatusFilter = (value: string) => {
+  const params = new URLSearchParams(searchParams);
+  if (value === "active_only") params.delete("status");
+  else params.set("status", value);
+  setSearchParams(params, { replace: true });
+};
+```
+
+2. **Add new filter state readers:**
+```typescript
+const tierFilter = searchParams.get("tier") || "all";
+const initiationFilter = searchParams.get("initiation") || "all";
+const cardFilter = searchParams.get("card") || "all";
+const subscriptionFilter = searchParams.get("subscription") || "all";
+const genderFilter = searchParams.get("gender") || "all";
+const showCancelled = searchParams.get("showCancelled") === "true";
+```
+
+3. **Update filter logic to include all new filters**
+
+4. **Add clear filters button:**
+```typescript
+const clearAllFilters = () => {
+  setSearchParams({}, { replace: true });
+};
+```
+
+5. **Add Quick Filter buttons that set multiple params at once**
 
 ---
 
@@ -157,21 +161,15 @@ function getEffectiveStatus(member, billingIssues):
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/stripe-webhook/index.ts` | Fix payment failed handler to update all member statuses |
-| `src/components/admin/EffectiveStatusBadge.tsx` | New component for unified status display |
-| `src/pages/admin/Members.tsx` | Use new effective status badge |
-| `src/pages/admin/CheckIn.tsx` | Use new effective status badge, add warnings |
-| `src/pages/admin/Scanner.tsx` | Use new effective status badge |
-| `src/components/admin/MemberDetailSheet.tsx` | Add payment status section |
-| `src/hooks/useMembersBillingIssues.ts` | Add `canCheckIn` field to issues |
-| Database migration | Update `process_member_scan` function |
+| `src/pages/admin/Members.tsx` | Complete filter overhaul with URL persistence, new filters, presets |
 
 ---
 
 ### Expected Outcome
 
-1. Staff will always see accurate, real-time payment status
-2. "Active" will only show green when the member is truly in good standing
-3. Payment issues will block check-in with clear explanations
-4. Overrides will be logged for audit purposes
-5. Webhook will properly update status for all payment failures
+1. Filters persist when navigating to member details and back
+2. Cancelled members hidden by default, reducing clutter
+3. Quick access to common filter combinations
+4. Easy identification of members needing attention (unpaid fees, missing cards, etc.)
+5. Clear filter state visible at all times
+6. One-click filter clearing
