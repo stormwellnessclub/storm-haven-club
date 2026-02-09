@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled';
   to: string;
   data: Record<string, any>;
 }
@@ -633,6 +633,72 @@ serve(async (req) => {
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
                 <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'membership_scheduled':
+        subject = `Your Membership is Scheduled - Starting ${data.benefitsStartDate}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Membership Scheduled</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Dear ${data.name},
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Excellent! Your ${data.tier} membership has been scheduled and is ready to go.
+              </p>
+              
+              <div style="${emailStyles.infoBox}">
+                <h3 style="margin: 0 0 15px 0; color: #1C170F; font-family: Georgia, serif;">Membership Details</h3>
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Tier</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.tier}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Benefits Start</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.benefitsStartDate}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">First Charge Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.firstChargeDate}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Charge Amount</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; font-size: 18px; color: #1C170F;">$${data.amount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Payment Method</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.cardBrand} •••• ${data.cardLast4}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                On ${data.firstChargeDate}, we'll charge your card on file for your membership dues. Your benefits will begin immediately on ${data.benefitsStartDate}.
+              </p>
+              
+              <div style="${emailStyles.successBox}">
+                <p style="margin: 0; color: #1C170F; font-weight: 600;">
+                  ✓ Your membership is confirmed and scheduled
+                </p>
+              </div>
+              
+              <p style="font-size: 14px; color: #88766B; margin-bottom: 20px; margin-top: 30px;">
+                If you have any questions or need to make changes to your membership, please contact us or log into your member portal.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Thank you,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
               </div>
             </div>
             ${getEmailFooter()}

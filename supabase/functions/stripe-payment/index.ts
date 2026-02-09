@@ -2680,12 +2680,58 @@ serve(async (req) => {
             console.error(`[STRIPE-PAYMENT] ERROR SENDING_RECEIPT_EMAIL - ${emailError instanceof Error ? emailError.message : String(emailError)}`);
             // Don't fail - subscription is already created
           }
+        } else if (isChargeDateInFuture && memberData.email) {
+          // Send membership scheduled email for future charges
+          try {
+            const memberName = memberData.first_name && memberData.last_name 
+              ? `${memberData.first_name} ${memberData.last_name}`
+              : memberData.first_name || memberData.last_name || 'Member';
+            
+            // Get pricing info
+            const priceInfo = await stripe.prices.retrieve(membershipPriceId);
+            const priceAmount = priceInfo.unit_amount ? (priceInfo.unit_amount / 100).toFixed(2) : '0.00';
+            
+            // Get card info
+            const cardBrand = paymentMethods.data[0].card?.brand 
+              ? paymentMethods.data[0].card.brand.charAt(0).toUpperCase() + paymentMethods.data[0].card.brand.slice(1)
+              : 'Card';
+            const cardLast4 = paymentMethods.data[0].card?.last4 || '****';
+            
+            // Format dates
+            const chargeDateFormatted = chargeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const benefitsStartFormatted = benefitsStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            // Determine description
+            const tierDisplay = normalizedTier.charAt(0).toUpperCase() + normalizedTier.slice(1);
+
+            await supabase.functions.invoke('send-email', {
+              body: {
+                type: 'membership_scheduled',
+                to: memberData.email,
+                data: {
+                  name: memberName,
+                  tier: tierDisplay,
+                  amount: priceAmount,
+                  firstChargeDate: chargeDateFormatted,
+                  benefitsStartDate: benefitsStartFormatted,
+                  cardBrand: cardBrand,
+                  cardLast4: cardLast4,
+                },
+              },
+            });
+
+            logStep("Membership scheduled email sent to member", { 
+              memberId, 
+              email: memberData.email,
+              chargeDate: chargeDateFormatted,
+              benefitsStartDate: benefitsStartFormatted
+            });
+          } catch (emailError) {
+            console.error(`[STRIPE-PAYMENT] ERROR SENDING_SCHEDULED_EMAIL - ${emailError instanceof Error ? emailError.message : String(emailError)}`);
+            // Don't fail - subscription is already created
+          }
         } else if (isChargeDateInFuture) {
-          logStep("Receipt email deferred - charge scheduled for future date", { 
-            memberId, 
-            chargeDate: chargeDate.toISOString(),
-            note: "Webhook will send receipt when invoice.payment_succeeded fires"
-          });
+          logStep("Membership scheduled email not sent - no email address available", { memberId });
         }
 
         return new Response(
