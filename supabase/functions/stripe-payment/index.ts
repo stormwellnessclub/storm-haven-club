@@ -2240,18 +2240,54 @@ serve(async (req) => {
           },
         });
 
-        // Update member record with membership subscription
+        // CRITICAL: Verify initial invoice is paid before marking as active
+        // This prevents setting member to active when payment actually failed
+        let paymentVerified = false;
+        let newStatus = 'pending_activation';
+        
+        try {
+          const subscriptionWithInvoice = await stripe.subscriptions.retrieve(subscription.id, {
+            expand: ['latest_invoice'],
+          });
+          
+          const latestInvoice = subscriptionWithInvoice.latest_invoice as Stripe.Invoice | null;
+          const invoiceStatus = latestInvoice?.status;
+          paymentVerified = invoiceStatus === 'paid' || latestInvoice?.amount_due === 0;
+          
+          if (paymentVerified) {
+            newStatus = 'active';
+            logStep("Initial payment verified - activating member", { 
+              invoiceId: latestInvoice?.id, 
+              invoiceStatus,
+              memberId 
+            });
+          } else {
+            logStep("Initial payment NOT verified - keeping pending", { 
+              invoiceId: latestInvoice?.id, 
+              invoiceStatus,
+              subscriptionStatus: subscription.status,
+              memberId 
+            });
+          }
+        } catch (verifyError) {
+          logStep("Warning: Could not verify invoice status", { 
+            error: verifyError instanceof Error ? verifyError.message : String(verifyError) 
+          });
+          // Keep as pending_activation if we can't verify
+        }
+
+        // Update member record with appropriate status based on payment verification
         await supabase
           .from('members')
           .update({
-            status: 'active',
+            status: newStatus,
             stripe_subscription_id: subscription.id,
             billing_type: billingType,
             is_founding_member: isFoundingMember,
             gender: normalizedGender,
-            activated_at: new Date().toISOString(),
+            activated_at: paymentVerified ? new Date().toISOString() : null,
             membership_start_date: startDate,
-            annual_fee_paid_at: skipAnnualFee ? null : new Date().toISOString(),
+            annual_fee_paid_at: skipAnnualFee ? null : (paymentVerified ? new Date().toISOString() : null),
           })
           .eq('id', memberId);
 
@@ -2621,10 +2657,31 @@ serve(async (req) => {
         }
 
         // RECEIPT EMAIL LOGIC
-        // Only send receipt immediately if we are charging NOW
-        // If charge is deferred to a future date, the webhook will send the receipt when payment actually occurs
-        const shouldSendReceiptNow = !isChargeDateInFuture && memberData.email && 
-          (subscription.status === 'active' || subscription.status === 'trialing');
+        // CRITICAL: Only send receipt if payment is CONFIRMED (invoice.status = 'paid')
+        // Do NOT rely on subscription status alone - a subscription can be 'active' while payment is still processing
+        // If payment fails, the webhook will handle the failed payment email
+        let invoiceIsPaid = false;
+        
+        if (!isChargeDateInFuture) {
+          try {
+            const subscriptionForEmail = await stripe.subscriptions.retrieve(subscription.id, {
+              expand: ['latest_invoice'],
+            });
+            const latestInvoiceForEmail = subscriptionForEmail.latest_invoice as Stripe.Invoice | null;
+            invoiceIsPaid = latestInvoiceForEmail?.status === 'paid' || latestInvoiceForEmail?.amount_due === 0;
+            logStep("Email decision - checking if invoice is paid", { 
+              invoiceId: latestInvoiceForEmail?.id,
+              invoiceStatus: latestInvoiceForEmail?.status,
+              invoiceIsPaid 
+            });
+          } catch (invoiceCheckError) {
+            logStep("Warning: Could not check invoice status for email decision", { 
+              error: invoiceCheckError instanceof Error ? invoiceCheckError.message : String(invoiceCheckError) 
+            });
+          }
+        }
+        
+        const shouldSendReceiptNow = !isChargeDateInFuture && memberData.email && invoiceIsPaid;
 
         if (shouldSendReceiptNow) {
           try {
