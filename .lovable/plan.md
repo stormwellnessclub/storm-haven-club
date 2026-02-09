@@ -1,38 +1,142 @@
 
-# Plan: Fix Membership Activation UI & Payment Status Logic
 
-## Issues Identified
+# Plan: Fix Jessica Seagull + Prevent Future Incomplete Subscription Issues
 
-Based on my investigation, you've reported 5 distinct issues:
+## Problem Summary
 
-### 1. Dialog Scroll Issue (CreateSubscriptionDialog)
-**Problem:** The CreateSubscriptionDialog content is too tall and you can't scroll to hit the "Create" button.
+Jessica Seagull's subscription failed its first payment and transitioned to `incomplete_expired` in Stripe, but:
+1. The webhook didn't catch this status and update her database
+2. She still shows as `active` with a subscription ID in our database
+3. The admin UI shows a green "Active" badge and hides the "Create Subscription" button
+4. You can't fix her membership because the UI thinks she already has a subscription
 
-**Root Cause:** The `AlertDialogContent` in `CreateSubscriptionDialog.tsx` at line 163 uses `max-w-md` but doesn't have `max-h-[90vh] overflow-y-auto` to make it scrollable on smaller screens.
+**Current Database State:**
+- Status: `active` 
+- Subscription ID: `sub_1SylYkLyZrsSqLhscc5cqMwJ`
+- **Actual Stripe Status:** `incomplete_expired` (subscription is dead)
 
-### 2. Dialog Doesn't Close After Creating Subscription
-**Problem:** After hitting "Create", the CreateSubscriptionDialog stays open - you have to hit cancel.
+---
 
-**Root Cause:** In `MemberDetail.tsx` line 642, when `handleCreateSubscription` succeeds, it sets `showSubscriptionSuccessDialog(true)` but **never calls** `setShowCreateSubscriptionDialog(false)`. Both dialogs end up open simultaneously.
+## Solution: Two-Part Fix
 
-### 3. Stripe Cancellation Not Syncing to Admin UI
-**Problem:** When you cancel a subscription in Stripe Dashboard, the admin UI still shows it as active.
+### Part 1: Immediate Database Fix (Manual Query)
 
-**Root Cause:** The webhook handler for `customer.subscription.deleted` (line 974-1012 in stripe-webhook) correctly updates the database, but there's a bug - it only searches by `stripe_subscription_id` for dues subscriptions. If you cancel an **annual fee subscription**, it won't find the member because annual fee uses `annual_fee_subscription_id`. The lookup needs to check both fields.
+Clear Jessica's invalid subscription so you can create a new one:
 
-### 4. No Payment Decline Notification in Admin UI
-**Problem:** You don't know if a payment declines unless you go to Stripe.
+```sql
+UPDATE members 
+SET 
+  stripe_subscription_id = NULL,
+  status = 'pending_activation'
+WHERE id = '7fe78d81-976a-4b12-997d-92b241db6109';
+```
 
-**Current State:** The webhook already sends admin alert emails for failed payments (line 1548-1572 in stripe-webhook). However, there's no **in-app notification** or prominent dashboard alert. The `BillingHealthWidget` on the dashboard does show "Failed Payments" count, but it's not prominent enough.
+You'll run this in Cloud View > Run SQL.
 
-**Solution:** Add a more prominent "Immediate Attention Required" alert card at the top of the dashboard when there are failed payments in the last 7 days.
+---
 
-### 5. Members Marked Active Despite Owing Payments
-**Problem:** A member can be "active" even if they have declined payments.
+### Part 2: Code Fix - Handle `incomplete_expired` in Webhook
 
-**Current Logic:** The activation process sets status to "active" immediately. Stripe webhooks update to "past_due" when `invoice.payment_failed` fires, but there's a race condition if the initial subscription charge fails - the member was already set to "active" before the webhook processes.
+**File:** `supabase/functions/stripe-webhook/index.ts`
 
-**Solution:** Add a pre-activation payment verification step that confirms the first invoice was actually paid before marking active.
+Update the `customer.subscription.updated` handler to catch `incomplete_expired`:
+
+```text
+Current code (lines 933-945):
+┌────────────────────────────────────────────────────────────────┐
+│ if (subscription.status === 'past_due' || ... 'unpaid') {     │
+│   newStatus = 'past_due';                                      │
+│ } else if (subscription.status === 'active') {                 │
+│   newStatus = 'active';                                        │
+│ } else if (subscription.status === 'canceled' || 'unpaid') {   │
+│   newStatus = 'cancelled';                                     │
+│ } else {                                                       │
+│   // For other statuses - just log and break  ← PROBLEM!       │
+│   break;                                                       │
+│ }                                                              │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Change to:**
+
+```typescript
+if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
+  newStatus = 'past_due';
+  reason = subscription.status === 'past_due' ? 'payment_past_due' : 'payment_unpaid';
+} else if (subscription.status === 'active') {
+  newStatus = 'active';
+  reason = 'subscription_active';
+} else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
+  // Treat incomplete_expired the same as canceled - subscription failed before starting
+  newStatus = 'pending_activation';
+  reason = subscription.status === 'canceled' ? 'subscription_canceled' : 'subscription_incomplete_expired';
+  
+  // Clear the dead subscription ID so admin can create a new one
+  await supabase.from('members')
+    .update({ stripe_subscription_id: null })
+    .eq('id', memberData.id);
+} else if (subscription.status === 'incomplete') {
+  // Payment still processing - don't activate yet
+  newStatus = 'pending_activation';
+  reason = 'awaiting_first_payment';
+} else {
+  // trialing, paused, etc. - handle appropriately
+  logStep("Subscription status not mapped", { status: subscription.status });
+  break;
+}
+```
+
+---
+
+### Part 3: UI Enhancement - Show Real Subscription Status
+
+**File:** `src/pages/admin/MemberDetail.tsx`
+
+Currently the Subscription card always shows "Active" with a green badge if `stripe_subscription_id` exists. This is misleading when the Stripe subscription is actually dead.
+
+**Option A (Simple):** Use the `BillingHealthCard` data which already fetches the real Stripe status.
+
+**Option B (Better UX):** Add a quick status check when displaying the subscription:
+
+```typescript
+// Line ~1047-1061 - Subscription Card
+{member.stripe_subscription_id ? (
+  <div className="space-y-1">
+    {/* Show actual billing health status if available */}
+    {billingHealth?.duesSubscription?.status === 'incomplete_expired' || 
+     billingHealth?.duesSubscription?.status === 'canceled' ? (
+      <div className="flex items-center gap-2 text-red-600">
+        <XCircle className="h-4 w-4" />
+        <span className="font-medium">Expired/Canceled</span>
+      </div>
+    ) : billingHealth?.duesSubscription?.status === 'past_due' ? (
+      <div className="flex items-center gap-2 text-amber-600">
+        <AlertCircle className="h-4 w-4" />
+        <span className="font-medium">Past Due</span>
+      </div>
+    ) : (
+      <div className="flex items-center gap-2 text-green-600">
+        <CheckCircle2 className="h-4 w-4" />
+        <span className="font-medium">Active</span>
+      </div>
+    )}
+    {/* Rest of subscription display... */}
+    
+    {/* Show Create button if subscription is dead */}
+    {(billingHealth?.duesSubscription?.status === 'incomplete_expired' || 
+      billingHealth?.duesSubscription?.status === 'canceled') && (
+      <AdminActionButton
+        label="Create New Subscription"
+        tooltip="Replace the expired subscription"
+        onClick={() => setShowCreateSubscriptionDialog(true)}
+        isLoading={isCreatingSubscription}
+      />
+    )}
+  </div>
+) : (
+  // ... existing "None" display
+)}
+```
 
 ---
 
@@ -40,126 +144,22 @@ Based on my investigation, you've reported 5 distinct issues:
 
 | File | Changes |
 |------|---------|
-| `src/components/admin/CreateSubscriptionDialog.tsx` | Add scroll support to dialog content |
-| `src/pages/admin/MemberDetail.tsx` | Close CreateSubscriptionDialog before showing success dialog |
-| `supabase/functions/stripe-webhook/index.ts` | Fix subscription.deleted to check both subscription ID fields |
-| `src/pages/admin/Dashboard.tsx` | Add prominent "Failed Payments Alert" card |
-| `supabase/functions/stripe-payment/index.ts` | Add payment verification before setting member to active |
+| `supabase/functions/stripe-webhook/index.ts` | Add `incomplete_expired` handling in subscription.updated |
+| `src/pages/admin/MemberDetail.tsx` | Show real subscription status + allow creating new one when dead |
 
 ---
 
-## Technical Implementation
+## Immediate Action Required
 
-### Fix 1: Dialog Scroll Issue
+After I implement the code fixes, you'll need to run this SQL to fix Jessica:
 
-Add `max-h-[85vh] overflow-y-auto` to the AlertDialogContent:
-
-```typescript
-// CreateSubscriptionDialog.tsx line 163
-<AlertDialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+```sql
+UPDATE members 
+SET stripe_subscription_id = NULL, status = 'pending_activation'
+WHERE id = '7fe78d81-976a-4b12-997d-92b241db6109';
 ```
 
-### Fix 2: Close Dialog on Success
-
-In `handleCreateSubscription` success handler, close the dialog first:
-
-```typescript
-// MemberDetail.tsx ~line 642
-setShowCreateSubscriptionDialog(false); // ADD THIS LINE
-setSubscriptionResult({...});
-setShowSubscriptionSuccessDialog(true);
-```
-
-### Fix 3: Webhook Subscription Deleted Handler
-
-Modify the lookup to check both `stripe_subscription_id` AND `annual_fee_subscription_id`:
-
-```typescript
-// stripe-webhook/index.ts case 'customer.subscription.deleted'
-// First try membership subscription
-let memberData = await supabase
-  .from('members')
-  .select('id')
-  .eq('stripe_subscription_id', subscription.id)
-  .maybeSingle();
-
-// If not found, try annual fee subscription
-if (!memberData?.data) {
-  memberData = await supabase
-    .from('members')
-    .select('id')
-    .eq('annual_fee_subscription_id', subscription.id)
-    .maybeSingle();
-  
-  // If annual fee subscription was deleted, also clear annual_fee_subscription_id
-  if (memberData?.data) {
-    await supabase.from('members')
-      .update({ annual_fee_subscription_id: null })
-      .eq('id', memberData.data.id);
-  }
-}
-```
-
-### Fix 4: Dashboard Failed Payments Alert
-
-Add a new prominent alert component at the top of the Dashboard that shows when there are recent failed payments:
-
-```typescript
-// New component or inline in Dashboard.tsx
-{failedPaymentMembers.length > 0 && (
-  <Card className="border-red-500 bg-red-50 dark:bg-red-950/30">
-    <CardContent className="p-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <AlertTriangle className="h-6 w-6 text-red-600" />
-        <div>
-          <p className="font-semibold text-red-800">Payment Failures Require Attention</p>
-          <p className="text-sm text-red-600">
-            {failedPaymentMembers.length} member(s) had declined payments in the last 7 days
-          </p>
-        </div>
-      </div>
-      <Button variant="outline" asChild>
-        <Link to="/admin/payments?filter=failed">Review</Link>
-      </Button>
-    </CardContent>
-  </Card>
-)}
-```
-
-### Fix 5: Verify Payment Before Activation
-
-In the `admin_create_member_subscription` action, after creating the subscription, verify the first invoice status before marking member as active:
-
-```typescript
-// After subscription.create() in stripe-payment/index.ts
-// Verify the first invoice was paid before activating
-const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
-  expand: ['latest_invoice']
-});
-
-const invoice = subscription.latest_invoice as Stripe.Invoice;
-const isPaid = invoice?.status === 'paid' || invoice?.amount_due === 0;
-
-// Update member status based on payment
-const newStatus = isPaid ? 'active' : 'pending_activation';
-
-await supabase.from('members').update({
-  status: newStatus,
-  stripe_subscription_id: subscriptionId,
-  // ... other fields
-}).eq('id', memberId);
-
-// If payment failed, return a warning to the admin
-if (!isPaid) {
-  return new Response(JSON.stringify({
-    success: true,
-    subscriptionId,
-    status: 'pending_payment',
-    warning: 'Subscription created but initial payment is pending. Member will be activated when payment succeeds.',
-    invoiceStatus: invoice?.status,
-  }), ...);
-}
-```
+Then you can create a new subscription for her through the admin UI.
 
 ---
 
@@ -167,8 +167,7 @@ if (!isPaid) {
 
 | Issue | Root Cause | Fix |
 |-------|------------|-----|
-| Can't scroll to Create button | Missing scroll CSS | Add `max-h-[85vh] overflow-y-auto` |
-| Dialog stays open | Missing `setShowCreateSubscriptionDialog(false)` | Add the call before showing success |
-| Stripe cancel not syncing | Webhook only checks `stripe_subscription_id` | Also check `annual_fee_subscription_id` |
-| No decline notifications | Email only, no in-app alert | Add dashboard alert card |
-| Active despite owing | Race condition with webhook | Verify invoice status before activation |
+| Jessica stuck as "active" | Webhook doesn't handle `incomplete_expired` | Add status mapping in webhook |
+| Can't create new subscription | UI hides button when subscription ID exists | Check actual Stripe status, allow replacing dead subscriptions |
+| Database has stale data | No cleanup when subscription fails | Clear subscription ID when `incomplete_expired` |
+
