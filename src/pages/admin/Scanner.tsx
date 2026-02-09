@@ -38,6 +38,7 @@ import { useScannerSettings, useUpdateScannerSettings } from "@/hooks/useScanner
 import { MemberCameraScanner } from "@/components/admin/MemberCameraScanner";
 import { format } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
+import { EffectiveStatusBadge } from "@/components/admin/EffectiveStatusBadge";
 
 export default function Scanner() {
   const [memberIdInput, setMemberIdInput] = useState("");
@@ -378,7 +379,11 @@ export default function Scanner() {
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Status</p>
-                            <Badge>{scanResult.member.status}</Badge>
+                            <EffectiveStatusBadge
+                              memberStatus={scanResult.member.status}
+                              size="sm"
+                              showTooltip={false}
+                            />
                           </div>
                           {scanResult.check_in_id && (
                             <div>

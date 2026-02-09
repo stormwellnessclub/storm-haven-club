@@ -23,6 +23,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, addYears, isBefore } from "date-fns";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
+import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
+import { EffectiveStatusBadge, getEffectiveStatus } from "@/components/admin/EffectiveStatusBadge";
 
 type MemberStatus = "active" | "past_due" | "frozen" | "expired" | "cancelled";
 
@@ -64,6 +66,9 @@ export default function CheckIn() {
   const [memberCheckInCount, setMemberCheckInCount] = useState(0);
   const [isOverriding, setIsOverriding] = useState(false);
 
+  // Get billing issues data for effective status calculation
+  const { data: billingIssues } = useMembersBillingIssues();
+
   // Get payment status for selected member
   const memberPaymentStatus = selectedMember 
     ? checkMemberPaymentStatus({
@@ -71,6 +76,11 @@ export default function CheckIn() {
         annual_fee_paid_at: selectedMember.annual_fee_paid_at,
         stripe_subscription_id: selectedMember.stripe_subscription_id,
       })
+    : null;
+
+  // Calculate effective status for selected member
+  const effectiveStatus = selectedMember 
+    ? getEffectiveStatus(selectedMember.status, billingIssues?.memberIssues?.[selectedMember.id])
     : null;
 
   // Fetch recent check-ins on mount
@@ -375,19 +385,30 @@ export default function CheckIn() {
             <CardContent>
               {selectedMember ? (
                 <div className="space-y-4">
-                  {/* Status Banner */}
-                  <div className={`p-4 rounded-lg border ${getStatusConfig(selectedMember.status).bgClass}`}>
+                  {/* Status Banner - Uses Effective Status for clear access decision */}
+                  <div className={`p-4 rounded-lg border ${effectiveStatus?.canCheckIn 
+                    ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
+                    : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+                  }`}>
                     <div className="flex items-center gap-3">
-                      {(() => {
-                        const StatusIcon = getStatusConfig(selectedMember.status).icon;
-                        return <StatusIcon className={`h-8 w-8 ${getStatusConfig(selectedMember.status).iconClass}`} />;
-                      })()}
-                      <div>
-                        <p className="font-semibold">{getStatusConfig(selectedMember.status).label}</p>
+                      {effectiveStatus?.canCheckIn ? (
+                        <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-semibold text-lg">
+                          {effectiveStatus?.canCheckIn ? 'Check-In Approved' : 'Cannot Check In'}
+                        </p>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(), "h:mm a")}
+                          {effectiveStatus?.description}
                         </p>
                       </div>
+                      <EffectiveStatusBadge
+                        memberStatus={selectedMember.status}
+                        billingIssues={billingIssues?.memberIssues?.[selectedMember.id]}
+                        size="lg"
+                      />
                     </div>
                   </div>
 
@@ -412,7 +433,12 @@ export default function CheckIn() {
                           <p className="text-xs text-muted-foreground">Membership</p>
                           <p className="font-medium">{selectedMember.membership_type}</p>
                         </div>
-                        {getStatusConfig(selectedMember.status).badge}
+                        <EffectiveStatusBadge
+                          memberStatus={selectedMember.status}
+                          billingIssues={billingIssues?.memberIssues?.[selectedMember.id]}
+                          size="sm"
+                          showTooltip={false}
+                        />
                       </div>
 
                       {selectedMember.membership_end_date && (
@@ -483,12 +509,13 @@ export default function CheckIn() {
                     </div>
                   )}
 
-                  {!memberPaymentStatus?.hasPaymentIssues && (
+                  {/* Show normal check-in button when access is granted */}
+                  {effectiveStatus?.canCheckIn && (
                     <Button
                       className="w-full"
                       size="lg"
                       onClick={() => handleCheckIn(false)}
-                      disabled={isCheckingIn || !getStatusConfig(selectedMember.status).canCheckIn}
+                      disabled={isCheckingIn}
                     >
                       {isCheckingIn ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -499,9 +526,10 @@ export default function CheckIn() {
                     </Button>
                   )}
 
-                  {!getStatusConfig(selectedMember.status).canCheckIn && !memberPaymentStatus?.hasPaymentIssues && (
+                  {/* Show denial message when access is not granted (but no payment issues - handled above) */}
+                  {!effectiveStatus?.canCheckIn && !memberPaymentStatus?.hasPaymentIssues && (
                     <p className="text-sm text-center text-destructive">
-                      Cannot check in - membership is {selectedMember.status.replace("_", " ")}
+                      Cannot check in - {effectiveStatus?.description}
                     </p>
                   )}
                 </div>

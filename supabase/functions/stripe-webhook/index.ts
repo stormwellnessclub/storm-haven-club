@@ -1434,16 +1434,43 @@ serve(async (req) => {
             break;
           }
 
-          // Find member by subscription ID
-          const { data: memberData, error: memberError } = await supabase
+          // Find member by subscription ID (check both dues and annual fee subscriptions)
+          let memberData: { id: string; status: string; email: string; first_name: string; last_name: string } | null = null;
+          let subscriptionType: 'membership_dues' | 'annual_fee' = 'membership_dues';
+          
+          // First try to find by dues subscription
+          const { data: duesMember, error: duesError } = await supabase
             .from('members')
             .select('id, status, email, first_name, last_name')
             .eq('stripe_subscription_id', invoice.subscription as string)
             .maybeSingle();
 
-          if (memberError) {
-            logError(memberError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP");
-          } else if (memberData) {
+          if (duesError) {
+            logError(duesError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP_DUES");
+          }
+          
+          if (duesMember) {
+            memberData = duesMember;
+            subscriptionType = 'membership_dues';
+          } else {
+            // If not found, try annual_fee_subscription_id
+            const { data: annualFeeMember, error: annualFeeError } = await supabase
+              .from('members')
+              .select('id, status, email, first_name, last_name')
+              .eq('annual_fee_subscription_id', invoice.subscription as string)
+              .maybeSingle();
+            
+            if (annualFeeError) {
+              logError(annualFeeError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP_ANNUAL_FEE");
+            }
+            
+            if (annualFeeMember) {
+              memberData = annualFeeMember;
+              subscriptionType = 'annual_fee';
+            }
+          }
+
+          if (memberData) {
             // Get payment intent and charge details for failure info
             const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
             const lastPaymentError = invoice.last_payment_error;
@@ -1538,28 +1565,53 @@ serve(async (req) => {
               logError(logAttemptError, "INVOICE_PAYMENT_FAILED_LOG");
             }
 
-            // Update member status to past_due if payment failed and subscription is active
-            if (memberData.status === 'active') {
-              const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
-                p_member_id: memberData.id,
-                p_stripe_subscription_id: invoice.subscription as string,
-                p_new_status: 'past_due',
-                p_reason: 'payment_failed',
-                p_stripe_event_id: event.id,
-                p_changed_by: 'stripe',
-                p_metadata: { 
-                  invoice_id: invoice.id,
-                  failure_code: failureCode,
-                  decline_code: declineCode,
-                  attempt_count: attemptCount
-                }
-              });
+            // Update member status to past_due for payment failures
+            // Apply to 'active' and 'pending_activation' members (not frozen/cancelled/etc)
+            const statusesToUpdate = ['active', 'pending_activation'];
+            if (statusesToUpdate.includes(memberData.status)) {
+              const newStatus = memberData.status === 'active' ? 'past_due' : 'pending_activation';
+              
+              // For pending_activation, we keep the status but log the failure
+              // For active members, we move them to past_due
+              if (memberData.status === 'active') {
+                const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
+                  p_member_id: memberData.id,
+                  p_stripe_subscription_id: invoice.subscription as string,
+                  p_new_status: 'past_due',
+                  p_reason: 'payment_failed',
+                  p_stripe_event_id: event.id,
+                  p_changed_by: 'stripe',
+                  p_metadata: { 
+                    invoice_id: invoice.id,
+                    failure_code: failureCode,
+                    decline_code: declineCode,
+                    attempt_count: attemptCount,
+                    subscription_type: subscriptionType
+                  }
+                });
 
-              if (updateError) {
-                logError(updateError, "INVOICE_PAYMENT_FAILED_STATUS_UPDATE");
+                if (updateError) {
+                  logError(updateError, "INVOICE_PAYMENT_FAILED_STATUS_UPDATE");
+                } else {
+                  logStep("Member status updated to past_due", { 
+                    memberId: memberData.id,
+                    previousStatus: memberData.status,
+                    subscriptionType
+                  });
+                }
               } else {
-                logStep("Member status updated to past_due", { memberId: memberData.id });
+                // For pending_activation, just log that payment failed
+                logStep("Payment failed for pending_activation member - keeping status", { 
+                  memberId: memberData.id,
+                  subscriptionType
+                });
               }
+            } else {
+              logStep("Member status not updated - current status does not allow auto-update", {
+                memberId: memberData.id,
+                currentStatus: memberData.status,
+                subscriptionType
+              });
             }
 
             // Send payment failure email notification to member

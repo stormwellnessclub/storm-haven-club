@@ -38,10 +38,10 @@ import { useUserRoles } from "@/hooks/useUserRoles";
 import { SellMembershipPackage } from "@/components/admin/SellMembershipPackage";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { format } from "date-fns";
-import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 import { MemberIssuesBadges } from "@/components/admin/MemberIssuesBadges";
+import { EffectiveStatusBadge } from "@/components/admin/EffectiveStatusBadge";
 
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
@@ -642,20 +642,11 @@ export default function Members() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className={getStatusColor(member.status)}>
-                              {formatStatus(member.status)}
-                            </Badge>
-                            {checkMemberPaymentStatus({
-                              status: member.status,
-                              annual_fee_paid_at: member.annual_fee_paid_at,
-                              stripe_subscription_id: member.stripe_subscription_id,
-                            }).hasPaymentIssues && (
-                              <span title="Payment issue">
-                                <AlertTriangle className="h-4 w-4 text-red-500" />
-                              </span>
-                            )}
-                          </div>
+                          <EffectiveStatusBadge
+                            memberStatus={member.status}
+                            billingIssues={billingIssues?.memberIssues?.[member.id]}
+                            size="sm"
+                          />
                           <Badge 
                             variant="outline" 
                             className={
@@ -664,7 +655,7 @@ export default function Members() {
                                 : "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800 text-xs"
                             }
                           >
-                            {member.annual_fee_paid_at || member.annual_fee_subscription_id ? "Initiation Fee Paid" : "Initiation Fee Unpaid"}
+                            {member.annual_fee_paid_at || member.annual_fee_subscription_id ? "Initiation ✓" : "Initiation Due"}
                           </Badge>
                         </div>
                       </TableCell>

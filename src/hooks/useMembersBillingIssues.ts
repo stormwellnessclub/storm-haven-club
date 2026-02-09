@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface BillingIssue {
+  type: 'error' | 'warning';
+  code: string;
+  message: string;
+  shortLabel: string;
+}
+
 export interface MemberBillingIssue {
   memberId: string;
-  issues: {
-    type: 'error' | 'warning';
-    code: string;
-    message: string;
-    shortLabel: string;
-  }[];
+  issues: BillingIssue[];
 }
 
 export interface BillingIssuesSummary {
@@ -17,7 +19,9 @@ export interface BillingIssuesSummary {
   expiringCards: number;
   failedPayments: number;
   missingPaymentMethod: number;
-  memberIssues: Record<string, MemberBillingIssue['issues']>;
+  memberIssues: Record<string, BillingIssue[]>;
+  // Helper to check if a specific member can check in based on billing issues
+  canMemberCheckIn: (memberId: string, memberStatus: string) => boolean;
 }
 
 export function useMembersBillingIssues() {
@@ -141,6 +145,31 @@ export function useMembersBillingIssues() {
         }
       }
 
+      // Helper function to determine if a member can check in
+      const canMemberCheckIn = (memberId: string, memberStatus: string): boolean => {
+        const status = memberStatus?.toLowerCase() || '';
+        
+        // Non-active statuses cannot check in
+        if (['cancelled', 'expired', 'frozen', 'suspended', 'pending_activation'].includes(status)) {
+          return false;
+        }
+        
+        // Past due cannot check in
+        if (status === 'past_due') {
+          return false;
+        }
+        
+        // Check for blocking billing issues
+        const issues = memberIssues[memberId] || [];
+        const hasBlockingIssue = issues.some(i => 
+          i.code === 'failed_payment' || 
+          i.code === 'missing_subscription' ||
+          i.code === 'missing_payment_method'
+        );
+        
+        return !hasBlockingIssue;
+      };
+
       return {
         totalWithIssues: Object.keys(memberIssues).length,
         missingSubscription,
@@ -148,6 +177,7 @@ export function useMembersBillingIssues() {
         failedPayments: failedPaymentsCount,
         missingPaymentMethod,
         memberIssues,
+        canMemberCheckIn,
       };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
