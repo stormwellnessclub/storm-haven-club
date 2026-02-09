@@ -393,6 +393,7 @@ serve(async (req) => {
           customer: customerId,
           line_items: lineItems,
           mode: 'subscription',
+          payment_method_types: ['card', 'us_bank_account'],
           subscription_data: {
             billing_cycle_anchor: billingAnchor,
             proration_behavior: 'none',
@@ -758,6 +759,7 @@ serve(async (req) => {
           customer: customerId,
           line_items: [{ price: annualFeePriceId, quantity: 1 }],
           mode: 'subscription',
+          payment_method_types: ['card', 'us_bank_account'],
           subscription_data: {
             metadata: {
               type: 'annual_fee_subscription',
@@ -1855,6 +1857,7 @@ serve(async (req) => {
             customer: customerId,
             line_items: lineItems,
             mode: 'subscription',
+            payment_method_types: ['card', 'us_bank_account'],
             subscription_data: {
               billing_cycle_anchor: billingAnchor,
               proration_behavior: 'none',
@@ -1890,6 +1893,7 @@ serve(async (req) => {
             customer: customerId,
             line_items: lineItems,
             mode: 'subscription',
+            payment_method_types: ['card', 'us_bank_account'],
             subscription_data: {
               billing_cycle_anchor: billingAnchor,
               proration_behavior: 'none',
@@ -2024,6 +2028,7 @@ serve(async (req) => {
             customer: customerId,
             line_items: [{ price: annualFeePriceId, quantity: 1 }],
             mode: 'subscription',
+            payment_method_types: ['card', 'us_bank_account'],
             subscription_data: {
               metadata: {
                 type: 'annual_fee_subscription',
@@ -2938,6 +2943,7 @@ serve(async (req) => {
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           mode: 'subscription',
+          payment_method_types: ['card', 'us_bank_account'],
           line_items: [{
             price: priceId,
             quantity: 1,
@@ -3414,7 +3420,8 @@ serve(async (req) => {
         const linkSession = await stripe.checkout.sessions.create({
           customer: feeCustomerId,
           line_items: [{ price: feePriceId, quantity: 1 }],
-          mode: 'subscription',  // Changed from 'payment' - annual fee is a yearly subscription
+          mode: 'subscription',
+          payment_method_types: ['card', 'us_bank_account'],
           success_url: feeSuccessUrl || 'https://storm-haven-club.lovable.app/payment-success?type=annual_fee',
           cancel_url: feeCancelUrl || 'https://storm-haven-club.lovable.app/',
           subscription_data: {
