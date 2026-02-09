@@ -21,6 +21,7 @@ import {
   ScanLine,
   BarChart3,
   TrendingUp,
+  FileWarning,
 } from "lucide-react";
 import {
   Sidebar,
@@ -61,10 +62,11 @@ const managementItems: MenuItem[] = [
   { title: "Applications", url: "/admin/applications", icon: FileText, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
   { title: "Appointments", url: "/admin/appointments", icon: Calendar, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk', 'spa_staff'] },
   { title: "Payments", url: "/admin/payments", icon: CreditCard, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
+  { title: "Payment Tracking", url: "/admin/payment-tracking", icon: FileWarning, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Payment Reports", url: "/admin/payment-reports", icon: BarChart3, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Revenue Analytics", url: "/admin/revenue-analytics", icon: TrendingUp, requiredRoles: ['super_admin'] },
   { title: "Reports", url: "/admin/reports", icon: FileBarChart, requiredRoles: ['super_admin'] },
-  { title: "Guest Passes", url: "/admin/guest-passes", icon: Ticket, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
+  { title: "Guest Passes", url: "/admin/guest-passes", icon: Ticket, requiredRoles: ['super_admin', 'manager', 'front_desk'] },
 ];
 
 const servicesItems: MenuItem[] = [
