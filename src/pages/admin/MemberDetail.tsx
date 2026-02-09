@@ -8,6 +8,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { StripeProvider } from "@/components/StripeProvider";
 import { AdminAddCardForm } from "@/components/admin/AdminAddCardForm";
 import { ChargeHistory } from "@/components/ChargeHistory";
+import { ChargeItemSelector } from "@/components/admin/ChargeItemSelector";
 import { TierChangeDialog } from "@/components/admin/TierChangeDialog";
 import { CreateSubscriptionDialog } from "@/components/admin/CreateSubscriptionDialog";
 import { RefundDialog } from "@/components/admin/RefundDialog";
@@ -247,6 +248,11 @@ export default function MemberDetail() {
     phone: "",
     membership_type: "",
     status: "",
+    gender: "",
+    billing_type: "",
+    membership_start_date: "",
+    activated_at: "",
+    is_founding_member: false,
   });
 
   // Fetch member data
@@ -461,6 +467,11 @@ export default function MemberDetail() {
         phone: member.phone || "",
         membership_type: member.membership_type,
         status: member.status,
+        gender: member.gender || "",
+        billing_type: member.billing_type || "monthly",
+        membership_start_date: member.membership_start_date || "",
+        activated_at: member.activated_at || "",
+        is_founding_member: member.is_founding_member || false,
       });
       setIsEditing(true);
     }
@@ -479,6 +490,11 @@ export default function MemberDetail() {
           phone: editForm.phone || null,
           membership_type: editForm.membership_type,
           status: editForm.status,
+          gender: editForm.gender || null,
+          billing_type: editForm.billing_type || null,
+          membership_start_date: editForm.membership_start_date || null,
+          activated_at: editForm.activated_at || null,
+          is_founding_member: editForm.is_founding_member,
         })
         .eq("id", member.id);
 
@@ -1235,6 +1251,76 @@ export default function MemberDetail() {
                         <Label>Phone</Label>
                         <Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
                       </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Gender</Label>
+                          <Select value={editForm.gender} onValueChange={(v) => setEditForm({ ...editForm, gender: v })}>
+                            <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="female">Female</SelectItem>
+                              <SelectItem value="male">Male</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Billing Type</Label>
+                          <Select value={editForm.billing_type} onValueChange={(v) => setEditForm({ ...editForm, billing_type: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                              <SelectItem value="annual">Annual</SelectItem>
+                              <SelectItem value="cash">Cash</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Membership Type</Label>
+                          <Select value={editForm.membership_type} onValueChange={(v) => setEditForm({ ...editForm, membership_type: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Silver">Silver</SelectItem>
+                              <SelectItem value="Gold">Gold</SelectItem>
+                              <SelectItem value="Platinum">Platinum</SelectItem>
+                              <SelectItem value="Diamond">Diamond</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Status</Label>
+                          <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="pending_activation">Pending Activation</SelectItem>
+                              <SelectItem value="frozen">Frozen</SelectItem>
+                              <SelectItem value="suspended">Suspended</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Membership Start Date</Label>
+                          <Input type="date" value={editForm.membership_start_date?.split('T')[0] || ''} onChange={(e) => setEditForm({ ...editForm, membership_start_date: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label>Activated At</Label>
+                          <Input type="date" value={editForm.activated_at?.split('T')[0] || ''} onChange={(e) => setEditForm({ ...editForm, activated_at: e.target.value })} />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 pt-2">
+                        <input
+                          type="checkbox"
+                          id="edit_founding"
+                          checked={editForm.is_founding_member}
+                          onChange={(e) => setEditForm({ ...editForm, is_founding_member: e.target.checked })}
+                          className="rounded"
+                        />
+                        <Label htmlFor="edit_founding">Founding Member</Label>
+                      </div>
                       <div className="flex gap-2 pt-4">
                         <Button onClick={saveChanges} disabled={isSaving}>
                           {isSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Save
@@ -1721,31 +1807,19 @@ export default function MemberDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Charge Card Dialog */}
-      <Dialog open={showChargeDialog} onOpenChange={setShowChargeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Charge Card</DialogTitle>
-            <DialogDescription>Charge {member.first_name}'s card on file</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Amount ($)</Label>
-              <Input type="number" step="0.01" min="0.50" value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value)} placeholder="0.00" />
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea value={chargeDescription} onChange={(e) => setChargeDescription(e.target.value)} placeholder="Charge reason..." />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowChargeDialog(false)}>Cancel</Button>
-            <Button onClick={handleChargeCard} disabled={isCharging}>
-              {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Charge ${chargeAmount || '0.00'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Charge Card Dialog - Enhanced with Item Selector */}
+      <ChargeItemSelector
+        open={showChargeDialog}
+        onOpenChange={setShowChargeDialog}
+        member={member}
+        onChargeSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
+        }}
+        onRequires3DS={(amount, description) => {
+          setPending3DSCharge({ amount, description });
+          setShow3DSDialog(true);
+        }}
+      />
 
       {/* Create Subscription Confirmation Dialog */}
       <CreateSubscriptionDialog
