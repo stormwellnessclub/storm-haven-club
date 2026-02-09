@@ -85,6 +85,7 @@ interface PaymentRequest {
   // For guest pass
   guestName?: string;
   guestEmail?: string;
+  guestGender?: 'male' | 'female';
   phoneNumber?: string;
   validDate?: string;
   memberReferral?: string | null;
@@ -540,7 +541,8 @@ serve(async (req) => {
       case 'create_guest_pass_experience_checkout': {
         const { 
           guestName, 
-          guestEmail, 
+          guestEmail,
+          guestGender,
           phoneNumber, 
           validDate, 
           memberReferral, 
@@ -551,12 +553,18 @@ serve(async (req) => {
           cancelUrl 
         } = body;
 
-        if (!guestName || !guestEmail || !phoneNumber || !validDate || !successUrl || !cancelUrl) {
+        if (!guestName || !guestEmail || !guestGender || !phoneNumber || !validDate || !successUrl || !cancelUrl) {
           throw new Error("Missing required fields for guest pass experience checkout");
         }
 
         if (!visitInterests || visitInterests.length === 0) {
           throw new Error("Please select at least one visit interest");
+        }
+
+        // Server-side capacity check (blocks males silently)
+        if (guestGender === 'male') {
+          logStep("Guest pass capacity check failed", { guestGender, guestName });
+          throw new Error("We're sorry, guest passes are currently at capacity. Please email us at info@stormwellnessclub.com for more information.");
         }
 
         // Build line items starting with base guest pass

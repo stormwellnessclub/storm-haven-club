@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CalendarIcon, Loader2, ArrowRight, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +48,7 @@ function GuestPassForm() {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [guestGender, setGuestGender] = useState<'male' | 'female' | ''>('');
   const [visitDate, setVisitDate] = useState<Date | undefined>(undefined);
   const [memberReferral, setMemberReferral] = useState("");
   const [visitInterests, setVisitInterests] = useState<string[]>([]);
@@ -97,7 +99,7 @@ function GuestPassForm() {
       return;
     }
 
-    if (!guestName || !guestEmail || !phoneNumber || !visitDate || visitInterests.length === 0) {
+    if (!guestName || !guestEmail || !phoneNumber || !guestGender || !visitDate || visitInterests.length === 0) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -117,6 +119,7 @@ function GuestPassForm() {
           action: "create_guest_pass_experience_checkout",
           guestName: guestName.trim(),
           guestEmail: guestEmail.trim(),
+          guestGender,
           phoneNumber: phoneNumber.trim(),
           validDate: format(visitDate, "yyyy-MM-dd"),
           memberReferral: memberReferral.trim() || null,
@@ -214,6 +217,24 @@ function GuestPassForm() {
                   </PopoverContent>
                 </Popover>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Sex *</Label>
+              <RadioGroup 
+                value={guestGender} 
+                onValueChange={(v) => setGuestGender(v as 'male' | 'female')}
+                className="flex gap-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="female" id="female" />
+                  <Label htmlFor="female" className="font-normal cursor-pointer">Female</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="male" id="male" />
+                  <Label htmlFor="male" className="font-normal cursor-pointer">Male</Label>
+                </div>
+              </RadioGroup>
             </div>
 
             <div className="space-y-2">
@@ -357,6 +378,7 @@ function GuestPassForm() {
             !guestName ||
             !guestEmail ||
             !phoneNumber ||
+            !guestGender ||
             !visitDate ||
             visitInterests.length === 0 ||
             isProcessing
