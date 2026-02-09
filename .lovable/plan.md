@@ -1,219 +1,174 @@
 
+# Plan: Fix Membership Activation UI & Payment Status Logic
 
-# Plan: Build Admin Tool to Audit & Clean Up Duplicate Initiation Fee Subscriptions
+## Issues Identified
 
-## Overview
+Based on my investigation, you've reported 5 distinct issues:
 
-This plan creates an admin tool that audits Stripe for customers with multiple initiation fee subscriptions, identifies which ones are linked to the database vs orphaned, and allows one-click cleanup.
+### 1. Dialog Scroll Issue (CreateSubscriptionDialog)
+**Problem:** The CreateSubscriptionDialog content is too tall and you can't scroll to hit the "Create" button.
 
----
+**Root Cause:** The `AlertDialogContent` in `CreateSubscriptionDialog.tsx` at line 163 uses `max-w-md` but doesn't have `max-h-[90vh] overflow-y-auto` to make it scrollable on smaller screens.
 
-## Problem Summary
+### 2. Dialog Doesn't Close After Creating Subscription
+**Problem:** After hitting "Create", the CreateSubscriptionDialog stays open - you have to hit cancel.
 
-Based on the audit, these members have duplicate initiation fee subscriptions:
+**Root Cause:** In `MemberDetail.tsx` line 642, when `handleCreateSubscription` succeeds, it sets `showSubscriptionSuccessDialog(true)` but **never calls** `setShowCreateSubscriptionDialog(false)`. Both dialogs end up open simultaneously.
 
-| Member | Linked | Orphan (Cancel) |
-|--------|--------|-----------------|
-| Afifa Seblini | sub_1SyMgvLyZrsSqLhsD9fO8V5a | sub_1SwmP5LyZrsSqLhsIYBBzyaM |
-| Deanna Beydoun | sub_1SyM2dLyZrsSqLhsrnbJRaLd | sub_1SwmJNLyZrsSqLhsbkX1lw8p |
-| Jacklyn Gougeon | sub_1SyMpmLyZrsSqLhstRSsD8je | sub_1Sxo9SLyZrsSqLhsLW6Gc9Ap |
-| Lilian Chahrour | sub_1SyNDKLyZrsSqLhsNeqZ1gzi | sub_1Sxp81LyZrsSqLhsg4MPDJBE |
-| Sahar Durant | sub_1SsjMZLyZrsSqLhsPcvRzlKH | sub_1SskJeLyZrsSqLhs1HtypLfX |
-| Sarah Kawar | sub_1SykzMLyZrsSqLhsgaovhr9q | sub_1Sy4QiLyZrsSqLhsRozIItrk |
-| Khawla Berro | sub_1Syl3uLyZrsSqLhsKB0AR67e | sub_1Syl3eLyZrsSqLhs818h0QKG |
-| Ayana Silmi | sub_1Syl5ZLyZrsSqLhsKtI1rcRo | sub_1Syl5ILyZrsSqLhstlijK577 |
+### 3. Stripe Cancellation Not Syncing to Admin UI
+**Problem:** When you cancel a subscription in Stripe Dashboard, the admin UI still shows it as active.
 
----
+**Root Cause:** The webhook handler for `customer.subscription.deleted` (line 974-1012 in stripe-webhook) correctly updates the database, but there's a bug - it only searches by `stripe_subscription_id` for dues subscriptions. If you cancel an **annual fee subscription**, it won't find the member because annual fee uses `annual_fee_subscription_id`. The lookup needs to check both fields.
 
-## Solution: Audit & Cleanup Endpoint
+### 4. No Payment Decline Notification in Admin UI
+**Problem:** You don't know if a payment declines unless you go to Stripe.
 
-### New Edge Function Action: `audit_duplicate_annual_fees`
+**Current State:** The webhook already sends admin alert emails for failed payments (line 1548-1572 in stripe-webhook). However, there's no **in-app notification** or prominent dashboard alert. The `BillingHealthWidget` on the dashboard does show "Failed Payments" count, but it's not prominent enough.
 
-**What it does:**
-1. Fetches all members with a `stripe_customer_id`
-2. For each customer, lists all active subscriptions in Stripe
-3. Identifies subscriptions using annual fee price IDs
-4. Compares against `annual_fee_subscription_id` in database
-5. Returns list of orphaned (unlinked) subscriptions
+**Solution:** Add a more prominent "Immediate Attention Required" alert card at the top of the dashboard when there are failed payments in the last 7 days.
 
-**Response format:**
-```typescript
-{
-  duplicates: [
-    {
-      member_id: string;
-      member_name: string;
-      email: string;
-      stripe_customer_id: string;
-      linked_subscription_id: string | null;
-      orphan_subscriptions: [
-        { id: string; created: Date; status: string; last_invoice_amount: number }
-      ];
-    }
-  ];
-  total_orphans: number;
-}
-```
+### 5. Members Marked Active Despite Owing Payments
+**Problem:** A member can be "active" even if they have declined payments.
 
-### New Edge Function Action: `cancel_orphan_subscription`
+**Current Logic:** The activation process sets status to "active" immediately. Stripe webhooks update to "past_due" when `invoice.payment_failed` fires, but there's a race condition if the initial subscription charge fails - the member was already set to "active" before the webhook processes.
 
-**What it does:**
-1. Accepts subscription ID to cancel
-2. Verifies it's NOT the linked subscription for any member
-3. Cancels the subscription in Stripe
-4. Optionally refunds the most recent invoice
+**Solution:** Add a pre-activation payment verification step that confirms the first invoice was actually paid before marking active.
 
 ---
 
-## Admin UI Component
-
-### New Section in Admin Payments or Settings Page
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  ⚠️  Duplicate Initiation Fee Audit                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  Found 8 members with duplicate initiation fee subscriptions.   │
-│                                                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │ Afifa Seblini                    afifa.seblini@gmail.com  │  │
-│  │ Linked: sub_1SyMgv... ✓                                   │  │
-│  │ Orphan: sub_1SwmP5... (Created Jan 29)                    │  │
-│  │         $300.00 charged                                   │  │
-│  │                                                           │  │
-│  │ [Cancel & Refund]  [Cancel Only]  [View in Stripe]        │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  [Run Audit]  [Cancel All Orphans]                              │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Files to Create/Modify
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/stripe-payment/index.ts` | Add `audit_duplicate_annual_fees` action |
-| `supabase/functions/stripe-payment/index.ts` | Add `cancel_orphan_subscription` action |
-| `src/pages/admin/Payments.tsx` | Add Duplicate Audit section with UI |
-| `src/components/admin/DuplicateAuditCard.tsx` | New component for audit display |
+| `src/components/admin/CreateSubscriptionDialog.tsx` | Add scroll support to dialog content |
+| `src/pages/admin/MemberDetail.tsx` | Close CreateSubscriptionDialog before showing success dialog |
+| `supabase/functions/stripe-webhook/index.ts` | Fix subscription.deleted to check both subscription ID fields |
+| `src/pages/admin/Dashboard.tsx` | Add prominent "Failed Payments Alert" card |
+| `supabase/functions/stripe-payment/index.ts` | Add payment verification before setting member to active |
 
 ---
 
-## Implementation Details
+## Technical Implementation
 
-### Edge Function: audit_duplicate_annual_fees
+### Fix 1: Dialog Scroll Issue
+
+Add `max-h-[85vh] overflow-y-auto` to the AlertDialogContent:
 
 ```typescript
-case 'audit_duplicate_annual_fees': {
-  // Get all members with stripe_customer_id
-  const { data: members } = await supabase
-    .from('members')
-    .select('id, first_name, last_name, email, stripe_customer_id, annual_fee_subscription_id')
-    .not('stripe_customer_id', 'is', null);
-
-  const duplicates = [];
-  const annualFeePriceIds = Object.values(STRIPE_PRODUCTS.annualFee);
-
-  for (const member of members) {
-    // Get all active subscriptions for this customer
-    const subs = await stripe.subscriptions.list({
-      customer: member.stripe_customer_id,
-      status: 'active',
-      limit: 20,
-    });
-
-    // Filter to only annual fee subscriptions
-    const annualFeeSubs = subs.data.filter(sub =>
-      sub.items.data.some(item => annualFeePriceIds.includes(item.price.id)) ||
-      sub.metadata.type === 'annual_fee'
-    );
-
-    // If more than one, we have duplicates
-    if (annualFeeSubs.length > 1) {
-      const orphans = annualFeeSubs
-        .filter(sub => sub.id !== member.annual_fee_subscription_id)
-        .map(sub => ({
-          id: sub.id,
-          created: new Date(sub.created * 1000).toISOString(),
-          status: sub.status,
-          last_invoice_amount: sub.latest_invoice?.amount_paid || 0,
-        }));
-
-      duplicates.push({
-        member_id: member.id,
-        member_name: `${member.first_name} ${member.last_name}`,
-        email: member.email,
-        stripe_customer_id: member.stripe_customer_id,
-        linked_subscription_id: member.annual_fee_subscription_id,
-        orphan_subscriptions: orphans,
-      });
-    }
-  }
-
-  return { duplicates, total_orphans: duplicates.reduce((acc, d) => acc + d.orphan_subscriptions.length, 0) };
-}
+// CreateSubscriptionDialog.tsx line 163
+<AlertDialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
 ```
 
-### Edge Function: cancel_orphan_subscription
+### Fix 2: Close Dialog on Success
+
+In `handleCreateSubscription` success handler, close the dialog first:
 
 ```typescript
-case 'cancel_orphan_subscription': {
-  const { subscriptionId, processRefund } = body;
+// MemberDetail.tsx ~line 642
+setShowCreateSubscriptionDialog(false); // ADD THIS LINE
+setSubscriptionResult({...});
+setShowSubscriptionSuccessDialog(true);
+```
 
-  // Safety: verify this subscription is NOT linked to any member
-  const { data: linkedMember } = await supabase
+### Fix 3: Webhook Subscription Deleted Handler
+
+Modify the lookup to check both `stripe_subscription_id` AND `annual_fee_subscription_id`:
+
+```typescript
+// stripe-webhook/index.ts case 'customer.subscription.deleted'
+// First try membership subscription
+let memberData = await supabase
+  .from('members')
+  .select('id')
+  .eq('stripe_subscription_id', subscription.id)
+  .maybeSingle();
+
+// If not found, try annual fee subscription
+if (!memberData?.data) {
+  memberData = await supabase
     .from('members')
-    .select('id, first_name, last_name')
-    .eq('annual_fee_subscription_id', subscriptionId)
+    .select('id')
+    .eq('annual_fee_subscription_id', subscription.id)
     .maybeSingle();
-
-  if (linkedMember) {
-    throw new Error(`Cannot cancel - this subscription is linked to ${linkedMember.first_name} ${linkedMember.last_name}`);
+  
+  // If annual fee subscription was deleted, also clear annual_fee_subscription_id
+  if (memberData?.data) {
+    await supabase.from('members')
+      .update({ annual_fee_subscription_id: null })
+      .eq('id', memberData.data.id);
   }
+}
+```
 
-  // Cancel the subscription
-  await stripe.subscriptions.cancel(subscriptionId);
+### Fix 4: Dashboard Failed Payments Alert
 
-  // Optionally refund the last payment
-  if (processRefund) {
-    const sub = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['latest_invoice'] });
-    const invoice = sub.latest_invoice;
-    if (invoice?.payment_intent) {
-      await stripe.refunds.create({ payment_intent: invoice.payment_intent });
-    }
-  }
+Add a new prominent alert component at the top of the Dashboard that shows when there are recent failed payments:
 
-  return { success: true, cancelled: subscriptionId, refunded: processRefund };
+```typescript
+// New component or inline in Dashboard.tsx
+{failedPaymentMembers.length > 0 && (
+  <Card className="border-red-500 bg-red-50 dark:bg-red-950/30">
+    <CardContent className="p-4 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <AlertTriangle className="h-6 w-6 text-red-600" />
+        <div>
+          <p className="font-semibold text-red-800">Payment Failures Require Attention</p>
+          <p className="text-sm text-red-600">
+            {failedPaymentMembers.length} member(s) had declined payments in the last 7 days
+          </p>
+        </div>
+      </div>
+      <Button variant="outline" asChild>
+        <Link to="/admin/payments?filter=failed">Review</Link>
+      </Button>
+    </CardContent>
+  </Card>
+)}
+```
+
+### Fix 5: Verify Payment Before Activation
+
+In the `admin_create_member_subscription` action, after creating the subscription, verify the first invoice status before marking member as active:
+
+```typescript
+// After subscription.create() in stripe-payment/index.ts
+// Verify the first invoice was paid before activating
+const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+  expand: ['latest_invoice']
+});
+
+const invoice = subscription.latest_invoice as Stripe.Invoice;
+const isPaid = invoice?.status === 'paid' || invoice?.amount_due === 0;
+
+// Update member status based on payment
+const newStatus = isPaid ? 'active' : 'pending_activation';
+
+await supabase.from('members').update({
+  status: newStatus,
+  stripe_subscription_id: subscriptionId,
+  // ... other fields
+}).eq('id', memberId);
+
+// If payment failed, return a warning to the admin
+if (!isPaid) {
+  return new Response(JSON.stringify({
+    success: true,
+    subscriptionId,
+    status: 'pending_payment',
+    warning: 'Subscription created but initial payment is pending. Member will be activated when payment succeeds.',
+    invoiceStatus: invoice?.status,
+  }), ...);
 }
 ```
 
 ---
 
-## Benefits
+## Summary
 
-1. **Visibility**: See all duplicate subscriptions in one place
-2. **Safety**: Cannot accidentally cancel a linked subscription
-3. **Speed**: One-click cleanup instead of manual Stripe dashboard work
-4. **Audit Trail**: Actions logged for accountability
-
----
-
-## Immediate Manual Cleanup (Before Tool is Built)
-
-If you need to clean up NOW before this tool is built:
-
-1. **Afifa Seblini**: Cancel `sub_1SwmP5LyZrsSqLhsIYBBzyaM`
-2. **Deanna Beydoun**: Cancel `sub_1SwmJNLyZrsSqLhsbkX1lw8p`
-3. **Jacklyn Gougeon**: Cancel `sub_1Sxo9SLyZrsSqLhsLW6Gc9Ap`
-4. **Lilian Chahrour**: Cancel `sub_1Sxp81LyZrsSqLhsg4MPDJBE`
-5. **Sahar Durant**: Cancel `sub_1SskJeLyZrsSqLhs1HtypLfX`
-6. **Sarah Kawar**: Cancel `sub_1Sy4QiLyZrsSqLhsRozIItrk`
-7. **Khawla Berro**: Cancel `sub_1Syl3eLyZrsSqLhs818h0QKG`
-8. **Ayana Silmi**: Cancel `sub_1Syl5ILyZrsSqLhstlijK577`
-
-Go to Stripe Dashboard → Search → Subscriptions → Paste subscription ID → Cancel
-
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| Can't scroll to Create button | Missing scroll CSS | Add `max-h-[85vh] overflow-y-auto` |
+| Dialog stays open | Missing `setShowCreateSubscriptionDialog(false)` | Add the call before showing success |
+| Stripe cancel not syncing | Webhook only checks `stripe_subscription_id` | Also check `annual_fee_subscription_id` |
+| No decline notifications | Email only, no in-app alert | Add dashboard alert card |
+| Active despite owing | Race condition with webhook | Verify invoice status before activation |
