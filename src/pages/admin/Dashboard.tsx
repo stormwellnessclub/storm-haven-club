@@ -14,12 +14,13 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertCircle,
-  Trophy
+  Trophy,
+  AlertTriangle
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, subDays } from "date-fns";
 import { BillingHealthWidget } from "@/components/admin/BillingHealthWidget";
 import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
 
@@ -61,6 +62,42 @@ export default function Dashboard() {
         todayClasses: todayClasses || 0,
         todayCheckins: todayCheckins || 0,
       };
+    },
+  });
+
+  // Fetch failed payments in last 7 days (urgent attention)
+  const sevenDaysAgo = subDays(new Date(), 7).toISOString();
+  const { data: failedPayments = [], isLoading: failedPaymentsLoading } = useQuery({
+    queryKey: ['admin-failed-payments-alert', today],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payment_attempts')
+        .select(`
+          id,
+          member_id,
+          amount,
+          error_message,
+          created_at,
+          members!inner (
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('status', 'failed')
+        .gte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        memberName: `${p.members?.first_name || ''} ${p.members?.last_name || ''}`.trim() || 'Unknown',
+        email: p.members?.email,
+        amount: p.amount,
+        error: p.error_message,
+        date: p.created_at,
+      }));
     },
   });
 
@@ -178,6 +215,35 @@ export default function Dashboard() {
   return (
     <AdminLayout title="Dashboard">
       <div className="space-y-6">
+        {/* Failed Payments Alert - Critical */}
+        {!failedPaymentsLoading && failedPayments.length > 0 && (
+          <Card className="border-destructive bg-destructive/5">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-destructive/10 rounded-lg">
+                    <AlertTriangle className="h-6 w-6 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-destructive">
+                      Payment Failures Require Attention
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {failedPayments.length} member(s) had declined payments in the last 7 days
+                    </p>
+                  </div>
+                </div>
+                <Button variant="outline" asChild className="border-destructive/50 hover:bg-destructive/10">
+                  <Link to="/admin/payments">
+                    Review Now
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Date and Quick Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

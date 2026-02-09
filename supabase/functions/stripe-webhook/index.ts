@@ -976,31 +976,70 @@ serve(async (req) => {
           const subscription = event.data.object as Stripe.Subscription;
           logStep("Subscription deleted", { subscriptionId: subscription.id });
 
-          // Find member by subscription ID
-          const { data: memberData, error: memberError } = await supabase
+          // Find member by membership subscription ID first
+          let memberData: { id: string } | null = null;
+          let isAnnualFeeSubscription = false;
+          
+          const { data: memberByDues, error: duesError } = await supabase
             .from('members')
             .select('id')
             .eq('stripe_subscription_id', subscription.id)
             .maybeSingle();
 
-          if (memberError) {
-            logError(memberError, "SUBSCRIPTION_DELETED_MEMBER_LOOKUP");
-          } else if (memberData) {
-            // Update status with history tracking
-            const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
-              p_member_id: memberData.id,
-              p_stripe_subscription_id: subscription.id,
-              p_new_status: 'cancelled',
-              p_reason: 'subscription_deleted',
-              p_stripe_event_id: event.id,
-              p_changed_by: 'stripe',
-              p_metadata: {}
-            });
+          if (duesError) {
+            logError(duesError, "SUBSCRIPTION_DELETED_DUES_LOOKUP");
+          }
+          
+          if (memberByDues) {
+            memberData = memberByDues;
+          } else {
+            // Not found by dues subscription - check annual fee subscription
+            const { data: memberByAnnualFee, error: annualFeeError } = await supabase
+              .from('members')
+              .select('id')
+              .eq('annual_fee_subscription_id', subscription.id)
+              .maybeSingle();
+            
+            if (annualFeeError) {
+              logError(annualFeeError, "SUBSCRIPTION_DELETED_ANNUAL_FEE_LOOKUP");
+            }
+            
+            if (memberByAnnualFee) {
+              memberData = memberByAnnualFee;
+              isAnnualFeeSubscription = true;
+            }
+          }
 
-            if (updateError) {
-              logError(updateError, "SUBSCRIPTION_DELETED");
+          if (memberData) {
+            if (isAnnualFeeSubscription) {
+              // Clear annual fee subscription ID only
+              const { error: updateError } = await supabase
+                .from('members')
+                .update({ annual_fee_subscription_id: null })
+                .eq('id', memberData.id);
+
+              if (updateError) {
+                logError(updateError, "SUBSCRIPTION_DELETED_ANNUAL_FEE_CLEAR");
+              } else {
+                logStep("Annual fee subscription deleted - cleared from member", { memberId: memberData.id });
+              }
             } else {
-              logStep("Subscription deleted - member status updated", { memberId: memberData.id });
+              // Membership dues subscription - update status with history tracking
+              const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
+                p_member_id: memberData.id,
+                p_stripe_subscription_id: subscription.id,
+                p_new_status: 'cancelled',
+                p_reason: 'subscription_deleted',
+                p_stripe_event_id: event.id,
+                p_changed_by: 'stripe',
+                p_metadata: {}
+              });
+
+              if (updateError) {
+                logError(updateError, "SUBSCRIPTION_DELETED");
+              } else {
+                logStep("Subscription deleted - member status updated", { memberId: memberData.id });
+              }
             }
           } else {
             logStep("Member not found for deleted subscription", { subscriptionId: subscription.id });
