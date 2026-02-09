@@ -1339,31 +1339,86 @@ serve(async (req) => {
           throw new Error("Either memberId or stripeCustomerId is required");
         }
 
-        // Get the customer's payment method
-        const paymentMethods3ds = await stripe.paymentMethods.list({
+        // Get the customer's payment method - try card first, then ACH, then link
+        let paymentMethod3ds: Stripe.PaymentMethod | null = null;
+        let paymentMethodType = 'card';
+
+        // Try card first
+        const cardMethods = await stripe.paymentMethods.list({
           customer: customerId,
           type: 'card',
           limit: 1,
         });
+        if (cardMethods.data.length > 0) {
+          paymentMethod3ds = cardMethods.data[0];
+          paymentMethodType = 'card';
+          logStep("Found card payment method", { id: paymentMethod3ds.id });
+        }
 
-        if (paymentMethods3ds.data.length === 0) {
+        // If no card, try us_bank_account (ACH)
+        if (!paymentMethod3ds) {
+          const achMethods = await stripe.paymentMethods.list({
+            customer: customerId,
+            type: 'us_bank_account',
+            limit: 1,
+          });
+          if (achMethods.data.length > 0) {
+            paymentMethod3ds = achMethods.data[0];
+            paymentMethodType = 'us_bank_account';
+            logStep("Found ACH payment method", { id: paymentMethod3ds.id });
+          }
+        }
+
+        // If no ACH, try link
+        if (!paymentMethod3ds) {
+          const linkMethods = await stripe.paymentMethods.list({
+            customer: customerId,
+            type: 'link',
+            limit: 1,
+          });
+          if (linkMethods.data.length > 0) {
+            paymentMethod3ds = linkMethods.data[0];
+            paymentMethodType = 'link';
+            logStep("Found Link payment method", { id: paymentMethod3ds.id });
+          }
+        }
+
+        if (!paymentMethod3ds) {
           throw new Error("No payment method on file");
         }
 
-        const paymentMethod3ds = paymentMethods3ds.data[0];
-        const cardBrand3ds = paymentMethod3ds.card?.brand ? 
-          paymentMethod3ds.card.brand.charAt(0).toUpperCase() + paymentMethod3ds.card.brand.slice(1) : 'Card';
-        const cardLast43ds = paymentMethod3ds.card?.last4 || '****';
+        // Determine display info based on payment method type
+        let cardBrand3ds = 'Card';
+        let cardLast43ds = '****';
+        if (paymentMethodType === 'card' && paymentMethod3ds.card) {
+          cardBrand3ds = paymentMethod3ds.card.brand ? 
+            paymentMethod3ds.card.brand.charAt(0).toUpperCase() + paymentMethod3ds.card.brand.slice(1) : 'Card';
+          cardLast43ds = paymentMethod3ds.card.last4 || '****';
+        } else if (paymentMethodType === 'us_bank_account' && paymentMethod3ds.us_bank_account) {
+          cardBrand3ds = `ACH (${paymentMethod3ds.us_bank_account.bank_name || 'Bank'})`;
+          cardLast43ds = paymentMethod3ds.us_bank_account.last4 || '****';
+        } else if (paymentMethodType === 'link') {
+          cardBrand3ds = 'Link';
+          cardLast43ds = '****';
+        }
 
-        // Create payment intent WITHOUT confirm: true to allow 3DS
+        // Build payment_method_types based on what we found
+        const pmTypes: string[] = [paymentMethodType];
+        if (paymentMethodType === 'us_bank_account') {
+          // ACH doesn't support 3DS/manual confirmation the same way
+          // Use automatic confirmation for ACH
+        }
+
+        // Create payment intent
         const paymentIntent3ds = await stripe.paymentIntents.create({
           amount: amount,
           currency: 'usd',
           customer: customerId,
           payment_method: paymentMethod3ds.id,
+          payment_method_types: pmTypes,
           description: description,
-          confirmation_method: 'manual',
-          confirm: true, // Confirm but don't require off_session
+          confirmation_method: paymentMethodType === 'card' ? 'manual' : 'automatic',
+          confirm: true,
           return_url: `${Deno.env.get('SUPABASE_URL') || 'https://localhost'}/`,
           metadata: {
             type: 'manual_charge',
