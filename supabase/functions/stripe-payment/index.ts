@@ -66,7 +66,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -5312,6 +5312,179 @@ serve(async (req) => {
             refunded: processRefund,
             refund_details: refundResult
           }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'retry_subscription_invoice': {
+        const { memberId } = body;
+        if (!memberId) throw new Error("Missing memberId");
+
+        logStep("Retry subscription invoice", { memberId });
+
+        // Get member's subscription ID
+        const { data: memberData, error: memberErr } = await supabase
+          .from('members')
+          .select('stripe_subscription_id, stripe_customer_id, first_name, last_name')
+          .eq('id', memberId)
+          .single();
+
+        if (memberErr || !memberData) throw new Error("Member not found");
+        if (!memberData.stripe_subscription_id) throw new Error("No subscription found for this member");
+
+        // Find the latest open/unpaid invoice for this subscription
+        const invoices = await stripe.invoices.list({
+          subscription: memberData.stripe_subscription_id,
+          status: 'open',
+          limit: 1,
+        });
+
+        if (invoices.data.length === 0) {
+          // Try draft invoices too
+          const draftInvoices = await stripe.invoices.list({
+            subscription: memberData.stripe_subscription_id,
+            status: 'draft',
+            limit: 1,
+          });
+          
+          if (draftInvoices.data.length > 0) {
+            // Finalize then pay
+            const finalized = await stripe.invoices.finalizeInvoice(draftInvoices.data[0].id);
+            const paid = await stripe.invoices.pay(finalized.id);
+            logStep("Draft invoice finalized and paid", { invoiceId: paid.id, status: paid.status });
+            
+            if (paid.status === 'paid') {
+              await supabase.from('members').update({ subscription_status: 'active' }).eq('id', memberId);
+            }
+            
+            return new Response(
+              JSON.stringify({ success: true, invoiceId: paid.id, status: paid.status, amount: paid.amount_paid }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+            );
+          }
+          
+          throw new Error("No open or draft invoices found for this subscription");
+        }
+
+        const invoice = invoices.data[0];
+        logStep("Found open invoice", { invoiceId: invoice.id, amount: invoice.amount_due });
+
+        // Retry payment
+        const paidInvoice = await stripe.invoices.pay(invoice.id);
+        logStep("Invoice payment result", { invoiceId: paidInvoice.id, status: paidInvoice.status });
+
+        // Update member subscription_status if payment succeeded
+        if (paidInvoice.status === 'paid') {
+          await supabase.from('members').update({ subscription_status: 'active' }).eq('id', memberId);
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            invoiceId: paidInvoice.id, 
+            status: paidInvoice.status,
+            amount: paidInvoice.amount_paid,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'sync_member_subscription_status': {
+        const { memberId } = body;
+        if (!memberId) throw new Error("Missing memberId");
+
+        logStep("Sync member subscription status", { memberId });
+
+        const { data: memberData, error: memberErr } = await supabase
+          .from('members')
+          .select('stripe_subscription_id, stripe_customer_id, subscription_status')
+          .eq('id', memberId)
+          .single();
+
+        if (memberErr || !memberData) throw new Error("Member not found");
+        if (!memberData.stripe_subscription_id) {
+          return new Response(
+            JSON.stringify({ success: true, status: 'no_subscription', synced: false }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Get subscription from Stripe
+        const subscription = await stripe.subscriptions.retrieve(memberData.stripe_subscription_id);
+        const stripeStatus = subscription.status;
+        logStep("Stripe subscription status", { stripeStatus, dbStatus: memberData.subscription_status });
+
+        // Update member record if different
+        if (stripeStatus !== memberData.subscription_status) {
+          await supabase.from('members').update({ subscription_status: stripeStatus }).eq('id', memberId);
+          logStep("Updated subscription_status", { from: memberData.subscription_status, to: stripeStatus });
+        }
+
+        // Get latest invoice for failure details
+        let failureDetails = null;
+        if (['incomplete', 'past_due', 'unpaid'].includes(stripeStatus)) {
+          const latestInvoice = await stripe.invoices.list({
+            subscription: memberData.stripe_subscription_id,
+            limit: 1,
+          });
+          if (latestInvoice.data.length > 0) {
+            const inv = latestInvoice.data[0];
+            failureDetails = {
+              invoiceId: inv.id,
+              amount: inv.amount_due,
+              status: inv.status,
+              attemptCount: inv.attempt_count,
+              nextAttempt: inv.next_payment_attempt,
+            };
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            previousStatus: memberData.subscription_status,
+            currentStatus: stripeStatus,
+            synced: stripeStatus !== memberData.subscription_status,
+            failureDetails,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'deactivate_member': {
+        const { memberId } = body;
+        if (!memberId) throw new Error("Missing memberId");
+
+        logStep("Deactivate member", { memberId });
+
+        const { data: memberData, error: memberErr } = await supabase
+          .from('members')
+          .select('stripe_subscription_id, first_name, last_name, status')
+          .eq('id', memberId)
+          .single();
+
+        if (memberErr || !memberData) throw new Error("Member not found");
+
+        // Cancel Stripe subscription if exists
+        if (memberData.stripe_subscription_id) {
+          try {
+            await stripe.subscriptions.cancel(memberData.stripe_subscription_id);
+            logStep("Cancelled Stripe subscription", { subscriptionId: memberData.stripe_subscription_id });
+          } catch (cancelErr) {
+            logStep("Warning: Failed to cancel subscription", { error: String(cancelErr) });
+          }
+        }
+
+        // Update member status
+        await supabase.from('members').update({ 
+          status: 'suspended',
+          subscription_status: 'canceled',
+        }).eq('id', memberId);
+
+        logStep("Member deactivated", { memberId, name: `${memberData.first_name} ${memberData.last_name}` });
+
+        return new Response(
+          JSON.stringify({ success: true, memberId }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }

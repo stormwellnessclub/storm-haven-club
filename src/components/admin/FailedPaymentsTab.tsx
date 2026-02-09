@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { ExternalLink, Mail, User, AlertTriangle, XCircle, Loader2 } from "lucide-react";
+import { ExternalLink, Mail, User, AlertTriangle, XCircle, Loader2, RefreshCcw, Ban, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -20,11 +19,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useFailedPayments, usePaymentStats, type FailedPayment } from "@/hooks/usePaymentTracking";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useFailedPayments, usePaymentStats, useMembersWithBillingFailures, useRetryInvoice, useSyncMemberStatus, useDeactivateMember, type FailedPayment, type MemberBillingFailure } from "@/hooks/usePaymentTracking";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 import { FailedPaymentDetailSheet } from "@/components/admin/FailedPaymentDetailSheet";
 import { useNavigate } from "react-router-dom";
 import { subDays } from "date-fns";
+import { toast } from "sonner";
 
 export function FailedPaymentsTab() {
   const navigate = useNavigate();
@@ -40,9 +50,54 @@ export function FailedPaymentsTab() {
   }>({});
   const [selectedPayment, setSelectedPayment] = useState<FailedPayment | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<MemberBillingFailure | null>(null);
 
   const { data: payments, isLoading } = useFailedPayments(dateRange, filters);
   const { data: stats } = usePaymentStats(dateRange);
+  const { data: billingFailures, isLoading: isLoadingBilling } = useMembersWithBillingFailures();
+  const retryInvoice = useRetryInvoice();
+  const syncStatus = useSyncMemberStatus();
+  const deactivateMember = useDeactivateMember();
+
+  const [syncingAll, setSyncingAll] = useState(false);
+
+  const handleSyncAll = async () => {
+    if (!billingFailures?.length) return;
+    setSyncingAll(true);
+    let synced = 0;
+    for (const m of billingFailures) {
+      try {
+        const result = await syncStatus.mutateAsync(m.id);
+        if (result.synced) synced++;
+      } catch { /* continue */ }
+    }
+    setSyncingAll(false);
+    toast.success(`Synced ${synced} of ${billingFailures.length} members`);
+  };
+
+  const handleRetry = async (memberId: string, name: string) => {
+    try {
+      const result = await retryInvoice.mutateAsync(memberId);
+      if (result.status === 'paid') {
+        toast.success(`Payment succeeded for ${name}!`);
+      } else {
+        toast.error(`Payment attempt returned status: ${result.status}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Retry failed");
+    }
+  };
+
+  const handleDeactivate = async () => {
+    if (!deactivateTarget) return;
+    try {
+      await deactivateMember.mutateAsync(deactivateTarget.id);
+      toast.success(`${deactivateTarget.first_name} ${deactivateTarget.last_name} has been deactivated`);
+      setDeactivateTarget(null);
+    } catch (err: any) {
+      toast.error(err.message || "Deactivation failed");
+    }
+  };
 
   const declineCodes = [
     { value: "insufficient_funds", label: "Insufficient Funds" },
@@ -64,8 +119,146 @@ export function FailedPaymentsTab() {
     setDetailSheetOpen(true);
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'incomplete': return <Badge variant="destructive">Incomplete</Badge>;
+      case 'incomplete_expired': return <Badge variant="destructive">Expired</Badge>;
+      case 'past_due': return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">Past Due</Badge>;
+      case 'unpaid': return <Badge variant="destructive">Unpaid</Badge>;
+      default: return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Members with Billing Issues - Primary Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Members with Billing Issues
+              {billingFailures && (
+                <Badge variant="destructive" className="ml-2">
+                  {billingFailures.length}
+                </Badge>
+              )}
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncAll}
+              disabled={syncingAll || !billingFailures?.length}
+            >
+              <RefreshCcw className={`h-4 w-4 mr-2 ${syncingAll ? 'animate-spin' : ''}`} />
+              Sync All from Stripe
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoadingBilling ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : !billingFailures || billingFailures.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No members with billing issues found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Member</TableHead>
+                  <TableHead>Tier</TableHead>
+                  <TableHead>Member Status</TableHead>
+                  <TableHead>Subscription Status</TableHead>
+                  <TableHead>Card on File</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {billingFailures.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{member.first_name} {member.last_name}</p>
+                        <p className="text-xs text-muted-foreground">{member.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{member.membership_type}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="capitalize">
+                        {member.status?.replace(/_/g, ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(member.subscription_status)}
+                    </TableCell>
+                    <TableCell>
+                      {member.card_brand && member.card_last4 ? (
+                        <span className="text-sm">
+                          {member.card_brand.toUpperCase()} •••• {member.card_last4}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">No card</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRetry(member.id, `${member.first_name} ${member.last_name}`)}
+                          disabled={retryInvoice.isPending || !member.stripe_subscription_id}
+                          title="Retry payment"
+                        >
+                          {retryInvoice.isPending ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3 w-3" />
+                          )}
+                          <span className="ml-1 hidden sm:inline">Retry</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => syncStatus.mutateAsync(member.id).then(r => {
+                            toast.success(r.synced ? `Status updated: ${r.currentStatus}` : "Already in sync");
+                          }).catch(() => toast.error("Sync failed"))}
+                          disabled={syncStatus.isPending}
+                          title="Sync from Stripe"
+                        >
+                          <RefreshCcw className={`h-3 w-3 ${syncStatus.isPending ? 'animate-spin' : ''}`} />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setDeactivateTarget(member)}
+                          title="Deactivate member"
+                        >
+                          <Ban className="h-3 w-3" />
+                          <span className="ml-1 hidden sm:inline">Suspend</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/admin/members/${member.id}`)}
+                          title="View profile"
+                        >
+                          <User className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-5">
         <Card>
@@ -185,12 +378,12 @@ export function FailedPaymentsTab() {
         </CardContent>
       </Card>
 
-      {/* Table */}
+      {/* Payment Attempts Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <XCircle className="h-5 w-5 text-destructive" />
-            Failed Payments
+            Failed Payment Attempts
             {payments && (
               <Badge variant="secondary" className="ml-2">
                 {payments.length}
@@ -205,7 +398,7 @@ export function FailedPaymentsTab() {
             </div>
           ) : !payments || payments.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              No failed payments in this period
+              No failed payment attempts recorded in this period
             </div>
           ) : (
             <Table>
@@ -294,6 +487,30 @@ export function FailedPaymentsTab() {
         open={detailSheetOpen}
         onOpenChange={setDetailSheetOpen}
       />
+
+      {/* Deactivate Confirmation Dialog */}
+      <AlertDialog open={!!deactivateTarget} onOpenChange={(open) => !open && setDeactivateTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will suspend {deactivateTarget?.first_name} {deactivateTarget?.last_name}'s membership and cancel their Stripe subscription. This action can be reversed by reactivating the member.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeactivate}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deactivateMember.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

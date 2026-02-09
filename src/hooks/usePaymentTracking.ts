@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { addMonths, isBefore, isAfter, startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "@/components/admin/DateRangePicker";
@@ -455,6 +455,94 @@ export function usePaymentEmails(dateRange: DateRange, filters?: {
       if (error) throw error;
 
       return (data || []) as PaymentEmail[];
+    },
+  });
+}
+
+export interface MemberBillingFailure {
+  id: string;
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  membership_type: string;
+  status: string;
+  subscription_status: string;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
+  card_exp_month: number | null;
+  card_exp_year: number | null;
+}
+
+export function useMembersWithBillingFailures() {
+  return useQuery({
+    queryKey: ["members-billing-failures"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("members")
+        .select("id, member_id, first_name, last_name, email, membership_type, status, subscription_status, stripe_subscription_id, stripe_customer_id, card_brand, card_last4, card_exp_month, card_exp_year")
+        .in("subscription_status", ["incomplete", "incomplete_expired", "past_due", "unpaid"]);
+
+      if (error) throw error;
+
+      return (data || []) as MemberBillingFailure[];
+    },
+    refetchInterval: 60000,
+  });
+}
+
+export function useRetryInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (memberId: string) => {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "retry_subscription_invoice", memberId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members-billing-failures"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    },
+  });
+}
+
+export function useSyncMemberStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (memberId: string) => {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "sync_member_subscription_status", memberId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members-billing-failures"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    },
+  });
+}
+
+export function useDeactivateMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (memberId: string) => {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "deactivate_member", memberId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members-billing-failures"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
     },
   });
 }

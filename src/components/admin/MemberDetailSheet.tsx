@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye, RotateCcw } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
@@ -57,6 +57,7 @@ import { useMemberActivities } from "@/hooks/useMemberActivities";
 import { useQuery } from "@tanstack/react-query";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
+import { useRetryInvoice, useSyncMemberStatus, useDeactivateMember } from "@/hooks/usePaymentTracking";
 
 interface Member {
   id: string;
@@ -67,6 +68,7 @@ interface Member {
   phone: string | null;
   membership_type: string;
   status: string;
+  subscription_status: string | null;
   membership_start_date: string;
   membership_end_date: string | null;
   billing_type: string | null;
@@ -333,6 +335,11 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   // Create subscription state
   const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
   const [showCreateSubscriptionDialog, setShowCreateSubscriptionDialog] = useState(false);
+
+  // Retry / Deactivate hooks
+  const retryInvoice = useRetryInvoice();
+  const syncMemberStatus = useSyncMemberStatus();
+  const deactivateMemberAction = useDeactivateMember();
   
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -921,6 +928,70 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
             </TabsContent>
 
             <TabsContent value="membership" className="space-y-4 mt-4">
+              {/* Subscription Status Alert */}
+              {member.subscription_status && ['incomplete', 'incomplete_expired', 'past_due', 'unpaid'].includes(member.subscription_status) && (
+                <Card className="border-destructive bg-destructive/10">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start gap-3">
+                      <XCircle className="h-5 w-5 text-destructive mt-0.5" />
+                      <div className="space-y-3 flex-1">
+                        <div>
+                          <p className="font-semibold text-destructive">Subscription Payment Failed</p>
+                          <p className="text-sm text-muted-foreground">
+                            Subscription status: <Badge variant="destructive" className="ml-1">{member.subscription_status}</Badge>
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              retryInvoice.mutateAsync(member.id).then(r => {
+                                if (r.status === 'paid') toast.success("Payment succeeded!");
+                                else toast.error(`Payment status: ${r.status}`);
+                                queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                              }).catch((e: Error) => toast.error(e.message));
+                            }}
+                            disabled={retryInvoice.isPending || !member.stripe_subscription_id}
+                          >
+                            {retryInvoice.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                            Retry Payment
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              syncMemberStatus.mutateAsync(member.id).then(r => {
+                                toast.success(r.synced ? `Status synced: ${r.currentStatus}` : "Already in sync");
+                                queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                              }).catch(() => toast.error("Sync failed"));
+                            }}
+                            disabled={syncMemberStatus.isPending}
+                          >
+                            <RefreshCcw className={`h-4 w-4 mr-2 ${syncMemberStatus.isPending ? 'animate-spin' : ''}`} />
+                            Sync Status
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              deactivateMemberAction.mutateAsync(member.id).then(() => {
+                                toast.success("Member deactivated");
+                                queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+                                onOpenChange(false);
+                              }).catch((e: Error) => toast.error(e.message));
+                            }}
+                            disabled={deactivateMemberAction.isPending}
+                          >
+                            {deactivateMemberAction.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Deactivate Member
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Payment Status Panel */}
               {(() => {
                 const paymentStatus = checkMemberPaymentStatus({
