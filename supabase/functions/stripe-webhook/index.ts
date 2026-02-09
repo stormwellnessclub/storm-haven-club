@@ -949,6 +949,14 @@ serve(async (req) => {
               newStatus = 'past_due';
               reason = subscription.status === 'past_due' ? 'payment_past_due' : 'payment_unpaid';
             } else if (subscription.status === 'active') {
+              // Only auto-activate members recovering from past_due
+              // Do NOT auto-activate pending_activation members - they need explicit admin activation
+              const currentMemberStatus = memberData.status;
+              if (currentMemberStatus === 'pending_activation') {
+                logStep("Subscription active but member is pending_activation - keeping pending (requires admin activation)", { memberId: memberData.id });
+                // Still sync subscription_status but don't change member status
+                break;
+              }
               newStatus = 'active';
               reason = 'subscription_active';
             } else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {

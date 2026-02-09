@@ -93,6 +93,7 @@ interface ChargeItemSelectorProps {
     membership_type: string;
     gender: string | null;
     billing_type: string | null;
+    status?: string;
   };
   onChargeSuccess?: () => void;
   /** If using 3DS flow, pass this callback instead */
@@ -113,7 +114,10 @@ export function ChargeItemSelector({
   const [chargeType, setChargeType] = useState("other");
   const [isManualPayment, setIsManualPayment] = useState(false);
   const [manualPaymentMethod, setManualPaymentMethod] = useState("cash");
+  const [alsoActivate, setAlsoActivate] = useState(false);
   const [isCharging, setIsCharging] = useState(false);
+
+  const isPendingActivation = member.status === 'pending_activation';
 
   const chargeItems = buildChargeItems(member.membership_type, member.gender, member.billing_type);
 
@@ -155,6 +159,29 @@ export function ChargeItemSelector({
           user_id: user?.id || "unknown",
         });
         if (error) throw error;
+
+        // If "Also activate" is toggled, update member status
+        if (alsoActivate && isPendingActivation) {
+          const { error: activateError } = await supabase
+            .from("members")
+            .update({
+              status: "active",
+              activated_at: new Date().toISOString(),
+              subscription_status: "none",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", member.id);
+          if (activateError) {
+            console.error("Failed to activate member:", activateError);
+            toast.error("Payment recorded but failed to activate member");
+          } else {
+            toast.success(`Manual payment of $${chargeAmount} recorded & member activated`);
+            onChargeSuccess?.();
+            resetAndClose();
+            return;
+          }
+        }
+
         toast.success(`Manual payment of $${chargeAmount} recorded`);
       } else {
         // Charge saved card via Stripe
@@ -194,6 +221,7 @@ export function ChargeItemSelector({
     setChargeType("other");
     setIsManualPayment(false);
     setManualPaymentMethod("cash");
+    setAlsoActivate(false);
     onOpenChange(false);
   };
 
@@ -275,8 +303,17 @@ export function ChargeItemSelector({
               </div>
             </div>
             <Switch checked={isManualPayment} onCheckedChange={setIsManualPayment} />
-          </div>
-
+          {/* Also activate toggle - shown for pending_activation members with manual payment */}
+          {isManualPayment && isPendingActivation && (chargeType === 'membership_dues' || chargeType === 'initiation_fee') && (
+            <div className="flex items-center justify-between rounded-lg border border-accent bg-accent/10 p-3">
+              <div>
+                <Label className="text-sm font-medium">Also activate this member</Label>
+                <p className="text-xs text-muted-foreground">Set member status to active after recording payment</p>
+              </div>
+              <Switch checked={alsoActivate} onCheckedChange={setAlsoActivate} />
+            </div>
+          )}
+        </div>
           {/* Manual payment method selector */}
           {isManualPayment && (
             <div>
