@@ -1,144 +1,207 @@
 
-## Fix Failed Payment/Incomplete Subscription Detection
+## Comprehensive Payment Tracking Dashboard
 
-### Problem Summary
-Members with failed initial payments (Stripe subscription status = `incomplete`) are incorrectly showing as having an "active subscription" because the system only checks if `stripe_subscription_id` exists, not whether the subscription is actually `active` in Stripe.
-
-This causes:
-1. Member portal showing no payment issues
-2. Admin list showing "Active" status
-3. No email to member about failed payment
-4. Potential access at check-in
+### Overview
+Build a new dedicated Payment Tracking page at `/admin/payment-tracking` with comprehensive reporting, filtering, and member follow-up capabilities for failed, upcoming, and successful payments.
 
 ---
 
-### Part 1: Member Portal - Detect Incomplete Subscriptions
+### Part 1: Enhanced Failed Payment Badge & Member Detail
 
-**Files:** `src/hooks/usePaymentStatus.ts`, `src/hooks/useMemberBenefitsStatus.ts`
+**Current State**: `MemberIssuesBadges.tsx` shows a "Payment Failed" badge but doesn't expose details.
 
-Currently `hasActiveSubscription = !!membership.stripe_subscription_id` - this only checks if ID exists.
+**Enhancements**:
+- Add a clickable failed payment badge that opens a popover/sheet showing:
+  - Full decline reason and code
+  - Failure message from Stripe
+  - Attempt count and next retry date
+  - Quick link to member detail
+  - Email status (was payment_failed email sent?)
 
-**Fix:** Add a new hook or enhance existing to check actual Stripe subscription status. Options:
-- Add `subscription_status` column to `members` table (synced by webhook)
-- Or call Stripe on-demand (adds latency)
-
-**Recommended:** Add `subscription_status` column to `members` table
-
-```sql
-ALTER TABLE members ADD COLUMN subscription_status text DEFAULT 'none';
--- Values: 'none', 'incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'paused'
-```
-
-Update `usePaymentStatus` to check:
-```typescript
-const hasActiveSubscription = !!membership.stripe_subscription_id && 
-  ['active', 'trialing'].includes(membership.subscription_status || '');
-```
+**Files to modify**:
+- `src/components/admin/MemberIssuesBadges.tsx` - Add click handler to show details dialog
 
 ---
 
-### Part 2: Webhook - Sync Subscription Status
+### Part 2: New Payment Tracking Page
 
-**File:** `supabase/functions/stripe-webhook/index.ts`
+Create a new comprehensive page at `/admin/payment-tracking` with three main tabs.
 
-Update webhook handlers to sync `subscription_status` to members table:
-- `customer.subscription.created`
-- `customer.subscription.updated` 
-- `invoice.payment_failed` (for initial invoice failures)
-- `invoice.payment_succeeded`
+**Route**: Add to admin routing in `App.tsx`
 
-For initial payment failures (subscription `incomplete`):
-- Update `subscription_status = 'incomplete'` in members table
-- Send failure email (already exists for `invoice.payment_failed`)
-- Ensure status remains `pending_activation`
+**Layout**: Four main tabs:
+1. **Failed Payments** - Members with declined/failed payment attempts
+2. **Upcoming Payments** - Predicted renewals based on subscription billing cycle
+3. **Successful Payments** - Completed transactions
+4. **Email Tracking** - Payment-related emails sent
 
 ---
 
-### Part 3: Admin Billing Issues Hook - Detect Incomplete
+### Part 3: Failed Payments Tab
 
-**File:** `src/hooks/useMembersBillingIssues.ts`
+**Data Source**: `payment_attempts` table joined with `members`
 
-Add detection for incomplete subscriptions. Either:
-- Check new `subscription_status` column
-- Or add RPC to batch-check Stripe statuses (slower)
+**Columns**:
+| Column | Source |
+|--------|--------|
+| Member Name/Email | members join |
+| Amount | payment_attempts.amount |
+| Status | payment_attempts.status |
+| Decline Code | payment_attempts.decline_code |
+| Decline Reason | payment_attempts.decline_reason |
+| Failure Message | payment_attempts.failure_message |
+| Attempt # | payment_attempts.attempt_number |
+| Next Retry | payment_attempts.next_retry_at |
+| Date | payment_attempts.created_at |
+| Email Sent | email_audit_log join (type = 'payment_failed') |
+| Actions | View Member, Resend Email |
 
-Add new issue type:
-```typescript
-if (member.subscription_status === 'incomplete') {
-  issues.push({
-    type: "error",
-    code: "subscription_incomplete",
-    message: "Initial payment failed - subscription never started",
-    shortLabel: "Payment Failed",
-  });
-}
-```
+**Filters**:
+- Date range picker (start/end with presets)
+- Decline code (dropdown: insufficient_funds, card_declined, expired_card, etc.)
+- Status (failed, requires_action, pending)
+- Tier filter
+- Has been contacted (email sent Y/N)
+- Amount range
 
----
-
-### Part 4: Check-in Scanner - Use Subscription Status
-
-**File:** `supabase/migrations/[new]_update_scanner_check_subscription_status.sql`
-
-Update `process_member_scan` function to check `subscription_status` column:
-
-```sql
--- Check if subscription is actually active
-IF v_member.stripe_subscription_id IS NOT NULL 
-   AND v_member.subscription_status NOT IN ('active', 'trialing') THEN
-  v_access_granted := false;
-  v_denial_reason := 'payment_failed';
-END IF;
-```
+**Summary Cards**:
+- Total Failed Attempts (period)
+- Total Failed Amount
+- Unique Members Affected
+- Avg Attempts per Member
+- Most Common Decline Reason
 
 ---
 
-### Part 5: Member Portal Banner
+### Part 4: Upcoming Payments Tab
 
-**File:** `src/components/member/PaymentDueNotice.tsx`
+**Data Source**: `members` with `stripe_subscription_id` and calculated next billing date
 
-Update to show for `incomplete` subscription status:
+**Logic**: Calculate next billing date based on:
+- `membership_start_date` + monthly intervals
+- Or fetch from Stripe subscription metadata if stored
 
-```typescript
-const isSubscriptionIncomplete = membership.subscription_status === 'incomplete' 
-  || membership.subscription_status === 'incomplete_expired';
+**Columns**:
+| Column | Source |
+|--------|--------|
+| Member Name/Email | members |
+| Tier | membership_type |
+| Amount (Expected) | Calculated from tier pricing |
+| Next Billing Date | Calculated |
+| Card on File | card_brand/last4 |
+| Card Expiry | card_exp_month/year |
+| Risk Level | High if card expires before next billing |
 
-if (!isInitiationFeePaid || !hasActiveSubscription || isSubscriptionIncomplete || isDuesPastDue) {
-  // Show payment banner
-}
-```
+**Filters**:
+- Date range (show upcoming in next X days)
+- Tier
+- Card status (expiring soon, expired, valid)
+- Founding member
+
+**Summary Cards**:
+- Expected Revenue (next 7/30 days)
+- Members with Expiring Cards
+- High-Risk Renewals
 
 ---
 
-### Part 6: Sync Function Update
+### Part 5: Successful Payments Tab
 
-**File:** `supabase/functions/sync-subscription-status/index.ts`
+**Data Source**: Combined from `manual_charges` (status=succeeded) and `payment_attempts` (status=succeeded)
 
-Already updated to handle `incomplete` subscriptions - verify it also updates the new `subscription_status` column.
+**Columns**:
+| Column | Source |
+|--------|--------|
+| Member Name/Email | members join |
+| Description | manual_charges.description or invoice type |
+| Amount | amount |
+| Payment Method | Card brand/last4 |
+| Date | created_at/succeeded_at |
+| Receipt Sent | email_audit_log (type = 'charge_confirmation') |
+| Stripe Link | Payment intent ID |
+
+**Filters**:
+- Date range picker
+- Payment type (Manual Charge, Subscription, Class Package, Spa, etc.)
+- Tier
+- Amount range
+- Founding member only
+
+**Summary Cards**:
+- Total Collected (period)
+- Transaction Count
+- Average Transaction
+- By Category breakdown
 
 ---
 
-### Database Migration
+### Part 6: Email Tracking Tab
 
-```sql
--- Add subscription_status column to members table
-ALTER TABLE public.members 
-ADD COLUMN IF NOT EXISTS subscription_status text DEFAULT 'none';
+**Data Source**: `email_audit_log` filtered to payment-related types
 
--- Update existing members based on their current state
-UPDATE public.members 
-SET subscription_status = CASE
-  WHEN stripe_subscription_id IS NULL THEN 'none'
-  WHEN status = 'active' AND stripe_subscription_id IS NOT NULL THEN 'active'
-  WHEN status = 'past_due' THEN 'past_due'
-  ELSE 'none'
-END
-WHERE subscription_status IS NULL OR subscription_status = 'none';
+**Email Types to Include**:
+- `payment_failed`
+- `charge_confirmation`
+- `admin_payment_failed_alert`
+- `annual_fee_payment_request`
+- `add_card_for_dues`
 
--- Add index for filtering
-CREATE INDEX IF NOT EXISTS idx_members_subscription_status 
-ON public.members(subscription_status);
-```
+**Columns**:
+| Column | Source |
+|--------|--------|
+| Recipient | recipient_email, recipient_name |
+| Type | email_type |
+| Subject | subject |
+| Status | status |
+| Sent At | sent_at |
+| Member/Application | member_id or application_id link |
+| Preview | Button to view template data |
+
+**Filters**:
+- Date range
+- Email type
+- Status (sent, failed, pending)
+- Recipient search
+
+---
+
+### Part 7: Date Range Picker Component
+
+Create a reusable date range picker with:
+- Preset buttons: Today, Yesterday, Last 7 days, Last 30 days, This Month, Last Month, This Quarter, Custom
+- Custom start/end date inputs
+- Quick "Open" date range option
+
+**Component**: `src/components/admin/DateRangePicker.tsx`
+
+---
+
+### Part 8: Failed Payment Detail Sheet
+
+When clicking on a failed payment row, show a sheet with:
+- Member info header (name, email, tier, status)
+- Payment attempt timeline (all attempts for this member)
+- Card details
+- Email history (was payment_failed email sent?)
+- Quick actions:
+  - View Member Profile
+  - Send Payment Reminder Email
+  - Add Note to Member
+
+---
+
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/pages/admin/PaymentTracking.tsx` | Main page with tabs |
+| `src/components/admin/DateRangePicker.tsx` | Reusable date picker |
+| `src/components/admin/FailedPaymentsTab.tsx` | Failed payments table |
+| `src/components/admin/UpcomingPaymentsTab.tsx` | Upcoming renewals |
+| `src/components/admin/SuccessfulPaymentsTab.tsx` | Successful transactions |
+| `src/components/admin/PaymentEmailsTab.tsx` | Email audit tracking |
+| `src/components/admin/FailedPaymentDetailSheet.tsx` | Detail view |
+| `src/hooks/usePaymentTracking.ts` | Data fetching hook |
 
 ---
 
@@ -146,33 +209,30 @@ ON public.members(subscription_status);
 
 | File | Changes |
 |------|---------|
-| Database migration | Add `subscription_status` column |
-| `stripe-webhook/index.ts` | Sync subscription status on all subscription events |
-| `stripe-payment/index.ts` | Set initial `subscription_status` when creating subscriptions |
-| `sync-subscription-status/index.ts` | Update `subscription_status` during sync |
-| `usePaymentStatus.ts` | Check `subscription_status` not just existence of ID |
-| `useMemberBenefitsStatus.ts` | Use new status logic |
-| `useMembersBillingIssues.ts` | Detect `incomplete` subscriptions |
-| `PaymentDueNotice.tsx` | Show for incomplete subscriptions |
-| `process_member_scan` (SQL function) | Check subscription status for access |
+| `src/App.tsx` | Add route for /admin/payment-tracking |
+| `src/components/admin/AdminSidebar.tsx` | Add navigation item |
+| `src/components/admin/MemberIssuesBadges.tsx` | Add click for details |
+| `src/lib/reportDefinitions.ts` | Add payment tracking reports if needed |
 
 ---
 
-### Verification Checklist
+### Database Considerations
 
-After implementation:
-- [ ] Member with `incomplete` subscription sees payment banner
-- [ ] Member with `incomplete` subscription cannot check in
-- [ ] Admin sees "Payment Failed" status in member list
-- [ ] Sync function clears dead subscription IDs
-- [ ] Webhook updates status on payment success/failure
-- [ ] Email sent on initial payment failure
+No new tables needed. All data exists in:
+- `payment_attempts` - Failed/successful payment data with full decline info
+- `manual_charges` - Admin-initiated charges
+- `email_audit_log` - Email tracking
+- `members` - Member data including card info
+
+May need a new RPC for upcoming payments calculation if performance is an issue.
 
 ---
 
-### Immediate Fix (Before Full Implementation)
+### UI/UX Notes
 
-Run sync for all members with subscriptions to detect and fix incomplete ones:
-1. Go to any member detail page
-2. Click "Sync" in billing health card
-3. Or trigger sync-subscription-status edge function for all members
+- Use consistent table styling from existing admin pages
+- Export to CSV functionality for all tabs
+- Real-time badge counts in tab headers (e.g., "Failed (12)")
+- Color coding: Red for failed, Amber for at-risk, Green for successful
+- Quick filters as pills at top of each tab
+- Responsive design for tablet use at front desk
