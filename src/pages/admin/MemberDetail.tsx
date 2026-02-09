@@ -188,6 +188,10 @@ export default function MemberDetail() {
   const [showCancelAnnualFeeDialog, setShowCancelAnnualFeeDialog] = useState(false);
   const [isCancelingAnnualFee, setIsCancelingAnnualFee] = useState(false);
 
+  // Clear initiation fee state (for incorrect accounting)
+  const [showClearInitiationFeeDialog, setShowClearInitiationFeeDialog] = useState(false);
+  const [isClearingInitiationFee, setIsClearingInitiationFee] = useState(false);
+
   // Initiation fee charge state
   const [showInitiationFeeDialog, setShowInitiationFeeDialog] = useState(false);
   const [showCreateInitiationFeeSubDialog, setShowCreateInitiationFeeSubDialog] = useState(false);
@@ -728,6 +732,36 @@ export default function MemberDetail() {
     }
   };
 
+  // Clear initiation fee status handler (for incorrect accounting)
+  const handleClearInitiationFee = async () => {
+    if (!member) return;
+    
+    setIsClearingInitiationFee(true);
+    try {
+      // Update the member record to clear the fee status
+      const { error } = await supabase
+        .from("members")
+        .update({ 
+          annual_fee_paid_at: null,
+          annual_fee_subscription_id: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      toast.success("Initiation fee status cleared. Member will need to pay the fee.");
+      setShowClearInitiationFeeDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    } catch (error) {
+      console.error("Error clearing initiation fee:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to clear initiation fee status");
+    } finally {
+      setIsClearingInitiationFee(false);
+    }
+  };
+
   const canReactivate = member && ["suspended", "cancelled", "inactive", "frozen", "expired"].includes(member.status);
 
   // Send activation email handler
@@ -1001,6 +1035,16 @@ export default function MemberDetail() {
                       </Button>
                     </div>
                   )}
+                  {/* Clear Fee Status button - for accounting corrections */}
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="w-full mt-2"
+                    onClick={() => setShowClearInitiationFeeDialog(true)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Clear Fee Status
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -1982,6 +2026,38 @@ export default function MemberDetail() {
           queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
         }}
       />
+
+      {/* Clear Initiation Fee Confirmation Dialog */}
+      <AlertDialog open={showClearInitiationFeeDialog} onOpenChange={setShowClearInitiationFeeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Initiation Fee Status</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear the initiation fee payment status for {member.first_name} {member.last_name}. 
+              <br /><br />
+              <strong>This action:</strong>
+              <ul className="list-disc pl-4 mt-2 space-y-1">
+                <li>Removes the "paid" status from their record</li>
+                <li>Does NOT issue a refund (do that separately if needed)</li>
+                <li>The member will need to pay the fee again to regain benefits</li>
+              </ul>
+              <br />
+              Use this only if the payment was incorrectly recorded or needs accounting correction.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isClearingInitiationFee}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearInitiationFee}
+              disabled={isClearingInitiationFee}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isClearingInitiationFee && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Clear Fee Status
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
