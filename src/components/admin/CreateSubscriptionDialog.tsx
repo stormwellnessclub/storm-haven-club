@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CreditCard, Calendar, DollarSign, Loader2, Zap } from "lucide-react";
@@ -38,7 +38,7 @@ interface CreateSubscriptionDialogProps {
   onOpenChange: (open: boolean) => void;
   member: Member;
   isLoading: boolean;
-  onConfirm: (startDate: Date, chargeImmediately: boolean) => void;
+  onConfirm: (startDate: Date, firstChargeDate: Date | null) => void;
 }
 
 // Pricing data (matching membershipPricing.ts)
@@ -85,13 +85,16 @@ export function CreateSubscriptionDialog({
     return startOfDay(base);
   });
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [chargeImmediately, setChargeImmediately] = useState(true);
+  const [chargeCalendarOpen, setChargeCalendarOpen] = useState(false);
+  const [useCustomChargeDate, setUseCustomChargeDate] = useState(false);
+  const [firstChargeDate, setFirstChargeDate] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!open) return;
     const base = member.membership_start_date ? new Date(member.membership_start_date) : new Date();
     setStartDate(startOfDay(base));
-    setChargeImmediately(true); // Reset to default when dialog opens
+    setUseCustomChargeDate(false);
+    setFirstChargeDate(null);
   }, [open, member.membership_start_date]);
 
   const today = startOfDay(new Date());
@@ -105,6 +108,19 @@ export function CreateSubscriptionDialog({
 
   const isPastDate = startOfDay(startDate) < today;
   const isFutureDate = isAfter(startOfDay(startDate), today);
+  
+  // Charge date validation: must be today or in future
+  const isChargeDateDisabled = (date: Date) => {
+    const d = startOfDay(new Date(date));
+    return d < today || d > maxDate;
+  };
+  
+  // Determine effective charge date for display
+  const effectiveChargeDate = useCustomChargeDate && firstChargeDate ? firstChargeDate : null;
+  const isChargingNow = !effectiveChargeDate || startOfDay(effectiveChargeDate) <= today;
+  const chargeDateFormatted = effectiveChargeDate 
+    ? format(effectiveChargeDate, "MMM d, yyyy")
+    : "Today";
 
   const subscriptionPreview = useMemo(() => {
     const tier = normalizeTier(member.membership_type);
@@ -233,40 +249,83 @@ export function CreateSubscriptionDialog({
                  </div>
                )}
 
-               {/* Charge timing toggle - only show for future dates */}
-               {isFutureDate && (
-                 <Card className="bg-primary/5 border-primary/20">
-                   <CardContent className="pt-4">
-                     <div className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-                       <Zap className="h-4 w-4 text-primary" />
-                       When should the first payment occur?
+               {/* First Charge Date option */}
+               <Card className="bg-primary/5 border-primary/20">
+                 <CardContent className="pt-4 space-y-3">
+                   <div className="text-sm font-medium text-foreground flex items-center gap-2">
+                     <Zap className="h-4 w-4 text-primary" />
+                     When should the first payment occur?
+                   </div>
+                   
+                   <div className="flex items-center space-x-2">
+                     <input
+                       type="checkbox"
+                       id="custom-charge-date"
+                       checked={useCustomChargeDate}
+                       onChange={(e) => {
+                         setUseCustomChargeDate(e.target.checked);
+                         if (!e.target.checked) setFirstChargeDate(null);
+                       }}
+                       className="h-4 w-4 rounded border-input"
+                     />
+                     <Label htmlFor="custom-charge-date" className="text-sm cursor-pointer">
+                       Schedule first charge for a different date
+                     </Label>
+                   </div>
+
+                   {useCustomChargeDate ? (
+                     <div className="space-y-2">
+                       <div className="text-xs text-muted-foreground">
+                         Select when the card should be charged (must be today or in future):
+                       </div>
+                       <Popover open={chargeCalendarOpen} onOpenChange={setChargeCalendarOpen}>
+                         <PopoverTrigger asChild>
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             className="w-full justify-start text-left font-medium"
+                           >
+                             <Calendar className="h-4 w-4 mr-2" />
+                             {firstChargeDate ? format(firstChargeDate, "MMM d, yyyy") : "Select charge date..."}
+                           </Button>
+                         </PopoverTrigger>
+                         <PopoverContent className="w-auto p-0" align="start">
+                           <CalendarPicker
+                             mode="single"
+                             selected={firstChargeDate || undefined}
+                             onSelect={(date) => {
+                               if (date) setFirstChargeDate(date);
+                               setChargeCalendarOpen(false);
+                             }}
+                             disabled={isChargeDateDisabled}
+                             initialFocus
+                             className="pointer-events-auto"
+                           />
+                         </PopoverContent>
+                       </Popover>
                      </div>
-                     <RadioGroup
-                       value={chargeImmediately ? "now" : "start_date"}
-                       onValueChange={(value) => setChargeImmediately(value === "now")}
-                       className="space-y-3"
-                     >
-                       <div className="flex items-start space-x-3">
-                         <RadioGroupItem value="now" id="charge-now" className="mt-0.5" />
-                         <Label htmlFor="charge-now" className="cursor-pointer space-y-1">
-                           <div className="font-medium">Charge now</div>
-                           <div className="text-xs text-muted-foreground">
-                             Charge card today, start benefits on {subscriptionPreview.startDate}
-                           </div>
-                         </Label>
-                       </div>
-                       <div className="flex items-start space-x-3">
-                         <RadioGroupItem value="start_date" id="charge-start-date" className="mt-0.5" />
-                         <Label htmlFor="charge-start-date" className="cursor-pointer space-y-1">
-                           <div className="font-medium">Charge on start date</div>
-                           <div className="text-xs text-muted-foreground">
-                             Card will be charged when membership begins on {subscriptionPreview.startDate}
-                           </div>
-                         </Label>
-                       </div>
-                     </RadioGroup>
-                   </CardContent>
-                 </Card>
+                   ) : (
+                     <div className="text-xs text-muted-foreground">
+                       Card will be charged <span className="font-medium text-foreground">today</span>. 
+                       Benefits start on {subscriptionPreview.startDate}.
+                     </div>
+                   )}
+                 </CardContent>
+               </Card>
+
+               {/* Summary of what will happen */}
+               {useCustomChargeDate && firstChargeDate && (
+                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-1">
+                   <div className="text-sm font-medium text-foreground flex items-center gap-2">
+                     <Calendar className="h-4 w-4" />
+                     Billing Summary
+                   </div>
+                   <div className="text-xs text-muted-foreground space-y-1">
+                     <p>• <span className="font-medium">Benefits start:</span> {subscriptionPreview.startDate}</p>
+                     <p>• <span className="font-medium">First charge:</span> {format(firstChargeDate, "MMM d, yyyy")}</p>
+                     <p>• <span className="font-medium">Receipt email:</span> {isAfter(firstChargeDate, today) ? `Sent on ${format(firstChargeDate, "MMM d")} when charged` : "Sent immediately"}</p>
+                   </div>
+                 </div>
                )}
 
                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 space-y-2">
@@ -276,9 +335,9 @@ export function CreateSubscriptionDialog({
                 </div>
                 <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-1 ml-6 list-disc">
                   <li>
-                    {isFutureDate && chargeImmediately 
-                      ? "Member's card will be charged TODAY" 
-                      : "Member's card will be charged automatically on the billing date"}
+                    {useCustomChargeDate && firstChargeDate && isAfter(firstChargeDate, today)
+                      ? `Member's card will be charged on ${format(firstChargeDate, "MMM d, yyyy")}`
+                      : "Member's card will be charged TODAY"}
                   </li>
                   <li>Subscription cannot be undone from this portal</li>
                   <li>To cancel, use the Stripe Dashboard or "Cancel" button</li>
@@ -293,13 +352,15 @@ export function CreateSubscriptionDialog({
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
-              // For past/today dates, chargeImmediately is irrelevant (always charges immediately)
-              onConfirm(startDate, isFutureDate ? chargeImmediately : true);
+              // Pass firstChargeDate if custom date is set, otherwise null (charge now)
+              onConfirm(startDate, useCustomChargeDate ? firstChargeDate : null);
             }}
-            disabled={isLoading || !subscriptionPreview.hasCard}
+            disabled={isLoading || !subscriptionPreview.hasCard || (useCustomChargeDate && !firstChargeDate)}
           >
             {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isFutureDate && chargeImmediately ? "Charge Now & Create" : "Confirm & Create"}
+            {useCustomChargeDate && firstChargeDate && isAfter(firstChargeDate, today)
+              ? `Schedule Charge & Create`
+              : "Charge Now & Create"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
