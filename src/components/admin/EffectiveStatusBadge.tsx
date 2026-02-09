@@ -44,7 +44,23 @@ export function getEffectiveStatus(
   const issues = billingIssues || [];
   const status = memberStatus?.toLowerCase() || '';
 
-  // First check non-billable terminal states
+  // Check for payment failures FIRST — these override all other statuses
+  const hasFailedPayment = issues.some(i =>
+    i.code === 'failed_payment' ||
+    i.code === 'subscription_incomplete' ||
+    i.code === 'subscription_incomplete_expired'
+  );
+
+  if (hasFailedPayment) {
+    return {
+      status: 'payment_failed',
+      canCheckIn: false,
+      label: 'Payment Failed',
+      description: 'Recent payment failure - access denied',
+    };
+  }
+
+  // Then check non-billable terminal states
   if (status === 'cancelled' || status === 'expired') {
     return {
       status: status as 'cancelled' | 'expired',
@@ -81,19 +97,11 @@ export function getEffectiveStatus(
     };
   }
 
-  // For active or past_due members, check payment health
-  const hasFailedPayment = issues.some(i => i.code === 'failed_payment');
+  // For active or past_due members, check remaining payment health
   const hasMissingSubscription = issues.some(i => i.code === 'missing_subscription');
   const hasMissingPaymentMethod = issues.some(i => i.code === 'missing_payment_method');
 
-  if (hasFailedPayment) {
-    return {
-      status: 'payment_failed',
-      canCheckIn: false,
-      label: 'Payment Failed',
-      description: 'Recent payment failure - access denied',
-    };
-  }
+  // hasFailedPayment already handled above
 
   if (status === 'past_due') {
     return {
