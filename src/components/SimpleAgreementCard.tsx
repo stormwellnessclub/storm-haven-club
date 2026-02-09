@@ -3,46 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Download, ExternalLink, FileText, Loader2, Check } from "lucide-react";
 
-// Import PDF files directly
-import liabilityWaiver from "@/assets/agreements/liability-waiver.pdf";
-import membershipAgreement from "@/assets/agreements/membership-agreement.pdf";
-import kidsCareAgreement from "@/assets/agreements/kids-care-agreement.pdf";
-import kidsCareParentConsent from "@/assets/agreements/kids-care-agreement-parent-consent-form.pdf";
-import guestPassGeneral from "@/assets/agreements/guest-pass-agreement-general.pdf";
-import guestPassAgreement from "@/assets/agreements/guest-pass-agreement.pdf";
-import privateEventAgreement from "@/assets/agreements/private-event-agreement.pdf";
-import singleClassPass1 from "@/assets/agreements/single-class-pass-agreement.pdf";
-import singleClassPass2 from "@/assets/agreements/single-class-pass-agreement-2.pdf";
-
-// Map filenames to imports
-const pdfMap: Record<string, string> = {
-  'liability-waiver.pdf': liabilityWaiver,
-  'membership-agreement.pdf': membershipAgreement,
-  'kids-care-agreement.pdf': kidsCareAgreement,
-  'kids-care-agreement-parent-consent-form.pdf': kidsCareParentConsent,
-  'guest-pass-agreement-general.pdf': guestPassGeneral,
-  'guest-pass-agreement.pdf': guestPassAgreement,
-  'private-event-agreement.pdf': privateEventAgreement,
-  'single-class-pass-agreement.pdf': singleClassPass1,
-  'single-class-pass-agreement-2.pdf': singleClassPass2,
-};
-
-// Get PDF path from imported module, filename, or URL
+// Get PDF path from filename or URL — PDFs are served from public/agreements/
 const getPdfPath = (pdfInput: string): string => {
   if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://')) {
     return pdfInput;
   }
-  
-  const filename = pdfInput.split('/').pop() || pdfInput;
-  const importedPath = pdfMap[filename];
-  if (importedPath) {
-    return importedPath;
-  }
-  
   if (pdfInput.startsWith('/')) {
     return pdfInput;
   }
-  
+  const filename = pdfInput.split('/').pop() || pdfInput;
   return `/agreements/${filename}`;
 };
 
