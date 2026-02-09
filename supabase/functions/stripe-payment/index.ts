@@ -2452,15 +2452,44 @@ serve(async (req) => {
           chargedImmediately: !isChargeDateInFuture 
         });
 
-        // Update member record
+        // Verify first invoice status before marking as active
+        // This prevents marking member active if their initial payment fails
+        let paymentWarning: string | null = null;
+        let newStatus = 'active';
+        
+        if (!isChargeDateInFuture) {
+          // Retrieve subscription with expanded latest_invoice
+          const subscriptionWithInvoice = await stripe.subscriptions.retrieve(subscription.id, {
+            expand: ['latest_invoice'],
+          });
+          
+          const latestInvoice = subscriptionWithInvoice.latest_invoice as Stripe.Invoice | null;
+          const invoiceStatus = latestInvoice?.status;
+          const isPaid = invoiceStatus === 'paid' || latestInvoice?.amount_due === 0;
+          
+          logStep("Checking initial invoice status", { 
+            invoiceId: latestInvoice?.id,
+            invoiceStatus,
+            amountDue: latestInvoice?.amount_due,
+            isPaid,
+          });
+          
+          if (!isPaid) {
+            newStatus = 'pending_activation';
+            paymentWarning = `Subscription created but initial payment is ${invoiceStatus || 'pending'}. Member will be activated when payment succeeds.`;
+            logStep("Initial payment not confirmed - setting pending status", { newStatus, invoiceStatus });
+          }
+        }
+
+        // Update member record with appropriate status
         await supabase
           .from('members')
           .update({
             stripe_subscription_id: subscription.id,
-            status: 'active',
+            status: newStatus,
             billing_type: billingType,
             is_founding_member: isFoundingMember || false,
-            activated_at: new Date().toISOString(),
+            activated_at: newStatus === 'active' ? new Date().toISOString() : null,
             membership_start_date: benefitsStartDate.toISOString().split('T')[0],
           })
           .eq('id', memberId);
@@ -2664,7 +2693,9 @@ serve(async (req) => {
             success: true, 
             subscriptionId: subscription.id,
             annualFeeSubscriptionId,
-            status: subscription.status,
+            status: newStatus,
+            paymentStatus: paymentWarning ? 'pending' : 'paid',
+            warning: paymentWarning,
             chargedImmediately: !isChargeDateInFuture,
             chargeDate: chargeDate.toISOString(),
             benefitsStartDate: benefitsStartDate.toISOString(),

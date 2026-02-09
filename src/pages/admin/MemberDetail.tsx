@@ -628,6 +628,9 @@ export default function MemberDetail() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Close the create dialog first, then show success
+      setShowCreateSubscriptionDialog(false);
+      
       // Show success dialog with details
       const isChargingLater = firstChargeDate && firstChargeDate > new Date();
       setSubscriptionResult({
