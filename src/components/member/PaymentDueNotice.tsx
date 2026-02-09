@@ -12,7 +12,13 @@ export function PaymentDueNotice() {
   const { data: membership } = useUserMembership();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  if (isLoading || !hasPaymentIssues || !membership) {
+  // Check for incomplete subscription status
+  const membershipAny = membership as typeof membership & { subscription_status?: string };
+  const isSubscriptionIncomplete = membershipAny?.subscription_status === 'incomplete' || 
+    membershipAny?.subscription_status === 'incomplete_expired';
+
+  // Show notice if there are payment issues OR if subscription is incomplete
+  if (isLoading || (!hasPaymentIssues && !isSubscriptionIncomplete) || !membership) {
     return null;
   }
 
@@ -92,7 +98,10 @@ export function PaymentDueNotice() {
     if (!isInitiationFeePaid) {
       issues.push(`Initiation Fee ($${initiationFeeAmount})`);
     }
-    if (!hasActiveSubscription && isInitiationFeePaid) {
+    if (isSubscriptionIncomplete) {
+      // Payment failed for subscription - needs to retry
+      issues.push("Payment Failed - Retry Required");
+    } else if (!hasActiveSubscription && isInitiationFeePaid) {
       const duesText = membershipPrice 
         ? `$${membershipPrice.amount}/${membershipPrice.interval === "year" ? "yr" : "mo"}`
         : "";

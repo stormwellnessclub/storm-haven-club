@@ -70,7 +70,7 @@ export function useMemberBenefitsStatus(): MemberBenefitsStatus {
       // Even if status is "active", freeze if initiation fee not paid
       frozenReason = "initiation_fee_unpaid";
     } else if (!hasActiveSubscription) {
-      // Even if status is "active", freeze if no subscription
+      // Even if status is "active", freeze if no subscription or subscription is incomplete
       frozenReason = "no_subscription";
     } else if (status === "past_due" || isDuesPastDue) {
       frozenReason = "past_due";
