@@ -936,11 +936,27 @@ serve(async (req) => {
             } else if (subscription.status === 'active') {
               newStatus = 'active';
               reason = 'subscription_active';
-            } else if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
-              newStatus = 'cancelled';
-              reason = subscription.status === 'canceled' ? 'subscription_canceled' : 'subscription_unpaid';
+            } else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
+              // Treat incomplete_expired the same as canceled - subscription failed before starting
+              newStatus = 'pending_activation';
+              reason = subscription.status === 'canceled' ? 'subscription_canceled' : 'subscription_incomplete_expired';
+              
+              // Clear the dead subscription ID so admin can create a new one
+              const { error: clearSubError } = await supabase.from('members')
+                .update({ stripe_subscription_id: null })
+                .eq('id', memberData.id);
+              
+              if (clearSubError) {
+                logStep("Failed to clear dead subscription ID", { error: clearSubError.message });
+              } else {
+                logStep("Cleared dead subscription ID for member", { memberId: memberData.id });
+              }
+            } else if (subscription.status === 'incomplete') {
+              // Payment still processing - don't activate yet, keep as pending
+              newStatus = 'pending_activation';
+              reason = 'awaiting_first_payment';
             } else {
-              // For other statuses (trialing, incomplete, etc.), keep current status or handle appropriately
+              // For other statuses (trialing, paused, etc.), keep current status or handle appropriately
               logStep("Subscription status not mapped", { status: subscription.status });
               break;
             }

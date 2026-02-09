@@ -27,6 +27,7 @@ import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
+import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth";
 import { useAuth } from "@/contexts/AuthContext";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
 import { getAnnualFeeAmount, normalizeGender } from "@/lib/stripeProducts";
@@ -431,6 +432,9 @@ export default function MemberDetail() {
   // Fetch payment methods from Stripe for initiation fee charging
   const { data: stripePaymentMethodsData } = useAdminMemberPaymentMethods(member?.id);
   const stripePaymentMethods = stripePaymentMethodsData?.paymentMethods || [];
+  
+  // Fetch billing health data to get real Stripe subscription status
+  const { data: billingHealth } = useAdminMemberBillingHealth(member?.id);
 
   // Payment status
   const paymentStatus = member ? checkMemberPaymentStatus({
@@ -1045,19 +1049,72 @@ export default function MemberDetail() {
             </CardHeader>
             <CardContent>
               {member.stripe_subscription_id ? (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-green-600">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span className="font-medium">Active</span>
-                  </div>
-                  <a 
-                    href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                  >
-                    View in Stripe <ExternalLink className="h-3 w-3" />
-                  </a>
+                <div className="space-y-2">
+                  {/* Show actual billing health status if available */}
+                  {billingHealth?.duesSubscription?.status === 'incomplete_expired' || 
+                   billingHealth?.duesSubscription?.status === 'canceled' ? (
+                    <>
+                      <div className="flex items-center gap-2 text-destructive">
+                        <XCircle className="h-4 w-4" />
+                        <span className="font-medium">
+                          {billingHealth?.duesSubscription?.status === 'incomplete_expired' 
+                            ? 'Expired (Payment Failed)' 
+                            : 'Canceled'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Subscription is no longer active in Stripe
+                      </p>
+                      {member.stripe_customer_id && member.card_brand && (
+                        <AdminActionButton
+                          label="Create New Subscription"
+                          tooltip="Replace the expired subscription with a new one"
+                          onClick={() => setShowCreateSubscriptionDialog(true)}
+                          isLoading={isCreatingSubscription}
+                        />
+                      )}
+                    </>
+                  ) : billingHealth?.duesSubscription?.status === 'past_due' ? (
+                    <>
+                      <div className="flex items-center gap-2 text-amber-600">
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="font-medium">Past Due</span>
+                      </div>
+                      <a 
+                        href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        View in Stripe <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </>
+                  ) : billingHealth?.duesSubscription?.status === 'incomplete' ? (
+                    <>
+                      <div className="flex items-center gap-2 text-amber-600">
+                        <Clock className="h-4 w-4" />
+                        <span className="font-medium">Awaiting Payment</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Initial payment is being processed
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 text-green-600">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span className="font-medium">Active</span>
+                      </div>
+                      <a 
+                        href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        View in Stripe <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
