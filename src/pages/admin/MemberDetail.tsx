@@ -1923,6 +1923,7 @@ export default function MemberDetail() {
         billingType={member.billing_type || 'monthly'}
         hasActiveSubscription={!!member.stripe_subscription_id}
         hasAnnualFeePaid={!!member.annual_fee_paid_at}
+        isFoundingMember={!!member.is_founding_member}
       />
 
       {/* Refund Dialog */}

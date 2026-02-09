@@ -1,9 +1,16 @@
+import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { ExternalLink, User, Mail, Phone, Calendar, Users, Sparkles, FileText } from "lucide-react";
+import { ExternalLink, User, Mail, Phone, Calendar as CalendarIcon, Users, Sparkles, FileText, Pencil, Check, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 interface GuestPass {
   id: string;
@@ -37,6 +44,11 @@ const INTEREST_LABELS: Record<string, string> = {
 };
 
 export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheetProps) {
+  const queryClient = useQueryClient();
+  const [editingDate, setEditingDate] = useState(false);
+  const [newDate, setNewDate] = useState<Date | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+
   if (!guest) return null;
 
   const getStatusBadge = (status: string) => {
@@ -55,6 +67,26 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
   const calculateAddonsTotal = () => {
     if (!guest.add_ons || guest.add_ons.length === 0) return 0;
     return guest.add_ons.reduce((sum, addon) => sum + (addon.price || 0), 0);
+  };
+
+  const handleSaveDate = async () => {
+    if (!newDate) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("guest_passes")
+        .update({ valid_date: format(newDate, "yyyy-MM-dd") })
+        .eq("id", guest.id);
+      if (error) throw error;
+      toast.success("Visit date updated");
+      queryClient.invalidateQueries({ queryKey: ["admin-guest-passes"] });
+      setEditingDate(false);
+      setNewDate(undefined);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update date");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addonsTotal = calculateAddonsTotal();
@@ -107,13 +139,49 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
             <h4 className="text-sm font-medium text-muted-foreground mb-3">Visit Details</h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span>
-                  {guest.valid_date 
-                    ? `Valid for: ${format(new Date(guest.valid_date), "MMMM d, yyyy")}`
-                    : `Purchased: ${format(new Date(guest.purchased_at), "MMMM d, yyyy")}`
-                  }
-                </span>
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                {editingDate ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !newDate && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-3 w-3" />
+                          {newDate ? format(newDate, "PPP") : "Pick new date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={newDate}
+                          onSelect={setNewDate}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveDate} disabled={!newDate || saving}>
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingDate(false); setNewDate(undefined); }}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-1">
+                    <span>
+                      {guest.valid_date 
+                        ? `Valid for: ${format(new Date(guest.valid_date), "MMMM d, yyyy")}`
+                        : `Purchased: ${format(new Date(guest.purchased_at), "MMMM d, yyyy")}`
+                      }
+                    </span>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
+                      setEditingDate(true);
+                      if (guest.valid_date) setNewDate(new Date(guest.valid_date));
+                    }}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className="text-muted-foreground">
                 Expires: {format(new Date(guest.expires_at), "MMM d, yyyy h:mm a")}
