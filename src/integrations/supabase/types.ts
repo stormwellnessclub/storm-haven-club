@@ -2468,6 +2468,7 @@ export type Database = {
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
+          subscription_status: string | null
           tier_change_used: boolean | null
           tier_change_used_at: string | null
           updated_at: string | null
@@ -2508,6 +2509,7 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          subscription_status?: string | null
           tier_change_used?: boolean | null
           tier_change_used_at?: string | null
           updated_at?: string | null
@@ -2548,6 +2550,7 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          subscription_status?: string | null
           tier_change_used?: boolean | null
           tier_change_used_at?: string | null
           updated_at?: string | null
@@ -3964,17 +3967,19 @@ export type Database = {
         Returns: string
       }
       mark_guest_pass_used: { Args: { p_pass_id: string }; Returns: Json }
-      process_member_scan: {
-        Args: {
-          p_auto_check_in?: boolean
-          p_device_type?: string
-          p_member_id_text: string
-          p_override?: boolean
-          p_override_reason?: string
-          p_scanned_by: string
-        }
-        Returns: Json
-      }
+      process_member_scan:
+        | {
+            Args: {
+              p_auto_check_in?: boolean
+              p_device_type?: string
+              p_member_id_text: string
+              p_override?: boolean
+              p_override_reason?: string
+              p_scanned_by: string
+            }
+            Returns: Json
+          }
+        | { Args: { p_scanned_code: string }; Returns: Json }
       track_payment_method_update: {
         Args: {
           p_card_brand?: string

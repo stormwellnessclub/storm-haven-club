@@ -34,6 +34,7 @@ export function useMembersBillingIssues() {
         .select(`
           id,
           status,
+          subscription_status,
           stripe_customer_id,
           stripe_subscription_id,
           card_brand,
@@ -76,9 +77,20 @@ export function useMembersBillingIssues() {
 
       for (const member of members || []) {
         const issues: MemberBillingIssue['issues'] = [];
+        const memberAny = member as typeof member & { subscription_status?: string };
 
+        // Check for incomplete subscription (payment failed before starting)
+        if (memberAny.subscription_status === 'incomplete' || memberAny.subscription_status === 'incomplete_expired') {
+          issues.push({
+            type: "error",
+            code: "subscription_incomplete",
+            message: "Initial payment failed - subscription never started",
+            shortLabel: "Payment Failed",
+          });
+          missingSubscription++;
+        }
         // Check for missing subscription (active members should have one)
-        if (
+        else if (
           member.status === "active" &&
           !member.stripe_subscription_id
         ) {
@@ -164,7 +176,8 @@ export function useMembersBillingIssues() {
         const hasBlockingIssue = issues.some(i => 
           i.code === 'failed_payment' || 
           i.code === 'missing_subscription' ||
-          i.code === 'missing_payment_method'
+          i.code === 'missing_payment_method' ||
+          i.code === 'subscription_incomplete'
         );
         
         return !hasBlockingIssue;

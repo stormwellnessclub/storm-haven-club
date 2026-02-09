@@ -73,7 +73,7 @@ serve(async (req) => {
     // Get all active/past_due members
     const { data: members, error: membersError } = await supabase
       .from('members')
-      .select('id, stripe_customer_id, stripe_subscription_id, status, email, first_name, last_name, card_last4, card_brand, card_exp_month, card_exp_year')
+      .select('id, stripe_customer_id, stripe_subscription_id, subscription_status, status, email, first_name, last_name, card_last4, card_brand, card_exp_month, card_exp_year')
       .in('status', ['active', 'past_due', 'pending_activation', 'frozen']);
 
     if (membersError) {
@@ -208,6 +208,26 @@ serve(async (req) => {
             let expectedStatus: string;
             let shouldClearSubscription = false;
             
+            // Always sync the subscription_status column to match Stripe
+            const memberAny = member as typeof member & { subscription_status?: string };
+            if (memberAny.subscription_status !== subscription.status) {
+              logStep("Syncing subscription_status", { 
+                memberId: member.id, 
+                old: memberAny.subscription_status, 
+                new: subscription.status 
+              });
+              
+              if (!options.dryRun) {
+                await supabase
+                  .from('members')
+                  .update({ 
+                    subscription_status: subscription.status,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', member.id);
+              }
+            }
+            
             if (subscription.status === 'active' || subscription.status === 'trialing') {
               expectedStatus = 'active';
             } else if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
@@ -216,7 +236,7 @@ serve(async (req) => {
               expectedStatus = 'cancelled';
               shouldClearSubscription = true;
             } else if (subscription.status === 'incomplete') {
-              // Payment failed on initial subscription - clear the dead subscription ID
+              // Payment failed on initial subscription - keep subscription ID but mark status as incomplete
               issueCount++;
               logStep("Incomplete subscription found - payment failed before starting", { 
                 memberId: member.id, 
@@ -227,7 +247,7 @@ serve(async (req) => {
                 await supabase
                   .from('members')
                   .update({ 
-                    stripe_subscription_id: null,
+                    subscription_status: 'incomplete',
                     updated_at: new Date().toISOString()
                   })
                   .eq('id', member.id);
@@ -238,7 +258,7 @@ serve(async (req) => {
                 member_id: member.id,
                 member_name: memberName,
                 issue_type: 'incomplete_subscription',
-                details: `Subscription payment failed before starting - subscription ID ${member.stripe_subscription_id} cleared. Member can now have a new subscription created.`,
+                details: `Subscription payment failed before starting - status set to 'incomplete'. Member benefits frozen until payment succeeds.`,
                 fixed: !options.dryRun
               });
               
@@ -261,6 +281,7 @@ serve(async (req) => {
                   .from('members')
                   .update({ 
                     stripe_subscription_id: null,
+                    subscription_status: 'none',
                     updated_at: new Date().toISOString()
                   })
                   .eq('id', member.id);

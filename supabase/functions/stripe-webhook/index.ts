@@ -926,6 +926,21 @@ serve(async (req) => {
           if (memberError) {
             logError(memberError, "SUBSCRIPTION_UPDATE_MEMBER_LOOKUP");
           } else if (memberData) {
+            // Always sync the subscription_status column to match Stripe
+            const { error: syncError } = await supabase
+              .from('members')
+              .update({ 
+                subscription_status: subscription.status,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', memberData.id);
+            
+            if (syncError) {
+              logError(syncError, "SUBSCRIPTION_STATUS_SYNC");
+            } else {
+              logStep("Synced subscription_status", { memberId: memberData.id, status: subscription.status });
+            }
+            
             // Map Stripe subscription status to member status
             let newStatus: string;
             let reason: string;
@@ -943,7 +958,7 @@ serve(async (req) => {
               
               // Clear the dead subscription ID so admin can create a new one
               const { error: clearSubError } = await supabase.from('members')
-                .update({ stripe_subscription_id: null })
+                .update({ stripe_subscription_id: null, subscription_status: 'none' })
                 .eq('id', memberData.id);
               
               if (clearSubError) {
@@ -953,20 +968,11 @@ serve(async (req) => {
               }
             } else if (subscription.status === 'incomplete') {
               // Payment failed on first attempt - don't activate, keep as pending
-              // Also clear the subscription ID since it's not usable until payment succeeds
+              // Keep the subscription ID but mark status as incomplete so we can track it
               newStatus = 'pending_activation';
               reason = 'initial_payment_failed';
               
-              // Clear the incomplete subscription ID so admin can create a new one
-              const { error: clearIncompleteError } = await supabase.from('members')
-                .update({ stripe_subscription_id: null })
-                .eq('id', memberData.id);
-              
-              if (clearIncompleteError) {
-                logStep("Failed to clear incomplete subscription ID", { error: clearIncompleteError.message });
-              } else {
-                logStep("Cleared incomplete subscription ID for member", { memberId: memberData.id });
-              }
+              logStep("Subscription incomplete - payment failed, benefits frozen", { memberId: memberData.id });
             } else {
               // For other statuses (trialing, paused, etc.), keep current status or handle appropriately
               logStep("Subscription status not mapped", { status: subscription.status });
@@ -1253,6 +1259,21 @@ serve(async (req) => {
                 }
               }
             } else {
+              // Sync subscription_status to 'active' on successful payment
+              const { error: syncError } = await supabase
+                .from('members')
+                .update({ 
+                  subscription_status: 'active',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', memberData.id);
+              
+              if (syncError) {
+                logError(syncError, "SUBSCRIPTION_STATUS_SYNC_PAYMENT_SUCCEEDED");
+              } else {
+                logStep("Synced subscription_status to active", { memberId: memberData.id });
+              }
+              
               // Update member status to active if it was past_due (membership subscription)
               if (memberData.status === 'past_due') {
                 const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {

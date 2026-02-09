@@ -49,9 +49,17 @@ export function usePaymentStatus(): PaymentStatusResult {
       issues.push("initiation_fee_unpaid");
     }
 
-    // Check if subscription is active
-    const hasActiveSubscription = !!membership.stripe_subscription_id;
-    if (!hasActiveSubscription && membership.status !== "pending_activation") {
+    // Check if subscription is actually active (not just existence of ID)
+    // subscription_status tracks actual Stripe status: 'active', 'trialing', 'incomplete', 'past_due', etc.
+    const subscriptionStatus = (membership as typeof membership & { subscription_status?: string }).subscription_status;
+    const hasActiveSubscription = !!membership.stripe_subscription_id && 
+      ['active', 'trialing'].includes(subscriptionStatus || '');
+    
+    // No subscription OR subscription exists but is incomplete/failed
+    if (!membership.stripe_subscription_id && membership.status !== "pending_activation") {
+      issues.push("no_subscription");
+    } else if (membership.stripe_subscription_id && !hasActiveSubscription && subscriptionStatus === 'incomplete') {
+      // Subscription exists but payment failed - treat as no subscription
       issues.push("no_subscription");
     }
 
