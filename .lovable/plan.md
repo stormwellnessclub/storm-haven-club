@@ -1,67 +1,97 @@
 
+## Enhanced Admin Charge Dialog and Membership Editing
 
-## Three Features: Founding Status Toggle, Same-Day Guest Pass Sales, and Guest Pass Date Editing
-
-### 1. Founding Member Toggle in Tier Change Dialog
-
-**Problem**: The TierChangeDialog only lets admins change the tier (Silver/Gold/Platinum/Diamond) but has no option to toggle founding member status. The `is_founding_member` and `billing_type` fields in the members table are never updated by this dialog.
-
-**Fix**: Add a "Founding Member" toggle (Switch) to `TierChangeDialog` that:
-- Shows the current founding status
-- When toggled, updates `is_founding_member` and `billing_type` (annual vs monthly) in the database
-- Updates the price preview to reflect founding (annual) vs regular (monthly) pricing
-- Warns the admin about billing implications (switching to/from annual prepaid)
-
-**Files to modify**:
-- `src/components/admin/TierChangeDialog.tsx` -- Add a Switch component for founding status, update the mutation to also write `is_founding_member` and `billing_type`, and adjust price display dynamically based on the selected founding status
+### Problem Summary
+1. **Charge dialog is too basic**: Currently just a free-text amount and description field. No preset charge items. Admin must manually remember prices and type descriptions.
+2. **Edit form is too limited**: Only edits name, email, phone, membership_type, and status. Missing: gender, billing_type, membership_start_date, activated_at, is_founding_member.
+3. **Members like Deana Boussi show "active" but have incomplete subscriptions** -- admins need to quickly correct status and record manual payments.
 
 ---
 
-### 2. Allow Same-Day Guest Pass Purchases on the Website
+### Fix 1: Replace Charge Dialog with Item Selector
 
-**Problem**: The public guest pass page (`/guest-pass`) restricts the visit date picker so `minDate = new Date()` (today) but compares using `date < minDate` which excludes today because `new Date()` includes the current time. Guests cannot select today as their visit date.
+Replace the basic charge dialog in both `MemberDetail.tsx` and `MemberDetailSheet.tsx` with a new dialog that has a **charge item dropdown** with pre-populated amounts. When an item is selected, the amount and description auto-fill. Admin can still override the amount or choose "Custom" for ad-hoc charges.
 
-**Fix**: Set `minDate` to the start of today so that today is selectable:
+**Charge Item Categories:**
+
+| Item | Amount | Description |
+|------|--------|-------------|
+| Membership Dues (Monthly) | Auto-calculated from tier/gender | "Monthly membership dues - [Tier]" |
+| Membership Dues (Annual) | Auto-calculated from tier/gender | "Annual membership dues - [Tier]" |
+| Past Due Payment | Auto-calculated | "Past due membership payment" |
+| Failed Payment Recovery | Auto-calculated | "Failed payment recovery - [Tier]" |
+| Initiation Fee | $175 (men) / $300 (women) | "Initiation fee" |
+| Guest Pass | $60 | "Guest pass - gym and amenities" |
+| Guest Add-on: RLT 10min | $18 | "Red Light Therapy 10 min" |
+| Guest Add-on: RLT 20min | $28 | "Red Light Therapy 20 min" |
+| Guest Add-on: Cryo | $45 | "ZeroBody Cryo Session" |
+| Single Class Pass (Member) | $25 / $15 | "Single class pass" |
+| Single Class Pass (Non-Member) | $40 / $30 | "Single class pass (non-member)" |
+| 10-Pack Class Pass (Member) | $170 / $150 | "10-pack class pass" |
+| 10-Pack Class Pass (Non-Member) | $300 / $200 | "10-pack class pass (non-member)" |
+| Late Cancel Fee | $25 | "Late cancellation fee" |
+| Custom | Admin enters amount | Admin enters description |
+
+**Implementation:**
+- Create a new `ChargeItemSelector` component or inline it in the dialog
+- Use a Select dropdown with grouped items (Membership, Class Passes, Guest Services, Fees, Custom)
+- When selected, auto-populate amount and description
+- Amount remains editable for overrides
+- Add an optional "Record as manual/cash" checkbox that logs to `manual_charges` instead of charging Stripe
+
+---
+
+### Fix 2: Expand the Edit Form
+
+Add these fields to the edit form in both `MemberDetail.tsx` and `MemberDetailSheet.tsx`:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| Gender | Select (Male/Female) | Affects pricing |
+| Billing Type | Select (Monthly/Annual/Cash) | "Cash" bypasses Stripe checks |
+| Membership Start Date | Date input | Contract start |
+| Activated At | Date input | When access began |
+| Is Founding Member | Checkbox/Switch | Affects billing type |
+
+**Edit form state expansion:**
+```text
+editForm = {
+  first_name, last_name, email, phone,
+  membership_type, status,
+  // NEW:
+  gender,
+  billing_type,
+  membership_start_date,
+  activated_at,
+  is_founding_member,
+}
 ```
-const minDate = startOfDay(new Date());
-```
-Also extend `maxDate` slightly if needed (currently 7 days out, which is fine).
 
-**Files to modify**:
-- `src/pages/GuestPass.tsx` -- Import `startOfDay` from date-fns and use it for `minDate` so today is a valid selection
+The `saveChanges` function will be updated to include all new fields in the database update.
 
 ---
 
-### 3. Admin Can Edit Guest Pass Activation Date (valid_date)
+### Fix 3: "Record Manual Payment" Option
 
-**Problem**: The `GuestDetailSheet` displays the `valid_date` but provides no way to edit it. Admins need to change the visit date after purchase (e.g., guest reschedules).
+Add a checkbox in the charge dialog: **"Record as cash/manual payment (do not charge card)"**
 
-**Fix**: Add an "Edit Date" button next to the valid_date display in `GuestDetailSheet` that opens an inline date picker. On save, update the `valid_date` column in the `guest_passes` table.
-
-**Files to modify**:
-- `src/components/admin/GuestDetailSheet.tsx` -- Add an editable date picker for `valid_date` with a save button that updates the database directly
+When checked:
+- Instead of calling `charge_saved_card`, insert directly into `manual_charges` table
+- Fields: member_id, amount (in cents), description, charge_type ("membership_dues", "initiation_fee", "class_pass", "guest_pass", "other"), status ("succeeded"), payment_method select (Cash, Check, External)
+- This creates an audit trail without touching Stripe
+- Useful for members who pay in person
 
 ---
 
-### Summary of Changes
+### Summary of File Changes
 
-| File | Change |
-|------|--------|
-| `src/components/admin/TierChangeDialog.tsx` | Add founding member Switch toggle, update mutation to set `is_founding_member` and `billing_type`, adjust price preview dynamically |
-| `src/pages/GuestPass.tsx` | Use `startOfDay(new Date())` for minDate so today is selectable |
-| `src/components/admin/GuestDetailSheet.tsx` | Add inline date editor for `valid_date` with save to database |
+| File | Changes |
+|------|---------|
+| `src/pages/admin/MemberDetail.tsx` | Expand editForm with gender, billing_type, start date, activated_at, is_founding_member. Replace charge dialog with item selector + manual payment option. |
+| `src/components/admin/MemberDetailSheet.tsx` | Same edit form expansion and charge dialog upgrade. |
 
-### Technical Details
-
-**TierChangeDialog changes**:
-- Add `isFoundingMember` state initialized from props (need new prop or derive from `billingType`)
-- Add a Switch component between tier selection and price preview
-- When founding status changes, recalculate prices using annual vs monthly rates
-- Database mutation updates: `membership_type`, `is_founding_member`, `billing_type`
-- For active subscriptions with Stripe, warn that billing interval change requires subscription cancellation and recreation (cannot change interval on existing Stripe subscription)
-
-**GuestDetailSheet changes**:
-- Add `editingDate` state and a Calendar popover
-- On date select, call `supabase.from('guest_passes').update({ valid_date }).eq('id', guest.id)`
-- Show success toast and refresh data
-
+### Technical Notes
+- Pricing data is sourced from `src/lib/membershipPricing.ts` and `src/lib/stripeProducts.ts` (already have all the price constants)
+- The `manual_charges` table already exists with the needed columns (member_id, amount, description, charge_type, status)
+- No backend/edge function changes needed -- the charge item selector just pre-fills the existing `charge_saved_card` action parameters
+- The "record as manual" path inserts directly into `manual_charges` via the Supabase client
