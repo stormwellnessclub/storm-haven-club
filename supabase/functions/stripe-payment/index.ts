@@ -66,7 +66,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -4986,6 +4986,197 @@ serve(async (req) => {
             subscriptionId: updatedSub.id,
             newBillingDate: newBillingDateObj.toISOString(),
             status: updatedSub.status
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'audit_duplicate_annual_fees': {
+        // Admin action to find members with multiple active annual fee subscriptions
+        
+        // Verify admin role
+        const { data: adminCheck } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!adminCheck || adminCheck.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Starting audit for duplicate annual fee subscriptions");
+
+        // Get all members with stripe_customer_id
+        const { data: members, error: membersError } = await supabase
+          .from('members')
+          .select('id, first_name, last_name, email, stripe_customer_id, annual_fee_subscription_id')
+          .not('stripe_customer_id', 'is', null);
+
+        if (membersError) {
+          throw new Error(`Failed to fetch members: ${membersError.message}`);
+        }
+
+        logStep("Fetched members with Stripe customer IDs", { count: members?.length || 0 });
+
+        const annualFeePriceIds = Object.values(STRIPE_PRODUCTS.annualFee);
+        const duplicates: Array<{
+          member_id: string;
+          member_name: string;
+          email: string;
+          stripe_customer_id: string;
+          linked_subscription_id: string | null;
+          orphan_subscriptions: Array<{
+            id: string;
+            created: string;
+            status: string;
+            last_invoice_amount: number;
+          }>;
+        }> = [];
+
+        for (const member of members || []) {
+          try {
+            // Get all active subscriptions for this customer
+            const subs = await stripe.subscriptions.list({
+              customer: member.stripe_customer_id,
+              status: 'active',
+              limit: 20,
+              expand: ['data.latest_invoice'],
+            });
+
+            // Filter to only annual fee subscriptions
+            const annualFeeSubs = subs.data.filter(sub =>
+              sub.items.data.some(item => annualFeePriceIds.includes(item.price.id)) ||
+              sub.metadata?.type === 'annual_fee' ||
+              sub.metadata?.type === 'initiation_fee'
+            );
+
+            // If more than one, we have duplicates
+            if (annualFeeSubs.length > 1) {
+              const orphans = annualFeeSubs
+                .filter(sub => sub.id !== member.annual_fee_subscription_id)
+                .map(sub => {
+                  const latestInvoice = sub.latest_invoice as { amount_paid?: number } | null;
+                  return {
+                    id: sub.id,
+                    created: new Date(sub.created * 1000).toISOString(),
+                    status: sub.status,
+                    last_invoice_amount: latestInvoice?.amount_paid || 0,
+                  };
+                });
+
+              if (orphans.length > 0) {
+                duplicates.push({
+                  member_id: member.id,
+                  member_name: `${member.first_name} ${member.last_name}`,
+                  email: member.email || '',
+                  stripe_customer_id: member.stripe_customer_id,
+                  linked_subscription_id: member.annual_fee_subscription_id,
+                  orphan_subscriptions: orphans,
+                });
+              }
+            }
+          } catch (stripeErr) {
+            logStep("Error checking member subscriptions", { 
+              memberId: member.id, 
+              error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr) 
+            });
+          }
+        }
+
+        const totalOrphans = duplicates.reduce((acc, d) => acc + d.orphan_subscriptions.length, 0);
+        logStep("Audit complete", { duplicatesFound: duplicates.length, totalOrphans });
+
+        return new Response(
+          JSON.stringify({
+            duplicates,
+            total_orphans: totalOrphans
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'cancel_orphan_subscription': {
+        // Admin action to cancel an orphan subscription (not linked to any member)
+        const { subscriptionId, processRefund } = body;
+
+        if (!subscriptionId) {
+          throw new Error("subscriptionId is required");
+        }
+
+        // Verify admin role
+        const { data: adminCheck } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!adminCheck || adminCheck.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        logStep("Cancel orphan subscription request", { subscriptionId, processRefund });
+
+        // Safety: verify this subscription is NOT linked to any member
+        const { data: linkedMember } = await supabase
+          .from('members')
+          .select('id, first_name, last_name')
+          .eq('annual_fee_subscription_id', subscriptionId)
+          .maybeSingle();
+
+        if (linkedMember) {
+          throw new Error(`Cannot cancel - this subscription is linked to ${linkedMember.first_name} ${linkedMember.last_name}`);
+        }
+
+        // Get subscription details before canceling (for refund)
+        let refundResult = null;
+        if (processRefund) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(subscriptionId, { 
+              expand: ['latest_invoice.payment_intent'] 
+            });
+            const latestInvoice = sub.latest_invoice as { payment_intent?: { id: string } | string } | null;
+            
+            let paymentIntentId: string | null = null;
+            if (latestInvoice?.payment_intent) {
+              if (typeof latestInvoice.payment_intent === 'string') {
+                paymentIntentId = latestInvoice.payment_intent;
+              } else {
+                paymentIntentId = latestInvoice.payment_intent.id;
+              }
+            }
+
+            if (paymentIntentId) {
+              const refund = await stripe.refunds.create({ 
+                payment_intent: paymentIntentId,
+                reason: 'duplicate',
+              });
+              refundResult = {
+                refund_id: refund.id,
+                amount: refund.amount,
+                status: refund.status,
+              };
+              logStep("Refund processed", refundResult);
+            } else {
+              logStep("No payment intent found for refund");
+            }
+          } catch (refundErr) {
+            logStep("Error processing refund", { 
+              error: refundErr instanceof Error ? refundErr.message : String(refundErr) 
+            });
+          }
+        }
+
+        // Cancel the subscription
+        await stripe.subscriptions.cancel(subscriptionId);
+        logStep("Subscription cancelled", { subscriptionId });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            cancelled: subscriptionId,
+            refunded: processRefund,
+            refund_details: refundResult
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );

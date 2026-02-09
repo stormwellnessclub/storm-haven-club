@@ -31,10 +31,11 @@
    UserPlus,
    Loader2,
  } from "lucide-react";
- import { SellMembershipPackage } from "@/components/admin/SellMembershipPackage";
- import { SellClassPackage } from "@/components/admin/SellClassPackage";
- import { useAdminTransactions } from "@/hooks/useAdminTransactions";
- import { Skeleton } from "@/components/ui/skeleton";
+import { SellMembershipPackage } from "@/components/admin/SellMembershipPackage";
+import { SellClassPackage } from "@/components/admin/SellClassPackage";
+import { DuplicateAuditCard } from "@/components/admin/DuplicateAuditCard";
+import { useAdminTransactions } from "@/hooks/useAdminTransactions";
+import { Skeleton } from "@/components/ui/skeleton";
  
  const getStatusBadge = (status: string) => {
    switch (status) {
@@ -90,11 +91,12 @@
            </Button>
          </div>
  
-         <Tabs defaultValue="transactions" className="space-y-4">
-           <TabsList>
-             <TabsTrigger value="transactions">Transactions</TabsTrigger>
-             <TabsTrigger value="process">Process Payment</TabsTrigger>
-           </TabsList>
+          <Tabs defaultValue="transactions" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              <TabsTrigger value="process">Process Payment</TabsTrigger>
+              <TabsTrigger value="audit">Subscription Audit</TabsTrigger>
+            </TabsList>
  
            <TabsContent value="transactions" className="space-y-4">
              {/* Stats */}
@@ -279,10 +281,14 @@
                      </div>
                    </Card>
                  </div>
-               </CardContent>
-             </Card>
-           </TabsContent>
-         </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="audit" className="space-y-4">
+              <DuplicateAuditCard />
+            </TabsContent>
+          </Tabs>
        </div>
  
        <SellMembershipPackage
