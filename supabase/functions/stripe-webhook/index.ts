@@ -952,9 +952,21 @@ serve(async (req) => {
                 logStep("Cleared dead subscription ID for member", { memberId: memberData.id });
               }
             } else if (subscription.status === 'incomplete') {
-              // Payment still processing - don't activate yet, keep as pending
+              // Payment failed on first attempt - don't activate, keep as pending
+              // Also clear the subscription ID since it's not usable until payment succeeds
               newStatus = 'pending_activation';
-              reason = 'awaiting_first_payment';
+              reason = 'initial_payment_failed';
+              
+              // Clear the incomplete subscription ID so admin can create a new one
+              const { error: clearIncompleteError } = await supabase.from('members')
+                .update({ stripe_subscription_id: null })
+                .eq('id', memberData.id);
+              
+              if (clearIncompleteError) {
+                logStep("Failed to clear incomplete subscription ID", { error: clearIncompleteError.message });
+              } else {
+                logStep("Cleared incomplete subscription ID for member", { memberId: memberData.id });
+              }
             } else {
               // For other statuses (trialing, paused, etc.), keep current status or handle appropriately
               logStep("Subscription status not mapped", { status: subscription.status });
