@@ -15,7 +15,7 @@ import { CalendarIcon, Loader2, ArrowRight, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addDays } from "date-fns";
+import { format, addDays, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { InlineWaiverGate } from "@/components/InlineWaiverGate";
 import { AccountRequiredSection } from "@/components/AccountRequiredSection";
@@ -145,7 +145,7 @@ function GuestPassForm() {
     }
   };
 
-  const minDate = new Date();
+  const minDate = startOfDay(new Date());
   const maxDate = addDays(new Date(), 7);
 
   return (

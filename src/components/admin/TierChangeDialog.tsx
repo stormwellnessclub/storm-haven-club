@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { AlertCircle, ArrowRight, Info, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -35,6 +36,7 @@ interface TierChangeDialogProps {
   billingType: string;
   hasActiveSubscription: boolean;
   hasAnnualFeePaid?: boolean;
+  isFoundingMember?: boolean;
 }
 
 const TIER_ORDER: MembershipTier[] = ["silver", "gold", "platinum", "diamond"];
@@ -111,14 +113,18 @@ export function TierChangeDialog({
   billingType,
   hasActiveSubscription,
   hasAnnualFeePaid = false,
+  isFoundingMember: initialIsFoundingMember = false,
 }: TierChangeDialogProps) {
   const queryClient = useQueryClient();
   const normalizedCurrentTier = normalizeTier(currentTier);
   const normalizedGender = normalizeGender(memberGender);
-  const normalizedBilling = billingType?.toLowerCase() === "annual" ? "annual" : "monthly";
+  const currentBillingType = billingType?.toLowerCase() === "annual" ? "annual" : "monthly";
 
   const [selectedTier, setSelectedTier] = useState<MembershipTier>(normalizedCurrentTier);
   const [prorationBehavior, setProrationBehavior] = useState<ProrationBehavior>("create_prorations");
+  const [isFounding, setIsFounding] = useState(initialIsFoundingMember);
+
+  const effectiveBilling = isFounding ? "annual" : "monthly";
 
   // Filter available tiers based on gender (Diamond only for women)
   const availableTiers = TIER_ORDER.filter((tier) => {
@@ -126,26 +132,39 @@ export function TierChangeDialog({
     return true;
   });
 
-  const currentPrice = getPrice(normalizedCurrentTier, normalizedBilling, normalizedGender);
-  const newPrice = getPrice(selectedTier, normalizedBilling, normalizedGender);
+  const currentPrice = getPrice(normalizedCurrentTier, currentBillingType, normalizedGender);
+  const newPrice = getPrice(selectedTier, effectiveBilling, normalizedGender);
   const isUpgrade = TIER_ORDER.indexOf(selectedTier) > TIER_ORDER.indexOf(normalizedCurrentTier);
   const isDowngrade = TIER_ORDER.indexOf(selectedTier) < TIER_ORDER.indexOf(normalizedCurrentTier);
   const isSameTier = selectedTier === normalizedCurrentTier;
+  const foundingChanged = isFounding !== initialIsFoundingMember;
+  const hasAnyChange = !isSameTier || foundingChanged;
 
   // Database-only mutation for members without subscriptions
   const databaseTierChangeMutation = useMutation({
     mutationFn: async () => {
+      const updateData: Record<string, unknown> = { membership_type: selectedTier };
+      if (foundingChanged) {
+        updateData.is_founding_member = isFounding;
+        updateData.billing_type = isFounding ? "annual" : "monthly";
+      }
       const { error } = await supabase
         .from("members")
-        .update({ membership_type: selectedTier })
+        .update(updateData)
         .eq("id", memberId);
 
       if (error) throw new Error(error.message || "Failed to update tier");
       return { success: true };
     },
     onSuccess: () => {
-      const action = isUpgrade ? "upgraded" : "downgraded";
-      toast.success(`Membership tier ${action} to ${TIER_LABELS[selectedTier]}`);
+      const changes: string[] = [];
+      if (!isSameTier) {
+        changes.push(`tier ${isUpgrade ? "upgraded" : "changed"} to ${TIER_LABELS[selectedTier]}`);
+      }
+      if (foundingChanged) {
+        changes.push(isFounding ? "set as founding member" : "removed founding status");
+      }
+      toast.success(`Membership ${changes.join(" and ")}`);
       queryClient.invalidateQueries({ queryKey: ["admin-member-detail", memberId] });
       queryClient.invalidateQueries({ queryKey: ["member-credits", memberId] });
       onOpenChange(false);
@@ -169,11 +188,30 @@ export function TierChangeDialog({
 
       if (error) throw new Error(error.message || "Failed to update tier");
       if (data?.error) throw new Error(data.error);
+
+      // Also update founding status in DB if changed
+      if (foundingChanged) {
+        const { error: dbError } = await supabase
+          .from("members")
+          .update({
+            is_founding_member: isFounding,
+            billing_type: isFounding ? "annual" : "monthly",
+          })
+          .eq("id", memberId);
+        if (dbError) console.error("Failed to update founding status:", dbError);
+      }
+
       return data;
     },
     onSuccess: () => {
-      const action = isUpgrade ? "upgraded" : "downgraded";
-      toast.success(`Member ${action} to ${TIER_LABELS[selectedTier]} successfully`);
+      const changes: string[] = [];
+      if (!isSameTier) {
+        changes.push(`${isUpgrade ? "upgraded" : "changed"} to ${TIER_LABELS[selectedTier]}`);
+      }
+      if (foundingChanged) {
+        changes.push(isFounding ? "set as founding member" : "removed founding status");
+      }
+      toast.success(`Member ${changes.join(" and ")} successfully`);
       queryClient.invalidateQueries({ queryKey: ["admin-member-detail", memberId] });
       queryClient.invalidateQueries({ queryKey: ["member-credits", memberId] });
       onOpenChange(false);
@@ -186,12 +224,12 @@ export function TierChangeDialog({
   const isPending = databaseTierChangeMutation.isPending || stripeTierChangeMutation.isPending;
 
   const handleConfirm = () => {
-    if (isSameTier) {
-      toast.error("Please select a different tier");
+    if (!hasAnyChange) {
+      toast.error("Please make a change before confirming");
       return;
     }
     
-    if (hasActiveSubscription) {
+    if (hasActiveSubscription && !isSameTier) {
       stripeTierChangeMutation.mutate();
     } else {
       databaseTierChangeMutation.mutate();
@@ -216,12 +254,45 @@ export function TierChangeDialog({
           <div className="p-4 border rounded-lg bg-muted/50">
             <p className="text-sm text-muted-foreground mb-2">Current Tier</p>
             <div className="flex items-center justify-between">
-              <Badge className={TIER_COLORS[normalizedCurrentTier]}>
-                {TIER_LABELS[normalizedCurrentTier]}
-              </Badge>
-              <span className="font-medium">{formatPrice(currentPrice, normalizedBilling)}</span>
+              <div className="flex items-center gap-2">
+                <Badge className={TIER_COLORS[normalizedCurrentTier]}>
+                  {TIER_LABELS[normalizedCurrentTier]}
+                </Badge>
+                {initialIsFoundingMember && (
+                  <Badge variant="outline" className="text-xs">Founding</Badge>
+                )}
+              </div>
+              <span className="font-medium">{formatPrice(currentPrice, currentBillingType)}</span>
             </div>
           </div>
+
+          {/* Founding Member Toggle */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="space-y-1">
+              <Label htmlFor="founding-toggle" className="font-medium">Founding Member</Label>
+              <p className="text-xs text-muted-foreground">
+                {isFounding ? "Annual prepaid billing" : "Monthly billing"}
+              </p>
+            </div>
+            <Switch
+              id="founding-toggle"
+              checked={isFounding}
+              onCheckedChange={setIsFounding}
+            />
+          </div>
+
+          {/* Founding Change Warning */}
+          {foundingChanged && hasActiveSubscription && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {isFounding 
+                  ? "Switching to founding (annual) billing requires the Stripe subscription interval to be changed manually or recreated."
+                  : "Switching from founding (annual) to monthly billing requires the Stripe subscription interval to be changed manually or recreated."
+                }
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* New Tier Selection */}
           <div className="space-y-2">
@@ -232,12 +303,12 @@ export function TierChangeDialog({
               </SelectTrigger>
               <SelectContent>
                 {availableTiers.map((tier) => {
-                  const price = getPrice(tier, normalizedBilling, normalizedGender);
+                  const price = getPrice(tier, effectiveBilling, normalizedGender);
                   return (
                     <SelectItem key={tier} value={tier}>
                       <div className="flex items-center justify-between w-full gap-4">
                         <span>{TIER_LABELS[tier]}</span>
-                        <span className="text-muted-foreground">{formatPrice(price, normalizedBilling)}</span>
+                        <span className="text-muted-foreground">{formatPrice(price, effectiveBilling)}</span>
                       </div>
                     </SelectItem>
                   );
@@ -247,22 +318,24 @@ export function TierChangeDialog({
           </div>
 
           {/* Price Change Preview */}
-          {!isSameTier && (
+          {hasAnyChange && (
             <div className="p-4 border rounded-lg">
               <p className="text-sm text-muted-foreground mb-3">Price Change</p>
               <div className="flex items-center justify-center gap-4">
                 <div className="text-center">
                   <Badge className={TIER_COLORS[normalizedCurrentTier]}>
                     {TIER_LABELS[normalizedCurrentTier]}
+                    {initialIsFoundingMember ? " (F)" : ""}
                   </Badge>
-                  <p className="mt-1 font-medium">{formatPrice(currentPrice, normalizedBilling)}</p>
+                  <p className="mt-1 font-medium">{formatPrice(currentPrice, currentBillingType)}</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground" />
                 <div className="text-center">
                   <Badge className={TIER_COLORS[selectedTier]}>
                     {TIER_LABELS[selectedTier]}
+                    {isFounding ? " (F)" : ""}
                   </Badge>
-                  <p className="mt-1 font-medium">{formatPrice(newPrice, normalizedBilling)}</p>
+                  <p className="mt-1 font-medium">{formatPrice(newPrice, effectiveBilling)}</p>
                 </div>
               </div>
               {hasActiveSubscription && isUpgrade && (
@@ -278,7 +351,7 @@ export function TierChangeDialog({
             </div>
           )}
 
-          {/* Proration Options - Only for active subscriptions */}
+          {/* Proration Options - Only for active subscriptions with tier change */}
           {!isSameTier && hasActiveSubscription && (
             <div className="space-y-2">
               <Label>Proration Behavior</Label>
@@ -308,7 +381,7 @@ export function TierChangeDialog({
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                This member doesn't have an active subscription yet. The tier change will update their membership record, and the new tier will apply when their subscription is created during activation.
+                This member doesn't have an active subscription yet. Changes will update their membership record and apply when their subscription is created during activation.
               </AlertDescription>
             </Alert>
           )}
@@ -330,10 +403,10 @@ export function TierChangeDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isSameTier || isPending}
+            disabled={!hasAnyChange || isPending}
           >
             {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isUpgrade ? "Upgrade" : isDowngrade ? `Change to ${TIER_LABELS[selectedTier]}` : "Confirm"}
+            {isUpgrade ? "Upgrade" : isDowngrade ? `Change to ${TIER_LABELS[selectedTier]}` : "Confirm Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
