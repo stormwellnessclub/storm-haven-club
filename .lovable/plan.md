@@ -1,85 +1,66 @@
 
-## Enhanced Admin Charge Dialog and Membership Editing
 
-### Problem Summary
-1. **Charge dialog is too basic**: Currently just a free-text amount and description field. No preset charge items. Admin must manually remember prices and type descriptions.
-2. **Edit form is too limited**: Only edits name, email, phone, membership_type, and status. Missing: gender, billing_type, membership_start_date, activated_at, is_founding_member.
-3. **Members like Deana Boussi show "active" but have incomplete subscriptions** -- admins need to quickly correct status and record manual payments.
+## Fix: Payment Decline, Cash Activation, and ACH Charging Issues
+
+### Three bugs identified and their root causes:
 
 ---
 
-### Fix 1: Replace Charge Dialog with Item Selector
+### Bug 1: Declined Payments Still Marking Members Active
 
-Replace the basic charge dialog in both `MemberDetail.tsx` and `MemberDetailSheet.tsx` with a new dialog that has a **charge item dropdown** with pre-populated amounts. When an item is selected, the amount and description auto-fill. Admin can still override the amount or choose "Custom" for ad-hoc charges.
+**Root Cause**: When a subscription is created with `admin_create_member_subscription`, the edge function correctly checks the first invoice and sets `pending_activation` if unpaid. However, the `customer.subscription.updated` webhook handler unconditionally maps `subscription.status === 'active'` to member `status = 'active'` (line 951 of stripe-webhook). If Stripe's subscription transitions to "active" (even briefly, or on retry), the webhook overrides the admin's intended status.
 
-**Charge Item Categories:**
+**Fix in `supabase/functions/stripe-webhook/index.ts`**:
+- In the `customer.subscription.updated` handler, when subscription status is `active`, check the member's current database status before upgrading to active
+- Only auto-activate members who are `past_due` (recovering from failed payment) -- NOT members who are `pending_activation` (they haven't been properly activated yet and may need admin review)
+- Members in `pending_activation` should stay there until explicitly activated by admin or through a proper checkout flow
 
-| Item | Amount | Description |
-|------|--------|-------------|
-| Membership Dues (Monthly) | Auto-calculated from tier/gender | "Monthly membership dues - [Tier]" |
-| Membership Dues (Annual) | Auto-calculated from tier/gender | "Annual membership dues - [Tier]" |
-| Past Due Payment | Auto-calculated | "Past due membership payment" |
-| Failed Payment Recovery | Auto-calculated | "Failed payment recovery - [Tier]" |
-| Initiation Fee | $175 (men) / $300 (women) | "Initiation fee" |
-| Guest Pass | $60 | "Guest pass - gym and amenities" |
-| Guest Add-on: RLT 10min | $18 | "Red Light Therapy 10 min" |
-| Guest Add-on: RLT 20min | $28 | "Red Light Therapy 20 min" |
-| Guest Add-on: Cryo | $45 | "ZeroBody Cryo Session" |
-| Single Class Pass (Member) | $25 / $15 | "Single class pass" |
-| Single Class Pass (Non-Member) | $40 / $30 | "Single class pass (non-member)" |
-| 10-Pack Class Pass (Member) | $170 / $150 | "10-pack class pass" |
-| 10-Pack Class Pass (Non-Member) | $300 / $200 | "10-pack class pass (non-member)" |
-| Late Cancel Fee | $25 | "Late cancellation fee" |
-| Custom | Admin enters amount | Admin enters description |
-
-**Implementation:**
-- Create a new `ChargeItemSelector` component or inline it in the dialog
-- Use a Select dropdown with grouped items (Membership, Class Passes, Guest Services, Fees, Custom)
-- When selected, auto-populate amount and description
-- Amount remains editable for overrides
-- Add an optional "Record as manual/cash" checkbox that logs to `manual_charges` instead of charging Stripe
-
----
-
-### Fix 2: Expand the Edit Form
-
-Add these fields to the edit form in both `MemberDetail.tsx` and `MemberDetailSheet.tsx`:
-
-| Field | Type | Notes |
-|-------|------|-------|
-| Gender | Select (Male/Female) | Affects pricing |
-| Billing Type | Select (Monthly/Annual/Cash) | "Cash" bypasses Stripe checks |
-| Membership Start Date | Date input | Contract start |
-| Activated At | Date input | When access began |
-| Is Founding Member | Checkbox/Switch | Affects billing type |
-
-**Edit form state expansion:**
 ```text
-editForm = {
-  first_name, last_name, email, phone,
-  membership_type, status,
-  // NEW:
-  gender,
-  billing_type,
-  membership_start_date,
-  activated_at,
-  is_founding_member,
-}
+Before (current logic):
+  if subscription.status === 'active' -> set member status = 'active'
+
+After (fixed logic):
+  if subscription.status === 'active':
+    if member.status === 'past_due' -> set member status = 'active' (payment recovered)
+    if member.status === 'pending_activation' -> keep as pending_activation (log only)
+    if member.status === 'active' -> no change needed
 ```
 
-The `saveChanges` function will be updated to include all new fields in the database update.
+---
+
+### Bug 2: Cash/Manual Payment Not Activating Founding Members
+
+**Root Cause**: The `ChargeItemSelector` component's manual payment path inserts a record into `manual_charges` but never updates the member's `status` to `active`. When you record a cash payment for dues, it creates an audit trail but doesn't change the member's activation state.
+
+**Fix in `src/components/admin/ChargeItemSelector.tsx`**:
+- After recording a manual payment for `membership_dues` or `initiation_fee` charge types, add an option or automatic update to set the member's status to `active` and `activated_at` timestamp
+- Add a "Also activate this member" toggle that appears when recording dues for a `pending_activation` member
+- When toggled on, the manual payment also updates the member's status to `active`, sets `activated_at`, and updates `subscription_status` to `none` (since there's no Stripe subscription)
+
+**Additional props needed**: Pass member's current `status` into `ChargeItemSelector` so it can conditionally show the activation toggle.
 
 ---
 
-### Fix 3: "Record Manual Payment" Option
+### Bug 3: Cannot Charge Deana Boussi's ACH Account
 
-Add a checkbox in the charge dialog: **"Record as cash/manual payment (do not charge card)"**
+**Root Cause**: The `charge_saved_card_with_3ds` action in `stripe-payment/index.ts` only queries for `type: 'card'` payment methods (line 1343). Deana has an ACH/bank account payment method (her card_brand shows "link" and card_last4 shows "0000"), so the query returns empty and throws "No payment method on file."
 
-When checked:
-- Instead of calling `charge_saved_card`, insert directly into `manual_charges` table
-- Fields: member_id, amount (in cents), description, charge_type ("membership_dues", "initiation_fee", "class_pass", "guest_pass", "other"), status ("succeeded"), payment_method select (Cash, Check, External)
-- This creates an audit trail without touching Stripe
-- Useful for members who pay in person
+**Fix in `supabase/functions/stripe-payment/index.ts`**:
+- In the `charge_saved_card_with_3ds` handler, query for ALL payment method types (card, us_bank_account, link) instead of just cards
+- Try card first, then fall back to us_bank_account, then link
+- Update the payment intent creation to use the correct payment method type
+- Add `payment_method_types` to the PaymentIntent to include both card and bank account types
+
+```text
+Before:
+  stripe.paymentMethods.list({ customer, type: 'card', limit: 1 })
+
+After:
+  1. Try stripe.paymentMethods.list({ customer, type: 'card' })
+  2. If empty, try stripe.paymentMethods.list({ customer, type: 'us_bank_account' })
+  3. If empty, try stripe.paymentMethods.list({ customer, type: 'link' })
+  4. Use whichever is found, and set payment_method_types accordingly on the PaymentIntent
+```
 
 ---
 
@@ -87,11 +68,7 @@ When checked:
 
 | File | Changes |
 |------|---------|
-| `src/pages/admin/MemberDetail.tsx` | Expand editForm with gender, billing_type, start date, activated_at, is_founding_member. Replace charge dialog with item selector + manual payment option. |
-| `src/components/admin/MemberDetailSheet.tsx` | Same edit form expansion and charge dialog upgrade. |
+| `supabase/functions/stripe-webhook/index.ts` | Fix `customer.subscription.updated` to not auto-activate `pending_activation` members -- only recover `past_due` members |
+| `supabase/functions/stripe-payment/index.ts` | Fix `charge_saved_card_with_3ds` to support ACH and Link payment methods, not just cards |
+| `src/components/admin/ChargeItemSelector.tsx` | Add "Also activate member" toggle for manual payments on pending members; update member status when toggled |
 
-### Technical Notes
-- Pricing data is sourced from `src/lib/membershipPricing.ts` and `src/lib/stripeProducts.ts` (already have all the price constants)
-- The `manual_charges` table already exists with the needed columns (member_id, amount, description, charge_type, status)
-- No backend/edge function changes needed -- the charge item selector just pre-fills the existing `charge_saved_card` action parameters
-- The "record as manual" path inserts directly into `manual_charges` via the Supabase client
