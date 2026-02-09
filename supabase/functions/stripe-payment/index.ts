@@ -2377,10 +2377,10 @@ serve(async (req) => {
           throw new Error(`Membership not available for ${gender} at ${tier} tier with ${billingType} billing`);
         }
 
-        // Get member data
+        // Get member data - include annual fee fields to prevent double-charging
         const { data: memberData, error: memberError } = await supabase
           .from('members')
-          .select('stripe_customer_id, user_id, email, first_name, last_name')
+          .select('stripe_customer_id, user_id, email, first_name, last_name, annual_fee_paid_at, annual_fee_subscription_id')
           .eq('id', memberId)
           .single();
 
@@ -2495,41 +2495,96 @@ serve(async (req) => {
         logStep("Admin subscription complete with credits", { memberId, subscriptionId: subscription.id });
 
         // Create annual fee subscription (separate recurring subscription)
-        let annualFeeSubscriptionId: string | null = null;
+        // CRITICAL: Triple-check to prevent double-charging members who already paid
+        let annualFeeSubscriptionId: string | null = memberData.annual_fee_subscription_id || null;
         const annualFeePriceId = STRIPE_PRODUCTS.annualFee[normalizedGender];
         
-        if (annualFeePriceId) {
+        // Check 1: Already paid in database?
+        const alreadyPaidInDB = !!memberData.annual_fee_paid_at;
+        
+        // Check 2: Subscription ID already linked?
+        const hasLinkedSubscription = !!memberData.annual_fee_subscription_id;
+        
+        if (alreadyPaidInDB) {
+          logStep("SKIPPING annual fee creation - already marked as paid in database", { 
+            memberId, 
+            annual_fee_paid_at: memberData.annual_fee_paid_at,
+            annual_fee_subscription_id: memberData.annual_fee_subscription_id
+          });
+        } else if (hasLinkedSubscription) {
+          logStep("SKIPPING annual fee creation - subscription already linked", { 
+            memberId, 
+            annual_fee_subscription_id: memberData.annual_fee_subscription_id 
+          });
+        } else if (annualFeePriceId) {
           try {
-            logStep("Creating annual fee subscription for admin activation", { memberId, annualFeePriceId });
+            // Check 3: Search Stripe for existing annual fee subscription (fallback for unlinked subscriptions)
+            logStep("Checking Stripe for existing annual fee subscription", { memberId, stripeCustomerId: memberData.stripe_customer_id });
             
-            const annualFeeSubscription = await stripe.subscriptions.create({
+            const existingSubs = await stripe.subscriptions.list({
               customer: memberData.stripe_customer_id,
-              items: [{ price: annualFeePriceId }],
-              default_payment_method: paymentMethodId,
-              proration_behavior: 'none',
-              metadata: {
-                member_id: memberId,
-                user_id: memberData.user_id || '',
-                type: 'annual_fee',
-                created_by_admin: user.id,
-              },
+              limit: 20,
             });
-
-            annualFeeSubscriptionId = annualFeeSubscription.id;
-
-            // Update member record with annual fee subscription ID
-            await supabase
-              .from('members')
-              .update({
-                annual_fee_subscription_id: annualFeeSubscriptionId,
-                annual_fee_paid_at: new Date().toISOString(),
-              })
-              .eq('id', memberId);
-
-            logStep("Annual fee subscription created during admin activation", { 
-              memberId, 
-              annualFeeSubscriptionId 
+            
+            const existingAnnualFeeSub = existingSubs.data.find(sub => {
+              const isActiveOrTrialing = ['active', 'trialing'].includes(sub.status);
+              const isAnnualFeeByMetadata = sub.metadata.type === 'annual_fee';
+              const isAnnualFeeByPrice = sub.items.data.some(item => 
+                Object.values(STRIPE_PRODUCTS.annualFee).includes(item.price.id)
+              );
+              return isActiveOrTrialing && (isAnnualFeeByMetadata || isAnnualFeeByPrice);
             });
+            
+            if (existingAnnualFeeSub) {
+              // Found existing subscription in Stripe - link it instead of creating duplicate
+              annualFeeSubscriptionId = existingAnnualFeeSub.id;
+              logStep("SKIPPING annual fee creation - found existing subscription in Stripe, linking it", { 
+                memberId, 
+                existingSubscriptionId: annualFeeSubscriptionId,
+                status: existingAnnualFeeSub.status
+              });
+              
+              // Link the existing subscription to the member record
+              await supabase
+                .from('members')
+                .update({
+                  annual_fee_subscription_id: annualFeeSubscriptionId,
+                  annual_fee_paid_at: new Date().toISOString(),
+                })
+                .eq('id', memberId);
+            } else {
+              // No existing subscription found - create new one
+              logStep("Creating annual fee subscription for admin activation", { memberId, annualFeePriceId });
+              
+              const annualFeeSubscription = await stripe.subscriptions.create({
+                customer: memberData.stripe_customer_id,
+                items: [{ price: annualFeePriceId }],
+                default_payment_method: paymentMethodId,
+                proration_behavior: 'none',
+                metadata: {
+                  member_id: memberId,
+                  user_id: memberData.user_id || '',
+                  type: 'annual_fee',
+                  created_by_admin: user.id,
+                },
+              });
+
+              annualFeeSubscriptionId = annualFeeSubscription.id;
+
+              // Update member record with annual fee subscription ID
+              await supabase
+                .from('members')
+                .update({
+                  annual_fee_subscription_id: annualFeeSubscriptionId,
+                  annual_fee_paid_at: new Date().toISOString(),
+                })
+                .eq('id', memberId);
+
+              logStep("Annual fee subscription created during admin activation", { 
+                memberId, 
+                annualFeeSubscriptionId 
+              });
+            }
           } catch (annualFeeError) {
             console.error(`[STRIPE-PAYMENT] ERROR ANNUAL_FEE_ADMIN_CREATION - ${annualFeeError instanceof Error ? annualFeeError.message : String(annualFeeError)}`);
             // Don't fail - membership subscription is already created
