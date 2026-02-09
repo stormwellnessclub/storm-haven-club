@@ -206,14 +206,76 @@ serve(async (req) => {
             const subscription = await stripe.subscriptions.retrieve(member.stripe_subscription_id);
             
             let expectedStatus: string;
+            let shouldClearSubscription = false;
+            
             if (subscription.status === 'active' || subscription.status === 'trialing') {
               expectedStatus = 'active';
             } else if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
               expectedStatus = 'past_due';
             } else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
               expectedStatus = 'cancelled';
+              shouldClearSubscription = true;
+            } else if (subscription.status === 'incomplete') {
+              // Payment failed on initial subscription - clear the dead subscription ID
+              issueCount++;
+              logStep("Incomplete subscription found - payment failed before starting", { 
+                memberId: member.id, 
+                subscriptionId: member.stripe_subscription_id 
+              });
+              
+              if (!options.dryRun) {
+                await supabase
+                  .from('members')
+                  .update({ 
+                    stripe_subscription_id: null,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', member.id);
+                fixedCount++;
+              }
+              
+              results.push({
+                member_id: member.id,
+                member_name: memberName,
+                issue_type: 'incomplete_subscription',
+                details: `Subscription payment failed before starting - subscription ID ${member.stripe_subscription_id} cleared. Member can now have a new subscription created.`,
+                fixed: !options.dryRun
+              });
+              
+              continue; // Move to next member after handling incomplete
             } else {
-              continue; // Skip incomplete, etc.
+              continue; // Skip other unknown statuses
+            }
+
+            // Clear dead subscription IDs for canceled/expired subscriptions
+            if (shouldClearSubscription) {
+              issueCount++;
+              logStep("Dead subscription found - clearing subscription ID", { 
+                memberId: member.id, 
+                subscriptionId: member.stripe_subscription_id,
+                stripeStatus: subscription.status
+              });
+              
+              if (!options.dryRun) {
+                await supabase
+                  .from('members')
+                  .update({ 
+                    stripe_subscription_id: null,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', member.id);
+                fixedCount++;
+              }
+              
+              results.push({
+                member_id: member.id,
+                member_name: memberName,
+                issue_type: 'dead_subscription_cleared',
+                details: `Subscription ${member.stripe_subscription_id} is ${subscription.status} - ID cleared from database`,
+                fixed: !options.dryRun
+              });
+              
+              continue; // Move to next member after clearing
             }
 
             if (member.status !== expectedStatus && member.status !== 'frozen') {
@@ -241,12 +303,25 @@ serve(async (req) => {
           } catch (subError) {
             if (subError instanceof Error && subError.message.includes('No such subscription')) {
               issueCount++;
+              
+              // Clear the orphaned subscription ID
+              if (!options.dryRun) {
+                await supabase
+                  .from('members')
+                  .update({ 
+                    stripe_subscription_id: null,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', member.id);
+                fixedCount++;
+              }
+              
               results.push({
                 member_id: member.id,
                 member_name: memberName,
                 issue_type: 'orphaned_subscription_id',
-                details: `Subscription ${member.stripe_subscription_id} not found in Stripe`,
-                fixed: false
+                details: `Subscription ${member.stripe_subscription_id} not found in Stripe - ID cleared`,
+                fixed: !options.dryRun
               });
             }
           }

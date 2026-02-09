@@ -19,6 +19,7 @@ import { AdminChargeWith3DSProvider } from "@/components/admin/AdminChargeWith3D
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
 import { PaymentsTabContent } from "@/components/admin/PaymentsTabContent";
 import { BillingHealthCard } from "@/components/admin/BillingHealthCard";
+import { SubscriptionCard } from "@/components/admin/SubscriptionCard";
 import { PaymentTimeline } from "@/components/admin/PaymentTimeline";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
@@ -232,6 +233,9 @@ export default function MemberDetail() {
     amount: number;
     description: string;
   } | null>(null);
+
+  // Clear dead subscription state
+  const [isClearingDeadSubscription, setIsClearingDeadSubscription] = useState(false);
 
   // Undo action hook - fetch last undoable action for this member
   const lastUndoableAction = useLastUndoableAction(id);
@@ -657,6 +661,33 @@ export default function MemberDetail() {
       toast.error(error instanceof Error ? error.message : "Failed to create subscription");
     } finally {
       setIsCreatingSubscription(false);
+    }
+  };
+
+  const handleClearDeadSubscription = async () => {
+    if (!member) return;
+    
+    setIsClearingDeadSubscription(true);
+    try {
+      // Clear the subscription ID from the database
+      const { error } = await supabase
+        .from('members')
+        .update({ 
+          stripe_subscription_id: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', member.id);
+
+      if (error) throw error;
+
+      toast.success("Dead subscription cleared. You can now create a new subscription.");
+      queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-member-billing-health", id] });
+    } catch (error) {
+      console.error("Error clearing subscription:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to clear subscription");
+    } finally {
+      setIsClearingDeadSubscription(false);
     }
   };
 
@@ -1087,97 +1118,14 @@ export default function MemberDetail() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Subscription</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {member.stripe_subscription_id ? (
-                <div className="space-y-2">
-                  {/* Show actual billing health status if available */}
-                  {billingHealth?.duesSubscription?.status === 'incomplete_expired' || 
-                   billingHealth?.duesSubscription?.status === 'canceled' ? (
-                    <>
-                      <div className="flex items-center gap-2 text-destructive">
-                        <XCircle className="h-4 w-4" />
-                        <span className="font-medium">
-                          {billingHealth?.duesSubscription?.status === 'incomplete_expired' 
-                            ? 'Expired (Payment Failed)' 
-                            : 'Canceled'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Subscription is no longer active in Stripe
-                      </p>
-                      {member.stripe_customer_id && member.card_brand && (
-                        <AdminActionButton
-                          label="Create New Subscription"
-                          tooltip="Replace the expired subscription with a new one"
-                          onClick={() => setShowCreateSubscriptionDialog(true)}
-                          isLoading={isCreatingSubscription}
-                        />
-                      )}
-                    </>
-                  ) : billingHealth?.duesSubscription?.status === 'past_due' ? (
-                    <>
-                      <div className="flex items-center gap-2 text-amber-600">
-                        <AlertCircle className="h-4 w-4" />
-                        <span className="font-medium">Past Due</span>
-                      </div>
-                      <a 
-                        href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline flex items-center gap-1"
-                      >
-                        View in Stripe <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </>
-                  ) : billingHealth?.duesSubscription?.status === 'incomplete' ? (
-                    <>
-                      <div className="flex items-center gap-2 text-amber-600">
-                        <Clock className="h-4 w-4" />
-                        <span className="font-medium">Awaiting Payment</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Initial payment is being processed
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2 text-green-600">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span className="font-medium">Active</span>
-                      </div>
-                      <a 
-                        href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline flex items-center gap-1"
-                      >
-                        View in Stripe <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-amber-600">
-                    <AlertCircle className="h-4 w-4" />
-                    <span className="font-medium">None</span>
-                  </div>
-                  {member.stripe_customer_id && member.card_brand && (
-                    <AdminActionButton
-                      label="Create"
-                      tooltip={ADMIN_ACTION_TOOLTIPS.createSubscription}
-                      onClick={() => setShowCreateSubscriptionDialog(true)}
-                      isLoading={isCreatingSubscription}
-                    />
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SubscriptionCard 
+            member={member}
+            billingHealth={billingHealth}
+            isCreatingSubscription={isCreatingSubscription}
+            onCreateSubscription={() => setShowCreateSubscriptionDialog(true)}
+            onClearDeadSubscription={handleClearDeadSubscription}
+            isClearingSubscription={isClearingDeadSubscription}
+          />
         </div>
 
         {/* Activation Status Card - Only for pending_activation members */}
