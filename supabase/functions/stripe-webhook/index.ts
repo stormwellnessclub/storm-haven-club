@@ -1134,6 +1134,56 @@ serve(async (req) => {
                 logError(annualFeeUpdateError, "ANNUAL_FEE_RENEWAL_UPDATE");
               } else {
                 logStep("Annual fee renewal recorded", { memberId: memberData.id });
+
+                // Send receipt email for annual fee renewal
+                try {
+                  const { data: fullMemberData } = await supabase
+                    .from('members')
+                    .select('email, first_name, last_name, membership_type')
+                    .eq('id', memberData.id)
+                    .single();
+
+                  if (fullMemberData?.email) {
+                    const tierName = getTierName(fullMemberData.membership_type || 'silver');
+                    const tierDisplay = tierName.charAt(0).toUpperCase() + tierName.slice(1);
+                    const memberName = `${fullMemberData.first_name || ''} ${fullMemberData.last_name || ''}`.trim() || 'Member';
+                    
+                    // Get subscription for next billing date
+                    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+                    const nextBillingDate = new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    });
+
+                    const paymentDateStr = new Date(invoice.created * 1000).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    });
+
+                    await supabase.functions.invoke('send-email', {
+                      body: {
+                        type: 'charge_confirmation',
+                        to: fullMemberData.email,
+                        data: {
+                          name: memberName,
+                          description: `Annual Fee - ${tierDisplay}`,
+                          amount: (invoice.amount_paid / 100).toFixed(2),
+                          paymentDate: paymentDateStr,
+                          nextBillingDate: nextBillingDate,
+                          cardBrand: cardBrand || 'Unknown',
+                          cardLast4: cardLast4 || '****',
+                        },
+                      },
+                    });
+
+                    logStep("Receipt email sent for annual fee", { memberId: memberData.id, email: fullMemberData.email });
+                  }
+                } catch (emailError) {
+                  logError(emailError, "RECEIPT_EMAIL_ANNUAL_FEE");
+                  // Don't fail webhook for email errors
+                }
               }
             } else {
               // Update member status to active if it was past_due (membership subscription)
@@ -1239,6 +1289,56 @@ serve(async (req) => {
                 }
               } catch (creditRenewalError) {
                 logError(creditRenewalError, "CREDIT_RENEWAL");
+              }
+
+              // Send receipt email for membership dues renewal
+              try {
+                const { data: fullMemberData } = await supabase
+                  .from('members')
+                  .select('email, first_name, last_name, membership_type')
+                  .eq('id', memberData.id)
+                  .single();
+
+                if (fullMemberData?.email) {
+                  const tierName = getTierName(fullMemberData.membership_type || 'silver');
+                  const tierDisplay = tierName.charAt(0).toUpperCase() + tierName.slice(1);
+                  const memberName = `${fullMemberData.first_name || ''} ${fullMemberData.last_name || ''}`.trim() || 'Member';
+                  
+                  // Get subscription for next billing date
+                  const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+                  const nextBillingDate = new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  });
+
+                  const paymentDateStr = new Date(invoice.created * 1000).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  });
+
+                  await supabase.functions.invoke('send-email', {
+                    body: {
+                      type: 'charge_confirmation',
+                      to: fullMemberData.email,
+                      data: {
+                        name: memberName,
+                        description: `Membership Dues - ${tierDisplay}`,
+                        amount: (invoice.amount_paid / 100).toFixed(2),
+                        paymentDate: paymentDateStr,
+                        nextBillingDate: nextBillingDate,
+                        cardBrand: cardBrand || 'Unknown',
+                        cardLast4: cardLast4 || '****',
+                      },
+                    },
+                  });
+
+                  logStep("Receipt email sent for membership dues", { memberId: memberData.id, email: fullMemberData.email });
+                }
+              } catch (emailError) {
+                logError(emailError, "RECEIPT_EMAIL_MEMBERSHIP");
+                // Don't fail webhook for email errors
                 // Don't fail the webhook for credit creation issues
               }
             }
