@@ -57,6 +57,7 @@ import Applications from "./pages/admin/Applications";
 import Appointments from "./pages/admin/Appointments";
 import Payments from "./pages/admin/Payments";
 import PaymentReports from "./pages/admin/PaymentReports";
+import PaymentTracking from "./pages/admin/PaymentTracking";
 import RevenueAnalytics from "./pages/admin/RevenueAnalytics";
 import Settings from "./pages/admin/Settings";
 import GuestPasses from "./pages/admin/GuestPasses";
@@ -141,6 +142,7 @@ const App = () => (
               <Route path="/admin/appointments" element={<ProtectedAdminRoute><Appointments /></ProtectedAdminRoute>} />
               <Route path="/admin/payments" element={<ProtectedAdminRoute><Payments /></ProtectedAdminRoute>} />
               <Route path="/admin/payment-reports" element={<ProtectedAdminRoute><PaymentReports /></ProtectedAdminRoute>} />
+              <Route path="/admin/payment-tracking" element={<ProtectedAdminRoute><PaymentTracking /></ProtectedAdminRoute>} />
               <Route path="/admin/revenue-analytics" element={<ProtectedAdminRoute><RevenueAnalytics /></ProtectedAdminRoute>} />
               <Route path="/admin/guest-passes" element={<ProtectedAdminRoute><GuestPasses /></ProtectedAdminRoute>} />
               <Route path="/admin/cafe" element={<ProtectedAdminRoute><CafePOS /></ProtectedAdminRoute>} />
