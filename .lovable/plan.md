@@ -1,76 +1,45 @@
 
-## Fix: Declined Payments Visibility and Admin Actions
 
-### Problem Summary
-Three interconnected issues prevent you from managing members with declined payments:
+## Three Features: Founding Status Toggle, Same-Day Guest Pass Sales, and Guest Pass Date Editing
 
-1. **Failed Payments tab shows nothing** -- The `payment_attempts` table is empty (webhooks haven't recorded any failed attempts yet, likely because the subscriptions failed on the initial invoice before the webhook was configured). The Failed Payments tab ONLY queries this table, so it shows "No failed payments."
+### 1. Founding Member Toggle in Tier Change Dialog
 
-2. **No Retry Dues button** -- There is no "Retry Invoice" or "Retry Payment" action in the admin UI or the backend function. You cannot re-attempt a failed subscription payment.
+**Problem**: The TierChangeDialog only lets admins change the tier (Silver/Gold/Platinum/Diamond) but has no option to toggle founding member status. The `is_founding_member` and `billing_type` fields in the members table are never updated by this dialog.
 
-3. **No quick Deactivate action** -- While you can manually change a member's status via Edit, there is no dedicated "Mark Inactive" or "Suspend" button visible for members with payment issues.
+**Fix**: Add a "Founding Member" toggle (Switch) to `TierChangeDialog` that:
+- Shows the current founding status
+- When toggled, updates `is_founding_member` and `billing_type` (annual vs monthly) in the database
+- Updates the price preview to reflect founding (annual) vs regular (monthly) pricing
+- Warns the admin about billing implications (switching to/from annual prepaid)
 
-### Currently Affected Members (10 total)
-- Deana Boussi (pending_activation / incomplete)
-- Wafaa Diab (active / incomplete)  
-- Zahna Abdallah (past_due / past_due)
-- Nadine Elachkar, Walaa Hachem, Rayanne Haidar, Jacquelyne Olson, Lara Sabra, Jessica Seagull, Kinda Turaani (pending_activation / incomplete)
-
----
-
-### Fix 1: Show Members with Billing Issues in Failed Payments Tab
-
-The Failed Payments tab currently only queries `payment_attempts` (which is empty). Add a secondary data source that queries members directly where `subscription_status` is `incomplete`, `incomplete_expired`, or `past_due`.
-
-**File**: `src/hooks/usePaymentTracking.ts`
-- Add a new hook `useMembersWithBillingFailures()` that queries the `members` table for `subscription_status IN ('incomplete', 'incomplete_expired', 'past_due')`
-- Return member name, email, tier, status, subscription_status, card info, and stripe_subscription_id
-
-**File**: `src/components/admin/FailedPaymentsTab.tsx`
-- Add a "Members with Billing Issues" section above or alongside the existing payment_attempts table
-- Show these members in a table with columns: Name, Tier, Status, Subscription Status, Card on File, Actions
-- Actions include: Retry Payment, Suspend Member, View Profile
+**Files to modify**:
+- `src/components/admin/TierChangeDialog.tsx` -- Add a Switch component for founding status, update the mutation to also write `is_founding_member` and `billing_type`, and adjust price display dynamically based on the selected founding status
 
 ---
 
-### Fix 2: Add "Retry Invoice" Backend Action
+### 2. Allow Same-Day Guest Pass Purchases on the Website
 
-**File**: `supabase/functions/stripe-payment/index.ts`
-- Add a new action case `retry_subscription_invoice` that:
-  1. Looks up the member's `stripe_subscription_id`
-  2. Retrieves the subscription from Stripe
-  3. Finds the latest open/unpaid invoice (`stripe.invoices.list({ subscription: subId, status: 'open' })`)
-  4. Calls `stripe.invoices.pay(invoiceId)` to retry payment
-  5. Returns success/failure with details
+**Problem**: The public guest pass page (`/guest-pass`) restricts the visit date picker so `minDate = new Date()` (today) but compares using `date < minDate` which excludes today because `new Date()` includes the current time. Guests cannot select today as their visit date.
 
----
+**Fix**: Set `minDate` to the start of today so that today is selectable:
+```
+const minDate = startOfDay(new Date());
+```
+Also extend `maxDate` slightly if needed (currently 7 days out, which is fine).
 
-### Fix 3: Add Admin Actions to Member Detail and Failed Payments
-
-**File**: `src/components/admin/MemberDetailSheet.tsx`
-- Add a prominent "Payment Failed" alert banner when `subscription_status` is `incomplete` or `past_due`
-- Add "Retry Payment" button that calls the new `retry_subscription_invoice` action
-- Add "Deactivate Member" button that sets status to `suspended` and optionally cancels the Stripe subscription
-- These buttons appear in the Billing tab when payment issues are detected
-
-**File**: `src/components/admin/FailedPaymentsTab.tsx`  
-- Add inline action buttons per row: "Retry", "Suspend", "View"
-- Add a bulk action option to suspend all members with failed payments
+**Files to modify**:
+- `src/pages/GuestPass.tsx` -- Import `startOfDay` from date-fns and use it for `minDate` so today is a valid selection
 
 ---
 
-### Fix 4: Sync Subscription Status from Stripe
+### 3. Admin Can Edit Guest Pass Activation Date (valid_date)
 
-**File**: `supabase/functions/stripe-payment/index.ts`
-- Add a `sync_member_subscription_status` action that:
-  1. Fetches the member's subscription from Stripe
-  2. Gets the latest invoice status
-  3. Updates `subscription_status` in the members table
-  4. Inserts a record into `payment_attempts` if a failure is found
-- This allows admins to manually sync status for members whose webhooks were missed
+**Problem**: The `GuestDetailSheet` displays the `valid_date` but provides no way to edit it. Admins need to change the visit date after purchase (e.g., guest reschedules).
 
-**File**: `src/components/admin/FailedPaymentsTab.tsx`
-- Add a "Sync All from Stripe" button at the top that triggers sync for all members with subscriptions
+**Fix**: Add an "Edit Date" button next to the valid_date display in `GuestDetailSheet` that opens an inline date picker. On save, update the `valid_date` column in the `guest_passes` table.
+
+**Files to modify**:
+- `src/components/admin/GuestDetailSheet.tsx` -- Add an editable date picker for `valid_date` with a save button that updates the database directly
 
 ---
 
@@ -78,12 +47,21 @@ The Failed Payments tab currently only queries `payment_attempts` (which is empt
 
 | File | Change |
 |------|--------|
-| `supabase/functions/stripe-payment/index.ts` | Add `retry_subscription_invoice` and `sync_member_subscription_status` actions |
-| `src/hooks/usePaymentTracking.ts` | Add `useMembersWithBillingFailures()` hook querying members with bad subscription_status |
-| `src/components/admin/FailedPaymentsTab.tsx` | Add "Members with Billing Issues" section, inline Retry/Suspend actions, Sync button |
-| `src/components/admin/MemberDetailSheet.tsx` | Add payment failure alert banner with Retry and Deactivate buttons |
+| `src/components/admin/TierChangeDialog.tsx` | Add founding member Switch toggle, update mutation to set `is_founding_member` and `billing_type`, adjust price preview dynamically |
+| `src/pages/GuestPass.tsx` | Use `startOfDay(new Date())` for minDate so today is selectable |
+| `src/components/admin/GuestDetailSheet.tsx` | Add inline date editor for `valid_date` with save to database |
 
-### Technical Notes
-- The `payment_attempts` table is empty because these subscriptions failed on the initial invoice (before the webhook could fire a `payment_failed` event). The fix addresses this by also querying member subscription_status directly.
-- The Stripe API `invoices.pay()` will retry charging the customer's default payment method for the open invoice.
-- The sync action acts as a manual recovery tool for missed webhooks.
+### Technical Details
+
+**TierChangeDialog changes**:
+- Add `isFoundingMember` state initialized from props (need new prop or derive from `billingType`)
+- Add a Switch component between tier selection and price preview
+- When founding status changes, recalculate prices using annual vs monthly rates
+- Database mutation updates: `membership_type`, `is_founding_member`, `billing_type`
+- For active subscriptions with Stripe, warn that billing interval change requires subscription cancellation and recreation (cannot change interval on existing Stripe subscription)
+
+**GuestDetailSheet changes**:
+- Add `editingDate` state and a Calendar popover
+- On date select, call `supabase.from('guest_passes').update({ valid_date }).eq('id', guest.id)`
+- Show success toast and refresh data
+
