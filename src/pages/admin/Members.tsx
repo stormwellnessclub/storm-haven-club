@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Filter, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle, DollarSign, ShoppingBag, CheckCircle2, Send, FileCheck } from "lucide-react";
+import { Search, MoreHorizontal, UserPlus, Mail, Loader2, AlertTriangle, DollarSign, ShoppingBag, CheckCircle2, Send, FileCheck, X, Users, CreditCard, Clock, XCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,27 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 import { MemberIssuesBadges } from "@/components/admin/MemberIssuesBadges";
 import { EffectiveStatusBadge } from "@/components/admin/EffectiveStatusBadge";
-
-const getStatusColor = (status: string) => {
-  switch (status?.toLowerCase()) {
-    case "active":
-      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-    case "pending_activation":
-      return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300";
-    case "past_due":
-      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
-    case "frozen":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-    case "suspended":
-      return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
-    case "cancelled":
-    case "expired":
-    case "inactive":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
-    default:
-      return "bg-secondary text-secondary-foreground";
-  }
-};
+import { Switch } from "@/components/ui/switch";
 
 const getMembershipColor = (membership: string) => {
   const lowerMembership = membership?.toLowerCase() || "";
@@ -91,43 +71,99 @@ const normalizeTierDisplay = (membership: string): string => {
   return membership;
 };
 
-const formatStatus = (status: string) => {
-  return status?.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Unknown";
+// Extract tier for filtering
+const extractTier = (membership: string): string => {
+  const lower = membership?.toLowerCase() || "";
+  if (lower.includes("diamond")) return "diamond";
+  if (lower.includes("platinum")) return "platinum";
+  if (lower.includes("gold")) return "gold";
+  if (lower.includes("silver")) return "silver";
+  return "other";
 };
 
 export default function Members() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMember, setSelectedMember] = useState<typeof members[0] | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { isSuperAdmin } = useUserRoles();
+  const { data: billingIssues } = useMembersBillingIssues();
+  
+  // URL-persisted filter state
+  const searchQuery = searchParams.get("q") || "";
+  const statusFilter = searchParams.get("status") || "active_default";
+  const tierFilter = searchParams.get("tier") || "all";
+  const initiationFilter = searchParams.get("initiation") || "all";
+  const cardFilter = searchParams.get("card") || "all";
+  const subscriptionFilter = searchParams.get("subscription") || "all";
+  const genderFilter = searchParams.get("gender") || "all";
+  const waiverFilter = searchParams.get("waiver") || "all";
+  const foundingFilter = searchParams.get("founding") || "all";
+  const billingTypeFilter = searchParams.get("billing") || "all";
+  const showCancelled = searchParams.get("showCancelled") === "true";
+  const issuesOnly = searchParams.get("issues") === "true";
+  
+  // Helper to update URL params
+  const updateParam = (key: string, value: string | null) => {
+    const params = new URLSearchParams(searchParams);
+    if (value === null || value === "" || value === "all" || (key === "status" && value === "active_default") || (key === "showCancelled" && value === "false") || (key === "issues" && value === "false")) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    setSearchParams(params, { replace: true });
+  };
+
+  // Quick filter presets
+  const applyQuickFilter = (preset: string) => {
+    const params = new URLSearchParams();
+    switch (preset) {
+      case "active":
+        params.set("status", "active");
+        break;
+      case "pending":
+        params.set("status", "pending_activation");
+        break;
+      case "needs_attention":
+        params.set("issues", "true");
+        break;
+      case "initiation_unpaid":
+        params.set("initiation", "unpaid");
+        break;
+      case "no_card":
+        params.set("card", "no");
+        break;
+      case "no_subscription":
+        params.set("subscription", "none");
+        break;
+      case "all":
+        params.set("showCancelled", "true");
+        params.set("status", "all");
+        break;
+    }
+    setSearchParams(params, { replace: true });
+  };
+
+  const clearAllFilters = () => {
+    setSearchParams({}, { replace: true });
+  };
+  
+  // Local state for dialogs and actions
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [showMembershipDialog, setShowMembershipDialog] = useState(false);
   const [showClassPackageDialog, setShowClassPackageDialog] = useState(false);
-  const [foundingMemberFilter, setFoundingMemberFilter] = useState<boolean | null>(null);
-  const [billingTypeFilter, setBillingTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [issuesFilter, setIssuesFilter] = useState<boolean>(searchParams.get("filter") === "issues");
-  
-  // Super Admin Activation state (moved from MemberDetailSheet)
-  const [memberToActivate, setMemberToActivate] = useState<typeof members[0] | null>(null);
+  const [memberToActivate, setMemberToActivate] = useState<any | null>(null);
   const [showActivateDialog, setShowActivateDialog] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
-  
-  // Activation email state
   const [isSendingActivationEmail, setIsSendingActivationEmail] = useState(false);
   const [isSendingBulkEmails, setIsSendingBulkEmails] = useState(false);
   const [isSendingWaiverReminder, setIsSendingWaiverReminder] = useState(false);
   const [isSendingBulkWaiverReminders, setIsSendingBulkWaiverReminders] = useState(false);
-  
-  const queryClient = useQueryClient();
-  const { isSuperAdmin } = useUserRoles();
-  const { data: billingIssues } = useMembersBillingIssues();
 
   // Fetch members with their waiver status from profiles
   const { data: members = [], isLoading, error } = useQuery({
     queryKey: ["admin-members"],
     queryFn: async () => {
-      // First get all members
       const { data: membersData, error: membersError } = await supabase
         .from("members")
         .select(`
@@ -160,7 +196,6 @@ export default function Members() {
 
       if (membersError) throw membersError;
 
-      // Get waiver status from profiles for members with user_id
       const userIds = membersData.filter(m => m.user_id).map(m => m.user_id);
       let profilesMap: Record<string, { waiver_signed: boolean; membership_agreement_signed: boolean }> = {};
       
@@ -181,7 +216,6 @@ export default function Members() {
         }
       }
 
-      // Merge waiver status into members
       return membersData.map(m => ({
         ...m,
         waiver_signed: m.user_id ? profilesMap[m.user_id]?.waiver_signed || false : false,
@@ -190,39 +224,249 @@ export default function Members() {
     },
   });
 
-  const filteredMembers = members.filter((member) => {
-    // Search filter
-    const matchesSearch = !searchQuery ||
-      member.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.member_id.toLowerCase().includes(searchQuery.toLowerCase());
+  // Calculate filter counts
+  const filterCounts = useMemo<{
+    total: number;
+    active: number;
+    pending_activation: number;
+    frozen: number;
+    cancelled: number;
+    expired: number;
+    suspended: number;
+    past_due: number;
+    initiationPaid: number;
+    initiationUnpaid: number;
+    hasCard: number;
+    noCard: number;
+    hasSubscription: number;
+    noSubscription: number;
+    waiverSigned: number;
+    waiverUnsigned: number;
+    women: number;
+    men: number;
+    founding: number;
+    issues: number;
+  }>(() => {
+    const counts = {
+      total: members.length,
+      active: 0,
+      pending_activation: 0,
+      frozen: 0,
+      cancelled: 0,
+      expired: 0,
+      suspended: 0,
+      past_due: 0,
+      initiationPaid: 0,
+      initiationUnpaid: 0,
+      hasCard: 0,
+      noCard: 0,
+      hasSubscription: 0,
+      noSubscription: 0,
+      waiverSigned: 0,
+      waiverUnsigned: 0,
+      women: 0,
+      men: 0,
+      founding: 0,
+      issues: 0,
+    };
 
-    // Founding member filter
-    const matchesFounding = foundingMemberFilter === null || 
-      (foundingMemberFilter === true && member.is_founding_member === true) ||
-      (foundingMemberFilter === false && member.is_founding_member !== true);
+    for (const member of members) {
+      // Status counts
+      const status = member.status?.toLowerCase() || "";
+      if (status === "active") counts.active++;
+      else if (status === "pending_activation") counts.pending_activation++;
+      else if (status === "frozen") counts.frozen++;
+      else if (status === "cancelled") counts.cancelled++;
+      else if (status === "expired") counts.expired++;
+      else if (status === "suspended") counts.suspended++;
+      else if (status === "past_due") counts.past_due++;
 
-    // Billing type filter
-    const matchesBilling = billingTypeFilter === "all" ||
-      (billingTypeFilter === "monthly" && (member.billing_type === "monthly" || !member.billing_type)) ||
-      (billingTypeFilter === "annual" && member.billing_type === "annual");
+      // Initiation fee
+      if (member.annual_fee_paid_at || member.annual_fee_subscription_id) {
+        counts.initiationPaid++;
+      } else {
+        counts.initiationUnpaid++;
+      }
 
-    // Status filter
-    const matchesStatus = statusFilter === "all" || member.status === statusFilter;
+      // Card
+      if (member.card_last4) {
+        counts.hasCard++;
+      } else {
+        counts.noCard++;
+      }
 
-    // Issues filter
-    const hasIssues = billingIssues?.memberIssues?.[member.id]?.length > 0;
-    const matchesIssues = !issuesFilter || hasIssues;
+      // Subscription
+      if (member.stripe_subscription_id) {
+        counts.hasSubscription++;
+      } else {
+        counts.noSubscription++;
+      }
 
-    return matchesSearch && matchesFounding && matchesBilling && matchesStatus && matchesIssues;
-  });
+      // Waiver
+      if (member.waiver_signed && member.membership_agreement_signed) {
+        counts.waiverSigned++;
+      } else {
+        counts.waiverUnsigned++;
+      }
+
+      // Gender
+      const gender = member.gender?.toLowerCase() || "";
+      if (gender === "female" || gender === "woman") counts.women++;
+      else if (gender === "male" || gender === "man") counts.men++;
+
+      // Founding
+      if (member.is_founding_member) counts.founding++;
+
+      // Issues
+      if (billingIssues?.memberIssues?.[member.id]?.length > 0) {
+        counts.issues++;
+      }
+    }
+
+    return counts;
+  }, [members, billingIssues]);
+
+  // Apply all filters
+  const filteredMembers = useMemo(() => {
+    return members.filter((member) => {
+      // Search filter
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matches = 
+          member.first_name?.toLowerCase().includes(q) ||
+          member.last_name?.toLowerCase().includes(q) ||
+          member.email?.toLowerCase().includes(q) ||
+          member.member_id?.toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+
+      // Status filter
+      const memberStatus = member.status?.toLowerCase() || "";
+      if (statusFilter === "active_default") {
+        // Default: exclude cancelled and expired
+        if (!showCancelled && (memberStatus === "cancelled" || memberStatus === "expired")) {
+          return false;
+        }
+      } else if (statusFilter !== "all") {
+        if (memberStatus !== statusFilter) return false;
+      } else {
+        // "all" status - still respect showCancelled toggle
+        if (!showCancelled && (memberStatus === "cancelled" || memberStatus === "expired")) {
+          return false;
+        }
+      }
+
+      // Tier filter
+      if (tierFilter !== "all") {
+        const memberTier = extractTier(member.membership_type);
+        if (memberTier !== tierFilter) return false;
+      }
+
+      // Initiation fee filter
+      if (initiationFilter !== "all") {
+        const hasPaid = !!(member.annual_fee_paid_at || member.annual_fee_subscription_id);
+        if (initiationFilter === "paid" && !hasPaid) return false;
+        if (initiationFilter === "unpaid" && hasPaid) return false;
+      }
+
+      // Card filter
+      if (cardFilter !== "all") {
+        const hasCard = !!member.card_last4;
+        if (cardFilter === "yes" && !hasCard) return false;
+        if (cardFilter === "no" && hasCard) return false;
+      }
+
+      // Subscription filter
+      if (subscriptionFilter !== "all") {
+        const hasSub = !!member.stripe_subscription_id;
+        if (subscriptionFilter === "active" && !hasSub) return false;
+        if (subscriptionFilter === "none" && hasSub) return false;
+      }
+
+      // Gender filter
+      if (genderFilter !== "all") {
+        const gender = member.gender?.toLowerCase() || "";
+        if (genderFilter === "women" && gender !== "female" && gender !== "woman") return false;
+        if (genderFilter === "men" && gender !== "male" && gender !== "man") return false;
+      }
+
+      // Waiver filter
+      if (waiverFilter !== "all") {
+        const signed = member.waiver_signed && member.membership_agreement_signed;
+        if (waiverFilter === "signed" && !signed) return false;
+        if (waiverFilter === "unsigned" && signed) return false;
+      }
+
+      // Founding member filter
+      if (foundingFilter !== "all") {
+        if (foundingFilter === "founding" && !member.is_founding_member) return false;
+        if (foundingFilter === "regular" && member.is_founding_member) return false;
+      }
+
+      // Billing type filter
+      if (billingTypeFilter !== "all") {
+        const billing = member.billing_type || "monthly";
+        if (billingTypeFilter !== billing) return false;
+      }
+
+      // Issues only filter
+      if (issuesOnly) {
+        const hasIssues = billingIssues?.memberIssues?.[member.id]?.length > 0;
+        if (!hasIssues) return false;
+      }
+
+      return true;
+    });
+  }, [members, searchQuery, statusFilter, tierFilter, initiationFilter, cardFilter, subscriptionFilter, genderFilter, waiverFilter, foundingFilter, billingTypeFilter, showCancelled, issuesOnly, billingIssues]);
+
+  // Get active filter count for display
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== "active_default") count++;
+    if (tierFilter !== "all") count++;
+    if (initiationFilter !== "all") count++;
+    if (cardFilter !== "all") count++;
+    if (subscriptionFilter !== "all") count++;
+    if (genderFilter !== "all") count++;
+    if (waiverFilter !== "all") count++;
+    if (foundingFilter !== "all") count++;
+    if (billingTypeFilter !== "all") count++;
+    if (showCancelled) count++;
+    if (issuesOnly) count++;
+    if (searchQuery) count++;
+    return count;
+  }, [statusFilter, tierFilter, initiationFilter, cardFilter, subscriptionFilter, genderFilter, waiverFilter, foundingFilter, billingTypeFilter, showCancelled, issuesOnly, searchQuery]);
+
+  // Active filter pills for display
+  const activeFilters = useMemo(() => {
+    const filters: { key: string; label: string }[] = [];
+    if (searchQuery) filters.push({ key: "q", label: `Search: "${searchQuery}"` });
+    if (statusFilter !== "active_default") {
+      filters.push({ key: "status", label: `Status: ${statusFilter.replace(/_/g, " ")}` });
+    }
+    if (tierFilter !== "all") filters.push({ key: "tier", label: `Tier: ${tierFilter}` });
+    if (initiationFilter !== "all") filters.push({ key: "initiation", label: `Initiation: ${initiationFilter}` });
+    if (cardFilter !== "all") filters.push({ key: "card", label: `Card: ${cardFilter === "yes" ? "Has Card" : "No Card"}` });
+    if (subscriptionFilter !== "all") filters.push({ key: "subscription", label: `Subscription: ${subscriptionFilter}` });
+    if (genderFilter !== "all") filters.push({ key: "gender", label: `Gender: ${genderFilter}` });
+    if (waiverFilter !== "all") filters.push({ key: "waiver", label: `Waiver: ${waiverFilter}` });
+    if (foundingFilter !== "all") filters.push({ key: "founding", label: foundingFilter === "founding" ? "Founding Members" : "Regular Members" });
+    if (billingTypeFilter !== "all") filters.push({ key: "billing", label: `Billing: ${billingTypeFilter}` });
+    if (showCancelled) filters.push({ key: "showCancelled", label: "Including Cancelled" });
+    if (issuesOnly) filters.push({ key: "issues", label: "Issues Only" });
+    return filters;
+  }, [searchQuery, statusFilter, tierFilter, initiationFilter, cardFilter, subscriptionFilter, genderFilter, waiverFilter, foundingFilter, billingTypeFilter, showCancelled, issuesOnly]);
 
   // Get pending activation members for bulk email
   const pendingActivationMembers = filteredMembers.filter(m => m.status === "pending_activation");
+  const membersNeedingWaivers = members.filter(m => 
+    m.user_id && 
+    (m.status === "active" || m.status === "pending_activation") &&
+    (!m.waiver_signed || !m.membership_agreement_signed)
+  );
 
-  // Send activation email to single member
-  const sendActivationEmail = async (member: typeof members[0], e?: React.MouseEvent) => {
+  // Email handlers
+  const sendActivationEmail = async (member: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setIsSendingActivationEmail(true);
     try {
@@ -242,7 +486,6 @@ export default function Members() {
       });
       if (error) throw error;
 
-      // Update activation_email_sent_at
       await supabase
         .from("members")
         .update({ activation_email_sent_at: new Date().toISOString() })
@@ -258,8 +501,7 @@ export default function Members() {
     }
   };
 
-  // Send Phase 1 setup email to pre-paid members
-  const sendPhase1SetupEmail = async (member: typeof members[0], e?: React.MouseEvent) => {
+  const sendPhase1SetupEmail = async (member: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setIsSendingActivationEmail(true);
     try {
@@ -273,7 +515,7 @@ export default function Members() {
             membershipTier: member.membership_type,
             isFoundingMember: member.is_founding_member,
             tier: member.membership_type?.toLowerCase(),
-            allowTierChange: true, // Allow tier change if pending_activation
+            allowTierChange: true,
             launchDate: "February 9, 2026",
             hasCardOnFile: !!member.card_last4,
           },
@@ -281,7 +523,6 @@ export default function Members() {
       });
       if (error) throw error;
 
-      // Update activation_email_sent_at
       await supabase
         .from("members")
         .update({ activation_email_sent_at: new Date().toISOString() })
@@ -297,7 +538,6 @@ export default function Members() {
     }
   };
 
-  // Send bulk activation emails
   const sendBulkActivationEmails = async () => {
     const membersToEmail = pendingActivationMembers;
     if (membersToEmail.length === 0) {
@@ -350,8 +590,7 @@ export default function Members() {
     setIsSendingBulkEmails(false);
   };
 
-  // Send waiver reminder email to single member
-  const sendWaiverReminderEmail = async (member: typeof members[0], e?: React.MouseEvent) => {
+  const sendWaiverReminderEmail = async (member: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setIsSendingWaiverReminder(true);
     try {
@@ -375,14 +614,6 @@ export default function Members() {
     }
   };
 
-  // Get members who haven't signed waivers (active or pending_activation, with user_id linked)
-  const membersNeedingWaivers = members.filter(m => 
-    m.user_id && 
-    (m.status === "active" || m.status === "pending_activation") &&
-    (!m.waiver_signed || !m.membership_agreement_signed)
-  );
-
-  // Send bulk waiver reminder emails
   const sendBulkWaiverReminderEmails = async () => {
     if (membersNeedingWaivers.length === 0) {
       toast.error("No members need waiver reminders");
@@ -423,16 +654,14 @@ export default function Members() {
     setIsSendingBulkWaiverReminders(false);
   };
 
-  const handleViewProfile = (member: typeof members[0]) => {
-    // Navigate to full member detail page
+  const handleViewProfile = (member: any) => {
     navigate(`/admin/members/${member.id}`);
   };
 
-  const handleCheckIn = (member: typeof members[0]) => {
+  const handleCheckIn = (member: any) => {
     navigate(`/admin/check-in?member=${member.member_id}`);
   };
 
-  // Super Admin activation handler
   const handleActivateMember = async () => {
     if (!memberToActivate) return;
     setIsActivating(true);
@@ -461,15 +690,15 @@ export default function Members() {
 
   return (
     <AdminLayout title="Members">
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search members..."
+              placeholder="Search by name, email, or member ID..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => updateParam("q", e.target.value || null)}
               className="pl-10"
             />
           </div>
@@ -489,66 +718,194 @@ export default function Members() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+        {/* Quick Filter Presets */}
+        <div className="flex flex-wrap gap-2">
+          <span className="text-sm text-muted-foreground self-center mr-2">Quick:</span>
+          <Button
+            variant={statusFilter === "active" && activeFilterCount === 1 ? "default" : "outline"}
+            size="sm"
+            onClick={() => applyQuickFilter("active")}
+          >
+            <Users className="h-3.5 w-3.5 mr-1.5" />
+            Active ({filterCounts.active || 0})
+          </Button>
+          <Button
+            variant={statusFilter === "pending_activation" && activeFilterCount === 1 ? "default" : "outline"}
+            size="sm"
+            onClick={() => applyQuickFilter("pending")}
+          >
+            <Clock className="h-3.5 w-3.5 mr-1.5" />
+            Pending ({filterCounts.pending_activation || 0})
+          </Button>
+          <Button
+            variant={issuesOnly && activeFilterCount === 1 ? "default" : "outline"}
+            size="sm"
+            onClick={() => applyQuickFilter("needs_attention")}
+            className={filterCounts.issues ? "text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700" : ""}
+          >
+            <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+            Issues ({filterCounts.issues || 0})
+          </Button>
+          <Button
+            variant={initiationFilter === "unpaid" && activeFilterCount === 1 ? "default" : "outline"}
+            size="sm"
+            onClick={() => applyQuickFilter("initiation_unpaid")}
+            className={filterCounts.initiationUnpaid ? "text-red-700 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700" : ""}
+          >
+            <DollarSign className="h-3.5 w-3.5 mr-1.5" />
+            Initiation Due ({filterCounts.initiationUnpaid || 0})
+          </Button>
+          <Button
+            variant={cardFilter === "no" && activeFilterCount === 1 ? "default" : "outline"}
+            size="sm"
+            onClick={() => applyQuickFilter("no_card")}
+          >
+            <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+            No Card ({filterCounts.noCard || 0})
+          </Button>
+          <Button
+            variant={showCancelled && statusFilter === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => applyQuickFilter("all")}
+          >
+            <XCircle className="h-3.5 w-3.5 mr-1.5" />
+            All Members
+          </Button>
+        </div>
+
+        {/* Filter Dropdowns */}
+        <div className="flex flex-wrap gap-3 items-center p-4 bg-muted/30 rounded-lg border">
+          <Select value={statusFilter} onValueChange={(v) => updateParam("status", v)}>
+            <SelectTrigger className="w-[160px] h-9">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="active_default">Active (default)</SelectItem>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="pending_activation">Pending Activation</SelectItem>
-              <SelectItem value="frozen">Frozen</SelectItem>
-              <SelectItem value="suspended">Suspended</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="active">Active ({filterCounts.active || 0})</SelectItem>
+              <SelectItem value="pending_activation">Pending ({filterCounts.pending_activation || 0})</SelectItem>
+              <SelectItem value="frozen">Frozen ({filterCounts.frozen || 0})</SelectItem>
+              <SelectItem value="suspended">Suspended ({filterCounts.suspended || 0})</SelectItem>
+              <SelectItem value="past_due">Past Due ({filterCounts.past_due || 0})</SelectItem>
+              <SelectItem value="cancelled">Cancelled ({filterCounts.cancelled || 0})</SelectItem>
+              <SelectItem value="expired">Expired ({filterCounts.expired || 0})</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={foundingMemberFilter === null ? "all" : foundingMemberFilter ? "founding" : "regular"} onValueChange={(v) => {
-            if (v === "all") setFoundingMemberFilter(null);
-            else setFoundingMemberFilter(v === "founding");
-          }}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Member Type" />
+          <Select value={tierFilter} onValueChange={(v) => updateParam("tier", v)}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="Tier" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Members</SelectItem>
-              <SelectItem value="founding">Founding Members</SelectItem>
-              <SelectItem value="regular">Regular Members</SelectItem>
+              <SelectItem value="all">All Tiers</SelectItem>
+              <SelectItem value="diamond">Diamond</SelectItem>
+              <SelectItem value="platinum">Platinum</SelectItem>
+              <SelectItem value="gold">Gold</SelectItem>
+              <SelectItem value="silver">Silver</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={billingTypeFilter} onValueChange={setBillingTypeFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Billing Type" />
+          <Select value={initiationFilter} onValueChange={(v) => updateParam("initiation", v)}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue placeholder="Initiation Fee" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Billing Types</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="annual">Annual</SelectItem>
+              <SelectItem value="all">All Initiation</SelectItem>
+              <SelectItem value="paid">Paid ({filterCounts.initiationPaid || 0})</SelectItem>
+              <SelectItem value="unpaid">Unpaid ({filterCounts.initiationUnpaid || 0})</SelectItem>
             </SelectContent>
           </Select>
 
-          {/* Issues filter toggle */}
-          <Button 
-            variant={issuesFilter ? "default" : "outline"}
-            onClick={() => setIssuesFilter(!issuesFilter)}
-            className="gap-2"
-          >
-            <AlertTriangle className="h-4 w-4" />
-            Issues Only
-            {billingIssues && billingIssues.totalWithIssues > 0 && (
-              <Badge variant="secondary" className="ml-1">
-                {billingIssues.totalWithIssues}
+          <Select value={cardFilter} onValueChange={(v) => updateParam("card", v)}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="Card" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Cards</SelectItem>
+              <SelectItem value="yes">Has Card ({filterCounts.hasCard || 0})</SelectItem>
+              <SelectItem value="no">No Card ({filterCounts.noCard || 0})</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={subscriptionFilter} onValueChange={(v) => updateParam("subscription", v)}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue placeholder="Subscription" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subscriptions</SelectItem>
+              <SelectItem value="active">Active ({filterCounts.hasSubscription || 0})</SelectItem>
+              <SelectItem value="none">None ({filterCounts.noSubscription || 0})</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={genderFilter} onValueChange={(v) => updateParam("gender", v)}>
+            <SelectTrigger className="w-[130px] h-9">
+              <SelectValue placeholder="Gender" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Genders</SelectItem>
+              <SelectItem value="women">Women ({filterCounts.women || 0})</SelectItem>
+              <SelectItem value="men">Men ({filterCounts.men || 0})</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={waiverFilter} onValueChange={(v) => updateParam("waiver", v)}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="Waiver" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Waivers</SelectItem>
+              <SelectItem value="signed">Signed ({filterCounts.waiverSigned || 0})</SelectItem>
+              <SelectItem value="unsigned">Unsigned ({filterCounts.waiverUnsigned || 0})</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-2 ml-auto">
+            <Switch
+              id="show-cancelled"
+              checked={showCancelled}
+              onCheckedChange={(checked) => updateParam("showCancelled", checked ? "true" : null)}
+            />
+            <label htmlFor="show-cancelled" className="text-sm text-muted-foreground cursor-pointer">
+              Show Cancelled
+            </label>
+          </div>
+
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground">
+              <X className="h-3.5 w-3.5 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
+
+        {/* Active Filter Pills */}
+        {activeFilters.length > 0 && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-sm text-muted-foreground">Showing:</span>
+            {activeFilters.map((filter) => (
+              <Badge
+                key={filter.key}
+                variant="secondary"
+                className="cursor-pointer hover:bg-secondary/80 gap-1"
+                onClick={() => updateParam(filter.key, null)}
+              >
+                {filter.label}
+                <X className="h-3 w-3" />
               </Badge>
-            )}
-          </Button>
+            ))}
+            <Button variant="link" size="sm" onClick={clearAllFilters} className="text-xs h-auto p-0">
+              Clear all
+            </Button>
+          </div>
+        )}
 
-          {/* Bulk activation email button */}
+        {/* Bulk Actions */}
+        <div className="flex flex-wrap gap-2">
           {pendingActivationMembers.length > 0 && (
             <Button 
               variant="outline" 
+              size="sm"
               onClick={sendBulkActivationEmails}
               disabled={isSendingBulkEmails}
             >
@@ -561,10 +918,10 @@ export default function Members() {
             </Button>
           )}
 
-          {/* Bulk waiver reminder button */}
           {membersNeedingWaivers.length > 0 && (
             <Button 
               variant="outline" 
+              size="sm"
               onClick={sendBulkWaiverReminderEmails}
               disabled={isSendingBulkWaiverReminders}
               className="text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950"
@@ -581,8 +938,15 @@ export default function Members() {
 
         {/* Members Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>All Members ({filteredMembers.length})</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between">
+              <span>Members ({filteredMembers.length})</span>
+              {filteredMembers.length !== members.length && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  of {members.length} total
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -595,7 +959,7 @@ export default function Members() {
               </div>
             ) : filteredMembers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {searchQuery ? "No members match your search." : "No members yet."}
+                {activeFilterCount > 0 ? "No members match your filters." : "No members yet."}
               </div>
             ) : (
               <Table>
@@ -667,10 +1031,10 @@ export default function Members() {
                       </TableCell>
                       <TableCell>
                         {member.status === "pending_activation" ? (
-                          (member as any).activation_email_sent_at ? (
+                          member.activation_email_sent_at ? (
                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 text-xs">
                               <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Sent {format(new Date((member as any).activation_email_sent_at), "MMM d")}
+                              Sent {format(new Date(member.activation_email_sent_at), "MMM d")}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-muted-foreground text-xs">
@@ -689,7 +1053,7 @@ export default function Members() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -735,7 +1099,6 @@ export default function Members() {
                                 Send Phase 1 Setup Email
                               </DropdownMenuItem>
                             )}
-                            {/* Waiver reminder - show for members who haven't signed */}
                             {member.user_id && (!member.waiver_signed || !member.membership_agreement_signed) && (
                               <DropdownMenuItem 
                                 onClick={(e) => {
@@ -750,9 +1113,6 @@ export default function Members() {
                             )}
                             <DropdownMenuItem onClick={() => handleCheckIn(member)}>
                               Check In
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleViewProfile(member)}>
-                              View Payment History
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -787,7 +1147,7 @@ export default function Members() {
           userId={selectedMember?.user_id}
         />
 
-        {/* Super Admin Activation Dialog - OUTSIDE THE SHEET */}
+        {/* Super Admin Activation Dialog */}
         <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
