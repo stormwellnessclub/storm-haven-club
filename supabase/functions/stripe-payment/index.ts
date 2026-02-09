@@ -120,7 +120,8 @@ interface PaymentRequest {
   newTier?: 'silver' | 'gold' | 'platinum' | 'diamond';
   prorationBehavior?: 'create_prorations' | 'none' | 'always_invoice';
   // For admin_create_member_subscription
-  chargeImmediately?: boolean; // If true, charge now even for future start dates
+  chargeImmediately?: boolean; // Legacy - will be deprecated
+  firstChargeDate?: string; // NEW: Explicit charge date (null = charge now)
 }
 
 const logStep = (step: string, details?: unknown) => {
@@ -2328,7 +2329,7 @@ serve(async (req) => {
 
       case 'admin_create_member_subscription': {
         // Admin-initiated subscription creation for members
-        const { memberId, tier, gender, billingType: requestedBillingType, startDate, isFoundingMember, chargeImmediately } = body;
+        const { memberId, tier, gender, billingType: requestedBillingType, startDate, isFoundingMember, firstChargeDate } = body;
 
         if (!memberId || !tier || !gender) {
           throw new Error("memberId, tier, and gender are required");
@@ -2349,7 +2350,21 @@ serve(async (req) => {
         const normalizedGender = (gender.toLowerCase() === 'male' || gender.toLowerCase() === 'men') ? 'men' : 'women';
         const billingType = requestedBillingType || (isFoundingMember ? 'annual' : 'monthly');
 
-        logStep("Admin creating member subscription", { memberId, tier: normalizedTier, gender: normalizedGender, billingType, chargeImmediately });
+        // Determine charge date
+        const now = new Date();
+        const chargeDate = firstChargeDate ? new Date(firstChargeDate) : now;
+        const isChargeDateInFuture = chargeDate > now;
+        const benefitsStartDate = startDate ? new Date(startDate) : now;
+
+        logStep("Admin creating member subscription", { 
+          memberId, 
+          tier: normalizedTier, 
+          gender: normalizedGender, 
+          billingType, 
+          benefitsStartDate: benefitsStartDate.toISOString(),
+          chargeDate: chargeDate.toISOString(),
+          isChargeDateInFuture,
+        });
 
         // Get membership price
         const membershipPrices = STRIPE_PRODUCTS.memberships[normalizedTier];
@@ -2389,10 +2404,7 @@ serve(async (req) => {
         }
 
         const paymentMethodId = paymentMethods.data[0].id;
-        const subscriptionStartDate = startDate ? new Date(startDate) : new Date();
-        const now = new Date();
-        const isStartDateInPast = subscriptionStartDate < now;
-        const isStartDateInFuture = subscriptionStartDate > now;
+        const isStartDateInPast = benefitsStartDate < now;
 
         // Build subscription parameters - handle different scenarios
         const subscriptionParams: any = {
@@ -2408,42 +2420,37 @@ serve(async (req) => {
             is_founding_member: String(isFoundingMember || false),
             billing_type: billingType,
             created_by_admin: user.id,
-            original_start_date: startDate || new Date().toISOString().split('T')[0],
+            benefits_start_date: startDate || now.toISOString().split('T')[0],
+            first_charge_date: chargeDate.toISOString().split('T')[0],
           },
         };
 
-        // Determine billing behavior based on date and chargeImmediately flag
-        if (isStartDateInPast) {
+        // Determine billing behavior based on charge date
+        if (isChargeDateInFuture) {
+          // Defer first charge to the specified charge date
+          subscriptionParams.billing_cycle_anchor = Math.floor(chargeDate.getTime() / 1000);
+          logStep("Deferring charge to specified date", { 
+            chargeDate: chargeDate.toISOString(), 
+            billingAnchor: subscriptionParams.billing_cycle_anchor 
+          });
+        } else if (isStartDateInPast) {
           // For past dates, start immediately - Stripe doesn't allow billing_cycle_anchor in past
-          logStep("Start date is in past, starting subscription from today", { 
+          logStep("Start date is in past, charging immediately", { 
             originalStartDate: startDate, 
             now: now.toISOString() 
           });
-          // Don't set billing_cycle_anchor - defaults to now
-        } else if (isStartDateInFuture && chargeImmediately) {
-          // CHARGE NOW but record the future start date
-          // Don't set billing_cycle_anchor - this charges immediately
-          // The original_start_date in metadata preserves when benefits "should" start
-          logStep("Charging immediately with future activation date", { 
-            originalStartDate: startDate, 
-            chargeNow: true 
-          });
-          subscriptionParams.metadata.charge_now_activate_later = 'true';
-          subscriptionParams.metadata.benefits_start_date = startDate;
-        } else if (isStartDateInFuture) {
-          // Defer first charge to start date (existing behavior)
-          subscriptionParams.billing_cycle_anchor = Math.floor(subscriptionStartDate.getTime() / 1000);
-          logStep("Deferring charge to future start date", { 
-            originalStartDate: startDate, 
-            billingAnchor: subscriptionParams.billing_cycle_anchor 
-          });
+          subscriptionParams.metadata.original_start_date = startDate;
         }
-        // else: today = charge immediately (default Stripe behavior)
+        // else: charge immediately (default Stripe behavior)
 
         // Create the subscription
         const subscription = await stripe.subscriptions.create(subscriptionParams);
 
-        logStep("Admin subscription created", { subscriptionId: subscription.id, memberId, chargedImmediately: isStartDateInFuture && chargeImmediately });
+        logStep("Admin subscription created", { 
+          subscriptionId: subscription.id, 
+          memberId, 
+          chargedImmediately: !isChargeDateInFuture 
+        });
 
         // Update member record
         await supabase
@@ -2454,13 +2461,13 @@ serve(async (req) => {
             billing_type: billingType,
             is_founding_member: isFoundingMember || false,
             activated_at: new Date().toISOString(),
-            membership_start_date: subscriptionStartDate.toISOString().split('T')[0],
+            membership_start_date: benefitsStartDate.toISOString().split('T')[0],
           })
           .eq('id', memberId);
 
         // Allocate credits
         const credits = TIER_CREDITS[normalizedTier] || TIER_CREDITS.silver;
-        const cycleStart = subscriptionStartDate;
+        const cycleStart = benefitsStartDate;
         const cycleEnd = new Date(cycleStart);
         cycleEnd.setMonth(cycleEnd.getMonth() + 1);
         const expiresAt = new Date(cycleEnd);
@@ -2529,8 +2536,13 @@ serve(async (req) => {
           }
         }
 
-        // Send receipt email to member
-        if (memberData.email && (subscription.status === 'active' || subscription.status === 'trialing')) {
+        // RECEIPT EMAIL LOGIC
+        // Only send receipt immediately if we are charging NOW
+        // If charge is deferred to a future date, the webhook will send the receipt when payment actually occurs
+        const shouldSendReceiptNow = !isChargeDateInFuture && memberData.email && 
+          (subscription.status === 'active' || subscription.status === 'trialing');
+
+        if (shouldSendReceiptNow) {
           try {
             const memberName = memberData.first_name && memberData.last_name 
               ? `${memberData.first_name} ${memberData.last_name}`
@@ -2546,18 +2558,21 @@ serve(async (req) => {
               : 'Card';
             const cardLast4 = paymentMethods.data[0].card?.last4 || '****';
             
-            // Format dates
-            const paymentDateFormatted = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            const benefitsStartFormatted = subscriptionStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            // Format dates - payment is happening NOW
+            const paymentDateFormatted = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const benefitsStartFormatted = benefitsStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             
-            // Calculate next billing date
-            const nextBillingDt = new Date(subscriptionStartDate);
+            // Calculate next billing date based on when charge occurred (now)
+            const nextBillingDt = new Date(now);
             nextBillingDt.setMonth(nextBillingDt.getMonth() + (billingType === 'annual' ? 12 : 1));
             const nextBillingFormatted = nextBillingDt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             
             // Determine description
             const tierDisplay = normalizedTier.charAt(0).toUpperCase() + normalizedTier.slice(1);
             const description = `Membership Dues - ${tierDisplay}${billingType === 'annual' ? ' (Annual)' : ''}`;
+
+            // Only show benefits start date if it's different from today
+            const showBenefitsStart = benefitsStartDate.toDateString() !== now.toDateString();
 
             await supabase.functions.invoke('send-email', {
               body: {
@@ -2568,7 +2583,7 @@ serve(async (req) => {
                   description: description,
                   amount: priceAmount,
                   paymentDate: paymentDateFormatted,
-                  benefitsStartDate: isStartDateInFuture && chargeImmediately ? benefitsStartFormatted : undefined,
+                  benefitsStartDate: showBenefitsStart ? benefitsStartFormatted : undefined,
                   nextBillingDate: nextBillingFormatted,
                   cardBrand: cardBrand,
                   cardLast4: cardLast4,
@@ -2576,11 +2591,17 @@ serve(async (req) => {
               },
             });
 
-            logStep("Receipt email sent to member", { memberId, email: memberData.email });
+            logStep("Receipt email sent to member (charged now)", { memberId, email: memberData.email });
           } catch (emailError) {
             console.error(`[STRIPE-PAYMENT] ERROR SENDING_RECEIPT_EMAIL - ${emailError instanceof Error ? emailError.message : String(emailError)}`);
             // Don't fail - subscription is already created
           }
+        } else if (isChargeDateInFuture) {
+          logStep("Receipt email deferred - charge scheduled for future date", { 
+            memberId, 
+            chargeDate: chargeDate.toISOString(),
+            note: "Webhook will send receipt when invoice.payment_succeeded fires"
+          });
         }
 
         return new Response(
@@ -2589,6 +2610,9 @@ serve(async (req) => {
             subscriptionId: subscription.id,
             annualFeeSubscriptionId,
             status: subscription.status,
+            chargedImmediately: !isChargeDateInFuture,
+            chargeDate: chargeDate.toISOString(),
+            benefitsStartDate: benefitsStartDate.toISOString(),
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
