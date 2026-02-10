@@ -64,13 +64,18 @@ export function useMemberBenefitsStatus(): MemberBenefitsStatus {
     const membershipData = membership as typeof membership & { annual_fee_subscription_id?: string };
     const initiationFeePaidOrSubscribed = isInitiationFeePaid || !!membershipData.annual_fee_subscription_id;
     
+    // Cash billing members don't need a Stripe subscription
+    const isCashBilling = membership.billing_type === 'cash';
+    const effectiveHasActiveSubscription = isCashBilling ? true : hasActiveSubscription;
+    
     if (status === "pending_activation") {
       frozenReason = "pending_activation";
     } else if (!initiationFeePaidOrSubscribed) {
       // Even if status is "active", freeze if initiation fee not paid
       frozenReason = "initiation_fee_unpaid";
-    } else if (!hasActiveSubscription) {
+    } else if (!effectiveHasActiveSubscription) {
       // Even if status is "active", freeze if no subscription or subscription is incomplete
+      // (Cash billing members skip this check)
       frozenReason = "no_subscription";
     } else if (status === "past_due" || isDuesPastDue) {
       frozenReason = "past_due";
@@ -81,7 +86,7 @@ export function useMemberBenefitsStatus(): MemberBenefitsStatus {
     }
 
     const hasFrozenBenefits = frozenReason !== null;
-    const isFullyActive = status === "active" && initiationFeePaidOrSubscribed && hasActiveSubscription && !isDuesPastDue;
+    const isFullyActive = status === "active" && initiationFeePaidOrSubscribed && effectiveHasActiveSubscription && !isDuesPastDue;
 
     // Benefits are only available when fully active
     return {
