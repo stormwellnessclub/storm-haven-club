@@ -41,6 +41,11 @@ export function SessionMonitor() {
       isCheckingSession.current = true;
 
       try {
+        // Skip health check on password recovery route
+        if (window.location.pathname === '/update-password') {
+          return;
+        }
+
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         // Check for JWT error in getSession

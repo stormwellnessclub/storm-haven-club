@@ -20,41 +20,66 @@ export default function UpdatePassword() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if user has a valid recovery session
+  // Check if user has a valid recovery session with multi-retry
   useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
 
-    // Listen for auth state changes FIRST (recovery link creates a session)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+    const setValid = () => {
+      if (!cancelled) {
+        console.info("[UpdatePassword] Valid recovery session found");
         setIsValidSession(true);
-      }
-    });
-
-    // Then check existing session, with a delay to allow hash fragment processing
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        setIsValidSession(true);
-      } else {
-        // Wait a bit longer before declaring invalid — hash processing may still be in progress
-        timeout = setTimeout(async () => {
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-          if (retrySession) {
-            setIsValidSession(true);
-          } else {
-            setIsValidSession(false);
-          }
-        }, 2000);
+        cancelled = true; // Stop further retries
       }
     };
 
-    checkSession();
+    // 1. Listen for auth state changes (recovery link fires PASSWORD_RECOVERY)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.info("[UpdatePassword] Auth event:", event);
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+        setValid();
+      }
+    });
+
+    // 2. Check for hash fragment in URL (indicates recovery redirect)
+    const hasHashToken = window.location.hash.includes("access_token") || 
+                         window.location.hash.includes("type=recovery");
+    if (hasHashToken) {
+      console.info("[UpdatePassword] Recovery hash fragment detected in URL");
+    }
+
+    // 3. Multi-retry session checks at 0s, 1s, 2s, 4s
+    const retryDelays = [0, 1000, 2000, 4000];
+    
+    retryDelays.forEach((delay) => {
+      const t = setTimeout(async () => {
+        if (cancelled) return;
+        
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setValid();
+          } else if (delay === retryDelays[retryDelays.length - 1]) {
+            // Last retry — declare invalid
+            if (!cancelled) {
+              console.warn("[UpdatePassword] No session found after all retries");
+              setIsValidSession(false);
+            }
+          }
+        } catch (err) {
+          console.error("[UpdatePassword] Session check error:", err);
+          if (delay === retryDelays[retryDelays.length - 1] && !cancelled) {
+            setIsValidSession(false);
+          }
+        }
+      }, delay);
+      timeouts.push(t);
+    });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
-      clearTimeout(timeout);
+      timeouts.forEach(clearTimeout);
     };
   }, []);
 
