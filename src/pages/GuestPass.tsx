@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CalendarIcon, Loader2, ArrowRight, Info } from "lucide-react";
+import { CalendarIcon, Loader2, ArrowRight, Info, CheckCircle2, MapPin, Clock, Phone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -492,22 +492,104 @@ function GuestPassForm() {
   );
 }
 
+function GuestPassSuccess() {
+  return (
+    <div className="max-w-2xl mx-auto text-center space-y-8">
+      <div className="space-y-4">
+        <div className="mx-auto w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">
+          <CheckCircle2 className="h-8 w-8 text-accent" />
+        </div>
+        <h2 className="text-3xl font-bold tracking-tight">Thank You!</h2>
+        <p className="text-lg text-muted-foreground">
+          Your guest pass has been confirmed. We look forward to welcoming you.
+        </p>
+      </div>
+
+      <Card>
+        <CardContent className="pt-6 space-y-5">
+          <div className="flex items-start gap-3">
+            <MapPin className="h-5 w-5 text-accent mt-0.5 shrink-0" />
+            <div className="text-left">
+              <p className="font-medium">Storm Wellness Club</p>
+              <p className="text-sm text-muted-foreground">18340 Middlebelt Rd, Livonia, MI 48152</p>
+            </div>
+          </div>
+          <Separator />
+          <div className="flex items-start gap-3">
+            <Clock className="h-5 w-5 text-accent mt-0.5 shrink-0" />
+            <div className="text-left text-sm text-muted-foreground space-y-1">
+              <p className="font-medium text-foreground">Hours</p>
+              <p>Mon–Thu: 5:30 AM – 11:00 PM</p>
+              <p>Friday: 5:30 AM – 8:00 PM</p>
+              <p>Sat–Sun: 7:00 AM – 7:00 PM</p>
+            </div>
+          </div>
+          <Separator />
+          <div className="flex items-start gap-3">
+            <Phone className="h-5 w-5 text-accent mt-0.5 shrink-0" />
+            <div className="text-left">
+              <a href="tel:+13132865070" className="text-sm hover:text-accent transition-colors">(313) 286-5070</a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-secondary/30">
+        <CardHeader>
+          <CardTitle className="text-lg">What to Expect on Your Visit</CardTitle>
+        </CardHeader>
+        <CardContent className="text-left space-y-3 text-sm text-muted-foreground">
+          <p>• Please bring a valid photo ID</p>
+          <p>• Arrive 10–15 minutes early to check in at the front desk</p>
+          <p>• Towels and locker room amenities are provided</p>
+          <p>• Wear comfortable workout attire</p>
+          <p>• Phones are limited in wellness areas to protect privacy</p>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <Button asChild>
+          <Link to="/">
+            Back to Home
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link to="/guest-pass?purchase=reset">
+            Purchase Another Pass
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function GuestPass() {
   const { user, loading: authLoading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const purchase = searchParams.get("purchase");
 
-  // Handle purchase success/cancel from URL params
+  // Handle cancelled purchase
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const purchase = params.get("purchase");
-
-    if (purchase === "success") {
-      toast.success("Your guest pass has been purchased successfully!");
-      window.history.replaceState({}, "", "/guest-pass");
-    } else if (purchase === "cancelled") {
+    if (purchase === "cancelled") {
       toast.error("Purchase cancelled");
-      window.history.replaceState({}, "", "/guest-pass");
+      setSearchParams({}, { replace: true });
+    } else if (purchase === "reset") {
+      setSearchParams({}, { replace: true });
     }
-  }, []);
+  }, [purchase, setSearchParams]);
+
+  // Show success confirmation
+  if (purchase === "success") {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-background pt-32 pb-20">
+          <div className="container mx-auto px-6">
+            <GuestPassSuccess />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   // Show loading while checking auth
   if (authLoading) {

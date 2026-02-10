@@ -112,6 +112,7 @@ export function InlineWaiverGate({
       <WaiverRequiredAlert 
         waiverType={unsignedWaiver} 
         serviceName={serviceName}
+        isLoggedIn={!!profile}
       />
     );
   }

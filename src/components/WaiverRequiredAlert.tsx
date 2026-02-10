@@ -27,12 +27,14 @@ interface WaiverRequiredAlertProps {
   waiverType: string;
   serviceName?: string;
   className?: string;
+  isLoggedIn?: boolean;
 }
 
 export function WaiverRequiredAlert({ 
   waiverType, 
   serviceName,
-  className 
+  className,
+  isLoggedIn = false,
 }: WaiverRequiredAlertProps) {
   const location = useLocation();
   const returnUrl = encodeURIComponent(location.pathname + location.search);
@@ -51,14 +53,14 @@ export function WaiverRequiredAlert({
         <div className="mb-4 p-3 bg-muted/50 rounded-md text-sm space-y-1">
           <p className="font-medium">Here's how:</p>
           <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-            <li>Create an account or sign in</li>
+            {!isLoggedIn && <li>Create an account or sign in</li>}
             <li>Go to the <strong className="text-foreground">Waivers</strong> tab in your portal</li>
             <li>Sign the {displayName}</li>
           </ol>
         </div>
         <Button asChild>
           <Link to={`/member/waivers?return=${returnUrl}`}>
-            Sign In & Go to Waivers
+            {isLoggedIn ? "Go to Waivers" : "Sign In & Go to Waivers"}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
