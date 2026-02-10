@@ -36,8 +36,10 @@ import {
   Lock,
   Zap,
   Snowflake,
+  AlertTriangle,
 } from "lucide-react";
-import { format, parseISO, isValid, startOfToday } from "date-fns";
+import { format, parseISO, isValid, startOfToday, differenceInDays } from "date-fns";
+import { formatTime12h } from "@/lib/timeFormat";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Habit } from "@/hooks/useHabits";
 
@@ -100,6 +102,48 @@ export default function MemberDashboard() {
             </Alert>
           </AnimatedSection>
         )}
+
+        {/* Credit Expiration / Low Balance Warnings */}
+        {!creditsLoading && (() => {
+          const warnings: { label: string; message: string; icon: React.ReactNode }[] = [];
+          const allCredits = [
+            { credit: credits?.classCredits, label: "Class Credits", icon: <CreditCard className="h-4 w-4" /> },
+            { credit: credits?.redLightCredits, label: "Red Light Therapy", icon: <Zap className="h-4 w-4" /> },
+            { credit: credits?.dryCredits, label: "Dry Cryotherapy", icon: <Snowflake className="h-4 w-4" /> },
+          ];
+          allCredits.forEach(({ credit, label, icon }) => {
+            if (!credit) return;
+            const daysLeft = differenceInDays(parseISO(credit.expires_at), new Date());
+            if (daysLeft <= 7 && daysLeft > 0 && credit.credits_remaining > 0) {
+              warnings.push({ label, message: `${credit.credits_remaining} credits expiring in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`, icon });
+            }
+            if (credit.credits_remaining > 0 && credit.credits_remaining <= 2) {
+              warnings.push({ label, message: `Only ${credit.credits_remaining} credit${credit.credits_remaining > 1 ? 's' : ''} remaining`, icon });
+            }
+          });
+          if (warnings.length === 0) return null;
+          return (
+            <AnimatedSection animation="fade-in">
+              <Alert className="bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700 shadow-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800 dark:text-amber-200">Credit Alerts</AlertTitle>
+                <AlertDescription className="text-amber-700 dark:text-amber-300">
+                  <ul className="mt-1 space-y-1">
+                    {warnings.map((w, i) => (
+                      <li key={i} className="flex items-center gap-2 text-sm">
+                        {w.icon}
+                        <span className="font-medium">{w.label}:</span> {w.message}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button asChild size="sm" variant="outline" className="mt-3">
+                    <Link to="/member/wellness">Book Sessions</Link>
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            </AnimatedSection>
+          );
+        })()}
 
         {/* Welcome Header */}
         <AnimatedSection animation="fade-up" className="mb-2">
@@ -569,7 +613,7 @@ export default function MemberDashboard() {
                   const formattedDate = sessionDate && isValid(sessionDate) 
                     ? format(sessionDate, "EEEE, MMM d") 
                     : "Date TBA";
-                  const formattedTime = booking.session?.start_time?.slice(0, 5) || "Time TBA";
+                  const formattedTime = formatTime12h(booking.session?.start_time);
                   
                   return (
                     <div

@@ -28,6 +28,7 @@ import { format, addDays, addMonths } from "date-fns";
 import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { formatTime12h } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SpaService {
@@ -368,7 +369,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
                           !isAvailable && "opacity-50 cursor-not-allowed bg-muted"
                         )}
                       >
-                        {time}
+                        {formatTime12h(time)}
                       </button>
                     );
                   })}

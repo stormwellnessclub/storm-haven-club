@@ -1,4 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 import {
   LayoutDashboard,
   Users,
@@ -91,6 +94,20 @@ export function AdminSidebar() {
   const { signOut } = useAuth();
   const { roles } = useUserRoles();
   const isCollapsed = state === "collapsed";
+  const [todaysGuestCount, setTodaysGuestCount] = useState(0);
+
+  // Fetch today's guest count
+  useEffect(() => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    supabase
+      .from("guest_passes" as any)
+      .select("id", { count: "exact", head: true })
+      .eq("valid_date", todayStr)
+      .eq("status", "active")
+      .then(({ count }) => {
+        setTodaysGuestCount(count || 0);
+      });
+  }, []);
 
   const isActive = (path: string) => {
     if (path === "/admin") {
@@ -180,6 +197,11 @@ export function AdminSidebar() {
                       <NavLink to={item.url}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
+                        {item.url === "/admin/guest-passes" && todaysGuestCount > 0 && !isCollapsed && (
+                          <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-accent text-accent-foreground text-xs font-medium">
+                            {todaysGuestCount}
+                          </span>
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

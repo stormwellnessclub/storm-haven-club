@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUpcomingBookings, usePastBookings, useCancelBooking } from "@/hooks/useBooking";
 import { Calendar, Clock, MapPin, User, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { formatTime12h } from "@/lib/timeFormat";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -151,7 +152,7 @@ function BookingCard({ booking, isUpcoming }: BookingCardProps) {
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 <span>
-                  {session?.start_time?.slice(0, 5)} - {session?.end_time?.slice(0, 5)}
+                  {formatTime12h(session?.start_time)} - {formatTime12h(session?.end_time)}
                 </span>
               </div>
               {session?.room && (

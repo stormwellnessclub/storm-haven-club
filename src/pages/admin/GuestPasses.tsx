@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye } from "lucide-react";
+import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -167,6 +167,15 @@ export default function GuestPasses() {
     );
   });
 
+  // Today's guests
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todaysGuests = passes.filter(
+    (p) => p.valid_date === todayStr && p.status === "active"
+  );
+  const checkedInGuests = passes.filter(
+    (p) => p.valid_date === todayStr && p.status === "exhausted"
+  );
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -176,6 +185,53 @@ export default function GuestPasses() {
             Sell day passes and manage guest access
           </p>
         </div>
+
+        {/* Today's Guests Summary */}
+        {(todaysGuests.length > 0 || checkedInGuests.length > 0) && (
+          <Card className="border-accent/30 bg-accent/5">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-accent/10">
+                  <Users className="h-6 w-6 text-accent" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg">Today's Guests</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {todaysGuests.length} expected · {checkedInGuests.length} checked in
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  {todaysGuests.map((guest) => (
+                    <div
+                      key={guest.id}
+                      className="px-3 py-2 rounded-md bg-background border text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleViewDetails(guest)}
+                    >
+                      <div className="font-medium">{guest.guest_name}</div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        Not yet arrived
+                      </div>
+                    </div>
+                  ))}
+                  {checkedInGuests.map((guest) => (
+                    <div
+                      key={guest.id}
+                      className="px-3 py-2 rounded-md bg-background border border-green-300 text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleViewDetails(guest)}
+                    >
+                      <div className="font-medium">{guest.guest_name}</div>
+                      <div className="flex items-center gap-1 text-xs text-green-600">
+                        <Eye className="h-3 w-3" />
+                        Checked in
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Sell New Pass */}
