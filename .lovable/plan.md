@@ -1,92 +1,104 @@
 
 
-## Multi-Feature Plan: Guest Pass Tracking, Credit Notifications, Admin Credit Booking, Time Format Fix, and Guest Pass Day-Of Purchase
+## Robust Guest Pass Management Overhaul
 
-This plan covers 5 distinct items you've requested. Here's a summary of findings and what needs to change:
-
----
-
-### 1. Guest Pass Tracking and Notifications
-
-**Current state:** Guest passes are listed in `/admin/guest-passes` with date filters and search, but there are no proactive notifications (e.g., for today's expected guests or expiring passes).
-
-**What we'll add:**
-- A "Today's Guests" summary card at the top of the admin Guest Passes page showing how many guests are expected today (based on `valid_date`)
-- A notification badge in the admin sidebar for today's expected guests
-- Status tracking improvements: show "Checked In" vs "Not Yet Arrived" for today's passes
+The current admin Guest Passes page is essentially a basic list with a quick-sale card. Here's what we'll build to make it a full-featured operational hub:
 
 ---
 
-### 2. Member Credit Tracking and Notifications
+### 1. Summary Dashboard Cards (Top of Page)
 
-**Current state:** Credits are visible in the member portal (`/member/credits` and `/member/wellness`) but there are no expiration warnings or low-balance notifications.
+Replace the simple "Today's Guests" card with a row of 4 KPI cards:
 
-**What we'll add:**
-- A notification banner on the Member Dashboard when credits are expiring within 7 days or running low (1-2 remaining)
-- An admin-side credit health indicator on the Member Detail page showing members with expiring or depleted credits
-- Toast notification when a credit is successfully used for a booking
-
----
-
-### 3. Admin Ability to Book Members for Credit Sessions
-
-**Current state:** Only members can book wellness sessions for themselves via the `SpaBookingModal`. Admins cannot book on behalf of a member using their credits.
-
-**What we'll add:**
-- An "Admin Book Session" button in the Credits tab of the Member Detail page (`/admin/members/:id`)
-- This will open a booking dialog where admin selects:
-  - Service type (Red Light Therapy or Dry Cryo)
-  - Date and time
-  - Payment method (use member's credit, or charge card)
-- The booking will deduct from the member's credits and create a `spa_appointments` record
+| Card | Data Source |
+|------|------------|
+| **Today's Guests** | Count where `valid_date = today`, split by "Expected" (active) vs "Checked In" (exhausted/used_at set) |
+| **This Week Revenue** | Sum of `price_paid` where `purchased_at` is within current week |
+| **Active Passes** | Count where `status = 'active'` and `expires_at > now()` |
+| **Total Revenue (Period)** | Sum of `price_paid` for the selected date range |
 
 ---
 
-### 4. Booking Times: Regular Hours Instead of Military Time
+### 2. Enhanced Quick Sale Card
 
-**Current state:** Mixed. The `ClassCard` component already formats times as `h:mm a` (e.g., "9:00 AM"). However:
-- The **Bookings page** (`Bookings.tsx`) shows times as `start_time.slice(0, 5)` which gives military format like "13:00"
-- The **Member Dashboard** also uses `.slice(0, 5)` for upcoming booking times
-- The **SpaBookingModal** time slot buttons display raw "09:00", "13:00", etc.
+Current quick sale only captures name and email. We'll expand it to match the public form:
 
-**What we'll fix:**
-- `src/pages/member/Bookings.tsx`: Convert `start_time` and `end_time` to 12-hour format (e.g., "1:00 PM")
-- `src/pages/member/Dashboard.tsx`: Same conversion for the upcoming class display
-- `src/components/booking/SpaBookingModal.tsx`: Display time slots as "9:00 AM", "1:30 PM", etc.
-- `src/pages/member/Wellness.tsx`: Format appointment times in 12-hour format
+- Add **Phone Number** field
+- Add **Sex** selector (Female/Male) with the same stealth "at capacity" block for male
+- Add **Visit Date** picker (defaults to today)
+- Add **Guest of (Member Name)** optional field
+- Show the gender block inline if male is selected, disable the button
 
 ---
 
-### 5. Guest Pass: Same-Day Purchase and Male Gender Block
+### 3. Admin Actions on Each Guest Pass
 
-**Current state:**
-- The date picker starts at `startOfDay(new Date())` -- which should allow today. This is already correct in the code (`minDate = startOfDay(new Date())`), so same-day purchase is already supported.
-- The **male gender block IS implemented** server-side in `stripe-payment/index.ts` (line 567). When `guestGender === 'male'`, it throws the stealth error: *"We're sorry, guest passes are currently at capacity..."*
+Currently you can only view details. We'll add actionable controls:
 
-**Issue found:** The server-side block exists but the error message may not be surfacing properly to the user. The frontend catches errors and shows `error?.message`, but the edge function error format may not propagate cleanly.
+- **Mark as Checked In**: Sets `used_at = now()` and `status = 'exhausted'` -- prominently displayed for today's active guests
+- **Mark as No-Show**: For guests who didn't arrive (sets a note or status)
+- **Resend Confirmation**: Trigger a confirmation email to the guest
+- **Cancel / Refund**: For passes not yet used, initiate a refund flow
+- **Edit Visit Date**: Already exists in the detail sheet, keep it
 
-**What we'll fix:**
-- Verify the error propagation path from edge function to the toast message
-- Add a client-side pre-check as well: when the user selects "Male", immediately show a gentle capacity message inline (before they fill out the rest of the form), so they don't waste time filling everything out only to get blocked at checkout
-- Confirm same-day purchase works (the code already allows it)
+---
+
+### 4. Better Guest Pass List with Tabs
+
+Replace the single flat list with a tabbed view:
+
+| Tab | Filter | Purpose |
+|-----|--------|---------|
+| **Today** | `valid_date = today` | Operational focus -- who's coming today |
+| **Upcoming** | `valid_date > today AND status = 'active'` | Future bookings |
+| **All Passes** | No filter (date range still applies) | Full history |
+
+Each row will show:
+- Guest name, email, phone
+- Visit date (formatted nicely)
+- Status badge (Active / Checked In / Expired / No-Show)
+- Member referral (if any)
+- Add-ons purchased (badge count)
+- Revenue amount
+- Quick action buttons (Check In for today's guests)
+
+---
+
+### 5. Enhanced Detail Sheet
+
+The current `GuestDetailSheet` is decent. We'll add:
+
+- **Check-in button** at the top for active passes
+- **Gender display** (will need to add `guest_gender` column to the table)
+- **Waiver status** indicator (signed/not signed)
+- **Admin notes** section -- ability to add internal notes about the guest
+- **Activity log** showing when the pass was created, checked in, date changed, etc.
+
+---
+
+### 6. Database Changes
+
+Add a `guest_gender` column to the `guest_passes` table to track the gender selection (currently only validated server-side but not stored):
+
+```sql
+ALTER TABLE guest_passes ADD COLUMN guest_gender text;
+ALTER TABLE guest_passes ADD COLUMN admin_notes text;
+ALTER TABLE guest_passes ADD COLUMN checked_in_by uuid REFERENCES auth.users(id);
+ALTER TABLE guest_passes ADD COLUMN no_show boolean DEFAULT false;
+```
 
 ---
 
 ### Technical Details
 
 | File | Changes |
-|------|---------|
-| `src/pages/admin/GuestPasses.tsx` | Add "Today's Guests" summary card, check-in status tracking |
-| `src/components/admin/AdminSidebar.tsx` | Add guest pass notification badge for today's expected guests |
-| `src/pages/member/Bookings.tsx` | Convert time display from military to 12-hour format |
-| `src/pages/member/Dashboard.tsx` | Convert upcoming booking time to 12-hour format |
-| `src/components/booking/SpaBookingModal.tsx` | Format time slots as 12-hour, add admin booking support |
-| `src/pages/member/Wellness.tsx` | Format appointment times to 12-hour |
-| `src/pages/member/Dashboard.tsx` | Add credit expiration/low-balance notification banner |
-| `src/pages/admin/MemberDetail.tsx` | Add "Book Wellness Session" button in Credits tab |
-| `src/pages/GuestPass.tsx` | Add inline capacity message when male is selected |
-| `src/components/admin/MemberDetailSheet.tsx` | Add credit health indicator |
+|------|--------|
+| `src/pages/admin/GuestPasses.tsx` | Complete overhaul: KPI cards, tabbed list, enhanced quick sale, inline check-in actions |
+| `src/components/admin/GuestDetailSheet.tsx` | Add check-in button, gender display, admin notes, activity log |
+| Database migration | Add `guest_gender`, `admin_notes`, `checked_in_by`, `no_show` columns to `guest_passes` |
+| `supabase/functions/stripe-payment/index.ts` | Store `guest_gender` when creating guest pass record |
+| `src/pages/GuestPass.tsx` | Pass `guest_gender` to edge function (already does this, just confirm it's stored) |
 
-### Helper utility (new file):
-- `src/lib/timeFormat.ts` -- A shared utility to convert "HH:mm:ss" to "h:mm AM/PM" format, used across all time displays
+### Files Unchanged
+- `src/components/admin/AdminSidebar.tsx` -- already has the notification badge, no changes needed
 
