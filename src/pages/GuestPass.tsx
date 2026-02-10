@@ -235,6 +235,17 @@ function GuestPassForm() {
                   <Label htmlFor="male" className="font-normal cursor-pointer">Male</Label>
                 </div>
               </RadioGroup>
+              {guestGender === "male" && (
+                <div className="mt-3 p-4 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    We're sorry, guest passes are currently at capacity. Please email us at{" "}
+                    <a href="mailto:info@stormwellnessclub.com" className="underline font-medium">
+                      info@stormwellnessclub.com
+                    </a>{" "}
+                    for more information.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -379,6 +390,7 @@ function GuestPassForm() {
             !guestEmail ||
             !phoneNumber ||
             !guestGender ||
+            guestGender === "male" ||
             !visitDate ||
             visitInterests.length === 0 ||
             isProcessing

@@ -16,7 +16,8 @@ import { useMySpaAppointments } from "@/hooks/useSpaBooking";
    Sparkles,
    AlertCircle,
  } from "lucide-react";
- import { format, parseISO, differenceInDays } from "date-fns";
+import { format, parseISO, differenceInDays } from "date-fns";
+import { formatTime12h } from "@/lib/timeFormat";
  import { Link } from "react-router-dom";
  import { CREDIT_TYPE_LABELS, CREDIT_TYPE_DESCRIPTIONS, CreditType } from "@/lib/memberCredits";
  
@@ -162,7 +163,7 @@ import { useMySpaAppointments } from "@/hooks/useSpaBooking";
                            <Calendar className="h-3 w-3" />
                            {format(parseISO(apt.appointment_date), "MMM d, yyyy")}
                            <Clock className="h-3 w-3 ml-2" />
-                           {apt.appointment_time}
+                           {formatTime12h(apt.appointment_time)}
                          </div>
                        </div>
                      </div>

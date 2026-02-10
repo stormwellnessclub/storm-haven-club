@@ -38,6 +38,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -201,6 +204,11 @@ export default function MemberDetail() {
 
   // Credit adjustment state
   const [showAdjustCreditDialog, setShowAdjustCreditDialog] = useState(false);
+  const [showAdminBookWellnessDialog, setShowAdminBookWellnessDialog] = useState(false);
+  const [adminBookServiceType, setAdminBookServiceType] = useState<"red_light" | "dry_cryo">("red_light");
+  const [adminBookDate, setAdminBookDate] = useState<Date | undefined>(undefined);
+  const [adminBookTime, setAdminBookTime] = useState("");
+  const [isAdminBooking, setIsAdminBooking] = useState(false);
   const [adjustmentType, setAdjustmentType] = useState<"add" | "remove">("add");
   const [adjustCreditType, setAdjustCreditType] = useState<CreditType>("class");
   const [adjustAmount, setAdjustAmount] = useState("1");
@@ -1516,6 +1524,12 @@ export default function MemberDetail() {
                       >
                         <Minus className="h-4 w-4 mr-1" />Remove
                       </Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => setShowAdminBookWellnessDialog(true)}
+                      >
+                        <CalendarClock className="h-4 w-4 mr-1" />Book Session
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -1782,6 +1796,103 @@ export default function MemberDetail() {
             >
               {adjustCreditMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {adjustmentType === 'add' ? 'Add' : 'Remove'} {adjustAmount} Credit{parseInt(adjustAmount) !== 1 ? 's' : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Book Wellness Session Dialog */}
+      <Dialog open={showAdminBookWellnessDialog} onOpenChange={setShowAdminBookWellnessDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Book Wellness Session for {member?.first_name}</DialogTitle>
+            <DialogDescription>
+              Book a recovery session using this member's credits.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Service Type</Label>
+              <Select value={adminBookServiceType} onValueChange={(v: "red_light" | "dry_cryo") => setAdminBookServiceType(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="red_light">Red Light Therapy</SelectItem>
+                  <SelectItem value="dry_cryo">Dry Cryotherapy</SelectItem>
+                </SelectContent>
+              </Select>
+              {(() => {
+                const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
+                return credit ? (
+                  <p className="text-xs text-muted-foreground">{credit.credits_remaining} of {credit.credits_total} credits remaining</p>
+                ) : (
+                  <p className="text-xs text-destructive">No active credits for this service</p>
+                );
+              })()}
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !adminBookDate && "text-muted-foreground")}>
+                    <CalendarClock className="mr-2 h-4 w-4" />
+                    {adminBookDate ? format(adminBookDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker mode="single" selected={adminBookDate} onSelect={(d) => setAdminBookDate(d || undefined)} disabled={(date) => date < new Date()} initialFocus />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label>Time</Label>
+              <Select value={adminBookTime} onValueChange={setAdminBookTime}>
+                <SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger>
+                <SelectContent>
+                  {["09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30"].map(t => {
+                    const h = parseInt(t.split(":")[0]); const m = t.split(":")[1];
+                    const ampm = h >= 12 ? "PM" : "AM"; const h12 = h % 12 || 12;
+                    return <SelectItem key={t} value={t}>{h12}:{m} {ampm}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdminBookWellnessDialog(false)}>Cancel</Button>
+            <Button
+              disabled={!adminBookDate || !adminBookTime || isAdminBooking || !memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0)}
+              onClick={async () => {
+                if (!adminBookDate || !adminBookTime || !member) return;
+                setIsAdminBooking(true);
+                try {
+                  const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
+                  if (!credit || credit.credits_remaining <= 0) throw new Error("No credits available");
+                  const serviceName = adminBookServiceType === "red_light" ? "Red Light Therapy" : "Dry Cryotherapy";
+                  const durationMinutes = adminBookServiceType === "red_light" ? 20 : 3;
+                  const { error: creditError } = await supabase.from("member_credits").update({ credits_remaining: credit.credits_remaining - 1, updated_at: new Date().toISOString() }).eq("id", credit.id);
+                  if (creditError) throw creditError;
+                  const { error: aptError } = await supabase.from("spa_appointments").insert({
+                    user_id: member.user_id, service_id: adminBookServiceType === "red_light" ? 101 : 102,
+                    service_name: serviceName, service_category: "Recovery", service_price: 0,
+                    appointment_date: format(adminBookDate, "yyyy-MM-dd"), appointment_time: adminBookTime,
+                    duration_minutes: durationMinutes, cleanup_minutes: 5, status: "confirmed",
+                    payment_method: "credit", credit_type: adminBookServiceType, credit_id: credit.id,
+                  });
+                  if (aptError) throw aptError;
+                  toast.success(`${serviceName} booked for ${member.first_name} on ${format(adminBookDate, "MMM d")} using 1 credit`);
+                  queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
+                  setShowAdminBookWellnessDialog(false);
+                  setAdminBookDate(undefined);
+                  setAdminBookTime("");
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to book session");
+                } finally {
+                  setIsAdminBooking(false);
+                }
+              }}
+            >
+              {isAdminBooking && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Book with Credit
             </Button>
           </DialogFooter>
         </DialogContent>
