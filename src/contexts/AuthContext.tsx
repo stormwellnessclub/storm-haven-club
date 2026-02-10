@@ -56,6 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // Skip aggressive validation on password recovery route
+        const isRecoveryRoute = window.location.pathname === '/update-password';
+        if (isRecoveryRoute) {
+          console.info("[AuthContext] On recovery route, trusting session from getSession()");
+          setSession(existingSession);
+          setUser(existingSession.user);
+          setLoading(false);
+          return;
+        }
+
         // Session exists - validate it with the server
         const { data: { user: validatedUser }, error: userError } = await supabase.auth.getUser();
         
