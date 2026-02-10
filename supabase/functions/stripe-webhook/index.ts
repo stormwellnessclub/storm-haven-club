@@ -1082,6 +1082,22 @@ serve(async (req) => {
               } else {
                 logStep("Subscription deleted - member status updated", { memberId: memberData.id });
               }
+
+              // Also clear subscription_status and stripe_subscription_id to prevent stale data
+              const { error: clearError } = await supabase
+                .from('members')
+                .update({
+                  stripe_subscription_id: null,
+                  subscription_status: 'none',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', memberData.id);
+
+              if (clearError) {
+                logError(clearError, "SUBSCRIPTION_DELETED_CLEAR_FIELDS");
+              } else {
+                logStep("Cleared stale subscription fields", { memberId: memberData.id });
+              }
             }
           } else {
             logStep("Member not found for deleted subscription", { subscriptionId: subscription.id });
