@@ -529,6 +529,10 @@ serve(async (req) => {
             user_id: user.id, // Admin user who is selling the pass
             guest_name: guestName,
             guest_email: guestEmail || '',
+            guest_gender: body.guestGender || '',
+            phone_number: body.phoneNumber || '',
+            valid_date: body.validDate || '',
+            member_referral: body.memberReferral || '',
           },
         });
 
@@ -621,6 +625,7 @@ serve(async (req) => {
             user_id: user.id,
             guest_name: guestName,
             guest_email: guestEmail,
+            guest_gender: guestGender || '',
             phone_number: phoneNumber,
             valid_date: validDate,
             member_referral: memberReferral || '',

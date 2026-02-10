@@ -1330,12 +1330,16 @@ export type Database = {
       guest_passes: {
         Row: {
           add_ons: Json | null
+          admin_notes: string | null
+          checked_in_by: string | null
           created_at: string | null
           expires_at: string | null
           guest_email: string | null
+          guest_gender: string | null
           guest_name: string
           id: string
           member_referral: string | null
+          no_show: boolean | null
           phone_number: string | null
           price_paid: number
           purchased_at: string | null
@@ -1351,12 +1355,16 @@ export type Database = {
         }
         Insert: {
           add_ons?: Json | null
+          admin_notes?: string | null
+          checked_in_by?: string | null
           created_at?: string | null
           expires_at?: string | null
           guest_email?: string | null
+          guest_gender?: string | null
           guest_name: string
           id?: string
           member_referral?: string | null
+          no_show?: boolean | null
           phone_number?: string | null
           price_paid?: number
           purchased_at?: string | null
@@ -1372,12 +1380,16 @@ export type Database = {
         }
         Update: {
           add_ons?: Json | null
+          admin_notes?: string | null
+          checked_in_by?: string | null
           created_at?: string | null
           expires_at?: string | null
           guest_email?: string | null
+          guest_gender?: string | null
           guest_name?: string
           id?: string
           member_referral?: string | null
+          no_show?: boolean | null
           phone_number?: string | null
           price_paid?: number
           purchased_at?: string | null

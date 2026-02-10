@@ -479,6 +479,10 @@ serve(async (req) => {
                 .insert({
                   guest_name: guestName,
                   guest_email: guestEmail,
+                  guest_gender: metadata.guest_gender || null,
+                  phone_number: metadata.phone_number || null,
+                  valid_date: metadata.valid_date || null,
+                  member_referral: metadata.member_referral || null,
                   user_id: userId, // Admin user who sold the pass
                   price_paid: session.amount_total ? session.amount_total / 100 : 60.00,
                   status: 'active',
@@ -525,6 +529,7 @@ serve(async (req) => {
                 .insert({
                   guest_name: guestName,
                   guest_email: guestEmail,
+                  guest_gender: metadata.guest_gender || null,
                   phone_number: phoneNumber,
                   user_id: userId,
                   valid_date: validDate,
