@@ -1,42 +1,48 @@
 
-
-## Fix: Members Cannot Download Waivers/PDFs
+## Fix: Cancelled Subscription Still Showing Active in Admin
 
 ### Root Cause
 
-Vite does not include `.pdf` files in its default list of recognized asset types. When `SimpleAgreementCard.tsx` does `import liabilityWaiver from "@/assets/agreements/liability-waiver.pdf"`, Vite may not bundle these correctly, resulting in broken paths at runtime. The Download and Open buttons silently fail because the resolved URL points nowhere valid.
+Fatima Baydoun (fatima.baydoun236@gmail.com) was refunded and her subscription cancelled in Stripe. The `customer.subscription.deleted` webhook correctly set her `status` to `cancelled`, BUT it did not clear:
+- `subscription_status` (still shows `active`)
+- `stripe_subscription_id` (still holds the dead subscription ID `sub_1SymSuLyZrsSqLhs4LklB6aq`)
+- `annual_fee_subscription_id` (still holds `sub_1SyMsnLyZrsSqLhs1k8NGk1T`)
 
-### Solution: Move PDFs to `public/` and simplify path resolution
+The `update_subscription_status_with_history` RPC function only updates the `status` column — it does not touch `subscription_status` or subscription IDs.
 
-The most reliable approach is to serve PDFs from the `public/` directory (which Vite serves as-is, no bundling) and remove the fragile import-based approach entirely.
+### Fix
 
-### Changes
+**1. Data Fix for Fatima (Database Migration)**
 
-**1. Move PDF files to `public/agreements/`**
+Run a migration to clear Fatima's stale subscription data:
 
-Move all PDFs from `src/assets/agreements/` to `public/agreements/` so they are served as static files at predictable URLs like `/agreements/liability-waiver.pdf`.
+```sql
+UPDATE members 
+SET subscription_status = 'none',
+    stripe_subscription_id = NULL,
+    annual_fee_subscription_id = NULL,
+    updated_at = now()
+WHERE email = 'fatima.baydoun236@gmail.com';
+```
 
-**2. Simplify `src/components/SimpleAgreementCard.tsx`**
+**2. Code Fix in `supabase/functions/stripe-webhook/index.ts`**
 
-- Remove all 9 PDF `import` statements and the `pdfMap` lookup table
-- Simplify `getPdfPath()` to just prepend `/agreements/` to bare filenames (which is what the database stores, e.g. `liability-waiver.pdf`)
-- Keep the existing Download and Open button logic -- it will now work because the URLs resolve correctly
+In the `customer.subscription.deleted` handler (around line 1068-1084), after calling `update_subscription_status_with_history`, also clear the `subscription_status` and `stripe_subscription_id`:
 
-**3. Add `assetsInclude` to `vite.config.ts` as a safety net**
+```
+// After the RPC call, also clear subscription data
+await supabase.from('members').update({
+  stripe_subscription_id: null,
+  subscription_status: 'none',
+  updated_at: new Date().toISOString()
+}).eq('id', memberData.id);
+```
 
-Add `assetsInclude: ['**/*.pdf']` to the Vite config so any remaining or future PDF imports are handled correctly.
+This ensures that when a membership subscription is deleted in Stripe, the database fully reflects the cancellation — no stale `subscription_status: active` badge.
 
-### Why this fixes it
-
-- PDFs in `public/` are served verbatim by the web server at `/agreements/filename.pdf` -- no bundling, no hashing, no import resolution issues
-- The database stores `liability-waiver.pdf` as the `pdf_url` -- the simplified `getPdfPath` just maps this to `/agreements/liability-waiver.pdf`
-- Download and Open buttons will work immediately for all members, signed or unsigned
-
-### Files affected
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `public/agreements/` | Move all PDFs here from `src/assets/agreements/` |
-| `src/components/SimpleAgreementCard.tsx` | Remove PDF imports and pdfMap; simplify getPdfPath to use `/agreements/` prefix |
-| `vite.config.ts` | Add `assetsInclude: ['**/*.pdf']` as safety net |
-
+| Database migration | Clear Fatima's stale subscription fields |
+| `supabase/functions/stripe-webhook/index.ts` | Add subscription_status and stripe_subscription_id clearing in `customer.subscription.deleted` handler |
