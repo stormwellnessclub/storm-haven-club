@@ -1,39 +1,41 @@
 
 
-## Cash-Paid-Ahead Membership with Future Stripe Subscription
+## Fix Guest Pass Purchase Flow: Waiver Clarity + Success Confirmation Page
 
-The core problem: Farah Hakim paid cash for a full year of dues, but the system can't handle this scenario because:
-1. The subscription creation dialog limits the "First Charge Date" to 90 days in the future max
-2. There's no explicit "Cash Paid Ahead" workflow that activates the member now and defers Stripe billing to when the cash period expires (e.g., 1 year out)
+Two issues to fix:
+
+### Problem 1: Women Unable to Complete Purchase
+There are **two active** guest pass agreements in the database ("Guest Pass - Membership Agreement" and "Guest Pass Agreement"). The `InlineWaiverGate` checks if `guest_pass_agreement_signed` is true on the profile. If users are confused about which agreement to sign, or the signing flow only sets the flag for one of them, they may remain blocked. We'll add clearer inline guidance so logged-in users who haven't signed see a direct "Sign Agreement" button with better instructions (not the generic 3-step alert that tells them to "create an account" when they're already logged in).
+
+### Problem 2: No Success Confirmation After Purchase
+Currently, after Stripe checkout completes and redirects to `/guest-pass?purchase=success`, the page just shows a brief toast notification and immediately re-renders the purchase form. There's no confirmation page, no "thank you", no address, no next steps.
 
 ---
 
-### What Will Change
+### Changes
 
-**1. Extend Date Range in CreateSubscriptionDialog**
+**1. Success Confirmation View** (in `src/pages/GuestPass.tsx`)
 
-The "First Charge Date" calendar currently caps at 90 days. We'll extend it to **18 months** (548 days) to allow scheduling the first Stripe charge well into the future -- covering a full year paid ahead plus buffer.
+When `?purchase=success` is detected, instead of showing a toast and the form, render a dedicated confirmation view:
 
-**2. Add a "Cash Paid Ahead" Quick Option**
+- "Thank You" heading with a checkmark icon
+- "We look forward to welcoming you" message
+- Storm Wellness Club address and hours
+- "What to expect on your visit" quick guide (bring ID, arrive early, etc.)
+- A "View My Passes" button (links to member portal or back to home)
+- A "Purchase Another Pass" link to reset back to the form
 
-Inside the "When should the first payment occur?" section, add a radio toggle:
-- **Charge Now** (default) -- existing behavior
-- **Cash Paid Ahead** -- pre-selects "1 year from today" as the first charge date, with the ability to adjust
+**2. Improve Waiver Gate UX for Logged-In Users** (in `src/components/WaiverRequiredAlert.tsx`)
 
-This makes it a one-click workflow: select "Cash Paid Ahead", confirm the date, and the system will:
-- Create the Stripe subscription immediately (so card is on file for future billing)
-- Use `billing_cycle_anchor` set to the future date (no charge today)
-- Activate the member now with full benefits
+The current alert says "Create an account or sign in" as step 1, which is confusing for users who are already signed in. Update the component to:
 
-**3. Update Edge Function Date Validation**
+- Accept an optional `isLoggedIn` prop
+- When logged in, skip the "create an account" step and show a direct link to `/member/waivers`
+- Change button text to "Go to Waivers" instead of "Sign In & Go to Waivers"
 
-The `admin_create_member_subscription` action in `stripe-payment` already supports `firstChargeDate` and future `billing_cycle_anchor`. No logic changes needed there -- it already handles future dates correctly. We just need to ensure the frontend passes the extended date.
+**3. Pass auth state through InlineWaiverGate** (in `src/components/InlineWaiverGate.tsx`)
 
-**4. Add Visual Confirmation for Long Deferrals**
-
-When the first charge date is more than 90 days out, show a clear summary:
-- "Member paid cash through [date]. First Stripe charge: [date]."
-- Highlight that the member will be active immediately with full benefits.
+- The gate already has access to user profile, so pass `isLoggedIn={!!profile}` to `WaiverRequiredAlert`
 
 ---
 
@@ -41,14 +43,7 @@ When the first charge date is more than 90 days out, show a clear summary:
 
 | File | Changes |
 |------|---------|
-| `src/components/admin/CreateSubscriptionDialog.tsx` | Extend `maxDate` for charge date to 548 days (18 months). Add "Cash Paid Ahead" radio option that pre-fills 1 year out. Add enhanced summary for long deferrals. |
-| No backend changes needed | The edge function already supports arbitrary future `firstChargeDate` via `billing_cycle_anchor`. |
-
-### How It Solves Farah's Case
-
-1. Go to Farah's Member Detail page
-2. Click "Create Subscription"
-3. Set Benefits Start Date to today (or Feb 9)
-4. Select "Cash Paid Ahead" -- first charge auto-sets to 1 year from start
-5. Confirm -- Farah is activated immediately, card on file for next year's billing
+| `src/pages/GuestPass.tsx` | Add `purchaseSuccess` state from URL params. When true, render a confirmation view with address, next steps, and navigation options instead of the form. |
+| `src/components/WaiverRequiredAlert.tsx` | Add `isLoggedIn` prop. Conditionally adjust the instruction steps and button text. |
+| `src/components/InlineWaiverGate.tsx` | Pass `isLoggedIn` to `WaiverRequiredAlert`. |
 
