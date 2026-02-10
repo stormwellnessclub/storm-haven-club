@@ -35,6 +35,7 @@ export function useMembersBillingIssues() {
           id,
           status,
           subscription_status,
+          billing_type,
           stripe_customer_id,
           stripe_subscription_id,
           card_brand,
@@ -77,10 +78,11 @@ export function useMembersBillingIssues() {
 
       for (const member of members || []) {
         const issues: MemberBillingIssue['issues'] = [];
-        const memberAny = member as typeof member & { subscription_status?: string };
+        const memberAny = member as typeof member & { subscription_status?: string; billing_type?: string };
+        const isCashBilling = memberAny.billing_type === 'cash';
 
         // Check for incomplete subscription (payment failed before starting)
-        if (memberAny.subscription_status === 'incomplete' || memberAny.subscription_status === 'incomplete_expired') {
+        if (!isCashBilling && (memberAny.subscription_status === 'incomplete' || memberAny.subscription_status === 'incomplete_expired')) {
           issues.push({
             type: "error",
             code: "subscription_incomplete",
@@ -89,8 +91,9 @@ export function useMembersBillingIssues() {
           });
           missingSubscription++;
         }
-        // Check for missing subscription (active members should have one)
+        // Check for missing subscription (active members should have one, unless cash billing)
         else if (
+          !isCashBilling &&
           member.status === "active" &&
           !member.stripe_subscription_id
         ) {

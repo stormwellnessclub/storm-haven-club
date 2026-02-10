@@ -41,6 +41,9 @@ export function usePaymentStatus(): PaymentStatusResult {
 
     const issues: PaymentIssue[] = [];
     
+    // Check if member pays via cash (no Stripe subscription needed)
+    const isCashBilling = membership.billing_type === 'cash';
+    
     // Check if initiation fee has been paid (either one-time payment or subscription)
     // annual_fee_paid_at = timestamp when paid (legacy one-time mode)
     // annual_fee_subscription_id = Stripe subscription ID (new recurring mode)
@@ -52,15 +55,22 @@ export function usePaymentStatus(): PaymentStatusResult {
     // Check if subscription is actually active (not just existence of ID)
     // subscription_status tracks actual Stripe status: 'active', 'trialing', 'incomplete', 'past_due', etc.
     const subscriptionStatus = (membership as typeof membership & { subscription_status?: string }).subscription_status;
-    const hasActiveSubscription = !!membership.stripe_subscription_id && 
-      ['active', 'trialing'].includes(subscriptionStatus || '');
+    
+    // Cash billing members don't need a Stripe subscription
+    const hasActiveSubscription = isCashBilling ? true : (
+      !!membership.stripe_subscription_id && 
+      ['active', 'trialing'].includes(subscriptionStatus || '')
+    );
     
     // No subscription OR subscription exists but is incomplete/failed
-    if (!membership.stripe_subscription_id && membership.status !== "pending_activation") {
-      issues.push("no_subscription");
-    } else if (membership.stripe_subscription_id && !hasActiveSubscription && subscriptionStatus === 'incomplete') {
-      // Subscription exists but payment failed - treat as no subscription
-      issues.push("no_subscription");
+    // Skip this check for cash billing members
+    if (!isCashBilling) {
+      if (!membership.stripe_subscription_id && membership.status !== "pending_activation") {
+        issues.push("no_subscription");
+      } else if (membership.stripe_subscription_id && !hasActiveSubscription && subscriptionStatus === 'incomplete') {
+        // Subscription exists but payment failed - treat as no subscription
+        issues.push("no_subscription");
+      }
     }
 
     // Check if membership status is past_due (from Stripe webhook)
@@ -122,7 +132,8 @@ export function checkMemberPaymentStatus(member: {
   const isDuesPastDue = member.status === "past_due";
   // Check both legacy one-time payment and new subscription mode
   const isInitiationFeePaid = !!(member.annual_fee_paid_at || member.annual_fee_subscription_id);
-  const hasActiveSubscription = !!member.stripe_subscription_id;
+  const isCashBilling = (member as any).billing_type === 'cash';
+  const hasActiveSubscription = isCashBilling ? true : !!member.stripe_subscription_id;
   const isFullyPaid = isInitiationFeePaid && hasActiveSubscription && !isDuesPastDue;
 
   return {
