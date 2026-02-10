@@ -22,27 +22,40 @@ export default function UpdatePassword() {
 
   // Check if user has a valid recovery session
   useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+
+    // Listen for auth state changes FIRST (recovery link creates a session)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+        setIsValidSession(true);
+      }
+    });
+
+    // Then check existing session, with a delay to allow hash fragment processing
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // User should have a session from clicking the reset link
       if (session) {
         setIsValidSession(true);
       } else {
-        setIsValidSession(false);
+        // Wait a bit longer before declaring invalid — hash processing may still be in progress
+        timeout = setTimeout(async () => {
+          const { data: { session: retrySession } } = await supabase.auth.getSession();
+          if (retrySession) {
+            setIsValidSession(true);
+          } else {
+            setIsValidSession(false);
+          }
+        }, 2000);
       }
     };
 
     checkSession();
 
-    // Listen for auth state changes (recovery link creates a session)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setIsValidSession(true);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const validateForm = () => {
