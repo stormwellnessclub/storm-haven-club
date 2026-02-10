@@ -3,13 +3,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { ExternalLink, User, Mail, Phone, Calendar as CalendarIcon, Users, Sparkles, FileText, Pencil, Check, X } from "lucide-react";
+import { ExternalLink, User, Mail, Phone, Calendar as CalendarIcon, Users, Sparkles, FileText, Pencil, Check, X, CheckCircle2, XCircle, Save, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 interface GuestPass {
@@ -17,6 +18,7 @@ interface GuestPass {
   guest_name: string;
   guest_email: string | null;
   phone_number?: string | null;
+  guest_gender?: string | null;
   price_paid: number;
   status: 'active' | 'exhausted' | 'expired';
   purchased_at: string;
@@ -28,12 +30,16 @@ interface GuestPass {
   visit_notes?: string | null;
   add_ons?: Array<{ id: string; label: string; price: number }> | null;
   stripe_payment_id?: string | null;
+  admin_notes?: string | null;
+  checked_in_by?: string | null;
+  no_show?: boolean | null;
 }
 
 interface GuestDetailSheetProps {
   guest: GuestPass | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRefresh?: () => void;
 }
 
 const INTEREST_LABELS: Record<string, string> = {
@@ -43,24 +49,25 @@ const INTEREST_LABELS: Record<string, string> = {
   exploring: "Just exploring the space",
 };
 
-export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheetProps) {
-  const queryClient = useQueryClient();
+export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: GuestDetailSheetProps) {
+  const { user } = useAuth();
   const [editingDate, setEditingDate] = useState(false);
   const [newDate, setNewDate] = useState<Date | undefined>(undefined);
   const [saving, setSaving] = useState(false);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [editingNotes, setEditingNotes] = useState(false);
 
   if (!guest) return null;
 
+  const isActiveToday = guest.valid_date === format(new Date(), "yyyy-MM-dd") && guest.status === 'active' && !guest.no_show;
+
   const getStatusBadge = (status: string) => {
+    if (guest.no_show) return <Badge variant="destructive">No-Show</Badge>;
     switch (status) {
-      case 'active':
-        return <Badge variant="default">Active</Badge>;
-      case 'exhausted':
-        return <Badge variant="secondary">Used</Badge>;
-      case 'expired':
-        return <Badge variant="outline">Expired</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
+      case 'active': return <Badge variant="default">Active</Badge>;
+      case 'exhausted': return <Badge className="bg-green-600">Checked In</Badge>;
+      case 'expired': return <Badge variant="outline">Expired</Badge>;
+      default: return <Badge>{status}</Badge>;
     }
   };
 
@@ -73,19 +80,64 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
     if (!newDate) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("guest_passes")
+      const { error } = await (supabase
+        .from("guest_passes" as any)
         .update({ valid_date: format(newDate, "yyyy-MM-dd") })
-        .eq("id", guest.id);
+        .eq("id", guest.id) as any);
       if (error) throw error;
       toast.success("Visit date updated");
-      queryClient.invalidateQueries({ queryKey: ["admin-guest-passes"] });
+      onRefresh?.();
       setEditingDate(false);
       setNewDate(undefined);
     } catch (err: any) {
       toast.error(err?.message || "Failed to update date");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    try {
+      const { error } = await (supabase
+        .from('guest_passes' as any)
+        .update({ used_at: new Date().toISOString(), status: 'exhausted', checked_in_by: user?.id })
+        .eq('id', guest.id) as any);
+      if (error) throw error;
+      toast.success(`${guest.guest_name} checked in!`);
+      onRefresh?.();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to check in');
+    }
+  };
+
+  const handleNoShow = async () => {
+    try {
+      const { error } = await (supabase
+        .from('guest_passes' as any)
+        .update({ no_show: true })
+        .eq('id', guest.id) as any);
+      if (error) throw error;
+      toast.success(`${guest.guest_name} marked as no-show`);
+      onRefresh?.();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update');
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    try {
+      const { error } = await (supabase
+        .from('guest_passes' as any)
+        .update({ admin_notes: adminNotes })
+        .eq('id', guest.id) as any);
+      if (error) throw error;
+      toast.success("Notes saved");
+      setEditingNotes(false);
+      onRefresh?.();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save notes");
     }
   };
 
@@ -103,12 +155,24 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
             </SheetTitle>
             {getStatusBadge(guest.status)}
           </div>
-          <SheetDescription>
-            Guest pass details and preferences
-          </SheetDescription>
+          <SheetDescription>Guest pass details and management</SheetDescription>
         </SheetHeader>
 
         <div className="space-y-6 mt-6">
+          {/* Check-in Action (prominent for active today passes) */}
+          {isActiveToday && (
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={handleCheckIn}>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Check In
+              </Button>
+              <Button variant="outline" onClick={handleNoShow}>
+                <XCircle className="h-4 w-4 mr-2" />
+                No-Show
+              </Button>
+            </div>
+          )}
+
           {/* Contact Information */}
           <div>
             <h4 className="text-sm font-medium text-muted-foreground mb-3">Contact Information</h4>
@@ -116,17 +180,19 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
               {guest.guest_email && (
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  <a href={`mailto:${guest.guest_email}`} className="hover:underline">
-                    {guest.guest_email}
-                  </a>
+                  <a href={`mailto:${guest.guest_email}`} className="hover:underline">{guest.guest_email}</a>
                 </div>
               )}
               {guest.phone_number && (
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <a href={`tel:${guest.phone_number}`} className="hover:underline">
-                    {guest.phone_number}
-                  </a>
+                  <a href={`tel:${guest.phone_number}`} className="hover:underline">{guest.phone_number}</a>
+                </div>
+              )}
+              {guest.guest_gender && (
+                <div className="flex items-center gap-2 text-sm">
+                  <UserCheck className="h-4 w-4 text-muted-foreground" />
+                  <span className="capitalize">{guest.guest_gender}</span>
                 </div>
               )}
             </div>
@@ -150,13 +216,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={newDate}
-                          onSelect={setNewDate}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
+                        <Calendar mode="single" selected={newDate} onSelect={setNewDate} initialFocus className="p-3 pointer-events-auto" />
                       </PopoverContent>
                     </Popover>
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveDate} disabled={!newDate || saving}>
@@ -169,15 +229,11 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
                 ) : (
                   <div className="flex items-center gap-2 flex-1">
                     <span>
-                      {guest.valid_date 
+                      {guest.valid_date
                         ? `Valid for: ${format(new Date(guest.valid_date), "MMMM d, yyyy")}`
-                        : `Purchased: ${format(new Date(guest.purchased_at), "MMMM d, yyyy")}`
-                      }
+                        : `Purchased: ${format(new Date(guest.purchased_at), "MMMM d, yyyy")}`}
                     </span>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
-                      setEditingDate(true);
-                      if (guest.valid_date) setNewDate(new Date(guest.valid_date));
-                    }}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingDate(true); if (guest.valid_date) setNewDate(new Date(guest.valid_date)); }}>
                       <Pencil className="h-3 w-3" />
                     </Button>
                   </div>
@@ -187,9 +243,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
                 Expires: {format(new Date(guest.expires_at), "MMM d, yyyy h:mm a")}
               </div>
               {guest.used_at && (
-                <div className="text-muted-foreground">
-                  Used: {format(new Date(guest.used_at), "MMM d, yyyy h:mm a")}
-                </div>
+                <div className="text-muted-foreground">Used: {format(new Date(guest.used_at), "MMM d, yyyy h:mm a")}</div>
               )}
               {guest.member_referral && (
                 <div className="flex items-center gap-2 mt-2">
@@ -208,9 +262,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
                 <h4 className="text-sm font-medium text-muted-foreground mb-3">Visit Interests</h4>
                 <div className="flex flex-wrap gap-2">
                   {guest.visit_interests.map((interest) => (
-                    <Badge key={interest} variant="outline" className="text-xs">
-                      {INTEREST_LABELS[interest] || interest}
-                    </Badge>
+                    <Badge key={interest} variant="outline" className="text-xs">{INTEREST_LABELS[interest] || interest}</Badge>
                   ))}
                 </div>
               </div>
@@ -226,9 +278,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
                   <FileText className="h-4 w-4" />
                   Guest Notes
                 </h4>
-                <p className="text-sm bg-muted/50 p-3 rounded-lg">
-                  {guest.visit_notes}
-                </p>
+                <p className="text-sm bg-muted/50 p-3 rounded-lg">{guest.visit_notes}</p>
               </div>
             </>
           )}
@@ -256,6 +306,40 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
 
           <Separator />
 
+          {/* Admin Notes */}
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+              <Pencil className="h-4 w-4" />
+              Admin Notes
+            </h4>
+            {editingNotes ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Internal notes about this guest..."
+                  rows={3}
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveNotes}>
+                    <Save className="h-3 w-3 mr-1" />
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditingNotes(false)}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="text-sm bg-muted/50 p-3 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors min-h-[40px]"
+                onClick={() => { setAdminNotes(guest.admin_notes || ''); setEditingNotes(true); }}
+              >
+                {guest.admin_notes || <span className="text-muted-foreground italic">Click to add notes...</span>}
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
           {/* Payment Summary */}
           <div>
             <h4 className="text-sm font-medium text-muted-foreground mb-3">Payment Summary</h4>
@@ -278,22 +362,26 @@ export function GuestDetailSheet({ guest, open, onOpenChange }: GuestDetailSheet
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Activity Log */}
+          <Separator />
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">Activity</h4>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <div>Created: {format(new Date(guest.purchased_at), "MMM d, yyyy h:mm a")}</div>
+              {guest.valid_date && <div>Visit date: {format(new Date(guest.valid_date), "MMM d, yyyy")}</div>}
+              {guest.used_at && <div>Checked in: {format(new Date(guest.used_at), "MMM d, yyyy h:mm a")}</div>}
+              {guest.no_show && <div className="text-destructive">Marked as no-show</div>}
+              {guest.expires_at && <div>Expires: {format(new Date(guest.expires_at), "MMM d, yyyy h:mm a")}</div>}
+            </div>
+          </div>
+
+          {/* Stripe Link */}
           {guest.stripe_payment_id && (
             <>
               <Separator />
               <div className="pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  asChild
-                >
-                  <a
-                    href={`https://dashboard.stripe.com/payments/${guest.stripe_payment_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                <Button variant="outline" size="sm" className="w-full" asChild>
+                  <a href={`https://dashboard.stripe.com/payments/${guest.stripe_payment_id}`} target="_blank" rel="noopener noreferrer">
                     View in Stripe
                     <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
