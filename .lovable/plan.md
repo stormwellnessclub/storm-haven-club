@@ -1,45 +1,76 @@
 
 
-## Split Cancellation Emails by Member Stage
+## Complimentary Guest Pass Promo: Email + Credit System
 
-Replace the single `membership_cancelled` email with three distinct email types based on where the person is in the process.
-
----
-
-### The Three Scenarios
-
-1. **Application Cancelled** -- Applied, accepted, but never paid anything. Stale application being closed out.
-
-2. **Incomplete Membership Cancelled** -- Paid initiation fee but never completed monthly dues setup. Setup was not finished.
-
-3. **Active Membership Cancelled** -- A real, paying member cancelling. Formal, appreciative tone.
+Build a promotional email that admins can send to all active members announcing a complimentary guest pass for the month, plus a credit-based system that lets members register their guest through the member portal.
 
 ---
 
-### Email Content
+### Overview
 
-**Application Cancelled (`application_cancelled`)**
-- Subject: "Application Update - Storm Wellness Club"
-- Short and simple: their application has been cancelled. Welcome to reapply if interested in the future. Contact admin@stormwellnessclub.com with any questions.
-
-**Incomplete Membership Cancelled (`incomplete_membership_cancelled`)**
-- Subject: "Membership Update - Storm Wellness Club"
-- Their membership setup was not completed and has been cancelled. If they have any questions they can email admin@stormwellnessclub.com. If they'd like to rejoin in the future they would need to reapply.
-- No mention of initiation fee refund policy -- keep it neutral, not aggressive.
-
-**Active Membership Cancelled (`membership_cancelled`)** -- keep existing
-- Subject: "Membership Cancellation Confirmation"
-- Warm, appreciative. Thanks for being part of the community. Door is open to return.
+1. Admin triggers a "Bring a Guest" promo email to all active members
+2. Each member gets 1 `guest_pass` credit added to their account
+3. Members see the credit on their dashboard and can register their guest through a simple form
+4. Using the credit creates a guest pass record (no payment needed)
+5. Admin can see these complimentary guest passes in the existing Guest Passes admin page
 
 ---
 
-### Where Each Email Triggers
+### 1. Database Changes
 
-- **Applications page**: When status set to `cancelled`, sends `application_cancelled`.
-- **Member Detail page**: "Send Cancellation Notice" button auto-detects which email to send:
-  - No initiation fee paid, no subscription --> `application_cancelled`
-  - Initiation fee paid but no active subscription --> `incomplete_membership_cancelled`
-  - Was a fully active member --> `membership_cancelled`
+**Add `guest_pass` to the `credit_type` enum:**
+
+```sql
+ALTER TYPE credit_type ADD VALUE 'guest_pass';
+```
+
+This lets us store guest pass credits in the existing `member_credits` table alongside class/red light/dry cryo credits.
+
+---
+
+### 2. New Email Template
+
+Add a `guest_pass_promo` type to the `send-email` edge function.
+
+- Subject: "You're Invited to Bring a Guest This Month"
+- Branded template with the existing luxury styling
+- Content: This month, each member may bring one guest complimentary. Log in to your member portal to register your guest before your visit. Guest must complete a waiver on arrival.
+- CTA button: "Register Your Guest" linking to `/member/credits`
+
+---
+
+### 3. Admin Trigger: Bulk Send + Credit Allocation
+
+Add a new admin page section or button (on the Guest Passes page or a dedicated spot) that:
+
+1. Fetches all active members
+2. Inserts 1 `guest_pass` credit per member (cycle = current month, expires end of month)
+3. Sends the `guest_pass_promo` email to each member
+4. Shows progress/results (X emails sent, X credits allocated)
+
+This will be a button on the **Admin Guest Passes** page with a confirmation dialog.
+
+---
+
+### 4. Member Portal: Guest Registration Form
+
+Add a "Complimentary Guest Pass" card to the member Credits page (`src/pages/member/Credits.tsx`) that appears when the member has a `guest_pass` credit with remaining balance.
+
+The card includes:
+- "You have 1 complimentary guest pass this month"
+- A simple form: Guest Name, Guest Email, Phone, Visit Date
+- Submit creates a `guest_passes` record with `price_paid: 0` and deducts the credit
+- After submission: "Your guest has been registered" confirmation
+
+Also show a banner on the member Dashboard when they have an unused guest pass credit.
+
+---
+
+### 5. Code + Data Updates
+
+Update `useUserCredits` hook to also return `guestPassCredits` from the `member_credits` query.
+
+Update `CREDIT_TYPE_LABELS` and `CREDIT_TYPE_DESCRIPTIONS` in `memberCredits.ts` to include the new type.
 
 ---
 
@@ -47,7 +78,11 @@ Replace the single `membership_cancelled` email with three distinct email types 
 
 | File | Changes |
 |---|---|
-| `supabase/functions/send-email/index.ts` | Add `application_cancelled` and `incomplete_membership_cancelled` case blocks with branded templates. Keep existing `membership_cancelled`. |
-| `src/pages/admin/Applications.tsx` | Change cancellation email type from `membership_cancelled` to `application_cancelled`. |
-| `src/pages/admin/MemberDetail.tsx` | Update `sendCancellationEmail` to auto-detect email type based on member payment state (initiation fee paid, subscription active). Update toast message to reflect which type was sent. |
+| **Migration** | `ALTER TYPE credit_type ADD VALUE 'guest_pass'` |
+| `supabase/functions/send-email/index.ts` | Add `guest_pass_promo` email template |
+| `src/lib/memberCredits.ts` | Add `guest_pass` to `CreditType`, labels, and descriptions |
+| `src/hooks/useUserCredits.ts` | Add `guestPassCredits` field, parse from query results |
+| `src/pages/admin/GuestPasses.tsx` | Add "Send Guest Pass Promo" button with confirmation dialog that bulk-creates credits and sends emails |
+| `src/pages/member/Credits.tsx` | Add complimentary guest pass card with registration form |
+| `src/pages/member/Dashboard.tsx` | Add banner when unused guest pass credit exists |
 
