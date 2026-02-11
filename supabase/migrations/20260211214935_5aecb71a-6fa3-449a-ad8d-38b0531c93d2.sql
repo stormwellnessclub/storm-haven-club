@@ -1,0 +1,1 @@
+ALTER TABLE email_conversations ADD COLUMN category text NOT NULL DEFAULT 'support';

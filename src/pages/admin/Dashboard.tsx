@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow, subDays } from "date-fns";
 import { BillingHealthWidget } from "@/components/admin/BillingHealthWidget";
 import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
+import { SupportAlertCard } from "@/components/admin/SupportAlertCard";
 
 export default function Dashboard() {
   const currentDate = new Date().toLocaleDateString('en-US', { 
@@ -243,6 +244,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* Support Alert */}
+        <SupportAlertCard />
 
         {/* Date and Quick Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
