@@ -624,12 +624,10 @@ export default function Applications() {
         try {
           await supabase.functions.invoke("send-email", {
             body: {
-              type: "membership_cancelled",
+              type: "application_cancelled",
               to: application.email,
               data: {
                 name: firstName,
-                membershipTier: formatTierDisplay(application.membership_plan),
-                cancellationDate: format(new Date(), "MMMM d, yyyy"),
               },
             },
           });
