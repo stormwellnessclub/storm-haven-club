@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo';
   to: string;
   data: Record<string, any>;
 }
@@ -1686,6 +1686,45 @@ serve(async (req) => {
               </div>
             </div>
             ${getReceiptFooter()}
+          </div>
+        `;
+        break;
+
+      case 'guest_pass_promo':
+        subject = "You're Invited to Bring a Guest This Month";
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We'd love for you to share the Storm Wellness experience with someone special. This month, you've been gifted a <strong>complimentary guest pass</strong> — on us.
+              </p>
+              
+              <div style="${emailStyles.infoBox}">
+                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, serif; font-size: 18px;">
+                  🎟️ 1 Complimentary Guest Pass
+                </p>
+                <p style="margin: 10px 0 0 0; color: #6C5D3E; font-size: 14px; font-family: Georgia, serif;">
+                  Valid through the end of ${data.expiryMonth || 'this month'}. Includes full gym and amenity access for your guest.
+                </p>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Register your guest through your member portal to reserve their visit. It only takes a moment.
+              </p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/credits" style="${emailStyles.button}">Register Your Guest</a>
+              </div>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
           </div>
         `;
         break;

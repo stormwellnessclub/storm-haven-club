@@ -37,6 +37,7 @@ import {
   Zap,
   Snowflake,
   AlertTriangle,
+  Gift,
 } from "lucide-react";
 import { format, parseISO, isValid, startOfToday, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
@@ -98,6 +99,22 @@ export default function MemberDashboard() {
                     <Link to="/member/membership">Activate Now</Link>
                   </Button>
                 )}
+              </AlertDescription>
+            </Alert>
+          </AnimatedSection>
+        )}
+
+        {/* Guest Pass Promo Banner */}
+        {!creditsLoading && credits?.guestPassCredits && credits.guestPassCredits.credits_remaining > 0 && (
+          <AnimatedSection animation="fade-in">
+            <Alert className="bg-accent/10 border-accent/30 shadow-sm">
+              <Gift className="h-4 w-4 text-accent" />
+              <AlertTitle className="text-foreground">You Have a Free Guest Pass!</AlertTitle>
+              <AlertDescription className="text-muted-foreground">
+                Invite a friend or family member for a complimentary visit this month.
+                <Button asChild size="sm" variant="gold" className="ml-4 mt-2 sm:mt-0">
+                  <Link to="/member/credits">Register Your Guest</Link>
+                </Button>
               </AlertDescription>
             </Alert>
           </AnimatedSection>

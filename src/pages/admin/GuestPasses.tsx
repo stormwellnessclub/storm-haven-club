@@ -9,15 +9,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, Clock, CheckCircle2, XCircle, TrendingUp, AlertTriangle } from "lucide-react";
+import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, Clock, CheckCircle2, XCircle, TrendingUp, AlertTriangle, Gift, Send } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, isToday, isFuture, parseISO } from "date-fns";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, isToday, isFuture, parseISO, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { GuestDetailSheet } from "@/components/admin/GuestDetailSheet";
 import { useQueryClient } from "@tanstack/react-query";
+import { Progress } from "@/components/ui/progress";
 
 const GUEST_PASS_PRICE = 60;
 
@@ -276,9 +277,12 @@ export default function GuestPasses() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Guest Passes</h1>
-          <p className="text-muted-foreground">Manage guest access, check-ins, and sales</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Guest Passes</h1>
+            <p className="text-muted-foreground">Manage guest access, check-ins, and sales</p>
+          </div>
+          <GuestPassPromoButton />
         </div>
 
         {/* KPI Cards */}
@@ -591,5 +595,126 @@ export default function GuestPasses() {
         onRefresh={fetchPasses}
       />
     </AdminLayout>
+  );
+}
+
+function GuestPassPromoButton() {
+  const [isSending, setIsSending] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+
+  const handleSendPromo = async () => {
+    if (!confirm("This will allocate 1 complimentary guest pass credit to every active member and send them a promotional email. Continue?")) return;
+
+    setIsSending(true);
+    try {
+      // Fetch all active members
+      const { data: members, error: membersError } = await supabase
+        .from("members")
+        .select("id, user_id, email, first_name")
+        .eq("status", "active");
+
+      if (membersError) throw membersError;
+      if (!members || members.length === 0) {
+        toast.info("No active members found");
+        setIsSending(false);
+        return;
+      }
+
+      setProgress({ current: 0, total: members.length });
+
+      const now = new Date();
+      const monthEnd = endOfMonth(now);
+      const expiresAt = new Date(monthEnd);
+      expiresAt.setHours(23, 59, 59, 999);
+      const cycleStart = format(now, "yyyy-MM-dd");
+      const cycleEnd = format(monthEnd, "yyyy-MM-dd");
+      const expiryMonth = format(now, "MMMM yyyy");
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const member of members) {
+        try {
+          if (!member.user_id) {
+            errorCount++;
+            setProgress(prev => ({ ...prev, current: prev.current + 1 }));
+            continue;
+          }
+
+          // Insert guest_pass credit
+          const { error: creditError } = await (supabase
+            .from("member_credits" as any)
+            .insert({
+              user_id: member.user_id,
+              member_id: member.id,
+              credit_type: "guest_pass",
+              credits_total: 1,
+              credits_remaining: 1,
+              cycle_start: cycleStart,
+              cycle_end: cycleEnd,
+              expires_at: expiresAt.toISOString(),
+            }) as any);
+
+          if (creditError) {
+            console.error(`Credit insert failed for ${member.email}:`, creditError);
+            errorCount++;
+            setProgress(prev => ({ ...prev, current: prev.current + 1 }));
+            continue;
+          }
+
+          // Send promo email
+          if (member.email) {
+            await supabase.functions.invoke("send-email", {
+              body: {
+                type: "guest_pass_promo",
+                to: member.email,
+                data: {
+                  name: member.first_name || "Member",
+                  expiryMonth,
+                },
+              },
+            });
+          }
+
+          successCount++;
+        } catch (err) {
+          console.error(`Error processing ${member.email}:`, err);
+          errorCount++;
+        }
+        setProgress(prev => ({ ...prev, current: prev.current + 1 }));
+      }
+
+      toast.success(`Guest pass promo sent! ${successCount} credits allocated${errorCount > 0 ? `, ${errorCount} errors` : ""}`);
+    } catch (error: any) {
+      console.error("Error sending guest pass promo:", error);
+      toast.error(error?.message || "Failed to send promo");
+    } finally {
+      setIsSending(false);
+      setProgress({ current: 0, total: 0 });
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {isSending && progress.total > 0 && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>{progress.current}/{progress.total}</span>
+          <Progress value={(progress.current / progress.total) * 100} className="w-24 h-2" />
+        </div>
+      )}
+      <Button onClick={handleSendPromo} disabled={isSending} variant="gold">
+        {isSending ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Sending...
+          </>
+        ) : (
+          <>
+            <Gift className="h-4 w-4" />
+            Send Guest Pass Promo
+          </>
+        )}
+      </Button>
+    </div>
   );
 }

@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useUserCredits, MemberCredit } from "@/hooks/useUserCredits";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { 
   CreditCard, 
   Ticket, 
@@ -13,10 +19,14 @@ import {
   AlertCircle, 
   Zap, 
   Snowflake,
-  Sparkles 
+  Sparkles,
+  Gift,
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { getTierName, CREDIT_TYPE_LABELS, CREDIT_TYPE_DESCRIPTIONS, CreditType } from "@/lib/memberCredits";
+import { useState } from "react";
 
 export default function MemberCredits() {
   const { data: credits, isLoading } = useUserCredits();
@@ -52,6 +62,14 @@ export default function MemberCredits() {
   return (
     <MemberLayout title="My Credits">
       <div className="space-y-6">
+        {/* Complimentary Guest Pass Card */}
+        {credits?.guestPassCredits && credits.guestPassCredits.credits_remaining > 0 && (
+          <GuestPassRegistrationCard
+            credit={credits.guestPassCredits}
+            memberId={credits.memberId!}
+          />
+        )}
+
         {/* Wellness Treatment Credits (Red Light + Dry Cryo) */}
         {showWellnessCredits ? (
           <div className="grid gap-4 md:grid-cols-2">
@@ -371,5 +389,165 @@ function PassCard({ pass }: PassCardProps) {
         </span>
       </div>
     </div>
+  );
+}
+
+interface GuestPassRegistrationCardProps {
+  credit: MemberCredit;
+  memberId: string;
+}
+
+function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCardProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [visitDate, setVisitDate] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guestName || !visitDate || !user) {
+      toast.error("Please fill in the required fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Create guest pass record with price_paid: 0
+      const { error: guestError } = await (supabase
+        .from("guest_passes" as any)
+        .insert({
+          guest_name: guestName.trim(),
+          guest_email: guestEmail.trim() || null,
+          phone_number: guestPhone.trim() || null,
+          valid_date: visitDate,
+          price_paid: 0,
+          status: "active",
+          user_id: user.id,
+          member_referral: "Complimentary Guest Pass",
+          expires_at: new Date(visitDate + "T23:59:59").toISOString(),
+        }) as any);
+
+      if (guestError) throw guestError;
+
+      // Deduct the credit
+      const { error: creditError } = await (supabase
+        .from("member_credits" as any)
+        .update({ credits_remaining: credit.credits_remaining - 1 })
+        .eq("id", credit.id) as any);
+
+      if (creditError) throw creditError;
+
+      setIsRegistered(true);
+      queryClient.invalidateQueries({ queryKey: ["user-credits"] });
+      toast.success("Guest registered successfully!");
+    } catch (error: any) {
+      console.error("Error registering guest:", error);
+      toast.error(error?.message || "Failed to register guest");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isRegistered) {
+    return (
+      <Card className="border-accent/30 bg-accent/5">
+        <CardContent className="pt-6">
+          <div className="text-center py-4">
+            <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-accent" />
+            <h3 className="text-lg font-semibold mb-1">Guest Registered!</h3>
+            <p className="text-muted-foreground">
+              Your guest <strong>{guestName}</strong> is all set for their visit on{" "}
+              {format(parseISO(visitDate), "MMMM d, yyyy")}.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const expiresDate = parseISO(credit.expires_at);
+  const daysLeft = differenceInDays(expiresDate, new Date());
+
+  return (
+    <Card className="border-accent/30 bg-accent/5">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Gift className="h-5 w-5 text-accent" />
+          <CardTitle>Complimentary Guest Pass</CardTitle>
+        </div>
+        <CardDescription>
+          You have a free guest pass! Register your guest below to reserve their visit.
+          {daysLeft > 0 && (
+            <span className="block mt-1 text-xs">
+              Expires in {daysLeft} day{daysLeft > 1 ? "s" : ""}
+            </span>
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="gp-name">Guest Name *</Label>
+            <Input
+              id="gp-name"
+              placeholder="Full name"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="gp-email">Email</Label>
+              <Input
+                id="gp-email"
+                type="email"
+                placeholder="Optional"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="gp-phone">Phone</Label>
+              <Input
+                id="gp-phone"
+                type="tel"
+                placeholder="Optional"
+                value={guestPhone}
+                onChange={(e) => setGuestPhone(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="gp-date">Visit Date *</Label>
+            <Input
+              id="gp-date"
+              type="date"
+              value={visitDate}
+              onChange={(e) => setVisitDate(e.target.value)}
+              min={format(new Date(), "yyyy-MM-dd")}
+              required
+            />
+          </div>
+          <Button type="submit" variant="gold" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Registering...
+              </>
+            ) : (
+              <>
+                <Gift className="h-4 w-4" />
+                Register Guest
+              </>
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
