@@ -1,88 +1,82 @@
 
 
-## Complimentary Guest Pass Promo: Email + Credit System
+## Complimentary Guest Pass Promo: Full Implementation
 
-Build a promotional email that admins can send to all active members announcing a complimentary guest pass for the month, plus a credit-based system that lets members register their guest through the member portal.
-
----
-
-### Overview
-
-1. Admin triggers a "Bring a Guest" promo email to all active members
-2. Each member gets 1 `guest_pass` credit added to their account
-3. Members see the credit on their dashboard and can register their guest through a simple form
-4. Using the credit creates a guest pass record (no payment needed)
-5. Admin can see these complimentary guest passes in the existing Guest Passes admin page
+Build the complete "Bring a Guest" promotional system -- admin triggers it, members get a credit, and they register their guest through a simple form.
 
 ---
 
-### 1. Database Changes
+### 1. Database Migration
 
-**Add `guest_pass` to the `credit_type` enum:**
+Add `guest_pass` to the existing `credit_type` enum so we can store guest pass credits in `member_credits`:
 
 ```sql
 ALTER TYPE credit_type ADD VALUE 'guest_pass';
 ```
 
-This lets us store guest pass credits in the existing `member_credits` table alongside class/red light/dry cryo credits.
+No new tables needed -- we reuse `member_credits` for the credit and `guest_passes` for the registration.
 
 ---
 
-### 2. New Email Template
+### 2. Email Template
 
-Add a `guest_pass_promo` type to the `send-email` edge function.
+Add `guest_pass_promo` to the `send-email` edge function:
 
 - Subject: "You're Invited to Bring a Guest This Month"
-- Branded template with the existing luxury styling
-- Content: This month, each member may bring one guest complimentary. Log in to your member portal to register your guest before your visit. Guest must complete a waiver on arrival.
-- CTA button: "Register Your Guest" linking to `/member/credits`
+- Branded luxury template matching existing emails
+- Content: This month, you may bring one guest complimentary. Log in to register your guest before your visit. Guest must complete a waiver on arrival.
+- CTA: "Register Your Guest" linking to `/member/credits`
 
 ---
 
-### 3. Admin Trigger: Bulk Send + Credit Allocation
+### 3. Code Updates
 
-Add a new admin page section or button (on the Guest Passes page or a dedicated spot) that:
-
-1. Fetches all active members
-2. Inserts 1 `guest_pass` credit per member (cycle = current month, expires end of month)
-3. Sends the `guest_pass_promo` email to each member
-4. Shows progress/results (X emails sent, X credits allocated)
-
-This will be a button on the **Admin Guest Passes** page with a confirmation dialog.
-
----
-
-### 4. Member Portal: Guest Registration Form
-
-Add a "Complimentary Guest Pass" card to the member Credits page (`src/pages/member/Credits.tsx`) that appears when the member has a `guest_pass` credit with remaining balance.
-
-The card includes:
-- "You have 1 complimentary guest pass this month"
-- A simple form: Guest Name, Guest Email, Phone, Visit Date
-- Submit creates a `guest_passes` record with `price_paid: 0` and deducts the credit
-- After submission: "Your guest has been registered" confirmation
-
-Also show a banner on the member Dashboard when they have an unused guest pass credit.
-
----
-
-### 5. Code + Data Updates
-
-Update `useUserCredits` hook to also return `guestPassCredits` from the `member_credits` query.
-
-Update `CREDIT_TYPE_LABELS` and `CREDIT_TYPE_DESCRIPTIONS` in `memberCredits.ts` to include the new type.
-
----
-
-### Technical Details
-
-| File | Changes |
+| File | What Changes |
 |---|---|
-| **Migration** | `ALTER TYPE credit_type ADD VALUE 'guest_pass'` |
-| `supabase/functions/send-email/index.ts` | Add `guest_pass_promo` email template |
-| `src/lib/memberCredits.ts` | Add `guest_pass` to `CreditType`, labels, and descriptions |
-| `src/hooks/useUserCredits.ts` | Add `guestPassCredits` field, parse from query results |
-| `src/pages/admin/GuestPasses.tsx` | Add "Send Guest Pass Promo" button with confirmation dialog that bulk-creates credits and sends emails |
-| `src/pages/member/Credits.tsx` | Add complimentary guest pass card with registration form |
-| `src/pages/member/Dashboard.tsx` | Add banner when unused guest pass credit exists |
+| `src/lib/memberCredits.ts` | Add `guest_pass` to `CreditType` union, `CREDIT_TYPE_LABELS`, and `CREDIT_TYPE_DESCRIPTIONS` |
+| `src/hooks/useUserCredits.ts` | Add `guestPassCredits: MemberCredit | null` to `UserCreditsData`, parse it from the credits query results |
+| `supabase/functions/send-email/index.ts` | Add `guest_pass_promo` case with branded HTML template |
+
+---
+
+### 4. Admin: Bulk Send Button (Guest Passes Page)
+
+Add a "Send Guest Pass Promo" button to `src/pages/admin/GuestPasses.tsx`:
+
+- Confirmation dialog: "This will send a complimentary guest pass email to all active members and add 1 guest pass credit to each account. Continue?"
+- On confirm:
+  1. Fetch all active members (with email from profiles/applications)
+  2. For each member, insert 1 `guest_pass` credit into `member_credits` (cycle = current month start to end, expires end of month)
+  3. Send `guest_pass_promo` email to each member
+  4. Show progress toast and final result ("X credits allocated, X emails sent")
+
+---
+
+### 5. Member Portal: Guest Registration Card (Credits Page)
+
+Add a "Complimentary Guest Pass" card to `src/pages/member/Credits.tsx` that appears when the member has a `guest_pass` credit with remaining balance:
+
+- Shows: "You have 1 complimentary guest pass this month"
+- Registration form fields: Guest Name, Guest Email, Phone, Visit Date
+- On submit:
+  1. Insert a `guest_passes` record with `price_paid: 0`, `user_id` set to the member's user ID, status `active`
+  2. Deduct the credit (update `credits_remaining` to 0 on the `member_credits` row)
+  3. Show confirmation: "Your guest has been registered!"
+  4. Invalidate queries so the card updates
+- After used: shows "Guest registered" confirmation with the guest details
+
+---
+
+### 6. Member Dashboard Banner
+
+Add a banner to `src/pages/member/Dashboard.tsx` that appears when the member has an unused `guest_pass` credit:
+
+- "You have a complimentary guest pass this month!"
+- Link to Credits page to register their guest
+
+---
+
+### RLS Note
+
+No new RLS policies needed. Members can already read their own `member_credits` rows. Members can already insert into `guest_passes` when `user_id = auth.uid()`. Staff can manage both tables via existing policies.
 
