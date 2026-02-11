@@ -616,6 +616,27 @@ export default function Applications() {
           // Don't throw - status update succeeded, email is secondary
         }
       }
+
+      // Handle application cancellation with email notification
+      if (status === "cancelled" && application && !suppressEmail) {
+        const firstName = application.first_name || application.full_name.trim().split(" ")[0] || "";
+        
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              type: "membership_cancelled",
+              to: application.email,
+              data: {
+                name: firstName,
+                membershipTier: formatTierDisplay(application.membership_plan),
+                cancellationDate: format(new Date(), "MMMM d, yyyy"),
+              },
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send cancellation email:", emailError);
+        }
+      }
     },
     onSuccess: (_, { status, suppressEmail, autoActivate, lockedStartDate, isPreLaunch }) => {
       queryClient.invalidateQueries({ queryKey: ["membership-applications"] });

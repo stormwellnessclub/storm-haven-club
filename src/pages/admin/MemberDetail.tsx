@@ -223,6 +223,9 @@ export default function MemberDetail() {
   // Activation email state
   const [isSendingActivationEmail, setIsSendingActivationEmail] = useState(false);
 
+  // Cancellation email state
+  const [isSendingCancellationEmail, setIsSendingCancellationEmail] = useState(false);
+
   // Refund and Undo state
   const [showRefundDialog, setShowRefundDialog] = useState(false);
   const [selectedChargeForRefund, setSelectedChargeForRefund] = useState<{
@@ -856,6 +859,32 @@ export default function MemberDetail() {
     }
   };
 
+  // Send cancellation email handler
+  const sendCancellationEmail = async () => {
+    if (!member) return;
+    setIsSendingCancellationEmail(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "membership_cancelled",
+          to: member.email,
+          data: {
+            name: member.first_name,
+            membershipTier: normalizeTierDisplay(member.membership_type) + " Membership",
+            cancellationDate: format(new Date(), "MMMM d, yyyy"),
+          },
+        },
+      });
+      if (error) throw error;
+      toast.success(`Cancellation email sent to ${member.first_name}`);
+    } catch (error) {
+      console.error("Error sending cancellation email:", error);
+      toast.error("Failed to send cancellation email");
+    } finally {
+      setIsSendingCancellationEmail(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <AdminLayout title="Member Details">
@@ -964,6 +993,16 @@ export default function MemberDetail() {
                     variant="outline"
                     tooltip="Reverse the last admin action (available for 24 hours)"
                     onClick={() => setShowUndoDialog(true)}
+                  />
+                )}
+                {member.status === "cancelled" && (
+                  <AdminActionButton
+                    label="Send Cancellation Notice"
+                    icon={<Mail className="h-4 w-4 mr-2" />}
+                    variant="outline"
+                    isLoading={isSendingCancellationEmail}
+                    tooltip="Sends a branded cancellation confirmation email to the member"
+                    onClick={sendCancellationEmail}
                   />
                 )}
               </div>
