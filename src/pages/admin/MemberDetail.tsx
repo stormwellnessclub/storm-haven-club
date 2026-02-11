@@ -859,24 +859,49 @@ export default function MemberDetail() {
     }
   };
 
-  // Send cancellation email handler
+  // Send cancellation email handler - auto-detects which type based on payment state
   const sendCancellationEmail = async () => {
     if (!member) return;
     setIsSendingCancellationEmail(true);
     try {
+      // Determine which cancellation email to send based on member payment state
+      const isInitiationFeePaid = !!(member.annual_fee_paid_at || member.annual_fee_subscription_id);
+      const hadActiveSubscription = !!member.stripe_subscription_id;
+
+      let emailType: string;
+      let emailData: Record<string, any>;
+      let toastLabel: string;
+
+      if (!isInitiationFeePaid && !hadActiveSubscription) {
+        // Never paid anything - application-level cancellation
+        emailType = "application_cancelled";
+        emailData = { name: member.first_name };
+        toastLabel = "Application cancellation";
+      } else if (isInitiationFeePaid && !hadActiveSubscription) {
+        // Paid initiation fee but never set up dues
+        emailType = "incomplete_membership_cancelled";
+        emailData = { name: member.first_name };
+        toastLabel = "Incomplete membership cancellation";
+      } else {
+        // Was a fully active member
+        emailType = "membership_cancelled";
+        emailData = {
+          name: member.first_name,
+          membershipTier: normalizeTierDisplay(member.membership_type) + " Membership",
+          cancellationDate: format(new Date(), "MMMM d, yyyy"),
+        };
+        toastLabel = "Membership cancellation";
+      }
+
       const { error } = await supabase.functions.invoke("send-email", {
         body: {
-          type: "membership_cancelled",
+          type: emailType,
           to: member.email,
-          data: {
-            name: member.first_name,
-            membershipTier: normalizeTierDisplay(member.membership_type) + " Membership",
-            cancellationDate: format(new Date(), "MMMM d, yyyy"),
-          },
+          data: emailData,
         },
       });
       if (error) throw error;
-      toast.success(`Cancellation email sent to ${member.first_name}`);
+      toast.success(`${toastLabel} email sent to ${member.first_name}`);
     } catch (error) {
       console.error("Error sending cancellation email:", error);
       toast.error("Failed to send cancellation email");
