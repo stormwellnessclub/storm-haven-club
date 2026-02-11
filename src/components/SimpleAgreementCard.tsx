@@ -2,18 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Download, ExternalLink, FileText, Loader2, Check } from "lucide-react";
-
-// Get PDF path from filename or URL — PDFs are served from public/agreements/
-const getPdfPath = (pdfInput: string): string => {
-  if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://')) {
-    return pdfInput;
-  }
-  if (pdfInput.startsWith('/')) {
-    return pdfInput;
-  }
-  const filename = pdfInput.split('/').pop() || pdfInput;
-  return `/agreements/${filename}`;
-};
+import { resolvePdfUrl } from "@/lib/pdfAssets";
 
 // Get display name from filename
 const getDisplayName = (filename: string): string => {
@@ -49,7 +38,7 @@ export function SimpleAgreementCard({
   const [acknowledged, setAcknowledged] = useState(false);
 
   const handleDownload = (doc: DocumentInfo) => {
-    const pdfPath = getPdfPath(doc.url);
+    const pdfPath = resolvePdfUrl(doc.url);
     const filename = doc.url.split('/').pop() || 'agreement.pdf';
     const link = document.createElement("a");
     link.href = pdfPath;
@@ -60,7 +49,7 @@ export function SimpleAgreementCard({
   };
 
   const handleOpenInNewTab = (doc: DocumentInfo) => {
-    const pdfPath = getPdfPath(doc.url);
+    const pdfPath = resolvePdfUrl(doc.url);
     window.open(pdfPath, '_blank');
   };
 

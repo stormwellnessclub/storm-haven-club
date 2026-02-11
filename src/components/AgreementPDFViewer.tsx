@@ -4,68 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ZoomIn, ZoomOut, Download, Printer, FileText, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-// Import PDF files directly
-import liabilityWaiver from "@/assets/agreements/liability-waiver.pdf";
-import membershipAgreement from "@/assets/agreements/membership-agreement.pdf";
-import kidsCareAgreement from "@/assets/agreements/kids-care-agreement.pdf";
-import kidsCareParentConsent from "@/assets/agreements/kids-care-agreement-parent-consent-form.pdf";
-import guestPassGeneral from "@/assets/agreements/guest-pass-agreement-general.pdf";
-import guestPassAgreement from "@/assets/agreements/guest-pass-agreement.pdf";
-import privateEventAgreement from "@/assets/agreements/private-event-agreement.pdf";
-import singleClassPass1 from "@/assets/agreements/single-class-pass-agreement.pdf";
-import singleClassPass2 from "@/assets/agreements/single-class-pass-agreement-2.pdf";
-
-// Map filenames to imports
-const pdfMap: Record<string, string> = {
-  'liability-waiver.pdf': liabilityWaiver,
-  'membership-agreement.pdf': membershipAgreement,
-  'kids-care-agreement.pdf': kidsCareAgreement,
-  'kids-care-agreement-parent-consent-form.pdf': kidsCareParentConsent,
-  'guest-pass-agreement-general.pdf': guestPassGeneral,
-  'guest-pass-agreement.pdf': guestPassAgreement,
-  'private-event-agreement.pdf': privateEventAgreement,
-  'single-class-pass-agreement.pdf': singleClassPass1,
-  'single-class-pass-agreement-2.pdf': singleClassPass2,
-};
-
-interface AgreementPDFViewerProps {
-  pdfUrl: string | string[];
-  title?: string;
-  showControls?: boolean;
-  height?: string;
-  className?: string;
-  onDocumentLoad?: () => void;
-}
-
-// Get PDF path from imported module, filename, or URL
-const getPdfPath = (pdfInput: string): string => {
-  // If it's already a full URL, use it directly
-  if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://')) {
-    console.log(`[PDF] Using URL directly: ${pdfInput}`);
-    return pdfInput;
-  }
-  
-  // Extract filename from any path (including absolute paths starting with /)
-  const filename = pdfInput.split('/').pop() || pdfInput;
-  
-  // PRIORITY 1: Try to map filename to imported PDF (most reliable - bundled by Vite)
-  const importedPath = pdfMap[filename];
-  if (importedPath) {
-    console.log(`[PDF] Using imported: ${filename} -> ${importedPath}`);
-    return importedPath;
-  }
-  
-  // PRIORITY 2: If it's an absolute path starting with /, use it as-is (public folder)
-  if (pdfInput.startsWith('/')) {
-    console.log(`[PDF] Using public path: ${pdfInput}`);
-    return pdfInput;
-  }
-  
-  // PRIORITY 3: Default: assume it's in public/agreements/
-  console.log(`[PDF] Using default public path: /agreements/${filename}`);
-  return `/agreements/${filename}`;
-};
+import { resolvePdfUrl } from "@/lib/pdfAssets";
 
 // Fallback UI component when PDF fails to load
 function PDFFallback({ 
@@ -103,6 +42,15 @@ function PDFFallback({
   );
 }
 
+interface AgreementPDFViewerProps {
+  pdfUrl: string | string[];
+  title?: string;
+  showControls?: boolean;
+  height?: string;
+  className?: string;
+  onDocumentLoad?: () => void;
+}
+
 export function AgreementPDFViewer({
   pdfUrl,
   title,
@@ -118,17 +66,14 @@ export function AgreementPDFViewer({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const iframeLoadedRef = useRef(false);
 
-  // Keep ref in sync with state to avoid stale closures in timeouts
   useEffect(() => {
     iframeLoadedRef.current = iframeLoaded;
   }, [iframeLoaded]);
 
-  // Handle both single PDF and multiple PDFs
   const pdfs = Array.isArray(pdfUrl) ? pdfUrl : [pdfUrl];
   const [selectedPdfIndex, setSelectedPdfIndex] = useState(0);
   const currentPdf = pdfs[selectedPdfIndex];
 
-  // Reset state when PDF changes - add preflight check
   useEffect(() => {
     setScale(1.0);
     setLoading(true);
@@ -136,14 +81,12 @@ export function AgreementPDFViewer({
     setIframeLoaded(false);
     iframeLoadedRef.current = false;
 
-    // Clear any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    const pdfSrc = getPdfPath(currentPdf);
-    
-    // Preflight check - verify PDF is accessible
+    const pdfSrc = resolvePdfUrl(currentPdf);
+
     fetch(pdfSrc, { method: 'HEAD' })
       .then(response => {
         if (!response.ok) {
@@ -154,19 +97,14 @@ export function AgreementPDFViewer({
       })
       .catch(err => {
         console.warn(`[PDF] Preflight error for ${pdfSrc}:`, err);
-        // Don't set error yet - let iframe try anyway
       });
 
-    // Set a timeout to detect if PDF fails to load (10 seconds - allow time for larger PDFs)
     timeoutRef.current = setTimeout(() => {
-      // Use ref to get current value, avoiding stale closure
       if (!iframeLoadedRef.current) {
-        console.warn(`[PDF] Load timeout for: ${currentPdf}`);
-        console.warn(`[PDF] Resolved path was: ${pdfSrc}`);
         setError("PDF preview unavailable");
         setLoading(false);
       }
-    }, 10000); // 10 second timeout
+    }, 10000);
 
     return () => {
       if (timeoutRef.current) {
@@ -175,9 +113,7 @@ export function AgreementPDFViewer({
     };
   }, [currentPdf]);
 
-  // Handle successful iframe load - wrapped in useCallback to prevent unnecessary re-renders
   const handleIframeLoad = useCallback(() => {
-    console.log(`[PDF] Loaded successfully: ${currentPdf}`);
     iframeLoadedRef.current = true;
     setIframeLoaded(true);
     setLoading(false);
@@ -186,21 +122,19 @@ export function AgreementPDFViewer({
       clearTimeout(timeoutRef.current);
     }
     onDocumentLoad?.();
-  }, [currentPdf, onDocumentLoad]);
+  }, [onDocumentLoad]);
 
-  // Handle iframe error - wrapped in useCallback
   const handleIframeError = useCallback(() => {
-    console.error(`[PDF] Failed to load: ${currentPdf}`);
     setError("Failed to load PDF");
     setLoading(false);
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-  }, [currentPdf]);
+  }, []);
 
   const handleDownload = () => {
     const filename = typeof currentPdf === 'string' ? currentPdf : `agreement-${selectedPdfIndex + 1}.pdf`;
-    const pdfPath = typeof currentPdf === 'string' ? getPdfPath(currentPdf) : currentPdf;
+    const pdfPath = resolvePdfUrl(currentPdf);
     const link = document.createElement("a");
     link.href = pdfPath;
     link.download = filename;
@@ -216,12 +150,8 @@ export function AgreementPDFViewer({
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.25, 3.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
 
-  // Simple PDF display using iframe (more reliable than react-pdf for large files)
   if (pdfs.length === 1) {
-    // Single PDF - use iframe for better compatibility
-    const pdfSrc = typeof currentPdf === 'string' 
-      ? getPdfPath(currentPdf)
-      : currentPdf;
+    const pdfSrc = resolvePdfUrl(currentPdf);
 
     return (
       <div className={cn("flex flex-col border rounded-lg overflow-hidden", className)}>
@@ -230,23 +160,13 @@ export function AgreementPDFViewer({
             <h3 className="font-medium">{title}</h3>
             {showControls && (
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={zoomOut}
-                  disabled={scale <= 0.5}
-                >
+                <Button variant="ghost" size="sm" onClick={zoomOut} disabled={scale <= 0.5}>
                   <ZoomOut className="h-4 w-4" />
                 </Button>
                 <span className="text-sm text-muted-foreground min-w-[60px] text-center">
                   {Math.round(scale * 100)}%
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={zoomIn}
-                  disabled={scale >= 3.0}
-                >
+                <Button variant="ghost" size="sm" onClick={zoomIn} disabled={scale >= 3.0}>
                   <ZoomIn className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="sm" onClick={handleDownload}>
@@ -259,7 +179,6 @@ export function AgreementPDFViewer({
             )}
           </div>
         )}
-        {/* Always show action buttons above viewer */}
         <div className="px-4 py-2 border-b bg-muted/30 flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={handleDownload} className="gap-1">
             <Download className="h-4 w-4" /> Download PDF
@@ -278,11 +197,7 @@ export function AgreementPDFViewer({
             </div>
           )}
           {error ? (
-            <PDFFallback 
-              pdfSrc={pdfSrc} 
-              filename={typeof currentPdf === 'string' ? currentPdf : 'agreement.pdf'} 
-              onDownload={handleDownload}
-            />
+            <PDFFallback pdfSrc={pdfSrc} filename={currentPdf} onDownload={handleDownload} />
           ) : (
             <iframe
               src={pdfSrc}
@@ -308,19 +223,14 @@ export function AgreementPDFViewer({
       )}
       <Tabs value={selectedPdfIndex.toString()} onValueChange={(val) => setSelectedPdfIndex(parseInt(val))}>
         <TabsList className="w-full justify-start rounded-none border-b">
-          {pdfs.map((pdf, index) => (
+          {pdfs.map((_, index) => (
             <TabsTrigger key={index} value={index.toString()}>
-              {typeof pdf === 'string' 
-                ? `Document ${index + 1}`
-                : `Document ${index + 1}`
-              }
+              Document {index + 1}
             </TabsTrigger>
           ))}
         </TabsList>
         {pdfs.map((pdf, index) => {
-          const pdfSrc = typeof pdf === 'string' 
-            ? getPdfPath(pdf)
-            : pdf;
+          const pdfSrc = resolvePdfUrl(pdf);
           
           return (
             <TabsContent key={index} value={index.toString()} className="m-0">
@@ -328,26 +238,16 @@ export function AgreementPDFViewer({
                 {showControls && (
                   <div className="px-4 py-2 border-b flex items-center justify-between bg-background">
                     <span className="text-sm text-muted-foreground">
-                      Viewing {typeof pdf === 'string' ? `Document ${index + 1}` : `Document ${index + 1}`}
+                      Viewing Document {index + 1}
                     </span>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={zoomOut}
-                        disabled={scale <= 0.5}
-                      >
+                      <Button variant="ghost" size="sm" onClick={zoomOut} disabled={scale <= 0.5}>
                         <ZoomOut className="h-4 w-4" />
                       </Button>
                       <span className="text-sm text-muted-foreground min-w-[60px] text-center">
                         {Math.round(scale * 100)}%
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={zoomIn}
-                        disabled={scale >= 3.0}
-                      >
+                      <Button variant="ghost" size="sm" onClick={zoomIn} disabled={scale >= 3.0}>
                         <ZoomIn className="h-4 w-4" />
                       </Button>
                       <Button 
