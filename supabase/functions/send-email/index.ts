@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled';
   to: string;
   data: Record<string, any>;
 }
@@ -1582,6 +1582,50 @@ serve(async (req) => {
               </div>
             </div>
             ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'membership_cancelled':
+        subject = 'Membership Cancellation Confirmation - Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                This email confirms that your ${data.membershipTier ? `<strong>${data.membershipTier}</strong> ` : ''}membership at Storm Wellness Club has been cancelled.
+              </p>
+              
+              ${data.cancellationDate ? `
+              <div style="${emailStyles.infoBox}">
+                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, serif;">
+                  Effective Date: ${data.cancellationDate}
+                </p>
+              </div>
+              ` : ''}
+              
+              ${data.reason ? `
+              <p style="font-size: 14px; line-height: 1.8; color: #6b7280; margin-bottom: 20px;">
+                <em>Reason: ${data.reason}</em>
+              </p>
+              ` : ''}
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We appreciate the time you spent as part of our community. Should you wish to rejoin in the future, we would be happy to welcome you back.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you have any questions about your cancellation or would like to discuss your options, please don't hesitate to reach out to us at <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a>.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getReceiptFooter()}
           </div>
         `;
         break;
