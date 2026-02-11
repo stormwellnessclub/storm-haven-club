@@ -66,7 +66,7 @@ export function useCreateConversation() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ subject, message }: { subject: string; message: string }) => {
+    mutationFn: async ({ subject, message, category = 'support' }: { subject: string; message: string; category?: string }) => {
       if (!user) throw new Error('User not authenticated');
 
       // Create conversation
@@ -76,7 +76,8 @@ export function useCreateConversation() {
           user_id: user.id,
           subject,
           status: 'open',
-        })
+          category,
+        } as any)
         .select()
         .single();
 

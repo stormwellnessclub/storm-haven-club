@@ -1143,6 +1143,7 @@ export type Database = {
       }
       email_conversations: {
         Row: {
+          category: string
           created_at: string
           id: string
           last_message_at: string | null
@@ -1152,6 +1153,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string
           created_at?: string
           id?: string
           last_message_at?: string | null
@@ -1161,6 +1163,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string
           created_at?: string
           id?: string
           last_message_at?: string | null

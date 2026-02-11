@@ -56,6 +56,7 @@ export default function EmailManagement() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("open");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   // Fetch all conversations with user profiles and unread counts
   const { data: conversationsWithProfiles, isLoading: loadingConversations } = useQuery({
@@ -257,9 +258,11 @@ export default function EmailManagement() {
     });
   };
 
-  const filteredConversations = conversationsWithProfiles?.filter(conv => 
-    statusFilter === 'all' || conv.status === statusFilter
-  );
+  const filteredConversations = conversationsWithProfiles?.filter(conv => {
+    const statusMatch = statusFilter === 'all' || conv.status === statusFilter;
+    const categoryMatch = categoryFilter === 'all' || (conv as any).category === categoryFilter;
+    return statusMatch && categoryMatch;
+  });
 
   const selectedConv = conversationsWithProfiles?.find(c => c.id === selectedConversation);
   
@@ -332,18 +335,30 @@ export default function EmailManagement() {
               Manage and respond to member support requests
             </p>
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="resolved">Resolved</SelectItem>
-              <SelectItem value="closed">Closed</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="support">Support</SelectItem>
+                <SelectItem value="concierge">Concierge</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -401,10 +416,15 @@ export default function EmailManagement() {
                                 </p>
                               </div>
                             </div>
-                            <Badge variant={status.variant} className="shrink-0 text-xs">
-                              {status.icon}
-                              <span className="ml-1">{status.label}</span>
-                            </Badge>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              {(conversation as any).category === 'concierge' && (
+                                <Badge variant="outline" className="text-xs bg-accent/20">Concierge</Badge>
+                              )}
+                              <Badge variant={status.variant} className="text-xs">
+                                {status.icon}
+                                <span className="ml-1">{status.label}</span>
+                              </Badge>
+                            </div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-2">
                             {format(new Date(conversation.last_message_at), 'MMM d, h:mm a')}
