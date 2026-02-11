@@ -32,6 +32,7 @@ export interface UserCreditsData {
   classCredits: MemberCredit | null;
   redLightCredits: MemberCredit | null;
   dryCredits: MemberCredit | null;
+  guestPassCredits: MemberCredit | null;
   classPasses: ClassPass[];
 }
 
@@ -50,6 +51,7 @@ export function useUserCredits() {
           classCredits: null,
           redLightCredits: null,
           dryCredits: null,
+          guestPassCredits: null,
           classPasses: [],
         };
       }
@@ -78,6 +80,7 @@ export function useUserCredits() {
       let classCredits: MemberCredit | null = null;
       let redLightCredits: MemberCredit | null = null;
       let dryCredits: MemberCredit | null = null;
+      let guestPassCredits: MemberCredit | null = null;
 
       if (isMember && memberId) {
         const now = new Date().toISOString();
@@ -110,11 +113,14 @@ export function useUserCredits() {
               case "dry_cryo":
                 if (!dryCredits) dryCredits = typedCredit;
                 break;
+              case "guest_pass":
+                if (!guestPassCredits) guestPassCredits = typedCredit;
+                break;
             }
           }
         }
 
-        console.log("[useUserCredits] Parsed credits:", { classCredits, redLightCredits, dryCredits });
+        console.log("[useUserCredits] Parsed credits:", { classCredits, redLightCredits, dryCredits, guestPassCredits });
       }
 
       // Get active class passes
@@ -139,6 +145,7 @@ export function useUserCredits() {
         classCredits,
         redLightCredits,
         dryCredits,
+        guestPassCredits,
         classPasses: (passes || []) as ClassPass[],
       };
     },

@@ -4034,7 +4034,7 @@ export type Database = {
         | "cycling"
         | "aerobics"
       conversation_status: "open" | "in_progress" | "resolved" | "closed"
-      credit_type: "class" | "red_light" | "dry_cryo"
+      credit_type: "class" | "red_light" | "dry_cryo" | "guest_pass"
       message_sender_type: "member" | "staff"
       pass_status: "active" | "expired" | "exhausted"
       waitlist_status:
@@ -4189,7 +4189,7 @@ export const Constants = {
         "aerobics",
       ],
       conversation_status: ["open", "in_progress", "resolved", "closed"],
-      credit_type: ["class", "red_light", "dry_cryo"],
+      credit_type: ["class", "red_light", "dry_cryo", "guest_pass"],
       message_sender_type: ["member", "staff"],
       pass_status: ["active", "expired", "exhausted"],
       waitlist_status: [

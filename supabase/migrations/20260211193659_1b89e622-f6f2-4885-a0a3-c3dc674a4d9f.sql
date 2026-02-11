@@ -1,0 +1,1 @@
+ALTER TYPE credit_type ADD VALUE 'guest_pass';
