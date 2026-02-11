@@ -79,4 +79,3 @@ Add a banner to `src/pages/member/Dashboard.tsx` that appears when the member ha
 ### RLS Note
 
 No new RLS policies needed. Members can already read their own `member_credits` rows. Members can already insert into `guest_passes` when `user_id = auth.uid()`. Staff can manage both tables via existing policies.
-
