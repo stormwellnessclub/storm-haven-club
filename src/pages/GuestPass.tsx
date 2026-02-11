@@ -518,7 +518,8 @@ function GuestPassSuccess() {
           <div className="flex items-start gap-3">
             <Clock className="h-5 w-5 text-accent mt-0.5 shrink-0" />
             <div className="text-left text-sm text-muted-foreground space-y-1">
-              <p className="font-medium text-foreground">Hours</p>
+             <p className="font-medium text-foreground">Hours</p>
+              <p className="font-semibold text-accent">Currently in Soft Launch — contact club for hours</p>
               <p>Mon–Thu: 5:30 AM – 11:00 PM</p>
               <p>Friday: 5:30 AM – 8:00 PM</p>
               <p>Sat–Sun: 7:00 AM – 7:00 PM</p>
@@ -542,7 +543,7 @@ function GuestPassSuccess() {
           <p>• Please bring a valid photo ID</p>
           <p>• Arrive 10–15 minutes early to check in at the front desk</p>
           <p>• Towels and locker room amenities are provided</p>
-          <p>• Wear comfortable workout attire</p>
+          
           <p>• Phones are limited in wellness areas to protect privacy</p>
         </CardContent>
       </Card>
