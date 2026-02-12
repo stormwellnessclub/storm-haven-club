@@ -1117,6 +1117,25 @@ export default function MemberDetail() {
                     </Badge>
                   )}
                 </div>
+                {(member.status === "active" || member.status === "pending_activation") && (
+                  <div className="flex items-center gap-2">
+                    <AdminActionButton
+                      label={(member as any).activation_email_sent_at ? "Resend Activation Email" : "Send Activation Email"}
+                      icon={<Send className="h-4 w-4 mr-2" />}
+                      variant="outline"
+                      isLoading={isSendingActivationEmail}
+                      tooltip={ADMIN_ACTION_TOOLTIPS.sendActivationEmail}
+                      onClick={sendActivationEmail}
+                      disabled={!member.email}
+                    />
+                    {(member as any).activation_email_sent_at && (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 text-xs">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Sent {format(new Date((member as any).activation_email_sent_at), "MMM d, yyyy")}
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
             </TooltipProvider>
           </div>
