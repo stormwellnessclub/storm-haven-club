@@ -17,8 +17,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addDays, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
-import { InlineWaiverGate } from "@/components/InlineWaiverGate";
 import { AccountRequiredSection } from "@/components/AccountRequiredSection";
+import { SimpleAgreementCard } from "@/components/SimpleAgreementCard";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 const GUEST_PASS_PRICE = 60;
 
@@ -632,7 +633,7 @@ export default function GuestPass() {
     );
   }
 
-  // Logged in - show waiver gate then form
+  // Logged in - show inline agreements then form
   return (
     <Layout>
       <div className="min-h-screen bg-background pt-32 pb-20">
@@ -649,15 +650,82 @@ export default function GuestPass() {
             </p>
           </div>
 
-          {/* Inline Waiver Gate - only guest_pass needed since liability is signed at account creation */}
-          <InlineWaiverGate 
-            requiredWaivers={["guest_pass"]}
-            serviceName="purchase a Guest Pass"
-          >
-            <GuestPassForm />
-          </InlineWaiverGate>
+          <InlineGuestPassAgreements />
         </div>
       </div>
     </Layout>
   );
+}
+
+function InlineGuestPassAgreements() {
+  const {
+    profile,
+    isLoading,
+    signWaiver,
+    isSigningWaiver,
+    signGuestPassAgreement,
+    isSigningGuestPassAgreement,
+  } = useUserProfile();
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const waiverSigned = profile?.waiver_signed ?? false;
+  const guestPassSigned = profile?.guest_pass_agreement_signed ?? false;
+
+  // Step 1: Liability Waiver
+  if (!waiverSigned) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle>Step 1 of 2 — Liability Waiver</CardTitle>
+            <CardDescription>
+              Please review and sign the liability waiver before purchasing your guest pass.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SimpleAgreementCard
+              title="Liability Waiver"
+              documents={[{ name: "Liability Waiver", url: "liability-waiver.pdf" }]}
+              onSign={() => signWaiver()}
+              isSigning={isSigningWaiver}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Step 2: Guest Pass Agreement
+  if (!guestPassSigned) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle>Step 2 of 2 — Guest Pass Agreement</CardTitle>
+            <CardDescription>
+              Almost there! Please review and sign the guest pass agreement.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SimpleAgreementCard
+              title="Guest Pass Agreement"
+              documents={[{ name: "Guest Pass Agreement", url: "guest-pass-agreement-general.pdf" }]}
+              onSign={() => signGuestPassAgreement()}
+              isSigning={isSigningGuestPassAgreement}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Both signed — show purchase form
+  return <GuestPassForm />;
 }
