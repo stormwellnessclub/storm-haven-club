@@ -282,24 +282,27 @@ export default function Members() {
       else if (status === "suspended") counts.suspended++;
       else if (status === "past_due") counts.past_due++;
 
+      // Skip cancelled/expired members for billing-related counts
+      const isTerminated = status === "cancelled" || status === "expired";
+
       // Initiation fee
       if (member.annual_fee_paid_at || member.annual_fee_subscription_id) {
         counts.initiationPaid++;
-      } else {
+      } else if (!isTerminated) {
         counts.initiationUnpaid++;
       }
 
       // Card
       if (member.card_last4) {
         counts.hasCard++;
-      } else {
+      } else if (!isTerminated) {
         counts.noCard++;
       }
 
       // Subscription
       if (member.stripe_subscription_id) {
         counts.hasSubscription++;
-      } else {
+      } else if (!isTerminated) {
         counts.noSubscription++;
       }
 
