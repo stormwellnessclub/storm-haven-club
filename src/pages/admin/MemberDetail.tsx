@@ -42,6 +42,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Breadcrumb,
@@ -88,7 +89,7 @@ import {
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
   Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle,
-  ArrowUpDown, Send, Info, RotateCcw, CalendarClock
+  ArrowUpDown, Send, Info, RotateCcw, CalendarClock, Ban
 } from "lucide-react";
 import {
   Table,
@@ -225,6 +226,11 @@ export default function MemberDetail() {
 
   // Cancellation email state
   const [isSendingCancellationEmail, setIsSendingCancellationEmail] = useState(false);
+
+  // Cancel membership state
+  const [showCancelMembershipDialog, setShowCancelMembershipDialog] = useState(false);
+  const [isCancelingMembership, setIsCancelingMembership] = useState(false);
+  const [sendCancelEmail, setSendCancelEmail] = useState(true);
 
   // Refund and Undo state
   const [showRefundDialog, setShowRefundDialog] = useState(false);
@@ -822,6 +828,63 @@ export default function MemberDetail() {
 
   const canReactivate = member && ["suspended", "cancelled", "inactive", "frozen", "expired"].includes(member.status);
 
+  // Cancel membership handler - cancels Stripe sub, updates status, optionally sends email, logs action
+  const handleCancelMembership = async () => {
+    if (!member) return;
+    setIsCancelingMembership(true);
+    try {
+      // 1. Cancel Stripe subscription if exists
+      if (member.stripe_subscription_id) {
+        const { data, error } = await supabase.functions.invoke('stripe-payment', {
+          body: {
+            action: 'deactivate_member',
+            memberId: member.id,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) console.warn("Stripe deactivation warning:", data.error);
+      }
+
+      // 2. Update member status to cancelled
+      const { error: updateError } = await supabase
+        .from("members")
+        .update({ status: "cancelled", updated_at: new Date().toISOString() })
+        .eq("id", member.id);
+      if (updateError) throw updateError;
+
+      // 3. Log the action for undo support
+      if (user) {
+        await supabase.from("admin_action_log").insert({
+          action_type: "cancel_membership",
+          member_id: member.id,
+          performed_by: user.id,
+          can_undo: true,
+          undo_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          action_data: {
+            previous_status: member.status,
+            had_subscription: !!member.stripe_subscription_id,
+            subscription_id: member.stripe_subscription_id,
+          },
+        });
+      }
+
+      // 4. Optionally send cancellation email
+      if (sendCancelEmail) {
+        await sendCancellationEmail();
+      }
+
+      toast.success(`Membership cancelled for ${member.first_name} ${member.last_name}`);
+      setShowCancelMembershipDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-member-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    } catch (error) {
+      console.error("Error cancelling membership:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to cancel membership");
+    } finally {
+      setIsCancelingMembership(false);
+    }
+  };
+
   // Send activation email handler
   const sendActivationEmail = async () => {
     if (!member) return;
@@ -1000,6 +1063,15 @@ export default function MemberDetail() {
                     variant="outline"
                     tooltip={ADMIN_ACTION_TOOLTIPS.suspend}
                     onClick={() => setShowSuspendDialog(true)}
+                  />
+                )}
+                {member.status !== "cancelled" && (
+                  <AdminActionButton
+                    label="Cancel Membership"
+                    icon={<Ban className="h-4 w-4 mr-2" />}
+                    variant="outline"
+                    tooltip="Cancel membership, revoke access, and optionally cancel Stripe billing"
+                    onClick={() => setShowCancelMembershipDialog(true)}
                   />
                 )}
                 {isSuperAdmin && (
@@ -2252,6 +2324,48 @@ export default function MemberDetail() {
             >
               {isClearingInitiationFee && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Clear Fee Status
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Membership Confirmation Dialog */}
+      <AlertDialog open={showCancelMembershipDialog} onOpenChange={setShowCancelMembershipDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Membership</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p>Are you sure you want to cancel the membership for <strong>{member.first_name} {member.last_name}</strong>?</p>
+                <ul className="list-disc pl-4 mt-3 space-y-1 text-sm">
+                  <li>Member status will be set to <strong>cancelled</strong></li>
+                  <li>Club access will be revoked immediately</li>
+                  {member.stripe_subscription_id && (
+                    <li>Stripe subscription will be cancelled</li>
+                  )}
+                </ul>
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t">
+                  <Checkbox
+                    id="send-cancel-email"
+                    checked={sendCancelEmail}
+                    onCheckedChange={(checked) => setSendCancelEmail(checked === true)}
+                  />
+                  <label htmlFor="send-cancel-email" className="text-sm cursor-pointer">
+                    Send cancellation notice email
+                  </label>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCancelingMembership}>Keep Active</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelMembership}
+              disabled={isCancelingMembership}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isCancelingMembership && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Cancel Membership
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
