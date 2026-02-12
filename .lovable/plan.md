@@ -1,42 +1,32 @@
 
 
-## Add "Cancel Membership" Button to Member Detail Page
+## Track Cancellation Email Sent Status
 
-### Problem
-The Member Detail page has no dedicated "Cancel Membership" action button. Currently, the only way to cancel a member is to edit their profile and manually change the status dropdown to "cancelled." There's no streamlined workflow that also handles Stripe subscription cancellation and sends the cancellation notice email.
+### What This Does
+Adds a visible indicator showing whether a cancellation notice email has been sent to a member, and when. This helps you quickly see who has already been notified without having to guess or check email logs.
 
-### Solution
-Add a "Cancel Membership" button to the action toolbar on the Member Detail page, with a confirmation dialog that:
-1. Cancels the member's Stripe subscription (if one exists)
-2. Sets the member status to "cancelled"
-3. Optionally sends the appropriate cancellation email
-4. Logs the action for the 24-hour undo window
-
-### File to Change
-
-**`src/pages/admin/MemberDetail.tsx`**
-
-1. Add a "Cancel Membership" button in the action toolbar (next to Suspend/Delete), visible when the member status is NOT already "cancelled"
-2. Add a confirmation dialog with:
-   - Warning about what cancellation does (revokes access, cancels billing)
-   - Checkbox option: "Send cancellation notice email" (checked by default)
-   - Cancel and Confirm buttons
-3. Add a `handleCancelMembership` function that:
-   - Calls `stripe-payment` with `action: "deactivate_member"` to cancel the Stripe subscription (if `stripe_subscription_id` exists)
-   - Updates the member status to `"cancelled"` in the database
-   - Sends the appropriate cancellation email template (auto-detected based on payment history)
-   - Logs the action to `admin_action_log` for undo support
-   - Refreshes the member data
-
-### Button Placement
-The button will appear in the existing action toolbar alongside Suspend/Delete, using a destructive outline style with a `Ban` icon to differentiate it from Suspend (`XCircle`).
+### How It Works
+- A new timestamp field is added to each member's record to store when the cancellation email was sent
+- After a cancellation email is successfully sent, the timestamp is automatically saved
+- A small badge appears next to the "Send Cancellation Notice" button (or in the member info area) showing "Cancellation Notice Sent" with the date
+- This follows the same pattern already used for tracking activation emails (`activation_email_sent_at`)
 
 ### Technical Details
 
-- New state variables: `showCancelDialog`, `isCanceling`, `sendCancelEmail` (checkbox)
-- The cancellation email template is auto-selected:
-  - No `annual_fee_paid_at` and no `stripe_subscription_id` --> `application_cancelled`
-  - Has `annual_fee_paid_at` but no `stripe_subscription_id` --> `incomplete_membership_cancelled`
-  - Has both --> `membership_cancelled`
-- Stripe subscription cancellation uses the existing `deactivate_member` action in the `stripe-payment` edge function
-- The "Send Cancellation Notice" button (currently visible only for already-cancelled members) will remain as-is for re-sending notices
+**1. Database Migration**
+Add a `cancellation_email_sent_at` column to the `members` table:
+```sql
+ALTER TABLE members ADD COLUMN cancellation_email_sent_at timestamptz DEFAULT NULL;
+```
+
+**2. Modify `src/pages/admin/MemberDetail.tsx`**
+- After successfully sending the cancellation email (line ~966), update the member record:
+  ```
+  UPDATE members SET cancellation_email_sent_at = now() WHERE id = member.id
+  ```
+- Also update in the `handleCancelMembership` flow when the email checkbox is checked
+- Display a badge/indicator near the Send Cancellation Notice button showing the sent date (e.g., "Sent Feb 10, 2026") when `cancellation_email_sent_at` is not null
+- The button label changes to "Resend Cancellation Notice" if already sent
+
+**3. Modify `src/pages/admin/Members.tsx`** (Members list)
+- Show a small mail icon or badge in the cancelled members table rows for those who have received the notice, so you can scan the list at a glance
