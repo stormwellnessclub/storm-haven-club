@@ -37,21 +37,8 @@ export function SimpleAgreementCard({
 }: SimpleAgreementCardProps) {
   const [acknowledged, setAcknowledged] = useState(false);
 
-  const handleDownload = (doc: DocumentInfo) => {
-    const pdfPath = resolvePdfUrl(doc.url);
-    const filename = doc.url.split('/').pop() || 'agreement.pdf';
-    const link = document.createElement("a");
-    link.href = pdfPath;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleOpenInNewTab = (doc: DocumentInfo) => {
-    const pdfPath = resolvePdfUrl(doc.url);
-    window.open(pdfPath, '_blank');
-  };
+  const getPdfPath = (doc: DocumentInfo) => resolvePdfUrl(doc.url);
+  const getFilename = (doc: DocumentInfo) => doc.url.split('/').pop() || 'agreement.pdf';
 
   return (
     <div className="space-y-4">
@@ -66,11 +53,13 @@ export function SimpleAgreementCard({
       <div className="space-y-3">
         {documents.map((doc, index) => {
           const displayName = doc.name || getDisplayName(doc.url);
+          const pdfPath = getPdfPath(doc);
+          const filename = getFilename(doc);
           
           return (
             <div 
               key={index} 
-              className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-lg border bg-muted/30"
             >
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-accent shrink-0" />
@@ -80,20 +69,24 @@ export function SimpleAgreementCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleDownload(doc)}
                   className="gap-1.5"
+                  asChild
                 >
-                  <Download className="h-4 w-4" />
-                  Download
+                  <a href={pdfPath} download={filename}>
+                    <Download className="h-4 w-4" />
+                    Download
+                  </a>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleOpenInNewTab(doc)}
                   className="gap-1.5"
+                  asChild
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  Open
+                  <a href={pdfPath} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Open
+                  </a>
                 </Button>
               </div>
             </div>
