@@ -2456,6 +2456,7 @@ export type Database = {
           annual_fee_subscription_id: string | null
           approved_at: string | null
           billing_type: string | null
+          cancellation_email_sent_at: string | null
           card_brand: string | null
           card_exp_month: number | null
           card_exp_year: number | null
@@ -2497,6 +2498,7 @@ export type Database = {
           annual_fee_subscription_id?: string | null
           approved_at?: string | null
           billing_type?: string | null
+          cancellation_email_sent_at?: string | null
           card_brand?: string | null
           card_exp_month?: number | null
           card_exp_year?: number | null
@@ -2538,6 +2540,7 @@ export type Database = {
           annual_fee_subscription_id?: string | null
           approved_at?: string | null
           billing_type?: string | null
+          cancellation_email_sent_at?: string | null
           card_brand?: string | null
           card_exp_month?: number | null
           card_exp_year?: number | null

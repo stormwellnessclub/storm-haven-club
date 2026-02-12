@@ -1,0 +1,1 @@
+ALTER TABLE public.members ADD COLUMN cancellation_email_sent_at timestamptz DEFAULT NULL;
