@@ -1092,16 +1092,15 @@ export default function MemberDetail() {
                     onClick={() => setShowUndoDialog(true)}
                   />
                 )}
-                {member.status === "cancelled" && (
-                  <AdminActionButton
-                    label="Send Cancellation Notice"
-                    icon={<Mail className="h-4 w-4 mr-2" />}
-                    variant="outline"
-                    isLoading={isSendingCancellationEmail}
-                    tooltip="Sends a branded cancellation confirmation email to the member"
-                    onClick={sendCancellationEmail}
-                  />
-                )}
+                <AdminActionButton
+                  label="Send Cancellation Notice"
+                  icon={<Mail className="h-4 w-4 mr-2" />}
+                  variant="outline"
+                  isLoading={isSendingCancellationEmail}
+                  tooltip="Sends a branded cancellation confirmation email to the member"
+                  onClick={sendCancellationEmail}
+                  disabled={!member.email}
+                />
               </div>
             </TooltipProvider>
           </div>
