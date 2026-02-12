@@ -27,6 +27,44 @@ interface SimpleAgreementCardProps {
   required?: boolean;
 }
 
+/**
+ * Mobile-safe PDF open: uses window.location.href as fallback
+ * since target="_blank" and window.open are often blocked on iOS Safari.
+ */
+const openPdf = (url: string) => {
+  // Try window.open first
+  const win = window.open(url, "_blank");
+  // If blocked (returns null on mobile), navigate directly
+  if (!win) {
+    window.location.href = url;
+  }
+};
+
+/**
+ * Mobile-safe PDF download: fetches the file as a blob and triggers
+ * a download via an object URL. Falls back to direct navigation.
+ */
+const downloadPdf = async (url: string, filename: string) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    }, 100);
+  } catch {
+    // Fallback: just open the URL
+    window.location.href = url;
+  }
+};
+
 export function SimpleAgreementCard({
   title,
   description,
@@ -36,9 +74,6 @@ export function SimpleAgreementCard({
   required = true,
 }: SimpleAgreementCardProps) {
   const [acknowledged, setAcknowledged] = useState(false);
-
-  const getPdfPath = (doc: DocumentInfo) => resolvePdfUrl(doc.url);
-  const getFilename = (doc: DocumentInfo) => doc.url.split('/').pop() || 'agreement.pdf';
 
   return (
     <div className="space-y-4">
@@ -53,8 +88,8 @@ export function SimpleAgreementCard({
       <div className="space-y-3">
         {documents.map((doc, index) => {
           const displayName = doc.name || getDisplayName(doc.url);
-          const pdfPath = getPdfPath(doc);
-          const filename = getFilename(doc);
+          const pdfPath = resolvePdfUrl(doc.url);
+          const filename = doc.url.split('/').pop() || 'agreement.pdf';
           
           return (
             <div 
@@ -70,23 +105,19 @@ export function SimpleAgreementCard({
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
-                  asChild
+                  onClick={() => downloadPdf(pdfPath, filename)}
                 >
-                  <a href={pdfPath} download={filename}>
-                    <Download className="h-4 w-4" />
-                    Download
-                  </a>
+                  <Download className="h-4 w-4" />
+                  Download
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
-                  asChild
+                  onClick={() => openPdf(pdfPath)}
                 >
-                  <a href={pdfPath} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-4 w-4" />
-                    Open
-                  </a>
+                  <ExternalLink className="h-4 w-4" />
+                  Open
                 </Button>
               </div>
             </div>
