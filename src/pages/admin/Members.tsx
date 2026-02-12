@@ -190,7 +190,8 @@ export default function Members() {
           card_exp_month,
           card_exp_year,
           user_id,
-          activation_email_sent_at
+          activation_email_sent_at,
+          cancellation_email_sent_at
         `)
         .order("created_at", { ascending: false });
 
@@ -1030,20 +1031,29 @@ export default function Members() {
                         />
                       </TableCell>
                       <TableCell>
-                        {member.status === "pending_activation" ? (
-                          member.activation_email_sent_at ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 text-xs">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Sent {format(new Date(member.activation_email_sent_at), "MMM d")}
+                        <div className="flex flex-col gap-1">
+                          {member.status === "pending_activation" && (
+                            member.activation_email_sent_at ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 text-xs">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Activation {format(new Date(member.activation_email_sent_at), "MMM d")}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground text-xs">
+                                Activation not sent
+                              </Badge>
+                            )
+                          )}
+                          {(member as any).cancellation_email_sent_at && (
+                            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800 text-xs">
+                              <Mail className="h-3 w-3 mr-1" />
+                              Cancel notice {format(new Date((member as any).cancellation_email_sent_at), "MMM d")}
                             </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-muted-foreground text-xs">
-                              Not sent
-                            </Badge>
-                          )
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
+                          )}
+                          {member.status !== "pending_activation" && !(member as any).cancellation_email_sent_at && (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {member.membership_start_date

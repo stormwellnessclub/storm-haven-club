@@ -964,7 +964,15 @@ export default function MemberDetail() {
         },
       });
       if (error) throw error;
+
+      // Track that cancellation email was sent
+      await supabase
+        .from("members")
+        .update({ cancellation_email_sent_at: new Date().toISOString() } as any)
+        .eq("id", member.id);
+
       toast.success(`${toastLabel} email sent to ${member.first_name}`);
+      queryClient.invalidateQueries({ queryKey: ["member", id] });
     } catch (error) {
       console.error("Error sending cancellation email:", error);
       toast.error("Failed to send cancellation email");
@@ -1092,15 +1100,23 @@ export default function MemberDetail() {
                     onClick={() => setShowUndoDialog(true)}
                   />
                 )}
-                <AdminActionButton
-                  label="Send Cancellation Notice"
-                  icon={<Mail className="h-4 w-4 mr-2" />}
-                  variant="outline"
-                  isLoading={isSendingCancellationEmail}
-                  tooltip="Sends a branded cancellation confirmation email to the member"
-                  onClick={sendCancellationEmail}
-                  disabled={!member.email}
-                />
+                <div className="flex items-center gap-2">
+                  <AdminActionButton
+                    label={(member as any).cancellation_email_sent_at ? "Resend Cancellation Notice" : "Send Cancellation Notice"}
+                    icon={<Mail className="h-4 w-4 mr-2" />}
+                    variant="outline"
+                    isLoading={isSendingCancellationEmail}
+                    tooltip="Sends a branded cancellation confirmation email to the member"
+                    onClick={sendCancellationEmail}
+                    disabled={!member.email}
+                  />
+                  {(member as any).cancellation_email_sent_at && (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 text-xs">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Sent {format(new Date((member as any).cancellation_email_sent_at), "MMM d, yyyy")}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </TooltipProvider>
           </div>
