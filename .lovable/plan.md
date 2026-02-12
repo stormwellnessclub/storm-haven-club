@@ -1,32 +1,44 @@
 
 
-## Track Cancellation Email Sent Status
+## Fix: Exclude Cancelled Members from "Initiation Due" Count
 
-### What This Does
-Adds a visible indicator showing whether a cancellation notice email has been sent to a member, and when. This helps you quickly see who has already been notified without having to guess or check email logs.
+### Problem
+The "Initiation Due (31)" count on the Members page includes cancelled and expired members. Since you've already cancelled all the members who never paid, those 31 are cancelled members still being counted as "unpaid." They're hidden from the table (because cancelled members are hidden by default), but the count badge still shows them, making it look like there's outstanding work to do.
 
-### How It Works
-- A new timestamp field is added to each member's record to store when the cancellation email was sent
-- After a cancellation email is successfully sent, the timestamp is automatically saved
-- A small badge appears next to the "Send Cancellation Notice" button (or in the member info area) showing "Cancellation Notice Sent" with the date
-- This follows the same pattern already used for tracking activation emails (`activation_email_sent_at`)
+### Solution
+Exclude cancelled and expired members from the initiation fee unpaid count (and other billing-related counts like "No Card" and "No Subscription"). These counts should only reflect members who actually need attention.
 
 ### Technical Details
 
-**1. Database Migration**
-Add a `cancellation_email_sent_at` column to the `members` table:
-```sql
-ALTER TABLE members ADD COLUMN cancellation_email_sent_at timestamptz DEFAULT NULL;
+**File: `src/pages/admin/Members.tsx`**
+
+Update the counting logic (around lines 285-304) to skip cancelled and expired members for billing-related counts:
+
+```
+// Before counting initiation fee, card, and subscription:
+const status = member.status?.toLowerCase() || "";
+const isTerminated = status === "cancelled" || status === "expired";
+
+// Initiation fee - only count non-terminated members as "unpaid"
+if (member.annual_fee_paid_at || member.annual_fee_subscription_id) {
+  counts.initiationPaid++;
+} else if (!isTerminated) {
+  counts.initiationUnpaid++;
+}
+
+// Card - only flag missing cards for non-terminated members
+if (member.card_last4) {
+  counts.hasCard++;
+} else if (!isTerminated) {
+  counts.noCard++;
+}
+
+// Subscription - only flag missing subs for non-terminated members
+if (member.stripe_subscription_id) {
+  counts.hasSubscription++;
+} else if (!isTerminated) {
+  counts.noSubscription++;
+}
 ```
 
-**2. Modify `src/pages/admin/MemberDetail.tsx`**
-- After successfully sending the cancellation email (line ~966), update the member record:
-  ```
-  UPDATE members SET cancellation_email_sent_at = now() WHERE id = member.id
-  ```
-- Also update in the `handleCancelMembership` flow when the email checkbox is checked
-- Display a badge/indicator near the Send Cancellation Notice button showing the sent date (e.g., "Sent Feb 10, 2026") when `cancellation_email_sent_at` is not null
-- The button label changes to "Resend Cancellation Notice" if already sent
-
-**3. Modify `src/pages/admin/Members.tsx`** (Members list)
-- Show a small mail icon or badge in the cancelled members table rows for those who have received the notice, so you can scan the list at a glance
+This way, the "Initiation Due" badge will only show the count of active/pending/frozen/past_due members who haven't paid -- the ones that actually need your attention.
