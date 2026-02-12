@@ -1,22 +1,17 @@
 
-
-## Fix Membership Agreement and Liability Waiver PDFs
+## Restore "Send Activation Email" Button for Reactivated Members
 
 ### Problem
-The membership agreement PDF doesn't load on the Apply page or the Waivers page -- same issue as the guest pass: the file in `src/assets/agreements/membership-agreement.pdf` is corrupted/outdated, causing blank downloads and 404 errors when opened in a new tab.
+The "Send Activation Email" button on the Member Detail page is only visible when a member's status is `pending_activation`. After reactivating a member (changing their status to `active`), the entire Activation Setup Status card disappears -- and with it, the button to send the activation email.
 
 ### Solution
+Add a standalone "Send Activation Email" button in the member detail header/action area that is available regardless of status. This way, after reactivating a member, you can still send (or re-send) the activation setup email.
 
-**Replace two PDF files with the uploaded working copies:**
+### What changes
 
-1. **`src/assets/agreements/membership-agreement.pdf`** -- overwrite with the uploaded `agreements_membership-agreement.pdf`
-2. **`src/assets/agreements/liability-waiver.pdf`** -- overwrite with the uploaded `liability-waiver-2.pdf` (updated version)
-
-No code changes needed -- the existing `pdfAssets.ts` already maps both filenames (`membership-agreement.pdf` and `liability-waiver.pdf`) to Vite-hashed asset URLs. The Apply page's `AgreementPDFViewer` and the Waivers page's `SimpleAgreementCard` both resolve through this same mapping. Replacing the binary files will fix loading everywhere these documents are referenced.
-
-### What this fixes
-- Membership Agreement on the Apply page (embedded PDF viewer)
-- Membership Agreement on the Member Waivers page (download/open buttons)
-- Liability Waiver everywhere (now using the latest version you provided)
-- Any other page that references these filenames through `pdfAssets.ts`
-
+**File: `src/pages/admin/MemberDetail.tsx`**
+- Add a "Send Activation Email" option to the member action buttons area (near the top of the detail page, alongside other action buttons like cancellation email)
+- The button will be available for members with status `active` or `pending_activation`
+- Uses the same `sendActivationEmail` handler already in the code (lines 888-922) -- no logic changes needed
+- Shows "Last sent" timestamp if `activation_email_sent_at` exists
+- This does NOT remove the existing activation card for `pending_activation` members -- that stays as-is with its checklist. This just adds a second access point that persists after reactivation.
