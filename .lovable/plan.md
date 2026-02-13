@@ -1,30 +1,37 @@
 
 
-## Add Guest Pass Credit Management for Super Admins
+## Fix Membership Agreement and Liability Waiver on Mobile
 
 ### Problem
-Guest pass credits (`guest_pass` type) are completely missing from the credit management UI -- both the Member Credits page and the Member Detail page only show class, red light, and dry cryo credits. There's no way to give an individual member a guest pass credit unless you use the mass email tool.
+The membership agreement and liability waiver PDFs are not loading on mobile devices (iOS Safari in particular). Mobile browsers cannot display PDFs inline via iframes, and popup-based approaches are often blocked.
 
 ### Solution
-Add `guest_pass` as a selectable credit type everywhere credits are managed, and handle the case where no existing guest pass credit row exists by creating one on the fly.
+Two-part fix:
 
-### Changes
+**1. Replace PDF files with the uploaded versions**
+- Copy `agreements_membership-agreement-2.pdf` to `src/assets/agreements/membership-agreement.pdf` (overwrite)
+- Copy `liability-waiver-3.pdf` to `src/assets/agreements/liability-waiver.pdf` (overwrite)
+- No changes needed in `pdfAssets.ts` since the filenames stay the same
 
-**1. `src/pages/admin/MemberCredits.tsx`** (3 spots)
-- Add `guest_pass` option to the **filter dropdown** (line ~467)
-- Add `guest_pass` option to the **adjust dialog credit type selector** (line ~938)
-- Add a **Guest Pass column** to the credits table (after Dry Cryo, line ~534-559)
-- Update the adjust mutation to **create a new credit row** if no existing guest_pass credit exists (instead of throwing an error)
+**2. Improve mobile PDF experience in SimpleAgreementCard**
+The current `openPdf` function uses `window.open` with a `window.location.href` fallback -- the fallback navigates the user **away** from the app entirely, which is a bad experience. Instead:
 
-**2. `src/pages/admin/MemberDetail.tsx`** (2 spots)
-- Add `guest_pass` option to the **adjust credit dialog** selector (line ~1918-1921)
-- Update the adjust mutation to **create a new credit row** when adding guest_pass credits and none exist yet (line ~405-409)
+- Detect mobile using the existing `useIsMobile` hook
+- On mobile, skip the iframe entirely and only show **Download** and **Open in New Tab** buttons (the current approach)
+- Change the "Open" button to use an `<a>` tag with `target="_blank" rel="noopener noreferrer"` instead of JavaScript `window.open`, which is more reliable on iOS Safari
+- Remove the `window.location.href` fallback that navigates away from the app
+- For the download button, keep the blob-fetch approach (already works well on mobile)
 
-### How the "create if missing" logic works
-When a super admin adds guest pass credits and no `member_credits` row exists for `guest_pass`:
-- Insert a new row into `member_credits` with `credit_type: 'guest_pass'`, `credits_total` and `credits_remaining` set to the requested amount, cycle dates covering the current month, and expiry at end of month
-- Log the adjustment in `credit_adjustments` as usual
-- This is only needed for `guest_pass` since the other credit types are auto-created on membership activation
+### Files to Change
 
-### No database changes needed
-The `guest_pass` value already exists in the `credit_type` enum. The member portal already renders the guest pass card when a credit exists.
+| File | Change |
+|------|--------|
+| `src/assets/agreements/membership-agreement.pdf` | Replace with uploaded version |
+| `src/assets/agreements/liability-waiver.pdf` | Replace with uploaded version |
+| `src/components/SimpleAgreementCard.tsx` | Replace `window.open` / `window.location.href` with native `<a target="_blank">` link for the Open button; keep blob download for Download button |
+
+### Technical Details
+- The `<a target="_blank">` approach is more reliable than `window.open()` on iOS Safari because the browser treats it as a user-initiated navigation rather than a popup
+- The blob-based download is already implemented and works on mobile
+- No database changes needed -- the `agreements` table already references `liability-waiver.pdf` and `membership-agreement.pdf` which map correctly through `pdfAssets.ts`
+
