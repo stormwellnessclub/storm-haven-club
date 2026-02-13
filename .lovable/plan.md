@@ -1,33 +1,52 @@
 
 
-## Fix: Allow Same-Day and Backdated Wellness Credit Bookings for Front Desk
+## Add Cafe / Juice Bar Sales to Member Charge Selector
 
-### Problem
-When front desk staff books a wellness session (Red Light Therapy / Dry Cryo) for a member using their credits, the date picker only allows selecting **future dates** (tomorrow onward). Staff need to:
-- Book for **today** (same-day)
-- **Backdate** bookings (e.g., a member used a session yesterday but it wasn't logged)
+### What You'll Get
 
-### Solution
-Remove the date restriction on the admin wellness booking calendar in `MemberDetail.tsx`. Since this is a staff-only action (not member-facing), there's no reason to block past dates.
+A new **"Cafe / Juice Bar"** group in the charge item dropdown on the Member Detail page. Staff can:
+- Select from previously added cafe/juice items
+- Add new items with **brand name**, **flavor**, and **price**
+- New items are saved to the database so they appear for all staff going forward (no re-adding)
 
-### What Changes
+### How It Works
 
-**File: `src/pages/admin/MemberDetail.tsx`** (1 line change)
+1. In the existing charge item dropdown, a new group called "Cafe / Juice Bar" appears alongside Membership, Fees, Class Passes, etc.
+2. The last option in that group is **"+ Add New Item"**
+3. Clicking it opens a small inline form: Brand Name, Flavor, Price
+4. Once saved, the item is stored in a new `cafe_menu_items` database table and immediately available in the dropdown
+5. All items show as: **"Brand - Flavor ($X.XX)"**
 
-Current (line 2058):
-```tsx
-disabled={(date) => date < new Date()}
+### Files to Change
+
+| File | Change |
+|------|--------|
+| Database migration | Create `cafe_menu_items` table (id, brand_name, flavor, price, is_active, created_at, created_by) with RLS for staff |
+| `src/components/admin/ChargeItemSelector.tsx` | Add "Cafe / Juice Bar" group that loads items from DB, plus inline "Add New Item" form |
+
+### Technical Details
+
+**New table: `cafe_menu_items`**
+
+```text
+id           uuid (PK, default gen_random_uuid())
+brand_name   text NOT NULL
+flavor       text NOT NULL
+price        numeric NOT NULL
+is_active    boolean DEFAULT true
+created_at   timestamptz DEFAULT now()
+created_by   uuid (auth.uid())
 ```
 
-Updated -- remove the `disabled` prop entirely so staff can pick any date:
-```tsx
-// No disabled prop -- staff can select today or past dates
-```
+RLS policies:
+- Staff (super_admin, admin, manager, front_desk) can SELECT, INSERT, UPDATE
+- No public access
 
-This is a single-line fix. The calendar will allow staff to select any date -- today, past, or future -- when booking wellness sessions using member credits.
-
-### Why No Additional Guardrails Are Needed
-- This dialog is only accessible to admin/manager/front desk roles via the Member Detail page
-- The credit balance check already prevents overbooking (button is disabled if no credits remain)
-- Backdating is a legitimate use case for logging sessions that already happened
+**ChargeItemSelector changes:**
+- Fetch `cafe_menu_items` (where `is_active = true`) on mount using a simple `useQuery`
+- Map each DB item into the existing `ChargeItem[]` array under group "Cafe / Juice Bar"
+- Add a special "Add New Item" entry at the bottom of the group
+- When "Add New Item" is selected, show inline fields (brand, flavor, price) instead of the normal amount/description fields
+- On save, insert into `cafe_menu_items`, refetch the list, and auto-select the new item
+- The charge description auto-fills as "Cafe - Brand Flavor" with `chargeType: "cafe"`
 
