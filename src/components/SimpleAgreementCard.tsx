@@ -27,18 +27,8 @@ interface SimpleAgreementCardProps {
   required?: boolean;
 }
 
-/**
- * Mobile-safe PDF open: uses window.location.href as fallback
- * since target="_blank" and window.open are often blocked on iOS Safari.
- */
-const openPdf = (url: string) => {
-  // Try window.open first
-  const win = window.open(url, "_blank");
-  // If blocked (returns null on mobile), navigate directly
-  if (!win) {
-    window.location.href = url;
-  }
-};
+// "Open" is now handled by a native <a> tag in the JSX below,
+// which is more reliable on iOS Safari than window.open().
 
 /**
  * Mobile-safe PDF download: fetches the file as a blob and triggers
@@ -114,10 +104,12 @@ export function SimpleAgreementCard({
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
-                  onClick={() => openPdf(pdfPath)}
+                  asChild
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  Open
+                  <a href={pdfPath} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Open
+                  </a>
                 </Button>
               </div>
             </div>
