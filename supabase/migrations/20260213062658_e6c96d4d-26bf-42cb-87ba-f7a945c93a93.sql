@@ -1,0 +1,1 @@
+ALTER TABLE public.guest_passes ADD COLUMN feedback_email_sent_at timestamptz DEFAULT NULL;

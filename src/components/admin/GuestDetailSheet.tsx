@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { ExternalLink, User, Mail, Phone, Calendar as CalendarIcon, Users, Sparkles, FileText, Pencil, Check, X, CheckCircle2, XCircle, Save, UserCheck } from "lucide-react";
+import { ExternalLink, User, Mail, Phone, Calendar as CalendarIcon, Users, Sparkles, FileText, Pencil, Check, X, CheckCircle2, XCircle, Save, UserCheck, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +33,7 @@ interface GuestPass {
   admin_notes?: string | null;
   checked_in_by?: string | null;
   no_show?: boolean | null;
+  feedback_email_sent_at?: string | null;
 }
 
 interface GuestDetailSheetProps {
@@ -56,7 +57,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
   const [saving, setSaving] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [editingNotes, setEditingNotes] = useState(false);
-
+  const [sendingFeedback, setSendingFeedback] = useState(false);
   if (!guest) return null;
 
   const isActiveToday = guest.valid_date === format(new Date(), "yyyy-MM-dd") && guest.status === 'active' && !guest.no_show;
@@ -303,6 +304,69 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
               </div>
             </>
           )}
+
+          <Separator />
+
+          {/* Feedback Email Status */}
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Feedback Email
+            </h4>
+            {guest.feedback_email_sent_at ? (
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Sent {format(new Date(guest.feedback_email_sent_at), "MMM d, yyyy 'at' h:mm a")}</span>
+              </div>
+            ) : guest.guest_email && guest.status === 'exhausted' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={sendingFeedback}
+                onClick={async () => {
+                  setSendingFeedback(true);
+                  try {
+                    const visitDate = guest.valid_date
+                      ? format(new Date(guest.valid_date), "MMMM d, yyyy")
+                      : undefined;
+                    const { error: emailError } = await supabase.functions.invoke('send-email', {
+                      body: {
+                        type: 'guest_visit_feedback',
+                        to: guest.guest_email,
+                        data: {
+                          name: guest.guest_name,
+                          visitDate,
+                          source: 'admin-manual',
+                        },
+                      },
+                    });
+                    if (emailError) throw emailError;
+                    // Stamp the timestamp
+                    await (supabase
+                      .from('guest_passes' as any)
+                      .update({ feedback_email_sent_at: new Date().toISOString() })
+                      .eq('id', guest.id) as any);
+                    toast.success('Feedback email sent!');
+                    onRefresh?.();
+                  } catch (err: any) {
+                    toast.error(err?.message || 'Failed to send feedback email');
+                  } finally {
+                    setSendingFeedback(false);
+                  }
+                }}
+              >
+                {sendingFeedback ? (
+                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Sending...</>
+                ) : (
+                  <><Send className="h-3 w-3 mr-1" /> Send Feedback Email</>
+                )}
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">
+                {!guest.guest_email ? 'No email on file' : 'Available after check-in'}
+              </p>
+            )}
+          </div>
 
           <Separator />
 

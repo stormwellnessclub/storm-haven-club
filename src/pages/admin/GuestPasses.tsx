@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, Clock, CheckCircle2, XCircle, TrendingUp, AlertTriangle, Gift, Send } from "lucide-react";
+import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, Clock, CheckCircle2, XCircle, TrendingUp, AlertTriangle, Gift, Send, Mail } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +42,7 @@ interface GuestPass {
   admin_notes?: string | null;
   checked_in_by?: string | null;
   no_show?: boolean | null;
+  feedback_email_sent_at?: string | null;
 }
 
 export default function GuestPasses() {
@@ -548,6 +549,11 @@ export default function GuestPasses() {
                                     {getStatusBadge(pass)}
                                     {pass.add_ons && pass.add_ons.length > 0 && (
                                       <Badge variant="outline" className="text-xs">+{pass.add_ons.length}</Badge>
+                                    )}
+                                    {(pass as any).feedback_email_sent_at && (
+                                      <span title={`Feedback email sent ${format(new Date((pass as any).feedback_email_sent_at), "MMM d, yyyy h:mm a")}`}>
+                                        <Mail className="h-3.5 w-3.5 text-green-600" />
+                                      </span>
                                     )}
                                   </div>
                                 </TableCell>

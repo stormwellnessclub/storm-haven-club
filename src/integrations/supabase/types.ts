@@ -1337,6 +1337,7 @@ export type Database = {
           checked_in_by: string | null
           created_at: string | null
           expires_at: string | null
+          feedback_email_sent_at: string | null
           guest_email: string | null
           guest_gender: string | null
           guest_name: string
@@ -1362,6 +1363,7 @@ export type Database = {
           checked_in_by?: string | null
           created_at?: string | null
           expires_at?: string | null
+          feedback_email_sent_at?: string | null
           guest_email?: string | null
           guest_gender?: string | null
           guest_name: string
@@ -1387,6 +1389,7 @@ export type Database = {
           checked_in_by?: string | null
           created_at?: string | null
           expires_at?: string | null
+          feedback_email_sent_at?: string | null
           guest_email?: string | null
           guest_gender?: string | null
           guest_name?: string
