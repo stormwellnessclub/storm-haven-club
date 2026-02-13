@@ -2055,7 +2055,7 @@ export default function MemberDetail() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarPicker mode="single" selected={adminBookDate} onSelect={(d) => setAdminBookDate(d || undefined)} disabled={(date) => date < new Date()} initialFocus />
+                  <CalendarPicker mode="single" selected={adminBookDate} onSelect={(d) => setAdminBookDate(d || undefined)} initialFocus />
                 </PopoverContent>
               </Popover>
             </div>
