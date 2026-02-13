@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DollarSign, Loader2, Banknote } from "lucide-react";
+import { DollarSign, Loader2, Banknote, Plus } from "lucide-react";
 import {
   MEMBERSHIP_PRICING,
   INITIATION_FEE,
@@ -96,7 +97,6 @@ interface ChargeItemSelectorProps {
     status?: string;
   };
   onChargeSuccess?: () => void;
-  /** If using 3DS flow, pass this callback instead */
   onRequires3DS?: (amount: number, description: string) => void;
 }
 
@@ -108,6 +108,7 @@ export function ChargeItemSelector({
   onRequires3DS,
 }: ChargeItemSelectorProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedItemId, setSelectedItemId] = useState("");
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeDescription, setChargeDescription] = useState("");
@@ -117,13 +118,64 @@ export function ChargeItemSelector({
   const [alsoActivate, setAlsoActivate] = useState(false);
   const [isCharging, setIsCharging] = useState(false);
 
+  // Cafe add-new-item state
+  const [isAddingCafeItem, setIsAddingCafeItem] = useState(false);
+  const [newBrand, setNewBrand] = useState("");
+  const [newFlavor, setNewFlavor] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+  const [isSavingCafeItem, setIsSavingCafeItem] = useState(false);
+
   const isPendingActivation = member.status === 'pending_activation';
+
+  // Fetch cafe menu items from DB
+  const { data: cafeMenuItems = [] } = useQuery({
+    queryKey: ["cafe_menu_items"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cafe_menu_items" as any)
+        .select("*")
+        .eq("is_active", true)
+        .order("brand_name");
+      if (error) throw error;
+      return (data || []) as unknown as Array<{ id: string; brand_name: string; flavor: string; price: number }>;
+    },
+  });
 
   const chargeItems = buildChargeItems(member.membership_type, member.gender, member.billing_type);
 
+  // Build cafe charge items from DB
+  const cafeChargeItems: ChargeItem[] = cafeMenuItems.map((item) => ({
+    id: `cafe_${item.id}`,
+    label: `${item.brand_name} - ${item.flavor} ($${Number(item.price).toFixed(2)})`,
+    amount: Number(item.price),
+    description: `Cafe - ${item.brand_name} ${item.flavor}`,
+    chargeType: "cafe",
+    group: "Cafe / Juice Bar",
+  }));
+
+  // Add the "+ Add New Item" entry
+  const addNewCafeItem: ChargeItem = {
+    id: "cafe_add_new",
+    label: "+ Add New Item",
+    amount: null,
+    description: "",
+    chargeType: "cafe",
+    group: "Cafe / Juice Bar",
+  };
+
+  const allChargeItems = [...chargeItems, ...cafeChargeItems, addNewCafeItem];
+
   const handleItemSelect = (itemId: string) => {
+    if (itemId === "cafe_add_new") {
+      setIsAddingCafeItem(true);
+      setSelectedItemId("");
+      setChargeAmount("");
+      setChargeDescription("");
+      return;
+    }
+    setIsAddingCafeItem(false);
     setSelectedItemId(itemId);
-    const item = chargeItems.find((i) => i.id === itemId);
+    const item = allChargeItems.find((i) => i.id === itemId);
     if (item) {
       if (item.amount !== null) {
         setChargeAmount(item.amount.toString());
@@ -132,6 +184,51 @@ export function ChargeItemSelector({
       }
       setChargeDescription(item.description);
       setChargeType(item.chargeType);
+    }
+  };
+
+  const handleSaveNewCafeItem = async () => {
+    if (!newBrand.trim() || !newFlavor.trim() || !newPrice.trim()) {
+      toast.error("Please fill in brand, flavor, and price");
+      return;
+    }
+    const price = parseFloat(newPrice);
+    if (isNaN(price) || price <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    setIsSavingCafeItem(true);
+    try {
+      const { data, error } = await supabase
+        .from("cafe_menu_items" as any)
+        .insert({
+          brand_name: newBrand.trim(),
+          flavor: newFlavor.trim(),
+          price,
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ["cafe_menu_items"] });
+
+      // Auto-select the new item
+      const newId = `cafe_${(data as any).id}`;
+      setSelectedItemId(newId);
+      setChargeAmount(price.toString());
+      setChargeDescription(`Cafe - ${newBrand.trim()} ${newFlavor.trim()}`);
+      setChargeType("cafe");
+      setIsAddingCafeItem(false);
+      setNewBrand("");
+      setNewFlavor("");
+      setNewPrice("");
+      toast.success("Cafe item saved!");
+    } catch (error) {
+      toast.error("Failed to save cafe item");
+    } finally {
+      setIsSavingCafeItem(false);
     }
   };
 
@@ -149,7 +246,6 @@ export function ChargeItemSelector({
     setIsCharging(true);
     try {
       if (isManualPayment) {
-        // Record manual payment directly to manual_charges table
         const { error } = await supabase.from("manual_charges").insert({
           member_id: member.id,
           amount: amountInCents,
@@ -160,7 +256,6 @@ export function ChargeItemSelector({
         });
         if (error) throw error;
 
-        // If "Also activate" is toggled, update member status
         if (alsoActivate && isPendingActivation) {
           const { error: activateError } = await supabase
             .from("members")
@@ -184,7 +279,6 @@ export function ChargeItemSelector({
 
         toast.success(`Manual payment of $${chargeAmount} recorded`);
       } else {
-        // Charge saved card via Stripe
         const { data, error } = await supabase.functions.invoke("stripe-payment", {
           body: {
             action: "charge_saved_card_with_3ds",
@@ -222,11 +316,15 @@ export function ChargeItemSelector({
     setIsManualPayment(false);
     setManualPaymentMethod("cash");
     setAlsoActivate(false);
+    setIsAddingCafeItem(false);
+    setNewBrand("");
+    setNewFlavor("");
+    setNewPrice("");
     onOpenChange(false);
   };
 
   // Group items for the select
-  const groups = chargeItems.reduce((acc, item) => {
+  const groups = allChargeItems.reduce((acc, item) => {
     if (!acc[item.group]) acc[item.group] = [];
     acc[item.group].push(item);
     return acc;
@@ -256,7 +354,13 @@ export function ChargeItemSelector({
                     <SelectLabel>{group}</SelectLabel>
                     {items.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
-                        {item.label}
+                        {item.id === "cafe_add_new" ? (
+                          <span className="flex items-center gap-1 text-primary">
+                            <Plus className="h-3 w-3" /> Add New Item
+                          </span>
+                        ) : (
+                          item.label
+                        )}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -265,71 +369,126 @@ export function ChargeItemSelector({
             </Select>
           </div>
 
-          {/* Amount */}
-          <div>
-            <Label>Amount ($)</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="number"
-                step="0.01"
-                min="0.50"
-                placeholder="0.00"
-                value={chargeAmount}
-                onChange={(e) => setChargeAmount(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <Label>Description</Label>
-            <Textarea
-              value={chargeDescription}
-              onChange={(e) => setChargeDescription(e.target.value)}
-              placeholder="Charge description..."
-              rows={2}
-            />
-          </div>
-
-          {/* Manual payment toggle */}
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div className="flex items-center gap-2">
-              <Banknote className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <Label className="text-sm font-medium">Record as manual payment</Label>
-                <p className="text-xs text-muted-foreground">Do not charge card — record cash/check/external payment</p>
+          {/* Inline Add New Cafe Item form */}
+          {isAddingCafeItem && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+              <p className="text-sm font-medium">Add New Cafe / Juice Item</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">Brand Name</Label>
+                  <Input
+                    placeholder="e.g. Pressed Juicery"
+                    value={newBrand}
+                    onChange={(e) => setNewBrand(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Flavor</Label>
+                  <Input
+                    placeholder="e.g. Greens 3"
+                    value={newFlavor}
+                    onChange={(e) => setNewFlavor(e.target.value)}
+                  />
+                </div>
               </div>
-            </div>
-            <Switch checked={isManualPayment} onCheckedChange={setIsManualPayment} />
-          {/* Also activate toggle - shown for pending_activation members with manual payment */}
-          {isManualPayment && isPendingActivation && (chargeType === 'membership_dues' || chargeType === 'initiation_fee') && (
-            <div className="flex items-center justify-between rounded-lg border border-accent bg-accent/10 p-3">
-              <div>
-                <Label className="text-sm font-medium">Also activate this member</Label>
-                <p className="text-xs text-muted-foreground">Set member status to active after recording payment</p>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs">Price ($)</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0.00"
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <Button size="sm" onClick={handleSaveNewCafeItem} disabled={isSavingCafeItem}>
+                  {isSavingCafeItem && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                  Save Item
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setIsAddingCafeItem(false)}>
+                  Cancel
+                </Button>
               </div>
-              <Switch checked={alsoActivate} onCheckedChange={setAlsoActivate} />
             </div>
           )}
-        </div>
-          {/* Manual payment method selector */}
-          {isManualPayment && (
-            <div>
-              <Label>Payment Method</Label>
-              <Select value={manualPaymentMethod} onValueChange={setManualPaymentMethod}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="check">Check</SelectItem>
-                  <SelectItem value="external">External (Venmo, Zelle, etc.)</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+          {/* Amount */}
+          {!isAddingCafeItem && (
+            <>
+              <div>
+                <Label>Amount ($)</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.50"
+                    placeholder="0.00"
+                    value={chargeAmount}
+                    onChange={(e) => setChargeAmount(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label>Description</Label>
+                <Textarea
+                  value={chargeDescription}
+                  onChange={(e) => setChargeDescription(e.target.value)}
+                  placeholder="Charge description..."
+                  rows={2}
+                />
+              </div>
+
+              {/* Manual payment toggle */}
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center gap-2">
+                  <Banknote className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label className="text-sm font-medium">Record as manual payment</Label>
+                    <p className="text-xs text-muted-foreground">Do not charge card — record cash/check/external payment</p>
+                  </div>
+                </div>
+                <Switch checked={isManualPayment} onCheckedChange={setIsManualPayment} />
+              </div>
+
+              {/* Also activate toggle */}
+              {isManualPayment && isPendingActivation && (chargeType === 'membership_dues' || chargeType === 'initiation_fee') && (
+                <div className="flex items-center justify-between rounded-lg border border-accent bg-accent/10 p-3">
+                  <div>
+                    <Label className="text-sm font-medium">Also activate this member</Label>
+                    <p className="text-xs text-muted-foreground">Set member status to active after recording payment</p>
+                  </div>
+                  <Switch checked={alsoActivate} onCheckedChange={setAlsoActivate} />
+                </div>
+              )}
+
+              {/* Manual payment method selector */}
+              {isManualPayment && (
+                <div>
+                  <Label>Payment Method</Label>
+                  <Select value={manualPaymentMethod} onValueChange={setManualPaymentMethod}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="check">Check</SelectItem>
+                      <SelectItem value="external">External (Venmo, Zelle, etc.)</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -337,10 +496,12 @@ export function ChargeItemSelector({
           <Button variant="outline" onClick={resetAndClose} disabled={isCharging}>
             Cancel
           </Button>
-          <Button onClick={handleCharge} disabled={isCharging || !chargeAmount}>
-            {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {isManualPayment ? "Record" : "Charge"} ${chargeAmount || "0.00"}
-          </Button>
+          {!isAddingCafeItem && (
+            <Button onClick={handleCharge} disabled={isCharging || !chargeAmount}>
+              {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {isManualPayment ? "Record" : "Charge"} ${chargeAmount || "0.00"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
