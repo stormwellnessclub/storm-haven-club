@@ -258,6 +258,36 @@ export type Database = {
           },
         ]
       }
+      cafe_menu_items: {
+        Row: {
+          brand_name: string
+          created_at: string
+          created_by: string | null
+          flavor: string
+          id: string
+          is_active: boolean
+          price: number
+        }
+        Insert: {
+          brand_name: string
+          created_at?: string
+          created_by?: string | null
+          flavor: string
+          id?: string
+          is_active?: boolean
+          price: number
+        }
+        Update: {
+          brand_name?: string
+          created_at?: string
+          created_by?: string | null
+          flavor?: string
+          id?: string
+          is_active?: boolean
+          price?: number
+        }
+        Relationships: []
+      }
       cafe_orders: {
         Row: {
           completed_at: string | null
