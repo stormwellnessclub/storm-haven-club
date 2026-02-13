@@ -400,7 +400,8 @@ interface GuestPassRegistrationCardProps {
 function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCardProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [guestName, setGuestName] = useState("");
+  const [guestFirstName, setGuestFirstName] = useState("");
+  const [guestLastName, setGuestLastName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [visitDate, setVisitDate] = useState("");
@@ -409,10 +410,11 @@ function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!guestName || !visitDate || !user) {
-      toast.error("Please fill in the required fields");
+    if (!guestFirstName.trim() || !guestLastName.trim() || !guestEmail.trim() || !guestPhone.trim() || !visitDate || !user) {
+      toast.error("Please fill in all required fields");
       return;
     }
+    const fullName = `${guestFirstName.trim()} ${guestLastName.trim()}`;
 
     setIsSubmitting(true);
     try {
@@ -420,9 +422,9 @@ function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCa
       const { error: guestError } = await (supabase
         .from("guest_passes" as any)
         .insert({
-          guest_name: guestName.trim(),
-          guest_email: guestEmail.trim() || null,
-          phone_number: guestPhone.trim() || null,
+          guest_name: fullName,
+          guest_email: guestEmail.trim(),
+          phone_number: guestPhone.trim(),
           valid_date: visitDate,
           price_paid: 0,
           status: "active",
@@ -460,7 +462,7 @@ function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCa
             <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-accent" />
             <h3 className="text-lg font-semibold mb-1">Guest Registered!</h3>
             <p className="text-muted-foreground">
-              Your guest <strong>{guestName}</strong> is all set for their visit on{" "}
+              Your guest <strong>{guestFirstName} {guestLastName}</strong> is all set for their visit on{" "}
               {format(parseISO(visitDate), "MMMM d, yyyy")}.
             </p>
           </div>
@@ -490,37 +492,49 @@ function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCa
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="gp-first">First Name *</Label>
+              <Input
+                id="gp-first"
+                placeholder="First name"
+                value={guestFirstName}
+                onChange={(e) => setGuestFirstName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="gp-last">Last Name *</Label>
+              <Input
+                id="gp-last"
+                placeholder="Last name"
+                value={guestLastName}
+                onChange={(e) => setGuestLastName(e.target.value)}
+                required
+              />
+            </div>
+          </div>
           <div className="space-y-2">
-            <Label htmlFor="gp-name">Guest Name *</Label>
+            <Label htmlFor="gp-email">Email *</Label>
             <Input
-              id="gp-name"
-              placeholder="Full name"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
+              id="gp-email"
+              type="email"
+              placeholder="guest@email.com"
+              value={guestEmail}
+              onChange={(e) => setGuestEmail(e.target.value)}
               required
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="gp-email">Email</Label>
-              <Input
-                id="gp-email"
-                type="email"
-                placeholder="Optional"
-                value={guestEmail}
-                onChange={(e) => setGuestEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="gp-phone">Phone</Label>
-              <Input
-                id="gp-phone"
-                type="tel"
-                placeholder="Optional"
-                value={guestPhone}
-                onChange={(e) => setGuestPhone(e.target.value)}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="gp-phone">Phone Number *</Label>
+            <Input
+              id="gp-phone"
+              type="tel"
+              placeholder="(555) 555-5555"
+              value={guestPhone}
+              onChange={(e) => setGuestPhone(e.target.value)}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="gp-date">Visit Date *</Label>

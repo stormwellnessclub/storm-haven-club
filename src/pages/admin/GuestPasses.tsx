@@ -523,6 +523,7 @@ export default function GuestPasses() {
                             <TableHead>Guest</TableHead>
                             <TableHead className="hidden sm:table-cell">Visit Date</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead className="hidden md:table-cell">Source</TableHead>
                             <TableHead className="hidden md:table-cell">Referral</TableHead>
                             <TableHead className="text-right">Revenue</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -556,6 +557,15 @@ export default function GuestPasses() {
                                       </span>
                                     )}
                                   </div>
+                                </TableCell>
+                                <TableCell className="hidden md:table-cell">
+                                  {pass.member_referral === "Complimentary Guest Pass" ? (
+                                    <Badge variant="secondary" className="text-xs">Member</Badge>
+                                  ) : pass.stripe_payment_id && !pass.member_referral ? (
+                                    <Badge variant="outline" className="text-xs">Public</Badge>
+                                  ) : (
+                                    <Badge variant="default" className="text-xs bg-muted text-muted-foreground border">Admin</Badge>
+                                  )}
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                                   {pass.member_referral || '—'}
