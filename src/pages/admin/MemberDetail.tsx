@@ -402,8 +402,53 @@ export default function MemberDetail() {
     }) => {
       if (!user || !id) throw new Error("Not authenticated");
 
-      const credit = memberCredits.find((c) => c.credit_type === creditType);
+      let credit = memberCredits.find((c) => c.credit_type === creditType);
       
+      // For guest_pass, create a new credit row if none exists
+      if (!credit && creditType === "guest_pass" && adjustment > 0) {
+        if (!member) throw new Error("Member data not available");
+        const now = new Date();
+        const cycleStart = format(now, "yyyy-MM-dd");
+        const cycleEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
+        const expiresAt = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+        const { data: newCredit, error: insertError } = await supabase
+          .from("member_credits")
+          .insert({
+            user_id: member.user_id,
+            member_id: id,
+            credit_type: "guest_pass",
+            credits_total: adjustment,
+            credits_remaining: adjustment,
+            cycle_start: cycleStart,
+            cycle_end: cycleEnd,
+            expires_at: expiresAt,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        // Log the adjustment
+        const { error: logError } = await supabase
+          .from("credit_adjustments")
+          .insert({
+            member_id: id,
+            member_credit_id: newCredit.id,
+            credit_type: creditType,
+            adjustment_type: "add",
+            amount: adjustment,
+            previous_balance: 0,
+            new_balance: adjustment,
+            reason: reason || null,
+            adjusted_by: user.id,
+          });
+
+        if (logError) throw logError;
+
+        return { newRemaining: adjustment, creditType };
+      }
+
       if (!credit) {
         throw new Error(`No active ${CREDIT_TYPE_LABELS[creditType]} credits found for this member`);
       }
@@ -1918,6 +1963,7 @@ export default function MemberDetail() {
                   <SelectItem value="class">Class Credits</SelectItem>
                   <SelectItem value="red_light">Red Light Credits</SelectItem>
                   <SelectItem value="dry_cryo">Dry Cryo Credits</SelectItem>
+                  <SelectItem value="guest_pass">Complimentary Guest Pass</SelectItem>
                 </SelectContent>
               </Select>
             </div>

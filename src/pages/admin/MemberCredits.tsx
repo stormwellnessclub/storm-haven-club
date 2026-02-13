@@ -209,8 +209,52 @@ export default function MemberCreditsAdmin() {
       const member = members.find((m) => m.id === memberId);
       if (!member) throw new Error("Member not found");
 
-      const credit = member.credits.find((c) => c.credit_type === creditType);
+      let credit = member.credits.find((c) => c.credit_type === creditType);
       
+      // For guest_pass (and potentially others), create a new credit row if none exists
+      if (!credit && creditType === "guest_pass" && adjustment > 0) {
+        const now = new Date();
+        const cycleStart = format(now, "yyyy-MM-dd");
+        const cycleEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
+        const expiresAt = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+        const { data: newCredit, error: insertError } = await supabase
+          .from("member_credits")
+          .insert({
+            user_id: member.user_id,
+            member_id: memberId,
+            credit_type: "guest_pass",
+            credits_total: adjustment,
+            credits_remaining: adjustment,
+            cycle_start: cycleStart,
+            cycle_end: cycleEnd,
+            expires_at: expiresAt,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        // Log the adjustment
+        const { error: logError } = await supabase
+          .from("credit_adjustments")
+          .insert({
+            member_id: memberId,
+            member_credit_id: newCredit.id,
+            credit_type: creditType,
+            adjustment_type: "add",
+            amount: adjustment,
+            previous_balance: 0,
+            new_balance: adjustment,
+            reason: reason || null,
+            adjusted_by: user.id,
+          });
+
+        if (logError) throw logError;
+
+        return { newRemaining: adjustment, creditType };
+      }
+
       if (!credit) {
         throw new Error(`No active ${CREDIT_TYPE_LABELS[creditType]} credits found for this member`);
       }
@@ -465,6 +509,7 @@ export default function MemberCreditsAdmin() {
                   <SelectItem value="class">Class</SelectItem>
                   <SelectItem value="red_light">Red Light</SelectItem>
                   <SelectItem value="dry_cryo">Dry Cryo</SelectItem>
+                  <SelectItem value="guest_pass">Guest Pass</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -532,6 +577,7 @@ export default function MemberCreditsAdmin() {
                           <TableHead className="text-center">Class Credits</TableHead>
                           <TableHead className="text-center">Red Light</TableHead>
                           <TableHead className="text-center">Dry Cryo</TableHead>
+                          <TableHead className="text-center">Guest Pass</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -557,6 +603,9 @@ export default function MemberCreditsAdmin() {
                             </TableCell>
                             <TableCell className="text-center font-mono">
                               {getCreditDisplay(member, "dry_cryo")}
+                            </TableCell>
+                            <TableCell className="text-center font-mono">
+                              {getCreditDisplay(member, "guest_pass")}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
@@ -715,6 +764,7 @@ export default function MemberCreditsAdmin() {
                   <SelectItem value="class">Class</SelectItem>
                   <SelectItem value="red_light">Red Light</SelectItem>
                   <SelectItem value="dry_cryo">Dry Cryo</SelectItem>
+                  <SelectItem value="guest_pass">Guest Pass</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -936,6 +986,7 @@ export default function MemberCreditsAdmin() {
                   <SelectItem value="class">Class Credits</SelectItem>
                   <SelectItem value="red_light">Red Light Therapy</SelectItem>
                   <SelectItem value="dry_cryo">Dry Cryo</SelectItem>
+                  <SelectItem value="guest_pass">Complimentary Guest Pass</SelectItem>
                 </SelectContent>
               </Select>
             </div>
