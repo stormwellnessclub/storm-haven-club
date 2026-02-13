@@ -23,6 +23,7 @@ import {
   Receipt,
   ScanLine,
   Zap,
+  Gift,
 } from "lucide-react";
 import {
   Sidebar,
@@ -59,6 +60,7 @@ const memberMenuItems: MenuItem[] = [
   { title: "Buy Passes", url: "/class-passes", icon: Ticket },
   { title: "Wellness Booking", url: "/member/wellness", icon: Zap },
   { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
+  { title: "Register Guest", url: "/member/credits", icon: Gift },
   { title: "Waivers", url: "/member/waivers", icon: FileCheck },
   { title: "Support", url: "/member/support", icon: MessageCircle },
 ];
