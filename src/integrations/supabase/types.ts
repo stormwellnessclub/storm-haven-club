@@ -258,35 +258,126 @@ export type Database = {
           },
         ]
       }
-      cafe_menu_items: {
+      cafe_menu_addons: {
         Row: {
-          brand_name: string
-          created_at: string
+          category_id: string | null
+          created_at: string | null
           created_by: string | null
-          flavor: string
+          display_order: number | null
           id: string
-          is_active: boolean
+          is_active: boolean | null
+          name: string
           price: number
         }
         Insert: {
-          brand_name: string
-          created_at?: string
+          category_id?: string | null
+          created_at?: string | null
           created_by?: string | null
-          flavor: string
+          display_order?: number | null
           id?: string
-          is_active?: boolean
+          is_active?: boolean | null
+          name: string
           price: number
         }
         Update: {
-          brand_name?: string
-          created_at?: string
+          category_id?: string | null
+          created_at?: string | null
           created_by?: string | null
-          flavor?: string
+          display_order?: number | null
           id?: string
-          is_active?: boolean
+          is_active?: boolean | null
+          name?: string
           price?: number
         }
+        Relationships: [
+          {
+            foreignKeyName: "cafe_menu_addons_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_menu_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cafe_menu_categories: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          has_addons: boolean | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          has_addons?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          has_addons?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
         Relationships: []
+      }
+      cafe_menu_items: {
+        Row: {
+          brand_name: string | null
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          flavor: string | null
+          id: string
+          is_active: boolean
+          item_name: string | null
+          price: number
+          protein_flavor: string | null
+          size: string | null
+        }
+        Insert: {
+          brand_name?: string | null
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          flavor?: string | null
+          id?: string
+          is_active?: boolean
+          item_name?: string | null
+          price: number
+          protein_flavor?: string | null
+          size?: string | null
+        }
+        Update: {
+          brand_name?: string | null
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          flavor?: string | null
+          id?: string
+          is_active?: boolean
+          item_name?: string | null
+          price?: number
+          protein_flavor?: string | null
+          size?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cafe_menu_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_menu_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cafe_orders: {
         Row: {
