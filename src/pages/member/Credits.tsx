@@ -63,11 +63,39 @@ export default function MemberCredits() {
     <MemberLayout title="My Credits">
       <div className="space-y-6">
         {/* Complimentary Guest Pass Card */}
-        {credits?.guestPassCredits && credits.guestPassCredits.credits_remaining > 0 && (
-          <GuestPassRegistrationCard
-            credit={credits.guestPassCredits}
-            memberId={credits.memberId!}
-          />
+        {credits?.isMember && (
+          credits?.guestPassCredits && credits.guestPassCredits.credits_remaining > 0 ? (
+            <GuestPassRegistrationCard
+              credit={credits.guestPassCredits}
+              memberId={credits.memberId!}
+            />
+          ) : (
+            <Card className="border-accent/30">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Gift className="h-5 w-5 text-accent" />
+                  <CardTitle>Complimentary Guest Pass</CardTitle>
+                </div>
+                <CardDescription>Invite a guest to experience the club</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-6">
+                  <Gift className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground mb-4">
+                    You don't have any guest pass credits right now.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button asChild>
+                      <Link to="/guest-pass">Buy a Guest Pass — $60</Link>
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Or ask staff about complimentary guest pass credits
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )
         )}
 
         {/* Wellness Treatment Credits (Red Light + Dry Cryo) */}
