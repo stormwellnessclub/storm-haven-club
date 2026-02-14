@@ -616,17 +616,18 @@ export default function GuestPasses() {
 
 function GuestPassPromoButton() {
   const [isSending, setIsSending] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   const handleSendPromo = async () => {
-    if (!confirm("This will allocate 1 complimentary guest pass credit to every active member and send them a promotional email. Continue?")) return;
+    if (!confirm("This will allocate 1 complimentary guest pass credit to every active member with all dues paid. Members without full activation or payment will be skipped. Continue?")) return;
 
     setIsSending(true);
     try {
-      // Fetch all active members
+      // Fetch all active members with eligibility fields
       const { data: members, error: membersError } = await supabase
         .from("members")
-        .select("id, user_id, email, first_name")
+        .select("id, user_id, email, first_name, activated_at, annual_fee_paid_at, annual_fee_subscription_id, subscription_status, billing_type")
         .eq("status", "active");
 
       if (membersError) throw membersError;
@@ -647,12 +648,24 @@ function GuestPassPromoButton() {
       const expiryMonth = format(now, "MMMM yyyy");
 
       let successCount = 0;
+      let skippedCount = 0;
       let errorCount = 0;
 
       for (const member of members) {
         try {
           if (!member.user_id) {
             errorCount++;
+            setProgress(prev => ({ ...prev, current: prev.current + 1 }));
+            continue;
+          }
+
+          // Eligibility check: activated, initiation fee paid, dues current
+          const isActivated = !!member.activated_at;
+          const isInitiationPaid = !!(member.annual_fee_paid_at || member.annual_fee_subscription_id);
+          const isDuesCurrent = member.billing_type === 'cash' || ['active', 'trialing'].includes(member.subscription_status || '');
+
+          if (!isActivated || !isInitiationPaid || !isDuesCurrent) {
+            skippedCount++;
             setProgress(prev => ({ ...prev, current: prev.current + 1 }));
             continue;
           }
@@ -700,7 +713,7 @@ function GuestPassPromoButton() {
         setProgress(prev => ({ ...prev, current: prev.current + 1 }));
       }
 
-      toast.success(`Guest pass promo sent! ${successCount} credits allocated${errorCount > 0 ? `, ${errorCount} errors` : ""}`);
+      toast.success(`Guest pass promo sent! ${successCount} credits allocated, ${skippedCount} skipped (ineligible)${errorCount > 0 ? `, ${errorCount} errors` : ""}`);
     } catch (error: any) {
       console.error("Error sending guest pass promo:", error);
       toast.error(error?.message || "Failed to send promo");
@@ -710,6 +723,33 @@ function GuestPassPromoButton() {
     }
   };
 
+  const handleRevokeCredits = async () => {
+    if (!confirm("This will revoke ALL unused complimentary guest pass credits from all members. Continue?")) return;
+
+    setIsRevoking(true);
+    try {
+      const { data, error } = await (supabase
+        .from("member_credits" as any)
+        .update({ credits_remaining: 0 })
+        .eq("credit_type", "guest_pass")
+        .gt("credits_remaining", 0)
+        .gt("expires_at", new Date().toISOString())
+        .select("id") as any);
+
+      if (error) throw error;
+
+      const count = data?.length || 0;
+      toast.success(`${count} guest pass credit${count !== 1 ? 's' : ''} revoked`);
+    } catch (error: any) {
+      console.error("Error revoking credits:", error);
+      toast.error(error?.message || "Failed to revoke credits");
+    } finally {
+      setIsRevoking(false);
+    }
+  };
+
+  const isWorking = isSending || isRevoking;
+
   return (
     <div className="flex items-center gap-2">
       {isSending && progress.total > 0 && (
@@ -718,7 +758,20 @@ function GuestPassPromoButton() {
           <Progress value={(progress.current / progress.total) * 100} className="w-24 h-2" />
         </div>
       )}
-      <Button onClick={handleSendPromo} disabled={isSending} variant="gold">
+      <Button onClick={handleRevokeCredits} disabled={isWorking} variant="destructive" size="sm">
+        {isRevoking ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Revoking...
+          </>
+        ) : (
+          <>
+            <XCircle className="h-4 w-4" />
+            Revoke Guest Pass Credits
+          </>
+        )}
+      </Button>
+      <Button onClick={handleSendPromo} disabled={isWorking} variant="gold">
         {isSending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
