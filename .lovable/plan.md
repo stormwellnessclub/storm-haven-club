@@ -1,73 +1,50 @@
 
-## Update Credits Page: Always-Visible Guest Pass Section with Purchase Option
+
+## Complimentary Guest Pass: Admin-Triggered with Dues-Paid Filter + Remove Feature
 
 ### What Changes
 
-One file updated: `src/pages/member/Credits.tsx` (lines 65-71)
+Update the existing "Send Guest Pass Promo" button on the Admin Guest Passes page to only grant complimentary credits to members who are fully paid and properly activated. Also add a "Revoke Guest Pass Credits" button to undo mistakes.
 
-The Guest Pass section will always be visible to members instead of being hidden when credits are 0.
+### Eligibility Rules
 
-### Behavior
+A member qualifies for the complimentary guest pass credit only if ALL of these are true:
 
-| Scenario | What Member Sees |
-|----------|-----------------|
-| **Has guest pass credits (remaining > 0)** | The registration form to enter guest info (no change from today) |
-| **No credits (0 or no record)** | A card with "No Guest Pass Credits" message and a "Buy a Guest Pass -- $60" button linking to `/guest-pass` plus a note about asking staff for complimentary credits |
+| Condition | How it's checked |
+|-----------|-----------------|
+| Status is `active` | `status = 'active'` |
+| Membership has been activated | `activated_at IS NOT NULL` |
+| Initiation fee is paid | `annual_fee_paid_at IS NOT NULL` OR `annual_fee_subscription_id IS NOT NULL` |
+| Subscription is current | `subscription_status IN ('active', 'trialing')` OR `billing_type = 'cash'` |
 
-### Admin-Granted Credits Confirmation
+Members who are marked `active` but haven't completed activation or payment will be skipped.
 
-When an admin grants a guest pass credit to a specific member (via Member Detail > Adjust Credits), a `member_credits` record is created with `credit_type = 'guest_pass'` and `credits_remaining = 1`. The member's Credits page automatically picks this up and shows the full registration form where they can enter their guest's first name, last name, email, phone, and visit date. No additional work is needed for this -- it already works.
+### New "Revoke" Button
+
+A second button next to "Send Guest Pass Promo" labeled "Revoke Guest Pass Credits" that:
+- Finds all non-expired `guest_pass` credits with `credits_remaining > 0`
+- Sets `credits_remaining` to 0 for all of them
+- Shows a confirmation dialog first ("This will revoke all unused complimentary guest pass credits. Continue?")
+- Shows success count
+
+### Changes
+
+| File | What |
+|------|------|
+| `src/pages/admin/GuestPasses.tsx` | Update the member query in `handleSendPromo` to add eligibility filters; add a new `handleRevokeCredits` function and "Revoke" button |
 
 ### Technical Details
 
-**File: `src/pages/member/Credits.tsx`**
+**File: `src/pages/admin/GuestPasses.tsx`**
 
-Replace the conditional block at lines 65-71:
+1. **Update member query** (around line 627): Change from `.eq("status", "active")` to also select `activated_at`, `annual_fee_paid_at`, `annual_fee_subscription_id`, `subscription_status`, and `billing_type`. Then filter in the loop to skip members who don't meet all eligibility criteria.
 
-```tsx
-// FROM:
-{credits?.guestPassCredits && credits.guestPassCredits.credits_remaining > 0 && (
-  <GuestPassRegistrationCard
-    credit={credits.guestPassCredits}
-    memberId={credits.memberId!}
-  />
-)}
+2. **Add eligibility check** inside the member loop (around line 652): Before inserting a credit, verify the member has `activated_at` set, initiation fee paid (either `annual_fee_paid_at` or `annual_fee_subscription_id`), and current subscription (`subscription_status` in `active`/`trialing` or `billing_type` is `cash`). Skip and increment a "skipped" counter for ineligible members.
 
-// TO:
-{credits?.isMember && (
-  credits?.guestPassCredits && credits.guestPassCredits.credits_remaining > 0 ? (
-    <GuestPassRegistrationCard
-      credit={credits.guestPassCredits}
-      memberId={credits.memberId!}
-    />
-  ) : (
-    <Card className="border-accent/30">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Gift className="h-5 w-5 text-accent" />
-          <CardTitle>Complimentary Guest Pass</CardTitle>
-        </div>
-        <CardDescription>Invite a guest to experience the club</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-6">
-          <Gift className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-          <p className="text-muted-foreground mb-4">
-            You don't have any guest pass credits right now.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button asChild>
-              <Link to="/guest-pass">Buy a Guest Pass — $60</Link>
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-3">
-            Or ask staff about complimentary guest pass credits
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  )
-)}
-```
+3. **Update confirmation dialog** (line 622): Change text to "This will allocate 1 complimentary guest pass credit to every active member with all dues paid. Members without full activation or payment will be skipped. Continue?"
 
-No database changes needed. No new files. One block replaced in one file.
+4. **Update success toast** (line 703): Include skip count, e.g., "Guest pass promo sent! X credits allocated, Y skipped (ineligible), Z errors"
+
+5. **Add revoke function and button**: New `handleRevokeCredits` async function that queries `member_credits` where `credit_type = 'guest_pass'`, `credits_remaining > 0`, and `expires_at > now()`, then updates all matching records to set `credits_remaining = 0`. Add a "Revoke Guest Pass Credits" button (destructive variant) next to the existing promo button.
+
+No database changes needed. No new files.
