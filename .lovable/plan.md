@@ -1,84 +1,146 @@
 
 
-## Direct Stripe-Synced Failed Payment Admin UI
+## Fix Check-In System: Scanner Speed, Data Consistency, and Health Score Integration
 
-### Problem
+### Problems Identified
 
-1. **Wafaa Diab**: No actual failed payments in Stripe. Both her payment intents succeeded and her invoice is paid. If the app shows her as "failed," the issue is likely stale local data or a UI bug displaying incorrect status.
+1. **Scanner fires too fast (no debounce)**: The camera scanner (`MemberCameraScanner`) calls `onScanSuccess` on every decoded frame with zero cooldown. The `handleCameraScan` in `Scanner.tsx` has no guard either -- it calls `processScan` immediately every time. This creates dozens of simultaneous RPC calls.
 
-2. **No webhook data**: The `payment_attempts` table is empty, meaning the webhook pipeline for logging failures isn't populating data. The current admin Payment Tracking page only reads from this local table, so it always shows empty.
+2. **Check-ins not appearing in the list**: The CheckIn page (`/admin/check-in`) fetches recent check-ins only on mount (`useEffect([], [])`). It never refetches after a scan from the Scanner page (`/admin/scanner`). These are two separate pages with independent state. The Scanner page uses `useMemberScanner` hook which inserts check-ins via the `process_member_scan` RPC, but the CheckIn page's `fetchRecentCheckIns` is never called after those inserts.
+
+3. **Health score ignores check-ins**: The `calculate_health_score` database function only counts `workout_logs` -- it completely ignores the `check_ins` table. The `useHealthScore` hook returns hardcoded zeros for `activity_counts.check_ins`. Members never see their check-in activity reflected in their health score.
 
 ### Solution
 
-Add a new "Stripe Live" tab to the Payment Tracking page that queries Stripe directly via an edge function, bypassing the local database entirely. This gives real-time visibility into failed invoices regardless of webhook reliability.
+#### 1. Add scan cooldown/debounce to camera scanner
 
-### Changes
+In `MemberCameraScanner.tsx`, add a ref-based cooldown (3 seconds) so that after a successful scan decode, subsequent decodes of the same or any QR code are ignored for a configurable period.
 
-**1. New edge function: `supabase/functions/stripe-failed-invoices/index.ts`**
+In `Scanner.tsx`, add a `useRef` processing guard to `processScan` so even if two scan events slip through, only one RPC call is made at a time.
 
-Accepts admin-authenticated requests and queries the Stripe API directly for:
-- Open invoices (`status: 'open'`) -- unpaid/failed
-- Uncollectible invoices (`status: 'uncollectible'`)
-- Past-due subscriptions
-- Optionally filter by date range
+#### 2. Make CheckIn page data reactive
 
-Returns invoice details including: customer name/email, amount, due date, attempt count, last failure reason, and associated subscription.
+- Add a polling interval (every 15 seconds) to `fetchRecentCheckIns` and `fetchTodayStats` in `CheckIn.tsx` so the list stays current even when check-ins come from the Scanner page or the database function.
+- Alternatively, convert to `useQuery` with `refetchInterval` for consistency with the rest of the app.
 
-**2. Update `src/pages/admin/PaymentTracking.tsx`**
+#### 3. Include check-ins in health score calculation
 
-Add a 5th tab called "Stripe Live" with a lightning bolt icon that:
-- Calls the new edge function on mount
-- Displays a table of all open/failed invoices directly from Stripe
-- Shows: Member Name, Email, Amount, Status, Last Attempt Date, Failure Reason, Invoice ID
-- Includes a "Retry Payment" button per row (calls `stripe-payment` with `retry_subscription_invoice`)
-- Has a refresh button to re-fetch from Stripe
-- Badge showing count of open invoices
+Update the `calculate_health_score` database function to also count rows from the `check_ins` table in the last 30 days, adding points for check-in frequency (e.g., each check-in worth 2 points, capped at 20).
 
-**3. Fix webhook logging gap**
+Update the `useHealthScore` hook to also fetch the actual `check_ins` count and populate `activity_counts.check_ins` with real data instead of hardcoded zero.
 
-Review `supabase/functions/stripe-webhook/index.ts` to verify the `invoice.payment_failed` handler is correctly calling `log_payment_attempt`. Add logging if missing to ensure future failures populate the `payment_attempts` table.
+---
 
 ### Technical Details
 
-**Edge Function: `stripe-failed-invoices/index.ts`**
+#### File: `src/components/admin/MemberCameraScanner.tsx`
 
-```text
-Request: POST with auth header
-Body: { dateRange?: { start, end }, status?: 'open' | 'uncollectible' | 'all' }
+Add a cooldown ref to prevent rapid-fire scans:
 
-Response: {
-  invoices: [{
-    id, customer_id, customer_email, customer_name,
-    amount_due, currency, status, created, due_date,
-    attempt_count, next_payment_attempt,
-    last_failure_message, subscription_id,
-    hosted_invoice_url
-  }],
-  summary: { total_open, total_uncollectible, total_amount_due }
+```typescript
+const lastScanTimeRef = useRef<number>(0);
+const SCAN_COOLDOWN_MS = 3000; // 3-second cooldown between scans
+
+// In the Html5Qrcode start callback:
+(decodedText) => {
+  const now = Date.now();
+  if (now - lastScanTimeRef.current < SCAN_COOLDOWN_MS) return;
+  lastScanTimeRef.current = now;
+  onScanSuccess(decodedText);
 }
 ```
 
-- Uses `stripe.invoices.list({ status: 'open', limit: 100 })` to get real-time data
-- Expands `customer` and `subscription` for display names
-- Admin-only: validates user has admin role via Supabase auth
+#### File: `src/pages/admin/Scanner.tsx`
 
-**New Component: `src/components/admin/StripeLivePaymentsTab.tsx`**
+Add a ref guard to `processScan`:
 
-- Fetches data from the edge function
-- Renders summary cards (Open Invoices count, Total Amount Due, Uncollectible count)
-- Table with sortable columns
-- "Retry" action button per invoice
-- "Open in Stripe" link using `hosted_invoice_url`
-- Auto-refresh toggle (every 60 seconds)
-- Loading skeleton and error states
+```typescript
+const isProcessingRef = useRef(false);
 
-**Config update: `supabase/config.toml`**
+const processScan = async (memberId: string, deviceType: DeviceType) => {
+  if (isProcessingRef.current) return;
+  isProcessingRef.current = true;
+  try {
+    // ...existing scan logic...
+  } finally {
+    // Reset after cooldown
+    setTimeout(() => { isProcessingRef.current = false; }, 2000);
+  }
+};
+```
 
-Add `verify_jwt = false` for the new function (auth validated in code).
+#### File: `src/pages/admin/CheckIn.tsx`
+
+Convert `fetchRecentCheckIns` and `fetchTodayStats` to poll every 15 seconds:
+
+```typescript
+useEffect(() => {
+  fetchRecentCheckIns();
+  fetchTodayStats();
+  const interval = setInterval(() => {
+    fetchRecentCheckIns();
+    fetchTodayStats();
+  }, 15000);
+  return () => clearInterval(interval);
+}, []);
+```
+
+#### Database Migration: Update `calculate_health_score`
+
+```sql
+CREATE OR REPLACE FUNCTION public.calculate_health_score(_member_id uuid)
+RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = 'public'
+AS $$
+DECLARE
+  v_score integer := 50;
+  v_workout_count integer;
+  v_checkin_count integer;
+BEGIN
+  -- Workouts in last 30 days
+  SELECT COUNT(*) INTO v_workout_count FROM workout_logs
+  WHERE member_id = _member_id AND logged_at > now() - interval '30 days';
+  v_score := v_score + LEAST(v_workout_count * 3, 30);
+
+  -- Check-ins in last 30 days (NEW)
+  SELECT COUNT(*) INTO v_checkin_count FROM check_ins
+  WHERE member_id = _member_id AND checked_in_at > now() - interval '30 days';
+  v_score := v_score + LEAST(v_checkin_count * 2, 20);
+
+  RETURN GREATEST(0, LEAST(100, v_score));
+END;
+$$;
+```
+
+#### File: `src/hooks/useHealthScore.ts`
+
+After calling the RPC, also fetch actual check-in count to populate `activity_counts`:
+
+```typescript
+// Fetch actual check-in count
+const { count: checkInCount } = await supabase
+  .from("check_ins")
+  .select("*", { count: "exact", head: true })
+  .eq("member_id", targetMemberId)
+  .gte("checked_in_at", new Date(Date.now() - (periodDays || 30) * 86400000).toISOString());
+
+// Then in the return object:
+activity_counts: {
+  classes: 0,
+  spa_services: 0,
+  workouts: 0,
+  check_ins: checkInCount || 0,
+  unique_days: 0,
+}
+```
+
+### Summary of Changes
 
 | File | Change |
 |------|--------|
-| `supabase/functions/stripe-failed-invoices/index.ts` | New edge function querying Stripe API directly |
-| `src/components/admin/StripeLivePaymentsTab.tsx` | New component for real-time Stripe invoice display |
-| `src/pages/admin/PaymentTracking.tsx` | Add "Stripe Live" tab |
-| `supabase/functions/stripe-webhook/index.ts` | Verify/fix `invoice.payment_failed` logging |
+| `src/components/admin/MemberCameraScanner.tsx` | Add 3-second cooldown between scan callbacks |
+| `src/pages/admin/Scanner.tsx` | Add ref guard to prevent concurrent scan processing |
+| `src/pages/admin/CheckIn.tsx` | Add 15-second polling interval for recent check-ins and stats |
+| `src/hooks/useHealthScore.ts` | Fetch real check-in count for activity_counts |
+| Database migration | Update `calculate_health_score` to include check-ins |
+
