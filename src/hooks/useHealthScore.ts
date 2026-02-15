@@ -73,11 +73,19 @@ export function useHealthScore(memberId?: string, periodDays?: number) {
       }
       
       const score = typeof data === "number" ? data : 50;
+
+      // Fetch actual check-in count for the period
+      const periodStart = new Date(Date.now() - (periodDays || 30) * 24 * 60 * 60 * 1000).toISOString();
+      const { count: checkInCount } = await supabase
+        .from("check_ins")
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", targetMemberId)
+        .gte("checked_in_at", periodStart);
       
       // Return a full result object with derived scores
       return {
         member_id: targetMemberId,
-        period_start: new Date(Date.now() - (periodDays || 30) * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        period_start: periodStart.split("T")[0],
         period_end: new Date().toISOString().split("T")[0],
         overall_score: score,
         activity_score: Math.round(score * 0.4),
@@ -87,7 +95,7 @@ export function useHealthScore(memberId?: string, periodDays?: number) {
           classes: 0,
           spa_services: 0,
           workouts: 0,
-          check_ins: 0,
+          check_ins: checkInCount || 0,
           unique_days: 0,
         },
       };
