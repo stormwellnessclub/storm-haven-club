@@ -50,6 +50,7 @@ export default function Scanner() {
   const [pendingScan, setPendingScan] = useState<{ memberId: string; deviceType: DeviceType } | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isProcessingRef = useRef(false);
 
   const { scanMember, scanMemberAsync, isScanning } = useMemberScanner();
   const { data: recentScans } = useRecentScans(10);
@@ -105,8 +106,10 @@ export default function Scanner() {
     await processScan(memberId, "camera");
   };
 
-  // Process the scan
+  // Process the scan with guard against concurrent processing
   const processScan = async (memberId: string, deviceType: DeviceType) => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     try {
       const result = await scanMemberAsync({
         memberId,
@@ -136,6 +139,9 @@ export default function Scanner() {
         error: error.message || "Scan failed",
       });
       playAudio("error");
+    } finally {
+      // Reset processing guard after a short delay
+      setTimeout(() => { isProcessingRef.current = false; }, 2000);
     }
   };
 

@@ -84,10 +84,15 @@ export default function CheckIn() {
     ? getEffectiveStatus(selectedMember.status, billingIssues?.memberIssues?.[selectedMember.id])
     : null;
 
-  // Fetch recent check-ins on mount
+  // Fetch recent check-ins on mount and poll every 15 seconds
   useEffect(() => {
     fetchRecentCheckIns();
     fetchTodayStats();
+    const interval = setInterval(() => {
+      fetchRecentCheckIns();
+      fetchTodayStats();
+    }, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchRecentCheckIns = async () => {

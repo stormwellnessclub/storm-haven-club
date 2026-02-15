@@ -25,6 +25,8 @@ export function MemberCameraScanner({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isMountedRef = useRef(true);
   const isCleaningUpRef = useRef(false);
+  const lastScanTimeRef = useRef<number>(0);
+  const SCAN_COOLDOWN_MS = 3000; // 3-second cooldown between scans
   
   // Generate a unique ID for this scanner instance to avoid DOM conflicts
   const uniqueId = useId();
@@ -92,7 +94,10 @@ export function MemberCameraScanner({
           },
         },
         (decodedText) => {
-          // Success callback
+          // Success callback with cooldown to prevent rapid-fire scans
+          const now = Date.now();
+          if (now - lastScanTimeRef.current < SCAN_COOLDOWN_MS) return;
+          lastScanTimeRef.current = now;
           onScanSuccess(decodedText);
         },
         () => {
