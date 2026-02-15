@@ -446,6 +446,22 @@ export default function MemberDetail() {
 
         if (logError) throw logError;
 
+        // Send email notification for guest pass credit
+        if (member.email && creditType === "guest_pass") {
+          const expiresDate = format(new Date(expiresAt), "MMMM d, yyyy");
+          supabase.functions.invoke("send-email", {
+            body: {
+              type: "guest_pass_credit_granted",
+              to: member.email,
+              data: {
+                name: member.first_name,
+                credits_count: adjustment,
+                expires_date: expiresDate,
+              },
+            },
+          }).catch((err: any) => console.error("Failed to send guest pass credit email:", err));
+        }
+
         return { newRemaining: adjustment, creditType };
       }
 
@@ -1756,8 +1772,8 @@ export default function MemberDetail() {
                   ) : memberCredits.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8">No active credits</p>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {(['class', 'red_light', 'dry_cryo'] as CreditType[]).map((type) => {
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {(['class', 'red_light', 'dry_cryo', 'guest_pass'] as CreditType[]).map((type) => {
                         const credit = memberCredits.find((c) => c.credit_type === type);
                         return (
                           <div key={type} className="p-4 border rounded-lg">
