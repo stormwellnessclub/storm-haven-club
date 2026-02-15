@@ -45,9 +45,11 @@ serve(async (req) => {
     const holisticText = applicant.holistic_wellness || "";
     const lifestyleText = applicant.lifestyle_integration || "";
 
-    const systemPrompt = `You are writing a personalized membership approval letter for Storm Wellness Club, a luxury wellness facility in Los Angeles focused on holistic health, fitness, and recovery.
+    const systemPrompt = `You are writing a personalized membership approval letter for Storm Wellness Club, a luxury wellness facility located at 18340 Middlebelt Rd, Livonia, Michigan, focused on holistic health, fitness, and recovery.
 
-The letter should feel warm, personal, and elegant. You are writing on behalf of Storm (the founder).
+The letter should feel warm, personal, and elegant. You are writing on behalf of the Storm Wellness Club team.
+
+IMPORTANT: The club name is "Storm Wellness Club" -- never abbreviate it to just "Storm" or refer to it as a person. It is a club, not an individual.
 
 Guidelines:
 1. Open with congratulations on their approval
@@ -55,7 +57,7 @@ Guidelines:
 3. Connect their stated goals to what Storm Wellness Club offers
 4. Confirm their membership tier
 5. Mention they'll receive setup instructions soon (don't include any links or buttons)
-6. Close warmly signed by Storm
+6. Close warmly signed by "The Storm Wellness Club Team"
 
 Keep the tone elegant, personal, and concise (under 200 words for the body).
 Do not include any links, buttons, or calls-to-action.
