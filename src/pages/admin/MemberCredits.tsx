@@ -252,6 +252,22 @@ export default function MemberCreditsAdmin() {
 
         if (logError) throw logError;
 
+        // Send email notification for guest pass credit
+        if (member.email && creditType === "guest_pass") {
+          const expiresDate = format(new Date(expiresAt), "MMMM d, yyyy");
+          supabase.functions.invoke("send-email", {
+            body: {
+              type: "guest_pass_credit_granted",
+              to: member.email,
+              data: {
+                name: member.first_name,
+                credits_count: adjustment,
+                expires_date: expiresDate,
+              },
+            },
+          }).catch((err: any) => console.error("Failed to send guest pass credit email:", err));
+        }
+
         return { newRemaining: adjustment, creditType };
       }
 
