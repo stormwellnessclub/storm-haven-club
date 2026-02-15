@@ -1,93 +1,84 @@
 
 
-## Full Admin Guest Pass Portal
+## Direct Stripe-Synced Failed Payment Admin UI
 
-### Current State
-The page has KPI cards, a Quick Sale form, and a tabbed pass list (Today/Upcoming/All). The user wants a complete portal with four additional sections for operational and marketing use.
+### Problem
 
-### New Layout
+1. **Wafaa Diab**: No actual failed payments in Stripe. Both her payment intents succeeded and her invoice is paid. If the app shows her as "failed," the issue is likely stale local data or a UI bug displaying incorrect status.
 
-The page will be restructured with a top-level tab navigation to organize everything into logical sections:
+2. **No webhook data**: The `payment_attempts` table is empty, meaning the webhook pipeline for logging failures isn't populating data. The current admin Payment Tracking page only reads from this local table, so it always shows empty.
 
-```text
-+---------------------------------------------------------------+
-| Guest Passes                    [Revoke] [Send Promo]         |
-+---------------------------------------------------------------+
-| [Overview] [Passes] [Member Credits] [Follow-Up] [Marketing] |
-+---------------------------------------------------------------+
-```
+### Solution
 
-### Tab Breakdown
+Add a new "Stripe Live" tab to the Payment Tracking page that queries Stripe directly via an edge function, bypassing the local database entirely. This gives real-time visibility into failed invoices regardless of webhook reliability.
 
-**1. Overview Tab** (default)
-- Existing KPI cards (Today's Guests, This Week Revenue, Active Passes, Total Revenue)
-- New: Pie chart showing pass status distribution (Active / Checked In / Expired / No-Show)
-- New: Conversion rate card (guests who became members vs total guests)
-- New: Revenue trend -- bar chart of weekly guest pass revenue over last 8 weeks
-- New: Busiest days chart -- which days of the week get the most guest visits
+### Changes
 
-**2. Passes Tab**
-- Existing Quick Sale form (left column)
-- Existing tabbed pass list with Today/Upcoming/All sub-tabs (right column)
-- No changes to existing functionality
+**1. New edge function: `supabase/functions/stripe-failed-invoices/index.ts`**
 
-**3. Member Credits Tab**
-- Table showing all members who currently have guest pass credits
-- Columns: Member Name, Email, Credits Remaining, Credits Total, Cycle Period, Expires, Status badge
-- Filter: Show All / Has Credits / Used All
-- Quick action: Click row to open member detail
-- Summary cards at top: Total Credits Outstanding, Members With Credits, Credits Used This Month
+Accepts admin-authenticated requests and queries the Stripe API directly for:
+- Open invoices (`status: 'open'`) -- unpaid/failed
+- Uncollectible invoices (`status: 'uncollectible'`)
+- Past-due subscriptions
+- Optionally filter by date range
 
-**4. Follow-Up Queue Tab**
-- List of guests who visited (status = exhausted/checked in) but are NOT current members
-- Columns: Guest Name, Email, Phone, Visit Date, Referral Source, Days Since Visit, Follow-Up Status
-- Follow-up status tracking: New / Contacted / Interested / Not Interested / Converted
-- Action buttons: Send follow-up email, update status, add notes
-- Filter by status and date range
-- This requires a new `follow_up_status` column on the `guest_passes` table
+Returns invoice details including: customer name/email, amount, due date, attempt count, last failure reason, and associated subscription.
 
-**5. Marketing Tab**
-- Houses the existing Send Guest Pass Promo and Revoke buttons (moved from header)
-- Campaign history: log of when promos were sent, how many credits allocated
-- Promo stats: credits allocated vs used ratio
-- Future placeholder sections for email templates and outreach campaigns
+**2. Update `src/pages/admin/PaymentTracking.tsx`**
 
-### Database Changes
+Add a 5th tab called "Stripe Live" with a lightning bolt icon that:
+- Calls the new edge function on mount
+- Displays a table of all open/failed invoices directly from Stripe
+- Shows: Member Name, Email, Amount, Status, Last Attempt Date, Failure Reason, Invoice ID
+- Includes a "Retry Payment" button per row (calls `stripe-payment` with `retry_subscription_invoice`)
+- Has a refresh button to re-fetch from Stripe
+- Badge showing count of open invoices
 
-1. **Add `follow_up_status` column to `guest_passes` table**
-   - Type: text, nullable, default null
-   - Values: 'new', 'contacted', 'interested', 'not_interested', 'converted'
+**3. Fix webhook logging gap**
 
-2. **Add `follow_up_notes` column to `guest_passes` table**
-   - Type: text, nullable
-
-3. **Add `promo_campaign_log` table** to track when promos were sent
-   - `id` (uuid, PK)
-   - `sent_by` (uuid, references auth.users)
-   - `credits_allocated` (integer)
-   - `members_skipped` (integer)
-   - `members_errored` (integer)
-   - `sent_at` (timestamptz, default now())
-   - RLS: admin read/write only
+Review `supabase/functions/stripe-webhook/index.ts` to verify the `invoice.payment_failed` handler is correctly calling `log_payment_attempt`. Add logging if missing to ensure future failures populate the `payment_attempts` table.
 
 ### Technical Details
 
-**File changes:**
+**Edge Function: `stripe-failed-invoices/index.ts`**
+
+```text
+Request: POST with auth header
+Body: { dateRange?: { start, end }, status?: 'open' | 'uncollectible' | 'all' }
+
+Response: {
+  invoices: [{
+    id, customer_id, customer_email, customer_name,
+    amount_due, currency, status, created, due_date,
+    attempt_count, next_payment_attempt,
+    last_failure_message, subscription_id,
+    hosted_invoice_url
+  }],
+  summary: { total_open, total_uncollectible, total_amount_due }
+}
+```
+
+- Uses `stripe.invoices.list({ status: 'open', limit: 100 })` to get real-time data
+- Expands `customer` and `subscription` for display names
+- Admin-only: validates user has admin role via Supabase auth
+
+**New Component: `src/components/admin/StripeLivePaymentsTab.tsx`**
+
+- Fetches data from the edge function
+- Renders summary cards (Open Invoices count, Total Amount Due, Uncollectible count)
+- Table with sortable columns
+- "Retry" action button per invoice
+- "Open in Stripe" link using `hosted_invoice_url`
+- Auto-refresh toggle (every 60 seconds)
+- Loading skeleton and error states
+
+**Config update: `supabase/config.toml`**
+
+Add `verify_jwt = false` for the new function (auth validated in code).
 
 | File | Change |
 |------|--------|
-| `src/pages/admin/GuestPasses.tsx` | Major restructure: wrap content in top-level Tabs, move existing content into "Passes" tab, add Overview/Member Credits/Follow-Up/Marketing tabs |
-| `src/components/admin/GuestPassOverviewTab.tsx` | New: charts and analytics using Recharts (already installed) |
-| `src/components/admin/GuestPassMemberCreditsTab.tsx` | New: member credits table with filters |
-| `src/components/admin/GuestPassFollowUpTab.tsx` | New: follow-up queue with status management |
-| `src/components/admin/GuestPassMarketingTab.tsx` | New: promo tools + campaign history |
-| Database migration | Add columns + new table |
-
-**Key implementation notes:**
-- All chart components use Recharts (already a dependency)
-- Member credits data comes from `member_credits` table filtered by `credit_type = 'guest_pass'`
-- Follow-up queue filters `guest_passes` where `status = 'exhausted'` and cross-checks against `members` table to exclude existing members
-- Campaign log gets a new row inserted each time the promo button is clicked (inside `handleSendPromo`)
-- The promo/revoke buttons move from the page header into the Marketing tab
-- All new components follow the existing AdminLayout pattern with Cards, Tables, and Badges
-
+| `supabase/functions/stripe-failed-invoices/index.ts` | New edge function querying Stripe API directly |
+| `src/components/admin/StripeLivePaymentsTab.tsx` | New component for real-time Stripe invoice display |
+| `src/pages/admin/PaymentTracking.tsx` | Add "Stripe Live" tab |
+| `supabase/functions/stripe-webhook/index.ts` | Verify/fix `invoice.payment_failed` logging |
