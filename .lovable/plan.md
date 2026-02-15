@@ -1,84 +1,117 @@
 
 
-## Fix Guest Pass Credit Visibility and Add Notification Email
+## Split Support into In-Club and Regular Sections on Check-In Page with Sound Alerts
 
-### Problems
+### What Changes
 
-1. **Admin MemberDetail Credits tab hides guest pass credits**: Line 1760 of `MemberDetail.tsx` only iterates over `['class', 'red_light', 'dry_cryo']`, completely excluding `'guest_pass'` from the grid display. The data is fetched but never rendered.
+The current Check-In page has a single small "SupportAlertCard" banner that just shows a count and links to the emails page. This means staff have to navigate away to see what members need -- and tickets get missed.
 
-2. **Member Credits page works correctly**: The member-facing `/member/credits` page already shows guest pass credits (lines 66-98 of `Credits.tsx`). However, it depends on `useUserCredits` which queries by `member_id` -- this should be working if credits are properly created.
+This plan replaces that single banner with two dedicated, always-visible panels directly on the Check-In page:
 
-3. **No email notification when credits are granted**: When an admin grants a guest pass credit (either individually or via the promo tool), there's an existing `guest_pass_promo` email template, but it's only triggered from the bulk promo tool in `GuestPassMarketingTab`. Individual credit grants from the MemberDetail page or MemberCredits page don't send any notification.
+1. **In-Club Requests** (concierge) -- Steam room, ice bed, red light therapy requests from members currently in the building. These are time-sensitive and need immediate attention.
+2. **Support Tickets** -- General support messages that can be addressed between check-ins.
 
-### Changes
+Both panels will show the actual ticket subjects, member names, timestamps, and quick-reply capability so staff never need to leave the page.
 
-**1. Show guest pass credits in admin MemberDetail Credits tab**
+A **sound notification** will play whenever a new unread message arrives, so even if the staff isn't looking at the screen, they hear it.
 
-In `src/pages/admin/MemberDetail.tsx` line 1760, add `'guest_pass'` to the credit types array:
+### Detailed Changes
 
-```typescript
-// Change from:
-(['class', 'red_light', 'dry_cryo'] as CreditType[]).map(...)
+**1. New component: `CheckInSupportPanel.tsx`**
 
-// Change to:
-(['class', 'red_light', 'dry_cryo', 'guest_pass'] as CreditType[]).map(...)
-```
+A new component that renders two collapsible cards side-by-side below the check-in area:
 
-Also update the grid from `md:grid-cols-3` to `md:grid-cols-4` (line 1759) to accommodate the 4th credit card.
+- **Left card: "In-Club Requests"** (orange/amber theme)
+  - Filters conversations where `category = 'concierge'` and status is `open` or `in_progress`
+  - Shows member name, request subject, time submitted
+  - "Mark Done" button to resolve inline
+  - Quick-reply text input for short responses
 
-**2. Add a `guest_pass_credit_granted` email template**
+- **Right card: "Support Tickets"** (blue theme)
+  - Filters conversations where `category = 'support'` and status is `open` or `in_progress`
+  - Same layout: member name, subject, timestamp
+  - "View Full" link to `/admin/emails` for longer conversations
+  - Quick-reply capability
 
-Add a new email type to `supabase/functions/send-email/index.ts` that is purpose-built for when a member receives a guest pass credit (as opposed to the promo which is a bulk marketing blast). This template will:
+Both cards show a count badge in their header (e.g., "In-Club Requests (3)").
 
-- Inform the member they have a complimentary guest pass credit
-- Show how many credits they have
-- Include a direct link to `/member/credits` to register their guest
-- Include expiry information
+**2. Sound notification system**
 
-**3. Trigger the email when credits are granted from admin**
+- Add a small audio file (a soft chime) as a base64-encoded data URL or use the Web Audio API to generate a notification tone programmatically (no external file needed)
+- In the `useAdminSupportNotifications` hook, track the previous unread count using a ref
+- When the new unread count exceeds the previous count, play the sound
+- This runs on the 30-second polling interval that already exists
+- Staff can mute/unmute via a small speaker icon on the panel header
 
-In `src/pages/admin/MemberDetail.tsx`, after the guest pass credit is successfully created/adjusted (around line 418), call the `send-email` edge function with the new template to notify the member.
+**3. Update CheckIn.tsx**
 
-Similarly, in `src/pages/admin/MemberCredits.tsx` (line 224 area), add the same notification call after granting credits.
+- Remove the existing `<SupportAlertCard />` line
+- Add the new `<CheckInSupportPanel />` component between the check-in area and the stats/recent check-ins section
+- The panel uses the existing `useAdminSupportNotifications` hook data plus a new query for the actual conversation list
+
+**4. Update `useAdminSupportNotifications` hook**
+
+- Add separate counts for concierge vs support categories
+- Return `conciergeOpenCount`, `conciergeUnreadCount`, `supportOpenCount`, `supportUnreadCount`
+- Keep the existing `totalActiveCount` for backward compatibility (used by sidebar badges)
 
 ### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/pages/admin/MemberDetail.tsx` | Add `'guest_pass'` to credit types array on line 1760; change grid to 4 columns on line 1759; add email notification after credit grant around line 418 |
-| `src/pages/admin/MemberCredits.tsx` | Add email notification after credit grant around line 224 |
-| `supabase/functions/send-email/index.ts` | Add `'guest_pass_credit_granted'` email type and branded template |
+| `src/components/admin/CheckInSupportPanel.tsx` | **New file** -- Two-panel support display with inline quick-reply, mark-done, and sound alerts |
+| `src/pages/admin/CheckIn.tsx` | Replace `<SupportAlertCard />` with `<CheckInSupportPanel />` |
+| `src/hooks/useAdminSupportNotifications.ts` | Add category-split counts; add sound notification logic via a `useNewMessageSound` hook |
 
-**New email template: `guest_pass_credit_granted`**
-
-```text
-Subject: "You Have a Complimentary Guest Pass!"
-Data: { name, credits_count, expires_date }
-
-Content:
-- Greeting with member name
-- "You've received [X] complimentary guest pass credit(s)"
-- Info box with credit count and expiry
-- Instruction to register guest via member portal
-- CTA button: "Register Your Guest" -> /member/credits
-- Signed by The Storm Wellness Club Team
-```
-
-**Email trigger logic (added to credit grant handlers):**
+**Sound notification approach (Web Audio API -- no file needed):**
 
 ```typescript
-// After successful credit insert/update
-if (member.email && member.user_id) {
-  await supabase.functions.invoke("send-email", {
-    body: {
-      type: "guest_pass_credit_granted",
-      to: member.email,
-      data: {
-        name: member.first_name,
-        credits_count: adjustment,
-        expires_date: format(expiresAt, "MMMM d, yyyy"),
-      },
-    },
-  });
+function playNotificationChime() {
+  const ctx = new AudioContext();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.frequency.value = 880; // A5 note
+  osc.type = "sine";
+  gain.gain.value = 0.3;
+  osc.start();
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+  osc.stop(ctx.currentTime + 0.5);
 }
+```
+
+**CheckInSupportPanel layout:**
+
+```text
++----------------------------------+----------------------------------+
+| In-Club Requests (2)        [mute] | Support Tickets (1)              |
+|                                    |                                  |
+| Jane D. - Steam Room Request       | Mike S. - Billing Question       |
+| 10:32 AM  [Reply] [Mark Done]      | 9:15 AM  [Reply] [View Full]     |
+|                                    |                                  |
+| Tom R. - Red Light Therapy          |                                  |
+| 10:45 AM  [Reply] [Mark Done]      |                                  |
++----------------------------------+----------------------------------+
+```
+
+**Query for panel data:**
+
+```typescript
+const { data: conversations } = useQuery({
+  queryKey: ['checkin-support-conversations'],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from('email_conversations')
+      .select('*, profiles:user_id(first_name, last_name)')
+      .in('status', ['open', 'in_progress'])
+      .order('last_message_at', { ascending: false })
+      .limit(20);
+    return data;
+  },
+  refetchInterval: 15000, // matches check-in polling
+});
+
+const conciergeItems = conversations?.filter(c => c.category === 'concierge');
+const supportItems = conversations?.filter(c => c.category === 'support');
 ```
