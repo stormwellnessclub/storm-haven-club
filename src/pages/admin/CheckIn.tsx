@@ -25,7 +25,7 @@ import { format, addYears, isBefore } from "date-fns";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 import { EffectiveStatusBadge, getEffectiveStatus } from "@/components/admin/EffectiveStatusBadge";
-import { SupportAlertCard } from "@/components/admin/SupportAlertCard";
+import { CheckInSupportPanel } from "@/components/admin/CheckInSupportPanel";
 
 type MemberStatus = "active" | "past_due" | "frozen" | "expired" | "cancelled";
 
@@ -306,8 +306,8 @@ export default function CheckIn() {
   return (
     <AdminLayout title="Member Check-In">
       <div className="space-y-6">
-        {/* Support Alert */}
-        <SupportAlertCard />
+        {/* Support Panels - In-Club Requests & Support Tickets */}
+        <CheckInSupportPanel />
 
         {/* Main Check-In Area */}
         <div className="grid gap-6 lg:grid-cols-5">
