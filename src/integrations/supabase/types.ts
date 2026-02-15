@@ -1459,6 +1459,8 @@ export type Database = {
           created_at: string | null
           expires_at: string | null
           feedback_email_sent_at: string | null
+          follow_up_notes: string | null
+          follow_up_status: string | null
           guest_email: string | null
           guest_gender: string | null
           guest_name: string
@@ -1485,6 +1487,8 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           feedback_email_sent_at?: string | null
+          follow_up_notes?: string | null
+          follow_up_status?: string | null
           guest_email?: string | null
           guest_gender?: string | null
           guest_name: string
@@ -1511,6 +1515,8 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           feedback_email_sent_at?: string | null
+          follow_up_notes?: string | null
+          follow_up_status?: string | null
           guest_email?: string | null
           guest_gender?: string | null
           guest_name?: string
@@ -3177,6 +3183,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      promo_campaign_log: {
+        Row: {
+          credits_allocated: number
+          id: string
+          members_errored: number
+          members_skipped: number
+          sent_at: string
+          sent_by: string | null
+        }
+        Insert: {
+          credits_allocated?: number
+          id?: string
+          members_errored?: number
+          members_skipped?: number
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Update: {
+          credits_allocated?: number
+          id?: string
+          members_errored?: number
+          members_skipped?: number
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Relationships: []
       }
       refund_requests: {
         Row: {
