@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CloudRain, Snowflake, Sun, Pencil, Loader2, Send } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CloudRain, Snowflake, Sun, Pencil, Loader2, Send, Clock } from "lucide-react";
 import { useCreateConversation } from "@/hooks/useEmailConversations";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { useToast } from "@/hooks/use-toast";
@@ -135,6 +136,14 @@ export function ClubConciergeTab() {
           Request services from our concierge team
         </p>
       </div>
+
+      <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50">
+        <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <AlertTitle className="text-amber-800 dark:text-amber-300">Please allow 15–30 minutes</AlertTitle>
+        <AlertDescription className="text-amber-700 dark:text-amber-400/80">
+          Our concierge team needs time to prepare your request. We recommend submitting when you arrive or shortly before so everything is ready for you.
+        </AlertDescription>
+      </Alert>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {conciergeServices.map((service) => {
