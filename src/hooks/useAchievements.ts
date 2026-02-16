@@ -78,7 +78,7 @@ export function useMemberAchievements(memberId?: string) {
 
       return (data || []).map((a: any) => ({
         ...a,
-        achievement_id: a.id,
+        achievement_id: a.achievement_id || a.id,
       })) as MemberAchievement[];
     },
     enabled: !!user && (!!memberId || !!user.id),

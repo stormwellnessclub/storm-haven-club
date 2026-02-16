@@ -118,10 +118,27 @@ export function useCreateHabitLog() {
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["habit-logs"] });
       queryClient.invalidateQueries({ queryKey: ["habit-streaks"] });
+      queryClient.invalidateQueries({ queryKey: ["health-score"] });
       toast.success("Habit logged successfully");
+
+      // Auto-check achievements
+      try {
+        if (!user) return;
+        const { data: member } = await supabase
+          .from("members")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (member) {
+          await (supabase.rpc as any)("check_and_award_achievements", { _member_id: member.id });
+          queryClient.invalidateQueries({ queryKey: ["member-achievements"] });
+        }
+      } catch (e) {
+        console.warn("Auto achievement check failed:", e);
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to log habit");

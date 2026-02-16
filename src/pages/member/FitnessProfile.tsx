@@ -29,7 +29,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useFitnessProfile, useCreateFitnessProfile, useUpdateFitnessProfile } from "@/hooks/useFitnessProfile";
-import { useAllEquipment } from "@/hooks/useEquipment";
 import { Activity, Save, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
@@ -85,7 +84,6 @@ type FitnessProfileFormData = z.infer<typeof fitnessProfileSchema>;
 
 export default function FitnessProfile() {
   const { data: profile, isLoading } = useFitnessProfile();
-  const { data: allEquipment, isLoading: equipmentLoading } = useAllEquipment();
   const createProfile = useCreateFitnessProfile();
   const updateProfile = useUpdateFitnessProfile();
 
@@ -302,78 +300,15 @@ export default function FitnessProfile() {
               </CardContent>
             </Card>
 
-            {/* Equipment & Time */}
+            {/* Workout Time */}
             <Card>
               <CardHeader>
-                <CardTitle>Equipment & Time</CardTitle>
+                <CardTitle>Workout Time</CardTitle>
                 <CardDescription>
-                  What equipment do you have access to and how much time can you dedicate?
+                  How much time can you dedicate to a workout session?
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div>
-                  <Label className="text-base">Available Equipment</Label>
-                  <FormDescription className="mb-3">
-                    Select all equipment you have access to. Images help identify equipment.
-                  </FormDescription>
-                  {equipmentLoading ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-                      {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <Skeleton key={i} className="h-24 w-full" />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-                      {allEquipment?.map((equipment) => {
-                        const checked = form.watch("equipment_ids")?.includes(equipment.id) || false;
-                        return (
-                          <div
-                            key={equipment.id}
-                            className={cn(
-                              "relative border-2 rounded-lg p-3 cursor-pointer transition-all",
-                              checked
-                                ? "border-accent bg-accent/10"
-                                : "border-border hover:border-accent/50"
-                            )}
-                            onClick={() => toggleArrayItem("equipment_ids", equipment.id)}
-                          >
-                            {equipment.image_url && (
-                              <div className="aspect-square mb-2 rounded overflow-hidden bg-muted">
-                                <img
-                                  src={equipment.image_url}
-                                  alt={equipment.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            )}
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`equipment-${equipment.id}`}
-                                checked={checked}
-                                onCheckedChange={() => toggleArrayItem("equipment_ids", equipment.id)}
-                              />
-                              <Label
-                                htmlFor={`equipment-${equipment.id}`}
-                                className="cursor-pointer font-normal text-sm flex-1"
-                              >
-                                {equipment.name}
-                              </Label>
-                            </div>
-                            {equipment.description && (
-                              <p className="text-xs text-muted-foreground mt-1">{equipment.description}</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {(!allEquipment || allEquipment.length === 0) && (
-                        <p className="text-sm text-muted-foreground col-span-full">
-                          No equipment available. Please contact support.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
                 <FormField
                   control={form.control}
                   name="available_time_minutes"
