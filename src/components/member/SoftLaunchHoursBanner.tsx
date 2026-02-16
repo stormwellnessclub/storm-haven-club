@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const SOFT_LAUNCH_END = new Date('2025-02-23T00:00:00');
+const SOFT_LAUNCH_END = new Date('2026-02-23T00:00:00');
 const STORAGE_KEY = 'soft-launch-banner-dismissed';
 
 const softLaunchHours = [
@@ -48,7 +48,7 @@ export function SoftLaunchHoursBanner() {
                 Soft Launch Hours
               </h3>
               <p className="text-xs text-muted-foreground">
-                February 16 – 22, 2025
+                February 16 – 22, 2026
               </p>
             </div>
             <div className="space-y-1">
@@ -65,7 +65,7 @@ export function SoftLaunchHoursBanner() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground italic">
-              Regular hours begin after Feb 22.
+              Regular hours begin after Feb 22, 2026.
             </p>
           </div>
         </div>
