@@ -61,6 +61,7 @@ import PaymentTracking from "./pages/admin/PaymentTracking";
 import RevenueAnalytics from "./pages/admin/RevenueAnalytics";
 import Settings from "./pages/admin/Settings";
 import GuestPasses from "./pages/admin/GuestPasses";
+import GuestManagement from "./pages/admin/GuestManagement";
 import CafePOS from "./pages/admin/CafePOS";
 import Childcare from "./pages/admin/Childcare";
 import AdminClasses from "./pages/admin/Classes";
@@ -145,6 +146,7 @@ const App = () => (
               <Route path="/admin/payment-tracking" element={<ProtectedAdminRoute><PaymentTracking /></ProtectedAdminRoute>} />
               <Route path="/admin/revenue-analytics" element={<ProtectedAdminRoute><RevenueAnalytics /></ProtectedAdminRoute>} />
               <Route path="/admin/guest-passes" element={<ProtectedAdminRoute><GuestPasses /></ProtectedAdminRoute>} />
+              <Route path="/admin/guests" element={<ProtectedAdminRoute><GuestManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/cafe" element={<ProtectedAdminRoute><CafePOS /></ProtectedAdminRoute>} />
               <Route path="/admin/childcare" element={<ProtectedAdminRoute><Childcare /></ProtectedAdminRoute>} />
               <Route path="/admin/classes" element={<ProtectedAdminRoute><AdminClasses /></ProtectedAdminRoute>} />

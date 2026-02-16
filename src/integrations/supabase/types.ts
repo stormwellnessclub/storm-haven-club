@@ -1455,6 +1455,10 @@ export type Database = {
         Row: {
           add_ons: Json | null
           admin_notes: string | null
+          card_brand: string | null
+          card_exp_month: number | null
+          card_exp_year: number | null
+          card_last4: string | null
           checked_in_by: string | null
           created_at: string | null
           expires_at: string | null
@@ -1483,6 +1487,10 @@ export type Database = {
         Insert: {
           add_ons?: Json | null
           admin_notes?: string | null
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
           checked_in_by?: string | null
           created_at?: string | null
           expires_at?: string | null
@@ -1511,6 +1519,10 @@ export type Database = {
         Update: {
           add_ons?: Json | null
           admin_notes?: string | null
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
           checked_in_by?: string | null
           created_at?: string | null
           expires_at?: string | null
@@ -1537,6 +1549,68 @@ export type Database = {
           visit_notes?: string | null
         }
         Relationships: []
+      }
+      guest_services: {
+        Row: {
+          amount: number
+          charged_by: string | null
+          created_at: string
+          guest_email: string | null
+          guest_name: string
+          guest_pass_id: string | null
+          id: string
+          notes: string | null
+          service_category: string
+          service_date: string
+          service_name: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_payment_intent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          charged_by?: string | null
+          created_at?: string
+          guest_email?: string | null
+          guest_name: string
+          guest_pass_id?: string | null
+          id?: string
+          notes?: string | null
+          service_category?: string
+          service_date?: string
+          service_name: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          charged_by?: string | null
+          created_at?: string
+          guest_email?: string | null
+          guest_name?: string
+          guest_pass_id?: string | null
+          id?: string
+          notes?: string | null
+          service_category?: string
+          service_date?: string
+          service_name?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_services_guest_pass_id_fkey"
+            columns: ["guest_pass_id"]
+            isOneToOne: false
+            referencedRelation: "guest_passes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       habit_logs: {
         Row: {
