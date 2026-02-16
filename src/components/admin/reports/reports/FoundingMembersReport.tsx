@@ -23,17 +23,17 @@ export function FoundingMembersReport({ dateRange, filters }: Props) {
     queryKey: ['report-founding-members', dateRange, filters],
     queryFn: async () => {
       const { data: members, error } = await supabase
-        .from('membership_applications')
-        .select('*');
+        .from('members')
+        .select('id, membership_type, status, is_founding_member, gender, first_name, last_name, email, created_at');
 
       if (error) throw error;
 
-      const founding = (members || []).filter(m => m.founding_member);
-      const regular = (members || []).filter(m => !m.founding_member);
+      const founding = (members || []).filter(m => m.is_founding_member);
+      const regular = (members || []).filter(m => !m.is_founding_member);
 
       // Calculate annual revenue for founding members (they pay upfront)
       const foundingRevenue = founding.reduce((sum, m) => {
-        const tier = extractTier(m.membership_plan);
+        const tier = extractTier(m.membership_type);
         const gender = normalizeGender(m.gender);
         return sum + getAnnualPrice(tier, gender);
       }, 0);
@@ -45,7 +45,7 @@ export function FoundingMembersReport({ dateRange, filters }: Props) {
 
       // Tier breakdown for founding members with annual pricing
       const foundingByTier = founding.reduce((acc, m) => {
-        const tier = extractTier(m.membership_plan);
+        const tier = extractTier(m.membership_type);
         const gender = normalizeGender(m.gender);
         const annualPrice = getAnnualPrice(tier, gender);
         
@@ -60,7 +60,7 @@ export function FoundingMembersReport({ dateRange, filters }: Props) {
         const gender = normalizeGender(m.gender);
         if (!acc[gender]) acc[gender] = { gender, count: 0, revenue: 0 };
         acc[gender].count += 1;
-        acc[gender].revenue += getAnnualPrice(extractTier(m.membership_plan), gender);
+        acc[gender].revenue += getAnnualPrice(extractTier(m.membership_type), gender);
         return acc;
       }, {} as Record<string, { gender: string; count: number; revenue: number }>);
 
