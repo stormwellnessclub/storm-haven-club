@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Search, 
   UserCheck, 
@@ -48,14 +51,20 @@ interface CheckInRecord {
   id: string;
   member_id: string;
   checked_in_at: string;
+  notes: string | null;
   members: {
+    id: string;
+    member_id: string;
     first_name: string;
     last_name: string;
     membership_type: string;
+    photo_url: string | null;
+    status: string;
   };
 }
 
 export default function CheckIn() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Member[]>([]);
@@ -105,15 +114,19 @@ export default function CheckIn() {
         id,
         member_id,
         checked_in_at,
+        notes,
         members (
+          id,
+          member_id,
           first_name,
           last_name,
-          membership_type
+          membership_type,
+          photo_url,
+          status
         )
       `)
       .gte("checked_in_at", today.toISOString())
-      .order("checked_in_at", { ascending: false })
-      .limit(6);
+      .order("checked_in_at", { ascending: false });
 
     if (!error && data) {
       setRecentCheckIns(data as unknown as CheckInRecord[]);
@@ -553,68 +566,97 @@ export default function CheckIn() {
           </Card>
         </div>
 
-        {/* Stats and Recent Activity */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Today's Stats */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <UserCheck className="h-4 w-4" />
-                Today's Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-green-50 dark:bg-green-950/30 rounded-lg">
-                  <p className="text-3xl font-bold text-green-700 dark:text-green-400">{todayStats.total}</p>
-                  <p className="text-xs text-green-600 dark:text-green-500">Total Check-Ins</p>
-                </div>
-                <div className="text-center p-4 bg-secondary/50 rounded-lg">
-                  <p className="text-3xl font-bold">{todayStats.currentlyIn}</p>
-                  <p className="text-xs text-muted-foreground">Currently In</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Check-Ins */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Recent Check-Ins
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recentCheckIns.length > 0 ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {recentCheckIns.map((checkIn) => (
-                    <div
-                      key={checkIn.id}
-                      className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg"
-                    >
-                      <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
-                          {checkIn.members.first_name} {checkIn.members.last_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{checkIn.members.membership_type}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {format(new Date(checkIn.checked_in_at), "h:mm a")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No check-ins today yet</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Today's Stats */}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2 max-w-md">
+          <div className="text-center p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border">
+            <p className="text-3xl font-bold text-green-700 dark:text-green-400">{todayStats.total}</p>
+            <p className="text-xs text-green-600 dark:text-green-500">Total Check-Ins</p>
+          </div>
+          <div className="text-center p-4 bg-secondary/50 rounded-lg border">
+            <p className="text-3xl font-bold">{todayStats.currentlyIn}</p>
+            <p className="text-xs text-muted-foreground">Currently In</p>
+          </div>
         </div>
+
+        {/* Today's Check-Ins - Full List */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Today's Check-Ins ({recentCheckIns.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentCheckIns.length > 0 ? (
+              <div className="max-h-[500px] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]"></TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Member ID</TableHead>
+                      <TableHead>Membership</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Notes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recentCheckIns.map((checkIn) => {
+                      const initials = `${checkIn.members?.first_name?.[0] || ''}${checkIn.members?.last_name?.[0] || ''}`.toUpperCase();
+                      const statusColor = checkIn.members?.status === 'active' 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                        : checkIn.members?.status === 'frozen'
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+                      return (
+                        <TableRow
+                          key={checkIn.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/admin/members/${checkIn.members?.id}`)}
+                        >
+                          <TableCell>
+                            <Avatar className="h-8 w-8">
+                              {checkIn.members?.photo_url && (
+                                <AvatarImage src={checkIn.members.photo_url} alt={`${checkIn.members.first_name} ${checkIn.members.last_name}`} />
+                              )}
+                              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                            </Avatar>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {checkIn.members?.first_name} {checkIn.members?.last_name}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs font-mono">
+                            {checkIn.members?.member_id}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {checkIn.members?.membership_type}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={statusColor}>
+                              {checkIn.members?.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                            {format(new Date(checkIn.checked_in_at), "h:mm a")}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                            {checkIn.notes || '—'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">No check-ins today yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );
