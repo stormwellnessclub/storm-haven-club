@@ -34,6 +34,7 @@ interface ConversationWithProfile {
   last_message_at: string | null;
   created_at: string;
   member_name: string;
+  latest_message?: string;
 }
 
 function playNotificationChime() {
@@ -85,11 +86,16 @@ function ConversationItem({
   };
 
   return (
-    <div className="p-3 rounded-lg bg-secondary/30 space-y-2">
+    <div className={`p-3 rounded-lg space-y-2 ${variant === "concierge" ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50" : "bg-secondary/30"}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="font-medium text-sm truncate">{memberName}</p>
           <p className="text-xs text-muted-foreground truncate">{conversation.subject}</p>
+          {conversation.latest_message && (
+            <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-2 italic">
+              "{conversation.latest_message.slice(0, 120)}{conversation.latest_message.length > 120 ? "…" : ""}"
+            </p>
+          )}
           <p className="text-xs text-muted-foreground/70 mt-0.5">{timeAgo}</p>
         </div>
         <div className="flex gap-1 shrink-0">
@@ -170,14 +176,32 @@ export function CheckInSupportPanel() {
 
       // Fetch profile names for user_ids
       const userIds = [...new Set(convos.map((c) => c.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, first_name, last_name")
-        .in("user_id", userIds);
+      const convoIds = convos.map((c) => c.id);
+
+      const [profilesRes, messagesRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name")
+          .in("user_id", userIds),
+        supabase
+          .from("email_messages")
+          .select("conversation_id, message_body, created_at, sender_type")
+          .in("conversation_id", convoIds)
+          .eq("sender_type", "member")
+          .order("created_at", { ascending: false }),
+      ]);
 
       const profileMap = new Map(
-        (profiles || []).map((p) => [p.user_id, `${p.first_name || ""} ${p.last_name || ""}`.trim()])
+        (profilesRes.data || []).map((p) => [p.user_id, `${p.first_name || ""} ${p.last_name || ""}`.trim()])
       );
+
+      // Get the latest member message per conversation
+      const latestMessageMap = new Map<string, string>();
+      for (const msg of messagesRes.data || []) {
+        if (!latestMessageMap.has(msg.conversation_id)) {
+          latestMessageMap.set(msg.conversation_id, msg.message_body);
+        }
+      }
 
       return convos.map((c) => ({
         id: c.id,
@@ -188,6 +212,7 @@ export function CheckInSupportPanel() {
         last_message_at: c.last_message_at,
         created_at: c.created_at,
         member_name: profileMap.get(c.user_id) || "Unknown Member",
+        latest_message: latestMessageMap.get(c.id),
       })) as ConversationWithProfile[];
     },
     refetchInterval: 15000,
