@@ -1,65 +1,76 @@
 
+## Add Soft Launch Hours Banner and Email Template
 
-## Add Admin Fee Waiver for Freeze Requests
+### What This Does
 
-### Current Stripe Behavior (Already Working)
+1. **Member Portal Banner**: A prominent, branded banner visible at the top of every member portal page showing the soft launch hours (Feb 16-22). It will auto-hide after Feb 22.
+2. **Email Template**: A new `soft_launch_hours` email type that can be sent to members with the same hours information, styled in the existing Storm brand.
 
-The freeze activation already pauses both Stripe subscriptions (membership dues and annual fee) via the `pause_subscription` action in the `stripe-payment` edge function. When the freeze expires, the daily cron job (`process-freeze-expirations`) resumes both subscriptions. This is fully functional.
+### Hours to Display
 
-### The Problem
+| Day | Hours |
+|-----|-------|
+| Monday - Thursday | 7:00 AM - 10:00 PM |
+| Friday | 7:00 AM - 8:00 PM |
+| Saturday - Sunday | 7:00 AM - 6:00 PM |
 
-On the Freeze Requests page, after approving a request, the "Activate" button only appears if `fee_paid === true` (line 252). If the fee hasn't been paid, it shows "Awaiting Payment." There is no way for an admin to waive the $30 fee and activate the freeze directly.
+**Period**: February 16 - February 22, 2025
 
 ### Changes
 
-**1. Update `FreezeRequests.tsx` -- Add "Waive Fee & Activate" button**
+**1. New component: `SoftLaunchHoursBanner.tsx`**
 
-For approved requests where `fee_paid` is false, add a second button alongside the "Awaiting Payment" badge:
+A dismissible banner placed in `MemberLayout.tsx` (above the waiver notice area). Features:
 
-- New button: "Waive Fee & Activate" (only visible to admin/super_admin roles)
-- Clicking it opens a small confirmation dialog: "Waive the $30 freeze fee for [Member Name]? This will activate the freeze immediately without payment."
-- On confirm, calls a modified `useActivateFreeze` that also sets `freeze_fee_total` to 0
+- Gold/amber info box matching the brand style
+- Clock icon with "Soft Launch Hours" heading
+- Clear table of hours by day
+- "Feb 16 - Feb 22" date range prominently shown
+- Auto-hides after Feb 22 (date check in code)
+- Dismissible via an X button (persists in localStorage so it stays hidden for that session)
 
-**2. Update `useAdminFreezeRequests.ts` -- Accept `waiveFee` parameter**
+**2. Update `MemberLayout.tsx`**
 
-Modify the `useActivateFreeze` mutation to accept an optional `waiveFee: boolean` flag:
+Add the `<SoftLaunchHoursBanner />` component at the top of the layout, before existing notices.
 
-- When `waiveFee` is true, set `freeze_fee_total` to 0 and `fee_paid` to true in the same update
-- When `waiveFee` is false (default), keep existing behavior
+**3. New email template: `soft_launch_hours`**
 
-**3. Role check in UI**
+Add to `send-email/index.ts`:
 
-Import `useUserRoles` in `FreezeRequests.tsx` and only show the "Waive Fee" button to users with `admin` or `super_admin` roles.
+- Subject: "Soft Launch Hours - Storm Wellness Club"
+- Branded layout with the hours table
+- Welcome message explaining these are temporary opening week hours
+- Note that regular hours resume after Feb 22
+- Data params: `{ name }` (member first name)
+
+**4. Update `Footer.tsx` hours (optional)**
+
+The footer currently shows regular hours. The soft launch banner will clarify the temporary change, so the footer stays as-is to show what regular hours will be.
 
 ### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/hooks/useAdminFreezeRequests.ts` | Change `useActivateFreeze` param from `string` to `{ freezeId: string; waiveFee?: boolean }`, set `freeze_fee_total: 0` when waiving |
-| `src/pages/admin/FreezeRequests.tsx` | Add "Waive Fee & Activate" button with confirmation dialog for approved/unpaid requests; add role check via `useUserRoles` |
+| `src/components/member/SoftLaunchHoursBanner.tsx` | New component -- branded hours banner with auto-expiry and dismiss |
+| `src/components/member/MemberLayout.tsx` | Add `<SoftLaunchHoursBanner />` above existing notices |
+| `supabase/functions/send-email/index.ts` | Add `'soft_launch_hours'` email type and branded HTML template |
 
-**Modified activation mutation signature:**
+**Banner auto-hide logic:**
 
 ```typescript
-// Before
-mutationFn: async (freezeId: string) => { ... }
-
-// After
-mutationFn: async ({ freezeId, waiveFee = false }: { freezeId: string; waiveFee?: boolean }) => {
-  // existing code...
-  const updatePayload = {
-    status: 'active',
-    fee_paid: true,
-    updated_at: new Date().toISOString(),
-    ...(waiveFee ? { freeze_fee_total: 0 } : {}),
-  };
-  // rest stays the same (pause subscriptions, update member status)
-}
+const SOFT_LAUNCH_END = new Date('2025-02-23T00:00:00');
+const isActive = new Date() < SOFT_LAUNCH_END;
 ```
 
-**UI addition (inside the actions column):**
+**Email template data:**
 
-```text
-[Approved + fee_paid]     --> [Activate] button (existing)
-[Approved + !fee_paid]    --> "Awaiting Payment" badge + [Waive Fee & Activate] button (new, admin only)
+```typescript
+// Invoke from admin or bulk send
+await supabase.functions.invoke("send-email", {
+  body: {
+    type: "soft_launch_hours",
+    to: member.email,
+    data: { name: member.first_name },
+  },
+});
 ```
