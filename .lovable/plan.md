@@ -1,49 +1,49 @@
 
 
-## Fix: Admin Cannot Deduct Red Light Session for Gold Member
+## Fix Dashboard Data Display and Billing Health Interactivity
 
-### Root Cause
+### Issues Identified
 
-The admin "Book Session" dialog on the Member Detail page **inserts into `spa_appointments` with `user_id: member.user_id`**, but:
+1. **Dashboard shows limited data** -- The Recent Check-Ins, Appointments, and Applications widgets each only show 5 items with no indication of how many more exist. The stat cards (totals) are accurate, but the detail lists feel incomplete.
 
-1. **Some gold members have `user_id = null`** (Sara Ghamloush, Tania Shatila) because they haven't created an auth account yet. The insert sends `user_id: null`, which technically succeeds but makes the appointment untraceable to the member.
+2. **Billing Health items are not clickable** -- The "Failed Payments", "Missing Subscription", and "Expiring/Missing Cards" rows in the Billing Health widget are static text. Clicking them does nothing. They should navigate to the Members page with the appropriate filter applied.
 
-2. **The insert does NOT set `member_id`** on the `spa_appointments` row -- it only sets `user_id`. This means even for members WITH a user_id, the appointment isn't linked via the member record. This also means the `log_spa_service` trigger (which checks `member_id IS NOT NULL` to log activity) won't fire.
+3. **Expiring/Missing card detection** -- The "missing payment method" check requires both `card_last4` being empty AND `stripe_customer_id` being empty. Members who have a Stripe customer but whose card metadata was never synced locally won't appear. Additionally, separate counts for "Expiring Cards" vs "Missing Cards" would be clearer.
 
-3. **If the admin was using the member-facing Wellness page** (not the Member Detail page), the "Book Session" button uses `useAuth()` -- which returns the admin's own account. Since the admin isn't a gold member, they'd see "No credits available."
+### Plan
 
-### Fix
+**1. Dashboard Widgets -- Show More Data and Totals**
 
-**File: `src/pages/admin/MemberDetail.tsx`** (lines ~2106-2112)
+- Increase the Recent Check-Ins limit from 5 to 10
+- Add a count indicator showing "Showing X of Y" when there are more items than displayed
+- Add "View All" links that are more prominent when counts exceed the displayed limit
 
-Update the `spa_appointments` insert in the admin booking dialog to:
-- Always include `member_id: member.id` (the member's UUID, always available)
-- Use `member.user_id || null` for `user_id` (gracefully handle null)
-- Add a `booked_by` note indicating admin booked it
+**2. Billing Health Widget -- Make Items Clickable**
 
-This ensures the appointment is always linked to the member record and the activity trigger fires correctly.
+Each billing issue row will become a clickable link that navigates to the Members page with the correct filter:
+
+| Item | Link Target |
+|------|-------------|
+| Failed Payments | `/admin/members?issues=true` |
+| Missing Subscription | `/admin/members?subscription=none` |
+| Expiring/Missing Cards | `/admin/members?card=no` |
+
+The rows will also be split into separate lines:
+- "Missing Cards" (count) -- links to `/admin/members?card=no`
+- "Expiring Cards" (count) -- links to `/admin/members?card=expiring`
+
+**3. Fix Card Detection Logic**
+
+- Update the "missing payment method" check to flag members with a `stripe_customer_id` but no `card_last4` (card metadata not synced) as a warning
+- Add a new "expiring" card filter option to the Members page so the link from the widget works
+- Split the combined "Expiring/Missing Cards" count into two separate items in the widget
 
 ### Technical Details
 
-Change the insert from:
-```typescript
-await supabase.from("spa_appointments").insert({
-  user_id: member.user_id,
-  service_id: ...,
-  ...
-});
-```
+**Files to modify:**
 
-To:
-```typescript
-await supabase.from("spa_appointments").insert({
-  user_id: member.user_id || null,
-  member_id: member.id,  // Always set member_id
-  service_id: ...,
-  ...
-  notes: `Booked by staff`,
-});
-```
-
-This is a small, targeted fix -- one line addition (`member_id`) and a null safety check on `user_id`.
+- `src/components/admin/BillingHealthWidget.tsx` -- Make each issue row a clickable `Link` component, split expiring vs missing cards into separate rows
+- `src/hooks/useMembersBillingIssues.ts` -- Update the missing payment method check to also flag members with `stripe_customer_id` but no `card_last4`; separate `expiringCards` and `expiredCards` counts
+- `src/pages/admin/Dashboard.tsx` -- Increase check-in limit, add total count indicators
+- `src/pages/admin/Members.tsx` -- Add support for `card=expiring` filter to enable the widget link to work
 
