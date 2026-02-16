@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search } from "lucide-react";
+import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck } from "lucide-react";
 import { format, isBefore, startOfToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -35,6 +35,7 @@ import {
   useActivateFreeze,
   type FreezeRequestWithMember,
 } from "@/hooks/useAdminFreezeRequests";
+import { useUserRoles } from "@/hooks/useUserRoles";
 
 const statusColors: Record<string, string> = {
   pending: "bg-accent/10 text-accent border-accent/20",
@@ -50,9 +51,11 @@ export default function FreezeRequests() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showWaiveDialog, setShowWaiveDialog] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<FreezeRequestWithMember | null>(null);
   const [approveStartDate, setApproveStartDate] = useState<Date>();
   const [rejectReason, setRejectReason] = useState("");
+  const { isAdmin, isSuperAdmin } = useUserRoles();
 
   const { data: requests, isLoading } = useAdminFreezeRequests(statusFilter);
   const approveRequest = useApproveFreezeRequest();
@@ -111,7 +114,25 @@ export default function FreezeRequests() {
   };
 
   const handleActivate = (request: FreezeRequestWithMember) => {
-    activateFreeze.mutate(request.id);
+    activateFreeze.mutate({ freezeId: request.id });
+  };
+
+  const handleWaiveFee = (request: FreezeRequestWithMember) => {
+    setSelectedRequest(request);
+    setShowWaiveDialog(true);
+  };
+
+  const confirmWaiveFee = () => {
+    if (!selectedRequest) return;
+    activateFreeze.mutate(
+      { freezeId: selectedRequest.id, waiveFee: true },
+      {
+        onSuccess: () => {
+          setShowWaiveDialog(false);
+          setSelectedRequest(null);
+        },
+      }
+    );
   };
 
   const pendingCount = requests?.filter(r => r.status === 'pending').length || 0;
@@ -261,7 +282,20 @@ export default function FreezeRequests() {
                                   </Button>
                                 )}
                                 {request.status === 'approved' && !request.fee_paid && (
-                                  <Badge variant="outline">Awaiting Payment</Badge>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline">Awaiting Payment</Badge>
+                                    {(isAdmin || isSuperAdmin) && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleWaiveFee(request)}
+                                        disabled={activateFreeze.isPending}
+                                      >
+                                        <ShieldCheck className="h-4 w-4 mr-1" />
+                                        Waive Fee & Activate
+                                      </Button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             </TableCell>
@@ -374,6 +408,32 @@ export default function FreezeRequests() {
             >
               {rejectRequest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Waive Fee Dialog */}
+      <Dialog open={showWaiveDialog} onOpenChange={setShowWaiveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Waive Freeze Fee</DialogTitle>
+            <DialogDescription>
+              Waive the ${selectedRequest?.freeze_fee_total} freeze fee for{" "}
+              {selectedRequest?.members.first_name} {selectedRequest?.members.last_name}?
+              This will activate the freeze immediately without payment.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowWaiveDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmWaiveFee}
+              disabled={activateFreeze.isPending}
+            >
+              {activateFreeze.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Waive Fee & Activate
             </Button>
           </DialogFooter>
         </DialogContent>

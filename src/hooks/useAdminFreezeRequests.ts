@@ -124,7 +124,7 @@ export function useActivateFreeze() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (freezeId: string) => {
+    mutationFn: async ({ freezeId, waiveFee = false }: { freezeId: string; waiveFee?: boolean }) => {
       // Get the freeze request and member data
       const { data: freezeData, error: fetchError } = await supabase
         .from("member_freezes")
@@ -150,6 +150,7 @@ export function useActivateFreeze() {
           status: 'active',
           fee_paid: true,
           updated_at: new Date().toISOString(),
+          ...(waiveFee ? { freeze_fee_total: 0 } : {}),
         })
         .eq("id", freezeId);
 
