@@ -10,6 +10,7 @@ import {
   XCircle,
   ArrowRight,
   CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 
@@ -27,11 +28,9 @@ export function BillingHealthWidget() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-3">
-            {Array(3)
-              .fill(0)
-              .map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
+            {Array(3).fill(0).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -47,6 +46,7 @@ export function BillingHealthWidget() {
       count: billingIssues?.failedPayments || 0,
       color: "text-red-600",
       bgColor: "bg-red-100 dark:bg-red-900/30",
+      link: "/admin/members?issues=true",
     },
     {
       icon: CalendarX,
@@ -54,13 +54,39 @@ export function BillingHealthWidget() {
       count: billingIssues?.missingSubscription || 0,
       color: "text-orange-600",
       bgColor: "bg-orange-100 dark:bg-orange-900/30",
+      link: "/admin/members?subscription=none",
     },
     {
       icon: CreditCard,
-      label: "Expiring/Missing Cards",
-      count: (billingIssues?.expiringCards || 0) + (billingIssues?.missingPaymentMethod || 0),
+      label: "Missing Cards",
+      count: (billingIssues?.missingPaymentMethod || 0),
       color: "text-amber-600",
       bgColor: "bg-amber-100 dark:bg-amber-900/30",
+      link: "/admin/members?card=no",
+    },
+    {
+      icon: CreditCard,
+      label: "Expired Cards",
+      count: billingIssues?.expiredCards || 0,
+      color: "text-red-600",
+      bgColor: "bg-red-100 dark:bg-red-900/30",
+      link: "/admin/members?card=expired",
+    },
+    {
+      icon: CreditCard,
+      label: "Expiring Cards",
+      count: billingIssues?.expiringCards || 0,
+      color: "text-yellow-600",
+      bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
+      link: "/admin/members?card=expiring",
+    },
+    {
+      icon: RefreshCw,
+      label: "Card Not Synced",
+      count: billingIssues?.cardMetadataNotSynced || 0,
+      color: "text-blue-600",
+      bgColor: "bg-blue-100 dark:bg-blue-900/30",
+      link: "/admin/members?card=not_synced",
     },
   ];
 
@@ -76,18 +102,16 @@ export function BillingHealthWidget() {
           Billing Health
         </CardTitle>
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/admin/members?filter=issues" className="text-xs">
+          <Link to="/admin/members?issues=true" className="text-xs">
             View All <ArrowRight className="h-3 w-3 ml-1" />
           </Link>
         </Button>
       </CardHeader>
       <CardContent className="pt-0">
         {hasIssues ? (
-          <div className="space-y-3">
+          <div className="space-y-1">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">
-                Members with issues
-              </span>
+              <span className="text-sm text-muted-foreground">Members with issues</span>
               <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
                 {billingIssues.totalWithIssues}
               </Badge>
@@ -95,9 +119,10 @@ export function BillingHealthWidget() {
             {issueItems
               .filter((item) => item.count > 0)
               .map((item, index) => (
-                <div
+                <Link
                   key={index}
-                  className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                  to={item.link}
+                  className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     <div className={`p-1.5 rounded ${item.bgColor}`}>
@@ -108,15 +133,13 @@ export function BillingHealthWidget() {
                   <Badge variant="outline" className="text-xs">
                     {item.count}
                   </Badge>
-                </div>
+                </Link>
               ))}
           </div>
         ) : (
           <div className="py-4 text-center">
             <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              All members in good standing
-            </p>
+            <p className="text-sm text-muted-foreground">All members in good standing</p>
           </div>
         )}
       </CardContent>
