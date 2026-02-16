@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import { useUserCredits } from "@/hooks/useUserCredits";
 import { useUpcomingBookings, Booking } from "@/hooks/useBooking";
 import { useHealthScore, useHealthScoreHistory } from "@/hooks/useHealthScore";
 import { useMemberPoints } from "@/hooks/useMemberPoints";
-import { useMemberAchievements } from "@/hooks/useAchievements";
+import { useAchievements, useMemberAchievements, useCheckAchievements } from "@/hooks/useAchievements";
 import { useWorkoutLogs } from "@/hooks/useWorkoutLogs";
 import { useHabits, useHabitStreaks } from "@/hooks/useHabits";
 import { useHabitLogs, useCreateHabitLog } from "@/hooks/useHabitLogs";
@@ -38,13 +39,18 @@ import {
   Snowflake,
   AlertTriangle,
   Gift,
+  Flame,
+  Star,
 } from "lucide-react";
 import { format, parseISO, isValid, startOfToday, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Habit } from "@/hooks/useHabits";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function MemberDashboard() {
+  const { user } = useAuth();
   const { profile, isLoading: profileLoading } = useUserProfile();
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { data: credits, isLoading: creditsLoading } = useUserCredits();
@@ -55,17 +61,55 @@ export default function MemberDashboard() {
   const { data: healthScore, isLoading: healthScoreLoading } = useHealthScore(undefined, 30);
   const { data: healthScoreHistory } = useHealthScoreHistory(undefined, 2);
   const { data: memberPoints, isLoading: pointsLoading } = useMemberPoints();
+  const { data: allAchievements } = useAchievements();
   const { data: achievements, isLoading: achievementsLoading } = useMemberAchievements();
   const { data: recentWorkouts, isLoading: workoutsLoading } = useWorkoutLogs(undefined, 3);
   const { data: habits, isLoading: habitsLoading } = useHabits();
+  const { data: habitStreaks } = useHabitStreaks();
   const { data: activeGoals, isLoading: goalsLoading } = useMemberGoals(undefined, "active");
+  const checkAchievements = useCheckAchievements();
 
   const isLoading = profileLoading || membershipLoading || creditsLoading;
   
+  // Auto-check achievements once per session
+  useEffect(() => {
+    if (!user || sessionStorage.getItem("achievements_checked")) return;
+    sessionStorage.setItem("achievements_checked", "1");
+    checkAchievements.mutate(undefined);
+  }, [user]);
+
   // Calculate health score trend
   const healthTrend = healthScoreHistory && healthScoreHistory.length >= 2
     ? healthScoreHistory[0].overall_score - healthScoreHistory[1].overall_score
     : 0;
+
+  // Best streak across all habits
+  const bestStreak = habitStreaks?.reduce((max, s) => Math.max(max, s.current_streak || 0), 0) || 0;
+
+  // Next achievement teaser
+  const nextAchievement = (() => {
+    if (!allAchievements || !achievements) return null;
+    const earnedTypes = new Set(achievements.map(a => a.achievement_type));
+    const locked = allAchievements.filter(a => !earnedTypes.has(a.name));
+    if (locked.length === 0) return null;
+    // Return the one with lowest points (easiest)
+    return locked.sort((a, b) => (a.points_reward || 0) - (b.points_reward || 0))[0];
+  })();
+
+  // Most urgent goal (closest target date)
+  const urgentGoal = activeGoals?.sort((a, b) => {
+    if (!a.target_date) return 1;
+    if (!b.target_date) return -1;
+    return new Date(a.target_date).getTime() - new Date(b.target_date).getTime();
+  })[0];
+
+  const urgentGoalProgress = urgentGoal && urgentGoal.target_value > 0
+    ? Math.min((urgentGoal.current_value / urgentGoal.target_value) * 100, 100)
+    : 0;
+
+  const urgentGoalDaysLeft = urgentGoal?.target_date
+    ? differenceInDays(parseISO(urgentGoal.target_date), new Date())
+    : null;
 
   // Helper to get frozen reason message
   const getFrozenReasonMessage = () => {
@@ -272,7 +316,7 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
 
-          {/* Red Light Therapy Credits - Show for Gold/Platinum/Diamond */}
+          {/* Red Light Therapy Credits */}
           {credits?.redLightCredits && (
             <Card variant="interactive" className="hover-lift-sm">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -292,7 +336,7 @@ export default function MemberDashboard() {
             </Card>
           )}
 
-          {/* Dry Cryo Credits - Show for Gold/Platinum/Diamond */}
+          {/* Dry Cryo Credits */}
           {credits?.dryCredits && (
             <Card variant="interactive" className="hover-lift-sm">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -317,6 +361,44 @@ export default function MemberDashboard() {
         <AnimatedSection animation="fade-up" delay={100}>
           <h3 className="text-lg font-semibold mb-4">Health & Wellness</h3>
         </AnimatedSection>
+
+        {/* Daily Check-In + Streak Banner */}
+        <AnimatedSection animation="fade-up" delay={80}>
+          <Card variant="elevated" className="border-accent/20 bg-gradient-to-r from-accent/5 to-transparent">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-full bg-accent/10">
+                    <Flame className="h-5 w-5 text-accent" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-base">Daily Check-In</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {bestStreak > 0 ? `🔥 ${bestStreak}-day streak!` : "Start your streak today"}
+                    </p>
+                  </div>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/member/habits">All Habits</Link>
+                </Button>
+              </div>
+              {habitsLoading ? (
+                <Skeleton className="h-12 w-full" />
+              ) : habits && habits.length > 0 ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {habits.slice(0, 4).map((habit) => (
+                    <HabitCheckbox key={habit.id} habit={habit} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No habits yet — <Link to="/member/habits" className="text-accent underline">create one</Link> to start tracking.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </AnimatedSection>
+
         <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" staggerDelay={60}>
           {/* Health Score Widget */}
           <Card variant="elevated" className="hover-lift-sm">
@@ -346,16 +428,16 @@ export default function MemberDashboard() {
                   <Progress value={healthScore.overall_score} className="mt-2" />
                   <div className="mt-3 space-y-1 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Activity</span>
-                      <span>{healthScore.activity_score}</span>
+                      <span className="text-muted-foreground">Activity ({healthScore.activity_counts.workouts + healthScore.activity_counts.classes + healthScore.activity_counts.check_ins})</span>
+                      <span>{healthScore.activity_score}/40</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Consistency</span>
-                      <span>{healthScore.consistency_score}</span>
+                      <span className="text-muted-foreground">Consistency ({healthScore.activity_counts.unique_days} days)</span>
+                      <span>{healthScore.consistency_score}/30</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Goals</span>
-                      <span>{healthScore.goal_progress_score}</span>
+                      <span className="text-muted-foreground">Goal Progress</span>
+                      <span>{healthScore.goal_progress_score}/30</span>
                     </div>
                   </div>
                   <Button asChild variant="outline" size="sm" className="w-full mt-3">
@@ -370,7 +452,7 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
 
-          {/* Achievements & Points Widget */}
+          {/* Next Achievement Teaser */}
           <Card variant="elevated" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Achievements</CardTitle>
@@ -382,27 +464,26 @@ export default function MemberDashboard() {
               ) : (
                 <>
                   <div className="flex items-center gap-2">
-                    <div className="text-3xl font-bold">{memberPoints?.total_points || 0}</div>
-                    <div className="text-sm text-muted-foreground">points</div>
+                    <div className="text-3xl font-bold">{achievements?.length || 0}</div>
+                    <div className="text-sm text-muted-foreground">unlocked</div>
                   </div>
-                  <div className="mt-3 space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Current Streak</span>
-                      <span className="font-medium">{memberPoints?.current_streak_days || 0} days</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Achievements</span>
-                      <span className="font-medium">{achievements?.length || 0} unlocked</span>
-                    </div>
-                    {achievements && achievements.length > 0 && (
-                      <div className="pt-2 border-t">
-                        <p className="text-xs text-muted-foreground mb-1">Recent:</p>
-                        <p className="text-xs font-medium truncate">
-                          {achievements[0]?.achievement?.name || "—"}
-                        </p>
+                  {nextAchievement && (
+                    <div className="mt-3 p-3 rounded-lg bg-accent/5 border border-accent/10">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                        <Star className="h-3 w-3 text-accent" />
+                        <span>Next Achievement</span>
                       </div>
-                    )}
-                  </div>
+                      <p className="text-sm font-medium">{nextAchievement.name}</p>
+                      {nextAchievement.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{nextAchievement.description}</p>
+                      )}
+                    </div>
+                  )}
+                  {achievements && achievements.length > 0 && !nextAchievement && (
+                    <div className="mt-3 p-3 rounded-lg bg-accent/5 border border-accent/10 text-center">
+                      <p className="text-sm font-medium text-accent">🎉 All achievements earned!</p>
+                    </div>
+                  )}
                   <Button asChild variant="outline" size="sm" className="w-full mt-3">
                     <Link to="/member/achievements">
                       View All <ArrowRight className="h-3 w-3 ml-2" />
@@ -453,44 +534,7 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
 
-          {/* Habits Widget */}
-          <Card variant="elevated" className="hover-lift-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Today's Habits</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {habitsLoading ? (
-                <Skeleton className="h-8 w-24" />
-              ) : habits && habits.length > 0 ? (
-                <>
-                  <div className="space-y-2">
-                    {habits.slice(0, 3).map((habit) => (
-                      <HabitCheckbox key={habit.id} habit={habit} />
-                    ))}
-                  </div>
-                  {habits.length > 3 && (
-                    <Button asChild variant="outline" size="sm" className="w-full mt-3">
-                      <Link to="/member/habits">
-                        View All ({habits.length}) <ArrowRight className="h-3 w-3 ml-2" />
-                      </Link>
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground mb-3">No habits set up yet</p>
-                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link to="/member/habits">
-                      Create Habit <ArrowRight className="h-3 w-3 ml-2" />
-                    </Link>
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Goals Widget */}
+          {/* Goals Widget - Enhanced */}
           <Card variant="elevated" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Goals</CardTitle>
@@ -499,27 +543,45 @@ export default function MemberDashboard() {
             <CardContent>
               {goalsLoading ? (
                 <Skeleton className="h-8 w-24" />
-              ) : activeGoals && activeGoals.length > 0 ? (
+              ) : urgentGoal ? (
                 <>
-                  <div className="space-y-3">
-                    {activeGoals.slice(0, 2).map((goal) => {
-                      const progress = goal.target_value && goal.target_value > 0
-                        ? (goal.current_value / goal.target_value) * 100
-                        : 0;
-                      return (
-                        <div key={goal.id}>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="truncate">{goal.title}</span>
-                            <span>{Math.min(progress, 100).toFixed(0)}%</span>
-                          </div>
-                          <Progress value={Math.min(progress, 100)} className="h-1.5" />
-                        </div>
-                      );
-                    })}
+                  {/* Primary goal with progress ring */}
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-14 w-14 shrink-0">
+                      <svg className="h-14 w-14 -rotate-90" viewBox="0 0 56 56">
+                        <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="none" className="text-secondary" />
+                        <circle
+                          cx="28" cy="28" r="24"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                          className="text-accent"
+                          strokeDasharray={`${(urgentGoalProgress / 100) * 150.8} 150.8`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                        {Math.round(urgentGoalProgress)}%
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{urgentGoal.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {urgentGoal.current_value} / {urgentGoal.target_value} {urgentGoal.unit || ""}
+                      </p>
+                      {urgentGoalDaysLeft !== null && urgentGoalDaysLeft >= 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {urgentGoalDaysLeft} day{urgentGoalDaysLeft !== 1 ? "s" : ""} remaining
+                        </p>
+                      )}
+                    </div>
                   </div>
+                  {activeGoals && activeGoals.length > 1 && (
+                    <p className="text-xs text-muted-foreground mt-2">+ {activeGoals.length - 1} more active goal{activeGoals.length > 2 ? "s" : ""}</p>
+                  )}
                   <Button asChild variant="outline" size="sm" className="w-full mt-3">
                     <Link to="/member/goals">
-                      {activeGoals.length > 2 ? `View All (${activeGoals.length})` : "View Goals"} <ArrowRight className="h-3 w-3 ml-2" />
+                      View Goals <ArrowRight className="h-3 w-3 ml-2" />
                     </Link>
                   </Button>
                 </>
@@ -680,20 +742,16 @@ function HabitCheckbox({ habit }: { habit: Habit }) {
   const isChecked = todayLogs && todayLogs.length > 0;
 
   const handleToggle = async () => {
-    if (isChecked) {
-      // For simplicity, we'll just show a message - full deletion can be done on habits page
-      return;
-    } else {
-      await createLog.mutateAsync({
-        habit_id: habit.id,
-        logged_value: habit.target_value || 1,
-        logged_date: today,
-      });
-    }
+    if (isChecked) return;
+    await createLog.mutateAsync({
+      habit_id: habit.id,
+      logged_value: habit.target_value || 1,
+      logged_date: today,
+    });
   };
 
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex items-center gap-2 text-sm p-2 rounded-md bg-background/60 border border-border/50">
       <Checkbox
         checked={!!isChecked}
         onCheckedChange={handleToggle}
@@ -702,6 +760,7 @@ function HabitCheckbox({ habit }: { habit: Habit }) {
       <label className="flex-1 cursor-pointer" onClick={handleToggle}>
         {habit.name}
       </label>
+      {isChecked && <CheckCircle2 className="h-3.5 w-3.5 text-accent shrink-0" />}
     </div>
   );
 }

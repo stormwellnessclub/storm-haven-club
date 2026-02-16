@@ -50,7 +50,6 @@ export function useHealthScore(memberId?: string, periodDays?: number) {
     queryFn: async (): Promise<HealthScoreResult | null> => {
       if (!user) return null;
 
-      // Get member_id if not provided
       let targetMemberId = memberId;
       if (!targetMemberId) {
         const { data: member } = await supabase
@@ -58,45 +57,89 @@ export function useHealthScore(memberId?: string, periodDays?: number) {
           .select("id")
           .eq("user_id", user.id)
           .maybeSingle();
-        
         if (!member) return null;
         targetMemberId = member.id;
       }
 
-      // Calculate health score using the RPC function
-      const { data, error } = await (supabase.rpc as any)("calculate_health_score", {
-        _member_id: targetMemberId,
-      });
+      const days = periodDays || 30;
+      const periodStart = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-      if (error) {
-        console.warn("Failed to calculate health score:", error);
+      // Query all activity counts in parallel
+      const [checkInsResult, workoutsResult, classesResult, spaResult, goalsResult] = await Promise.all([
+        supabase
+          .from("check_ins")
+          .select("checked_in_at", { count: "exact", head: false })
+          .eq("member_id", targetMemberId)
+          .gte("checked_in_at", periodStart),
+        (supabase.from("workout_logs" as any)
+          .select("logged_at", { count: "exact", head: false })
+          .eq("member_id", targetMemberId)
+          .gte("logged_at", periodStart) as any),
+        supabase
+          .from("class_bookings")
+          .select("booked_at", { count: "exact", head: false })
+          .eq("user_id", user.id)
+          .in("status", ["confirmed", "completed"])
+          .gte("booked_at", periodStart),
+        (supabase.from("spa_appointments" as any)
+          .select("appointment_date", { count: "exact", head: false })
+          .eq("member_id", targetMemberId)
+          .in("status", ["confirmed", "completed"])
+          .gte("appointment_date", periodStart.split("T")[0]) as any),
+        (supabase.from("member_goals" as any)
+          .select("target_value, current_value")
+          .eq("member_id", targetMemberId)
+          .eq("status", "active") as any),
+      ]);
+
+      const checkInCount = checkInsResult.count || 0;
+      const workoutCount = workoutsResult.count || 0;
+      const classCount = classesResult.count || 0;
+      const spaCount = spaResult.count || 0;
+
+      // Compute unique active days
+      const allDates = new Set<string>();
+      (checkInsResult.data || []).forEach((r: any) => allDates.add(r.checked_in_at?.split("T")[0]));
+      (workoutsResult.data || []).forEach((r: any) => allDates.add(r.logged_at?.split("T")[0]));
+      (classesResult.data || []).forEach((r: any) => allDates.add(r.booked_at?.split("T")[0]));
+      (spaResult.data || []).forEach((r: any) => allDates.add(r.appointment_date?.split("T")[0]));
+      allDates.delete(undefined as any);
+      const uniqueDays = allDates.size;
+
+      // Activity Score (0-40): 20+ total activities = max
+      const totalActivities = checkInCount + workoutCount + classCount + spaCount;
+      const activityScore = Math.round(Math.min(totalActivities / 20, 1) * 40);
+
+      // Consistency Score (0-30): unique days / total days in period
+      const consistencyScore = Math.round(Math.min(uniqueDays / days, 1) * 30);
+
+      // Goal Progress Score (0-30): average % of active goals
+      const goals = goalsResult.data || [];
+      let goalProgressScore = 0;
+      if (goals.length > 0) {
+        const avgProgress = goals.reduce((sum: number, g: any) => {
+          const pct = g.target_value > 0 ? Math.min(g.current_value / g.target_value, 1) : 0;
+          return sum + pct;
+        }, 0) / goals.length;
+        goalProgressScore = Math.round(avgProgress * 30);
       }
-      
-      const score = typeof data === "number" ? data : 50;
 
-      // Fetch actual check-in count for the period
-      const periodStart = new Date(Date.now() - (periodDays || 30) * 24 * 60 * 60 * 1000).toISOString();
-      const { count: checkInCount } = await supabase
-        .from("check_ins")
-        .select("*", { count: "exact", head: true })
-        .eq("member_id", targetMemberId)
-        .gte("checked_in_at", periodStart);
-      
-      // Return a full result object with derived scores
+      const overallScore = activityScore + consistencyScore + goalProgressScore;
+
       return {
         member_id: targetMemberId,
         period_start: periodStart.split("T")[0],
         period_end: new Date().toISOString().split("T")[0],
-        overall_score: score,
-        activity_score: Math.round(score * 0.4),
-        consistency_score: Math.round(score * 0.3),
-        goal_progress_score: Math.round(score * 0.3),
+        overall_score: Math.min(overallScore, 100),
+        activity_score: activityScore,
+        consistency_score: consistencyScore,
+        goal_progress_score: goalProgressScore,
         activity_counts: {
-          classes: 0,
-          spa_services: 0,
-          workouts: 0,
-          check_ins: checkInCount || 0,
-          unique_days: 0,
+          classes: classCount,
+          spa_services: spaCount,
+          workouts: workoutCount,
+          check_ins: checkInCount,
+          unique_days: uniqueDays,
         },
       };
     },
@@ -112,7 +155,6 @@ export function useHealthScoreHistory(memberId?: string, limit: number = 10) {
     queryFn: async (): Promise<HealthScore[]> => {
       if (!user) return [];
 
-      // Get member_id if not provided
       let targetMemberId = memberId;
       if (!targetMemberId) {
         const { data: member } = await supabase
@@ -120,7 +162,6 @@ export function useHealthScoreHistory(memberId?: string, limit: number = 10) {
           .select("id")
           .eq("user_id", user.id)
           .maybeSingle();
-        
         if (!member) return [];
         targetMemberId = member.id;
       }
