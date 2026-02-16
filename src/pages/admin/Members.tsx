@@ -378,6 +378,22 @@ export default function Members() {
         const hasCard = !!member.card_last4;
         if (cardFilter === "yes" && !hasCard) return false;
         if (cardFilter === "no" && hasCard) return false;
+        if (cardFilter === "expiring") {
+          // Show members with cards expiring within 2 months
+          if (!member.card_exp_month || !member.card_exp_year) return false;
+          const now = new Date();
+          const monthsUntil = (member.card_exp_year - now.getFullYear()) * 12 + (member.card_exp_month - (now.getMonth() + 1));
+          if (monthsUntil <= 0 || monthsUntil > 2) return false;
+        }
+        if (cardFilter === "expired") {
+          if (!member.card_exp_month || !member.card_exp_year) return false;
+          const now = new Date();
+          const monthsUntil = (member.card_exp_year - now.getFullYear()) * 12 + (member.card_exp_month - (now.getMonth() + 1));
+          if (monthsUntil > 0) return false;
+        }
+        if (cardFilter === "not_synced") {
+          if (member.card_last4 || !member.stripe_customer_id) return false;
+        }
       }
 
       // Subscription filter
@@ -450,7 +466,10 @@ export default function Members() {
     }
     if (tierFilter !== "all") filters.push({ key: "tier", label: `Tier: ${tierFilter}` });
     if (initiationFilter !== "all") filters.push({ key: "initiation", label: `Initiation: ${initiationFilter}` });
-    if (cardFilter !== "all") filters.push({ key: "card", label: `Card: ${cardFilter === "yes" ? "Has Card" : "No Card"}` });
+    if (cardFilter !== "all") {
+      const cardLabels: Record<string, string> = { yes: "Has Card", no: "No Card", expiring: "Expiring Card", expired: "Expired Card", not_synced: "Not Synced" };
+      filters.push({ key: "card", label: `Card: ${cardLabels[cardFilter] || cardFilter}` });
+    }
     if (subscriptionFilter !== "all") filters.push({ key: "subscription", label: `Subscription: ${subscriptionFilter}` });
     if (genderFilter !== "all") filters.push({ key: "gender", label: `Gender: ${genderFilter}` });
     if (waiverFilter !== "all") filters.push({ key: "waiver", label: `Waiver: ${waiverFilter}` });

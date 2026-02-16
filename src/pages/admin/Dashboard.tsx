@@ -119,7 +119,7 @@ export default function Dashboard() {
           )
         `)
         .order('checked_in_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (error) throw error;
       return (data || []).map((checkIn: any) => ({
@@ -150,7 +150,7 @@ export default function Dashboard() {
         .eq('appointment_date', today)
         .eq('status', 'confirmed')
         .order('appointment_time', { ascending: true })
-        .limit(5);
+        .limit(10);
 
       if (error) throw error;
       return (data || []).map((apt: any) => ({
@@ -170,7 +170,7 @@ export default function Dashboard() {
         .select('id, first_name, last_name, membership_plan, created_at')
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (error) throw error;
       return (data || []).map((app: any) => ({
@@ -304,6 +304,9 @@ export default function Dashboard() {
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <UserCheck className="h-4 w-4 text-green-600" />
                 Recent Check-Ins
+                {!checkInsLoading && recentCheckIns.length > 0 && stats?.todayCheckins ? (
+                  <Badge variant="secondary" className="text-[10px] ml-1">{stats.todayCheckins} today</Badge>
+                ) : null}
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
                 <Link to="/admin/check-in" className="text-xs">
@@ -351,7 +354,10 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Clock className="h-4 w-4 text-accent" />
-                Upcoming Appointments
+                Appointments
+                {!appointmentsLoading && upcomingAppointments.length > 0 && stats?.todayAppointments ? (
+                  <Badge variant="secondary" className="text-[10px] ml-1">{stats.todayAppointments} today</Badge>
+                ) : null}
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
                 <Link to="/admin/appointments" className="text-xs">
