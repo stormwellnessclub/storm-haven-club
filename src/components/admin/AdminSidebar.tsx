@@ -70,6 +70,7 @@ const managementItems: MenuItem[] = [
   { title: "Revenue Analytics", url: "/admin/revenue-analytics", icon: TrendingUp, requiredRoles: ['super_admin'] },
   { title: "Reports", url: "/admin/reports", icon: FileBarChart, requiredRoles: ['super_admin'] },
   { title: "Guest Passes", url: "/admin/guest-passes", icon: Ticket, requiredRoles: ['super_admin', 'manager', 'front_desk'] },
+  { title: "Guest Accounts", url: "/admin/guests", icon: Users, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
 ];
 
 const servicesItems: MenuItem[] = [
