@@ -588,7 +588,7 @@ export default function CheckIn() {
           </CardHeader>
           <CardContent>
             {recentCheckIns.length > 0 ? (
-              <div className="max-h-[500px] overflow-y-auto">
+              <div className="overflow-y-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
