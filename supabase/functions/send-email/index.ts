@@ -1830,7 +1830,7 @@ serve(async (req) => {
               <h2 style="${emailStyles.heading}">Dear ${data.name || 'Member'},</h2>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
-                We're thrilled to welcome you during our soft launch week! Below are our temporary operating hours for <strong>February 16 – 22, 2025</strong>.
+                We're thrilled to welcome you during our soft launch week! Below are our temporary operating hours for <strong>February 16 – 22, 2026</strong>.
               </p>
               
               <div style="${emailStyles.infoBox}">
@@ -1852,7 +1852,7 @@ serve(async (req) => {
               </div>
               
               <p style="font-size: 14px; line-height: 1.6; color: #6b7280; margin-bottom: 20px; font-style: italic;">
-                Regular hours will resume after February 22. We appreciate your flexibility as we fine-tune everything for you.
+                Regular hours will resume after February 22, 2026. We appreciate your flexibility as we fine-tune everything for you.
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
