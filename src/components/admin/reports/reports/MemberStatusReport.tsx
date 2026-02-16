@@ -31,14 +31,14 @@ export function MemberStatusReport({ dateRange, filters }: Props) {
     queryKey: ['report-member-status', dateRange, filters],
     queryFn: async () => {
       const { data: members, error } = await supabase
-        .from('membership_applications')
-        .select('status, membership_plan, founding_member');
+        .from('members')
+        .select('status, membership_type, is_founding_member');
 
       if (error) throw error;
 
       const tierFilter = filters.tier as string;
       const filtered = tierFilter && tierFilter !== 'all'
-        ? members?.filter(m => m.membership_plan?.toLowerCase().includes(tierFilter.toLowerCase()))
+        ? members?.filter(m => m.membership_type?.toLowerCase().includes(tierFilter.toLowerCase()))
         : members;
 
       // Group by status
@@ -48,7 +48,7 @@ export function MemberStatusReport({ dateRange, filters }: Props) {
           acc[status] = { status, count: 0, founding: 0, regular: 0 };
         }
         acc[status].count += 1;
-        if (member.founding_member) {
+        if (member.is_founding_member) {
           acc[status].founding += 1;
         } else {
           acc[status].regular += 1;

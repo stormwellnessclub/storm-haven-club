@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { extractTier, normalizeGender, getMonthlyPrice } from "@/lib/membershipPricing";
 
 interface Props {
   dateRange: { start: Date; end: Date };
@@ -16,20 +17,13 @@ const TIER_COLORS: Record<string, string> = {
   silver: 'hsl(0, 0%, 70%)',
 };
 
-const TIER_PRICING: Record<string, number> = {
-  diamond: 695,
-  platinum: 495,
-  gold: 395,
-  silver: 295,
-};
-
 export function TierDistributionReport({ dateRange, filters }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ['report-tier-distribution', dateRange, filters],
     queryFn: async () => {
       const { data: members, error } = await supabase
-        .from('membership_applications')
-        .select('membership_plan, status, founding_member');
+        .from('members')
+        .select('membership_type, status, is_founding_member, gender');
 
       if (error) throw error;
 
@@ -40,8 +34,8 @@ export function TierDistributionReport({ dateRange, filters }: Props) {
 
       // Group by tier
       const tierCounts = (filtered || []).reduce((acc, member) => {
-        const plan = member.membership_plan?.toLowerCase() || 'unknown';
-        const tier = Object.keys(TIER_PRICING).find(t => plan.includes(t)) || 'other';
+        const tier = extractTier(member.membership_type);
+        const gender = normalizeGender(member.gender);
         
         if (!acc[tier]) {
           acc[tier] = { tier, count: 0, active: 0, revenue: 0 };
@@ -49,7 +43,7 @@ export function TierDistributionReport({ dateRange, filters }: Props) {
         acc[tier].count += 1;
         if (member.status === 'active') {
           acc[tier].active += 1;
-          acc[tier].revenue += TIER_PRICING[tier] || 0;
+          acc[tier].revenue += getMonthlyPrice(tier, gender);
         }
         return acc;
       }, {} as Record<string, { tier: string; count: number; active: number; revenue: number }>);

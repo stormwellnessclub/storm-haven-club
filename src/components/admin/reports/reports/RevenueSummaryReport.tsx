@@ -25,8 +25,8 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
     queryKey: ['report-revenue-summary', dateRange, filters],
     queryFn: async () => {
       const { data: members, error } = await supabase
-        .from('membership_applications')
-        .select('membership_plan, status, founding_member, gender, created_at')
+        .from('members')
+        .select('membership_type, status, is_founding_member, gender, created_at')
         .gte('created_at', dateRange.start.toISOString())
         .lte('created_at', dateRange.end.toISOString());
 
@@ -34,12 +34,12 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
 
       const tierFilter = filters.tier as string;
       const filtered = tierFilter && tierFilter !== 'all' 
-        ? members?.filter(m => m.membership_plan?.toLowerCase().includes(tierFilter.toLowerCase()))
+        ? members?.filter(m => m.membership_type?.toLowerCase().includes(tierFilter.toLowerCase()))
         : members;
 
       // Separate founding and regular members
-      const foundingMembers = (filtered || []).filter(m => m.founding_member);
-      const regularMembers = (filtered || []).filter(m => !m.founding_member);
+      const foundingMembers = (filtered || []).filter(m => m.is_founding_member);
+      const regularMembers = (filtered || []).filter(m => !m.is_founding_member);
 
       // Calculate revenue by tier with proper founding vs regular logic
       const tierData: Record<string, {
@@ -52,14 +52,14 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
 
       // Process founding members - they pay annual upfront
       foundingMembers.forEach(member => {
-        const tier = extractTier(member.membership_plan);
+        const tier = extractTier(member.membership_type);
         const gender = normalizeGender(member.gender);
         
         if (!tierData[tier]) {
           tierData[tier] = { tier, foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 };
         }
         
-        if (member.status === 'active' || member.status === 'pending_activation' || member.status === 'approved') {
+        if (member.status === 'active' || member.status === 'pending_activation') {
           tierData[tier].foundingCount += 1;
           tierData[tier].foundingAnnual += getAnnualPrice(tier, gender);
         }
@@ -67,14 +67,14 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
 
       // Process regular members - they pay monthly
       regularMembers.forEach(member => {
-        const tier = extractTier(member.membership_plan);
+        const tier = extractTier(member.membership_type);
         const gender = normalizeGender(member.gender);
         
         if (!tierData[tier]) {
           tierData[tier] = { tier, foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 };
         }
         
-        if (member.status === 'active' || member.status === 'pending_activation' || member.status === 'approved') {
+        if (member.status === 'active' || member.status === 'pending_activation') {
           tierData[tier].regularCount += 1;
           tierData[tier].regularMonthly += getMonthlyPrice(tier, gender);
         }

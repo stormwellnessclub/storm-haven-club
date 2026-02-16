@@ -48,12 +48,13 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
 
       (manualCharges || []).forEach(charge => {
         const desc = charge.description?.toLowerCase() || '';
+        const amountDollars = (Number(charge.amount) || 0) / 100;
         if (desc.includes('membership') || desc.includes('dues') || desc.includes('annual')) {
-          membershipRevenue += Number(charge.amount) || 0;
+          membershipRevenue += amountDollars;
         } else if (desc.includes('spa') || desc.includes('massage') || desc.includes('treatment')) {
-          spaRevenue += Number(charge.amount) || 0;
+          spaRevenue += amountDollars;
         } else {
-          otherRevenue += Number(charge.amount) || 0;
+          otherRevenue += amountDollars;
         }
       });
 
