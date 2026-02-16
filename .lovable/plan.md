@@ -1,53 +1,60 @@
 
 
-## Fix Support Tickets Display and Add Concierge Time Notice
+## Improve Check-In Page: Full Today's List, Clickable Members, More Detail
 
-### Problem 1: Support tickets show count but not actual ticket details
+### Problems Identified
 
-The `CheckInSupportPanel` on the check-in page shows "2 tickets pending" as badge counts, but the actual ticket content inside the collapsible sections may not be rendering because conversations are being filtered by `category`. Looking at the data:
-- 1 conversation has `category: "concierge"` (open)
-- 1 has `category: "support"` (in_progress)
+1. **Only shows 6 recent check-ins** -- the query uses `.limit(6)`, hiding the rest of today's attendees
+2. **No click-through to member pages** -- check-in items are plain `div`s with no navigation
+3. **Lacks detail** -- only shows name, membership type, and time; missing member ID, photo, status, and notes
 
-The panel code filters `category === "concierge"` for in-club and `category !== "concierge"` for support -- this is correct. The items should render. The likely issue is either:
-- The collapsible sections are collapsed by default and the user doesn't realize they need to click to expand, OR
-- The conversations load but the `ConversationItem` component doesn't show enough detail (only subject line, no message preview)
+### Changes
 
-**Fix**: Make the collapsible sections default to open (already set), and add the latest message preview to each conversation item so staff can see what the member actually wrote without clicking "View Full". Also ensure the panel is more visually prominent with a heading.
+**File: `src/pages/admin/CheckIn.tsx`**
 
-### Problem 2: In-club concierge requests need to "pop up" on check-in page
+1. **Remove the `.limit(6)` on `fetchRecentCheckIns`** and fetch ALL of today's check-ins. Also expand the selected fields to include `member_id` (the STM-XXXXXX code), `photo_url`, `status`, and `notes` from the join.
 
-Currently the `CheckInSupportPanel` renders at the top of the check-in page but it's a collapsible card that can be easy to miss. To make concierge requests more noticeable:
+2. **Update the `CheckInRecord` interface** to include the additional member fields (`member_id`, `photo_url`, `status`) and the check-in `notes` field.
 
-**Fix**: When there are concierge requests, show them with a more prominent alert-style banner that can't be missed. Add a pulsing indicator or stronger visual treatment for new/unread concierge requests.
+3. **Replace the "Recent Check-Ins" card** (currently a small 2-column grid of 6 items) with a full-width scrollable table/list showing ALL today's check-ins:
+   - Member photo (avatar with initials fallback)
+   - Full name
+   - Member ID (STM-XXXXXX)
+   - Membership type
+   - Status badge
+   - Check-in time
+   - Notes (if override was used)
+   - Each row is clickable and navigates to `/admin/members/{member.id}` (the member detail page)
 
-### Problem 3: Add 15-30 minute prep time notice to member concierge tab
+4. **Make the list section span the full width** instead of `lg:col-span-2` -- move it below the stats card so it gets the full page width for the table.
 
-Members need to know that concierge requests take 15-30 minutes to fulfill.
+5. **Add a scroll container** with `max-h-[500px] overflow-y-auto` so the list is scrollable when many members have checked in, and show a count header like "Today's Check-Ins (23)".
 
-**Fix**: Add an info notice/alert at the top of the `ClubConciergeTab` component telling members: "Please allow 15-30 minutes for our team to prepare your request. We recommend submitting your request upon arrival or before heading to the club."
-
----
-
-### File Changes
-
-| File | Change |
-|------|--------|
-| `src/components/member/ClubConciergeTab.tsx` | Add an info alert at the top with the 15-30 minute prep time notice |
-| `src/components/admin/CheckInSupportPanel.tsx` | Fetch and show the latest message preview for each conversation; add stronger visual treatment for concierge requests; ensure items are clearly visible |
+6. **Add `useNavigate` from react-router-dom** to enable clicking through to member detail pages.
 
 ### Technical Details
 
-**ClubConciergeTab.tsx**:
-- Import `Alert`, `AlertTitle`, `AlertDescription` from ui/alert
-- Import `Clock` icon from lucide-react
-- Add an alert box before the service cards grid:
-```
-Please allow 15-30 minutes for our concierge team to prepare your request. 
-We recommend submitting your request when you arrive or shortly before.
-```
+- Import `useNavigate` from `react-router-dom`
+- Import `Avatar`, `AvatarImage`, `AvatarFallback` from `@/components/ui/avatar` for member photos
+- Update `CheckInRecord` to:
+  ```typescript
+  interface CheckInRecord {
+    id: string;
+    member_id: string;
+    checked_in_at: string;
+    notes: string | null;
+    members: {
+      id: string;
+      member_id: string;
+      first_name: string;
+      last_name: string;
+      membership_type: string;
+      photo_url: string | null;
+      status: string;
+    };
+  }
+  ```
+- Remove `.limit(6)` from the fetch query, add `notes` to the select, and expand the `members` join fields
+- Render each row as a clickable element with `onClick={() => navigate(`/admin/members/${checkIn.members.id}`)}`  with hover styling and a cursor pointer
+- Use a `Table` component for the list with columns: Photo, Name, Member ID, Type, Status, Time, Notes
 
-**CheckInSupportPanel.tsx**:
-- Fetch the latest message for each conversation by querying `email_messages` for each conversation ID, ordered by `created_at desc`, limit 1
-- Display a truncated message preview (first ~80 characters) below the subject line in each `ConversationItem`
-- For concierge items, use a more prominent amber background to make them stand out
-- Remove the "hide when empty" check on individual panels so staff always sees the sections even if one category is empty (the overall panel still hides when there are zero total conversations)
