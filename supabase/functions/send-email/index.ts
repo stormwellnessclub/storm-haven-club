@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'soft_launch_hours';
   to: string;
   data: Record<string, any>;
 }
@@ -1817,6 +1817,58 @@ serve(async (req) => {
                 Storm Wellness Club · <a href="${BASE_URL}" style="color: #88766B;">stormwellnessclub.com</a>
               </p>
             </div>
+          </div>
+        `;
+        break;
+
+      case 'soft_launch_hours':
+        subject = 'Soft Launch Hours - Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Dear ${data.name || 'Member'},</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We're thrilled to welcome you during our soft launch week! Below are our temporary operating hours for <strong>February 16 – 22, 2025</strong>.
+              </p>
+              
+              <div style="${emailStyles.infoBox}">
+                <h3 style="margin: 0 0 12px 0; color: #1C170F; font-family: Georgia, serif; font-size: 16px;">🕐 Soft Launch Hours</h3>
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #C1B19C; color: #1C170F;">Monday – Thursday</td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #C1B19C; color: #1C170F; text-align: right; font-weight: 600;">7:00 AM – 10:00 PM</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #C1B19C; color: #1C170F;">Friday</td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #C1B19C; color: #1C170F; text-align: right; font-weight: 600;">7:00 AM – 8:00 PM</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #1C170F;">Saturday – Sunday</td>
+                    <td style="padding: 8px 0; color: #1C170F; text-align: right; font-weight: 600;">7:00 AM – 6:00 PM</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="font-size: 14px; line-height: 1.6; color: #6b7280; margin-bottom: 20px; font-style: italic;">
+                Regular hours will resume after February 22. We appreciate your flexibility as we fine-tune everything for you.
+              </p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/dashboard" style="${emailStyles.button}">Visit Member Portal</a>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We look forward to seeing you inside Storm Wellness Club.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
           </div>
         `;
         break;

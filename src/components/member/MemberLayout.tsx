@@ -4,6 +4,7 @@ import { AnnualFeeNotice } from "./AnnualFeeNotice";
 import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
+import { SoftLaunchHoursBanner } from "./SoftLaunchHoursBanner";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,9 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex flex-col w-full bg-background">
+        {/* Soft launch hours banner */}
+        <SoftLaunchHoursBanner />
+        
         {/* Activation notice for pending_activation members */}
         {isPendingActivation && membership && (
           <div className="p-4 border-b border-border">
