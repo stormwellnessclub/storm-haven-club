@@ -51,7 +51,12 @@ export default function Dashboard() {
     day: 'numeric' 
   });
 
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const todayStartISO = todayStart.toISOString();
+  const todayEndISO = todayEnd.toISOString();
+  const today = now.toLocaleDateString('en-CA'); // YYYY-MM-DD in local tz
 
   // Fetch dashboard stats
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -70,7 +75,7 @@ export default function Dashboard() {
         supabase.from('membership_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('spa_appointments').select('*', { count: 'exact', head: true }).eq('appointment_date', today),
         supabase.from('class_sessions').select('*', { count: 'exact', head: true }).eq('session_date', today),
-        supabase.from('check_ins').select('*', { count: 'exact', head: true }).gte('checked_in_at', `${today}T00:00:00`).lt('checked_in_at', `${today}T23:59:59`)
+        supabase.from('check_ins').select('*', { count: 'exact', head: true }).gte('checked_in_at', todayStartISO).lt('checked_in_at', todayEndISO)
       ]);
 
       return {
