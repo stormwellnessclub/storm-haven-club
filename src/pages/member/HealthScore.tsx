@@ -137,7 +137,7 @@ export default function HealthScore() {
                   </div>
                   <Progress value={healthScore.activity_score} className="mt-3" />
                   <p className="text-xs text-muted-foreground mt-2">
-                    Based on classes, spa visits, workouts, and check-ins
+                    Based on classes, spa visits, workouts, check-ins, and amenities
                   </p>
                 </CardContent>
               </Card>
@@ -191,7 +191,7 @@ export default function HealthScore() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
                   <div className="text-center p-4 bg-secondary/50 rounded-lg">
                     <div className="text-2xl font-bold">{healthScore.activity_counts.classes}</div>
                     <div className="text-sm text-muted-foreground mt-1">Classes</div>
@@ -207,6 +207,10 @@ export default function HealthScore() {
                   <div className="text-center p-4 bg-secondary/50 rounded-lg">
                     <div className="text-2xl font-bold">{healthScore.activity_counts.check_ins}</div>
                     <div className="text-sm text-muted-foreground mt-1">Check-ins</div>
+                  </div>
+                  <div className="text-center p-4 bg-secondary/50 rounded-lg">
+                    <div className="text-2xl font-bold">{healthScore.activity_counts.amenities}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Amenities</div>
                   </div>
                   <div className="text-center p-4 bg-secondary/50 rounded-lg">
                     <div className="text-2xl font-bold">{healthScore.activity_counts.unique_days}</div>
