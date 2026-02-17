@@ -1,69 +1,117 @@
 
+# Comprehensive Marketing Portal for Guests and Members
 
-## Fix Guest Invoice + Add Guest Card-on-File
+## Overview
 
-### Problem 1: "Unknown action: create_guest_payment_link"
-The Guest Management page calls a `create_guest_payment_link` action on the backend, but that action was never implemented. The function throws "Unknown action" because there is no matching case handler.
+Build a dedicated **Marketing Hub** as a standalone admin page (`/admin/marketing`) with full tools for both guest and member outreach, replacing the placeholder "coming soon" section in the current Guest Pass Marketing tab.
 
-### Problem 2: Can't charge guests without a card on file
-Guests who use services but didn't save a card during their original pass purchase cannot be charged after the fact. There is no way for staff to add a card for a guest or send them a link to save one.
+## What Gets Built
 
----
+### 1. New Admin Page: `/admin/marketing`
+A full marketing portal with tabs for:
 
-### Changes
+**Guests Tab**
+- Guest feedback collection via a clickable rating/review form (replacing the current "reply to this email" approach)
+- Bulk email campaigns to past guests (re-engagement, special offers)
+- Individual guest outreach (send specific emails)
+- Guest-to-member conversion tracking
+- Campaign history and analytics
 
-**1. Add `create_guest_payment_link` action to the backend function**
+**Members Tab**
+- Bulk email campaigns to members (announcements, promotions, wellness tips)
+- Individual member outreach
+- Segmented sends (by tier, by status, by activity level)
+- Campaign history and analytics
 
-Add a new case in `supabase/functions/stripe-payment/index.ts` that creates a Stripe Checkout session in `payment` mode for a guest service. It will:
-- Find or create a Stripe customer by the guest's email
-- Create a one-time payment checkout session for the specified amount/description
-- Include `setup_future_usage: 'off_session'` so the guest's card is saved for future charges
-- Return the checkout URL to the admin
-- Save the `stripe_customer_id` back to the guest pass record
+**Templates Tab**
+- Pre-built email templates (guest feedback request, member promo, re-engagement, seasonal offers, referral incentive)
+- Template preview before sending
+- Custom template creation (subject + body with merge fields like `{name}`, `{visitDate}`)
 
-**2. Add `create_guest_setup_intent` action to the backend function**
+**Analytics Tab**
+- Emails sent over time
+- Campaign performance (sent, opened -- basic tracking)
+- Guest conversion rate (visited -> became member)
 
-A new action that creates a Stripe SetupIntent for a guest (no charge). This allows staff to send a link where the guest can save their card for future billing. It will:
-- Find or create a Stripe customer by email
-- Create a SetupIntent and return the client secret
-- Update the `guest_passes` record with the `stripe_customer_id` and card metadata after setup succeeds
+### 2. Fix Guest Feedback Email
+Replace the current "reply to this email" approach with a clickable feedback form:
+- The `guest_visit_feedback` email template will include a link to a public feedback page
+- New public page: `/guest-feedback?token={unique_token}` where guests rate their experience (1-5 stars) and leave comments
+- Feedback stored in a new `guest_feedback` table
+- Admin can view all feedback from the Marketing portal
 
-**3. Add "Request Card on File" button in Guest Management UI**
+### 3. Database Changes
 
-In `src/pages/admin/GuestManagement.tsx`, add a button in the Services tab that generates a Stripe Checkout session in `setup` mode. The link can be copied and sent to the guest. When the guest completes it, their card is saved for future charges.
+**New table: `email_campaigns`**
+- `id`, `campaign_name`, `campaign_type` (guest/member), `audience_filter` (jsonb), `template_id`, `subject`, `body_html`, `sent_count`, `created_by`, `sent_at`, `created_at`
 
-**4. Update action type in the backend**
+**New table: `email_campaign_recipients`**
+- `id`, `campaign_id`, `email`, `recipient_name`, `recipient_type` (guest/member), `status` (sent/failed), `sent_at`
 
-Add `create_guest_payment_link` and `create_guest_setup_intent` to the `PaymentRequest` action union type.
+**New table: `email_templates`**
+- `id`, `name`, `category` (guest_outreach/member_promo/feedback_request/announcement), `subject`, `body_html`, `merge_fields` (text[]), `is_system` (bool), `created_by`, `created_at`
 
----
+**New table: `guest_feedback`**
+- `id`, `guest_pass_id`, `guest_email`, `guest_name`, `rating` (1-5), `comment`, `feedback_token`, `submitted_at`, `created_at`
 
-### Technical details
+### 4. Navigation
+- Add "Marketing" to AdminSidebar under Management section
+- Keep the existing Guest Pass Marketing tab but link it to the new portal ("Open Full Marketing Portal" button)
 
-**Backend -- `create_guest_payment_link` (new case):**
+### 5. Files Changed/Created
+
+**New files:**
+- `src/pages/admin/Marketing.tsx` -- Main marketing portal page with tabs
+- `src/components/admin/marketing/GuestMarketingTab.tsx` -- Guest outreach tools
+- `src/components/admin/marketing/MemberMarketingTab.tsx` -- Member outreach tools  
+- `src/components/admin/marketing/TemplatesTab.tsx` -- Email template management
+- `src/components/admin/marketing/CampaignAnalytics.tsx` -- Analytics dashboard
+- `src/components/admin/marketing/ComposeEmailDialog.tsx` -- Email composer with template selection + preview
+- `src/pages/GuestFeedback.tsx` -- Public feedback form page
+
+**Modified files:**
+- `src/App.tsx` -- Add routes for `/admin/marketing` and `/guest-feedback`
+- `src/components/admin/AdminSidebar.tsx` -- Add Marketing nav item
+- `supabase/functions/send-email/index.ts` -- Update `guest_visit_feedback` template to include feedback link instead of "reply to this email"
+- `src/components/admin/GuestPassMarketingTab.tsx` -- Add link to full marketing portal
+
+**Database migration:**
+- Create `email_campaigns`, `email_campaign_recipients`, `email_templates`, and `guest_feedback` tables
+- Seed default templates (guest feedback request, member promo, re-engagement, referral)
+- RLS policies: staff roles for campaigns/templates, public insert for guest_feedback (token-validated)
+
+## Technical Details
+
+### Guest Feedback Flow
 ```
-- Accepts: guestEmail, guestName, amount (cents), description, serviceId, successUrl, cancelUrl
-- Creates or finds Stripe customer by email
-- Creates checkout session (mode: "payment", setup_future_usage: "off_session")
-- Metadata: type "guest_service_payment", service_id, guest_name
-- Updates guest_passes stripe_customer_id if found by email
-- Returns { url: session.url }
+1. Guest visits club -> checked in -> status = 'exhausted'
+2. Next day: process-guest-feedback-emails runs
+3. Email sent with link: /guest-feedback?token={unique_token}
+4. Guest clicks link -> sees branded rating form (1-5 stars + comment box)
+5. Guest submits -> stored in guest_feedback table
+6. Admin views feedback in Marketing portal
 ```
 
-**Backend -- `create_guest_setup_intent` (new case):**
+### Campaign Send Flow
 ```
-- Accepts: guestEmail, guestName, guestPassId (optional)
-- Creates or finds Stripe customer
-- Creates a Checkout session in "setup" mode
-- Returns { url: session.url }
-- Saves stripe_customer_id to guest_passes record
+1. Admin selects audience (all guests / all members / filtered segment)
+2. Picks or creates a template
+3. Previews the email with merge fields filled
+4. Clicks "Send Campaign"
+5. Edge function processes batch send via Resend
+6. Results logged in email_campaign_recipients
+7. Campaign summary shown in analytics
 ```
 
-**Frontend -- GuestManagement.tsx:**
-- Add "Save Card" button next to each guest profile that has no card on file
-- Calls `create_guest_setup_intent`, opens the returned URL in a new tab
-- After returning, staff can refresh to see the card metadata
+### Email Template Merge Fields
+- `{name}` -- recipient first name
+- `{visitDate}` -- guest visit date
+- `{membershipTier}` -- member tier
+- `{clubName}` -- Storm Wellness Club
+- `{feedbackUrl}` -- feedback form link (guest only)
 
-**Files changed:**
-- `supabase/functions/stripe-payment/index.ts` (add 2 new action cases, ~80 lines)
-- `src/pages/admin/GuestManagement.tsx` (add "Save Card" button + handler, ~30 lines)
+### RLS Policies
+- `email_campaigns`: staff roles (super_admin, admin, manager) for all operations
+- `email_campaign_recipients`: same as campaigns
+- `email_templates`: staff roles for CRUD, system templates cannot be deleted
+- `guest_feedback`: public INSERT (with token validation in code), staff SELECT
