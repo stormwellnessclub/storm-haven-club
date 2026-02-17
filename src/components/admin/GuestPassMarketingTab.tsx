@@ -4,7 +4,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Gift, XCircle, Send, BarChart3, Mail } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Gift, XCircle, Send, BarChart3, Mail, UserPlus, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, endOfMonth } from "date-fns";
 import { toast } from "sonner";
@@ -18,6 +20,15 @@ interface CampaignLog {
   sent_at: string;
 }
 
+interface MemberOption {
+  id: string;
+  user_id: string | null;
+  first_name: string;
+  last_name: string;
+  email: string;
+  status: string;
+}
+
 export function GuestPassMarketingTab() {
   const [campaigns, setCampaigns] = useState<CampaignLog[]>([]);
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
@@ -25,9 +36,65 @@ export function GuestPassMarketingTab() {
   const [isRevoking, setIsRevoking] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
+  // Individual send state
+  const [individualSearch, setIndividualSearch] = useState("");
+  const [memberResults, setMemberResults] = useState<MemberOption[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSendingIndividual, setIsSendingIndividual] = useState<string | null>(null);
+
   useEffect(() => {
     fetchCampaigns();
   }, []);
+
+  // Search members for individual send
+  useEffect(() => {
+    if (individualSearch.length < 2) {
+      setMemberResults([]);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const q = individualSearch.toLowerCase();
+        const { data } = await supabase
+          .from("members")
+          .select("id, user_id, first_name, last_name, email, status")
+          .eq("status", "active")
+          .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(10);
+        setMemberResults((data || []) as MemberOption[]);
+      } catch {
+        setMemberResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [individualSearch]);
+
+  const handleSendIndividual = async (member: MemberOption) => {
+    if (!member.email) {
+      toast.error("Member has no email address");
+      return;
+    }
+    setIsSendingIndividual(member.id);
+    try {
+      const expiryMonth = format(new Date(), "MMMM yyyy");
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "guest_pass_promo",
+          to: member.email,
+          data: { name: member.first_name || "Member", expiryMonth },
+        },
+      });
+      if (error) throw error;
+      toast.success(`Guest pass promo email sent to ${member.first_name} ${member.last_name}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send email");
+    } finally {
+      setIsSendingIndividual(null);
+    }
+  };
 
   const fetchCampaigns = async () => {
     setIsLoadingCampaigns(true);
@@ -206,7 +273,61 @@ export function GuestPassMarketingTab() {
         </Card>
       </div>
 
-      {/* Stats */}
+      {/* Send to Individual Member */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <UserPlus className="h-5 w-5" />
+            Send Promo Email to Individual Member
+          </CardTitle>
+          <CardDescription>Search for a member and send them the guest pass promo email</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or email..."
+              value={individualSearch}
+              onChange={(e) => setIndividualSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          {isSearching && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Searching...
+            </div>
+          )}
+          {memberResults.length > 0 && (
+            <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
+              {memberResults.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-3">
+                  <div>
+                    <p className="font-medium text-sm">{member.first_name} {member.last_name}</p>
+                    <p className="text-xs text-muted-foreground">{member.email}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isSendingIndividual === member.id}
+                    onClick={() => handleSendIndividual(member)}
+                  >
+                    {isSendingIndividual === member.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <><Mail className="h-3 w-3 mr-1" />Send</>
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {individualSearch.length >= 2 && !isSearching && memberResults.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-2">No active members found</p>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6 text-center">
