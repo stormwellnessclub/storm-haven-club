@@ -1923,6 +1923,13 @@ function MemberActivityTimeline({ memberId }: { memberId: string }) {
       case 'class_attended':
         return `Attended ${data.class_name || 'class'} on ${data.session_date || ''}`;
       case 'spa_service':
+        if (data.source === 'amenity_log') {
+          const typeLabels: Record<string, string> = {
+            sauna: 'Sauna', salt_room: 'Salt Room', cold_plunge: 'Cold Plunge',
+            steam_room: 'Steam Room', zero_body_cryo: 'Zero Body Cryo', red_light_therapy: 'Red Light Therapy',
+          };
+          return `Amenity: ${typeLabels[data.amenity_type] || data.amenity_type}${data.duration_minutes ? ` (${data.duration_minutes} min)` : ''}`;
+        }
         return `Spa service: ${data.service_name || ''}`;
       case 'cafe_order':
         return `Cafe order: $${data.total_amount || 0}`;

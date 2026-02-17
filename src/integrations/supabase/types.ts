@@ -220,6 +220,71 @@ export type Database = {
           },
         ]
       }
+      amenity_usage_logs: {
+        Row: {
+          amenity_type: Database["public"]["Enums"]["amenity_type"]
+          check_in_id: string | null
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          member_id: string
+          notes: string | null
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          amenity_type: Database["public"]["Enums"]["amenity_type"]
+          check_in_id?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          member_id: string
+          notes?: string | null
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          amenity_type?: Database["public"]["Enums"]["amenity_type"]
+          check_in_id?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          member_id?: string
+          notes?: string | null
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "amenity_usage_logs_check_in_id_fkey"
+            columns: ["check_in_id"]
+            isOneToOne: false
+            referencedRelation: "check_ins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "amenity_usage_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "amenity_usage_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "amenity_usage_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       application_status_history: {
         Row: {
           application_id: string
@@ -4417,6 +4482,13 @@ export type Database = {
       }
     }
     Enums: {
+      amenity_type:
+        | "sauna"
+        | "salt_room"
+        | "cold_plunge"
+        | "steam_room"
+        | "zero_body_cryo"
+        | "red_light_therapy"
       app_role:
         | "super_admin"
         | "admin"
@@ -4570,6 +4642,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      amenity_type: [
+        "sauna",
+        "salt_room",
+        "cold_plunge",
+        "steam_room",
+        "zero_body_cryo",
+        "red_light_therapy",
+      ],
       app_role: [
         "super_admin",
         "admin",
