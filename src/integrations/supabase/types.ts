@@ -1262,6 +1262,89 @@ export type Database = {
         }
         Relationships: []
       }
+      email_campaign_recipients: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          email: string
+          id: string
+          recipient_name: string | null
+          recipient_type: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          email: string
+          id?: string
+          recipient_name?: string | null
+          recipient_type: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          recipient_name?: string | null
+          recipient_type?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_campaigns: {
+        Row: {
+          audience_filter: Json | null
+          body_html: string
+          campaign_name: string
+          campaign_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          sent_at: string | null
+          sent_count: number | null
+          subject: string
+          template_id: string | null
+        }
+        Insert: {
+          audience_filter?: Json | null
+          body_html: string
+          campaign_name: string
+          campaign_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sent_at?: string | null
+          sent_count?: number | null
+          subject: string
+          template_id?: string | null
+        }
+        Update: {
+          audience_filter?: Json | null
+          body_html?: string
+          campaign_name?: string
+          campaign_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sent_at?: string | null
+          sent_count?: number | null
+          subject?: string
+          template_id?: string | null
+        }
+        Relationships: []
+      }
       email_conversations: {
         Row: {
           category: string
@@ -1338,6 +1421,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_templates: {
+        Row: {
+          body_html: string
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_system: boolean | null
+          merge_fields: string[] | null
+          name: string
+          subject: string
+        }
+        Insert: {
+          body_html: string
+          category: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_system?: boolean | null
+          merge_fields?: string[] | null
+          name: string
+          subject: string
+        }
+        Update: {
+          body_html?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_system?: boolean | null
+          merge_fields?: string[] | null
+          name?: string
+          subject?: string
+        }
+        Relationships: []
       }
       equipment: {
         Row: {
@@ -1447,6 +1566,50 @@ export type Database = {
             columns: ["goal_id"]
             isOneToOne: false
             referencedRelation: "member_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          feedback_token: string
+          guest_email: string | null
+          guest_name: string | null
+          guest_pass_id: string | null
+          id: string
+          rating: number
+          submitted_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          feedback_token: string
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_pass_id?: string | null
+          id?: string
+          rating: number
+          submitted_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          feedback_token?: string
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_pass_id?: string | null
+          id?: string
+          rating?: number
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_feedback_guest_pass_id_fkey"
+            columns: ["guest_pass_id"]
+            isOneToOne: false
+            referencedRelation: "guest_passes"
             referencedColumns: ["id"]
           },
         ]

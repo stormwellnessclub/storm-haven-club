@@ -398,12 +398,15 @@ export function GuestPassMarketingTab() {
         </CardContent>
       </Card>
 
-      {/* Future Placeholders */}
-      <Card variant="flat">
-        <CardContent className="pt-6 text-center text-muted-foreground">
-          <Mail className="h-8 w-8 mx-auto mb-2 opacity-40" />
-          <p className="font-medium">Email Templates & Outreach Campaigns</p>
-          <p className="text-sm">Coming soon — custom email templates and automated outreach sequences</p>
+      {/* Link to Full Marketing Portal */}
+      <Card>
+        <CardContent className="pt-6 text-center">
+          <Mail className="h-8 w-8 mx-auto mb-2 text-accent" />
+          <p className="font-medium">Full Marketing Portal</p>
+          <p className="text-sm text-muted-foreground mb-4">Email templates, campaign management, guest feedback, and analytics</p>
+          <Button asChild>
+            <a href="/admin/marketing">Open Marketing Portal</a>
+          </Button>
         </CardContent>
       </Card>
     </div>

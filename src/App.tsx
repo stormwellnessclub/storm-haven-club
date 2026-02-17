@@ -76,7 +76,9 @@ import Equipment from "./pages/admin/Equipment";
 import Agreements from "./pages/admin/Agreements";
 import Reports from "./pages/admin/Reports";
 import FrontDeskPOS from "./pages/admin/FrontDeskPOS";
+import Marketing from "./pages/admin/Marketing";
 import DesignSystem from "./pages/DesignSystem";
+import GuestFeedback from "./pages/GuestFeedback";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +112,7 @@ const App = () => (
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/guest-pass" element={<GuestPass />} />
+              <Route path="/guest-feedback" element={<GuestFeedback />} />
               <Route path="/design-system" element={<DesignSystem />} />
               
               {/* Member Portal Routes - Protected */}
@@ -163,6 +166,7 @@ const App = () => (
               <Route path="/admin/agreements" element={<ProtectedAdminRoute><Agreements /></ProtectedAdminRoute>} />
               <Route path="/admin/reports" element={<ProtectedAdminRoute><Reports /></ProtectedAdminRoute>} />
               <Route path="/admin/front-desk" element={<ProtectedAdminRoute><FrontDeskPOS /></ProtectedAdminRoute>} />
+              <Route path="/admin/marketing" element={<ProtectedAdminRoute><Marketing /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

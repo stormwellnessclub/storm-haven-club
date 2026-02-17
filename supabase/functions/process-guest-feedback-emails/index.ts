@@ -48,10 +48,16 @@ serve(async (req) => {
 
     for (const guest of yesterdayGuests) {
       try {
+        // Generate a unique feedback token based on guest pass ID
+        const feedbackToken = `fb-${guest.id}`;
+
         // Format visit date for the email
         const visitDate = guest.valid_date 
           ? new Date(guest.valid_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
           : undefined;
+
+        const appBaseUrl = Deno.env.get('APP_BASE_URL') ?? 'https://stormwellnessclub.com';
+        const feedbackUrl = `${appBaseUrl}/guest-feedback?token=${feedbackToken}`;
 
         // Send the feedback email
         const { error: emailError } = await supabase.functions.invoke('send-email', {
@@ -61,6 +67,8 @@ serve(async (req) => {
             data: {
               name: guest.guest_name,
               visitDate,
+              feedbackToken,
+              feedbackUrl,
               source: 'process-guest-feedback-emails',
             },
           },

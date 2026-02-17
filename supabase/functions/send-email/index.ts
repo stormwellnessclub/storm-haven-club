@@ -1789,14 +1789,12 @@ serve(async (req) => {
                 We'd love to hear about your experience — what stood out, what you enjoyed most, and anything we could do better. Your feedback helps us continue to elevate the experience for everyone who walks through our doors.
               </p>
               
-              <div style="${emailStyles.infoBox}">
-                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, serif;">
-                  Simply reply to this email with your thoughts — we read every response.
-                </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${data.feedbackUrl || BASE_URL + '/guest-feedback?token=' + (data.feedbackToken || '')}" style="${emailStyles.button}">Share Your Feedback</a>
               </div>
               
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${BASE_URL}/guest-pass" style="${emailStyles.button}">Book Another Visit</a>
+              <div style="text-align: center; margin: 20px 0;">
+                <a href="${BASE_URL}/guest-pass" style="${emailStyles.buttonSecondary}">Book Another Visit</a>
               </div>
               
               <p style="font-size: 15px; line-height: 1.8; color: #6b7280; margin-bottom: 20px; font-style: italic;">
