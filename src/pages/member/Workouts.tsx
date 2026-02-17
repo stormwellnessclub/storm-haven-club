@@ -36,10 +36,12 @@ import { useWorkoutLogs, useCreateWorkoutLog, useUpdateWorkoutLog, useDeleteWork
 import { useAIWorkouts, useGenerateAIWorkout, useCompleteAIWorkout, useDeleteAIWorkout, AIWorkout, WorkoutPreferences } from "@/hooks/useAIWorkouts";
 import { useWorkoutPrograms, useGenerateProgram } from "@/hooks/useWorkoutPrograms";
 import { useFitnessProfile } from "@/hooks/useFitnessProfile";
+import { useWorkoutTemplates, useDeleteTemplate, useLogFromTemplate, type WorkoutTemplate } from "@/hooks/useWorkoutTemplates";
 import { GenerateWorkoutModal } from "@/components/member/GenerateWorkoutModal";
 import { GenerateProgramModal, ProgramPreferences } from "@/components/member/GenerateProgramModal";
 import { ExerciseCard } from "@/components/member/ExerciseCard";
 import { ProgramDashboard } from "@/components/member/ProgramDashboard";
+import { WorkoutBuilder } from "@/components/member/WorkoutBuilder";
 import {
   Dumbbell,
   Plus,
@@ -52,6 +54,10 @@ import {
   Settings,
   Info,
   Calendar,
+  Wrench,
+  Star,
+  Play,
+  LayoutTemplate,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
@@ -74,6 +80,8 @@ export default function Workouts() {
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showProgramModal, setShowProgramModal] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
   const [editingWorkout, setEditingWorkout] = useState<WorkoutLog | null>(null);
   const [formData, setFormData] = useState<CreateWorkoutLogData>({
     workout_type: "",
@@ -89,6 +97,9 @@ export default function Workouts() {
   const { data: aiWorkouts, isLoading: aiLoading } = useAIWorkouts(undefined, 5);
   const { data: programs, isLoading: programsLoading } = useWorkoutPrograms();
   const { data: fitnessProfile } = useFitnessProfile();
+  const { data: templates, isLoading: templatesLoading } = useWorkoutTemplates();
+  const deleteTemplate = useDeleteTemplate();
+  const logFromTemplate = useLogFromTemplate();
   const createWorkout = useCreateWorkoutLog();
   const updateWorkout = useUpdateWorkoutLog();
   const deleteWorkout = useDeleteWorkoutLog();
@@ -333,10 +344,15 @@ export default function Workouts() {
               </DialogContent>
             </Dialog>
 
+            <Button variant="gold" onClick={() => { setEditingTemplate(null); setShowBuilder(true); }}>
+              <Wrench className="h-4 w-4 mr-2" />
+              Build Custom Workout
+            </Button>
+
             {fitnessProfile ? (
               <Button variant="outline" onClick={() => setShowGenerateModal(true)}>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Generate Custom Workout
+                Generate AI Workout
               </Button>
             ) : (
               <Button variant="outline" asChild>
@@ -413,6 +429,10 @@ export default function Workouts() {
               <Calendar className="h-4 w-4" />
               Programs {activeProgram && <Badge variant="secondary" className="ml-1 text-xs">Active</Badge>}
             </TabsTrigger>
+            <TabsTrigger value="templates" className="gap-1.5">
+              <LayoutTemplate className="h-4 w-4" />
+              Templates ({templates?.length || 0})
+            </TabsTrigger>
             <TabsTrigger value="logged">Logged ({workouts?.length || 0})</TabsTrigger>
             <TabsTrigger value="ai">AI Workouts ({aiWorkouts?.length || 0})</TabsTrigger>
           </TabsList>
@@ -458,6 +478,85 @@ export default function Workouts() {
                       </Button>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="templates">
+            {templatesLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            ) : templates && templates.length > 0 ? (
+              <div className="space-y-3">
+                {templates.map((template) => (
+                  <Card key={template.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-sm">{template.template_name}</h3>
+                          {template.is_favorite && <Star className="h-3.5 w-3.5 text-accent fill-accent" />}
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {template.workout_type && (
+                            <Badge variant="secondary" className="text-xs">{template.workout_type}</Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {template.exercises.length} exercise{template.exercises.length !== 1 ? "s" : ""}
+                          </span>
+                          {template.estimated_duration_minutes && (
+                            <span className="text-xs text-muted-foreground">· ~{template.estimated_duration_minutes} min</span>
+                          )}
+                          <span className="text-xs text-muted-foreground">· Used {template.times_used}×</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <Button
+                          variant="gold"
+                          size="sm"
+                          onClick={() => logFromTemplate.mutate(template)}
+                          disabled={logFromTemplate.isPending}
+                        >
+                          <Play className="h-3.5 w-3.5 mr-1" />
+                          Log
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => { setEditingTemplate(template); setShowBuilder(true); }}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => {
+                            if (confirm("Delete this template?")) deleteTemplate.mutate(template.id);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <LayoutTemplate className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground">No workout templates yet</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => { setEditingTemplate(null); setShowBuilder(true); }}
+                  >
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Build Your First Template
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -665,6 +764,13 @@ export default function Workouts() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Workout Builder */}
+        <WorkoutBuilder
+          open={showBuilder}
+          onOpenChange={setShowBuilder}
+          editingTemplate={editingTemplate}
+        />
       </div>
     </MemberLayout>
   );
