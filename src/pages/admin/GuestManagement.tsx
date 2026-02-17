@@ -577,9 +577,40 @@ export default function GuestManagement() {
                         )}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground italic">
-                        No card on file. Card will be saved when guest pays via Stripe checkout.
-                      </p>
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground italic">
+                          No card on file.
+                        </p>
+                        {selectedGuest.email && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                toast.info("Creating card setup link...");
+                                const { data, error } = await supabase.functions.invoke("stripe-payment", {
+                                  body: {
+                                    action: "create_guest_setup_intent",
+                                    guestEmail: selectedGuest.email,
+                                    guestName: selectedGuest.name,
+                                  },
+                                });
+                                if (error) throw error;
+                                if (data?.error) throw new Error(data.error);
+                                if (data?.url) {
+                                  window.open(data.url, "_blank");
+                                  toast.success("Card setup link opened. Share it with the guest or have them complete it now.");
+                                }
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to create card setup link");
+                              }
+                            }}
+                          >
+                            <CreditCard className="h-3 w-3 mr-1" />
+                            Request Card on File
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
 
