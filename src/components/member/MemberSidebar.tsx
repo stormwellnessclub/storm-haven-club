@@ -56,13 +56,13 @@ const memberMenuItems: MenuItem[] = [
   { title: "Payment Methods", url: "/member/payment-methods", icon: Wallet },
   { title: "Payment History", url: "/member/payment-history", icon: Receipt },
   { title: "My Bookings", url: "/member/bookings", icon: Calendar },
+  { title: "Support", url: "/member/support", icon: MessageCircle },
   { title: "Book Classes", url: "/schedule", icon: CalendarPlus },
   { title: "Buy Passes", url: "/class-passes", icon: Ticket },
   { title: "Wellness Booking", url: "/member/wellness", icon: Zap },
   { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
   { title: "Register Guest", url: "/member/credits", icon: Gift },
   { title: "Waivers", url: "/member/waivers", icon: FileCheck },
-  { title: "Support", url: "/member/support", icon: MessageCircle },
 ];
 
 const wellnessMenuItems: MenuItem[] = [
