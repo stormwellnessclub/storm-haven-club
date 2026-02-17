@@ -1,47 +1,69 @@
 
 
-## Fix: Spa Appointment Booking with Credits
+## Fix Guest Invoice + Add Guest Card-on-File
 
-### Problem
-When staff try to book a wellness session for a member using credits from the Member Detail page, the insert fails with:
-> Could not find the 'credit_id' column of 'spa_appointments' in the schema cache
+### Problem 1: "Unknown action: create_guest_payment_link"
+The Guest Management page calls a `create_guest_payment_link` action on the backend, but that action was never implemented. The function throws "Unknown action" because there is no matching case handler.
 
-The code on line 2112 of `MemberDetail.tsx` passes three fields that do not exist in the `spa_appointments` table:
-- `credit_id` (does not exist)
-- `credit_type` (does not exist)
-- `notes` (does not exist -- the table has `staff_notes` and `member_notes`)
+### Problem 2: Can't charge guests without a card on file
+Guests who use services but didn't save a card during their original pass purchase cannot be charged after the fact. There is no way for staff to add a card for a guest or send them a link to save one.
 
-### Solution
+---
 
-Two options:
+### Changes
 
-**Option A -- Add missing columns (recommended)**
-Add `credit_id` and `credit_type` columns to the `spa_appointments` table so we can track which credit was used. Fix `notes` to use `staff_notes` instead.
+**1. Add `create_guest_payment_link` action to the backend function**
 
-- Migration: `ALTER TABLE spa_appointments ADD COLUMN credit_id uuid REFERENCES member_credits(id), ADD COLUMN credit_type text;`
-- Code fix in `MemberDetail.tsx` line 2112: change `notes` to `staff_notes`
-- Run `NOTIFY pgrst, 'reload schema';` so the API recognizes the new columns immediately
+Add a new case in `supabase/functions/stripe-payment/index.ts` that creates a Stripe Checkout session in `payment` mode for a guest service. It will:
+- Find or create a Stripe customer by the guest's email
+- Create a one-time payment checkout session for the specified amount/description
+- Include `setup_future_usage: 'off_session'` so the guest's card is saved for future charges
+- Return the checkout URL to the admin
+- Save the `stripe_customer_id` back to the guest pass record
 
-**Option B -- Remove the fields from the insert**
-Simply remove `credit_id` and `credit_type` from the insert and change `notes` to `staff_notes`. The credit deduction already happens on line 2104, so the booking would still work -- we just wouldn't track which credit record was used on the appointment itself.
+**2. Add `create_guest_setup_intent` action to the backend function**
 
-### Recommendation
-Option A is better for audit/tracking. It lets staff see which credit was consumed for each appointment.
+A new action that creates a Stripe SetupIntent for a guest (no charge). This allows staff to send a link where the guest can save their card for future billing. It will:
+- Find or create a Stripe customer by email
+- Create a SetupIntent and return the client secret
+- Update the `guest_passes` record with the `stripe_customer_id` and card metadata after setup succeeds
+
+**3. Add "Request Card on File" button in Guest Management UI**
+
+In `src/pages/admin/GuestManagement.tsx`, add a button in the Services tab that generates a Stripe Checkout session in `setup` mode. The link can be copied and sent to the guest. When the guest completes it, their card is saved for future charges.
+
+**4. Update action type in the backend**
+
+Add `create_guest_payment_link` and `create_guest_setup_intent` to the `PaymentRequest` action union type.
+
+---
 
 ### Technical details
 
-**Database migration:**
-```sql
-ALTER TABLE public.spa_appointments
-  ADD COLUMN credit_id uuid REFERENCES public.member_credits(id),
-  ADD COLUMN credit_type text;
-
-NOTIFY pgrst, 'reload schema';
+**Backend -- `create_guest_payment_link` (new case):**
+```
+- Accepts: guestEmail, guestName, amount (cents), description, serviceId, successUrl, cancelUrl
+- Creates or finds Stripe customer by email
+- Creates checkout session (mode: "payment", setup_future_usage: "off_session")
+- Metadata: type "guest_service_payment", service_id, guest_name
+- Updates guest_passes stripe_customer_id if found by email
+- Returns { url: session.url }
 ```
 
-**Code change in `src/pages/admin/MemberDetail.tsx` (line ~2112):**
-Change `notes: "Booked by staff"` to `staff_notes: "Booked by staff"`.
+**Backend -- `create_guest_setup_intent` (new case):**
+```
+- Accepts: guestEmail, guestName, guestPassId (optional)
+- Creates or finds Stripe customer
+- Creates a Checkout session in "setup" mode
+- Returns { url: session.url }
+- Saves stripe_customer_id to guest_passes record
+```
 
-The `credit_id` and `credit_type` fields already in the insert will then work once the columns exist.
+**Frontend -- GuestManagement.tsx:**
+- Add "Save Card" button next to each guest profile that has no card on file
+- Calls `create_guest_setup_intent`, opens the returned URL in a new tab
+- After returning, staff can refresh to see the card metadata
 
-**Files changed:** `src/pages/admin/MemberDetail.tsx` (1 line fix)
+**Files changed:**
+- `supabase/functions/stripe-payment/index.ts` (add 2 new action cases, ~80 lines)
+- `src/pages/admin/GuestManagement.tsx` (add "Save Card" button + handler, ~30 lines)
