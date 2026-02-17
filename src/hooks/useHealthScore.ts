@@ -17,6 +17,7 @@ export interface HealthScore {
     spa_services: number;
     workouts: number;
     check_ins: number;
+    amenities: number;
     unique_days: number;
   };
   calculated_at: string;
@@ -38,6 +39,7 @@ export interface HealthScoreResult {
     spa_services: number;
     workouts: number;
     check_ins: number;
+    amenities: number;
     unique_days: number;
   };
 }
@@ -65,7 +67,7 @@ export function useHealthScore(memberId?: string, periodDays?: number) {
       const periodStart = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
       // Query all activity counts in parallel
-      const [checkInsResult, workoutsResult, classesResult, spaResult, goalsResult] = await Promise.all([
+      const [checkInsResult, workoutsResult, classesResult, spaResult, goalsResult, amenitiesResult] = await Promise.all([
         supabase
           .from("check_ins")
           .select("checked_in_at", { count: "exact", head: false })
@@ -90,12 +92,18 @@ export function useHealthScore(memberId?: string, periodDays?: number) {
           .select("target_value, current_value")
           .eq("member_id", targetMemberId)
           .eq("status", "active") as any),
+        supabase
+          .from("amenity_usage_logs")
+          .select("used_at", { count: "exact", head: false })
+          .eq("member_id", targetMemberId)
+          .gte("used_at", periodStart),
       ]);
 
       const checkInCount = checkInsResult.count || 0;
       const workoutCount = workoutsResult.count || 0;
       const classCount = classesResult.count || 0;
       const spaCount = spaResult.count || 0;
+      const amenityCount = amenitiesResult.count || 0;
 
       // Compute unique active days
       const allDates = new Set<string>();
@@ -103,11 +111,12 @@ export function useHealthScore(memberId?: string, periodDays?: number) {
       (workoutsResult.data || []).forEach((r: any) => allDates.add(r.logged_at?.split("T")[0]));
       (classesResult.data || []).forEach((r: any) => allDates.add(r.booked_at?.split("T")[0]));
       (spaResult.data || []).forEach((r: any) => allDates.add(r.appointment_date?.split("T")[0]));
+      (amenitiesResult.data || []).forEach((r: any) => allDates.add(r.used_at?.split("T")[0]));
       allDates.delete(undefined as any);
       const uniqueDays = allDates.size;
 
       // Activity Score (0-40): 20+ total activities = max
-      const totalActivities = checkInCount + workoutCount + classCount + spaCount;
+      const totalActivities = checkInCount + workoutCount + classCount + spaCount + amenityCount;
       const activityScore = Math.round(Math.min(totalActivities / 20, 1) * 40);
 
       // Consistency Score (0-30): unique days / total days in period
@@ -139,6 +148,7 @@ export function useHealthScore(memberId?: string, periodDays?: number) {
           spa_services: spaCount,
           workouts: workoutCount,
           check_ins: checkInCount,
+          amenities: amenityCount,
           unique_days: uniqueDays,
         },
       };
@@ -187,6 +197,7 @@ export function useHealthScoreHistory(memberId?: string, limit: number = 10) {
           spa_services: 0,
           workouts: 0,
           check_ins: 0,
+          amenities: 0,
           unique_days: 0,
         },
       })) as HealthScore[];
