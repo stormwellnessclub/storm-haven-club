@@ -1,8 +1,21 @@
+import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { 
   Users, 
   UserCheck, 
@@ -15,7 +28,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Trophy,
-  AlertTriangle
+  AlertTriangle,
+  Mail
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -24,8 +38,12 @@ import { format, formatDistanceToNow, subDays } from "date-fns";
 import { BillingHealthWidget } from "@/components/admin/BillingHealthWidget";
 import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
 import { SupportAlertCard } from "@/components/admin/SupportAlertCard";
+import { toast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
+  const [sendingEmails, setSendingEmails] = useState(false);
+  const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
+
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -182,6 +200,45 @@ export default function Dashboard() {
     },
   });
 
+  const handleSendHoursEmail = async () => {
+    setSendingEmails(true);
+    setEmailProgress({ sent: 0, total: 0 });
+    try {
+      const { data: members, error } = await supabase
+        .from('members')
+        .select('first_name, email')
+        .eq('status', 'active')
+        .not('email', 'is', null);
+
+      if (error) throw error;
+      const validMembers = (members || []).filter((m) => m.email);
+      setEmailProgress({ sent: 0, total: validMembers.length });
+
+      let sent = 0;
+      let failed = 0;
+      for (const member of validMembers) {
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: { type: "soft_launch_hours", to: member.email, data: { name: member.first_name || "Member" } },
+          });
+          sent++;
+        } catch {
+          failed++;
+        }
+        setEmailProgress({ sent: sent + failed, total: validMembers.length });
+      }
+
+      toast({
+        title: "Emails Sent",
+        description: `${sent} sent successfully${failed > 0 ? `, ${failed} failed` : ""}`,
+      });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to send emails", variant: "destructive" });
+    } finally {
+      setSendingEmails(false);
+    }
+  };
+
   const statCards = [
     {
       title: "Active Members",
@@ -254,13 +311,38 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground">Today</p>
             <p className="text-lg font-medium">{currentDate}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button asChild>
               <Link to="/admin/check-in">
                 <QrCode className="h-4 w-4 mr-2" />
                 Open Scanner
               </Link>
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" disabled={sendingEmails}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  {sendingEmails ? `Sending ${emailProgress.sent}/${emailProgress.total}...` : "Send Hours Email"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Send Soft Launch Hours Email</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will send the soft launch hours email to all active members. Are you sure?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {sendingEmails && (
+                  <Progress value={emailProgress.total > 0 ? (emailProgress.sent / emailProgress.total) * 100 : 0} className="h-2" />
+                )}
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={sendingEmails}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleSendHoursEmail} disabled={sendingEmails}>
+                    Send to All Members
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 

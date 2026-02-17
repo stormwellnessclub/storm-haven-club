@@ -13,7 +13,7 @@ const softLaunchHours = [
 
 export function SoftLaunchHoursBanner() {
   const [dismissed, setDismissed] = useState(() => {
-    return localStorage.getItem(STORAGE_KEY) === 'true';
+    return sessionStorage.getItem(STORAGE_KEY) === 'true';
   });
 
   const isActive = new Date() < SOFT_LAUNCH_END;
@@ -21,7 +21,7 @@ export function SoftLaunchHoursBanner() {
   if (!isActive || dismissed) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
+    sessionStorage.setItem(STORAGE_KEY, 'true');
     setDismissed(true);
   };
 
