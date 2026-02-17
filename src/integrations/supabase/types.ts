@@ -3932,6 +3932,7 @@ export type Database = {
           calories_burned: number | null
           created_at: string | null
           duration_minutes: number | null
+          exercises: Json | null
           id: string
           logged_at: string | null
           member_id: string
@@ -3943,6 +3944,7 @@ export type Database = {
           calories_burned?: number | null
           created_at?: string | null
           duration_minutes?: number | null
+          exercises?: Json | null
           id?: string
           logged_at?: string | null
           member_id: string
@@ -3954,6 +3956,7 @@ export type Database = {
           calories_burned?: number | null
           created_at?: string | null
           duration_minutes?: number | null
+          exercises?: Json | null
           id?: string
           logged_at?: string | null
           member_id?: string
@@ -4063,6 +4066,73 @@ export type Database = {
           },
           {
             foreignKeyName: "workout_programs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workout_templates: {
+        Row: {
+          created_at: string
+          estimated_duration_minutes: number | null
+          exercises: Json | null
+          id: string
+          is_favorite: boolean
+          member_id: string
+          notes: string | null
+          template_name: string
+          times_used: number
+          updated_at: string
+          user_id: string
+          workout_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          estimated_duration_minutes?: number | null
+          exercises?: Json | null
+          id?: string
+          is_favorite?: boolean
+          member_id: string
+          notes?: string | null
+          template_name: string
+          times_used?: number
+          updated_at?: string
+          user_id: string
+          workout_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          estimated_duration_minutes?: number | null
+          exercises?: Json | null
+          id?: string
+          is_favorite?: boolean
+          member_id?: string
+          notes?: string | null
+          template_name?: string
+          times_used?: number
+          updated_at?: string
+          user_id?: string
+          workout_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_templates_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_templates_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_templates_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
