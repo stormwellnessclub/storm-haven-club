@@ -69,8 +69,6 @@ const fitnessProfileSchema = z.object({
   fitness_level: z.enum(["beginner", "intermediate", "advanced"]).optional().nullable(),
   primary_goal: z.string().optional().nullable(),
   secondary_goals: z.array(z.string()).default([]),
-  available_equipment: z.array(z.string()).default([]), // Keep for backward compatibility
-  equipment_ids: z.array(z.string().uuid()).default([]), // New: equipment IDs
   available_time_minutes: z.number().min(10).max(300).default(30),
   workout_preferences: z.object({
     frequency: z.string().optional(),
@@ -93,7 +91,6 @@ export default function FitnessProfile() {
       fitness_level: null,
       primary_goal: "",
       secondary_goals: [],
-      available_equipment: [],
       available_time_minutes: 30,
       workout_preferences: {
         frequency: "",
@@ -112,8 +109,6 @@ export default function FitnessProfile() {
         fitness_level: profile.fitness_level || null,
         primary_goal: profile.primary_goal || "",
         secondary_goals: profile.secondary_goals || [],
-        available_equipment: profile.available_equipment || [],
-        equipment_ids: (profile as any).equipment_ids || [],
         available_time_minutes: profile.available_time_minutes || 30,
         workout_preferences: profile.workout_preferences || {
           frequency: "",
@@ -128,16 +123,10 @@ export default function FitnessProfile() {
 
   const onSubmit = async (data: FitnessProfileFormData) => {
     try {
-      // Convert equipment_ids to array of UUIDs if needed
-      const submitData = {
-        ...data,
-        equipment_ids: data.equipment_ids || [],
-      };
-      
       if (profile) {
-        await updateProfile.mutateAsync({ data: submitData });
+        await updateProfile.mutateAsync({ data });
       } else {
-        await createProfile.mutateAsync(submitData);
+        await createProfile.mutateAsync(data);
       }
     } catch (error) {
       // Error handled by hook
@@ -153,7 +142,7 @@ export default function FitnessProfile() {
     form.setValue("injuries_limitations", injuries);
   };
 
-  const toggleArrayItem = (field: "secondary_goals" | "available_equipment" | "equipment_ids", value: string) => {
+  const toggleArrayItem = (field: "secondary_goals", value: string) => {
     const current = form.getValues(field) || [];
     const updated = current.includes(value)
       ? current.filter((item) => item !== value)
