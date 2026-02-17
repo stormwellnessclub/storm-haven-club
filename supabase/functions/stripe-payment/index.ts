@@ -66,7 +66,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent';
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -5552,6 +5552,123 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ success: true, memberId }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_guest_payment_link': {
+        const { guestEmail, guestName, amount: guestAmount, description: guestDesc, serviceId, successUrl: guestSuccessUrl, cancelUrl: guestCancelUrl } = body;
+
+        if (!guestEmail || !guestName || !guestAmount) {
+          throw new Error("Missing required fields: guestEmail, guestName, amount");
+        }
+
+        logStep("Creating guest payment link", { guestEmail, guestName, amount: guestAmount });
+
+        // Find or create Stripe customer
+        const guestCustomers = await stripe.customers.list({ email: guestEmail, limit: 1 });
+        let guestCustomerId: string;
+        if (guestCustomers.data.length > 0) {
+          guestCustomerId = guestCustomers.data[0].id;
+          logStep("Found existing guest customer", { guestCustomerId });
+        } else {
+          const guestCustomer = await stripe.customers.create({
+            email: guestEmail,
+            name: guestName,
+            metadata: { source: 'guest_service' },
+          });
+          guestCustomerId = guestCustomer.id;
+          logStep("Created new guest customer", { guestCustomerId });
+        }
+
+        // Save stripe_customer_id to guest_passes
+        await supabase
+          .from('guest_passes')
+          .update({ stripe_customer_id: guestCustomerId })
+          .ilike('guest_email', guestEmail);
+
+        // Create checkout session in payment mode with card saved for future use
+        const guestSession = await stripe.checkout.sessions.create({
+          customer: guestCustomerId,
+          mode: 'payment',
+          payment_intent_data: {
+            setup_future_usage: 'off_session',
+          },
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              unit_amount: guestAmount,
+              product_data: {
+                name: guestDesc || 'Guest Service',
+                description: `Service for ${guestName}`,
+              },
+            },
+            quantity: 1,
+          }],
+          metadata: {
+            type: 'guest_service_payment',
+            service_id: serviceId || '',
+            guest_name: guestName,
+            guest_email: guestEmail,
+          },
+          success_url: guestSuccessUrl || `${req.headers.get('origin') || ''}/admin/guests?payment=success`,
+          cancel_url: guestCancelUrl || `${req.headers.get('origin') || ''}/admin/guests?payment=cancelled`,
+        });
+
+        logStep("Guest payment link created", { sessionId: guestSession.id, url: guestSession.url });
+
+        return new Response(
+          JSON.stringify({ url: guestSession.url, sessionId: guestSession.id, customerId: guestCustomerId }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_guest_setup_intent': {
+        const { guestEmail: setupEmail, guestName: setupName } = body;
+
+        if (!setupEmail || !setupName) {
+          throw new Error("Missing required fields: guestEmail, guestName");
+        }
+
+        logStep("Creating guest setup intent (card on file)", { setupEmail, setupName });
+
+        // Find or create Stripe customer
+        const setupCustomers = await stripe.customers.list({ email: setupEmail, limit: 1 });
+        let setupCustomerId: string;
+        if (setupCustomers.data.length > 0) {
+          setupCustomerId = setupCustomers.data[0].id;
+        } else {
+          const setupCustomer = await stripe.customers.create({
+            email: setupEmail,
+            name: setupName,
+            metadata: { source: 'guest_card_on_file' },
+          });
+          setupCustomerId = setupCustomer.id;
+        }
+
+        // Save stripe_customer_id to guest_passes
+        await supabase
+          .from('guest_passes')
+          .update({ stripe_customer_id: setupCustomerId })
+          .ilike('guest_email', setupEmail);
+
+        // Create checkout session in setup mode (no charge, just save card)
+        const setupSession = await stripe.checkout.sessions.create({
+          customer: setupCustomerId,
+          mode: 'setup',
+          metadata: {
+            type: 'guest_card_setup',
+            guest_name: setupName,
+            guest_email: setupEmail,
+          },
+          success_url: `${req.headers.get('origin') || ''}/admin/guests?card_saved=success`,
+          cancel_url: `${req.headers.get('origin') || ''}/admin/guests?card_saved=cancelled`,
+        });
+
+        logStep("Guest setup session created", { sessionId: setupSession.id, url: setupSession.url });
+
+        return new Response(
+          JSON.stringify({ url: setupSession.url, sessionId: setupSession.id, customerId: setupCustomerId }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
