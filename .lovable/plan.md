@@ -1,45 +1,64 @@
 
 
-## Fix: Soft Launch Banner Visibility and Add "Send Hours Email" Button
+## Fix: Dashboard Check-Ins Timezone Mismatch
 
-### Problem 1: Banner disappears permanently after dismissal
-Once a user clicks the X on the Soft Launch Hours banner, it sets `localStorage` and never shows again -- even on a new day. There's no way to bring it back.
+### Root Cause
 
-### Problem 2: No admin UI to send the hours email
-The `soft_launch_hours` email template exists in the backend but there's no button or interface to send it to members.
+The dashboard calculates "today" using UTC:
+```typescript
+const today = new Date().toISOString().split('T')[0]; // UTC date
+```
 
----
+Then filters check-ins with:
+```typescript
+.gte('checked_in_at', `${today}T00:00:00`)
+.lt('checked_in_at', `${today}T23:59:59`)
+```
 
-### Fix 1: Make Banner Dismissal Session-Based
+Since the club is in a timezone ahead of UTC (likely Asia/Beirut, UTC+2/+3), evening check-ins (e.g., 6 PM local = 4 PM UTC, or 11 PM local = 9 PM UTC) get recorded under the correct UTC timestamp, but the dashboard's UTC-based date filter misses check-ins that fall on the "previous" UTC day.
 
-Change the banner so it only stays hidden for the current browser session, not permanently. This way it reappears each time the member opens the app.
+### Fix
 
-**File: `src/components/member/SoftLaunchHoursBanner.tsx`**
-
-- Replace `localStorage` with `sessionStorage` so the dismissal resets when the browser is closed
-- This ensures members see the hours reminder each time they visit during soft launch week
-
-### Fix 2: Add "Send Hours Email" Button to Admin Dashboard
-
-Add a quick action on the admin Dashboard (or Settings page) to send the soft launch hours email to all active members.
+Update the date boundary calculation in `src/pages/admin/Dashboard.tsx` to use the local timezone instead of UTC.
 
 **File: `src/pages/admin/Dashboard.tsx`**
 
-- Add a "Send Soft Launch Hours Email" button in the dashboard actions area
-- On click, fetch all active members with emails and loop through sending the `soft_launch_hours` email via the `send-email` edge function
-- Show a progress indicator and success/error toast
-- Include a confirmation dialog before sending to prevent accidental mass emails
+Replace:
+```typescript
+const today = new Date().toISOString().split('T')[0];
+```
+
+With a helper that computes the start/end of "today" in the local timezone, then converts to ISO strings for the query:
+
+```typescript
+const now = new Date();
+const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+const todayStartISO = todayStart.toISOString();
+const todayEndISO = todayEnd.toISOString();
+const today = now.toLocaleDateString('en-CA'); // YYYY-MM-DD in local tz
+```
+
+Then update the check-ins count query from:
+```typescript
+.gte('checked_in_at', `${today}T00:00:00`)
+.lt('checked_in_at', `${today}T23:59:59`)
+```
+To:
+```typescript
+.gte('checked_in_at', todayStartISO)
+.lt('checked_in_at', todayEndISO)
+```
+
+This ensures the "Today's Check-Ins" stat and the "Recent Check-Ins" list reflect the local day, not the UTC day.
 
 ### Technical Details
 
-**Banner fix** (SoftLaunchHoursBanner.tsx):
-- Change `localStorage.getItem(STORAGE_KEY)` to `sessionStorage.getItem(STORAGE_KEY)`
-- Change `localStorage.setItem(STORAGE_KEY, 'true')` to `sessionStorage.setItem(STORAGE_KEY, 'true')`
+The same `today` variable is also used for:
+- `spa_appointments.appointment_date` (line 71) -- uses date-only column, keep using local `today` (YYYY-MM-DD)
+- `class_sessions.session_date` (line 72) -- uses date-only column, keep using local `today`
 
-**Email send button** (Dashboard.tsx):
-- Add a card or button in the dashboard quick actions section
-- Query `members` table for `status = 'active'` with a valid email
-- Loop and call `supabase.functions.invoke("send-email", { body: { type: "soft_launch_hours", to: email, data: { name } } })`
-- Show progress (X of Y sent) and final toast with results
-- Disable button while sending to prevent double-sends
+These date-only columns are unaffected by timezone since they store just a date. Only the `checked_in_at` timestamp filter needs the timezone-aware boundaries.
 
+### Files to modify
+- `src/pages/admin/Dashboard.tsx` -- Fix the check-in count query to use local timezone boundaries
