@@ -38,10 +38,21 @@ export interface POSCartItem {
 
 interface CafePOSMenuProps {
   onAddToCart: (item: POSCartItem) => void;
+  /** Category names to show first / highlight (e.g. ["Spa"]) */
+  highlightCategories?: string[];
 }
 
-export function CafePOSMenu({ onAddToCart }: CafePOSMenuProps) {
-  const { data: categories = [] } = useCafeMenuCategories();
+export function CafePOSMenu({ onAddToCart, highlightCategories }: CafePOSMenuProps) {
+  const { data: rawCategories = [] } = useCafeMenuCategories();
+
+  // If highlightCategories provided, sort those to the front
+  const categories = highlightCategories && highlightCategories.length > 0
+    ? [...rawCategories].sort((a, b) => {
+        const aH = highlightCategories.includes(a.name) ? 0 : 1;
+        const bH = highlightCategories.includes(b.name) ? 0 : 1;
+        return aH - bH;
+      })
+    : rawCategories;
   const { data: items = [] } = useCafeMenuItems();
   const { data: addons = [] } = useCafeMenuAddons();
 
