@@ -1,26 +1,36 @@
 
 
-# Remove Equipment Selection from Fitness Profile
+# WiFi Info Banner for Member Portal
 
-## Problem
-The Fitness Profile schema still contains `available_equipment` and `equipment_ids` fields. While the checkboxes were removed from the UI, the fields remain in the form schema, hook types, and default values. The AI program/workout generators already fetch **all active equipment** directly from the database (lines 202-208 and 276-280 in the edge function), so these profile fields serve no purpose and create confusion.
+## Overview
+Add a dismissible banner to the member layout showing WiFi connection instructions and the shared password for all areas.
+
+## Design
+A banner similar to the existing `SoftLaunchHoursBanner` -- gold-tinted, dismissible via session storage, placed at the top of the member layout. It will display:
+- A WiFi icon
+- Title: "WiFi Access"
+- Explanation that there are different WiFi zones throughout the space
+- The password **WelcomeTribe** displayed prominently (copyable)
+- A note that members only need to connect once per area
 
 ## Changes
 
-### 1. Clean up `src/pages/member/FitnessProfile.tsx`
-- Remove `available_equipment` and `equipment_ids` from the Zod schema
-- Remove them from `defaultValues` and `form.reset()` call
-- Remove `equipment_ids` from `onSubmit` logic
-- Remove `"available_equipment" | "equipment_ids"` from `toggleArrayItem` function signature
+### New File: `src/components/member/WifiBanner.tsx`
+- Dismissible banner using `sessionStorage` (reappears each new session)
+- WiFi icon from lucide-react
+- Password displayed in a monospace/bold style with a copy-to-clipboard button
+- Gold-themed styling matching the soft launch banner
 
-### 2. Clean up `src/hooks/useFitnessProfile.ts`
-- Remove `available_equipment` and `equipment_ids` from `FitnessProfile` and `FitnessProfileInput` interfaces
-- Remove `available_equipment` and `equipment_ids` from insert/update data objects
+### Modified File: `src/components/member/MemberLayout.tsx`
+- Import and render `WifiBanner` alongside the other banners (after `SoftLaunchHoursBanner`)
 
-### 3. No edge function changes needed
-The `ai-recommendations` edge function already fetches all active equipment directly from the `equipment` table for both workout and program generation. The equipment list in the AI prompt is correct -- it shows all club equipment so the AI can reference it when designing workouts. This is backend context for the AI, not something members need to interact with.
+## Technical Details
 
-## What This Does NOT Change
-- The AI prompt still receives the full equipment list (this is correct behavior -- the AI needs to know what machines exist to reference them in workouts)
-- The `equipment` database table remains unchanged
-- The `member_fitness_profiles` table columns remain (no migration needed -- they just won't be populated going forward)
+The banner content:
+- **Title**: "WiFi Access"
+- **Body**: "There are different WiFi areas throughout the space. Connect to the local network when you enter each area -- you only need to do this once per zone."
+- **Password display**: "Password for all areas: **WelcomeTribe**" with a small copy button
+- Dismiss button stores `wifi-banner-dismissed` in `sessionStorage`
+
+No database changes needed. No new routes or hooks required.
+
