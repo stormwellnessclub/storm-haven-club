@@ -1,36 +1,28 @@
 
 
-# WiFi Info Banner for Member Portal
+# Richer Notification Sound
 
-## Overview
-Add a dismissible banner to the member layout showing WiFi connection instructions and the shared password for all areas.
+## Problem
+The current notification is a quick two-tone "ding" (~0.5 seconds total) that's easy to miss in a busy front desk environment.
 
-## Design
-A banner similar to the existing `SoftLaunchHoursBanner` -- gold-tinted, dismissible via session storage, placed at the top of the member layout. It will display:
-- A WiFi icon
-- Title: "WiFi Access"
-- Explanation that there are different WiFi zones throughout the space
-- The password **WelcomeTribe** displayed prominently (copyable)
-- A note that members only need to connect once per area
+## Solution
+Replace the short chime with a longer, more attention-grabbing **3-tone ascending alert** that plays twice (like a doorbell pattern), lasting roughly 2 seconds total. The tones will be louder, use a warmer triangle wave, and include a brief pause + repeat to ensure staff notice it.
 
-## Changes
-
-### New File: `src/components/member/WifiBanner.tsx`
-- Dismissible banner using `sessionStorage` (reappears each new session)
-- WiFi icon from lucide-react
-- Password displayed in a monospace/bold style with a copy-to-clipboard button
-- Gold-themed styling matching the soft launch banner
-
-### Modified File: `src/components/member/MemberLayout.tsx`
-- Import and render `WifiBanner` alongside the other banners (after `SoftLaunchHoursBanner`)
+## Sound Design
+The new pattern:
+- **Tone 1**: 660 Hz for 0.3s (warm start)
+- **Tone 2**: 880 Hz for 0.3s (rise)
+- **Tone 3**: 1047 Hz for 0.4s (peak, slightly longer)
+- **Pause**: 300ms
+- **Repeat** the 3-tone sequence once more (softer)
+- Total duration: ~2.2 seconds
+- Wave type: triangle (warmer, less harsh than sine)
+- Volume: 0.4 initial pass, 0.25 repeat
 
 ## Technical Details
 
-The banner content:
-- **Title**: "WiFi Access"
-- **Body**: "There are different WiFi areas throughout the space. Connect to the local network when you enter each area -- you only need to do this once per zone."
-- **Password display**: "Password for all areas: **WelcomeTribe**" with a small copy button
-- Dismiss button stores `wifi-banner-dismissed` in `sessionStorage`
-
-No database changes needed. No new routes or hooks required.
+### Modified File: `src/components/admin/CheckInSupportPanel.tsx`
+- Replace the `playNotificationChime()` function with the new multi-tone pattern
+- Uses the same shared `AudioContext` singleton -- no other changes needed
+- The repeat provides a "can't-miss" quality without being annoying
 
