@@ -4548,8 +4548,8 @@ serve(async (req) => {
             duesSubscription = {
               id: sub.id,
               status: sub.status,
-              currentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString(),
-              currentPeriodStart: new Date(sub.current_period_start * 1000).toISOString(),
+              currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+              currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000).toISOString() : null,
               cancelAtPeriodEnd: sub.cancel_at_period_end,
               amountDue: sub.items.data[0]?.price?.unit_amount || null,
               interval: sub.items.data[0]?.price?.recurring?.interval || null,
@@ -4589,7 +4589,7 @@ serve(async (req) => {
             initiationFeeSubscription = {
               id: feeSub.id,
               status: feeSub.status,
-              currentPeriodEnd: new Date(feeSub.current_period_end * 1000).toISOString(),
+              currentPeriodEnd: feeSub.current_period_end ? new Date(feeSub.current_period_end * 1000).toISOString() : null,
               amountDue: feeSub.items.data[0]?.price?.unit_amount || null,
             };
           } catch (e) {
@@ -5679,6 +5679,21 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error("Payment error:", error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Return card errors as 200 with error field so the frontend can read the message
+    // (non-2xx responses from supabase.functions.invoke lose the response body)
+    const isStripeCardError = (error as any)?.type === 'StripeCardError';
+    const isValidationError = message.includes('required') || message.includes('not found') || 
+                              message.includes('No payment method') || message.includes('already has') ||
+                              message.includes('Unauthorized') || message.includes('Invalid');
+    
+    if (isStripeCardError || isValidationError) {
+      return new Response(
+        JSON.stringify({ error: message, success: false }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ error: message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
