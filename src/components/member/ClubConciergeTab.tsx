@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CloudRain, Snowflake, Sun, Pencil, Loader2, Send, Clock } from "lucide-react";
-import { useCreateConversation } from "@/hooks/useEmailConversations";
+import { useCreateConversation, useSendMessage } from "@/hooks/useEmailConversations";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { useToast } from "@/hooks/use-toast";
+import { format, addMinutes, isBefore } from "date-fns";
 
 interface ConciergeService {
   id: string;
@@ -47,16 +48,26 @@ const conciergeServices: ConciergeService[] = [
   },
 ];
 
+function getMinTime(): string {
+  const min = addMinutes(new Date(), 20);
+  return format(min, "HH:mm");
+}
+
 export function ClubConciergeTab() {
   const { toast } = useToast();
   const createConversation = useCreateConversation();
+  const sendMessage = useSendMessage();
   const { data: credits } = useUserCredits();
 
   const [selectedService, setSelectedService] = useState<ConciergeService | null>(null);
   const [notes, setNotes] = useState("");
+  const [requestedTime, setRequestedTime] = useState("");
   const [isOtherOpen, setIsOtherOpen] = useState(false);
   const [otherSubject, setOtherSubject] = useState("");
   const [otherMessage, setOtherMessage] = useState("");
+  const [timeError, setTimeError] = useState("");
+
+  const minTime = useMemo(() => getMinTime(), [selectedService]);
 
   const getCreditInfo = (creditType?: string) => {
     if (!creditType || !credits) return null;
@@ -70,23 +81,60 @@ export function ClubConciergeTab() {
       : null;
   };
 
+  const validateTime = (time: string): boolean => {
+    if (!time) {
+      setTimeError("Please select a time for your request.");
+      return false;
+    }
+    // Parse the selected time as today
+    const now = new Date();
+    const [hours, minutes] = time.split(":").map(Number);
+    const selectedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+    const minDate = addMinutes(now, 20);
+
+    if (isBefore(selectedDate, minDate)) {
+      setTimeError("Please select a time at least 20 minutes from now so we can prepare.");
+      return false;
+    }
+    setTimeError("");
+    return true;
+  };
+
   const handleServiceRequest = async (service: ConciergeService) => {
-    const message = notes.trim()
-      ? `${service.description}\n\nAdditional notes: ${notes}`
-      : service.description;
+    if (!validateTime(requestedTime)) return;
+
+    const timeStr = format(
+      new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), ...requestedTime.split(":").map(Number)),
+      "h:mm a"
+    );
+
+    const message = [
+      `Requested time: ${timeStr}`,
+      notes.trim() ? `Additional notes: ${notes}` : "",
+    ].filter(Boolean).join("\n\n");
 
     try {
-      await createConversation.mutateAsync({
+      const conversation = await createConversation.mutateAsync({
         subject: service.subject,
         message,
         category: 'concierge',
       } as any);
+
+      // Send automatic confirmation reply from "staff"
+      await sendMessage.mutateAsync({
+        conversationId: conversation.id,
+        message: `Thank you for your ${service.title} request! ✨\n\nPlease allow 20–30 minutes for our team to get everything ready for you. We'll have it prepared by your requested time of ${timeStr}.\n\nIf you need to make any changes, just reply to this message.`,
+        senderType: 'staff',
+      });
+
       toast({
         title: "Request sent",
-        description: "Our concierge team will respond shortly.",
+        description: `Your ${service.title} will be ready around ${timeStr}. Please allow 20–30 minutes for prep.`,
       });
       setSelectedService(null);
       setNotes("");
+      setRequestedTime("");
+      setTimeError("");
     } catch {
       toast({
         title: "Error",
@@ -139,9 +187,9 @@ export function ClubConciergeTab() {
 
       <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50">
         <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-        <AlertTitle className="text-amber-800 dark:text-amber-300">Please allow 15–30 minutes</AlertTitle>
+        <AlertTitle className="text-amber-800 dark:text-amber-300">Please allow 20–30 minutes</AlertTitle>
         <AlertDescription className="text-amber-700 dark:text-amber-400/80">
-          Our concierge team needs time to prepare your request. We recommend submitting when you arrive or shortly before so everything is ready for you.
+          Our concierge team needs time to prepare your request. You must select a time at least 20 minutes from now so everything is ready for you.
         </AlertDescription>
       </Alert>
 
@@ -169,7 +217,12 @@ export function ClubConciergeTab() {
               <CardContent className="pt-0">
                 <Button
                   className="w-full"
-                  onClick={() => setSelectedService(service)}
+                  onClick={() => {
+                    setSelectedService(service);
+                    setRequestedTime("");
+                    setTimeError("");
+                    setNotes("");
+                  }}
                 >
                   Request
                 </Button>
@@ -210,9 +263,30 @@ export function ClubConciergeTab() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label htmlFor="request-time">
+                When would you like it ready? <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="request-time"
+                type="time"
+                min={minTime}
+                value={requestedTime}
+                onChange={(e) => {
+                  setRequestedTime(e.target.value);
+                  if (timeError) validateTime(e.target.value);
+                }}
+              />
+              {timeError && (
+                <p className="text-xs text-destructive">{timeError}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Must be at least 20 minutes from now for prep time.
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label>Additional notes (optional)</Label>
               <Textarea
-                placeholder="Any specific details or timing preferences..."
+                placeholder="Any specific details or preferences..."
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
