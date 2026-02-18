@@ -37,9 +37,52 @@ interface ConversationWithProfile {
   latest_message?: string;
 }
 
+// Persistent AudioContext singleton - survives re-renders
+let sharedAudioCtx: AudioContext | null = null;
+let audioCtxWarmedUp = false;
+
+function getAudioContext(): AudioContext | null {
+  try {
+    if (!sharedAudioCtx) {
+      sharedAudioCtx = new AudioContext();
+    }
+    return sharedAudioCtx;
+  } catch {
+    return null;
+  }
+}
+
+// Warm up AudioContext on first user interaction (required by browsers)
+function warmUpAudio() {
+  if (audioCtxWarmedUp) return;
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === "suspended") {
+    ctx.resume().catch(() => {});
+  }
+  audioCtxWarmedUp = true;
+}
+
+// Attach warm-up listener once
+if (typeof window !== "undefined") {
+  const warmUpOnce = () => {
+    warmUpAudio();
+    document.removeEventListener("click", warmUpOnce);
+    document.removeEventListener("keydown", warmUpOnce);
+  };
+  document.addEventListener("click", warmUpOnce, { once: true });
+  document.addEventListener("keydown", warmUpOnce, { once: true });
+}
+
 function playNotificationChime() {
   try {
-    const ctx = new AudioContext();
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    
+    // Resume if suspended (browser autoplay policy)
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
+    
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
@@ -50,6 +93,22 @@ function playNotificationChime() {
     osc.start();
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
     osc.stop(ctx.currentTime + 0.5);
+    
+    // Play a second tone for a pleasant two-tone chime
+    setTimeout(() => {
+      try {
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.frequency.value = 1100;
+        osc2.type = "sine";
+        gain2.gain.value = 0.2;
+        osc2.start();
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc2.stop(ctx.currentTime + 0.4);
+      } catch {}
+    }, 150);
   } catch (e) {
     // AudioContext may not be available
   }
@@ -141,7 +200,6 @@ function ConversationItem({
             size="sm"
             onClick={handleSend}
             disabled={!replyText.trim() || isSending}
-            loading={isSending}
             className="self-end"
           >
             Send
@@ -218,11 +276,53 @@ export function CheckInSupportPanel() {
     refetchInterval: 15000,
   });
 
+  // Realtime subscription for instant notifications
+  useEffect(() => {
+    const channel = supabase
+      .channel("support-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "email_conversations",
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
+          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
+          if (!isMuted) {
+            playNotificationChime();
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "email_messages",
+          filter: "sender_type=eq.member",
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
+          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
+          if (!isMuted) {
+            playNotificationChime();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isMuted, queryClient]);
+
   const conciergeItems = conversations?.filter((c) => c.category === "concierge") || [];
   const supportItems = conversations?.filter((c) => c.category !== "concierge") || [];
   const totalCount = (conversations?.length || 0);
 
-  // Sound notification when new items appear
+  // Sound notification when new items appear via polling
   useEffect(() => {
     if (prevCountRef.current !== null && totalCount > prevCountRef.current && !isMuted) {
       playNotificationChime();
@@ -300,7 +400,10 @@ export function CheckInSupportPanel() {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => setIsMuted(!isMuted)}
+                onClick={() => {
+                  warmUpAudio(); // Ensure audio context is ready
+                  setIsMuted(!isMuted);
+                }}
                 title={isMuted ? "Unmute notifications" : "Mute notifications"}
               >
                 {isMuted ? (
