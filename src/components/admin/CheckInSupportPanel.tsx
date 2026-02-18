@@ -77,39 +77,36 @@ function playNotificationChime() {
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
-    
-    // Resume if suspended (browser autoplay policy)
+
     if (ctx.state === "suspended") {
       ctx.resume();
     }
-    
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = "sine";
-    gain.gain.value = 0.3;
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.stop(ctx.currentTime + 0.5);
-    
-    // Play a second tone for a pleasant two-tone chime
-    setTimeout(() => {
-      try {
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.frequency.value = 1100;
-        osc2.type = "sine";
-        gain2.gain.value = 0.2;
-        osc2.start();
-        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-        osc2.stop(ctx.currentTime + 0.4);
-      } catch {}
-    }, 150);
-  } catch (e) {
+
+    const playSequence = (startTime: number, volume: number) => {
+      const tones = [
+        { freq: 660, delay: 0, duration: 0.3 },
+        { freq: 880, delay: 0.32, duration: 0.3 },
+        { freq: 1047, delay: 0.64, duration: 0.4 },
+      ];
+      for (const tone of tones) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = tone.freq;
+        osc.type = "triangle";
+        const t = startTime + tone.delay;
+        gain.gain.setValueAtTime(volume, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + tone.duration);
+        osc.start(t);
+        osc.stop(t + tone.duration);
+      }
+    };
+
+    const now = ctx.currentTime;
+    playSequence(now, 0.4);
+    playSequence(now + 1.1, 0.25);
+  } catch {
     // AudioContext may not be available
   }
 }
