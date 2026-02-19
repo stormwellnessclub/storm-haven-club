@@ -80,6 +80,15 @@ import FrontDeskPOS from "./pages/admin/FrontDeskPOS";
 import Marketing from "./pages/admin/Marketing";
 import DesignSystem from "./pages/DesignSystem";
 import GuestFeedback from "./pages/GuestFeedback";
+import { ProtectedPortalRoute } from "@/components/portal/ProtectedPortalRoute";
+import PortalDashboard from "@/pages/portal/Dashboard";
+import PortalBookings from "@/pages/portal/Bookings";
+import PortalPasses from "@/pages/portal/Passes";
+import PortalPaymentMethods from "@/pages/portal/PaymentMethods";
+import PortalPaymentHistory from "@/pages/portal/PaymentHistory";
+import PortalProfile from "@/pages/portal/Profile";
+import PortalSupport from "@/pages/portal/Support";
+import PortalRecovery from "@/pages/portal/Recovery";
 
 const queryClient = new QueryClient();
 
@@ -137,6 +146,16 @@ const App = () => (
               <Route path="/member/fitness-profile" element={<ProtectedMemberRoute><FitnessProfile /></ProtectedMemberRoute>} />
               <Route path="/member/wellness" element={<ProtectedMemberRoute><MemberWellness /></ProtectedMemberRoute>} />
               <Route path="/member/check-in-history" element={<ProtectedMemberRoute><CheckInHistory /></ProtectedMemberRoute>} />
+              
+              {/* Portal Routes - Non-Member Class Portal */}
+              <Route path="/portal" element={<ProtectedPortalRoute><PortalDashboard /></ProtectedPortalRoute>} />
+              <Route path="/portal/bookings" element={<ProtectedPortalRoute><PortalBookings /></ProtectedPortalRoute>} />
+              <Route path="/portal/passes" element={<ProtectedPortalRoute><PortalPasses /></ProtectedPortalRoute>} />
+              <Route path="/portal/payment-methods" element={<ProtectedPortalRoute><PortalPaymentMethods /></ProtectedPortalRoute>} />
+              <Route path="/portal/payment-history" element={<ProtectedPortalRoute><PortalPaymentHistory /></ProtectedPortalRoute>} />
+              <Route path="/portal/profile" element={<ProtectedPortalRoute><PortalProfile /></ProtectedPortalRoute>} />
+              <Route path="/portal/support" element={<ProtectedPortalRoute><PortalSupport /></ProtectedPortalRoute>} />
+              <Route path="/portal/wellness" element={<ProtectedPortalRoute><PortalRecovery /></ProtectedPortalRoute>} />
               
               {/* Admin Routes - Protected by Role */}
               <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />
