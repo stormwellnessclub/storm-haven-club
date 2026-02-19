@@ -14,38 +14,48 @@ type ClassEntry = {
 const SOFT_LAUNCH_START = new Date(2026, 1, 20); // Feb 20
 const SOFT_LAUNCH_END = new Date(2026, 2, 18);   // Mar 18
 
-// Day-of-week schedule (0=Sun, 1=Mon, ...)
-const SCHEDULE_BY_DOW: Record<number, ClassEntry[]> = {
-  0: [], // Sunday
-  1: [
-    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-  ],
-  2: [
-    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-  ],
-  3: [
-    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-  ],
-  4: [
-    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-  ],
-  5: [
-    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-    { time: "8:00 PM", name: "Signature Flow", type: "signature" },
-    { time: "9:00 PM", name: "Reformer Flow", type: "reformer-flow" },
-  ],
-  6: [
-    { time: "10:00 AM", name: "Signature Flow", type: "signature" },
-    { time: "11:00 AM", name: "Reformer Sculpt", type: "reformer-sculpt" },
-    { time: "8:00 PM", name: "Signature Flow", type: "signature" },
-    { time: "9:00 PM", name: "Reformer Flow", type: "reformer-flow" },
-  ],
-};
+// Staggered start dates
+const MORNING_START = new Date(2026, 1, 23);     // Feb 23 (Mon)
+const SUNDAY_MORNING_START = new Date(2026, 2, 1); // Mar 1
+
+function getClassesForDate(date: Date): ClassEntry[] {
+  if (isBefore(date, SOFT_LAUNCH_START) || isAfter(date, SOFT_LAUNCH_END)) return [];
+
+  const dow = date.getDay(); // 0=Sun
+  const classes: ClassEntry[] = [];
+
+  // Sunday mornings: from Mar 1
+  if (dow === 0 && !isBefore(date, SUNDAY_MORNING_START)) {
+    classes.push({ time: "10:00 AM", name: "Signature Flow", type: "signature" });
+    classes.push({ time: "11:00 AM", name: "Reformer Sculpt", type: "reformer-sculpt" });
+  }
+
+  // Mon-Thu mornings: from Feb 23
+  if (dow >= 1 && dow <= 4 && !isBefore(date, MORNING_START)) {
+    classes.push({ time: "9:00 AM", name: "Signature Flow", type: "signature" });
+    classes.push({ time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" });
+  }
+
+  // Friday
+  if (dow === 5) {
+    // Morning from Feb 23
+    if (!isBefore(date, MORNING_START)) {
+      classes.push({ time: "9:00 AM", name: "Signature Flow", type: "signature" });
+      classes.push({ time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" });
+    }
+    // Evening from Feb 20 (always within soft launch)
+    classes.push({ time: "8:00 PM", name: "Signature Flow", type: "signature" });
+    classes.push({ time: "9:00 PM", name: "Reformer Flow", type: "reformer-flow" });
+  }
+
+  // Saturday evening only (no mornings)
+  if (dow === 6) {
+    classes.push({ time: "8:00 PM", name: "Signature Flow", type: "signature" });
+    classes.push({ time: "9:00 PM", name: "Reformer Sculpt", type: "reformer-sculpt" });
+  }
+
+  return classes;
+}
 
 function TempClassCard({ entry }: { entry: ClassEntry }) {
   return (
@@ -80,7 +90,7 @@ function TempClassCard({ entry }: { entry: ClassEntry }) {
           </div>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            <span>12 spots</span>
+            <span>8 spots</span>
           </div>
         </div>
 
@@ -114,16 +124,15 @@ export function TempClassSchedule() {
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(weekStart, i);
     const dow = date.getDay();
-    const inRange = !isBefore(date, SOFT_LAUNCH_START) && !isAfter(date, SOFT_LAUNCH_END);
     return {
       date,
       dateStr: format(date, "yyyy-MM-dd"),
       dayName: format(date, "EEE"),
       dayNum: format(date, "d"),
       month: format(date, "MMM"),
-      classes: inRange ? (SCHEDULE_BY_DOW[dow] || []) : [],
+      classes: getClassesForDate(date),
       isToday: isSameDay(date, new Date()),
-      outOfRange: !inRange,
+      outOfRange: getClassesForDate(date).length === 0,
     };
   });
 
