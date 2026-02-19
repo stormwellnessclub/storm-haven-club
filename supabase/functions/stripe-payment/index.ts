@@ -52,7 +52,7 @@ const STRIPE_PRODUCTS = {
     },
     otherClasses: {
       single: { member: 'price_1T2XmKLyZrsSqLhsmtaMSUiF', nonMember: 'price_1SlABFLyZrsSqLhsGOpvWGFE' },
-      tenPack: { member: 'price_1T2Xo0LyZrsSqLhsJrhfsW8w', nonMember: 'price_1T2XoiLyZrsSqLhsjN7Hb2Lk' },
+      tenPack: { member: 'price_1T2YiALyZrsSqLhsuJGaqAaK', nonMember: 'price_1T2XoiLyZrsSqLhsjN7Hb2Lk' },
     },
   },
   guestPass: 'price_1SxATYLyZrsSqLhs6vDu1QWg',  // $60 - Guest Pass (gym and amenities access, subject to availability)
