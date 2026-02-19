@@ -27,8 +27,8 @@ const pilatesCyclingPricing: PricingTier[] = [
 ];
 
 const otherClassesPricing: PricingTier[] = [
-  { type: "Single Class", passType: 'single', memberPrice: 15, nonMemberPrice: 30 },
-  { type: "10 Class Pack", passType: 'tenPack', memberPrice: 150, nonMemberPrice: 200 },
+  { type: "Single Class", passType: 'single', memberPrice: 20, nonMemberPrice: 30 },
+  { type: "10 Class Pack", passType: 'tenPack', memberPrice: 180, nonMemberPrice: 180 },
 ];
 
 // Inline waiver signing prompt shown when user tries to purchase without signing
