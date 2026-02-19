@@ -1,44 +1,36 @@
 
 
-# Fix Class Passes Page: Show Prices First, Sign Waiver at Checkout
+# Redesign Temp Class Schedule to Match Regular Class Schedule
 
-## Problem
-Right now, the Class Passes page **hides all pricing** behind a waiver wall. If someone hasn't signed the agreement, they can't even see what the classes cost. That's not practical -- people need to see prices before deciding to buy. The waiver should only be required when they're ready to purchase.
+## Problems to Fix
 
-Additionally, the PDF agreement viewer uses an iframe-based approach that doesn't work on most iPhones and Android phones. Mobile users can't view the documents they need to sign.
+1. **Navigation label**: The nav menu says "Schedule" -- should say "Class Schedule"
+2. **Tab labels**: "Temp Class Schedule" and "Class Schedule" are confusing and redundant. Rename to "Soft Launch Schedule" and "Full Schedule"
+3. **Duplicate banner**: The soft launch banner appears above both tabs. It should only show on the Full Schedule tab (since it explains why booking is disabled there). The temp schedule tab should have its own contextual note
+4. **Temp schedule looks nothing like the regular one**: It's a flat list of day-name cards with badge labels. It should use the same weekly calendar grid layout as `ClassCalendar` -- with day columns showing date headers (EEE / day number / month) and individual class cards underneath
+5. **Missing class details**: Each class entry should show instructor name, studio/room, duration, and spots info -- just like `ClassCard` does in the regular schedule
+6. **Not visually "bookable"**: Should use card-based layout per class (matching `ClassCard` style) with a disabled "Book" button and "Opens soon" note, same as the regular schedule does during soft launch
 
-## Solution
+## Changes
 
-### 1. Show Prices to Everyone, Gate Only the Purchase Button
-- Remove the waiver gate that wraps the entire pricing section
-- Always show the pricing tables (to logged-in users and visitors alike)
-- When a user clicks "Purchase" and hasn't signed the required waiver yet, show an inline prompt right there with a "Sign Agreement" action instead of silently blocking
-- The prompt will include Download and Open buttons for the PDF so they can sign on the spot without leaving the page
+### 1. `src/components/Navigation.tsx` (line 11)
+- Change `"Schedule"` to `"Class Schedule"`
 
-### 2. Make PDF Agreements Mobile-Friendly
-- Replace the iframe-based PDF display in `SimpleAgreementCard` and `AgreementPDFViewer` with a mobile-first approach
-- On mobile devices (iPhone/Android), iframes cannot render PDFs -- they show a blank box or download prompt
-- Change the approach to prioritize **"Open in New Tab"** and **"Download"** buttons (which already exist but are secondary)
-- On mobile, skip the iframe entirely and show a clean card with the document name and two prominent action buttons
-- The "Open" link uses a native `<a>` tag (already correct) which triggers the device's built-in PDF viewer on both iOS and Android
+### 2. `src/pages/Schedule.tsx`
+- Change the page title `<h1>` from "Class Schedule" to "Class Schedule" (already correct)
+- Rename tab triggers: "Soft Launch Schedule" and "Full Schedule"
+- Move the soft launch banner **inside** the "Full Schedule" tab content only -- not above both tabs
+- Add a smaller, cleaner banner inside the Soft Launch tab that says something like "Soft Launch -- Feb 20 to Mar 18, 2026 -- Booking opens soon"
 
-## Technical Details
-
-### File: `src/pages/ClassPasses.tsx`
-- Remove the `renderPricingContent()` function that conditionally shows waiver gates vs. pricing
-- Always render `ClassPassPricingTables` for logged-in users
-- Move the waiver check into `handlePurchase()` -- when the user clicks buy and hasn't signed, show a toast with a link to sign, or display an inline waiver signing card below the purchase button
-- Keep the `AccountRequiredSection` for non-logged-in users (they still need to sign in first)
-
-### File: `src/components/AgreementPDFViewer.tsx`
-- Add mobile detection using the existing `useIsMobile()` hook pattern (or a simple UA/screen-width check)
-- On mobile: skip the iframe, show a prominent card with "Open PDF" and "Download PDF" buttons only
-- On desktop: keep the current iframe preview (it works fine on desktop browsers)
-
-### File: `src/components/SimpleAgreementCard.tsx`
-- This component already has "Open" and "Download" buttons that work on mobile
-- Minor improvement: on mobile, make these buttons full-width and more prominent since they're the only way to view the document
-- The existing blob-based download fallback already handles iOS Safari
+### 3. `src/components/booking/TempClassSchedule.tsx` (major rewrite)
+- Replace the current flat day-name grid with a **weekly calendar grid** matching `ClassCalendar` layout:
+  - Generate actual dates from Feb 20 to Mar 18 using `date-fns`
+  - Show week navigation (prev/next week) with arrows, just like the full schedule
+  - Display 7 day columns (Sun--Sat) with date headers showing day name, number, and month
+  - Each class renders as a card matching `ClassCard` style: class name, time, duration (50 min), instructor (Duha), studio (Reformer Studio), spots indicator, and a disabled "Book" button with "Opens soon"
+- Remove the standalone header with "Instructor: Duha" and the date range banner -- these details now live on each class card and in the tab banner
+- Remove the legend badges -- class type info is visible on each card
+- Keep the `TEMP_SCHEDULE` data as the source, but map it onto actual calendar dates within the Feb 20 -- Mar 18 window
 
 ### No database changes needed.
 
