@@ -22,8 +22,8 @@ interface PricingTier {
 }
 
 const pilatesCyclingPricing: PricingTier[] = [
-  { type: "Single Class", passType: 'single', memberPrice: 25, nonMemberPrice: 40 },
-  { type: "10 Class Pack", passType: 'tenPack', memberPrice: 170, nonMemberPrice: 300 },
+  { type: "Single Class", passType: 'single', memberPrice: 25, nonMemberPrice: 30 },
+  { type: "10 Class Pack", passType: 'tenPack', memberPrice: 170, nonMemberPrice: 285 },
 ];
 
 const otherClassesPricing: PricingTier[] = [
