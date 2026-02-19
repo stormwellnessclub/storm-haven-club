@@ -1,109 +1,95 @@
 
-## Non-Member Class Portal
 
-A dedicated portal for non-members (users with auth accounts but no membership) to manage their class activity, purchase services, maintain payment methods, and contact support.
+## Build Remaining Non-Member Portal Features
 
-### New Routes (`/portal/*`)
+Three areas remain: the Stripe edge function actions for non-member card/payment management, admin "Class Support" visibility, and wiring up the portal pages to actually call those actions.
 
-All routes protected by a new `ProtectedPortalRoute` that requires auth but explicitly excludes members (redirects members to `/member`).
+### 1. Edge Function: Add non-member actions to `stripe-payment`
 
-| Route | Purpose |
-|-------|---------|
-| `/portal` | Dashboard: upcoming bookings, recent purchases, quick actions |
-| `/portal/bookings` | Class history (past) and upcoming bookings with cancel |
-| `/portal/passes` | View owned class passes and credits, link to buy more |
-| `/portal/payment-methods` | Saved cards (add/remove/default) -- card on file required |
-| `/portal/payment-history` | Purchase/charge history |
-| `/portal/profile` | Edit name, email, phone |
-| `/portal/support` | Support messaging with "Class Support" tab |
-| `/portal/wellness` | Book recovery services (Red Light Therapy, Dry Cryo) |
+**File: `supabase/functions/stripe-payment/index.ts`**
 
-### New Components and Files
+Add three new actions to the `PaymentRequest` union type and corresponding `case` blocks:
 
-**1. `src/components/portal/ProtectedPortalRoute.tsx`**
-- Requires authenticated user
-- If user has an active/pending member record, redirect to `/member`
-- Otherwise render children (non-member portal)
+- **`create_nonmember_setup_intent`** -- Authenticated action. Calls `getOrCreateCustomer()`, then saves the `stripe_customer_id` to `non_member_profiles` (instead of `members`). Creates a `SetupIntent` with `payment_method_types: ['card']`. Logs to `card_setup_attempts` with source `'nonmember_portal'`. Returns `clientSecret` and `customerId`.
 
-**2. `src/components/portal/PortalLayout.tsx`**
-- Similar structure to `MemberLayout` (sidebar + header + main content)
-- Uses `SidebarProvider` with a `PortalSidebar`
-- No membership-specific notices (no freeze, annual fee, activation banners)
-- Shows a "Card Required" banner if no payment method on file
+- **`sync_nonmember_card_metadata`** -- After card is saved via `confirmSetup`, the frontend calls this to fetch the default payment method from Stripe and write `card_brand`, `card_last4`, `card_exp_month`, `card_exp_year`, `stripe_customer_id` back to the `non_member_profiles` row. Also sets the payment method as the customer default via `stripe.customers.update`.
 
-**3. `src/components/portal/PortalSidebar.tsx`**
-- Sidebar navigation with items: Dashboard, My Bookings, My Passes, Book Classes (links to /schedule), Buy Passes (links to /class-passes), Recovery Booking, Payment Methods, Payment History, Support, Profile
-- Footer: Back to Website, Sign Out
+- **`list_nonmember_payment_methods`** -- Lists all card payment methods for the authenticated user's Stripe customer (looked up from `non_member_profiles.stripe_customer_id`). Returns the same format as `list_payment_methods`.
 
-**4. Portal Pages** (new files under `src/pages/portal/`)
+### 2. Wire up Portal PaymentMethods page
 
-- **Dashboard.tsx** -- Welcomes user, shows upcoming bookings count, active passes summary, quick action buttons (Book Class, Buy Pass, Recovery). Shows "Add Card" prompt if no card on file.
-- **Bookings.tsx** -- Reuses `useUpcomingBookings` and `usePastBookings` hooks (already query by `user_id`, not `member_id`)
-- **Passes.tsx** -- Queries `class_passes` table for user's passes, shows remaining credits and expiry
-- **PaymentMethods.tsx** -- Adapts from member PaymentMethods page but without membership-specific logic. Enforces at least one card on file.
-- **PaymentHistory.tsx** -- Shows Stripe charges/invoices for the user's Stripe customer
-- **Profile.tsx** -- Edit profile info from `profiles` table
-- **Support.tsx** -- Same messaging UI as member support but with a "Class Support" tab (uses category `'class_support'` on `email_conversations`)
-- **Recovery.tsx** -- Book Red Light Therapy and Dry Cryo sessions (non-member pricing)
+**File: `src/pages/portal/PaymentMethods.tsx`**
 
-**5. `src/App.tsx` Updates**
-- Add all `/portal/*` routes wrapped in `ProtectedPortalRoute`
+- Import and use `AddCardModal` (or build a simplified inline version using `@stripe/react-stripe-js` `PaymentElement`).
+- On "Add Card" click: call `stripe-payment` with `action: 'create_nonmember_setup_intent'` to get `clientSecret`.
+- After `confirmSetup` succeeds: call `sync_nonmember_card_metadata` to persist card details.
+- Invalidate `non-member-profile` query to refresh the card display.
+- Show existing card from `useNonMemberProfile` data.
 
-### Card on File Enforcement
+### 3. Wire up Portal Recovery page with Stripe Checkout
 
-- On portal dashboard and before any booking/purchase, check if the user has a Stripe customer with a saved payment method
-- If no card on file, show a prominent banner/modal directing them to add one
-- Reuse `AddCardModal` component (already exists for members)
-- The stripe-payment edge function's `create_admin_setup_intent` and `sync_member_card_metadata` actions will need a small adaptation to work with non-member users (using `user_id` lookup instead of `member_id`)
+**File: `src/pages/portal/Recovery.tsx`**
 
-### Support -- "Class Support" Tab for Non-Members
+- On "Book Session" click: call `stripe-payment` with a new `create_recovery_checkout` action (or reuse existing `create_guest_payment_link` pattern) that creates a Stripe Checkout session in `payment` mode using price IDs from `STRIPE_PRODUCTS.guestAddons` (rlt20 for Red Light Therapy, cryo for Dry Cryo).
+- Redirect to Stripe Checkout URL in the same tab.
+- Add the `create_recovery_checkout` case to the edge function: uses `getOrCreateCustomer()`, saves customer ID to `non_member_profiles`, creates checkout session with the appropriate price ID.
 
-- The existing `email_conversations.category` column already supports custom values
-- Non-member support page will have two tabs: "Support" (general, category `'support'`) and "Class Support" (category `'class_support'`)
-- Admin Email Management page will show a new filter/tab for "Class Support" conversations alongside existing "Support" and "Concierge" tabs
+### 4. Admin EmailManagement: Add "Class Support" filter
 
-### Recovery Booking for Non-Members
+**File: `src/pages/admin/EmailManagement.tsx`**
 
-- Create a simplified version of the member wellness booking page
-- Non-members pay per session (no credits system) via Stripe checkout
-- Services: Red Light Therapy and Dry Cryo
+- Add `<SelectItem value="class_support">Class Support</SelectItem>` to the category filter dropdown (after "Concierge" on line ~347).
+- Add a "Class Support" badge display in the conversation list (similar to the existing "Concierge" badge on line ~421).
 
-### Database Changes
+### 5. Admin CheckInSupportPanel: Show Class Support section
 
-- Add a `non_member_profiles` table to store non-member user details (name, phone, stripe_customer_id, card metadata) since these users don't have `members` records
-- RLS: users can read/update their own row; staff can read all
+**File: `src/components/admin/CheckInSupportPanel.tsx`**
 
-### Technical Notes
+- Currently splits conversations into `concierge` vs everything else (`supportItems`).
+- Add a third category: `classSupport` items filtered by `c.category === "class_support"`.
+- Add a third collapsible card (green-themed, with a `BookOpen` or `GraduationCap` icon) for "Class Support" items.
+- Update `supportItems` filter to exclude `class_support`: `c.category !== "concierge" && c.category !== "class_support"`.
 
-- The `class_passes` and `class_bookings` tables already have `user_id` columns, so non-members with auth accounts already work with the booking system
-- The existing `/class-passes` purchase page and `/schedule` booking page already support non-members -- the portal just gives them a home base
-- The `useEmailConversations` hook already filters by the authenticated user's ID, so it works as-is for non-members
-- Payment method management will need a new edge function action (`create_nonmember_setup_intent`) that creates/finds a Stripe customer by email and returns a SetupIntent
+### Technical Details
 
-### Files to Create (summary)
+**Edge function action type update (line 69):**
+Add `| 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout'` to the action union.
+
+**New cases added before the `default` case (~line 5675):**
 
 ```text
-src/components/portal/ProtectedPortalRoute.tsx
-src/components/portal/PortalLayout.tsx
-src/components/portal/PortalSidebar.tsx
-src/pages/portal/Dashboard.tsx
-src/pages/portal/Bookings.tsx
-src/pages/portal/Passes.tsx
-src/pages/portal/PaymentMethods.tsx
-src/pages/portal/PaymentHistory.tsx
-src/pages/portal/Profile.tsx
-src/pages/portal/Support.tsx
-src/pages/portal/Recovery.tsx
+create_nonmember_setup_intent:
+  - getOrCreateCustomer()
+  - upsert stripe_customer_id into non_member_profiles WHERE user_id = auth user
+  - stripe.setupIntents.create with customer
+  - return clientSecret, customerId
+
+sync_nonmember_card_metadata:
+  - read stripe_customer_id from non_member_profiles
+  - stripe.customers.retrieve + stripe.paymentMethods.list
+  - find default or first card
+  - update non_member_profiles with card_brand, card_last4, card_exp_month, card_exp_year
+  - return success
+
+list_nonmember_payment_methods:
+  - read stripe_customer_id from non_member_profiles
+  - stripe.paymentMethods.list
+  - return formatted array
+
+create_recovery_checkout:
+  - map service name to price ID (rlt20 or cryo from STRIPE_PRODUCTS.guestAddons)
+  - getOrCreateCustomer()
+  - save stripe_customer_id to non_member_profiles
+  - stripe.checkout.sessions.create mode:'payment', setup_future_usage:'off_session'
+  - return session URL
 ```
 
-### Files to Modify
+**Files to modify:**
+- `supabase/functions/stripe-payment/index.ts` -- 4 new action cases
+- `src/pages/portal/PaymentMethods.tsx` -- Wire up add card flow
+- `src/pages/portal/Recovery.tsx` -- Wire up Stripe checkout
+- `src/pages/admin/EmailManagement.tsx` -- Add class_support filter option + badge
+- `src/components/admin/CheckInSupportPanel.tsx` -- Add class support section
 
-- `src/App.tsx` -- Add portal routes
-- `supabase/functions/stripe-payment/index.ts` -- Add `create_nonmember_setup_intent` and `list_nonmember_payment_methods` actions
-- `src/pages/admin/EmailManagement.tsx` -- Add "Class Support" filter tab
-- `src/components/admin/CheckInSupportPanel.tsx` -- Show class support items
+**No new files or database changes needed.**
 
-### Migration
-
-- Create `non_member_profiles` table with columns: `id`, `user_id` (FK to auth.users, unique), `first_name`, `last_name`, `phone`, `email`, `stripe_customer_id`, `card_brand`, `card_last4`, `card_exp_month`, `card_exp_year`, `created_at`, `updated_at`
-- RLS policies for self-access and staff access
