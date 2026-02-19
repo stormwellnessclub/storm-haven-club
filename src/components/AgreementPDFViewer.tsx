@@ -5,6 +5,51 @@ import { ZoomIn, ZoomOut, Download, Printer, FileText, Loader2, ExternalLink } f
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { resolvePdfUrl } from "@/lib/pdfAssets";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+// Mobile-friendly card shown instead of iframe on phones
+function MobilePDFCard({ pdfSrc, filename }: { pdfSrc: string; filename: string }) {
+  const downloadPdf = async () => {
+    try {
+      const response = await fetch(pdfSrc);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
+    } catch {
+      window.location.href = pdfSrc;
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center p-6 text-center min-h-[200px]">
+      <FileText className="h-12 w-12 mb-4 text-accent" />
+      <h3 className="font-medium text-base mb-1">Document Ready</h3>
+      <p className="text-sm text-muted-foreground mb-5 max-w-xs">
+        Tap below to view or download this document.
+      </p>
+      <div className="flex flex-col gap-3 w-full max-w-xs">
+        <Button asChild size="lg" className="w-full gap-2">
+          <a href={pdfSrc} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4" />
+            Open PDF
+          </a>
+        </Button>
+        <Button variant="outline" size="lg" className="w-full gap-2" onClick={downloadPdf}>
+          <Download className="h-4 w-4" />
+          Download PDF
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 // Fallback UI component when PDF fails to load
 function PDFFallback({ 
@@ -65,6 +110,7 @@ export function AgreementPDFViewer({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const iframeLoadedRef = useRef(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     iframeLoadedRef.current = iframeLoaded;
@@ -75,6 +121,11 @@ export function AgreementPDFViewer({
   const currentPdf = pdfs[selectedPdfIndex];
 
   useEffect(() => {
+    if (isMobile) {
+      setLoading(false);
+      return;
+    }
+
     setScale(1.0);
     setLoading(true);
     setError(null);
@@ -111,7 +162,7 @@ export function AgreementPDFViewer({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [currentPdf]);
+  }, [currentPdf, isMobile]);
 
   const handleIframeLoad = useCallback(() => {
     iframeLoadedRef.current = true;
@@ -152,6 +203,20 @@ export function AgreementPDFViewer({
 
   if (pdfs.length === 1) {
     const pdfSrc = resolvePdfUrl(currentPdf);
+
+    // Mobile: show simple open/download card instead of iframe
+    if (isMobile) {
+      return (
+        <div className={cn("flex flex-col border rounded-lg overflow-hidden", className)}>
+          {title && (
+            <div className="px-4 py-2 bg-secondary/50 border-b">
+              <h3 className="font-medium">{title}</h3>
+            </div>
+          )}
+          <MobilePDFCard pdfSrc={pdfSrc} filename={currentPdf} />
+        </div>
+      );
+    }
 
     return (
       <div className={cn("flex flex-col border rounded-lg overflow-hidden", className)}>
@@ -235,74 +300,81 @@ export function AgreementPDFViewer({
           return (
             <TabsContent key={index} value={index.toString()} className="m-0">
               <div className="flex flex-col">
-                {showControls && (
-                  <div className="px-4 py-2 border-b flex items-center justify-between bg-background">
-                    <span className="text-sm text-muted-foreground">
-                      Viewing Document {index + 1}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={zoomOut} disabled={scale <= 0.5}>
-                        <ZoomOut className="h-4 w-4" />
-                      </Button>
-                      <span className="text-sm text-muted-foreground min-w-[60px] text-center">
-                        {Math.round(scale * 100)}%
-                      </span>
-                      <Button variant="ghost" size="sm" onClick={zoomIn} disabled={scale >= 3.0}>
-                        <ZoomIn className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => {
-                          const link = document.createElement("a");
-                          link.href = pdfSrc;
-                          link.download = typeof pdf === 'string' ? pdf : `agreement-${index + 1}.pdf`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={handlePrint}>
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                <ScrollArea className="w-full" style={{ height }}>
-                  {selectedPdfIndex === index && loading && !error && (
-                    <div className="flex items-center justify-center h-full min-h-[300px]">
-                      <div className="text-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">Loading agreement...</p>
+                {/* Mobile: show simple card */}
+                {isMobile ? (
+                  <MobilePDFCard pdfSrc={pdfSrc} filename={typeof pdf === 'string' ? pdf : `agreement-${index + 1}.pdf`} />
+                ) : (
+                  <>
+                    {showControls && (
+                      <div className="px-4 py-2 border-b flex items-center justify-between bg-background">
+                        <span className="text-sm text-muted-foreground">
+                          Viewing Document {index + 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="sm" onClick={zoomOut} disabled={scale <= 0.5}>
+                            <ZoomOut className="h-4 w-4" />
+                          </Button>
+                          <span className="text-sm text-muted-foreground min-w-[60px] text-center">
+                            {Math.round(scale * 100)}%
+                          </span>
+                          <Button variant="ghost" size="sm" onClick={zoomIn} disabled={scale >= 3.0}>
+                            <ZoomIn className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => {
+                              const link = document.createElement("a");
+                              link.href = pdfSrc;
+                              link.download = typeof pdf === 'string' ? pdf : `agreement-${index + 1}.pdf`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={handlePrint}>
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {selectedPdfIndex === index && error ? (
-                    <PDFFallback 
-                      pdfSrc={pdfSrc} 
-                      filename={typeof pdf === 'string' ? pdf : `agreement-${index + 1}.pdf`} 
-                      onDownload={() => {
-                        const link = document.createElement("a");
-                        link.href = pdfSrc;
-                        link.download = typeof pdf === 'string' ? pdf : `agreement-${index + 1}.pdf`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                    />
-                  ) : (
-                    <iframe
-                      src={pdfSrc}
-                      className={cn("w-full border-0", selectedPdfIndex === index && loading ? "opacity-0 absolute" : "opacity-100")}
-                      style={{ height: '100%', minHeight: height }}
-                      onLoad={handleIframeLoad}
-                      onError={handleIframeError}
-                      title={title || `PDF ${index + 1}`}
-                    />
-                  )}
-                </ScrollArea>
+                    )}
+                    <ScrollArea className="w-full" style={{ height }}>
+                      {selectedPdfIndex === index && loading && !error && (
+                        <div className="flex items-center justify-center h-full min-h-[300px]">
+                          <div className="text-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">Loading agreement...</p>
+                          </div>
+                        </div>
+                      )}
+                      {selectedPdfIndex === index && error ? (
+                        <PDFFallback 
+                          pdfSrc={pdfSrc} 
+                          filename={typeof pdf === 'string' ? pdf : `agreement-${index + 1}.pdf`} 
+                          onDownload={() => {
+                            const link = document.createElement("a");
+                            link.href = pdfSrc;
+                            link.download = typeof pdf === 'string' ? pdf : `agreement-${index + 1}.pdf`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                        />
+                      ) : (
+                        <iframe
+                          src={pdfSrc}
+                          className={cn("w-full border-0", selectedPdfIndex === index && loading ? "opacity-0 absolute" : "opacity-100")}
+                          style={{ height: '100%', minHeight: height }}
+                          onLoad={handleIframeLoad}
+                          onError={handleIframeError}
+                          title={title || `PDF ${index + 1}`}
+                        />
+                      )}
+                    </ScrollArea>
+                  </>
+                )}
               </div>
             </TabsContent>
           );
