@@ -20,6 +20,7 @@ import {
   Send,
   Flame,
   MessageCircle,
+  GraduationCap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -212,6 +213,7 @@ export function CheckInSupportPanel() {
   const queryClient = useQueryClient();
   const [isMuted, setIsMuted] = useState(false);
   const [conciergeOpen, setConciergeOpen] = useState(true);
+  const [classSupportOpen, setClassSupportOpen] = useState(true);
   const [supportOpen, setSupportOpen] = useState(true);
   const prevCountRef = useRef<number | null>(null);
 
@@ -316,7 +318,8 @@ export function CheckInSupportPanel() {
   }, [isMuted, queryClient]);
 
   const conciergeItems = conversations?.filter((c) => c.category === "concierge") || [];
-  const supportItems = conversations?.filter((c) => c.category !== "concierge") || [];
+  const classSupportItems = conversations?.filter((c) => c.category === "class_support") || [];
+  const supportItems = conversations?.filter((c) => c.category !== "concierge" && c.category !== "class_support") || [];
   const totalCount = (conversations?.length || 0);
 
   // Sound notification when new items appear via polling
@@ -374,7 +377,7 @@ export function CheckInSupportPanel() {
   if (!conversations || totalCount === 0) return null;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-3">
       {/* In-Club Requests (Concierge) */}
       <Collapsible open={conciergeOpen} onOpenChange={setConciergeOpen}>
         <Card className="border-amber-200/50 dark:border-amber-800/50">
@@ -398,7 +401,7 @@ export function CheckInSupportPanel() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => {
-                  warmUpAudio(); // Ensure audio context is ready
+                  warmUpAudio();
                   setIsMuted(!isMuted);
                 }}
                 title={isMuted ? "Unmute notifications" : "Mute notifications"}
@@ -426,6 +429,47 @@ export function CheckInSupportPanel() {
               ) : (
                 <p className="text-xs text-muted-foreground text-center py-4">
                   No in-club requests
+                </p>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Class Support */}
+      <Collapsible open={classSupportOpen} onOpenChange={setClassSupportOpen}>
+        <Card className="border-green-200/50 dark:border-green-800/50">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CollapsibleTrigger className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <GraduationCap className="h-4 w-4 text-green-500" />
+              <CardTitle className="text-sm font-semibold">Class Support</CardTitle>
+              {classSupportItems.length > 0 && (
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 text-xs">
+                  {classSupportItems.length}
+                </Badge>
+              )}
+              <ChevronDown
+                className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                  classSupportOpen ? "rotate-180" : ""
+                }`}
+              />
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-2 px-4 pb-4 space-y-2">
+              {classSupportItems.length > 0 ? (
+                classSupportItems.map((item) => (
+                  <ConversationItem
+                    key={item.id}
+                    conversation={item}
+                    variant="support"
+                    onReply={handleReply}
+                    onMarkDone={handleMarkDone}
+                  />
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  No class support tickets
                 </p>
               )}
             </CardContent>

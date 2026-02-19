@@ -344,6 +344,7 @@ export default function EmailManagement() {
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="support">Support</SelectItem>
                 <SelectItem value="concierge">Concierge</SelectItem>
+                <SelectItem value="class_support">Class Support</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -419,6 +420,9 @@ export default function EmailManagement() {
                             <div className="flex flex-col items-end gap-1 shrink-0">
                               {(conversation as any).category === 'concierge' && (
                                 <Badge variant="outline" className="text-xs bg-accent/20">Concierge</Badge>
+                              )}
+                              {(conversation as any).category === 'class_support' && (
+                                <Badge variant="outline" className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">Class Support</Badge>
                               )}
                               <Badge variant={status.variant} className="text-xs">
                                 {status.icon}
