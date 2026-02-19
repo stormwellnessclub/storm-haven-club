@@ -442,34 +442,23 @@ function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCa
       toast.error("Please fill in all required fields");
       return;
     }
-    const fullName = `${guestFirstName.trim()} ${guestLastName.trim()}`;
 
     setIsSubmitting(true);
     try {
-      // Create guest pass record with price_paid: 0
-      const { error: guestError } = await (supabase
-        .from("guest_passes" as any)
-        .insert({
-          guest_name: fullName,
-          guest_email: guestEmail.trim(),
-          phone_number: guestPhone.trim(),
-          valid_date: visitDate,
-          price_paid: 0,
-          status: "active",
-          user_id: user.id,
-          member_referral: "Complimentary Guest Pass",
-          expires_at: new Date(visitDate + "T23:59:59").toISOString(),
-        }) as any);
+      const { data, error } = await supabase.rpc("redeem_guest_pass_credit" as any, {
+        p_guest_first_name: guestFirstName.trim(),
+        p_guest_last_name: guestLastName.trim(),
+        p_guest_email: guestEmail.trim(),
+        p_guest_phone: guestPhone.trim(),
+        p_visit_date: visitDate,
+      });
 
-      if (guestError) throw guestError;
+      if (error) throw error;
 
-      // Deduct the credit
-      const { error: creditError } = await (supabase
-        .from("member_credits" as any)
-        .update({ credits_remaining: credit.credits_remaining - 1 })
-        .eq("id", credit.id) as any);
-
-      if (creditError) throw creditError;
+      const result = data as any;
+      if (!result?.success) {
+        throw new Error(result?.error || "Failed to redeem guest pass credit");
+      }
 
       setIsRegistered(true);
       queryClient.invalidateQueries({ queryKey: ["user-credits"] });

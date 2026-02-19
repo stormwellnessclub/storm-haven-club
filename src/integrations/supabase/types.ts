@@ -1702,6 +1702,7 @@ export type Database = {
           phone_number: string | null
           price_paid: number
           purchased_at: string | null
+          referring_member_id: string | null
           sold_by: string | null
           status: string
           stripe_customer_id: string | null
@@ -1734,6 +1735,7 @@ export type Database = {
           phone_number?: string | null
           price_paid?: number
           purchased_at?: string | null
+          referring_member_id?: string | null
           sold_by?: string | null
           status?: string
           stripe_customer_id?: string | null
@@ -1766,6 +1768,7 @@ export type Database = {
           phone_number?: string | null
           price_paid?: number
           purchased_at?: string | null
+          referring_member_id?: string | null
           sold_by?: string | null
           status?: string
           stripe_customer_id?: string | null
@@ -1776,7 +1779,29 @@ export type Database = {
           visit_interests?: string[] | null
           visit_notes?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "guest_passes_referring_member_id_fkey"
+            columns: ["referring_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_passes_referring_member_id_fkey"
+            columns: ["referring_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_passes_referring_member_id_fkey"
+            columns: ["referring_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guest_services: {
         Row: {
@@ -4527,6 +4552,16 @@ export type Database = {
             Returns: Json
           }
         | { Args: { p_scanned_code: string }; Returns: Json }
+      redeem_guest_pass_credit: {
+        Args: {
+          p_guest_email: string
+          p_guest_first_name: string
+          p_guest_last_name: string
+          p_guest_phone: string
+          p_visit_date: string
+        }
+        Returns: Json
+      }
       track_payment_method_update: {
         Args: {
           p_card_brand?: string
