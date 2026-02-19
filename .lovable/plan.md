@@ -1,95 +1,73 @@
 
 
-## Build Remaining Non-Member Portal Features
+## Fix Non-Member Portal Routing and Bugs
 
-Three areas remain: the Stripe edge function actions for non-member card/payment management, admin "Class Support" visibility, and wiring up the portal pages to actually call those actions.
+### Problem Summary
 
-### 1. Edge Function: Add non-member actions to `stripe-payment`
+The portal is built but has routing gaps that prevent non-members from reaching it, and a data query bug on the dashboard.
 
-**File: `supabase/functions/stripe-payment/index.ts`**
+### Changes
 
-Add three new actions to the `PaymentRequest` union type and corresponding `case` blocks:
+#### 1. Fix ProtectedMemberRoute: Redirect non-members to /portal
 
-- **`create_nonmember_setup_intent`** -- Authenticated action. Calls `getOrCreateCustomer()`, then saves the `stripe_customer_id` to `non_member_profiles` (instead of `members`). Creates a `SetupIntent` with `payment_method_types: ['card']`. Logs to `card_setup_attempts` with source `'nonmember_portal'`. Returns `clientSecret` and `customerId`.
+**File: `src/components/member/ProtectedMemberRoute.tsx`**
 
-- **`sync_nonmember_card_metadata`** -- After card is saved via `confirmSetup`, the frontend calls this to fetch the default payment method from Stripe and write `card_brand`, `card_last4`, `card_exp_month`, `card_exp_year`, `stripe_customer_id` back to the `non_member_profiles` row. Also sets the payment method as the customer default via `stripe.customers.update`.
-
-- **`list_nonmember_payment_methods`** -- Lists all card payment methods for the authenticated user's Stripe customer (looked up from `non_member_profiles.stripe_customer_id`). Returns the same format as `list_payment_methods`.
-
-### 2. Wire up Portal PaymentMethods page
-
-**File: `src/pages/portal/PaymentMethods.tsx`**
-
-- Import and use `AddCardModal` (or build a simplified inline version using `@stripe/react-stripe-js` `PaymentElement`).
-- On "Add Card" click: call `stripe-payment` with `action: 'create_nonmember_setup_intent'` to get `clientSecret`.
-- After `confirmSetup` succeeds: call `sync_nonmember_card_metadata` to persist card details.
-- Invalidate `non-member-profile` query to refresh the card display.
-- Show existing card from `useNonMemberProfile` data.
-
-### 3. Wire up Portal Recovery page with Stripe Checkout
-
-**File: `src/pages/portal/Recovery.tsx`**
-
-- On "Book Session" click: call `stripe-payment` with a new `create_recovery_checkout` action (or reuse existing `create_guest_payment_link` pattern) that creates a Stripe Checkout session in `payment` mode using price IDs from `STRIPE_PRODUCTS.guestAddons` (rlt20 for Red Light Therapy, cryo for Dry Cryo).
-- Redirect to Stripe Checkout URL in the same tab.
-- Add the `create_recovery_checkout` case to the edge function: uses `getOrCreateCustomer()`, saves customer ID to `non_member_profiles`, creates checkout session with the appropriate price ID.
-
-### 4. Admin EmailManagement: Add "Class Support" filter
-
-**File: `src/pages/admin/EmailManagement.tsx`**
-
-- Add `<SelectItem value="class_support">Class Support</SelectItem>` to the category filter dropdown (after "Concierge" on line ~347).
-- Add a "Class Support" badge display in the conversation list (similar to the existing "Concierge" badge on line ~421).
-
-### 5. Admin CheckInSupportPanel: Show Class Support section
-
-**File: `src/components/admin/CheckInSupportPanel.tsx`**
-
-- Currently splits conversations into `concierge` vs everything else (`supportItems`).
-- Add a third category: `classSupport` items filtered by `c.category === "class_support"`.
-- Add a third collapsible card (green-themed, with a `BookOpen` or `GraduationCap` icon) for "Class Support" items.
-- Update `supportItems` filter to exclude `class_support`: `c.category !== "concierge" && c.category !== "class_support"`.
-
-### Technical Details
-
-**Edge function action type update (line 69):**
-Add `| 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout'` to the action union.
-
-**New cases added before the `default` case (~line 5675):**
+At the bottom of the component (line ~189), before `return <>{children}</>`, add a check: if `applicationStatus?.status === "no_application"`, redirect the user to `/portal` instead of rendering the member portal.
 
 ```text
-create_nonmember_setup_intent:
-  - getOrCreateCustomer()
-  - upsert stripe_customer_id into non_member_profiles WHERE user_id = auth user
-  - stripe.setupIntents.create with customer
-  - return clientSecret, customerId
-
-sync_nonmember_card_metadata:
-  - read stripe_customer_id from non_member_profiles
-  - stripe.customers.retrieve + stripe.paymentMethods.list
-  - find default or first card
-  - update non_member_profiles with card_brand, card_last4, card_exp_month, card_exp_year
-  - return success
-
-list_nonmember_payment_methods:
-  - read stripe_customer_id from non_member_profiles
-  - stripe.paymentMethods.list
-  - return formatted array
-
-create_recovery_checkout:
-  - map service name to price ID (rlt20 or cryo from STRIPE_PRODUCTS.guestAddons)
-  - getOrCreateCustomer()
-  - save stripe_customer_id to non_member_profiles
-  - stripe.checkout.sessions.create mode:'payment', setup_future_usage:'off_session'
-  - return session URL
+// Before the final return:
+if (applicationStatus?.status === "no_application") {
+  return <Navigate to="/portal" replace />;
+}
 ```
 
-**Files to modify:**
-- `supabase/functions/stripe-payment/index.ts` -- 4 new action cases
-- `src/pages/portal/PaymentMethods.tsx` -- Wire up add card flow
-- `src/pages/portal/Recovery.tsx` -- Wire up Stripe checkout
-- `src/pages/admin/EmailManagement.tsx` -- Add class_support filter option + badge
-- `src/components/admin/CheckInSupportPanel.tsx` -- Add class support section
+This ensures that any authenticated user without a membership or pending application is routed to the class portal automatically. The existing `/member` default redirect in `Auth.tsx` becomes the single entry point -- users land on `/member`, which then sorts them into the correct portal.
 
-**No new files or database changes needed.**
+#### 2. Fix Dashboard upcoming bookings query
 
+**File: `src/pages/portal/Dashboard.tsx`**
+
+The current query filters `gte("booked_at", new Date().toISOString())` which checks when the booking was created, not the actual class date. Fix to join through `class_sessions` and filter by `session_date`:
+
+Replace the upcoming count query (lines 17-30) with:
+
+```typescript
+const { data: upcomingCount = 0 } = useQuery({
+  queryKey: ["portal-upcoming-count", user?.id],
+  queryFn: async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { count, error } = await supabase
+      .from("class_bookings")
+      .select("*, class_sessions!inner(session_date)", { count: "exact", head: true })
+      .eq("user_id", user!.id)
+      .eq("status", "confirmed")
+      .gte("class_sessions.session_date", today);
+    if (error) throw error;
+    return count || 0;
+  },
+  enabled: !!user,
+});
+```
+
+#### 3. No changes needed for member upgrade scenario
+
+When a non-member becomes a gym member (admin creates their member record with matching email), the next time they visit `/portal`, `ProtectedPortalRoute` queries the `members` table, finds the active record, and redirects to `/member`. This already works correctly -- the check runs on every route render.
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/components/member/ProtectedMemberRoute.tsx` | Add `no_application` redirect to `/portal` |
+| `src/pages/portal/Dashboard.tsx` | Fix upcoming bookings query to use `session_date` |
+
+### What This Achieves
+
+After login, the flow becomes:
+- User signs in and lands on `/member` (default)
+- `ProtectedMemberRoute` checks their status:
+  - Active/pending member: renders member portal (existing behavior)
+  - Pending application: shows "Under Review" (existing behavior)
+  - No application (non-member): redirects to `/portal` (new)
+- If user later becomes a member, `/portal` routes auto-redirect to `/member`
+
+No new files or database changes required.
