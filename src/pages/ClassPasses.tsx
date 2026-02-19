@@ -81,6 +81,7 @@ function InlineWaiverPrompt({
     signer.sign(undefined, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
+        queryClient.invalidateQueries({ queryKey: ["non-member-profile", user?.id] });
         toast.success(`${title} signed successfully!`);
         onSigned();
       },
@@ -369,8 +370,8 @@ export default function ClassPasses() {
   const hasSingleClassAgreementConfigured = singleClassAgreements && singleClassAgreements.length > 0;
   const hasClassPackageAgreementConfigured = classPackageAgreements && classPackageAgreements.length > 0;
   
-  const needsSingleClassAgreement = hasSingleClassAgreementConfigured && !profile?.single_class_pass_agreement_signed;
-  const needsClassPackageAgreement = hasClassPackageAgreementConfigured && !profile?.class_package_agreement_signed;
+  const needsSingleClassAgreement = !!profile && hasSingleClassAgreementConfigured && !profile.single_class_pass_agreement_signed;
+  const needsClassPackageAgreement = !!profile && hasClassPackageAgreementConfigured && !profile.class_package_agreement_signed;
 
   // Waiver is valid if signed in either member or non-member profile
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
