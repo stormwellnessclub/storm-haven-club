@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { useAgreements } from "@/hooks/useAgreements";
 import { toast } from "sonner";
 import { AccountRequiredSection } from "@/components/AccountRequiredSection";
@@ -45,12 +46,18 @@ function InlineWaiverPrompt({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const profileHook = useUserProfile();
+  const nonMemberHook = useNonMemberProfile();
+
+  // For liability_waiver, use non-member sign function if user has no member profile
+  const hasProfile = !!profileHook.profile;
 
   // Map agreement type to the correct sign function/pending state
   const signerMap: Record<string, { sign: (vars: any, opts: any) => void; isPending: boolean }> = {
     single_class_pass: { sign: profileHook.signSingleClassPassAgreement, isPending: profileHook.isSigningSingleClassPassAgreement },
     class_package: { sign: profileHook.signClassPackageAgreement, isPending: profileHook.isSigningClassPackageAgreement },
-    liability_waiver: { sign: profileHook.signWaiver, isPending: profileHook.isSigningWaiver },
+    liability_waiver: hasProfile
+      ? { sign: profileHook.signWaiver, isPending: profileHook.isSigningWaiver }
+      : { sign: nonMemberHook.signWaiver, isPending: nonMemberHook.isSigningWaiver },
   };
 
   const signer = signerMap[agreementType];
@@ -350,6 +357,7 @@ export default function ClassPasses() {
   const { user } = useAuth();
   const { data: membership } = useUserMembership();
   const { profile } = useUserProfile();
+  const { profile: nonMemberProfile } = useNonMemberProfile();
   const { data: singleClassAgreements } = useAgreements("single_class_pass");
   const { data: classPackageAgreements } = useAgreements("class_package");
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
@@ -364,6 +372,9 @@ export default function ClassPasses() {
   const needsSingleClassAgreement = hasSingleClassAgreementConfigured && !profile?.single_class_pass_agreement_signed;
   const needsClassPackageAgreement = hasClassPackageAgreementConfigured && !profile?.class_package_agreement_signed;
 
+  // Waiver is valid if signed in either member or non-member profile
+  const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
+
   const handlePurchase = async (
     category: 'pilatesCycling' | 'otherClasses',
     passType: 'single' | 'tenPack'
@@ -373,8 +384,8 @@ export default function ClassPasses() {
       return;
     }
 
-    // Check liability waiver first (universal requirement)
-    if (!profile?.waiver_signed) {
+    // Check liability waiver first (universal requirement — covers both members and non-members)
+    if (!hasLiabilityWaiver) {
       setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver" });
       toast.info("Please sign the Liability Waiver below before purchasing");
       return;

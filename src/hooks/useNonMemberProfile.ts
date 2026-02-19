@@ -15,6 +15,8 @@ export interface NonMemberProfile {
   card_last4: string | null;
   card_exp_month: number | null;
   card_exp_year: number | null;
+  waiver_signed: boolean;
+  waiver_signed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,10 +82,35 @@ export function useNonMemberProfile() {
     },
   });
 
+  const signWaiver = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("non_member_profiles")
+        .update({ waiver_signed: true, waiver_signed_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["non-member-profile", user?.id] });
+      toast.success("Liability Waiver signed successfully!");
+    },
+    onError: (err) => {
+      toast.error("Failed to sign waiver: " + err.message);
+    },
+  });
+
   return {
     profile: profileQuery.data,
     isLoading: profileQuery.isLoading,
     updateProfile: updateProfile.mutate,
     isUpdating: updateProfile.isPending,
+    signWaiver: signWaiver.mutate,
+    isSigningWaiver: signWaiver.isPending,
   };
 }

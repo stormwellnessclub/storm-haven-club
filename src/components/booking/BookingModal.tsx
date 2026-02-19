@@ -3,6 +3,7 @@ import { useBookClass } from "@/hooks/useBooking";
 import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import {
   Dialog,
   DialogContent,
@@ -86,6 +87,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const { user } = useAuth();
   const navigate = useNavigate();
   const { profile } = useUserProfile();
+  const { profile: nonMemberProfile } = useNonMemberProfile();
   const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass">("credits");
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
   const [selectedPassType, setSelectedPassType] = useState<string | null>(null);
@@ -112,8 +114,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     }
   }, [canUseMemberCredits, canUsePass, creditsData?.availablePasses]);
 
-  // Check liability waiver (universal requirement for ALL bookings)
-  const hasLiabilityWaiver = profile?.waiver_signed === true;
+  // Check liability waiver — check member profile first, fall back to non-member profile
+  const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
 
   // Check if user has the required agreement for the selected payment method
   const requiredAgreement = useMemo(() => {
