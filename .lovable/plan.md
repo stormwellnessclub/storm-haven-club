@@ -1,36 +1,32 @@
 
+# Update Class Prices and Fix Temp Schedule Banner
 
-# Redesign Temp Class Schedule to Match Regular Class Schedule
+## 1. Update "Other Classes" Pricing
 
-## Problems to Fix
+The current `otherClassesPricing` in `ClassPasses.tsx` shows:
+- Single Class: Member $15 / Non-Member $30
+- 10 Class Pack: Member $150 / Non-Member $200
 
-1. **Navigation label**: The nav menu says "Schedule" -- should say "Class Schedule"
-2. **Tab labels**: "Temp Class Schedule" and "Class Schedule" are confusing and redundant. Rename to "Soft Launch Schedule" and "Full Schedule"
-3. **Duplicate banner**: The soft launch banner appears above both tabs. It should only show on the Full Schedule tab (since it explains why booking is disabled there). The temp schedule tab should have its own contextual note
-4. **Temp schedule looks nothing like the regular one**: It's a flat list of day-name cards with badge labels. It should use the same weekly calendar grid layout as `ClassCalendar` -- with day columns showing date headers (EEE / day number / month) and individual class cards underneath
-5. **Missing class details**: Each class entry should show instructor name, studio/room, duration, and spots info -- just like `ClassCard` does in the regular schedule
-6. **Not visually "bookable"**: Should use card-based layout per class (matching `ClassCard` style) with a disabled "Book" button and "Opens soon" note, same as the regular schedule does during soft launch
+**Updated prices:**
 
-## Changes
+| Package | Member Price | Non-Member Price |
+|---------|-------------|-----------------|
+| Single Class | $20 (was $15) | $30 (no change) |
+| 10 Class Pack | $180 (was $150) | $180 (was $200) |
 
-### 1. `src/components/Navigation.tsx` (line 11)
-- Change `"Schedule"` to `"Class Schedule"`
+### File: `src/pages/ClassPasses.tsx`
+- Line 30: Change memberPrice from `15` to `20`
+- Line 31: Change memberPrice from `150` to `180`, nonMemberPrice from `200` to `180`
 
-### 2. `src/pages/Schedule.tsx`
-- Change the page title `<h1>` from "Class Schedule" to "Class Schedule" (already correct)
-- Rename tab triggers: "Soft Launch Schedule" and "Full Schedule"
-- Move the soft launch banner **inside** the "Full Schedule" tab content only -- not above both tabs
-- Add a smaller, cleaner banner inside the Soft Launch tab that says something like "Soft Launch -- Feb 20 to Mar 18, 2026 -- Booking opens soon"
+### File: `src/lib/stripeProducts.ts` and `supabase/functions/stripe-payment/index.ts`
+- Create new Stripe prices for the updated amounts ($20 member single, $180 member 10-pack, $180 non-member 10-pack) and update the corresponding price IDs in both files
+- The non-member single at $30 stays the same
 
-### 3. `src/components/booking/TempClassSchedule.tsx` (major rewrite)
-- Replace the current flat day-name grid with a **weekly calendar grid** matching `ClassCalendar` layout:
-  - Generate actual dates from Feb 20 to Mar 18 using `date-fns`
-  - Show week navigation (prev/next week) with arrows, just like the full schedule
-  - Display 7 day columns (Sun--Sat) with date headers showing day name, number, and month
-  - Each class renders as a card matching `ClassCard` style: class name, time, duration (50 min), instructor (Duha), studio (Reformer Studio), spots indicator, and a disabled "Book" button with "Opens soon"
-- Remove the standalone header with "Instructor: Duha" and the date range banner -- these details now live on each class card and in the tab banner
-- Remove the legend badges -- class type info is visible on each card
-- Keep the `TEMP_SCHEDULE` data as the source, but map it onto actual calendar dates within the Feb 20 -- Mar 18 window
+### File: `src/components/admin/SellClassPackage.tsx`
+- Update `getPriceEstimate()` to reflect the new member and non-member prices for "other" classes
 
-### No database changes needed.
+## 2. Remove Instructor Name from Temp Schedule Banner
 
+### File: `src/components/booking/TempClassSchedule.tsx`
+- Line 141: Remove "Instructor: Duha" from the banner text. The instructor name already appears on each individual class card (line 75), which is where it belongs -- this way if the instructor changes, you only update the class card data, not the banner.
+- Updated banner text: `"February 20 -- March 18, 2026 . All classes 50 min . Booking opens soon"`
