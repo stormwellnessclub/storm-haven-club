@@ -1,32 +1,28 @@
 
-# Update Class Prices and Fix Temp Schedule Banner
 
-## 1. Update "Other Classes" Pricing
+## Update Other Classes Member 10-Pack Price to $150
 
-The current `otherClassesPricing` in `ClassPasses.tsx` shows:
-- Single Class: Member $15 / Non-Member $30
-- 10 Class Pack: Member $150 / Non-Member $200
+The member 10-pack for "Other Classes" is currently set to $180 but should be $150.
 
-**Updated prices:**
+### Changes Required
 
-| Package | Member Price | Non-Member Price |
-|---------|-------------|-----------------|
-| Single Class | $20 (was $15) | $30 (no change) |
-| 10 Class Pack | $180 (was $150) | $180 (was $200) |
+**1. `src/pages/ClassPasses.tsx`**
+- Update `otherClassesPricing` array: change the member 10-pack price from `180` to `150`
 
-### File: `src/pages/ClassPasses.tsx`
-- Line 30: Change memberPrice from `15` to `20`
-- Line 31: Change memberPrice from `150` to `180`, nonMemberPrice from `200` to `180`
+**2. `src/lib/stripeProducts.ts`**
+- The existing Stripe price ID for the member 10-pack (`price_1T2Xo0LyZrsSqLhsJrhfsW8w`) was created at $180. A new Stripe price will need to be created at $150 and the ID replaced here.
 
-### File: `src/lib/stripeProducts.ts` and `supabase/functions/stripe-payment/index.ts`
-- Create new Stripe prices for the updated amounts ($20 member single, $180 member 10-pack, $180 non-member 10-pack) and update the corresponding price IDs in both files
-- The non-member single at $30 stays the same
+**3. `supabase/functions/stripe-payment/index.ts`**
+- Update the corresponding price ID to match the new $150 Stripe price
 
-### File: `src/components/admin/SellClassPackage.tsx`
-- Update `getPriceEstimate()` to reflect the new member and non-member prices for "other" classes
+**4. `src/components/admin/SellClassPackage.tsx`**
+- Update the `getPriceEstimate()` function: change the aerobics member 10-pack price from `180` to `150`
 
-## 2. Remove Instructor Name from Temp Schedule Banner
+### Summary
 
-### File: `src/components/booking/TempClassSchedule.tsx`
-- Line 141: Remove "Instructor: Duha" from the banner text. The instructor name already appears on each individual class card (line 75), which is where it belongs -- this way if the instructor changes, you only update the class card data, not the banner.
-- Updated banner text: `"February 20 -- March 18, 2026 . All classes 50 min . Booking opens soon"`
+| Package | Current | Updated |
+|---------|---------|---------|
+| Other Classes Member 10-Pack | $180 | $150 |
+
+All other prices remain unchanged. A new Stripe price product will be created at $150 to replace the current $180 one.
+
