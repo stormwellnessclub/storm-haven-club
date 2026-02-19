@@ -1,73 +1,73 @@
 
 
-## Fix Non-Member Portal Routing and Bugs
+## Make Waivers Phone-Friendly and Enforce at Checkout
 
-### Problem Summary
+### Current State
 
-The portal is built but has routing gaps that prevent non-members from reaching it, and a data query bug on the dashboard.
+- **PDF viewing on mobile is already handled**: `SimpleAgreementCard` and `AgreementPDFViewer` detect mobile devices and show large "Open PDF" / "Download" buttons instead of broken iframes. No changes needed here.
+- **Class pass purchase page** (`/class-passes`) already has an inline waiver prompt (`InlineWaiverPrompt`) that appears when you click "Purchase" without signing the required pass-specific agreement. This works on mobile.
+- **The gap**: The **liability waiver** (`waiver_signed`) is never checked at the booking or purchase step. Users can book classes or buy passes without ever signing it.
 
 ### Changes
 
-#### 1. Fix ProtectedMemberRoute: Redirect non-members to /portal
+#### 1. Add liability waiver check to BookingModal (at booking time)
 
-**File: `src/components/member/ProtectedMemberRoute.tsx`**
+**File: `src/components/booking/BookingModal.tsx`**
 
-At the bottom of the component (line ~189), before `return <>{children}</>`, add a check: if `applicationStatus?.status === "no_application"`, redirect the user to `/portal` instead of rendering the member portal.
+Add a check for `profile?.waiver_signed` before allowing any booking to proceed. If the liability waiver is not signed:
+- Show an alert with a clear message and a button to sign the waiver
+- Hide the payment method selection and "Confirm Booking" button
+- The alert takes priority over pass-specific agreement checks (liability waiver is universal)
+- For non-members (no `profile`), direct them to sign in first since they need a profile to track waiver status
 
-```text
-// Before the final return:
-if (applicationStatus?.status === "no_application") {
-  return <Navigate to="/portal" replace />;
-}
-```
+This means users browse the schedule freely, tap "Book", and only then see the waiver requirement -- exactly at checkout, not before.
 
-This ensures that any authenticated user without a membership or pending application is routed to the class portal automatically. The existing `/member` default redirect in `Auth.tsx` becomes the single entry point -- users land on `/member`, which then sorts them into the correct portal.
+#### 2. Add liability waiver check to ClassPasses purchase flow (at purchase time)
 
-#### 2. Fix Dashboard upcoming bookings query
+**File: `src/pages/ClassPasses.tsx`**
 
-**File: `src/pages/portal/Dashboard.tsx`**
+Update `handlePurchase` to check `profile?.waiver_signed` before the pass-specific agreement check. If liability waiver is not signed:
+- Show the `InlineWaiverPrompt` for the liability waiver type
+- Add `"liability_waiver"` to the `signerMap` inside `InlineWaiverPrompt` so the sign function (`signWaiver`) is mapped correctly
+- Users see prices, browse freely, and only when they click "Purchase" does the waiver prompt appear inline on the same page
 
-The current query filters `gte("booked_at", new Date().toISOString())` which checks when the booking was created, not the actual class date. Fix to join through `class_sessions` and filter by `session_date`:
+#### 3. Ensure InlineWaiverPrompt supports liability waiver type
 
-Replace the upcoming count query (lines 17-30) with:
+**File: `src/pages/ClassPasses.tsx` (InlineWaiverPrompt component)**
 
-```typescript
-const { data: upcomingCount = 0 } = useQuery({
-  queryKey: ["portal-upcoming-count", user?.id],
-  queryFn: async () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const { count, error } = await supabase
-      .from("class_bookings")
-      .select("*, class_sessions!inner(session_date)", { count: "exact", head: true })
-      .eq("user_id", user!.id)
-      .eq("status", "confirmed")
-      .gte("class_sessions.session_date", today);
-    if (error) throw error;
-    return count || 0;
-  },
-  enabled: !!user,
-});
-```
+The existing `signerMap` only maps `single_class_pass` and `class_package`. Add an entry for `liability_waiver` that maps to `profileHook.signWaiver` and `profileHook.isSigningWaiver`. This allows the same inline signing flow to work for the liability waiver without navigating away.
 
-#### 3. No changes needed for member upgrade scenario
+### User Flow After Changes
 
-When a non-member becomes a gym member (admin creates their member record with matching email), the next time they visit `/portal`, `ProtectedPortalRoute` queries the `members` table, finds the active record, and redirects to `/member`. This already works correctly -- the check runs on every route render.
+**Booking a class:**
+1. User browses schedule on phone -- no waiver blocking
+2. User taps "Book Class" on a session
+3. BookingModal opens showing class details
+4. If liability waiver not signed: shows a clear alert with "Sign Liability Waiver" button that navigates to `/member/waivers`
+5. If liability waiver signed but pass agreement missing: shows the existing pass-agreement alert
+6. If all signed: shows payment method selection and "Confirm Booking"
+
+**Purchasing a class pass:**
+1. User browses `/class-passes` -- sees all prices, no blocking
+2. User taps "Purchase" button
+3. If liability waiver not signed: inline waiver prompt appears on the same page (mobile-friendly PDF open/download + checkbox + sign button)
+4. After signing liability waiver, user taps "Purchase" again
+5. If pass-specific agreement not signed: inline prompt appears for that agreement
+6. After signing, purchase proceeds to Stripe Checkout
 
 ### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/member/ProtectedMemberRoute.tsx` | Add `no_application` redirect to `/portal` |
-| `src/pages/portal/Dashboard.tsx` | Fix upcoming bookings query to use `session_date` |
+| `src/components/booking/BookingModal.tsx` | Add liability waiver check before payment method selection |
+| `src/pages/ClassPasses.tsx` | Add liability waiver check in `handlePurchase`; add `liability_waiver` to `InlineWaiverPrompt` signer map |
 
-### What This Achieves
+### What Already Works on Mobile (No Changes Needed)
 
-After login, the flow becomes:
-- User signs in and lands on `/member` (default)
-- `ProtectedMemberRoute` checks their status:
-  - Active/pending member: renders member portal (existing behavior)
-  - Pending application: shows "Under Review" (existing behavior)
-  - No application (non-member): redirects to `/portal` (new)
-- If user later becomes a member, `/portal` routes auto-redirect to `/member`
+- `SimpleAgreementCard`: Uses `useIsMobile()` to show large "Open PDF" and "Download" buttons
+- `AgreementPDFViewer`: Renders `MobilePDFCard` on phones instead of iframe
+- `InlineWaiverPrompt`: Uses `SimpleAgreementCard` which is already mobile-safe
+- Waivers page (`/member/waivers`): Full signing flow works on mobile
 
-No new files or database changes required.
+### No new files, no database changes needed.
+
