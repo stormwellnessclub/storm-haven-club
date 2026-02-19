@@ -49,9 +49,9 @@ export function SellClassPackage({
   // Pricing info
   const getPriceEstimate = () => {
     const prices: Record<string, Record<string, Record<string, number>>> = {
-      reformer: { single: { member: 35, nonMember: 45 }, tenPack: { member: 300, nonMember: 400 } },
-      cycling: { single: { member: 35, nonMember: 45 }, tenPack: { member: 300, nonMember: 400 } },
-      aerobics: { single: { member: 20, nonMember: 30 }, tenPack: { member: 180, nonMember: 270 } },
+      reformer: { single: { member: 25, nonMember: 30 }, tenPack: { member: 170, nonMember: 285 } },
+      cycling: { single: { member: 25, nonMember: 30 }, tenPack: { member: 170, nonMember: 285 } },
+      aerobics: { single: { member: 20, nonMember: 30 }, tenPack: { member: 180, nonMember: 180 } },
     };
     const memberStatus = actualIsMember ? 'member' : 'nonMember';
     return prices[category]?.[passType]?.[memberStatus] || 0;

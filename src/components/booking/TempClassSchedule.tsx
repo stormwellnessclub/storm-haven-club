@@ -138,7 +138,7 @@ export function TempClassSchedule() {
               Reformer Pilates — Soft Launch
             </h3>
             <p className="text-sm text-muted-foreground">
-              February 20 – March 18, 2026 · All classes 50 min · Instructor: <span className="font-medium text-foreground">Duha</span> · Booking opens soon
+              February 20 – March 18, 2026 · All classes 50 min · Booking opens soon
             </p>
           </div>
         </div>
