@@ -50,6 +50,7 @@ function InlineWaiverPrompt({
   const signerMap: Record<string, { sign: (vars: any, opts: any) => void; isPending: boolean }> = {
     single_class_pass: { sign: profileHook.signSingleClassPassAgreement, isPending: profileHook.isSigningSingleClassPassAgreement },
     class_package: { sign: profileHook.signClassPackageAgreement, isPending: profileHook.isSigningClassPackageAgreement },
+    liability_waiver: { sign: profileHook.signWaiver, isPending: profileHook.isSigningWaiver },
   };
 
   const signer = signerMap[agreementType];
@@ -369,6 +370,13 @@ export default function ClassPasses() {
   ) => {
     if (!user) {
       toast.error("Please sign in to purchase class passes");
+      return;
+    }
+
+    // Check liability waiver first (universal requirement)
+    if (!profile?.waiver_signed) {
+      setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver" });
+      toast.info("Please sign the Liability Waiver below before purchasing");
       return;
     }
 
