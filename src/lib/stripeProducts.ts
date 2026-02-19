@@ -72,7 +72,7 @@ export const STRIPE_PRODUCTS = {
         nonMember: 'price_1SlABFLyZrsSqLhsGOpvWGFE', // $30
       },
       tenPack: {
-        member: 'price_1T2Xo0LyZrsSqLhsJrhfsW8w',    // $180
+        member: 'price_1T2YiALyZrsSqLhsuJGaqAaK',    // $150
         nonMember: 'price_1T2XoiLyZrsSqLhsjN7Hb2Lk', // $180
       },
     },

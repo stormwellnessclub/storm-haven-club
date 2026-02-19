@@ -51,7 +51,7 @@ export function SellClassPackage({
     const prices: Record<string, Record<string, Record<string, number>>> = {
       reformer: { single: { member: 25, nonMember: 30 }, tenPack: { member: 170, nonMember: 285 } },
       cycling: { single: { member: 25, nonMember: 30 }, tenPack: { member: 170, nonMember: 285 } },
-      aerobics: { single: { member: 20, nonMember: 30 }, tenPack: { member: 180, nonMember: 180 } },
+      aerobics: { single: { member: 20, nonMember: 30 }, tenPack: { member: 150, nonMember: 180 } },
     };
     const memberStatus = actualIsMember ? 'member' : 'nonMember';
     return prices[category]?.[passType]?.[memberStatus] || 0;
