@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AppRole, ROLE_LABELS, ROLE_DESCRIPTIONS } from "@/lib/permissions";
+import { InviteStaffDialog } from "@/components/admin/InviteStaffDialog";
 
 interface StaffMember {
   userId: string;
@@ -40,6 +41,7 @@ export default function StaffRoles() {
   const [editRoles, setEditRoles] = useState<AppRole[]>([]);
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchStaffMembers();
@@ -188,7 +190,7 @@ export default function StaffRoles() {
               Manage staff access and permissions
             </p>
           </div>
-          <Button>
+          <Button onClick={() => setInviteDialogOpen(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
             Add Staff Member
           </Button>
@@ -293,6 +295,13 @@ export default function StaffRoles() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Invite Staff Dialog */}
+        <InviteStaffDialog
+          open={inviteDialogOpen}
+          onOpenChange={setInviteDialogOpen}
+          onInviteSent={fetchStaffMembers}
+        />
       </div>
     </AdminLayout>
   );
