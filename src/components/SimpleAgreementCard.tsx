@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Download, ExternalLink, FileText, Loader2, Check } from "lucide-react";
 import { resolvePdfUrl } from "@/lib/pdfAssets";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Get display name from filename
 const getDisplayName = (filename: string): string => {
@@ -27,9 +28,6 @@ interface SimpleAgreementCardProps {
   required?: boolean;
 }
 
-// "Open" is now handled by a native <a> tag in the JSX below,
-// which is more reliable on iOS Safari than window.open().
-
 /**
  * Mobile-safe PDF download: fetches the file as a blob and triggers
  * a download via an object URL. Falls back to direct navigation.
@@ -44,13 +42,11 @@ const downloadPdf = async (url: string, filename: string) => {
     a.download = filename;
     document.body.appendChild(a);
     a.click();
-    // Cleanup
     setTimeout(() => {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     }, 100);
   } catch {
-    // Fallback: just open the URL
     window.location.href = url;
   }
 };
@@ -64,6 +60,7 @@ export function SimpleAgreementCard({
   required = true,
 }: SimpleAgreementCardProps) {
   const [acknowledged, setAcknowledged] = useState(false);
+  const isMobile = useIsMobile();
 
   return (
     <div className="space-y-4">
@@ -84,32 +81,32 @@ export function SimpleAgreementCard({
           return (
             <div 
               key={index} 
-              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-lg border bg-muted/30"
+              className="flex flex-col gap-3 p-3 rounded-lg border bg-muted/30"
             >
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-accent shrink-0" />
                 <span className="font-medium text-sm">{displayName}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className={`flex gap-2 ${isMobile ? 'flex-col' : 'flex-row items-center'}`}>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => downloadPdf(pdfPath, filename)}
-                >
-                  <Download className="h-4 w-4" />
-                  Download
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
+                  variant={isMobile ? "default" : "outline"}
+                  size={isMobile ? "lg" : "sm"}
+                  className={`gap-1.5 ${isMobile ? 'w-full' : ''}`}
                   asChild
                 >
                   <a href={pdfPath} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4" />
-                    Open
+                    Open PDF
                   </a>
+                </Button>
+                <Button
+                  variant="outline"
+                  size={isMobile ? "lg" : "sm"}
+                  className={`gap-1.5 ${isMobile ? 'w-full' : ''}`}
+                  onClick={() => downloadPdf(pdfPath, filename)}
+                >
+                  <Download className="h-4 w-4" />
+                  Download
                 </Button>
               </div>
             </div>

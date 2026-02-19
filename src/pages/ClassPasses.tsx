@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
-import { Check, Info, Clock, Loader2, ShoppingCart } from "lucide-react";
+import { Check, Info, Clock, Loader2, ShoppingCart, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,8 +10,9 @@ import { useUserMembership } from "@/hooks/useUserMembership";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAgreements } from "@/hooks/useAgreements";
 import { toast } from "sonner";
-import { InlineWaiverGate } from "@/components/InlineWaiverGate";
 import { AccountRequiredSection } from "@/components/AccountRequiredSection";
+import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface PricingTier {
   type: string;
@@ -29,6 +30,77 @@ const otherClassesPricing: PricingTier[] = [
   { type: "Single Class", passType: 'single', memberPrice: 15, nonMemberPrice: 30 },
   { type: "10 Class Pack", passType: 'tenPack', memberPrice: 150, nonMemberPrice: 200 },
 ];
+
+// Inline waiver signing prompt shown when user tries to purchase without signing
+function InlineWaiverPrompt({ 
+  agreementType, 
+  title, 
+  onSigned 
+}: { 
+  agreementType: string; 
+  title: string;
+  onSigned: () => void;
+}) {
+  const { data: agreements, isLoading } = useAgreements(agreementType);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const profileHook = useUserProfile();
+
+  // Map agreement type to the correct sign function/pending state
+  const signerMap: Record<string, { sign: (vars: any, opts: any) => void; isPending: boolean }> = {
+    single_class_pass: { sign: profileHook.signSingleClassPassAgreement, isPending: profileHook.isSigningSingleClassPassAgreement },
+    class_package: { sign: profileHook.signClassPackageAgreement, isPending: profileHook.isSigningClassPackageAgreement },
+  };
+
+  const signer = signerMap[agreementType];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!agreements || agreements.length === 0 || !signer) return null;
+
+  const documents: DocumentInfo[] = agreements.map(a => ({
+    name: a.title,
+    url: a.pdf_url || `${agreementType}.pdf`,
+  }));
+
+  const handleSign = () => {
+    signer.sign(undefined, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
+        toast.success(`${title} signed successfully!`);
+        onSigned();
+      },
+    });
+  };
+
+  return (
+    <div className="max-w-lg mx-auto my-8 card-luxury p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center">
+          <FileText className="w-5 h-5 text-gold" />
+        </div>
+        <div>
+          <h3 className="font-serif text-lg">Agreement Required</h3>
+          <p className="text-sm text-muted-foreground">Please sign before purchasing</p>
+        </div>
+      </div>
+      <SimpleAgreementCard
+        title={title}
+        description={`Please review and sign the ${title} to continue with your purchase.`}
+        documents={documents}
+        onSign={handleSign}
+        isSigning={signer.isPending}
+        required
+      />
+    </div>
+  );
+}
 
 // Extracted pricing tables component
 function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
@@ -108,11 +180,17 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
                     </span>
                   </div>
                   <div className="text-center">
-                    <PurchaseButton 
-                      category="pilatesCycling" 
-                      passType={tier.passType}
-                      price={isMember ? tier.memberPrice : tier.nonMemberPrice}
-                    />
+                    {user ? (
+                      <PurchaseButton 
+                        category="pilatesCycling" 
+                        passType={tier.passType}
+                        price={isMember ? tier.memberPrice : tier.nonMemberPrice}
+                      />
+                    ) : (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to="/auth?redirect=/class-passes">Sign In</Link>
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -159,11 +237,17 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
                     </span>
                   </div>
                   <div className="text-center">
-                    <PurchaseButton 
-                      category="otherClasses" 
-                      passType={tier.passType}
-                      price={isMember ? tier.memberPrice : tier.nonMemberPrice}
-                    />
+                    {user ? (
+                      <PurchaseButton 
+                        category="otherClasses" 
+                        passType={tier.passType}
+                        price={isMember ? tier.memberPrice : tier.nonMemberPrice}
+                      />
+                    ) : (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to="/auth?redirect=/class-passes">Sign In</Link>
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -268,6 +352,7 @@ export default function ClassPasses() {
   const { data: singleClassAgreements } = useAgreements("single_class_pass");
   const { data: classPackageAgreements } = useAgreements("class_package");
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
+  const [showWaiverFor, setShowWaiverFor] = useState<{ type: string; title: string } | null>(null);
 
   const isMember = membership?.status === 'active';
   
@@ -287,14 +372,16 @@ export default function ClassPasses() {
       return;
     }
 
-    // Check if the specific agreement is needed for this purchase type
+    // Check if the specific agreement is needed — show inline signing prompt instead of blocking
     if (passType === 'single' && needsSingleClassAgreement) {
-      toast.info("Please sign the Single Class Pass Agreement first");
+      setShowWaiverFor({ type: "single_class_pass", title: "Single Class Pass Agreement" });
+      toast.info("Please sign the agreement below before purchasing");
       return;
     }
     
     if (passType === 'tenPack' && needsClassPackageAgreement) {
-      toast.info("Please sign the Class Package Agreement first");
+      setShowWaiverFor({ type: "class_package", title: "Class Package Agreement" });
+      toast.info("Please sign the agreement below before purchasing");
       return;
     }
 
@@ -327,7 +414,6 @@ export default function ClassPasses() {
       console.log("[ClassPasses] Stripe response:", data);
 
       if (data?.url) {
-        // Redirect in same tab instead of opening new tab
         window.location.href = data.url;
       } else {
         console.error("[ClassPasses] No checkout URL in response:", data);
@@ -340,70 +426,6 @@ export default function ClassPasses() {
     } finally {
       setLoadingPass(null);
     }
-  };
-
-  // Wrapper component that conditionally shows waiver gate for purchases
-  const renderPricingContent = () => {
-    // If user is not logged in, show account required
-    if (!user) {
-      return (
-        <div className="py-16">
-          <AccountRequiredSection 
-            redirectTo="/class-passes"
-            title="Sign In to Purchase"
-            description="Please sign in or create an account to purchase class passes."
-          />
-        </div>
-      );
-    }
-
-    // If single class agreement is required and not signed, show gate for single passes
-    if (needsSingleClassAgreement) {
-      return (
-        <div className="py-16">
-          <div className="container mx-auto px-6">
-            <div className="max-w-2xl mx-auto">
-              <InlineWaiverGate 
-                requiredWaivers={["single_class_pass"]}
-                serviceName="purchase single class passes"
-              >
-                {/* Empty div - just need to get the agreement signed */}
-                <div className="hidden" />
-              </InlineWaiverGate>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // If class package agreement is required and not signed, show gate for 10-packs
-    if (needsClassPackageAgreement) {
-      return (
-        <div className="py-16">
-          <div className="container mx-auto px-6">
-            <div className="max-w-2xl mx-auto">
-              <InlineWaiverGate 
-                requiredWaivers={["class_package"]}
-                serviceName="purchase class packages (10-class packs)"
-              >
-                {/* Empty div - just need to get the agreement signed */}
-                <div className="hidden" />
-              </InlineWaiverGate>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // User is signed in and has signed all required agreements
-    return (
-      <ClassPassPricingTables 
-        onPurchase={handlePurchase}
-        loadingPass={loadingPass}
-        isMember={isMember}
-        user={user}
-      />
-    );
   };
 
   return (
@@ -428,7 +450,22 @@ export default function ClassPasses() {
         </div>
       </section>
 
-      {renderPricingContent()}
+      {/* Always show pricing tables */}
+      <ClassPassPricingTables 
+        onPurchase={handlePurchase}
+        loadingPass={loadingPass}
+        isMember={isMember}
+        user={user}
+      />
+
+      {/* Show inline waiver signing prompt when needed */}
+      {showWaiverFor && (
+        <InlineWaiverPrompt
+          agreementType={showWaiverFor.type}
+          title={showWaiverFor.title}
+          onSigned={() => setShowWaiverFor(null)}
+        />
+      )}
     </Layout>
   );
 }
