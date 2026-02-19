@@ -177,79 +177,81 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
 
     try {
       let paymentIntentId: string | undefined;
-      let usedCreditId: string | undefined;
 
-      // Handle credit-based payment
-      if (paymentMethod === "credit" && availableCredit && creditType) {
-        // Deduct credit from member_credits table
-        const newRemaining = availableCredit.credits_remaining - 1;
-        
-        const { error: creditError } = await supabase
-          .from("member_credits")
-          .update({ 
-            credits_remaining: newRemaining,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", availableCredit.id);
+      // Handle credit-based payment via atomic RPC
+      if (paymentMethod === "credit" && creditType) {
+        const { data: rpcResult, error: rpcError } = await supabase.rpc(
+          'book_wellness_appointment' as any,
+          {
+            p_service_id: service.id,
+            p_service_name: service.name,
+            p_service_category: service.category,
+            p_service_price: service.price,
+            p_appointment_date: format(selectedDate, 'yyyy-MM-dd'),
+            p_appointment_time: selectedTime,
+            p_duration_minutes: durationMinutes,
+            p_cleanup_minutes: cleanupMinutes,
+            p_credit_type: creditType,
+            p_member_notes: memberNotes || null,
+          }
+        );
 
-        if (creditError) {
-          console.error("Credit deduction error:", creditError);
-          throw new Error("Failed to deduct wellness credit. Please try again.");
+        if (rpcError) {
+          console.error("Wellness booking RPC error:", rpcError);
+          throw new Error(rpcError.message || "Failed to book with wellness credit");
         }
 
-        usedCreditId = availableCredit.id;
-        console.log(`Wellness credit deducted: ${creditType}, remaining: ${newRemaining}`);
-      }
-
-      // Process card payment if using card
-      if (paymentMethod === "card" && selectedPaymentMethodId) {
-        const { data: memberData } = await supabase
-          .from("members")
-          .select("id, stripe_customer_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (!memberData?.stripe_customer_id) {
-          throw new Error("No payment method on file. Please add a payment method first.");
+        const result = rpcResult as any;
+        if (!result?.success) {
+          throw new Error(result?.error || "Failed to book with wellness credit");
         }
 
-        const totalAmountCents = Math.round(finalPrice * 100);
-
-        const { data: chargeData, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
-          body: {
-            action: "charge_saved_card",
-            amount: totalAmountCents,
-            description: `Spa Service: ${service.name}`,
-            stripeCustomerId: memberData.stripe_customer_id,
-            paymentMethodId: selectedPaymentMethodId,
-          },
-        });
-
-        if (chargeError) throw chargeError;
-        if (chargeData?.error) throw new Error(chargeData.error);
-
-        paymentIntentId = chargeData?.paymentIntentId || chargeData?.id;
-      }
-
-      await bookAppointment.mutateAsync({
-        serviceId: service.id,
-        serviceName: service.name,
-        serviceCategory: service.category,
-        servicePrice: paymentMethod === "credit" ? 0 : service.price,
-        appointmentDate: selectedDate,
-        appointmentTime: selectedTime,
-        durationMinutes,
-        cleanupMinutes,
-        memberNotes: memberNotes || undefined,
-        paymentMethod: paymentMethod === "credit" ? "credit" : paymentMethod,
-        paymentIntentId,
-        creditType: paymentMethod === "credit" ? creditType : undefined,
-        creditId: usedCreditId,
-      });
-
-      // Refetch credits after successful booking
-      if (paymentMethod === "credit") {
+        console.log(`Wellness credit booking success: appointment ${result.appointment_id}, credits remaining: ${result.credits_remaining}`);
         refetchCredits();
+      } else {
+        // Process card payment if using card
+        if (paymentMethod === "card" && selectedPaymentMethodId) {
+          const { data: memberData } = await supabase
+            .from("members")
+            .select("id, stripe_customer_id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (!memberData?.stripe_customer_id) {
+            throw new Error("No payment method on file. Please add a payment method first.");
+          }
+
+          const totalAmountCents = Math.round(finalPrice * 100);
+
+          const { data: chargeData, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "charge_saved_card",
+              amount: totalAmountCents,
+              description: `Spa Service: ${service.name}`,
+              stripeCustomerId: memberData.stripe_customer_id,
+              paymentMethodId: selectedPaymentMethodId,
+            },
+          });
+
+          if (chargeError) throw chargeError;
+          if (chargeData?.error) throw new Error(chargeData.error);
+
+          paymentIntentId = chargeData?.paymentIntentId || chargeData?.id;
+        }
+
+        await bookAppointment.mutateAsync({
+          serviceId: service.id,
+          serviceName: service.name,
+          serviceCategory: service.category,
+          servicePrice: service.price,
+          appointmentDate: selectedDate,
+          appointmentTime: selectedTime,
+          durationMinutes,
+          cleanupMinutes,
+          memberNotes: memberNotes || undefined,
+          paymentMethod,
+          paymentIntentId,
+        });
       }
 
       onOpenChange(false);
