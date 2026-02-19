@@ -1,121 +1,210 @@
+import { useState, useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CircleDot, Clock, CalendarDays } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { startOfWeek, addDays, addWeeks, format, isBefore, isAfter, isSameDay } from "date-fns";
 
-type ClassEntry = { time: string; name: string; type: "signature" | "reformer-flow" | "reformer-sculpt" };
-
-const TEMP_SCHEDULE: { day: string; classes: ClassEntry[] }[] = [
-  {
-    day: "Monday",
-    classes: [
-      { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-      { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-    ],
-  },
-  {
-    day: "Tuesday",
-    classes: [
-      { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-      { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-    ],
-  },
-  {
-    day: "Wednesday",
-    classes: [
-      { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-      { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-    ],
-  },
-  {
-    day: "Thursday",
-    classes: [
-      { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-      { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-    ],
-  },
-  {
-    day: "Friday",
-    classes: [
-      { time: "9:00 AM", name: "Signature Flow", type: "signature" },
-      { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
-      { time: "8:00 PM", name: "Signature Flow", type: "signature" },
-      { time: "9:00 PM", name: "Reformer Flow", type: "reformer-flow" },
-    ],
-  },
-  {
-    day: "Saturday",
-    classes: [
-      { time: "10:00 AM", name: "Signature Flow", type: "signature" },
-      { time: "11:00 AM", name: "Reformer Sculpt", type: "reformer-sculpt" },
-      { time: "8:00 PM", name: "Signature Flow", type: "signature" },
-      { time: "9:00 PM", name: "Reformer Flow", type: "reformer-flow" },
-    ],
-  },
-  {
-    day: "Sunday",
-    classes: [],
-  },
-];
-
-const CLASS_COLORS: Record<ClassEntry["type"], string> = {
-  signature: "bg-primary/15 text-primary border-primary/30",
-  "reformer-flow": "bg-accent/15 text-accent border-accent/30",
-  "reformer-sculpt": "bg-destructive/15 text-destructive border-destructive/30",
+type ClassEntry = {
+  time: string;
+  name: string;
+  type: "signature" | "reformer-flow" | "reformer-sculpt";
 };
 
+const SOFT_LAUNCH_START = new Date(2026, 1, 20); // Feb 20
+const SOFT_LAUNCH_END = new Date(2026, 2, 18);   // Mar 18
+
+// Day-of-week schedule (0=Sun, 1=Mon, ...)
+const SCHEDULE_BY_DOW: Record<number, ClassEntry[]> = {
+  0: [], // Sunday
+  1: [
+    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
+    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
+  ],
+  2: [
+    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
+    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
+  ],
+  3: [
+    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
+    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
+  ],
+  4: [
+    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
+    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
+  ],
+  5: [
+    { time: "9:00 AM", name: "Signature Flow", type: "signature" },
+    { time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" },
+    { time: "8:00 PM", name: "Signature Flow", type: "signature" },
+    { time: "9:00 PM", name: "Reformer Flow", type: "reformer-flow" },
+  ],
+  6: [
+    { time: "10:00 AM", name: "Signature Flow", type: "signature" },
+    { time: "11:00 AM", name: "Reformer Sculpt", type: "reformer-sculpt" },
+    { time: "8:00 PM", name: "Signature Flow", type: "signature" },
+    { time: "9:00 PM", name: "Reformer Flow", type: "reformer-flow" },
+  ],
+};
+
+function TempClassCard({ entry }: { entry: ClassEntry }) {
+  return (
+    <Card className="group hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex-1">
+            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+              {entry.name}
+            </h3>
+            <Badge variant="secondary" className="text-xs mt-1">
+              Pilates
+            </Badge>
+          </div>
+          <div className="text-right">
+            <span className="text-lg font-bold text-primary">{entry.time}</span>
+          </div>
+        </div>
+
+        <div className="space-y-1 text-sm text-muted-foreground mb-3">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            <span>50 min</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            <span>Duha</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            <span>Reformer Studio</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            <span>12 spots</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button disabled variant="outline" size="sm" className="flex-1 opacity-50">
+            Book
+          </Button>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            Opens soon
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function TempClassSchedule() {
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // Calculate the first full week that overlaps the soft launch
+  const baseWeekStart = startOfWeek(SOFT_LAUNCH_START, { weekStartsOn: 0 });
+
+  const weekStart = addWeeks(baseWeekStart, weekOffset);
+  const weekEnd = addDays(weekStart, 6);
+
+  // Determine valid range of week offsets
+  const maxWeekStart = startOfWeek(SOFT_LAUNCH_END, { weekStartsOn: 0 });
+  const totalWeeks = Math.round((maxWeekStart.getTime() - baseWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000));
+
+  // Generate 7 day columns
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(weekStart, i);
+    const dow = date.getDay();
+    const inRange = !isBefore(date, SOFT_LAUNCH_START) && !isAfter(date, SOFT_LAUNCH_END);
+    return {
+      date,
+      dateStr: format(date, "yyyy-MM-dd"),
+      dayName: format(date, "EEE"),
+      dayNum: format(date, "d"),
+      month: format(date, "MMM"),
+      classes: inRange ? (SCHEDULE_BY_DOW[dow] || []) : [],
+      isToday: isSameDay(date, new Date()),
+      outOfRange: !inRange,
+    };
+  });
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <CircleDot className="h-5 w-5 text-primary" />
+      {/* Soft Launch banner for this tab */}
+      <div className="bg-primary/5 border border-primary/20 rounded-lg py-4 px-6">
+        <div className="flex items-center gap-3">
+          <CalendarDays className="h-5 w-5 text-primary flex-shrink-0" />
+          <div>
+            <h3 className="font-semibold text-foreground">
+              Reformer Pilates — Soft Launch
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              February 20 – March 18, 2026 · All classes 50 min · Instructor: <span className="font-medium text-foreground">Duha</span> · Booking opens soon
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Reformer Pilates — Soft Launch Schedule</h2>
-          <p className="text-sm text-muted-foreground">Instructor: <span className="font-medium text-foreground">Duha</span></p>
-        </div>
       </div>
 
-      {/* Date range banner */}
-      <div className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/5 px-4 py-2.5 text-sm">
-        <CalendarDays className="h-4 w-4 text-accent" />
-        <span className="font-medium text-foreground">February 20 – March 18, 2026</span>
-        <span className="text-muted-foreground">• All classes 50 min</span>
+      {/* Week Navigation */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setWeekOffset((p) => Math.max(p - 1, 0))}
+          disabled={weekOffset === 0}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium min-w-[180px] text-center">
+          Week of {format(weekStart, "MMM d, yyyy")}
+        </span>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setWeekOffset((p) => Math.min(p + 1, totalWeeks))}
+          disabled={weekOffset >= totalWeeks}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-2">
-        <Badge className={`${CLASS_COLORS.signature} border`}>Signature Flow</Badge>
-        <Badge className={`${CLASS_COLORS["reformer-flow"]} border`}>Reformer Flow</Badge>
-        <Badge className={`${CLASS_COLORS["reformer-sculpt"]} border`}>Reformer Sculpt</Badge>
-      </div>
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+        {weekDays.map((day) => (
+          <div
+            key={day.dateStr}
+            className={`space-y-3 ${day.outOfRange ? "opacity-40" : ""}`}
+          >
+            {/* Day header matching ClassCalendar */}
+            <div
+              className={`text-center p-2 rounded-lg ${
+                day.isToday
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted"
+              }`}
+            >
+              <div className="text-xs font-medium uppercase">{day.dayName}</div>
+              <div className="text-lg font-bold">{day.dayNum}</div>
+              <div className="text-xs">{day.month}</div>
+            </div>
 
-      {/* Schedule cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {TEMP_SCHEDULE.map((entry) => (
-          <div key={entry.day} className="border rounded-lg p-4 bg-card">
-            <h3 className="font-semibold text-foreground mb-3">{entry.day}</h3>
-            {entry.classes.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">No classes scheduled</p>
-            ) : (
-              <div className="space-y-2">
-                {entry.classes.map((cls, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                    <span className="text-sm font-medium text-foreground w-[72px] flex-shrink-0">{cls.time}</span>
-                    <Badge variant="outline" className={`${CLASS_COLORS[cls.type]} border text-xs`}>
-                      {cls.name}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Classes */}
+            <div className="space-y-2">
+              {day.classes.length === 0 ? (
+                <div className="text-center text-muted-foreground text-sm py-8">
+                  No classes
+                </div>
+              ) : (
+                day.classes.map((cls, i) => (
+                  <TempClassCard key={i} entry={cls} />
+                ))
+              )}
+            </div>
           </div>
         ))}
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        This is a temporary soft launch schedule. The full class schedule with booking will be available soon.
+        This is the soft launch schedule. The full class schedule with online booking will be available soon.
       </p>
     </div>
   );

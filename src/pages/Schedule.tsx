@@ -119,32 +119,11 @@ export default function Schedule() {
         </div>
       </section>
 
-      {/* Soft Launch Banner */}
-      {isSoftLaunch && (
-        <div className="bg-accent/10 border-b border-accent/30">
-          <div className="container py-4 px-6">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">🌙</span>
-              <div>
-                <h3 className="font-semibold text-foreground">Soft Launch Week</h3>
-                <p className="text-sm text-muted-foreground">
-                  This is our preliminary class schedule. A special <strong className="text-foreground">soft launch schedule</strong> with 
-                  extended <strong className="text-foreground">Ramadan hours</strong> will be released this week.
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Booking will open once the soft launch schedule is live. Check back soon!
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="container py-6">
         <Tabs defaultValue="temp" className="w-full">
           <TabsList className="mb-6">
-            <TabsTrigger value="temp">Temp Class Schedule</TabsTrigger>
-            <TabsTrigger value="full">Class Schedule</TabsTrigger>
+            <TabsTrigger value="temp">Soft Launch Schedule</TabsTrigger>
+            <TabsTrigger value="full">Full Schedule</TabsTrigger>
           </TabsList>
 
           <TabsContent value="temp">
@@ -152,6 +131,27 @@ export default function Schedule() {
           </TabsContent>
 
           <TabsContent value="full">
+            {/* Soft Launch Banner - only on full schedule tab */}
+            {isSoftLaunch && (
+              <div className="bg-accent/10 border border-accent/30 rounded-lg mb-6">
+                <div className="py-4 px-6">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🌙</span>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Soft Launch Week</h3>
+                      <p className="text-sm text-muted-foreground">
+                        This is our preliminary class schedule. A special <strong className="text-foreground">soft launch schedule</strong> with 
+                        extended <strong className="text-foreground">Ramadan hours</strong> will be released this week.
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Booking will open once the soft launch schedule is live. Check back soon!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Week Navigation */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
