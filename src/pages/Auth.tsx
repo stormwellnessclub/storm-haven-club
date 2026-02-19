@@ -13,6 +13,7 @@ import { clearAuthStorage, hasAuthData } from "@/lib/authStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { isJwtError, forceAuthReset } from "@/lib/jwtErrorHandler";
 import { WaiverSigningStep } from "@/components/WaiverSigningStep";
+import { Shield } from "lucide-react";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -35,6 +36,10 @@ export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+
+  // Detect staff invite mode
+  const searchParams = new URLSearchParams(window.location.search);
+  const isStaffInvite = searchParams.get('staff_invite') === 'true';
 
   // Helper to get safe redirect target from query param or state
   const getRedirectTarget = useCallback(() => {
@@ -311,6 +316,16 @@ export default function Auth() {
       {/* Left side - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
+          {isStaffInvite && (
+            <div className="mb-6 p-4 rounded-lg bg-accent/10 border border-accent/30 flex items-center gap-3">
+              <Shield className="h-5 w-5 text-accent flex-shrink-0" />
+              <div>
+                <p className="font-medium text-sm">Staff Account Setup</p>
+                <p className="text-xs text-muted-foreground">Create your account using the email from your invitation to automatically receive your assigned role.</p>
+              </div>
+            </div>
+          )}
+
           <div className="text-center mb-8">
             <img src={logo} alt="Storm Wellness Club" className="h-16 mx-auto mb-6" />
             <h1 className="heading-section mb-2">

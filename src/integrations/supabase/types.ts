@@ -3873,6 +3873,42 @@ export type Database = {
           },
         ]
       }
+      staff_invites: {
+        Row: {
+          claimed_at: string | null
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          invited_by: string | null
+          last_name: string | null
+          roles: Database["public"]["Enums"]["app_role"][]
+          status: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+          roles?: Database["public"]["Enums"]["app_role"][]
+          status?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+          roles?: Database["public"]["Enums"]["app_role"][]
+          status?: string
+        }
+        Relationships: []
+      }
       subscription_status_history: {
         Row: {
           change_reason: string | null
