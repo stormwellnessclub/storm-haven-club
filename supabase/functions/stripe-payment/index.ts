@@ -66,7 +66,9 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout';
+  // For non-member recovery checkout
+  serviceName?: string;
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -5669,6 +5671,220 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ url: setupSession.url, sessionId: setupSession.id, customerId: setupCustomerId }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      // =============================================
+      // NON-MEMBER PORTAL ACTIONS
+      // =============================================
+
+      case 'create_nonmember_setup_intent': {
+        logStep("Creating non-member SetupIntent", { userId: user.id });
+
+        const nmCustomerId = await getOrCreateCustomer();
+
+        // Save stripe_customer_id to non_member_profiles
+        const { error: nmUpdateErr } = await supabase
+          .from('non_member_profiles')
+          .update({ stripe_customer_id: nmCustomerId })
+          .eq('user_id', user.id);
+
+        if (nmUpdateErr) {
+          // Try upsert if no row exists yet
+          await supabase.from('non_member_profiles').upsert({
+            user_id: user.id,
+            email: user.email,
+            stripe_customer_id: nmCustomerId,
+          }, { onConflict: 'user_id' });
+        }
+
+        const nmSetupIntent = await stripe.setupIntents.create({
+          customer: nmCustomerId,
+          payment_method_types: ['card'],
+          metadata: { user_id: user.id, source: 'nonmember_portal' },
+        });
+
+        // Audit log
+        try {
+          await supabase.from('card_setup_attempts').insert({
+            member_id: null,
+            stripe_customer_id: nmCustomerId,
+            stripe_setup_intent: nmSetupIntent.id,
+            source: 'nonmember_portal',
+            status: 'initiated',
+            metadata: { user_id: user.id },
+          });
+        } catch (auditErr) {
+          logStep("Warning: Failed to log non-member card setup attempt", { error: String(auditErr) });
+        }
+
+        return new Response(
+          JSON.stringify({
+            clientSecret: nmSetupIntent.client_secret,
+            customerId: nmCustomerId,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'sync_nonmember_card_metadata': {
+        logStep("Syncing non-member card metadata", { userId: user.id });
+
+        const { data: nmProfile } = await supabase
+          .from('non_member_profiles')
+          .select('stripe_customer_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const nmCustId = nmProfile?.stripe_customer_id || body.stripeCustomerId;
+        if (!nmCustId) {
+          return new Response(
+            JSON.stringify({ success: false, message: "No Stripe customer ID on file" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Get default payment method
+        const nmCustomer = await stripe.customers.retrieve(nmCustId);
+        const nmDefaultPmId = !nmCustomer.deleted
+          ? nmCustomer.invoice_settings?.default_payment_method as string | null
+          : null;
+
+        const nmPaymentMethods = await stripe.paymentMethods.list({
+          customer: nmCustId,
+          type: 'card',
+          limit: 10,
+        });
+
+        if (nmPaymentMethods.data.length === 0) {
+          return new Response(
+            JSON.stringify({ success: false, message: "No payment methods on file" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        let nmCardToSync = nmPaymentMethods.data.find((pm: { id: string }) => pm.id === nmDefaultPmId);
+        if (!nmCardToSync) nmCardToSync = nmPaymentMethods.data[0];
+
+        // Set as customer default
+        if (!nmCustomer.deleted) {
+          await stripe.customers.update(nmCustId, {
+            invoice_settings: { default_payment_method: nmCardToSync.id },
+          });
+        }
+
+        const nmCardDetails = {
+          card_brand: nmCardToSync.card?.brand || null,
+          card_last4: nmCardToSync.card?.last4 || null,
+          card_exp_month: nmCardToSync.card?.exp_month || null,
+          card_exp_year: nmCardToSync.card?.exp_year || null,
+          stripe_customer_id: nmCustId,
+        };
+
+        const { error: nmSyncErr } = await supabase
+          .from('non_member_profiles')
+          .update(nmCardDetails)
+          .eq('user_id', user.id);
+
+        if (nmSyncErr) {
+          throw new Error("Failed to update non-member card metadata");
+        }
+
+        logStep("Non-member card metadata synced", {
+          userId: user.id,
+          cardBrand: nmCardDetails.card_brand,
+          cardLast4: nmCardDetails.card_last4,
+        });
+
+        return new Response(
+          JSON.stringify({ success: true, ...nmCardDetails }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'list_nonmember_payment_methods': {
+        logStep("Listing non-member payment methods", { userId: user.id });
+
+        const { data: nmProf } = await supabase
+          .from('non_member_profiles')
+          .select('stripe_customer_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!nmProf?.stripe_customer_id) {
+          return new Response(
+            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        const nmCust = await stripe.customers.retrieve(nmProf.stripe_customer_id);
+        const nmDefPm = !nmCust.deleted
+          ? nmCust.invoice_settings?.default_payment_method as string | null
+          : null;
+
+        const nmPms = await stripe.paymentMethods.list({
+          customer: nmProf.stripe_customer_id,
+          type: 'card',
+        });
+
+        const nmFormatted = nmPms.data.map((pm: any) => ({
+          id: pm.id,
+          brand: pm.card?.brand || 'unknown',
+          last4: pm.card?.last4 || '****',
+          expMonth: pm.card?.exp_month,
+          expYear: pm.card?.exp_year,
+          isDefault: pm.id === nmDefPm,
+          nickname: pm.metadata?.nickname || null,
+        }));
+
+        return new Response(
+          JSON.stringify({ paymentMethods: nmFormatted, hasPaymentMethod: nmFormatted.length > 0 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_recovery_checkout': {
+        const { serviceName } = body;
+        logStep("Creating recovery checkout", { userId: user.id, serviceName });
+
+        if (!serviceName) {
+          throw new Error("Service name is required");
+        }
+
+        // Map service to price ID
+        const recoveryPriceMap: Record<string, string> = {
+          'rlt20': STRIPE_PRODUCTS.guestAddons.rlt20,
+          'cryo': STRIPE_PRODUCTS.guestAddons.cryo,
+        };
+
+        const recoveryPriceId = recoveryPriceMap[serviceName];
+        if (!recoveryPriceId) {
+          throw new Error(`Unknown recovery service: ${serviceName}`);
+        }
+
+        const recoveryCustomerId = await getOrCreateCustomer();
+
+        // Save stripe_customer_id to non_member_profiles
+        await supabase.from('non_member_profiles').upsert({
+          user_id: user.id,
+          email: user.email,
+          stripe_customer_id: recoveryCustomerId,
+        }, { onConflict: 'user_id' });
+
+        const recoverySession = await stripe.checkout.sessions.create({
+          customer: recoveryCustomerId,
+          line_items: [{ price: recoveryPriceId, quantity: 1 }],
+          mode: 'payment',
+          success_url: `${req.headers.get('origin') || ''}/portal?recovery=success`,
+          cancel_url: `${req.headers.get('origin') || ''}/portal/wellness?recovery=cancelled`,
+        });
+
+        logStep("Recovery checkout session created", { sessionId: recoverySession.id });
+
+        return new Response(
+          JSON.stringify({ url: recoverySession.url }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
