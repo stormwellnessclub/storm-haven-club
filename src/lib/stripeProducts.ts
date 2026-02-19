@@ -59,11 +59,11 @@ export const STRIPE_PRODUCTS = {
     pilatesCycling: {
       single: {
         member: 'price_1SlA2vLyZrsSqLhsBHHWlQPD',    // $25
-        nonMember: 'price_1SlA38LyZrsSqLhsMjRhYzpT', // $40
+        nonMember: 'price_1T2XzALyZrsSqLhs1N07i160', // $30
       },
       tenPack: {
         member: 'price_1SlA9sLyZrsSqLhsM0X8VDhN',    // $170
-        nonMember: 'price_1SlAAJLyZrsSqLhstWGd3c8G', // $300
+        nonMember: 'price_1T2XzfLyZrsSqLhsd8Gu4c7B', // $285
       },
     },
     otherClasses: {

@@ -47,8 +47,8 @@ const STRIPE_PRODUCTS = {
   },
   classPasses: {
     pilatesCycling: {
-      single: { member: 'price_1SlA2vLyZrsSqLhsBHHWlQPD', nonMember: 'price_1SlA38LyZrsSqLhsMjRhYzpT' },
-      tenPack: { member: 'price_1SlA9sLyZrsSqLhsM0X8VDhN', nonMember: 'price_1SlAAJLyZrsSqLhstWGd3c8G' },
+      single: { member: 'price_1SlA2vLyZrsSqLhsBHHWlQPD', nonMember: 'price_1T2XzALyZrsSqLhs1N07i160' },
+      tenPack: { member: 'price_1SlA9sLyZrsSqLhsM0X8VDhN', nonMember: 'price_1T2XzfLyZrsSqLhsd8Gu4c7B' },
     },
     otherClasses: {
       single: { member: 'price_1T2XmKLyZrsSqLhsmtaMSUiF', nonMember: 'price_1SlABFLyZrsSqLhsGOpvWGFE' },
@@ -60,7 +60,7 @@ const STRIPE_PRODUCTS = {
     rlt10: 'price_1Sy3qVLyZrsSqLhsgs55vadk',    // $18 - Full Body Red Light Therapy 10 min
     rlt20: 'price_1Sy3y3LyZrsSqLhsN3WxRig0',    // $28 - Full Body Red Light Therapy 20 min
     cryo: 'price_1Sy3ytLyZrsSqLhsziHR3pw1',     // $45 - ZeroBody Cryo Session
-    classPilatesCycling: 'price_1SlA38LyZrsSqLhsMjRhYzpT', // $40 - Non-member Pilates/Cycling
+    classPilatesCycling: 'price_1T2XzALyZrsSqLhs1N07i160', // $30 - Non-member Pilates/Cycling
     classOther: 'price_1SlABFLyZrsSqLhsGOpvWGFE',          // $30 - Non-member Other Classes
   },
 };
