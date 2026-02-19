@@ -1,28 +1,35 @@
 
 
-## Update Other Classes Member 10-Pack Price to $150
+## Updated Temp Class Schedule
 
-The member 10-pack for "Other Classes" is currently set to $180 but should be $150.
+### Changes to `src/components/booking/TempClassSchedule.tsx`
 
-### Changes Required
+**1. Class size: 12 spots to 8 spots**
 
-**1. `src/pages/ClassPasses.tsx`**
-- Update `otherClassesPricing` array: change the member 10-pack price from `180` to `150`
+**2. Replace static schedule with date-aware `getClassesForDate(date)` function**
 
-**2. `src/lib/stripeProducts.ts`**
-- The existing Stripe price ID for the member 10-pack (`price_1T2Xo0LyZrsSqLhsJrhfsW8w`) was created at $180. A new Stripe price will need to be created at $150 and the ID replaced here.
+| Day | Classes | Available From |
+|-----|---------|----------------|
+| **Feb 20 (Fri)** | 8 PM Signature Flow, 9 PM Reformer Flow (evening only) | Feb 20 |
+| **Feb 21 (Sat)** | 8 PM Signature Flow, 9 PM Reformer Sculpt (evening only) | Feb 21 |
+| **Feb 22 (Sun)** | No classes | -- |
+| **Mon-Thu** | 9 AM Signature Flow, 10 AM Reformer Flow | Feb 23 |
+| **Fridays** | 9 AM Signature Flow, 10 AM Reformer Flow + 8 PM Signature Flow, 9 PM Reformer Flow | Feb 27 (morning), Feb 20 (evening) |
+| **Saturdays** | 8 PM Signature Flow, 9 PM Reformer Sculpt | Feb 21 onward |
+| **Sundays** | 10 AM Signature Flow, 11 AM Reformer Sculpt | Mar 1 onward |
 
-**3. `supabase/functions/stripe-payment/index.ts`**
-- Update the corresponding price ID to match the new $150 Stripe price
+Key rules in the function:
 
-**4. `src/components/admin/SellClassPackage.tsx`**
-- Update the `getPriceEstimate()` function: change the aerobics member 10-pack price from `180` to `150`
+- **Friday evening** available from Feb 20 onward (every Friday)
+- **Saturday evening** available from Feb 21 onward (every Saturday)
+- **Mon-Fri morning** (9 AM + 10 AM) available from Feb 23 onward
+- **Sunday morning** (10 AM + 11 AM) available from Mar 1 onward
+- No Saturday mornings at all
+- All dates must be within Feb 20 - Mar 18 range
 
-### Summary
+This means starting Feb 23, weekday evenings (Fri) keep running alongside the new morning classes. Saturday keeps its evening slot every week. Sunday adds mornings starting Mar 1.
 
-| Package | Current | Updated |
-|---------|---------|---------|
-| Other Classes Member 10-Pack | $180 | $150 |
+### Technical approach
 
-All other prices remain unchanged. A new Stripe price product will be created at $150 to replace the current $180 one.
+Replace the `SCHEDULE_BY_DOW` record with a `getClassesForDate(date: Date)` function that builds an array of classes by checking the day-of-week and whether the date is on/after the relevant start date. Update the day column generator to call this function. Update "12 spots" to "8 spots" in `TempClassCard`.
 
