@@ -17,12 +17,13 @@ export default function PortalDashboard() {
   const { data: upcomingCount = 0 } = useQuery({
     queryKey: ["portal-upcoming-count", user?.id],
     queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
       const { count, error } = await supabase
         .from("class_bookings")
-        .select("*", { count: "exact", head: true })
+        .select("*, class_sessions!inner(session_date)", { count: "exact", head: true })
         .eq("user_id", user!.id)
         .eq("status", "confirmed")
-        .gte("booked_at", new Date().toISOString());
+        .gte("class_sessions.session_date", today);
       if (error) throw error;
       return count || 0;
     },

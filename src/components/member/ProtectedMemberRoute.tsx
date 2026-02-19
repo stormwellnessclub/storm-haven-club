@@ -186,6 +186,11 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   // Payment notices are shown in MemberLayout (non-blocking)
   // Members can always access the portal regardless of payment status
 
+  // Non-members (no application, no member record) go to the class portal
+  if (applicationStatus?.status === "no_application") {
+    return <Navigate to="/portal" replace />;
+  }
+
   // For active members or users without applications, show the member portal
   return <>{children}</>;
 }
