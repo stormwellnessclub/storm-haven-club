@@ -460,7 +460,24 @@ export default function ClassPasses() {
               Purchase class passes for our Reformer Pilates, Cycling, and Aerobics studios. 
               Members receive discounted pricing on all class packages.
             </p>
-            {user && (
+            {!user ? (
+              <div className="mt-6 card-luxury p-5 border border-border max-w-xl">
+                <p className="text-sm text-foreground mb-1">
+                  <strong>A free account is required to purchase class passes.</strong>
+                </p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Already a member? Sign in with your member credentials to automatically receive member pricing.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button asChild variant="gold" size="sm">
+                    <Link to="/auth?mode=signup&redirect=/class-passes">Create Free Account</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/auth?redirect=/class-passes">Sign In</Link>
+                  </Button>
+                </div>
+              </div>
+            ) : (
               <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold/10 text-gold text-sm">
                 <Check className="h-4 w-4" />
                 {isMember ? "Member pricing applied" : "Non-member pricing"}
