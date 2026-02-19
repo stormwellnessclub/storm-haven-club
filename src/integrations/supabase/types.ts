@@ -3186,6 +3186,8 @@ export type Database = {
           stripe_customer_id: string | null
           updated_at: string
           user_id: string
+          waiver_signed: boolean
+          waiver_signed_at: string | null
         }
         Insert: {
           card_brand?: string | null
@@ -3201,6 +3203,8 @@ export type Database = {
           stripe_customer_id?: string | null
           updated_at?: string
           user_id: string
+          waiver_signed?: boolean
+          waiver_signed_at?: string | null
         }
         Update: {
           card_brand?: string | null
@@ -3216,6 +3220,8 @@ export type Database = {
           stripe_customer_id?: string | null
           updated_at?: string
           user_id?: string
+          waiver_signed?: boolean
+          waiver_signed_at?: string | null
         }
         Relationships: []
       }
