@@ -1,48 +1,67 @@
 
 
-# Fix Guest Pass Credit Deduction + Add Referral Tracking
+# Fix Wellness Credit Booking (Same RLS Issue as Guest Passes)
 
-## Problem 1: Credits Not Deducting
-The `GuestPassRegistrationCard` component in `Credits.tsx` tries to update `member_credits` directly from the client:
+## Root Cause
+
+The `SpaBookingModal.tsx` tries to deduct wellness credits by directly updating the `member_credits` table:
 ```
 supabase.from("member_credits").update({ credits_remaining: ... }).eq("id", credit.id)
 ```
-This silently fails because RLS policies on `member_credits` only allow staff roles to modify records. The guest pass record is created successfully, but the credit balance never decreases.
+This **silently fails** because `member_credits` has no UPDATE policy for regular members -- only staff roles can modify that table. This is the exact same bug that was just fixed for guest pass credits.
 
-## Problem 2: No Referral Tracking
-The guest pass record stores `member_referral: "Complimentary Guest Pass"` as a generic string but does NOT store the member ID of who used the credit. This makes it impossible to trace which member referred which guest without cross-referencing `user_id` with the members table.
+Additionally, the spa appointment record is created **without** the `credit_id` and `credit_type` fields, so even if the credit were deducted, there would be no audit trail linking the appointment to the specific credit used.
 
 ## Solution
 
-### 1. Create a Database Function for Atomic Guest Pass Registration
-Create an RPC function `redeem_guest_pass_credit` that:
-- Validates the member has remaining guest pass credits
-- Deducts the credit (runs as SECURITY DEFINER, bypassing RLS)
-- Creates the guest pass record with the member's name as referral
-- Returns success/failure atomically (no partial state)
+### 1. Create an Atomic Database Function
 
-### 2. Add `referring_member_id` Column to `guest_passes`
-Add a nullable UUID column to track exactly which member used their complimentary credit. This provides instant lookup for "who referred this guest" without needing to cross-reference user IDs.
+Create `book_wellness_appointment` as a `SECURITY DEFINER` function that:
+- Validates the member has remaining wellness credits of the correct type
+- Locks and deducts the credit (bypassing RLS)
+- Creates the `spa_appointments` record with `credit_id` and `credit_type` populated
+- Returns the appointment ID or an error
+- All within a single transaction (no partial state)
 
-### 3. Update the Frontend Component
-Replace the two separate client-side calls in `GuestPassRegistrationCard` with a single RPC call to the new function.
+### 2. Update the Frontend
+
+Refactor `SpaBookingModal.tsx` to call the new RPC when `paymentMethod === "credit"` instead of:
+- Manually updating `member_credits` (which fails silently)
+- Then separately inserting into `spa_appointments` (without credit tracking)
+
+The card and member_account payment paths remain unchanged.
 
 ## Technical Details
 
-### Migration SQL
-- Add column: `ALTER TABLE guest_passes ADD COLUMN referring_member_id UUID REFERENCES members(id)`
-- Create RPC: `redeem_guest_pass_credit(guest_name, guest_email, guest_phone, visit_date)` as SECURITY DEFINER
-  - Looks up the calling user's member record
-  - Finds their active guest_pass credit with remaining > 0
-  - Decrements `credits_remaining` by 1
-  - Inserts into `guest_passes` with `referring_member_id`, `price_paid: 0`, `user_id`, and `member_referral` set to the member's full name
-  - Returns the created guest pass ID or an error
+### New Database Function: `book_wellness_appointment`
 
-### Modified File: `src/pages/member/Credits.tsx`
-- Replace the `handleSubmit` function in `GuestPassRegistrationCard` to call `supabase.rpc('redeem_guest_pass_credit', {...})` instead of two separate insert/update calls
-- Remove the direct `member_credits` update (which was silently failing)
-- Keep the same UI and form fields
+Parameters:
+- `p_service_id` (integer)
+- `p_service_name` (text)
+- `p_service_category` (text)
+- `p_service_price` (numeric)
+- `p_appointment_date` (date)
+- `p_appointment_time` (time)
+- `p_duration_minutes` (integer)
+- `p_cleanup_minutes` (integer)
+- `p_credit_type` (text) -- 'red_light' or 'dry_cryo'
+- `p_member_notes` (text, optional)
 
-### Admin Visibility
-- The `referring_member_id` column will allow the admin Guest Passes page to show exactly which member referred each complimentary guest, making it instantly visible in the pass list
+Logic:
+1. Look up the calling user's member record
+2. Find their active credit of the matching type with `credits_remaining > 0` (locked with `FOR UPDATE`)
+3. Decrement `credits_remaining`
+4. Run the existing conflict check
+5. Insert into `spa_appointments` with `credit_id`, `credit_type`, `payment_method = 'credit'`, `amount_paid = 0`
+6. Return the appointment ID and remaining credits
 
+### Modified File: `src/components/booking/SpaBookingModal.tsx`
+
+- Replace the credit deduction block (lines 183-202) and separate booking call with a single `supabase.rpc('book_wellness_appointment', {...})` call
+- On success, refetch credits and close the modal
+- Keep the existing card/member_account payment paths unchanged
+
+### Modified File: `src/hooks/useSpaBooking.ts`
+
+- No changes needed to the hook itself; the RPC handles everything for credit bookings
+- The `bookAppointment.mutateAsync()` call will be skipped for credit payments since the RPC creates the appointment directly
