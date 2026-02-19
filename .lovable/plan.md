@@ -1,73 +1,74 @@
 
+## Fix Non-Member Class Pass Purchase Flow
 
-## Make Waivers Phone-Friendly and Enforce at Checkout
+### Root Causes Identified
 
-### Current State
+Three bugs are blocking non-member purchases:
 
-- **PDF viewing on mobile is already handled**: `SimpleAgreementCard` and `AgreementPDFViewer` detect mobile devices and show large "Open PDF" / "Download" buttons instead of broken iframes. No changes needed here.
-- **Class pass purchase page** (`/class-passes`) already has an inline waiver prompt (`InlineWaiverPrompt`) that appears when you click "Purchase" without signing the required pass-specific agreement. This works on mobile.
-- **The gap**: The **liability waiver** (`waiver_signed`) is never checked at the booking or purchase step. Users can book classes or buy passes without ever signing it.
+**Bug 1: Pass-specific agreement checks incorrectly applied to non-members**
+`needsSingleClassAgreement` and `needsClassPackageAgreement` check `profile?.single_class_pass_agreement_signed`. For non-members, `profile` is always `null`, so these checks always resolve to `true`, incorrectly triggering the inline waiver prompt even though non-members don't need those agreements (only the liability waiver).
 
-### Changes
+**Bug 2: `InlineWaiverPrompt` silently returns nothing**
+When `single_class_pass` or `class_package` is triggered for a non-member, the `signerMap` has no entry for those types for non-members — `signer` is `undefined`, and the component returns `null` with zero feedback. The purchase button stops loading and nothing happens.
 
-#### 1. Add liability waiver check to BookingModal (at booking time)
+**Bug 3: Non-member profile cache not invalidated after waiver signing**
+The `InlineWaiverPrompt`'s `onSigned` callback only invalidates `["user-profile", user?.id]` (the member profile cache). When a non-member signs the liability waiver through `nonMemberHook.signWaiver`, `hasLiabilityWaiver` reads from `nonMemberProfile` which is cached under `["non-member-profile", user?.id]`. That cache is never refreshed, so `hasLiabilityWaiver` stays `false` after signing and the purchase stays blocked.
 
-**File: `src/components/booking/BookingModal.tsx`**
+---
 
-Add a check for `profile?.waiver_signed` before allowing any booking to proceed. If the liability waiver is not signed:
-- Show an alert with a clear message and a button to sign the waiver
-- Hide the payment method selection and "Confirm Booking" button
-- The alert takes priority over pass-specific agreement checks (liability waiver is universal)
-- For non-members (no `profile`), direct them to sign in first since they need a profile to track waiver status
+### Fix Plan
 
-This means users browse the schedule freely, tap "Book", and only then see the waiver requirement -- exactly at checkout, not before.
+#### File: `src/pages/ClassPasses.tsx`
 
-#### 2. Add liability waiver check to ClassPasses purchase flow (at purchase time)
+**Fix 1 — Skip pass-specific agreements for non-members**
 
-**File: `src/pages/ClassPasses.tsx`**
+Change the logic for `needsSingleClassAgreement` and `needsClassPackageAgreement` to only apply when the user has a member profile:
 
-Update `handlePurchase` to check `profile?.waiver_signed` before the pass-specific agreement check. If liability waiver is not signed:
-- Show the `InlineWaiverPrompt` for the liability waiver type
-- Add `"liability_waiver"` to the `signerMap` inside `InlineWaiverPrompt` so the sign function (`signWaiver`) is mapped correctly
-- Users see prices, browse freely, and only when they click "Purchase" does the waiver prompt appear inline on the same page
+```ts
+// Before (broken):
+const needsSingleClassAgreement = hasSingleClassAgreementConfigured && !profile?.single_class_pass_agreement_signed;
+const needsClassPackageAgreement = hasClassPackageAgreementConfigured && !profile?.class_package_agreement_signed;
 
-#### 3. Ensure InlineWaiverPrompt supports liability waiver type
+// After (fixed):
+const needsSingleClassAgreement = !!profile && hasSingleClassAgreementConfigured && !profile.single_class_pass_agreement_signed;
+const needsClassPackageAgreement = !!profile && hasClassPackageAgreementConfigured && !profile.class_package_agreement_signed;
+```
 
-**File: `src/pages/ClassPasses.tsx` (InlineWaiverPrompt component)**
+Non-members only ever need the liability waiver. Pass-specific agreements (`single_class_pass`, `class_package`) are only for members who have a full `profiles` record.
 
-The existing `signerMap` only maps `single_class_pass` and `class_package`. Add an entry for `liability_waiver` that maps to `profileHook.signWaiver` and `profileHook.isSigningWaiver`. This allows the same inline signing flow to work for the liability waiver without navigating away.
+**Fix 2 — Invalidate non-member profile cache after waiver signing**
 
-### User Flow After Changes
+In the `InlineWaiverPrompt` `handleSign` callback, also invalidate the non-member profile cache so `hasLiabilityWaiver` re-evaluates:
 
-**Booking a class:**
-1. User browses schedule on phone -- no waiver blocking
-2. User taps "Book Class" on a session
-3. BookingModal opens showing class details
-4. If liability waiver not signed: shows a clear alert with "Sign Liability Waiver" button that navigates to `/member/waivers`
-5. If liability waiver signed but pass agreement missing: shows the existing pass-agreement alert
-6. If all signed: shows payment method selection and "Confirm Booking"
+```ts
+onSuccess: () => {
+  queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
+  queryClient.invalidateQueries({ queryKey: ["non-member-profile", user?.id] }); // ADD THIS
+  toast.success(`${title} signed successfully!`);
+  onSigned();
+},
+```
 
-**Purchasing a class pass:**
-1. User browses `/class-passes` -- sees all prices, no blocking
-2. User taps "Purchase" button
-3. If liability waiver not signed: inline waiver prompt appears on the same page (mobile-friendly PDF open/download + checkbox + sign button)
-4. After signing liability waiver, user taps "Purchase" again
-5. If pass-specific agreement not signed: inline prompt appears for that agreement
-6. After signing, purchase proceeds to Stripe Checkout
+---
+
+### Expected Behavior After Fix
+
+**Non-member purchase flow:**
+1. User visits `/class-passes` — sees prices, no blocking
+2. User clicks "Purchase" (single or 10-pack)
+3. If liability waiver not signed → `InlineWaiverPrompt` appears with the PDF, checkbox, and sign button
+4. After signing → non-member profile cache refreshes → `hasLiabilityWaiver` becomes `true`
+5. User clicks "Purchase" again → pass-specific agreement checks are skipped (non-member has no `profile`)
+6. Stripe Checkout opens in the same tab
+
+**Member purchase flow (unchanged):**
+1. Same as before — liability waiver + member pass agreements still enforced
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/components/booking/BookingModal.tsx` | Add liability waiver check before payment method selection |
-| `src/pages/ClassPasses.tsx` | Add liability waiver check in `handlePurchase`; add `liability_waiver` to `InlineWaiverPrompt` signer map |
+| File | Lines | Change |
+|------|-------|--------|
+| `src/pages/ClassPasses.tsx` | ~372–373 | Add `!!profile &&` guard to pass-specific agreement checks |
+| `src/pages/ClassPasses.tsx` | ~83 | Add `non-member-profile` cache invalidation in `handleSign` |
 
-### What Already Works on Mobile (No Changes Needed)
-
-- `SimpleAgreementCard`: Uses `useIsMobile()` to show large "Open PDF" and "Download" buttons
-- `AgreementPDFViewer`: Renders `MobilePDFCard` on phones instead of iframe
-- `InlineWaiverPrompt`: Uses `SimpleAgreementCard` which is already mobile-safe
-- Waivers page (`/member/waivers`): Full signing flow works on mobile
-
-### No new files, no database changes needed.
-
+### No database changes needed — the schema is correct.
