@@ -1,70 +1,84 @@
 
-## Add "Buy Class Pass" Link to the Schedule Page
+## Fix: Non-Member Class Pass Purchase — Waiver Signed But Purchase Still Blocked
 
-### Context
+### Root Cause
 
-Members and non-members both access `/class-passes` via their respective sidebar ("Buy Passes"). That link already exists in both portals. The gap is the **Schedule page** — it's a public-facing page that shows classes but has no prompt to purchase passes. Someone viewing the schedule has no obvious next step.
+After a non-member signs the liability waiver inline, `onSigned()` clears the waiver prompt immediately. However, the parent component's `nonMemberProfile` state (which drives `hasLiabilityWaiver`) hasn't finished refetching from the database yet — the React Query cache invalidation is async. So when the user clicks "Purchase" again, `hasLiabilityWaiver` is still `false` and the waiver prompt appears again.
 
-### What to add
+The `create_class_pass_checkout` edge function is **never being called** — the block is entirely frontend-side.
 
-**1. Schedule page hero — "Buy a Pass" CTA**
-Below the existing description paragraph in the Schedule hero section, add a small inline call-to-action that links to `/class-passes`. This appears for all visitors (logged in or not).
+### The Fix
 
+Instead of making the user click "Purchase" again after signing, store the **pending purchase** (category + passType) in state, and automatically continue to checkout once the waiver is signed. This eliminates the race condition entirely.
+
+**Flow after fix:**
+1. User clicks "Purchase"
+2. No waiver signed → save pending purchase, show waiver prompt
+3. User signs waiver → `onSigned()` is called with the pending purchase data
+4. Purchase proceeds **immediately** using the stored category/passType, no second click needed
+
+### Technical Changes
+
+**File: `src/pages/ClassPasses.tsx`**
+
+**Change 1 — Store pending purchase instead of just waiver type**
+
+Replace `showWaiverFor` state with a richer state that also stores what the user was trying to buy:
+
+```ts
+// Before:
+const [showWaiverFor, setShowWaiverFor] = useState<{ type: string; title: string } | null>(null);
+
+// After:
+const [showWaiverFor, setShowWaiverFor] = useState<{
+  type: string;
+  title: string;
+  pendingPurchase?: { category: 'pilatesCycling' | 'otherClasses'; passType: 'single' | 'tenPack' };
+} | null>(null);
 ```
-Need passes? View class pass pricing →
+
+**Change 2 — Store pending purchase when blocking for waiver**
+
+```ts
+// When blocking for liability waiver:
+setShowWaiverFor({ 
+  type: "liability_waiver", 
+  title: "Liability Waiver",
+  pendingPurchase: { category, passType }  // ADD THIS
+});
 ```
 
-Styled as a subtle text link or small outlined button — not intrusive, but clear.
+**Change 3 — Auto-proceed after signing**
 
-**2. TempClassSchedule banner — "Get Your Pass" prompt**
-The soft launch banner at the top of `TempClassSchedule` currently says:
-> "Booking opens soon"
+Pass `pendingPurchase` to `InlineWaiverPrompt` and call `handlePurchase` after `onSigned`:
 
-Add a line below it:
-> "In the meantime, you can purchase class passes to be ready when booking opens."
-> [View Class Pass Pricing →]
+```tsx
+{showWaiverFor && (
+  <InlineWaiverPrompt
+    agreementType={showWaiverFor.type}
+    title={showWaiverFor.title}
+    onSigned={() => {
+      const pending = showWaiverFor.pendingPurchase;
+      setShowWaiverFor(null);
+      if (pending) {
+        // Small delay to let the query cache settle after invalidation
+        setTimeout(() => handlePurchase(pending.category, pending.passType), 300);
+      }
+    }}
+  />
+)}
+```
 
-This directly helps people who are viewing the schedule and want to buy in advance.
+The 300ms delay ensures the React Query cache has updated `nonMemberProfile.waiver_signed = true` before `handlePurchase` re-evaluates `hasLiabilityWaiver`.
 
-### Where members buy passes — current state (no change needed)
+**Change 4 — Store pending purchase for member agreement blocks too**
 
-Members already have two ways to buy passes:
-- **Member sidebar**: "Buy Passes" → `/class-passes` (already there)
-- **Member Credits page**: shows credit balances
-
-When a member visits `/class-passes`, they're automatically shown **"Member pricing applied"** (the gold badge added in the previous change). So members are already served — the main gap is the **schedule page having no link at all**.
+For consistency, do the same for the member-only `single_class_pass` and `class_package` blocks so members also auto-proceed after signing those agreements.
 
 ### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/Schedule.tsx` | Add "View class pass pricing" link in the hero section below the description |
-| `src/components/booking/TempClassSchedule.tsx` | Add "Get your pass ready" prompt with link inside the soft launch banner |
+| `src/pages/ClassPasses.tsx` | Expand `showWaiverFor` state to include `pendingPurchase`; update all three `setShowWaiverFor` calls; update the `onSigned` handler to auto-trigger purchase |
 
 ### No database changes needed.
-
-### Technical details
-
-**Schedule.tsx** — In the hero section, after the `<p className="text-muted-foreground text-lg">` description, add:
-
-```tsx
-<div className="mt-4">
-  <Link to="/class-passes" className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
-    View class pass pricing
-    <ChevronRight className="h-3 w-3" />
-  </Link>
-</div>
-```
-
-`Link` and `ChevronRight` are already imported in `Schedule.tsx`.
-
-**TempClassSchedule.tsx** — Inside the soft launch banner div, add below the existing `<p>`:
-
-```tsx
-<Link to="/class-passes" className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-1">
-  Purchase a class pass to be ready when booking opens
-  <ChevronRight className="h-3 w-3" />
-</Link>
-```
-
-`Link` needs to be imported from `react-router-dom` in `TempClassSchedule.tsx` (currently not imported — will add it). `ChevronRight` is already imported there.
