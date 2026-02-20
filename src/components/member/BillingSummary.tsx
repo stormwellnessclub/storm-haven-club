@@ -10,6 +10,7 @@ interface BillingSummaryProps {
   annualFeePaidAt: string | null;
   isFoundingMember: boolean;
   nextBillingDate: Date | null;
+  memberStatus?: string;
 }
 
 export function BillingSummary({
@@ -19,7 +20,9 @@ export function BillingSummary({
   annualFeePaidAt,
   isFoundingMember,
   nextBillingDate,
+  memberStatus,
 }: BillingSummaryProps) {
+  const isFrozen = memberStatus === 'frozen';
   const tier = normalizeTierName(membershipType);
   const normalizedGender = normalizeGender(gender);
   const billing = (billingType?.toLowerCase() === 'annual' ? 'annual' : 'monthly') as BillingType;
@@ -90,12 +93,19 @@ export function BillingSummary({
                 {isFoundingMember ? 'Annual (Founding)' : billing === 'annual' ? 'Annual' : 'Monthly'}
               </span>
             </div>
-            {nextBillingDate && (
+            {isFrozen ? (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Next Payment</span>
+                <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs">
+                  Billing Paused
+                </Badge>
+              </div>
+            ) : nextBillingDate ? (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Next Payment</span>
                 <span className="text-sm">{format(nextBillingDate, "MMM d, yyyy")}</span>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </CardContent>
