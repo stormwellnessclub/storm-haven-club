@@ -1,31 +1,70 @@
 
-## Add Account-Required Notice on Class Passes Page
+## Add "Buy Class Pass" Link to the Schedule Page
 
-### What's changing
+### Context
 
-A single informational banner will be added to the hero section of `/class-passes`, visible only to **logged-out visitors**. It explains:
-- A free account is required to purchase
-- Members should sign in with their existing credentials to automatically receive member pricing
+Members and non-members both access `/class-passes` via their respective sidebar ("Buy Passes"). That link already exists in both portals. The gap is the **Schedule page** — it's a public-facing page that shows classes but has no prompt to purchase passes. Someone viewing the schedule has no obvious next step.
 
-Once the user is logged in, the existing gold badge ("Member pricing applied" / "Non-member pricing") already confirms their status, so the banner should disappear on login.
+### What to add
 
-### Where it goes
-
-In the hero section of `src/pages/ClassPasses.tsx`, directly below the existing description paragraph — replacing the current empty gap between the description and the conditional gold badge. The banner shows when `!user`.
-
-### Banner content
+**1. Schedule page hero — "Buy a Pass" CTA**
+Below the existing description paragraph in the Schedule hero section, add a small inline call-to-action that links to `/class-passes`. This appears for all visitors (logged in or not).
 
 ```
-To purchase class passes, you'll need a free account.
-Already a member? Sign in with your member credentials to automatically receive member pricing.
-
-[Create Free Account]  [Sign In]
+Need passes? View class pass pricing →
 ```
+
+Styled as a subtle text link or small outlined button — not intrusive, but clear.
+
+**2. TempClassSchedule banner — "Get Your Pass" prompt**
+The soft launch banner at the top of `TempClassSchedule` currently says:
+> "Booking opens soon"
+
+Add a line below it:
+> "In the meantime, you can purchase class passes to be ready when booking opens."
+> [View Class Pass Pricing →]
+
+This directly helps people who are viewing the schedule and want to buy in advance.
+
+### Where members buy passes — current state (no change needed)
+
+Members already have two ways to buy passes:
+- **Member sidebar**: "Buy Passes" → `/class-passes` (already there)
+- **Member Credits page**: shows credit balances
+
+When a member visits `/class-passes`, they're automatically shown **"Member pricing applied"** (the gold badge added in the previous change). So members are already served — the main gap is the **schedule page having no link at all**.
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/pages/Schedule.tsx` | Add "View class pass pricing" link in the hero section below the description |
+| `src/components/booking/TempClassSchedule.tsx` | Add "Get your pass ready" prompt with link inside the soft launch banner |
+
+### No database changes needed.
 
 ### Technical details
 
-| File | Lines | Change |
-|------|-------|--------|
-| `src/pages/ClassPasses.tsx` | ~463–468 | Add `!user` banner block with two CTA buttons — "Create Free Account" linking to `/auth?mode=signup&redirect=/class-passes` and "Sign In" linking to `/auth?redirect=/class-passes` |
+**Schedule.tsx** — In the hero section, after the `<p className="text-muted-foreground text-lg">` description, add:
 
-No database changes. No new dependencies. The existing `Link` and `Button` components are already imported.
+```tsx
+<div className="mt-4">
+  <Link to="/class-passes" className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+    View class pass pricing
+    <ChevronRight className="h-3 w-3" />
+  </Link>
+</div>
+```
+
+`Link` and `ChevronRight` are already imported in `Schedule.tsx`.
+
+**TempClassSchedule.tsx** — Inside the soft launch banner div, add below the existing `<p>`:
+
+```tsx
+<Link to="/class-passes" className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-1">
+  Purchase a class pass to be ready when booking opens
+  <ChevronRight className="h-3 w-3" />
+</Link>
+```
+
+`Link` needs to be imported from `react-router-dom` in `TempClassSchedule.tsx` (currently not imported — will add it). `ChevronRight` is already imported there.
