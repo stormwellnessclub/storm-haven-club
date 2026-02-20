@@ -11,12 +11,22 @@ import { format } from "date-fns";
 import { CafePOSMenu, type POSCartItem } from "@/components/admin/CafePOSMenu";
 import { CafePOSCart } from "@/components/admin/CafePOSCart";
 import { calculateTax } from "@/hooks/useCafeMenu";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface SelectedMember {
+  name: string;
+  cardOnFile: boolean;
+  stripeCustomerId: string | null;
+  memberId: string | null;
+}
 
 export default function FrontDeskPOS() {
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
-  const [selectedMember, setSelectedMember] = useState<{ name: string; cardOnFile: boolean } | null>(null);
+  const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [isCharging, setIsCharging] = useState(false);
 
   const { data: orders, isLoading: ordersLoading } = useAdminCafeOrders({ status: statusFilter });
   const updateStatus = useUpdateCafeOrderStatus();
@@ -49,38 +59,107 @@ export default function FrontDeskPOS() {
     setMemberSearch("");
   };
 
-  const handlePlaceOrder = async () => {
-    if (cart.length === 0) return;
-    const subtotal = cart.reduce((sum, item) => {
-      const addonTotal = item.addons.reduce((s, a) => s + a.price, 0);
-      return sum + (item.basePrice + addonTotal) * item.quantity;
-    }, 0);
-    const tax = calculateTax(subtotal);
-
-    const orderItems: CafeOrderItem[] = cart.map((item) => ({
-      id: parseInt(item.itemId.slice(0, 8), 16) || 0,
-      name: item.name,
-      price: item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
-      quantity: item.quantity,
-      category: item.categoryName,
-    }));
-
-    orderItems.push({
-      id: 0,
-      name: `MI Sales Tax (6%)`,
-      price: tax,
-      quantity: 1,
-      category: "Tax",
-    });
+  // Member lookup: query members table for stripe info
+  const handleMemberSelect = async (searchTerm: string) => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setSelectedMember(null);
+      return;
+    }
 
     try {
+      const { data, error } = await supabase
+        .from("members")
+        .select("id, first_name, last_name, stripe_customer_id, card_brand, card_last4")
+        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+        .eq("status", "active")
+        .limit(1)
+        .single();
+
+      if (error || !data) {
+        setSelectedMember(null);
+        return;
+      }
+
+      setSelectedMember({
+        name: `${data.first_name} ${data.last_name}`,
+        cardOnFile: !!(data.stripe_customer_id && data.card_last4),
+        stripeCustomerId: data.stripe_customer_id,
+        memberId: data.id,
+      });
+    } catch {
+      setSelectedMember(null);
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0) return;
+    setIsCharging(true);
+
+    try {
+      const subtotal = cart.reduce((sum, item) => {
+        const addonTotal = item.addons.reduce((s, a) => s + a.price, 0);
+        return sum + (item.basePrice + addonTotal) * item.quantity;
+      }, 0);
+      const tax = calculateTax(subtotal);
+      const total = subtotal + tax;
+
+      const itemNames = cart.map((i) => i.name).join(", ");
+
+      // If member has card on file, charge via Stripe first
+      if (selectedMember?.stripeCustomerId && selectedMember.cardOnFile) {
+        const amountCents = Math.round(total * 100);
+        const { data: chargeResult, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "charge_saved_card",
+            customerId: selectedMember.stripeCustomerId,
+            amount: amountCents,
+            description: `Front Desk POS - ${itemNames}`,
+            chargeType: "pos",
+          },
+        });
+
+        if (chargeError) {
+          toast.error("Payment failed: " + (chargeError.message || "Unknown error"));
+          setIsCharging(false);
+          return;
+        }
+
+        if (chargeResult && !chargeResult.success) {
+          toast.error("Card declined: " + (chargeResult.error || "Payment was not successful"));
+          setIsCharging(false);
+          return;
+        }
+
+        toast.success("Card charged successfully");
+      }
+
+      // Create the order record
+      const orderItems: CafeOrderItem[] = cart.map((item) => ({
+        id: parseInt(item.itemId.slice(0, 8), 16) || 0,
+        name: item.name,
+        price: item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
+        quantity: item.quantity,
+        category: item.categoryName,
+      }));
+
+      orderItems.push({
+        id: 0,
+        name: `MI Sales Tax (6%)`,
+        price: tax,
+        quantity: 1,
+        category: "Tax",
+      });
+
       await createOrder.mutateAsync({
         orderItems,
         paymentMethod: selectedMember?.cardOnFile ? "member_account" : "card",
       });
       clearCart();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to place order:", error);
+      toast.error(error?.message || "Failed to place order");
+    } finally {
+      setIsCharging(false);
     }
   };
 
@@ -120,11 +199,14 @@ export default function FrontDeskPOS() {
                 cart={cart}
                 updateQuantity={updateQuantity}
                 memberSearch={memberSearch}
-                setMemberSearch={setMemberSearch}
+                setMemberSearch={(v) => {
+                  setMemberSearch(v);
+                  handleMemberSelect(v);
+                }}
                 selectedMember={selectedMember}
                 onPlaceOrder={handlePlaceOrder}
                 onClearCart={clearCart}
-                isPlacing={createOrder.isPending}
+                isPlacing={isCharging || createOrder.isPending}
               />
             </div>
           </TabsContent>

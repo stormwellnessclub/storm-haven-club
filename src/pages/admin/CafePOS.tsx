@@ -15,7 +15,7 @@ import { calculateTax } from "@/hooks/useCafeMenu";
 export default function CafePOS() {
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
-  const [selectedMember, setSelectedMember] = useState<{ name: string; cardOnFile: boolean } | null>(null);
+  const [selectedMember, setSelectedMember] = useState<{ name: string; cardOnFile: boolean; stripeCustomerId?: string | null } | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
   const { data: orders, isLoading: ordersLoading } = useAdminCafeOrders({ status: statusFilter });
