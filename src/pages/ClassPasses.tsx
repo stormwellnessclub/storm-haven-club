@@ -504,9 +504,16 @@ export default function ClassPasses() {
                 </div>
               </div>
             ) : (
-              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold/10 text-gold text-sm">
-                <Check className="h-4 w-4" />
-                {isMember ? "Member pricing applied" : "Non-member pricing"}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold/10 text-gold text-sm">
+                  <Check className="h-4 w-4" />
+                  {isMember ? "Member pricing applied" : "Non-member pricing"}
+                </div>
+                {!isMember && (
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/portal">Go to My Dashboard</Link>
+                  </Button>
+                )}
               </div>
             )}
           </div>
