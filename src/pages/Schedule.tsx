@@ -4,8 +4,10 @@ import { useClassSessions, ClassSession } from "@/hooks/useClassSessions";
 import { useMyBookings } from "@/hooks/useBooking";
 import { ClassCalendar } from "@/components/booking/ClassCalendar";
 import { BookingModal } from "@/components/booking/BookingModal";
+import { TempClassSchedule } from "@/components/booking/TempClassSchedule";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChevronLeft, ChevronRight, Flame, CircleDot, Bike, Activity, Sun, Moon, Calendar } from "lucide-react";
 import { startOfWeek, addWeeks, addDays, format, parse } from "date-fns";
 
@@ -13,8 +15,10 @@ type CategoryFilter = "all" | "pilates" | "cycling" | "aerobics";
 type HeatFilter = "all" | boolean;
 type TimeFilter = "all" | "am" | "pm";
 type ViewMode = "week" | "day";
+type TabValue = "full" | "reference";
 
 export default function Schedule() {
+  const [activeTab, setActiveTab] = useState<TabValue>("full");
   const [weekOffset, setWeekOffset] = useState(0);
   const todayDayOfWeek = new Date().getDay(); // 0=Sun ... 6=Sat
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(todayDayOfWeek);
@@ -122,7 +126,17 @@ export default function Schedule() {
       </section>
 
       <div className="container py-6">
-        {/* Week Navigation */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="full">Full Schedule</TabsTrigger>
+            <TabsTrigger value="reference">Class Schedule</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="reference">
+            <TempClassSchedule onBookRequest={() => setActiveTab("full")} />
+          </TabsContent>
+
+          <TabsContent value="full">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Button
@@ -279,6 +293,8 @@ export default function Schedule() {
           open={modalOpen}
           onOpenChange={setModalOpen}
         />
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
