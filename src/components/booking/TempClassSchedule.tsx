@@ -150,7 +150,7 @@ export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => voi
               🎉 Booking is Now Live — Reformer Pilates Soft Launch
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              February 20 – March 18, 2026 · All classes 50 min · 8 spots per class
+              February 20 – March 18, 2026
             </p>
             <Link to="/class-passes" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-2">
               Don't have a class pass? View class pass pricing
