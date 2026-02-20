@@ -12,6 +12,8 @@ type ClassEntry = {
   type: "signature" | "reformer-flow" | "reformer-sculpt";
 };
 
+type TempClassCardProps = { entry: ClassEntry; onBookRequest?: () => void };
+
 const SOFT_LAUNCH_START = new Date(2026, 1, 20); // Feb 20
 const SOFT_LAUNCH_END = new Date(2026, 2, 18);   // Mar 18
 
@@ -58,7 +60,7 @@ function getClassesForDate(date: Date): ClassEntry[] {
   return classes;
 }
 
-function TempClassCard({ entry }: { entry: ClassEntry }) {
+function TempClassCard({ entry, onBookRequest }: TempClassCardProps) {
   return (
     <Card className="group hover:shadow-md transition-shadow">
       <CardContent className="p-4">
@@ -95,20 +97,15 @@ function TempClassCard({ entry }: { entry: ClassEntry }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button disabled variant="outline" size="sm" className="flex-1 opacity-50">
-            Book
-          </Button>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            Opens soon
-          </span>
-        </div>
+        <Button size="sm" className="w-full" onClick={onBookRequest}>
+          Book Class
+        </Button>
       </CardContent>
     </Card>
   );
 }
 
-export function TempClassSchedule() {
+export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => void }) {
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Calculate the first full week that overlaps the soft launch
@@ -140,18 +137,18 @@ export function TempClassSchedule() {
   return (
     <div className="space-y-6">
       {/* Soft Launch banner for this tab */}
-      <div className="bg-primary/5 border border-primary/20 rounded-lg py-4 px-6">
-        <div className="flex items-center gap-3">
-          <CalendarDays className="h-5 w-5 text-primary flex-shrink-0" />
+      <div className="bg-primary/10 border-2 border-primary/40 rounded-xl py-5 px-6">
+        <div className="flex items-start gap-4">
+          <CalendarDays className="h-7 w-7 text-primary flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-semibold text-foreground">
-              Reformer Pilates — Soft Launch
+            <h3 className="text-lg font-bold text-foreground">
+              🎉 Booking is Now Live — Reformer Pilates Soft Launch
             </h3>
-            <p className="text-sm text-muted-foreground">
-              February 20 – March 18, 2026 · All classes 50 min · Booking opens soon
+            <p className="text-sm text-muted-foreground mt-1">
+              February 20 – March 18, 2026 · All classes 50 min · 8 spots per class
             </p>
-            <Link to="/class-passes" className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-1">
-              Purchase a class pass to be ready when booking opens
+            <Link to="/class-passes" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-2">
+              Don't have a class pass? View class pass pricing
               <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
@@ -209,7 +206,7 @@ export function TempClassSchedule() {
                 </div>
               ) : (
                 day.classes.map((cls, i) => (
-                  <TempClassCard key={i} entry={cls} />
+                  <TempClassCard key={i} entry={cls} onBookRequest={onBookRequest} />
                 ))
               )}
             </div>
@@ -218,7 +215,7 @@ export function TempClassSchedule() {
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        This is the soft launch schedule. The full class schedule with online booking will be available soon.
+        Soft launch schedule: Feb 20 – Mar 18, 2026. Click "Book Class" to select your session.
       </p>
     </div>
   );
