@@ -1,69 +1,54 @@
 
-## Fix: Enable Booking on Soft Launch Schedule + Strengthen the Banner
+## Phase 1: Enable Class Pass Booking for Members Who Already Purchased
 
-### Two issues to fix
+### The Core Problem
 
-**Issue 1 — Booking is still disabled on the Soft Launch tab**
+Members who bought class passes are being blocked from booking by the `BookingModal`. After purchasing, the booking modal runs `getRequiredAgreementForPaymentMethod()` and checks whether the member has `class_package_agreement_signed` or `single_class_pass_agreement_signed` set on their profile. If those flags are not present, it shows an "Agreement Required" wall and hides the booking button entirely.
 
-In `src/components/booking/TempClassSchedule.tsx`, the `TempClassCard` component always renders a greyed-out disabled button:
+This check is wrong to have at booking time. Agreements are enforced at **purchase time** on `/class-passes` via the `InlineWaiverPrompt`. Once someone has paid, they should be able to use their pass to book without being asked to sign again.
 
-```tsx
-<Button disabled variant="outline" size="sm" className="flex-1 opacity-50">
-  Book
-</Button>
-<span className="text-xs text-muted-foreground whitespace-nowrap">
-  Opens soon
-</span>
+The only agreement that makes sense to check at booking time is the **Liability Waiver** — which is the universal entry requirement.
+
+### What Gets Removed
+
+From `src/components/booking/BookingModal.tsx`:
+
+- The `getRequiredAgreementForPaymentMethod()` function (lines 44-68)
+- The `getWaiverUrlParam()` helper (only the non-liability-waiver cases are used from booking)
+- The `requiredAgreement` useMemo (lines 121-123)
+- The `hasRequiredAgreement` useMemo (lines 125-128)
+- The entire "Agreement Required" alert block (lines 289-310)
+- `hasRequiredAgreement` from the payment method section visibility condition (line 313)
+- `hasRequiredAgreement` from the Book button's show condition (line 387)
+- `hasRequiredAgreement` from the Book button's disabled condition (line 390)
+
+### Simplified Booking Gate (after fix)
+
+```
+1. Not logged in → "Sign in to book" button
+2. Logged in, no payment option → "Purchase a pass or get a membership" alert
+3. Logged in, has a payment option, no liability waiver → "Sign Liability Waiver" alert
+4. Logged in, has a payment option, liability waiver signed → Show payment options, enable booking
 ```
 
-This needs to become a real, clickable "Book Class" button. The `TempClassSchedule` component is a static display-only component — it doesn't connect to real `ClassSession` data, so booking via the existing `BookingModal` isn't directly possible. The fix is to pass an `onBook` callback from `Schedule.tsx` into `TempClassSchedule`, but since the temp schedule uses static data (not real session IDs), the cleanest approach is to wire it to navigate to the live booking session on the Full Schedule tab, or — the right way — connect the static class cards to the real `useClassSessions` data.
+### What the `handleGoToWaivers` function becomes
 
-However, looking at the architecture, the cleanest fix the user is asking for is: **remove the disabled state and "Opens soon" text so the button is active and triggers the booking flow**. Since the temp schedule cards don't have real session objects, the card should link the user to the "Full Schedule" tab where they can book the matching real session.
+The `param` variable that currently reads from `requiredAgreement` is simplified — since we only ever navigate to the liability waiver from the booking modal now, we can pass the type directly:
 
-The approach:
-- Add an `onBook` prop to `TempClassCard` and `TempClassSchedule`
-- When clicked, scroll up and switch to the "Full Schedule" tab in `Schedule.tsx`
-- Alternatively (simpler), just make the button active and have it trigger a tab switch via a callback from `Schedule.tsx`
-
-The simplest correct fix: pass a callback `onBookRequest` from `Schedule.tsx` into `TempClassSchedule` that switches the tab to "full". The button label changes to "Book Class" and clicking it takes them to the live Full Schedule tab where their session exists and can be booked. The `isSoftLaunch` flag in `Schedule.tsx` is also set to `false` to enable booking on the Full Schedule tab too.
-
-**Issue 2 — Banner is too subtle**
-
-The current banner:
-```tsx
-<div className="bg-primary/5 border border-primary/20 rounded-lg py-4 px-6">
+```ts
+const handleGoToWaivers = () => {
+  const returnUrl = encodeURIComponent(window.location.pathname);
+  onOpenChange(false);
+  navigate(`/member/waivers?return=${returnUrl}&type=liability_waiver`);
+};
 ```
-
-This is nearly invisible. It needs a stronger gold/accent treatment — more padding, a bolder background, and possibly an icon with more presence. The text "Booking opens soon" also needs to change to reflect that booking is now active.
 
 ### Files to Modify
 
-**`src/components/booking/TempClassSchedule.tsx`**
+| File | Change |
+|------|--------|
+| `src/components/booking/BookingModal.tsx` | Remove redundant agreement check; simplify to liability waiver only |
 
-1. Add an `onBookRequest?: () => void` prop to `TempClassSchedule`
-2. Pass it down to `TempClassCard`
-3. Change the disabled button to an active "Book Class" button that calls `onBookRequest`
-4. Update the banner: stronger background (`bg-gold/10 border-gold/40`), more padding, bolder text, update the "Booking opens soon" copy to "Book now — classes are live"
-5. Update the footer note at the bottom to remove "booking will be available soon"
+### No database, edge function, or other file changes needed for Phase 1.
 
-**`src/pages/Schedule.tsx`**
-
-1. Set `isSoftLaunch = false` to enable booking on the Full Schedule tab
-2. Pass an `onBookRequest` callback into `<TempClassSchedule />` that switches the tab to `"full"` — this requires lifting tab state so we can control it programmatically (switch `Tabs` from `defaultValue` to `value` + `onValueChange`)
-
-### Exact changes
-
-**Schedule.tsx:**
-- Add `const [activeTab, setActiveTab] = useState("temp");`
-- Change `isSoftLaunch` to `false`
-- Change `<Tabs defaultValue="temp">` → `<Tabs value={activeTab} onValueChange={setActiveTab}>`
-- Pass `onBookRequest={() => setActiveTab("full")}` to `<TempClassSchedule />`
-
-**TempClassSchedule.tsx:**
-- Add `onBookRequest?: () => void` prop to the component and card
-- Change disabled button to: `<Button size="sm" className="w-full" onClick={onBookRequest}>Book Class</Button>`
-- Upgrade banner styling to gold-tinted, more prominent
-- Change copy from "Booking opens soon" to "Booking is now live"
-- Remove the footer disclaimer about booking not being available yet
-
-No database or edge function changes needed.
+The expired pass extensions for Carly, Sahar, and the anonymous user are a separate data fix that can be done after this code change is confirmed working — those are one-line SQL updates per pass record.
