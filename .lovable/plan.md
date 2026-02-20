@@ -1,58 +1,96 @@
 
-## Three Fixes: Mobile Layout, Waiver UX & Rename
 
-### Issue 1 — Class cards cut off on mobile (Schedule page)
+## Fix: Credits Visibility + Admin & Member Class Booking with Credits
 
-The day-view card grid uses `sm:grid-cols-2` on a container with no horizontal padding inside `container`. On a narrow iPhone (375px), the two-column grid forces each card to be ~170px wide, which clips the content (class name, time, button). The cards need to be single-column on mobile and only go 2-column on larger screens.
+### Root Cause Analysis
 
-Additionally, the filter buttons row (`flex-wrap gap-2`) overflows horizontally and wraps awkwardly on mobile. It should scroll horizontally rather than wrap.
+There are 4 distinct issues to fix:
 
-The day selector strip and week nav also need tighter spacing on mobile.
+**Issue 1 — Admin Credits tab shows "No active credits" for some members**
+The `MemberDetail.tsx` credits query is correct (queries by `member_id`), but some imported credit records were inserted with a NULL `user_id`. The query itself works fine, so the UI showing zeros is likely due to a RLS policy blocking reads when `user_id` is NULL. Staff should always be able to see all credits regardless of `user_id`. A secondary issue is that the credit grid only shows the 4 standard types and hides any rows that don't have a credit — it's not obvious if credits are missing vs. just zero.
 
-**Changes to `src/pages/Schedule.tsx`:**
-- Change the day-view grid from `grid gap-3 sm:grid-cols-2` to `grid gap-3 grid-cols-1 sm:grid-cols-2` (single column on mobile only)
-- Change the filters row from `flex flex-wrap gap-2 mb-6` to `flex gap-2 mb-6 overflow-x-auto pb-2 flex-nowrap` so filters scroll horizontally instead of wrapping across multiple lines
-- Add `px-4` to the inner container on mobile so cards don't sit flush against screen edges
-- Tighten week nav text from `min-w-[180px]` to `min-w-0 flex-1 text-center` so it doesn't overflow on small screens
+**Issue 2 — BookingModal shows "No payment method" for Diamond members with class credits**
+`useAvailableCreditsForCategory` → `useUserCredits` fetches the member, then only returns class credits when `memberStatus === 'active'`. However, the `classCredits` query requires `member_id` match. The `useUserCredits` hook fetches the member where `user_id = auth.uid()`, then fetches credits by `member_id`. This is correct — **but** the `BookingModal` calls `canUseMemberCredits = creditsData?.hasClassCredits`, which requires `memberStatus === 'active'`. If a Diamond member's status is technically `active` and they have class credits, this should work. Let me re-examine what actually fails.
 
-### Issue 2 — "Sign the waiver" message requires scrolling; waiver not inline
+The real bug: `useUserCredits` queries `member_credits` by `member_id` with `gt("expires_at", now())`. The credits in the DB have `expires_at` around March 16-18. Today is Feb 20. So those credits should be visible. The issue is likely **RLS on `member_credits`** — members cannot read their own credit records because the RLS policy requires a staff role or matching `user_id`, but some credit records have `user_id = NULL`.
 
-Currently when a user has no liability waiver, the `BookingModal` shows a red alert with a button that navigates them away to `/member/waivers`. This means they leave the modal, go sign a waiver on a completely different page, then have to come back and find the class again. On mobile this is especially jarring.
+**Issue 3 — Admin "Book Session" only works for red light / dry cryo, not class credits**
+The `showAdminBookWellnessDialog` in `MemberDetail.tsx` only presents "Red Light Therapy" and "Dry Cryotherapy" as options. There is no way to book a class session for a member using their class credits from the admin panel.
 
-**The fix: Inline the waiver signing directly inside the BookingModal.**
+**Issue 4 — No credit usage history for members**
+The member-facing `Credits.tsx` page shows current balances but has no history section showing past credit usage (which classes they booked, when credits were deducted).
 
-Instead of navigating away, when `hasLiabilityWaiver` is false, render an inline expandable waiver card inside the modal itself. The user can:
-1. See a compact "Liability Waiver Required" notice
-2. Tap "Sign Waiver" → the waiver section expands inline showing the PDF link and a "I have read and agree" checkbox + sign button
-3. After signing, the modal automatically refreshes and shows the payment options — no page navigation needed
+---
 
-**Changes to `src/components/booking/BookingModal.tsx`:**
-- Add a local `showWaiverInline` boolean state (default `false`)
-- Replace the current "Sign Liability Waiver" navigate button with:
-  - A compact alert showing "Liability Waiver required to book"
-  - A "Sign Now" button that sets `showWaiverInline = true`
-  - When expanded: show a link to open the PDF + a checkbox "I agree to the Liability Waiver" + a "Sign & Continue" button that calls `signWaiver()` from `useUserProfile`
-- Import `useUserProfile` (already imported), `useQueryClient` to invalidate cache after signing
-- After signing, invalidate the `user-profile` query so `hasLiabilityWaiver` updates immediately and the payment method selection appears without closing the modal
+### Fixes
 
-This keeps the user in the booking flow the whole time — they never leave the modal.
+#### Fix 1 — RLS: Ensure members can read their own `member_credits`
 
-### Issue 3 — Rename "Single Class Pass Agreement" → "Class Waiver"
+The `member_credits` table has credits where `user_id` may be NULL (manually imported). The RLS SELECT policy needs to allow members to read credits where `member_id` matches their linked member record, not just where `user_id = auth.uid()`.
 
-The title appears in two places:
-1. `src/pages/member/Waivers.tsx` — line 244: `title: "Single Class Pass Agreement"`
-2. `src/pages/member/Waivers.tsx` — line 245: `description: "Required for single class pass purchases"`
+Add a new migration that updates the RLS policy to use a subquery:
 
-**Change in `src/pages/member/Waivers.tsx`:**
-- Line 244: `"Single Class Pass Agreement"` → `"Class Waiver"`
-- Line 245: `"Required for single class pass purchases"` → `"Required for class pass purchases"`
+```sql
+-- Allow members to read their own credits via member_id lookup
+-- (handles credits where user_id may be NULL)
+DROP POLICY IF EXISTS "Members can view own credits" ON member_credits;
+
+CREATE POLICY "Members can view own credits"
+ON member_credits FOR SELECT
+USING (
+  -- Staff can see all
+  has_any_role(auth.uid(), ARRAY['super_admin','admin','manager','front_desk','staff']::app_role[])
+  OR
+  -- Member can see if user_id matches
+  user_id = auth.uid()
+  OR
+  -- Member can see via member_id lookup (handles NULL user_id on credit records)
+  member_id IN (
+    SELECT id FROM members WHERE user_id = auth.uid()
+  )
+);
+```
+
+#### Fix 2 — Admin "Book Session": Add class credit booking to admin panel
+
+Extend the `showAdminBookWellnessDialog` to include "Class" as a service type. When "Class" is selected, instead of a date/time picker for a spa appointment, show a class session selector that lets the admin pick an upcoming class session and book the member into it using their class credit. This uses the existing `create_atomic_class_booking` RPC with `payment_method = 'credits'`.
+
+Changes to `src/pages/admin/MemberDetail.tsx`:
+- Extend `adminBookServiceType` type to `"red_light" | "dry_cryo" | "class"`
+- Add a class session search/selector when "class" is selected
+- Add a query to fetch upcoming class sessions (next 14 days) for the session selector
+- When booking with class credits, call `supabase.rpc('create_atomic_class_booking', {...})` instead of directly inserting into `spa_appointments`
+- The RPC handles member lookup by `user_id`, so pass `member.user_id`
+
+#### Fix 3 — Member Credits page: Add usage history
+
+Add a "Credit History" section at the bottom of `src/pages/member/Credits.tsx` that shows:
+- Class bookings made with credits (from `class_bookings` where `member_id` matches and `credits_used > 0`)
+- Wellness appointments booked with credits (from `spa_appointments` where `member_id` matches and `payment_method = 'credit'`)
+- Manual adjustments (from `credit_adjustments` where `member_id` matches)
+
+#### Fix 4 — Admin Credits tab: Show ALL credit types clearly, including class passes
+
+Enhance the admin Credits tab grid to:
+- Show all 4 credit types always (even if 0), with a clear "No credits" state
+- Show class passes below the credit grid (a list of active `class_passes` for this member)
+- Show credit adjustments in a timeline format
 
 ---
 
 ### Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/pages/Schedule.tsx` | Mobile grid fix (single column), horizontal scroll filters, tighter nav |
-| `src/components/booking/BookingModal.tsx` | Inline waiver signing — no page navigation needed |
-| `src/pages/member/Waivers.tsx` | Rename "Single Class Pass Agreement" → "Class Waiver" |
+| File | Change |
+|------|--------|
+| Migration | Fix RLS on `member_credits` to allow member reads via `member_id` subquery |
+| `src/pages/admin/MemberDetail.tsx` | Extend "Book Session" dialog to support class credit bookings with session picker |
+| `src/pages/member/Credits.tsx` | Add credit usage history section |
+| `src/pages/admin/MemberDetail.tsx` | Add class passes to the Credits tab in admin view |
+
+### Order of Execution
+
+1. Database migration first (fixes the root visibility issue for members)
+2. Member Credits page history section  
+3. Admin Book Session extended to include class bookings
+4. Admin Credits tab shows class passes
+
