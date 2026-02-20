@@ -26,10 +26,22 @@ import {
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { getTierName, CREDIT_TYPE_LABELS, CREDIT_TYPE_DESCRIPTIONS, CreditType } from "@/lib/memberCredits";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 
 export default function MemberCredits() {
-  const { data: credits, isLoading } = useUserCredits();
+  const { data: credits, isLoading, refetch } = useUserCredits();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (searchParams.get("purchase") === "success") {
+      queryClient.invalidateQueries({ queryKey: ["user-credits"] });
+      refetch();
+      toast.success("Class pass purchased successfully! Your pass is now active.");
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   if (isLoading) {
     return (
