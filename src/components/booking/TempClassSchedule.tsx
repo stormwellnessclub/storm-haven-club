@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -111,10 +111,23 @@ function TempClassCard({ entry, onBookRequest }: TempClassCardProps) {
 }
 
 export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => void }) {
-  const [weekOffset, setWeekOffset] = useState(0); // Start at current week
-
   // Calculate the first full week that overlaps the soft launch
   const baseWeekStart = startOfWeek(SOFT_LAUNCH_START, { weekStartsOn: 0 });
+
+  function getInitialWeekOffset() {
+    const todayWeekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+    const diff = Math.round(
+      (todayWeekStart.getTime() - baseWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)
+    );
+    return Math.max(0, diff);
+  }
+
+  const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset);
+  const todayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    todayRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+  }, []);
 
   const weekStart = addWeeks(baseWeekStart, weekOffset);
   const weekEnd = addDays(weekStart, 6);
@@ -188,6 +201,7 @@ export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => voi
         {weekDays.map((day) => (
           <div
             key={day.dateStr}
+            ref={day.isToday ? todayRef : undefined}
             className={`space-y-3 ${day.outOfRange ? "opacity-40" : ""}`}
           >
             {/* Day header matching ClassCalendar */}
