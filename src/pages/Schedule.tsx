@@ -137,7 +137,7 @@ export default function Schedule() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium min-w-[180px] text-center">
+            <span className="text-sm font-medium min-w-0 flex-1 text-center px-2">
               Week of {format(weekStart, "MMM d, yyyy")}
             </span>
             <Button
@@ -193,7 +193,7 @@ export default function Schedule() {
         </div>
 
         {/* Filters Row */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 flex-nowrap">
           <Button variant={categoryFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("all")}>All Classes</Button>
           <Button variant={categoryFilter === "pilates" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("pilates")} className="gap-1"><CircleDot className="h-4 w-4" />Reformer Pilates</Button>
           <Button variant={categoryFilter === "cycling" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("cycling")} className="gap-1"><Bike className="h-4 w-4" />Cycling</Button>
@@ -225,7 +225,7 @@ export default function Schedule() {
                 No classes scheduled for this day
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                 {filteredSessions
                   .sort((a, b) => a.start_time.localeCompare(b.start_time))
                   .map((session) => {

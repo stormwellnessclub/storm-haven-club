@@ -240,8 +240,8 @@ export default function MemberWaivers() {
     },
     {
       key: "single_class_pass",
-      title: "Single Class Pass Agreement",
-      description: "Required for single class pass purchases",
+      title: "Class Waiver",
+      description: "Required for class pass purchases",
       isSigned: profile?.single_class_pass_agreement_signed || false,
       signedAt: profile?.single_class_pass_agreement_signed_at || null,
       documents: getDocuments(singleClassPassAgreements),
