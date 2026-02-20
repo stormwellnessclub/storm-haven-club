@@ -4,6 +4,7 @@ import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
+import { useAllAgreements } from "@/hooks/useAllAgreements";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Clock,
   MapPin,
@@ -28,11 +30,14 @@ import {
   AlertCircle,
   ShoppingBag,
   FileCheck,
-  ArrowRight,
+  ExternalLink,
+  Loader2,
+  Check,
 } from "lucide-react";
 import { format, parse, parseISO } from "date-fns";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { resolvePdfUrl } from "@/lib/pdfAssets";
 
 interface BookingModalProps {
   session: ClassSession | null;
@@ -44,15 +49,23 @@ interface BookingModalProps {
 export function BookingModal({ session, open, onOpenChange }: BookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { profile } = useUserProfile();
+  const { profile, signWaiver, isSigningWaiver } = useUserProfile();
   const { profile: nonMemberProfile } = useNonMemberProfile();
   const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass">("credits");
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
   const [selectedPassType, setSelectedPassType] = useState<string | null>(null);
+  const [showWaiverInline, setShowWaiverInline] = useState(false);
+  const [waiverAcknowledged, setWaiverAcknowledged] = useState(false);
 
   const bookClass = useBookClass();
   const category = session?.class_type.category || "aerobics";
   const { data: creditsData, isLoading: creditsLoading } = useAvailableCreditsForCategory(category);
+  const { data: agreements } = useAllAgreements();
+
+  // Liability waiver PDF URL from agreements
+  const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
+    ? resolvePdfUrl(agreements.liability_waiver[0].pdf_url)
+    : null;
 
   // Determine available payment options
   const canUseMemberCredits = creditsData?.hasClassCredits;
@@ -71,6 +84,14 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       setSelectedPassType(creditsData.availablePasses[0].pass_type);
     }
   }, [canUseMemberCredits, canUsePass, creditsData?.availablePasses]);
+
+  // Reset inline waiver state when modal closes
+  useEffect(() => {
+    if (!open) {
+      setShowWaiverInline(false);
+      setWaiverAcknowledged(false);
+    }
+  }, [open]);
 
   // Check liability waiver — check member profile first, fall back to non-member profile
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
@@ -107,15 +128,15 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     navigate("/class-passes");
   };
 
-  const handleGoToWaivers = () => {
-    const returnUrl = encodeURIComponent(window.location.pathname);
-    onOpenChange(false);
-    navigate(`/member/waivers?return=${returnUrl}&type=liability_waiver`);
+  const handleSignWaiverInline = async () => {
+    await signWaiver();
+    setShowWaiverInline(false);
+    setWaiverAcknowledged(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {session.class_type.name}
@@ -211,26 +232,73 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           )}
 
-          {/* Liability Waiver Required Alert */}
+          {/* Liability Waiver Required — Inline Signing */}
           {user && !creditsLoading && !hasNoPaymentOptions && !hasLiabilityWaiver && (
-            <Alert className="bg-destructive/10 border-destructive/30">
-              <FileCheck className="h-4 w-4 text-destructive" />
-              <AlertTitle className="text-destructive">Liability Waiver Required</AlertTitle>
-              <AlertDescription className="mt-2">
-                <p className="mb-3">
-                  You must sign the <strong>Liability Waiver</strong> before booking any class.
-                </p>
-                <Button 
-                  onClick={handleGoToWaivers}
+            <div className="space-y-3">
+              <Alert className="bg-destructive/10 border-destructive/30">
+                <FileCheck className="h-4 w-4 text-destructive" />
+                <AlertTitle className="text-destructive">Liability Waiver Required</AlertTitle>
+                <AlertDescription className="mt-1">
+                  Sign the liability waiver below to continue booking.
+                </AlertDescription>
+              </Alert>
+
+              {!showWaiverInline ? (
+                <Button
+                  onClick={() => setShowWaiverInline(true)}
                   variant="outline"
-                  className="w-full"
+                  className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
                 >
                   <FileCheck className="h-4 w-4 mr-2" />
                   Sign Liability Waiver
-                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
-              </AlertDescription>
-            </Alert>
+              ) : (
+                <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                  <p className="text-sm font-medium">Liability Waiver</p>
+
+                  {liabilityWaiverPdf && (
+                    <Button variant="outline" size="sm" className="w-full gap-2" asChild>
+                      <a href={liabilityWaiverPdf} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        Open & Review Waiver PDF
+                      </a>
+                    </Button>
+                  )}
+
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="waiver-inline"
+                      checked={waiverAcknowledged}
+                      onCheckedChange={(v) => setWaiverAcknowledged(v === true)}
+                    />
+                    <label
+                      htmlFor="waiver-inline"
+                      className="text-sm leading-snug cursor-pointer"
+                    >
+                      I have reviewed the Liability Waiver and agree to its terms
+                    </label>
+                  </div>
+
+                  <Button
+                    onClick={handleSignWaiverInline}
+                    disabled={!waiverAcknowledged || isSigningWaiver}
+                    className="w-full"
+                  >
+                    {isSigningWaiver ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Signing...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        I Agree — Sign Waiver & Continue
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Payment Method Selection */}
