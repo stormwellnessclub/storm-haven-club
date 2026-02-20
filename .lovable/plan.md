@@ -1,55 +1,45 @@
 
-## Problem
 
-`TempClassSchedule` always initialises `weekOffset` to `0`, which anchors the view to the week of Feb 20 (the soft-launch start). When opened today (Feb 20 or later), the calendar grid renders from Sunday of that week, and the user must scroll right through earlier or "no classes" columns to reach today. There is also no scroll-into-view behaviour on the day column.
+## Two Issues to Fix
 
-## Solution
+### Issue 1: Front Desk POS Not Charging via Stripe
 
-Two targeted changes to `src/components/booking/TempClassSchedule.tsx`:
+The Front Desk POS currently only creates a database record in `cafe_orders`. It does not charge the member's card. The fix integrates the existing `stripe-payment` edge function (action: `charge_saved_card`) into the POS checkout flow.
 
-### 1. Default `weekOffset` to the current week
+**Changes to `src/pages/admin/FrontDeskPOS.tsx`:**
+- Look up the selected member's `stripe_customer_id` from the `members` table
+- After calculating the total, call `supabase.functions.invoke("stripe-payment", { action: "charge_saved_card", ... })` with the member's Stripe customer ID, amount in cents, and a description like `"Front Desk POS - [item names]"`
+- Only create the `cafe_orders` record after the Stripe charge succeeds
+- Show appropriate error toasts if the charge fails (e.g. card declined)
+- For non-member / no-card-on-file orders, keep the current behavior (record only, no Stripe charge)
 
-Replace the hardcoded `useState(0)` with a computed initial value that finds how many weeks ahead of `baseWeekStart` today falls:
+**Changes to `src/components/admin/CafePOSCart.tsx`:**
+- Accept a `selectedMember` prop that includes `stripeCustomerId` (not just name + cardOnFile)
+- Update the button label to differentiate between "Charge Card on File" (Stripe) vs "Record Order" (no card)
 
-```ts
-const baseWeekStart = startOfWeek(SOFT_LAUNCH_START, { weekStartsOn: 0 });
+**Changes to member lookup logic:**
+- When a member is selected via search, query the `members` table for `stripe_customer_id` and `card_brand`/`card_last4` so the POS knows whether a real Stripe charge is possible
 
-function getInitialWeekOffset() {
-  const todayWeekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
-  const diff = Math.round(
-    (todayWeekStart.getTime() - baseWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)
-  );
-  // Clamp to [0, totalWeeks]
-  return Math.max(0, diff);
-}
+---
 
-const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset);
-```
+### Issue 2: Settings Page Shows Hardcoded "Connected" Status
 
-This means when the page loads, the week navigator is already on the current week rather than the first soft-launch week.
+The Settings page has a hardcoded green "Connected" badge for Stripe. It should verify the connection at runtime.
 
-### 2. Auto-scroll today's column into view
+**Changes to `src/pages/admin/Settings.tsx`:**
+- Add a `useEffect` that calls the existing `stripe-config` edge function on mount
+- If the function returns a valid publishable key (starts with `pk_`), show the green "Connected" badge
+- If it errors or returns no key, show a red/amber "Not Connected" badge with a message
+- Add a loading state while the check runs
 
-Add a `ref` to the today column and fire `scrollIntoView` on mount:
+---
 
-```ts
-import { useRef, useEffect } from "react";
-
-const todayRef = useRef<HTMLDivElement>(null);
-
-useEffect(() => {
-  todayRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
-}, []);
-```
-
-Attach `ref={todayRef}` to the day column `<div>` when `day.isToday` is true. This ensures that on mobile (where columns stack) or on wider grids, the page jumps to the correct position immediately.
-
-## Files to Change
+### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/components/booking/TempClassSchedule.tsx` | Default `weekOffset` to current week; add `todayRef` + `useEffect` scroll-into-view |
+| `src/pages/admin/FrontDeskPOS.tsx` | Add Stripe charge via `stripe-payment` edge function before creating order; query member's `stripe_customer_id` on selection |
+| `src/components/admin/CafePOSCart.tsx` | Extend `selectedMember` type to include `stripeCustomerId`; update button labels |
+| `src/pages/admin/Settings.tsx` | Replace hardcoded Stripe status with a live check via `stripe-config` edge function |
 
-## No Schema / Backend Changes
-
-This is a pure frontend state and DOM change — no database or edge function changes needed.
+No database or edge function changes are needed -- this uses existing infrastructure.
