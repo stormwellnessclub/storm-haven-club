@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useUserCredits, MemberCredit } from "@/hooks/useUserCredits";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
   CreditCard, 
@@ -22,7 +22,10 @@ import {
   Sparkles,
   Gift,
   CheckCircle2,
-  Loader2
+  Loader2,
+  History,
+  BookOpen,
+  ArrowDownCircle
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { getTierName, CREDIT_TYPE_LABELS, CREDIT_TYPE_DESCRIPTIONS, CreditType } from "@/lib/memberCredits";
@@ -31,6 +34,7 @@ import { useSearchParams } from "react-router-dom";
 
 export default function MemberCredits() {
   const { data: credits, isLoading, refetch } = useUserCredits();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
@@ -42,6 +46,90 @@ export default function MemberCredits() {
       setSearchParams({}, { replace: true });
     }
   }, []);
+
+  // Fetch credit usage history
+  const { data: creditHistory = [], isLoading: isHistoryLoading } = useQuery({
+    queryKey: ["member-credit-history", credits?.memberId],
+    queryFn: async () => {
+      if (!credits?.memberId) return [];
+
+      // Class bookings that used credits
+      const { data: classBookings } = await supabase
+        .from("class_bookings")
+        .select(`
+          id, booked_at, credits_used, status, payment_method,
+          session:class_sessions(session_date, start_time, class_type:class_types(name))
+        `)
+        .eq("member_id", credits.memberId)
+        .gt("credits_used", 0)
+        .order("booked_at", { ascending: false })
+        .limit(30);
+
+      // Wellness appointments booked with credits
+      const { data: wellnessApts } = await supabase
+        .from("spa_appointments")
+        .select("id, appointment_date, appointment_time, service_name, credit_type, status, created_at")
+        .eq("member_id", credits.memberId)
+        .eq("payment_method", "credit")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      // Manual credit adjustments (removes)
+      const { data: adjustments } = await supabase
+        .from("credit_adjustments")
+        .select("id, created_at, credit_type, adjustment_type, amount, reason, new_balance, previous_balance")
+        .eq("member_id", credits.memberId)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      const combined: any[] = [];
+
+      (classBookings || []).forEach((b: any) => {
+        const session = b.session;
+        const classType = session?.class_type;
+        combined.push({
+          id: b.id,
+          type: "class_booking",
+          date: b.booked_at,
+          label: classType?.name || "Class",
+          detail: session ? `${format(new Date(session.session_date + "T12:00:00"), "MMM d")} at ${session.start_time?.slice(0, 5)}` : null,
+          creditType: "class",
+          amount: -b.credits_used,
+          status: b.status,
+        });
+      });
+
+      (wellnessApts || []).forEach((a: any) => {
+        combined.push({
+          id: a.id,
+          type: "wellness",
+          date: a.created_at,
+          label: a.service_name || "Wellness Session",
+          detail: a.appointment_date ? format(new Date(a.appointment_date + "T12:00:00"), "MMM d") : null,
+          creditType: a.credit_type || "red_light",
+          amount: -1,
+          status: a.status,
+        });
+      });
+
+      (adjustments || []).forEach((adj: any) => {
+        combined.push({
+          id: `adj-${adj.id}`,
+          type: "adjustment",
+          date: adj.created_at,
+          label: adj.adjustment_type === "add" ? "Credits Added" : "Credits Removed",
+          detail: adj.reason || null,
+          creditType: adj.credit_type,
+          amount: adj.adjustment_type === "add" ? adj.amount : -adj.amount,
+          status: "adjustment",
+          newBalance: adj.new_balance,
+        });
+      });
+
+      return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+    enabled: !!credits?.memberId,
+  });
 
   if (isLoading) {
     return (
@@ -288,6 +376,70 @@ export default function MemberCredits() {
             </div>
           )}
         </div>
+
+        {/* Credit History */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <History className="h-5 w-5 text-accent" />
+              <CardTitle>Credit History</CardTitle>
+            </div>
+            <CardDescription>Your class bookings, wellness sessions, and credit adjustments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isHistoryLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}
+              </div>
+            ) : creditHistory.length === 0 ? (
+              <div className="text-center py-8">
+                <History className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-40" />
+                <p className="text-muted-foreground">No credit activity yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {creditHistory.map((item: any) => (
+                  <div key={item.id} className="flex items-start justify-between p-3 rounded-lg bg-secondary/40 hover:bg-secondary/60 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${item.amount < 0 ? 'bg-rose-100 dark:bg-rose-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
+                        {item.amount < 0 ? (
+                          <ArrowDownCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                        ) : (
+                          <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{item.label}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {item.detail && (
+                            <span className="text-xs text-muted-foreground">{item.detail}</span>
+                          )}
+                          <Badge variant="outline" className="text-xs px-1.5 py-0">
+                            {CREDIT_TYPE_LABELS[item.creditType as CreditType] || item.creditType}
+                          </Badge>
+                          {item.status && item.status !== "adjustment" && (
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0 capitalize">{item.status}</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {format(new Date(item.date), "MMM d, yyyy 'at' h:mm a")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 text-right ml-3">
+                      <span className={`font-semibold text-sm ${item.amount < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {item.amount > 0 ? '+' : ''}{item.amount}
+                      </span>
+                      {item.newBalance !== undefined && (
+                        <p className="text-xs text-muted-foreground">bal: {item.newBalance}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </MemberLayout>
   );

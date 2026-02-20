@@ -84,6 +84,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, 
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
@@ -206,9 +207,10 @@ export default function MemberDetail() {
   // Credit adjustment state
   const [showAdjustCreditDialog, setShowAdjustCreditDialog] = useState(false);
   const [showAdminBookWellnessDialog, setShowAdminBookWellnessDialog] = useState(false);
-  const [adminBookServiceType, setAdminBookServiceType] = useState<"red_light" | "dry_cryo">("red_light");
+  const [adminBookServiceType, setAdminBookServiceType] = useState<"red_light" | "dry_cryo" | "class">("red_light");
   const [adminBookDate, setAdminBookDate] = useState<Date | undefined>(undefined);
   const [adminBookTime, setAdminBookTime] = useState("");
+  const [adminBookClassSessionId, setAdminBookClassSessionId] = useState<string>("");
   const [isAdminBooking, setIsAdminBooking] = useState(false);
   const [adjustmentType, setAdjustmentType] = useState<"add" | "remove">("add");
   const [adjustCreditType, setAdjustCreditType] = useState<CreditType>("class");
@@ -304,6 +306,50 @@ export default function MemberDetail() {
     },
     enabled: !!id,
   });
+
+  // Fetch class passes for this member
+  const { data: memberClassPasses = [], isLoading: isClassPassesLoading } = useQuery({
+    queryKey: ["member-class-passes-admin", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("class_passes")
+        .select("*")
+        .eq("member_id", id)
+        .order("expires_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch upcoming class sessions for admin booking (next 14 days)
+  const { data: upcomingClassSessions = [] } = useQuery({
+    queryKey: ["upcoming-class-sessions-admin"],
+    queryFn: async () => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const twoWeeksOut = format(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+      const { data, error } = await supabase
+        .from("class_sessions")
+        .select(`
+          id, session_date, start_time, end_time, max_capacity, current_enrollment,
+          class_type:class_types(name, category)
+        `)
+        .gte("session_date", today)
+        .lte("session_date", twoWeeksOut)
+        .eq("is_cancelled", false)
+        .order("session_date")
+        .order("start_time")
+        .limit(50);
+      if (error) throw error;
+      return (data || []).map((s: any) => ({
+        ...s,
+        class_type: Array.isArray(s.class_type) ? s.class_type[0] : s.class_type,
+      }));
+    },
+    enabled: showAdminBookWellnessDialog && adminBookServiceType === "class",
+  });
+
 
   // Fetch credit adjustment history for this member
   const { data: creditAdjustments = [], isLoading: isAdjustmentsLoading } = useQuery({
@@ -1769,14 +1815,12 @@ export default function MemberDetail() {
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
-                  ) : memberCredits.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No active credits</p>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       {(['class', 'red_light', 'dry_cryo', 'guest_pass'] as CreditType[]).map((type) => {
                         const credit = memberCredits.find((c) => c.credit_type === type);
                         return (
-                          <div key={type} className="p-4 border rounded-lg">
+                          <div key={type} className={`p-4 border rounded-lg ${credit && credit.credits_remaining > 0 ? 'border-primary/30 bg-primary/5' : ''}`}>
                             <p className="text-sm text-muted-foreground mb-1">{CREDIT_TYPE_LABELS[type]}</p>
                             {credit ? (
                               <>
@@ -1784,13 +1828,62 @@ export default function MemberDetail() {
                                   {credit.credits_remaining}
                                   <span className="text-sm font-normal text-muted-foreground">/{credit.credits_total}</span>
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-1">
+                                <Progress
+                                  value={(credit.credits_remaining / credit.credits_total) * 100}
+                                  className="h-1.5 mt-2 mb-1"
+                                />
+                                <p className="text-xs text-muted-foreground">
                                   Expires {format(new Date(credit.expires_at), 'MMM d, yyyy')}
                                 </p>
                               </>
                             ) : (
-                              <p className="text-2xl font-bold text-muted-foreground">—</p>
+                              <>
+                                <p className="text-2xl font-bold text-muted-foreground">0</p>
+                                <p className="text-xs text-muted-foreground mt-1">No active credits</p>
+                              </>
                             )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Class Passes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Class Passes</CardTitle>
+                  <CardDescription>Purchased class passes for this member</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isClassPassesLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : memberClassPasses.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-6">No class passes</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {memberClassPasses.map((pass: any) => {
+                        const isActive = pass.status === 'active' && pass.classes_remaining > 0 && new Date(pass.expires_at) > new Date();
+                        return (
+                          <div key={pass.id} className={`p-4 border rounded-lg ${isActive ? 'border-primary/30' : 'opacity-60'}`}>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="font-medium text-sm">{pass.pass_type}</p>
+                              <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
+                                {isActive ? 'Active' : pass.status}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground capitalize mb-2">Category: {pass.category?.replace(/_/g, ' ')}</p>
+                            <div className="flex items-center justify-between text-sm mb-1">
+                              <span className="text-muted-foreground">Classes remaining</span>
+                              <span className="font-semibold">{pass.classes_remaining}/{pass.classes_total}</span>
+                            </div>
+                            <Progress value={(pass.classes_remaining / pass.classes_total) * 100} className="h-1.5 mb-2" />
+                            <p className="text-xs text-muted-foreground">
+                              Expires {format(new Date(pass.expires_at), 'MMM d, yyyy')}
+                            </p>
                           </div>
                         );
                       })}
@@ -2033,26 +2126,34 @@ export default function MemberDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Admin Book Wellness Session Dialog */}
-      <Dialog open={showAdminBookWellnessDialog} onOpenChange={setShowAdminBookWellnessDialog}>
-        <DialogContent>
+      {/* Admin Book Session Dialog — supports Wellness + Class bookings */}
+      <Dialog open={showAdminBookWellnessDialog} onOpenChange={(open) => {
+        setShowAdminBookWellnessDialog(open);
+        if (!open) { setAdminBookDate(undefined); setAdminBookTime(""); setAdminBookClassSessionId(""); }
+      }}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Book Wellness Session for {member?.first_name}</DialogTitle>
+            <DialogTitle>Book Session for {member?.first_name}</DialogTitle>
             <DialogDescription>
-              Book a recovery session using this member's credits.
+              Book a session using this member's credits.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Service Type */}
             <div className="space-y-2">
               <Label>Service Type</Label>
-              <Select value={adminBookServiceType} onValueChange={(v: "red_light" | "dry_cryo") => setAdminBookServiceType(v)}>
+              <Select value={adminBookServiceType} onValueChange={(v: "red_light" | "dry_cryo" | "class") => {
+                setAdminBookServiceType(v);
+                setAdminBookClassSessionId("");
+              }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="class">Class (using Class Credits)</SelectItem>
                   <SelectItem value="red_light">Red Light Therapy</SelectItem>
                   <SelectItem value="dry_cryo">Dry Cryotherapy</SelectItem>
                 </SelectContent>
               </Select>
-              {(() => {
+              {adminBookServiceType !== "class" && (() => {
                 const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
                 return credit ? (
                   <p className="text-xs text-muted-foreground">{credit.credits_remaining} of {credit.credits_total} credits remaining</p>
@@ -2060,64 +2161,132 @@ export default function MemberDetail() {
                   <p className="text-xs text-destructive">No active credits for this service</p>
                 );
               })()}
+              {adminBookServiceType === "class" && (() => {
+                const credit = memberCredits.find(c => c.credit_type === "class");
+                return credit ? (
+                  <p className="text-xs text-muted-foreground">{credit.credits_remaining} of {credit.credits_total} class credits remaining</p>
+                ) : (
+                  <p className="text-xs text-destructive">No active class credits for this member</p>
+                );
+              })()}
             </div>
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !adminBookDate && "text-muted-foreground")}>
-                    <CalendarClock className="mr-2 h-4 w-4" />
-                    {adminBookDate ? format(adminBookDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarPicker mode="single" selected={adminBookDate} onSelect={(d) => setAdminBookDate(d || undefined)} initialFocus />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label>Time</Label>
-              <Select value={adminBookTime} onValueChange={setAdminBookTime}>
-                <SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger>
-                <SelectContent>
-                  {["09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30"].map(t => {
-                    const h = parseInt(t.split(":")[0]); const m = t.split(":")[1];
-                    const ampm = h >= 12 ? "PM" : "AM"; const h12 = h % 12 || 12;
-                    return <SelectItem key={t} value={t}>{h12}:{m} {ampm}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
+
+            {/* Class session picker */}
+            {adminBookServiceType === "class" ? (
+              <div className="space-y-2">
+                <Label>Select Class Session</Label>
+                <Select value={adminBookClassSessionId} onValueChange={setAdminBookClassSessionId}>
+                  <SelectTrigger><SelectValue placeholder="Choose an upcoming session..." /></SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {upcomingClassSessions.length === 0 ? (
+                      <SelectItem value="none" disabled>No upcoming sessions available</SelectItem>
+                    ) : (
+                      upcomingClassSessions.map((session: any) => {
+                        const isFull = session.current_enrollment >= session.max_capacity;
+                        const h = parseInt(session.start_time?.split(":")[0] || "0");
+                        const m = session.start_time?.split(":")[1] || "00";
+                        const ampm = h >= 12 ? "PM" : "AM";
+                        const h12 = h % 12 || 12;
+                        return (
+                          <SelectItem key={session.id} value={session.id} disabled={isFull}>
+                            {format(new Date(session.session_date + "T12:00:00"), "EEE MMM d")} — {session.class_type?.name} @ {h12}:{m} {ampm}
+                            {isFull ? " (FULL)" : ` (${session.current_enrollment}/${session.max_capacity})`}
+                          </SelectItem>
+                        );
+                      })
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <>
+                {/* Date picker for wellness */}
+                <div className="space-y-2">
+                  <Label>Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !adminBookDate && "text-muted-foreground")}>
+                        <CalendarClock className="mr-2 h-4 w-4" />
+                        {adminBookDate ? format(adminBookDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarPicker mode="single" selected={adminBookDate} onSelect={(d) => setAdminBookDate(d || undefined)} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Time</Label>
+                  <Select value={adminBookTime} onValueChange={setAdminBookTime}>
+                    <SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger>
+                    <SelectContent>
+                      {["09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30"].map(t => {
+                        const h = parseInt(t.split(":")[0]); const m = t.split(":")[1];
+                        const ampm = h >= 12 ? "PM" : "AM"; const h12 = h % 12 || 12;
+                        return <SelectItem key={t} value={t}>{h12}:{m} {ampm}</SelectItem>;
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdminBookWellnessDialog(false)}>Cancel</Button>
             <Button
-              disabled={!adminBookDate || !adminBookTime || isAdminBooking || !memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0)}
+              disabled={
+                isAdminBooking ||
+                (adminBookServiceType === "class"
+                  ? !adminBookClassSessionId || !memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0)
+                  : !adminBookDate || !adminBookTime || !memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0))
+              }
               onClick={async () => {
-                if (!adminBookDate || !adminBookTime || !member) return;
+                if (!member) return;
                 setIsAdminBooking(true);
                 try {
-                  const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
-                  if (!credit || credit.credits_remaining <= 0) throw new Error("No credits available");
-                  const serviceName = adminBookServiceType === "red_light" ? "Red Light Therapy" : "Dry Cryotherapy";
-                  const durationMinutes = adminBookServiceType === "red_light" ? 20 : 3;
-                  const { error: creditError } = await supabase.from("member_credits").update({ credits_remaining: credit.credits_remaining - 1, updated_at: new Date().toISOString() }).eq("id", credit.id);
-                  if (creditError) throw creditError;
-                   const { error: aptError } = await supabase.from("spa_appointments").insert({
-                     user_id: member.user_id || null, member_id: member.id,
-                     service_id: adminBookServiceType === "red_light" ? 101 : 102,
-                     service_name: serviceName, service_category: "Recovery", service_price: 0,
-                     appointment_date: format(adminBookDate, "yyyy-MM-dd"), appointment_time: adminBookTime,
-                     duration_minutes: durationMinutes, cleanup_minutes: 5, status: "confirmed",
-                     payment_method: "credit", credit_type: adminBookServiceType, credit_id: credit.id,
-                     notes: "Booked by staff",
-                   });
-                  if (aptError) throw aptError;
-                  toast.success(`${serviceName} booked for ${member.first_name} on ${format(adminBookDate, "MMM d")} using 1 credit`);
-                  queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
+                  if (adminBookServiceType === "class") {
+                    // Book class via RPC using the member's user_id
+                    const credit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0);
+                    if (!credit) throw new Error("No class credits available");
+                    if (!member.user_id) throw new Error("Member has no linked user account");
+                    const { data, error } = await supabase.rpc("create_atomic_class_booking" as any, {
+                      _session_id: adminBookClassSessionId,
+                      _user_id: member.user_id,
+                      _payment_method: "credits",
+                      _member_credit_id: credit.id,
+                    });
+                    if (error) throw error;
+                    const result = data as any;
+                    if (!result?.success) throw new Error(result?.error || "Booking failed");
+                    toast.success(`Class booked for ${member.first_name} using 1 class credit`);
+                    queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
+                    queryClient.invalidateQueries({ queryKey: ["member-credit-usage", id] });
+                  } else {
+                    // Book wellness session
+                    if (!adminBookDate || !adminBookTime) return;
+                    const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
+                    if (!credit || credit.credits_remaining <= 0) throw new Error("No credits available");
+                    const serviceName = adminBookServiceType === "red_light" ? "Red Light Therapy" : "Dry Cryotherapy";
+                    const durationMinutes = adminBookServiceType === "red_light" ? 20 : 3;
+                    const { error: creditError } = await supabase.from("member_credits").update({ credits_remaining: credit.credits_remaining - 1, updated_at: new Date().toISOString() }).eq("id", credit.id);
+                    if (creditError) throw creditError;
+                    const { error: aptError } = await supabase.from("spa_appointments").insert({
+                      user_id: member.user_id || null, member_id: member.id,
+                      service_id: adminBookServiceType === "red_light" ? 101 : 102,
+                      service_name: serviceName, service_category: "Recovery", service_price: 0,
+                      appointment_date: format(adminBookDate, "yyyy-MM-dd"), appointment_time: adminBookTime,
+                      duration_minutes: durationMinutes, cleanup_minutes: 5, status: "confirmed",
+                      payment_method: "credit", credit_type: adminBookServiceType, credit_id: credit.id,
+                      staff_notes: "Booked by staff",
+                    });
+                    if (aptError) throw aptError;
+                    toast.success(`${serviceName} booked for ${member.first_name} on ${format(adminBookDate, "MMM d")} using 1 credit`);
+                    queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
+                  }
                   setShowAdminBookWellnessDialog(false);
                   setAdminBookDate(undefined);
                   setAdminBookTime("");
+                  setAdminBookClassSessionId("");
                 } catch (error: any) {
                   toast.error(error.message || "Failed to book session");
                 } finally {
