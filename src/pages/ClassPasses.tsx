@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
 import { Check, Info, Clock, Loader2, ShoppingCart, FileText } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMembership } from "@/hooks/useUserMembership";
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { AccountRequiredSection } from "@/components/AccountRequiredSection";
 import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
 import { useQueryClient } from "@tanstack/react-query";
+import { useUserCredits } from "@/hooks/useUserCredits";
 
 interface PricingTier {
   type: string;
@@ -377,6 +378,9 @@ export default function ClassPasses() {
     title: string;
     pendingPurchase?: { category: 'pilatesCycling' | 'otherClasses'; passType: 'single' | 'tenPack' };
   } | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { data: credits, refetch: refetchCredits } = useUserCredits();
 
   const isMember = membership?.status === 'active';
   
@@ -389,6 +393,16 @@ export default function ClassPasses() {
 
   // Waiver is valid if signed in either member or non-member profile
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
+
+  // Detect ?purchase=success on return from Stripe (non-member flow)
+  useEffect(() => {
+    if (searchParams.get("purchase") === "success") {
+      queryClient.invalidateQueries({ queryKey: ["user-credits"] });
+      refetchCredits();
+      toast.success("Class pass purchased! Your pass is now active.");
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   const handlePurchase = async (
     category: 'pilatesCycling' | 'otherClasses',
@@ -502,6 +516,36 @@ export default function ClassPasses() {
       </section>
 
       {/* Always show pricing tables */}
+      {/* Your Active Passes — visible to logged-in non-members with at least one pass */}
+      {user && !isMember && (credits?.classPasses?.length ?? 0) > 0 && (
+        <section className="py-10 bg-secondary/20 border-b border-border">
+          <div className="container mx-auto px-6">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="font-serif text-2xl mb-4">Your Active Passes</h2>
+              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {credits!.classPasses.map((pass) => (
+                  <div key={pass.id} className="card-luxury p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium capitalize">
+                        {pass.category === 'pilates_cycling' ? 'Pilates & Cycling' : 'Other Classes'}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gold/10 text-gold">Active</span>
+                    </div>
+                    <div className="text-3xl font-light text-gold mb-1">{pass.classes_remaining}</div>
+                    <div className="text-xs text-muted-foreground">
+                      classes remaining of {pass.classes_total}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Expires {new Date(pass.expires_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       <ClassPassPricingTables 
         onPurchase={handlePurchase}
         loadingPass={loadingPass}
