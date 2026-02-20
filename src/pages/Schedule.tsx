@@ -18,6 +18,7 @@ type ViewMode = "week" | "day";
 
 export default function Schedule() {
   const [weekOffset, setWeekOffset] = useState(0);
+  const [activeTab, setActiveTab] = useState("temp");
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); // 0-6 for Sun-Sat
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
@@ -103,7 +104,7 @@ export default function Schedule() {
   };
 
   // Soft launch mode - disable booking
-  const isSoftLaunch = true;
+  const isSoftLaunch = false;
 
   return (
     <Layout>
@@ -127,14 +128,14 @@ export default function Schedule() {
       </section>
 
       <div className="container py-6">
-        <Tabs defaultValue="temp" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="temp">Soft Launch Schedule</TabsTrigger>
             <TabsTrigger value="full">Full Schedule</TabsTrigger>
           </TabsList>
 
           <TabsContent value="temp">
-            <TempClassSchedule />
+            <TempClassSchedule onBookRequest={() => setActiveTab("full")} />
           </TabsContent>
 
           <TabsContent value="full">
