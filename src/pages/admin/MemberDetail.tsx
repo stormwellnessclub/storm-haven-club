@@ -211,6 +211,8 @@ export default function MemberDetail() {
   const [adminBookDate, setAdminBookDate] = useState<Date | undefined>(undefined);
   const [adminBookTime, setAdminBookTime] = useState("");
   const [adminBookClassSessionId, setAdminBookClassSessionId] = useState<string>("");
+  const [adminBookPaymentMethod, setAdminBookPaymentMethod] = useState<"credit" | "pass">("credit");
+  const [adminBookPassId, setAdminBookPassId] = useState<string>("");
   const [isAdminBooking, setIsAdminBooking] = useState(false);
   const [adjustmentType, setAdjustmentType] = useState<"add" | "remove">("add");
   const [adjustCreditType, setAdjustCreditType] = useState<CreditType>("class");
@@ -307,11 +309,22 @@ export default function MemberDetail() {
     enabled: !!id,
   });
 
-  // Fetch class passes for this member
+  // Fetch class passes for this member — query by member_id OR user_id to catch both imported and newly-purchased passes
   const { data: memberClassPasses = [], isLoading: isClassPassesLoading } = useQuery({
-    queryKey: ["member-class-passes-admin", id],
+    queryKey: ["member-class-passes-admin", id, member?.user_id],
     queryFn: async () => {
       if (!id) return [];
+      // Use user_id when available (most reliable), fall back to member_id
+      if (member?.user_id) {
+        const { data, error } = await supabase
+          .from("class_passes")
+          .select("*")
+          .eq("user_id", member.user_id)
+          .order("expires_at", { ascending: true });
+        if (error) throw error;
+        return data || [];
+      }
+      // Fallback: query by member_id
       const { data, error } = await supabase
         .from("class_passes")
         .select("*")
@@ -2129,13 +2142,19 @@ export default function MemberDetail() {
       {/* Admin Book Session Dialog — supports Wellness + Class bookings */}
       <Dialog open={showAdminBookWellnessDialog} onOpenChange={(open) => {
         setShowAdminBookWellnessDialog(open);
-        if (!open) { setAdminBookDate(undefined); setAdminBookTime(""); setAdminBookClassSessionId(""); }
+        if (!open) {
+          setAdminBookDate(undefined);
+          setAdminBookTime("");
+          setAdminBookClassSessionId("");
+          setAdminBookPaymentMethod("credit");
+          setAdminBookPassId("");
+        }
       }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Book Session for {member?.first_name}</DialogTitle>
             <DialogDescription>
-              Book a session using this member's credits.
+              Book a session using this member's credits or class passes.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -2145,61 +2164,95 @@ export default function MemberDetail() {
               <Select value={adminBookServiceType} onValueChange={(v: "red_light" | "dry_cryo" | "class") => {
                 setAdminBookServiceType(v);
                 setAdminBookClassSessionId("");
+                setAdminBookPaymentMethod("credit");
+                setAdminBookPassId("");
               }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="class">Class (using Class Credits)</SelectItem>
+                  <SelectItem value="class">Class</SelectItem>
                   <SelectItem value="red_light">Red Light Therapy</SelectItem>
                   <SelectItem value="dry_cryo">Dry Cryotherapy</SelectItem>
                 </SelectContent>
               </Select>
-              {adminBookServiceType !== "class" && (() => {
-                const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
-                return credit ? (
-                  <p className="text-xs text-muted-foreground">{credit.credits_remaining} of {credit.credits_total} credits remaining</p>
-                ) : (
-                  <p className="text-xs text-destructive">No active credits for this service</p>
-                );
-              })()}
-              {adminBookServiceType === "class" && (() => {
-                const credit = memberCredits.find(c => c.credit_type === "class");
-                return credit ? (
-                  <p className="text-xs text-muted-foreground">{credit.credits_remaining} of {credit.credits_total} class credits remaining</p>
-                ) : (
-                  <p className="text-xs text-destructive">No active class credits for this member</p>
-                );
-              })()}
             </div>
 
-            {/* Class session picker */}
+            {/* Class booking: payment method selector + session picker */}
             {adminBookServiceType === "class" ? (
-              <div className="space-y-2">
-                <Label>Select Class Session</Label>
-                <Select value={adminBookClassSessionId} onValueChange={setAdminBookClassSessionId}>
-                  <SelectTrigger><SelectValue placeholder="Choose an upcoming session..." /></SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {upcomingClassSessions.length === 0 ? (
-                      <SelectItem value="none" disabled>No upcoming sessions available</SelectItem>
-                    ) : (
-                      upcomingClassSessions.map((session: any) => {
-                        const isFull = session.current_enrollment >= session.max_capacity;
-                        const h = parseInt(session.start_time?.split(":")[0] || "0");
-                        const m = session.start_time?.split(":")[1] || "00";
-                        const ampm = h >= 12 ? "PM" : "AM";
-                        const h12 = h % 12 || 12;
-                        return (
-                          <SelectItem key={session.id} value={session.id} disabled={isFull}>
-                            {format(new Date(session.session_date + "T12:00:00"), "EEE MMM d")} — {session.class_type?.name} @ {h12}:{m} {ampm}
-                            {isFull ? " (FULL)" : ` (${session.current_enrollment}/${session.max_capacity})`}
-                          </SelectItem>
-                        );
-                      })
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+              <>
+                {/* Payment method: credit or pass */}
+                <div className="space-y-2">
+                  <Label>Payment Method</Label>
+                  {(() => {
+                    const classCredit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0);
+                    const activePasses = memberClassPasses.filter((p: any) => p.status === 'active' && p.classes_remaining > 0 && new Date(p.expires_at) > new Date());
+                    const hasCredits = !!classCredit;
+                    const hasPasses = activePasses.length > 0;
+                    if (!hasCredits && !hasPasses) {
+                      return <p className="text-xs text-destructive py-2">No active class credits or passes found for this member.</p>;
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {hasCredits && (
+                          <label className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${adminBookPaymentMethod === 'credit' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                            <input type="radio" className="mt-0.5" checked={adminBookPaymentMethod === 'credit'} onChange={() => { setAdminBookPaymentMethod('credit'); setAdminBookPassId(''); }} />
+                            <div>
+                              <p className="font-medium text-sm">Use Class Credit</p>
+                              <p className="text-xs text-muted-foreground">{classCredit!.credits_remaining} of {classCredit!.credits_total} remaining · expires {format(new Date(classCredit!.expires_at), 'MMM d, yyyy')}</p>
+                            </div>
+                          </label>
+                        )}
+                        {activePasses.map((pass: any) => (
+                          <label key={pass.id} className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${adminBookPaymentMethod === 'pass' && adminBookPassId === pass.id ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                            <input type="radio" className="mt-0.5" checked={adminBookPaymentMethod === 'pass' && adminBookPassId === pass.id} onChange={() => { setAdminBookPaymentMethod('pass'); setAdminBookPassId(pass.id); }} />
+                            <div>
+                              <p className="font-medium text-sm">{pass.pass_type} <span className="text-xs text-muted-foreground capitalize">({pass.category?.replace(/_/g, ' ')})</span></p>
+                              <p className="text-xs text-muted-foreground">{pass.classes_remaining} of {pass.classes_total} classes remaining · expires {format(new Date(pass.expires_at), 'MMM d, yyyy')}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Class session picker */}
+                <div className="space-y-2">
+                  <Label>Select Class Session</Label>
+                  <Select value={adminBookClassSessionId} onValueChange={setAdminBookClassSessionId}>
+                    <SelectTrigger><SelectValue placeholder="Choose an upcoming session..." /></SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {upcomingClassSessions.length === 0 ? (
+                        <SelectItem value="none" disabled>No upcoming sessions available</SelectItem>
+                      ) : (
+                        upcomingClassSessions.map((session: any) => {
+                          const isFull = session.current_enrollment >= session.max_capacity;
+                          const h = parseInt(session.start_time?.split(":")[0] || "0");
+                          const m = session.start_time?.split(":")[1] || "00";
+                          const ampm = h >= 12 ? "PM" : "AM";
+                          const h12 = h % 12 || 12;
+                          return (
+                            <SelectItem key={session.id} value={session.id} disabled={isFull}>
+                              {format(new Date(session.session_date + "T12:00:00"), "EEE MMM d")} — {session.class_type?.name} @ {h12}:{m} {ampm}
+                              {isFull ? " (FULL)" : ` (${session.current_enrollment}/${session.max_capacity})`}
+                            </SelectItem>
+                          );
+                        })
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
             ) : (
               <>
+                {/* Wellness credit info */}
+                {(() => {
+                  const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
+                  return credit ? (
+                    <p className="text-xs text-muted-foreground">{credit.credits_remaining} of {credit.credits_total} credits remaining</p>
+                  ) : (
+                    <p className="text-xs text-destructive">No active credits for this service</p>
+                  );
+                })()}
                 {/* Date picker for wellness */}
                 <div className="space-y-2">
                   <Label>Date</Label>
@@ -2237,7 +2290,11 @@ export default function MemberDetail() {
               disabled={
                 isAdminBooking ||
                 (adminBookServiceType === "class"
-                  ? !adminBookClassSessionId || !memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0)
+                  ? !adminBookClassSessionId || (
+                      adminBookPaymentMethod === "credit"
+                        ? !memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0)
+                        : !adminBookPassId
+                    )
                   : !adminBookDate || !adminBookTime || !memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0))
               }
               onClick={async () => {
@@ -2245,21 +2302,38 @@ export default function MemberDetail() {
                 setIsAdminBooking(true);
                 try {
                   if (adminBookServiceType === "class") {
-                    // Book class via RPC using the member's user_id
-                    const credit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0);
-                    if (!credit) throw new Error("No class credits available");
                     if (!member.user_id) throw new Error("Member has no linked user account");
-                    const { data, error } = await supabase.rpc("create_atomic_class_booking" as any, {
-                      _session_id: adminBookClassSessionId,
-                      _user_id: member.user_id,
-                      _payment_method: "credits",
-                      _member_credit_id: credit.id,
-                    });
-                    if (error) throw error;
-                    const result = data as any;
-                    if (!result?.success) throw new Error(result?.error || "Booking failed");
-                    toast.success(`Class booked for ${member.first_name} using 1 class credit`);
-                    queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
+                    
+                    if (adminBookPaymentMethod === "pass") {
+                      // Book using class pass
+                      if (!adminBookPassId) throw new Error("No class pass selected");
+                      const { data, error } = await supabase.rpc("create_atomic_class_booking" as any, {
+                        _session_id: adminBookClassSessionId,
+                        _user_id: member.user_id,
+                        _payment_method: "pass",
+                        _pass_id: adminBookPassId,
+                      });
+                      if (error) throw error;
+                      const result = data as any;
+                      if (!result?.success) throw new Error(result?.error || "Booking failed");
+                      toast.success(`Class booked for ${member.first_name} using 1 class pass`);
+                      queryClient.invalidateQueries({ queryKey: ["member-class-passes-admin", id, member.user_id] });
+                    } else {
+                      // Book using class credits
+                      const credit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0);
+                      if (!credit) throw new Error("No class credits available");
+                      const { data, error } = await supabase.rpc("create_atomic_class_booking" as any, {
+                        _session_id: adminBookClassSessionId,
+                        _user_id: member.user_id,
+                        _payment_method: "credits",
+                        _member_credit_id: credit.id,
+                      });
+                      if (error) throw error;
+                      const result = data as any;
+                      if (!result?.success) throw new Error(result?.error || "Booking failed");
+                      toast.success(`Class booked for ${member.first_name} using 1 class credit`);
+                      queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
+                    }
                     queryClient.invalidateQueries({ queryKey: ["member-credit-usage", id] });
                   } else {
                     // Book wellness session
@@ -2287,6 +2361,8 @@ export default function MemberDetail() {
                   setAdminBookDate(undefined);
                   setAdminBookTime("");
                   setAdminBookClassSessionId("");
+                  setAdminBookPaymentMethod("credit");
+                  setAdminBookPassId("");
                 } catch (error: any) {
                   toast.error(error.message || "Failed to book session");
                 } finally {
@@ -2295,7 +2371,7 @@ export default function MemberDetail() {
               }}
             >
               {isAdminBooking && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Book with Credit
+              Book Session
             </Button>
           </DialogFooter>
         </DialogContent>
