@@ -122,20 +122,16 @@ export default function Schedule() {
           {/* ── FULL SCHEDULE (view-only, no booking) ── */}
           <TabsContent value="full">
             {/* Soft-launch banner */}
-            <div className="bg-primary/10 border-2 border-primary/40 rounded-xl py-5 px-6 mb-6">
+            <div className="bg-muted/50 border border-border rounded-xl py-5 px-6 mb-6">
               <div className="flex items-start gap-4">
-                <CalendarDays className="h-7 w-7 text-primary flex-shrink-0 mt-0.5" />
+                <CalendarDays className="h-7 w-7 text-muted-foreground flex-shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-lg font-bold text-foreground">
-                    🎉 Reformer Pilates Soft Launch — Schedule Preview
+                    📅 Full Class Schedule — Coming Soon
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    February 20 – March 18, 2026 · View the live timetable below. To purchase a pass and book, visit the Class Schedule tab.
+                    Our full booking schedule will be available soon. In the meantime, use the <strong>Temp Schedule</strong> tab to view and book Reformer Pilates classes during our soft launch.
                   </p>
-                  <Link to="/class-passes" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-2">
-                    View class pass pricing
-                    <ChevronRight className="h-3 w-3" />
-                  </Link>
                 </div>
               </div>
             </div>
