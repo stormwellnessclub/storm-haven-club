@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -149,6 +150,10 @@ export function TempClassSchedule() {
             <p className="text-sm text-muted-foreground">
               February 20 – March 18, 2026 · All classes 50 min · Booking opens soon
             </p>
+            <Link to="/class-passes" className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-1">
+              Purchase a class pass to be ready when booking opens
+              <ChevronRight className="h-3 w-3" />
+            </Link>
           </div>
         </div>
       </div>
