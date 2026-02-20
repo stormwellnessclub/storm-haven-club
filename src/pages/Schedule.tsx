@@ -18,7 +18,7 @@ type ViewMode = "week" | "day";
 
 export default function Schedule() {
   const [weekOffset, setWeekOffset] = useState(0);
-  const [activeTab, setActiveTab] = useState("temp");
+  const [activeTab, setActiveTab] = useState("full");
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); // 0-6 for Sun-Sat
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
