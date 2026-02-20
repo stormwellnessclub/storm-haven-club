@@ -1,37 +1,24 @@
 
-## Problem
+## Change: Update the "Full Schedule" Tab Banner
 
-`ProtectedPortalRoute` currently only checks the `members` table. If an admin user visits `/portal`, they are not found in `members` (or are redirected to `/member` if they happen to have a member record), meaning they cannot view the non-member portal at all.
+The banner in the "Full Schedule" tab (lines 125–141 of `src/pages/Schedule.tsx`) currently shows the same soft-launch/Temp Schedule messaging. It needs to be replaced with a simple "Coming Soon" notice since the full booking schedule is not yet available.
 
-The fix: also query `user_roles` for any staff role. If the user has at least one role, allow them through the portal gate without redirecting.
+### File to Change
+**`src/pages/Schedule.tsx`** — lines 125–141
 
-## Technical Change
-
-**File:** `src/components/portal/ProtectedPortalRoute.tsx`
-
-Add a parallel check alongside the membership check:
-
-```ts
-// Check if user has any staff/admin role
-const { data: roleData } = await supabase
-  .from("user_roles")
-  .select("role")
-  .eq("user_id", user.id)
-  .limit(1)
-  .maybeSingle();
-
-const isStaff = !!roleData;
+### Before
+```
+🎉 Reformer Pilates Soft Launch — Schedule Preview
+February 20 – March 18, 2026 · View the live timetable below. To purchase a pass and book, visit the Class Schedule tab.
+[View class pass pricing link]
 ```
 
-Logic update:
-- If `isStaff` is true → allow through (do not redirect to `/member` even if they have a member record)
-- If `isMember` is true AND NOT staff → redirect to `/member` as before
-- If neither → redirect to `/auth` as before
+### After
+Replace the banner content with a "coming soon" message:
 
-This uses the existing `user_roles` table (the same one `useUserRoles` queries) so no schema changes are needed.
+- Icon: `CalendarDays` (keep same)
+- Heading: `📅 Full Class Schedule — Coming Soon`
+- Subtitle: `Our full booking schedule will be available soon. In the meantime, use the Temp Schedule tab to view and book Reformer Pilates classes during our soft launch.`
+- No link needed (or optionally a link back to the Temp Schedule tab)
 
-## Files to Change
-
-| File | Change |
-|------|--------|
-| `src/components/portal/ProtectedPortalRoute.tsx` | Add staff role check; bypass member redirect for staff |
+This makes the "Full Schedule" tab clearly communicate it's a future feature, distinct from the Temp Schedule tab's soft-launch messaging.
