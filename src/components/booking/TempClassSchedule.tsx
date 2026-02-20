@@ -1,10 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-import { startOfWeek, addDays, addWeeks, format, isBefore, isAfter, isSameDay } from "date-fns";
+import { startOfWeek, addDays, addWeeks, format, isSameDay } from "date-fns";
+
+function toDateOnly(d: Date) {
+  return d.getFullYear() * 10000 + d.getMonth() * 100 + d.getDate();
+}
 
 type ClassEntry = {
   time: string;
@@ -22,19 +26,20 @@ const MORNING_START = new Date(2026, 1, 23);     // Feb 23 (Mon)
 const SUNDAY_MORNING_START = new Date(2026, 2, 1); // Mar 1
 
 function getClassesForDate(date: Date): ClassEntry[] {
-  if (isBefore(date, SOFT_LAUNCH_START) || isAfter(date, SOFT_LAUNCH_END)) return [];
+  const dateNum = toDateOnly(date);
+  if (dateNum < toDateOnly(SOFT_LAUNCH_START) || dateNum > toDateOnly(SOFT_LAUNCH_END)) return [];
 
   const dow = date.getDay(); // 0=Sun
   const classes: ClassEntry[] = [];
 
   // Sunday mornings: from Mar 1
-  if (dow === 0 && !isBefore(date, SUNDAY_MORNING_START)) {
+  if (dow === 0 && dateNum >= toDateOnly(SUNDAY_MORNING_START)) {
     classes.push({ time: "10:00 AM", name: "Signature Flow", type: "signature" });
     classes.push({ time: "11:00 AM", name: "Reformer Sculpt", type: "reformer-sculpt" });
   }
 
   // Mon-Thu mornings: from Feb 23
-  if (dow >= 1 && dow <= 4 && !isBefore(date, MORNING_START)) {
+  if (dow >= 1 && dow <= 4 && dateNum >= toDateOnly(MORNING_START)) {
     classes.push({ time: "9:00 AM", name: "Signature Flow", type: "signature" });
     classes.push({ time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" });
   }
@@ -42,7 +47,7 @@ function getClassesForDate(date: Date): ClassEntry[] {
   // Friday
   if (dow === 5) {
     // Morning from Feb 23
-    if (!isBefore(date, MORNING_START)) {
+    if (dateNum >= toDateOnly(MORNING_START)) {
       classes.push({ time: "9:00 AM", name: "Signature Flow", type: "signature" });
       classes.push({ time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" });
     }
@@ -106,7 +111,7 @@ function TempClassCard({ entry, onBookRequest }: TempClassCardProps) {
 }
 
 export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => void }) {
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0); // Start at current week
 
   // Calculate the first full week that overlaps the soft launch
   const baseWeekStart = startOfWeek(SOFT_LAUNCH_START, { weekStartsOn: 0 });
