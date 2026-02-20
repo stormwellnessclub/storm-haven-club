@@ -31,7 +31,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { format, parse, parseISO } from "date-fns";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 interface BookingModalProps {
@@ -40,48 +40,6 @@ interface BookingModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Helper to determine which agreement is needed for a payment method
-function getRequiredAgreementForPaymentMethod(
-  paymentMethod: "credits" | "pass",
-  passType?: string
-): { key: string; name: string } | null {
-  if (paymentMethod === "credits") {
-    // Member credits require membership agreement
-    return { key: "membership_agreement_signed", name: "Membership Agreement" };
-  }
-  
-  if (paymentMethod === "pass" && passType) {
-    const lowerPassType = passType.toLowerCase();
-    
-    if (lowerPassType.includes("guest") || lowerPassType.includes("day")) {
-      return { key: "guest_pass_agreement_signed", name: "Guest Pass Agreement" };
-    }
-    if (lowerPassType.includes("single") || lowerPassType === "single_class_pass") {
-      return { key: "single_class_pass_agreement_signed", name: "Single Class Pass Agreement" };
-    }
-    if (lowerPassType.includes("10") || lowerPassType.includes("pack") || lowerPassType.includes("package")) {
-      return { key: "class_package_agreement_signed", name: "Class Package Agreement" };
-    }
-  }
-  
-  return null;
-}
-
-// Get waiver page URL parameter for specific agreement type
-function getWaiverUrlParam(agreementKey: string): string {
-  switch (agreementKey) {
-    case "guest_pass_agreement_signed":
-      return "guest_pass";
-    case "single_class_pass_agreement_signed":
-      return "single_class_pass";
-    case "class_package_agreement_signed":
-      return "class_package";
-    case "membership_agreement_signed":
-      return "membership";
-    default:
-      return "";
-  }
-}
 
 export function BookingModal({ session, open, onOpenChange }: BookingModalProps) {
   const { user } = useAuth();
@@ -117,16 +75,6 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   // Check liability waiver — check member profile first, fall back to non-member profile
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
 
-  // Check if user has the required agreement for the selected payment method
-  const requiredAgreement = useMemo(() => {
-    return getRequiredAgreementForPaymentMethod(paymentMethod, selectedPassType || undefined);
-  }, [paymentMethod, selectedPassType]);
-
-  const hasRequiredAgreement = useMemo(() => {
-    if (!requiredAgreement || !profile) return true;
-    return !!(profile as any)[requiredAgreement.key];
-  }, [requiredAgreement, profile]);
-
   if (!session) return null;
 
   const startTime = parse(session.start_time, "HH:mm:ss", new Date());
@@ -159,11 +107,10 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     navigate("/class-passes");
   };
 
-  const handleGoToWaivers = (waiverType?: string) => {
+  const handleGoToWaivers = () => {
     const returnUrl = encodeURIComponent(window.location.pathname);
-    const param = waiverType || (requiredAgreement ? getWaiverUrlParam(requiredAgreement.key) : "");
     onOpenChange(false);
-    navigate(`/member/waivers?return=${returnUrl}${param ? `&type=${param}` : ""}`);
+    navigate(`/member/waivers?return=${returnUrl}&type=liability_waiver`);
   };
 
   return (
@@ -264,7 +211,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           )}
 
-          {/* Liability Waiver Required Alert (takes priority) */}
+          {/* Liability Waiver Required Alert */}
           {user && !creditsLoading && !hasNoPaymentOptions && !hasLiabilityWaiver && (
             <Alert className="bg-destructive/10 border-destructive/30">
               <FileCheck className="h-4 w-4 text-destructive" />
@@ -274,7 +221,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                   You must sign the <strong>Liability Waiver</strong> before booking any class.
                 </p>
                 <Button 
-                  onClick={() => handleGoToWaivers("liability_waiver")}
+                  onClick={handleGoToWaivers}
                   variant="outline"
                   className="w-full"
                 >
@@ -286,31 +233,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </Alert>
           )}
 
-          {/* Agreement Required Alert (only if liability waiver is signed) */}
-          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && !hasRequiredAgreement && requiredAgreement && (
-            <Alert className="bg-accent/10 border-accent/30">
-              <FileCheck className="h-4 w-4 text-accent" />
-              <AlertTitle className="text-accent">Agreement Required</AlertTitle>
-              <AlertDescription className="mt-2">
-                <p className="mb-3">
-                  To book using your selected payment method, please sign the{" "}
-                  <strong>{requiredAgreement.name}</strong> first.
-                </p>
-                <Button 
-                  onClick={() => handleGoToWaivers()}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <FileCheck className="h-4 w-4 mr-2" />
-                  Go to Waivers & Agreements
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Payment Method Selection - Only show if user has all required agreements */}
-          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && hasRequiredAgreement && (
+          {/* Payment Method Selection */}
+          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Method</Label>
               <RadioGroup
@@ -383,11 +307,10 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          {/* Only show book button if user has all waivers/agreements signed */}
-          {(!user || (!hasNoPaymentOptions && hasLiabilityWaiver && hasRequiredAgreement)) && (
+          {(!user || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
             <Button
               onClick={handleBook}
-              disabled={bookClass.isPending || (user && (hasNoPaymentOptions || !hasLiabilityWaiver || !hasRequiredAgreement))}
+              disabled={bookClass.isPending || (user && (hasNoPaymentOptions || !hasLiabilityWaiver))}
             >
               {bookClass.isPending
                 ? "Booking..."
