@@ -362,7 +362,11 @@ export default function ClassPasses() {
   const { data: singleClassAgreements } = useAgreements("single_class_pass");
   const { data: classPackageAgreements } = useAgreements("class_package");
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
-  const [showWaiverFor, setShowWaiverFor] = useState<{ type: string; title: string } | null>(null);
+  const [showWaiverFor, setShowWaiverFor] = useState<{
+    type: string;
+    title: string;
+    pendingPurchase?: { category: 'pilatesCycling' | 'otherClasses'; passType: 'single' | 'tenPack' };
+  } | null>(null);
 
   const isMember = membership?.status === 'active';
   
@@ -387,20 +391,20 @@ export default function ClassPasses() {
 
     // Check liability waiver first (universal requirement — covers both members and non-members)
     if (!hasLiabilityWaiver) {
-      setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver" });
+      setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver", pendingPurchase: { category, passType } });
       toast.info("Please sign the Liability Waiver below before purchasing");
       return;
     }
 
     // Check if the specific agreement is needed — show inline signing prompt instead of blocking
     if (passType === 'single' && needsSingleClassAgreement) {
-      setShowWaiverFor({ type: "single_class_pass", title: "Single Class Pass Agreement" });
+      setShowWaiverFor({ type: "single_class_pass", title: "Single Class Pass Agreement", pendingPurchase: { category, passType } });
       toast.info("Please sign the agreement below before purchasing");
       return;
     }
     
     if (passType === 'tenPack' && needsClassPackageAgreement) {
-      setShowWaiverFor({ type: "class_package", title: "Class Package Agreement" });
+      setShowWaiverFor({ type: "class_package", title: "Class Package Agreement", pendingPurchase: { category, passType } });
       toast.info("Please sign the agreement below before purchasing");
       return;
     }
@@ -500,7 +504,13 @@ export default function ClassPasses() {
         <InlineWaiverPrompt
           agreementType={showWaiverFor.type}
           title={showWaiverFor.title}
-          onSigned={() => setShowWaiverFor(null)}
+          onSigned={() => {
+            const pending = showWaiverFor.pendingPurchase;
+            setShowWaiverFor(null);
+            if (pending) {
+              setTimeout(() => handlePurchase(pending.category, pending.passType), 300);
+            }
+          }}
         />
       )}
     </Layout>
