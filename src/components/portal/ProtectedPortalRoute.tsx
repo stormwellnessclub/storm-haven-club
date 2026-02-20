@@ -13,6 +13,8 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
   const [checking, setChecking] = useState(true);
   const [isMember, setIsMember] = useState(false);
 
+  const [isStaff, setIsStaff] = useState(false);
+
   const checkMembership = useCallback(async () => {
     if (!user) {
       setChecking(false);
@@ -20,14 +22,26 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
     }
 
     try {
-      const { data } = await supabase
-        .from("members")
-        .select("id, status")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const [memberResult, roleResult] = await Promise.all([
+        supabase
+          .from("members")
+          .select("id, status")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      // If user has an active/pending member record, they belong in the member portal
-      if (data && ["active", "pending_activation", "frozen", "past_due"].includes(data.status)) {
+      if (roleResult.data) {
+        setIsStaff(true);
+      } else if (
+        memberResult.data &&
+        ["active", "pending_activation", "frozen", "past_due"].includes(memberResult.data.status)
+      ) {
         setIsMember(true);
       }
     } catch (err) {
@@ -55,7 +69,7 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
     return <Navigate to="/auth?redirect=/portal" replace />;
   }
 
-  if (isMember) {
+  if (isMember && !isStaff) {
     return <Navigate to="/member" replace />;
   }
 
