@@ -110,7 +110,7 @@ export default function Schedule() {
       <div className="container py-6">
         <Tabs defaultValue="schedule" className="w-full">
           <TabsList className="mb-6">
-            <TabsTrigger value="schedule">Class Schedule</TabsTrigger>
+            <TabsTrigger value="schedule">Temp Schedule</TabsTrigger>
             <TabsTrigger value="full">Full Schedule</TabsTrigger>
           </TabsList>
 
