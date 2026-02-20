@@ -186,7 +186,7 @@ export default function Settings() {
               Payment Settings
             </CardTitle>
             <CardDescription>
-              Configure payment processing options
+              Payment processing configuration
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -197,13 +197,15 @@ export default function Settings() {
                 </div>
                 <div>
                   <p className="font-medium">Stripe</p>
-                  <p className="text-sm text-muted-foreground">Not connected</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="h-2 w-2 rounded-full bg-green-500 inline-block" />
+                    <p className="text-sm text-green-600 font-medium">Connected</p>
+                  </div>
                 </div>
               </div>
-              <Button>Connect</Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Connect your Stripe account to start accepting recurring membership payments.
+              Stripe is active and processing recurring membership payments. Keys are managed securely via backend configuration.
             </p>
           </CardContent>
         </Card>

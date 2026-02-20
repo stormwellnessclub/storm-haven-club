@@ -95,10 +95,19 @@ const formatCurrency = (amount: number, currency: string = "usd") => {
 export default function PaymentHistory() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
 
-  const { data: paymentHistory, isLoading: historyLoading } = useQuery({
+  interface PaymentHistoryRPCResult {
+    payment_attempts: PaymentHistoryItem[] | null;
+    summary: {
+      total_paid: number;
+      total_failed: number;
+      total_attempts: number;
+    } | null;
+  }
+
+  const { data: rpcResult, isLoading: historyLoading } = useQuery({
     queryKey: ["member-payment-history", membership?.id],
     queryFn: async () => {
-      if (!membership?.id) return [];
+      if (!membership?.id) return null;
 
       const { data, error } = await (supabase.rpc as any)("get_member_payment_history", {
         p_member_id: membership.id,
@@ -106,12 +115,21 @@ export default function PaymentHistory() {
       });
 
       if (error) throw error;
-      return (data as PaymentHistoryItem[]) || [];
+      return (data as PaymentHistoryRPCResult) || null;
     },
     enabled: !!membership?.id,
   });
 
+  const paymentHistory = rpcResult?.payment_attempts || [];
+  const rpcSummary = rpcResult?.summary;
+
   const isLoading = membershipLoading || historyLoading;
+
+  const successfulCount = rpcSummary?.total_attempts != null
+    ? (rpcSummary.total_attempts - (rpcSummary.total_failed ?? 0))
+    : paymentHistory.filter((p) => p.status === "succeeded").length;
+  const failedCount = rpcSummary?.total_failed ?? paymentHistory.filter((p) => p.status === "failed").length;
+  const totalAmount = rpcSummary?.total_paid ?? paymentHistory.filter((p) => p.status === "succeeded").reduce((sum, p) => sum + p.amount, 0);
 
   if (isLoading) {
     return (
@@ -136,9 +154,7 @@ export default function PaymentHistory() {
     );
   }
 
-  const successfulPayments = paymentHistory?.filter((p) => p.status === "succeeded") || [];
   const failedPayments = paymentHistory?.filter((p) => p.status === "failed") || [];
-  const totalAmount = successfulPayments.reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <MemberLayout title="Payment History">
@@ -168,7 +184,7 @@ export default function PaymentHistory() {
                 {formatCurrency(totalAmount)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {successfulPayments.length} successful payments
+                {successfulCount} successful payments
               </p>
             </CardContent>
           </Card>
