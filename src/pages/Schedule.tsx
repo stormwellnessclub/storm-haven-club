@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useClassSessions, ClassSession } from "@/hooks/useClassSessions";
 import { useMyBookings } from "@/hooks/useBooking";
 import { ClassCalendar } from "@/components/booking/ClassCalendar";
@@ -115,6 +116,12 @@ export default function Schedule() {
             <p className="text-muted-foreground text-lg">
               Book your classes up to 3 weeks in advance. Diamond members get 10 included classes per month.
             </p>
+            <div className="mt-4">
+              <Link to="/class-passes" className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+                Need passes? View class pass pricing
+                <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
