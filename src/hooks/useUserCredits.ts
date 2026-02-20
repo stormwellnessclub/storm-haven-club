@@ -28,6 +28,7 @@ export interface MemberCredit {
 export interface UserCreditsData {
   isMember: boolean;
   membershipType: string | null;
+  memberStatus: string | null;
   memberId: string | null;
   classCredits: MemberCredit | null;
   redLightCredits: MemberCredit | null;
@@ -47,6 +48,7 @@ export function useUserCredits() {
         return {
           isMember: false,
           membershipType: null,
+          memberStatus: null,
           memberId: null,
           classCredits: null,
           redLightCredits: null,
@@ -58,12 +60,12 @@ export function useUserCredits() {
 
       console.log("[useUserCredits] Fetching credits for user:", user.id);
 
-      // Check if user is a member
+      // Check if user is a member (active or frozen — frozen members can still use existing passes)
       const { data: member, error: memberError } = await supabase
         .from("members")
         .select("id, membership_type, status")
         .eq("user_id", user.id)
-        .eq("status", "active")
+        .in("status", ["active", "frozen"])
         .maybeSingle();
 
       if (memberError) {
@@ -72,6 +74,7 @@ export function useUserCredits() {
 
       const isMember = !!member;
       const membershipType = member?.membership_type || null;
+      const memberStatus = member?.status || null;
       const memberId = member?.id || null;
 
       console.log("[useUserCredits] Member data:", { isMember, membershipType, memberId });
@@ -141,6 +144,7 @@ export function useUserCredits() {
       return {
         isMember,
         membershipType,
+        memberStatus,
         memberId,
         classCredits,
         redLightCredits,
@@ -165,8 +169,10 @@ export function useAvailableCreditsForCategory(classCategory: string) {
     (pass) => pass.classes_remaining > 0 && isPassValidForClass(pass.category, classCategory)
   ) || [];
 
+  // Only active (non-frozen) members can use membership class credits
   const hasClassCredits =
     creditsData?.isMember &&
+    creditsData?.memberStatus === "active" &&
     creditsData?.classCredits &&
     creditsData.classCredits.credits_remaining > 0;
 
