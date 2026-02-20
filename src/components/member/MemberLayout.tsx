@@ -5,6 +5,7 @@ import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
 import { SoftLaunchHoursBanner } from "./SoftLaunchHoursBanner";
+import { ClassScheduleBanner } from "@/components/ClassScheduleBanner";
 import { WifiBanner } from "./WifiBanner";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
 import { User } from "lucide-react";
@@ -27,6 +28,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
       <div className="min-h-screen flex flex-col w-full bg-background">
         {/* Soft launch hours banner */}
         <SoftLaunchHoursBanner />
+        <ClassScheduleBanner />
         <WifiBanner />
         
         {/* Activation notice for pending_activation members */}
