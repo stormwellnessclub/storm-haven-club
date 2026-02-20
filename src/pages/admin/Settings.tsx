@@ -5,9 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Building, Bell, Shield, CreditCard, Users } from "lucide-react";
+import { Building, Bell, Shield, CreditCard, Users, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Settings() {
+  const [stripeStatus, setStripeStatus] = useState<"loading" | "connected" | "disconnected">("loading");
+
+  useEffect(() => {
+    supabase.functions.invoke("stripe-config").then(({ data, error }) => {
+      if (error || !data?.publishableKey?.startsWith("pk_")) {
+        setStripeStatus("disconnected");
+      } else {
+        setStripeStatus("connected");
+      }
+    });
+  }, []);
+
   return (
     <AdminLayout title="Settings">
       <div className="max-w-4xl space-y-6">
@@ -178,7 +192,7 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Payment Settings */}
+        {/* Payment Settings — live Stripe status */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -198,14 +212,32 @@ export default function Settings() {
                 <div>
                   <p className="font-medium">Stripe</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="h-2 w-2 rounded-full bg-green-500 inline-block" />
-                    <p className="text-sm text-green-600 font-medium">Connected</p>
+                    {stripeStatus === "loading" ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">Checking…</p>
+                      </>
+                    ) : stripeStatus === "connected" ? (
+                      <>
+                        <span className="h-2 w-2 rounded-full bg-green-500 inline-block" />
+                        <p className="text-sm text-green-600 font-medium">Connected</p>
+                      </>
+                    ) : (
+                      <>
+                        <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />
+                        <p className="text-sm text-amber-600 font-medium">Not Connected</p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
             <p className="text-sm text-muted-foreground">
-              Stripe is active and processing recurring membership payments. Keys are managed securely via backend configuration.
+              {stripeStatus === "connected"
+                ? "Stripe is active and processing recurring membership payments. Keys are managed securely via backend configuration."
+                : stripeStatus === "disconnected"
+                ? "Stripe publishable key is missing or invalid. Please verify your backend secrets are configured correctly."
+                : "Verifying Stripe connection…"}
             </p>
           </CardContent>
         </Card>

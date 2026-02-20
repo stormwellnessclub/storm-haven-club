@@ -10,7 +10,7 @@ interface CafePOSCartProps {
   updateQuantity: (itemId: string, delta: number) => void;
   memberSearch: string;
   setMemberSearch: (v: string) => void;
-  selectedMember: { name: string; cardOnFile: boolean } | null;
+  selectedMember: { name: string; cardOnFile: boolean; stripeCustomerId?: string | null } | null;
   onPlaceOrder: () => void;
   onClearCart: () => void;
   isPlacing: boolean;
@@ -35,6 +35,8 @@ export function CafePOSCart({
   const tax = calculateTax(subtotal);
   const total = subtotal + tax;
 
+  const canChargeCard = selectedMember?.cardOnFile && selectedMember?.stripeCustomerId;
+
   return (
     <div className="space-y-4">
       {/* Member Lookup */}
@@ -58,10 +60,14 @@ export function CafePOSCart({
           {selectedMember && (
             <div className="mt-3 p-3 bg-muted rounded-lg">
               <p className="font-medium">{selectedMember.name}</p>
-              {selectedMember.cardOnFile && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
+              {canChargeCard ? (
+                <p className="text-sm text-green-600 flex items-center gap-1">
                   <CreditCard className="h-3 w-3" />
-                  Card on file available
+                  Card on file — will charge via Stripe
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No card on file — order will be recorded only
                 </p>
               )}
             </div>
@@ -136,7 +142,7 @@ export function CafePOSCart({
           ) : (
             <>
               <CreditCard className="h-4 w-4 mr-2" />
-              {selectedMember?.cardOnFile ? "Charge Card on File" : "Place Order"} — ${total.toFixed(2)}
+              {canChargeCard ? `Charge Card on File` : "Record Order"} — ${total.toFixed(2)}
             </>
           )}
         </Button>
