@@ -10,11 +10,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, CalendarIcon, Snowflake, AlertCircle, CheckCircle2, Clock, X, DollarSign, ExternalLink } from "lucide-react";
+import { Loader2, CalendarIcon, Snowflake, AlertCircle, CheckCircle2, Clock, X, DollarSign, ExternalLink, CreditCard, PauseCircle } from "lucide-react";
 import { format, addMonths, isBefore, startOfTomorrow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useMemberFreezes, useFreezeEligibility, useCreateFreezeRequest, useCancelFreezeRequest } from "@/hooks/useMemberFreezes";
 import { useUserMembership } from "@/hooks/useUserMembership";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -27,6 +28,71 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+function BillingDuringFreezeCard({ subscriptionId, freezeEndDate }: { subscriptionId: string; freezeEndDate: string }) {
+  const { data: subData, isLoading } = useQuery({
+    queryKey: ["freeze-subscription-status", subscriptionId],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "get_subscription", subscriptionId },
+      });
+      if (error) throw error;
+      return data?.subscription as { status: string; pause_collection?: { behavior: string } | null } | null;
+    },
+  });
+
+  const isPaused = !!subData?.pause_collection;
+  const resumeDate = format(new Date(freezeEndDate), "MMMM d, yyyy");
+
+  return (
+    <Card className="border-purple-500/20 bg-purple-500/5">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-purple-600" />
+          Billing Status During Freeze
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Checking subscription status...
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Subscription</span>
+              <Badge variant="outline" className={isPaused
+                ? "bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs"
+                : "bg-green-500/10 text-green-600 border-green-500/30 text-xs"
+              }>
+                <PauseCircle className="h-3 w-3 mr-1" />
+                {isPaused ? "Paused" : subData?.status || "Unknown"}
+              </Badge>
+            </div>
+            {isPaused && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Monthly Charges</span>
+                  <span className="text-sm font-medium text-purple-600">Suspended</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Billing Resumes</span>
+                  <span className="text-sm font-medium">{resumeDate}</span>
+                </div>
+              </>
+            )}
+            <p className="text-xs text-muted-foreground mt-2">
+              {isPaused
+                ? "No membership dues will be charged while your account is frozen. Billing will resume automatically when your freeze ends."
+                : "Your subscription status will update shortly after the freeze is activated."}
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 const statusColors: Record<string, string> = {
   pending: "bg-accent/10 text-accent border-accent/20",
@@ -152,6 +218,14 @@ export default function FreezeRequest() {
                     It will automatically reactivate after this date.
                   </AlertDescription>
                 </Alert>
+              )}
+
+              {/* Billing Status During Freeze */}
+              {activeFreeze && membership?.stripe_subscription_id && (
+                <BillingDuringFreezeCard
+                  subscriptionId={membership.stripe_subscription_id}
+                  freezeEndDate={activeFreeze.actual_end_date!}
+                />
               )}
 
               {/* Pending Request Alert */}

@@ -338,6 +338,7 @@ export default function MemberMembership() {
           annualFeePaidAt={membership.annual_fee_paid_at}
           isFoundingMember={membership.is_founding_member || false}
           nextBillingDate={nextBillingDate}
+          memberStatus={membership.status}
         />
 
         {/* Inline Billing Section */}
