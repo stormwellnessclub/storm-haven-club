@@ -1,83 +1,58 @@
 
-## Fix: Class Schedule — 3 Issues to Resolve
+## Three Fixes: Mobile Layout, Waiver UX & Rename
 
-### Issues Identified
+### Issue 1 — Class cards cut off on mobile (Schedule page)
 
-**Issue 1 — "Book Class" on Temp Tab just redirects, doesn't open booking**
-The Temp Schedule tab (`TempClassSchedule.tsx`) has "Book Class" buttons that call `onBookRequest`, which in `Schedule.tsx` is wired to `() => setActiveTab("full")`. This simply switches to the Full Schedule tab — it never opens a booking modal for a specific class. The user ends up on the Full Schedule with no modal open, confused.
+The day-view card grid uses `sm:grid-cols-2` on a container with no horizontal padding inside `container`. On a narrow iPhone (375px), the two-column grid forces each card to be ~170px wide, which clips the content (class name, time, button). The cards need to be single-column on mobile and only go 2-column on larger screens.
 
-**Issue 2 — Schedule does not auto-advance to today's day**
-When the Full Schedule loads, `selectedDayIndex` starts as `null` and `viewMode` starts as `"week"` — so the week grid shows all 7 days. Today (Thursday, Feb 20) is Thursday and classes before today are shown as dimmed/past. There is no logic to auto-select today's day on load. The user has to scroll through the 7-column week view and manually click Thursday to see today's classes.
+Additionally, the filter buttons row (`flex-wrap gap-2`) overflows horizontally and wraps awkwardly on mobile. It should scroll horizontally rather than wrap.
 
-**Issue 3 — The Temp Schedule tab still exists and causes confusion**
-The Temp tab uses static hardcoded data (not real DB sessions). Its "Book Class" buttons cannot actually book because TempClassCard entries have no session ID. Real sessions now exist in the database. The Temp tab is obsolete and actively misleads users.
+The day selector strip and week nav also need tighter spacing on mobile.
 
----
+**Changes to `src/pages/Schedule.tsx`:**
+- Change the day-view grid from `grid gap-3 sm:grid-cols-2` to `grid gap-3 grid-cols-1 sm:grid-cols-2` (single column on mobile only)
+- Change the filters row from `flex flex-wrap gap-2 mb-6` to `flex gap-2 mb-6 overflow-x-auto pb-2 flex-nowrap` so filters scroll horizontally instead of wrapping across multiple lines
+- Add `px-4` to the inner container on mobile so cards don't sit flush against screen edges
+- Tighten week nav text from `min-w-[180px]` to `min-w-0 flex-1 text-center` so it doesn't overflow on small screens
 
-### Root Cause Analysis
+### Issue 2 — "Sign the waiver" message requires scrolling; waiver not inline
 
-**Why does the Temp tab's "Book Class" fail to open a booking modal?**
-`TempClassCard` calls `onBookRequest()` with no arguments — there is no session ID or real session object to pass. `Schedule.tsx`'s `handleBook(session)` requires a `ClassSession` object to set `selectedSession` and open the modal. The Temp tab has no real session data, so it can never open the booking modal directly.
+Currently when a user has no liability waiver, the `BookingModal` shows a red alert with a button that navigates them away to `/member/waivers`. This means they leave the modal, go sign a waiver on a completely different page, then have to come back and find the class again. On mobile this is especially jarring.
 
-**Why doesn't the schedule auto-advance to today?**
-`Schedule.tsx` initializes:
-```tsx
-const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
-const [viewMode, setViewMode] = useState<ViewMode>("week");
-```
-There is no `useEffect` or initial value logic that auto-selects today's day index on first load.
+**The fix: Inline the waiver signing directly inside the BookingModal.**
 
----
+Instead of navigating away, when `hasLiabilityWaiver` is false, render an inline expandable waiver card inside the modal itself. The user can:
+1. See a compact "Liability Waiver Required" notice
+2. Tap "Sign Waiver" → the waiver section expands inline showing the PDF link and a "I have read and agree" checkbox + sign button
+3. After signing, the modal automatically refreshes and shows the payment options — no page navigation needed
 
-### The Fix — 3 Changes, 1 File
+**Changes to `src/components/booking/BookingModal.tsx`:**
+- Add a local `showWaiverInline` boolean state (default `false`)
+- Replace the current "Sign Liability Waiver" navigate button with:
+  - A compact alert showing "Liability Waiver required to book"
+  - A "Sign Now" button that sets `showWaiverInline = true`
+  - When expanded: show a link to open the PDF + a checkbox "I agree to the Liability Waiver" + a "Sign & Continue" button that calls `signWaiver()` from `useUserProfile`
+- Import `useUserProfile` (already imported), `useQueryClient` to invalidate cache after signing
+- After signing, invalidate the `user-profile` query so `hasLiabilityWaiver` updates immediately and the payment method selection appears without closing the modal
 
-All fixes are in `src/pages/Schedule.tsx`. No other files need changing.
+This keeps the user in the booking flow the whole time — they never leave the modal.
 
-**Fix 1 — Remove the Temp Schedule tab entirely**
+### Issue 3 — Rename "Single Class Pass Agreement" → "Class Waiver"
 
-Remove the `TabsList`, `TabsTrigger`, and `TabsContent` for the `"temp"` tab. Keep only the Full Schedule content, rendered without the tabs wrapper. This eliminates the confusing static view and puts users directly on the bookable live calendar.
+The title appears in two places:
+1. `src/pages/member/Waivers.tsx` — line 244: `title: "Single Class Pass Agreement"`
+2. `src/pages/member/Waivers.tsx` — line 245: `description: "Required for single class pass purchases"`
 
-Remove:
-- `import { TempClassSchedule }` 
-- `const [activeTab, setActiveTab] = useState("full")`
-- The entire `<Tabs>` wrapper and the `"temp"` TabsContent
-- The `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` imports
-
-**Fix 2 — Auto-select today's day on load**
-
-Today is Thursday (day index 4 in a Sun=0 week). We need to calculate which day index corresponds to today at page load and default to day view on today.
-
-Add a computed initial value for `selectedDayIndex` and `viewMode`:
-
-```tsx
-// Calculate today's index within the current week (0=Sun, 6=Sat)
-const todayDayOfWeek = new Date().getDay(); // 0=Sun ... 6=Sat
-
-// Initial state: auto-select today in day view
-const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(todayDayOfWeek);
-const [viewMode, setViewMode] = useState<ViewMode>("day");
-```
-
-This means when the schedule loads, users see only today's classes in the day view — no scrolling through a 7-column grid needed. They can still click "Week" button or another day button to navigate.
-
-**Fix 3 — Ensure weekOffset=0 shows current week (already correct)**
-`weekOffset` starts at `0` which correctly anchors to the current week via `addWeeks(new Date(), 0)`. This is already correct — no change needed.
+**Change in `src/pages/member/Waivers.tsx`:**
+- Line 244: `"Single Class Pass Agreement"` → `"Class Waiver"`
+- Line 245: `"Required for single class pass purchases"` → `"Required for class pass purchases"`
 
 ---
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/pages/Schedule.tsx` | 1. Remove Temp tab and all its imports. 2. Default `selectedDayIndex` to today's day-of-week. 3. Default `viewMode` to `"day"`. |
-
-No changes to `TempClassSchedule.tsx`, `ClassCalendar.tsx`, `ClassCard.tsx`, `BookingModal.tsx`, or any hooks.
-
----
-
-### Result After Fix
-
-- User lands on `/schedule` → sees **today's classes** immediately in day view (e.g., Thursday classes)
-- User clicks "Book Class" → `handleBook(session)` fires → `BookingModal` opens with the correct session
-- No more confusing "Soft Launch Schedule" tab that doesn't actually book
-- User can click other day buttons or "Week" to browse the full week
+| File | Changes |
+|------|---------|
+| `src/pages/Schedule.tsx` | Mobile grid fix (single column), horizontal scroll filters, tighter nav |
+| `src/components/booking/BookingModal.tsx` | Inline waiver signing — no page navigation needed |
+| `src/pages/member/Waivers.tsx` | Rename "Single Class Pass Agreement" → "Class Waiver" |
