@@ -4,10 +4,8 @@ import { useClassSessions, ClassSession } from "@/hooks/useClassSessions";
 import { useMyBookings } from "@/hooks/useBooking";
 import { ClassCalendar } from "@/components/booking/ClassCalendar";
 import { BookingModal } from "@/components/booking/BookingModal";
-import { TempClassSchedule } from "@/components/booking/TempClassSchedule";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChevronLeft, ChevronRight, Flame, CircleDot, Bike, Activity, Sun, Moon, Calendar } from "lucide-react";
 import { startOfWeek, addWeeks, addDays, format, parse } from "date-fns";
 
@@ -18,9 +16,9 @@ type ViewMode = "week" | "day";
 
 export default function Schedule() {
   const [weekOffset, setWeekOffset] = useState(0);
-  const [activeTab, setActiveTab] = useState("full");
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); // 0-6 for Sun-Sat
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const todayDayOfWeek = new Date().getDay(); // 0=Sun ... 6=Sat
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(todayDayOfWeek);
+  const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [heatFilter, setHeatFilter] = useState<HeatFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
@@ -94,7 +92,6 @@ export default function Schedule() {
 
   const handleDaySelect = (dayIndex: number) => {
     if (viewMode === "day" && selectedDayIndex === dayIndex) {
-      // If clicking same day in day view, switch to week view
       setViewMode("week");
       setSelectedDayIndex(null);
     } else {
@@ -102,9 +99,6 @@ export default function Schedule() {
       setViewMode("day");
     }
   };
-
-  // Soft launch mode - disable booking
-  const isSoftLaunch = false;
 
   return (
     <Layout>
@@ -128,204 +122,163 @@ export default function Schedule() {
       </section>
 
       <div className="container py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="temp">Soft Launch Schedule</TabsTrigger>
-            <TabsTrigger value="full">Full Schedule</TabsTrigger>
-          </TabsList>
+        {/* Week Navigation */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                setWeekOffset((prev) => Math.max(prev - 1, 0));
+                setSelectedDayIndex(null);
+                setViewMode("week");
+              }}
+              disabled={weekOffset === 0}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[180px] text-center">
+              Week of {format(weekStart, "MMM d, yyyy")}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                setWeekOffset((prev) => Math.min(prev + 1, 2));
+                setSelectedDayIndex(null);
+                setViewMode("week");
+              }}
+              disabled={weekOffset >= 2}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
 
-          <TabsContent value="temp">
-            <TempClassSchedule onBookRequest={() => setActiveTab("full")} />
-          </TabsContent>
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant={viewMode === "week" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setViewMode("week");
+                setSelectedDayIndex(null);
+              }}
+            >
+              <Calendar className="h-4 w-4 mr-1" />
+              Week
+            </Button>
+          </div>
+        </div>
 
-          <TabsContent value="full">
-            {/* Soft Launch Banner - only on full schedule tab */}
-            {isSoftLaunch && (
-              <div className="bg-accent/10 border border-accent/30 rounded-lg mb-6">
-                <div className="py-4 px-6">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">🌙</span>
-                    <div>
-                      <h3 className="font-semibold text-foreground">Soft Launch Week</h3>
-                      <p className="text-sm text-muted-foreground">
-                        This is our preliminary class schedule. A special <strong className="text-foreground">soft launch schedule</strong> with 
-                        extended <strong className="text-foreground">Ramadan hours</strong> will be released this week.
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Booking will open once the soft launch schedule is live. Check back soon!
-                      </p>
-                    </div>
-                  </div>
-                </div>
+        {/* Day Selector */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+          {weekDays.map((day) => {
+            const isSelected = viewMode === "day" && selectedDayIndex === day.index;
+            const isToday = format(new Date(), "yyyy-MM-dd") === day.dateStr;
+            
+            return (
+              <Button
+                key={day.index}
+                variant={isSelected ? "default" : isToday ? "secondary" : "outline"}
+                size="sm"
+                className="flex-shrink-0 min-w-[70px] flex-col h-auto py-2"
+                onClick={() => handleDaySelect(day.index)}
+              >
+                <span className="text-xs font-medium">{day.dayName}</span>
+                <span className="text-lg font-bold">{day.dayNum}</span>
+                <span className="text-xs">{day.month}</span>
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* Filters Row */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <Button variant={categoryFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("all")}>All Classes</Button>
+          <Button variant={categoryFilter === "pilates" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("pilates")} className="gap-1"><CircleDot className="h-4 w-4" />Reformer Pilates</Button>
+          <Button variant={categoryFilter === "cycling" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("cycling")} className="gap-1"><Bike className="h-4 w-4" />Cycling</Button>
+          <Button variant={categoryFilter === "aerobics" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("aerobics")} className="gap-1"><Activity className="h-4 w-4" />Aerobics</Button>
+          <div className="w-px bg-border mx-1" />
+          <Button variant={timeFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setTimeFilter("all")}>All Times</Button>
+          <Button variant={timeFilter === "am" ? "default" : "outline"} size="sm" onClick={() => setTimeFilter("am")} className="gap-1"><Sun className="h-4 w-4" />AM</Button>
+          <Button variant={timeFilter === "pm" ? "default" : "outline"} size="sm" onClick={() => setTimeFilter("pm")} className="gap-1"><Moon className="h-4 w-4" />PM</Button>
+          <div className="w-px bg-border mx-1" />
+          <Button variant={heatFilter === true ? "destructive" : "outline"} size="sm" onClick={() => setHeatFilter(heatFilter === true ? "all" : true)} className="gap-1"><Flame className="h-4 w-4" />Hot Only</Button>
+        </div>
+
+        {/* Calendar or Day View */}
+        {viewMode === "week" ? (
+          <ClassCalendar
+            sessions={filteredSessions}
+            isLoading={isLoading}
+            onBook={handleBook}
+            bookedSessionIds={bookedSessionIds}
+            weekStartDate={weekStart}
+            bookingDisabled={false}
+          />
+        ) : (
+          <div className="space-y-3 max-w-2xl">
+            {isLoading ? (
+              <div className="text-center py-12 text-muted-foreground">Loading...</div>
+            ) : filteredSessions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No classes scheduled for this day
               </div>
-            )}
-
-            {/* Week Navigation */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    setWeekOffset((prev) => Math.max(prev - 1, 0));
-                    setSelectedDayIndex(null);
-                    setViewMode("week");
-                  }}
-                  disabled={weekOffset === 0}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm font-medium min-w-[180px] text-center">
-                  Week of {format(weekStart, "MMM d, yyyy")}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    setWeekOffset((prev) => Math.min(prev + 1, 2));
-                    setSelectedDayIndex(null);
-                    setViewMode("week");
-                  }}
-                  disabled={weekOffset >= 2}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* View Mode Toggle */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === "week" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setViewMode("week");
-                    setSelectedDayIndex(null);
-                  }}
-                >
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Week
-                </Button>
-              </div>
-            </div>
-
-            {/* Day Selector */}
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-              {weekDays.map((day) => {
-                const isSelected = viewMode === "day" && selectedDayIndex === day.index;
-                const isToday = format(new Date(), "yyyy-MM-dd") === day.dateStr;
-                
-                return (
-                  <Button
-                    key={day.index}
-                    variant={isSelected ? "default" : isToday ? "secondary" : "outline"}
-                    size="sm"
-                    className="flex-shrink-0 min-w-[70px] flex-col h-auto py-2"
-                    onClick={() => handleDaySelect(day.index)}
-                  >
-                    <span className="text-xs font-medium">{day.dayName}</span>
-                    <span className="text-lg font-bold">{day.dayNum}</span>
-                    <span className="text-xs">{day.month}</span>
-                  </Button>
-                );
-              })}
-            </div>
-
-            {/* Filters Row */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              <Button variant={categoryFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("all")}>All Classes</Button>
-              <Button variant={categoryFilter === "pilates" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("pilates")} className="gap-1"><CircleDot className="h-4 w-4" />Reformer Pilates</Button>
-              <Button variant={categoryFilter === "cycling" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("cycling")} className="gap-1"><Bike className="h-4 w-4" />Cycling</Button>
-              <Button variant={categoryFilter === "aerobics" ? "default" : "outline"} size="sm" onClick={() => setCategoryFilter("aerobics")} className="gap-1"><Activity className="h-4 w-4" />Aerobics</Button>
-              <div className="w-px bg-border mx-1" />
-              <Button variant={timeFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setTimeFilter("all")}>All Times</Button>
-              <Button variant={timeFilter === "am" ? "default" : "outline"} size="sm" onClick={() => setTimeFilter("am")} className="gap-1"><Sun className="h-4 w-4" />AM</Button>
-              <Button variant={timeFilter === "pm" ? "default" : "outline"} size="sm" onClick={() => setTimeFilter("pm")} className="gap-1"><Moon className="h-4 w-4" />PM</Button>
-              <div className="w-px bg-border mx-1" />
-              <Button variant={heatFilter === true ? "destructive" : "outline"} size="sm" onClick={() => setHeatFilter(heatFilter === true ? "all" : true)} className="gap-1"><Flame className="h-4 w-4" />Hot Only</Button>
-            </div>
-
-            {/* Calendar or Day View */}
-            {viewMode === "week" ? (
-              <ClassCalendar
-                sessions={filteredSessions}
-                isLoading={isLoading}
-                onBook={handleBook}
-                bookedSessionIds={bookedSessionIds}
-                weekStartDate={weekStart}
-                bookingDisabled={isSoftLaunch}
-              />
             ) : (
-              <div className="space-y-3 max-w-2xl">
-                {isLoading ? (
-                  <div className="text-center py-12 text-muted-foreground">Loading...</div>
-                ) : filteredSessions.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    No classes match your filters for this day
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {filteredSessions
-                      .sort((a, b) => a.start_time.localeCompare(b.start_time))
-                      .map((session) => {
-                        const startTime = parse(session.start_time, "HH:mm:ss", new Date());
-                        const spotsRemaining = session.max_capacity - session.current_enrollment;
-                        const name = session.class_type.name.toLowerCase();
-                        let categoryLabel = "Aerobics";
-                        if (name.includes("pilates") || name.includes("reformer")) categoryLabel = "Pilates";
-                        else if (name.includes("cycle")) categoryLabel = "Cycling";
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredSessions
+                  .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                  .map((session) => {
+                    const startTime = parse(session.start_time, "HH:mm:ss", new Date());
+                    const spotsRemaining = session.max_capacity - session.current_enrollment;
+                    const name = session.class_type.name.toLowerCase();
+                    let categoryLabel = "Aerobics";
+                    if (name.includes("pilates") || name.includes("reformer")) categoryLabel = "Pilates";
+                    else if (name.includes("cycle")) categoryLabel = "Cycling";
 
-                        return (
-                          <div key={session.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow bg-card">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <h3 className="font-semibold text-foreground">{session.class_type.name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-xs px-2 py-0.5 bg-secondary rounded">{categoryLabel}</span>
-                                  {session.class_type.is_heated && (
-                                    <span className="text-xs px-2 py-0.5 bg-destructive text-destructive-foreground rounded flex items-center gap-1">
-                                      <Flame className="h-3 w-3" /> Hot
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <span className="text-lg font-bold text-primary">{format(startTime, "h:mm a")}</span>
+                    return (
+                      <div key={session.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow bg-card">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 className="font-semibold text-foreground">{session.class_type.name}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs px-2 py-0.5 bg-secondary rounded">{categoryLabel}</span>
+                              {session.class_type.is_heated && (
+                                <span className="text-xs px-2 py-0.5 bg-destructive text-destructive-foreground rounded flex items-center gap-1">
+                                  <Flame className="h-3 w-3" /> Hot
+                                </span>
+                              )}
                             </div>
-                            <div className="text-sm text-muted-foreground space-y-1 mb-3">
-                              <div>50 min • {session.room}</div>
-                              <div>{spotsRemaining} spots left</div>
-                            </div>
-                            {isSoftLaunch ? (
-                              <div className="flex items-center gap-2">
-                                <Button disabled variant="outline" size="sm" className="flex-1 opacity-50">Book Class</Button>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">Booking opens soon</span>
-                              </div>
-                            ) : (
-                              <Button
-                                onClick={() => handleBook(session)}
-                                disabled={spotsRemaining <= 0 || bookedSessionIds.includes(session.id)}
-                                variant={bookedSessionIds.includes(session.id) ? "secondary" : "default"}
-                                size="sm"
-                                className="w-full"
-                              >
-                                {bookedSessionIds.includes(session.id) ? "Booked" : spotsRemaining <= 0 ? "Full" : "Book Class"}
-                              </Button>
-                            )}
                           </div>
-                        );
-                      })}
-                  </div>
-                )}
+                          <span className="text-lg font-bold text-primary">{format(startTime, "h:mm a")}</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1 mb-3">
+                          <div>50 min • {session.room}</div>
+                          <div>{spotsRemaining} spots left</div>
+                        </div>
+                        <Button
+                          onClick={() => handleBook(session)}
+                          disabled={spotsRemaining <= 0 || bookedSessionIds.includes(session.id)}
+                          variant={bookedSessionIds.includes(session.id) ? "secondary" : "default"}
+                          size="sm"
+                          className="w-full"
+                        >
+                          {bookedSessionIds.includes(session.id) ? "Booked" : spotsRemaining <= 0 ? "Full" : "Book Class"}
+                        </Button>
+                      </div>
+                    );
+                  })}
               </div>
             )}
+          </div>
+        )}
 
-            {/* Booking Modal */}
-            <BookingModal
-              session={selectedSession}
-              open={modalOpen}
-              onOpenChange={setModalOpen}
-            />
-          </TabsContent>
-        </Tabs>
+        {/* Booking Modal */}
+        <BookingModal
+          session={selectedSession}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+        />
       </div>
     </Layout>
   );
