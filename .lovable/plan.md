@@ -1,16 +1,37 @@
 
-## Change
+## Problem
 
-Remove "· All classes 50 min · 8 spots per class" from the banner subtitle in `src/components/booking/TempClassSchedule.tsx`, line 153.
+`ProtectedPortalRoute` currently only checks the `members` table. If an admin user visits `/portal`, they are not found in `members` (or are redirected to `/member` if they happen to have a member record), meaning they cannot view the non-member portal at all.
 
-**Before:**
-```
-February 20 – March 18, 2026 · All classes 50 min · 8 spots per class
+The fix: also query `user_roles` for any staff role. If the user has at least one role, allow them through the portal gate without redirecting.
+
+## Technical Change
+
+**File:** `src/components/portal/ProtectedPortalRoute.tsx`
+
+Add a parallel check alongside the membership check:
+
+```ts
+// Check if user has any staff/admin role
+const { data: roleData } = await supabase
+  .from("user_roles")
+  .select("role")
+  .eq("user_id", user.id)
+  .limit(1)
+  .maybeSingle();
+
+const isStaff = !!roleData;
 ```
 
-**After:**
-```
-February 20 – March 18, 2026
-```
+Logic update:
+- If `isStaff` is true → allow through (do not redirect to `/member` even if they have a member record)
+- If `isMember` is true AND NOT staff → redirect to `/member` as before
+- If neither → redirect to `/auth` as before
 
-**File:** `src/components/booking/TempClassSchedule.tsx` — line 153 only.
+This uses the existing `user_roles` table (the same one `useUserRoles` queries) so no schema changes are needed.
+
+## Files to Change
+
+| File | Change |
+|------|--------|
+| `src/components/portal/ProtectedPortalRoute.tsx` | Add staff role check; bypass member redirect for staff |
