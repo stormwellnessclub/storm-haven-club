@@ -447,9 +447,7 @@ export default function ClassPasses() {
           category,
           passType,
           isMember,
-          successUrl: isMember 
-            ? `${origin}/member/credits?purchase=success`
-            : `${origin}/class-passes?purchase=success`,
+          successUrl: `${origin}/class-passes?purchase=success`,
           cancelUrl: `${origin}/class-passes?purchase=cancelled`,
         },
       });
@@ -517,7 +515,7 @@ export default function ClassPasses() {
 
       {/* Always show pricing tables */}
       {/* Your Active Passes — visible to logged-in non-members with at least one pass */}
-      {user && !isMember && (credits?.classPasses?.length ?? 0) > 0 && (
+      {user && (credits?.classPasses?.length ?? 0) > 0 && (
         <section className="py-10 bg-secondary/20 border-b border-border">
           <div className="container mx-auto px-6">
             <div className="max-w-4xl mx-auto">
