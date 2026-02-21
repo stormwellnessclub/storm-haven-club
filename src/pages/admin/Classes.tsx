@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { TempClassSchedule } from "@/components/booking/TempClassSchedule";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -245,140 +247,153 @@ export default function Classes() {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="font-medium">No classes scheduled for today</p>
-            <p className="text-sm mt-1">
-              Go to <span className="font-medium">Schedules</span> to create recurring class schedules, 
-              then generate sessions.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sessions.map((session) => {
-              const status = getSessionStatus(session);
-              return (
-                <Card 
-                  key={session.id} 
-                  className={`cursor-pointer transition-colors hover:border-primary/50 ${
-                    selectedSession?.id === session.id ? 'border-primary' : ''
-                  } ${status === 'cancelled' ? 'opacity-60' : ''}`}
-                  onClick={() => setSelectedSession(session)}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-base">
-                          {session.class_types?.name || 'Unknown Class'}
-                        </CardTitle>
-                        <CardDescription>
-                          {session.instructors 
-                            ? `${session.instructors.first_name} ${session.instructors.last_name}`
-                            : 'No instructor assigned'
-                          }
-                        </CardDescription>
-                      </div>
-                      <Badge className={getStatusColor(status)}>
-                        {getStatusLabel(status)}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {formatTime(session.start_time)}
-                      </div>
-                      {session.room && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Dumbbell className="h-3 w-3" />
-                          {session.room}
+        <Tabs defaultValue="soft-launch">
+          <TabsList>
+            <TabsTrigger value="soft-launch">Soft Launch Schedule</TabsTrigger>
+            <TabsTrigger value="full-schedule">Full Schedule</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="soft-launch">
+            <TempClassSchedule />
+          </TabsContent>
+
+          <TabsContent value="full-schedule">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="font-medium">No classes scheduled for today</p>
+                <p className="text-sm mt-1">
+                  Go to <span className="font-medium">Schedules</span> to create recurring class schedules, 
+                  then generate sessions.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {sessions.map((session) => {
+                  const status = getSessionStatus(session);
+                  return (
+                    <Card 
+                      key={session.id} 
+                      className={`cursor-pointer transition-colors hover:border-primary/50 ${
+                        selectedSession?.id === session.id ? 'border-primary' : ''
+                      } ${status === 'cancelled' ? 'opacity-60' : ''}`}
+                      onClick={() => setSelectedSession(session)}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-base">
+                              {session.class_types?.name || 'Unknown Class'}
+                            </CardTitle>
+                            <CardDescription>
+                              {session.instructors 
+                                ? `${session.instructors.first_name} ${session.instructors.last_name}`
+                                : 'No instructor assigned'
+                              }
+                            </CardDescription>
+                          </div>
+                          <Badge className={getStatusColor(status)}>
+                            {getStatusLabel(status)}
+                          </Badge>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        {session.current_enrollment}/{session.max_capacity} enrolled
-                      </div>
-                      {status !== 'upcoming' && status !== 'cancelled' && (
-                        <div className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="h-3 w-3" />
-                          Attendance
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {formatTime(session.start_time)}
+                          </div>
+                          {session.room && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Dumbbell className="h-3 w-3" />
+                              {session.room}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      {status === 'in-progress' && (
-                        <Button 
-                          className="flex-1" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedSession(session);
-                            setRosterDialogOpen(true);
-                          }}
-                        >
-                          <UserCheck className="h-4 w-4 mr-1" />
-                          Take Attendance
-                        </Button>
-                      )}
-                      {status === 'upcoming' && (
-                        <>
-                          <Button 
-                            variant="outline" 
-                            className="flex-1" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedSession(session);
-                              setRosterDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Roster
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedSession(session);
-                              setCancelDialogOpen(true);
-                            }}
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                      {status === 'completed' && (
-                        <Button 
-                          variant="outline" 
-                          className="flex-1" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedSession(session);
-                            setRosterDialogOpen(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View Attendance
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Users className="h-3 w-3" />
+                            {session.current_enrollment}/{session.max_capacity} enrolled
+                          </div>
+                          {status !== 'upcoming' && status !== 'cancelled' && (
+                            <div className="flex items-center gap-1 text-green-600">
+                              <CheckCircle className="h-3 w-3" />
+                              Attendance
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          {status === 'in-progress' && (
+                            <Button 
+                              className="flex-1" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSession(session);
+                                setRosterDialogOpen(true);
+                              }}
+                            >
+                              <UserCheck className="h-4 w-4 mr-1" />
+                              Take Attendance
+                            </Button>
+                          )}
+                          {status === 'upcoming' && (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                className="flex-1" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedSession(session);
+                                  setRosterDialogOpen(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View Roster
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedSession(session);
+                                  setCancelDialogOpen(true);
+                                }}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          {status === 'completed' && (
+                            <Button 
+                              variant="outline" 
+                              className="flex-1" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSession(session);
+                                setRosterDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Attendance
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Roster/Attendance Dialog */}
