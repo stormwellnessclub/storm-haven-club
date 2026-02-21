@@ -1,37 +1,46 @@
 
 
-## Fix: Isolate Soft Launch from Permanent Schedule
+## Fix: Restore Both Missing Credits to Carly's Pass
 
 ### The Problem
-The permanent class schedule generator pre-created database sessions (e.g., "Signature Flow Pilates - All Levels" at 8:00 AM) that are not supposed to be live yet. These show up in the admin "Full Schedule" tab with incorrect enrollment counts, creating confusion. The enrollment data queries also don't filter by soft-launch class names, which risks cross-contamination between the two systems.
+Carly's 10-pack pass started at 10 and is now at 8. Two credits were deducted:
+
+1. **Feb 21, 8:00 AM booking** (confirmed) -- permanent schedule class that isn't happening
+2. **Feb 24, 5:00 PM booking** (cancelled) -- was cancelled but the credit was never restored
+
+Neither class is valid during the soft launch, and the cancelled booking should have returned its credit automatically but didn't.
 
 ### What Will Change
 
-**1. Filter enrollment queries to soft-launch classes only**
+**1. Cancel the Feb 21 booking**
+- Set booking `6958d372-386f-48e2-8274-8d6ac331c80b` status to `cancelled`
 
-Both `TempClassSchedule.tsx` and `SoftLaunchClassManagement.tsx` query ALL `class_sessions` for a date range. This means permanent schedule sessions (like "Signature Flow Pilates - All Levels") can accidentally match soft-launch entries via the loose `includes` name check.
+**2. Restore both credits to Carly's pass**
+- Update pass `0fbd26ad-e4ad-4dd3-a29d-768f31788f7b` from 8 back to **10** `classes_remaining`
 
-Fix: Add a filter to both enrollment queries so they only fetch sessions whose class type name exactly matches the soft-launch class names ("Signature Flow", "Reformer Flow", "Reformer Sculpt"). This is done by adding `.in('class_types.name', SOFT_LAUNCH_CLASS_NAMES)` to the queries.
-
-**2. Use exact name matching instead of `includes`**
-
-The current merge logic does `typeName?.includes(entry.name)` which means "Signature Flow Pilates - All Levels" would match "Signature Flow". Change to exact equality: `typeName === entry.name`.
-
-**3. Hide the admin Full Schedule tab during soft launch**
-
-The "Full Schedule" admin tab pulls ALL sessions from the database for today, including pre-generated permanent schedule classes that are not supposed to be active. Replace the full schedule content with a "Coming Soon" placeholder (matching the public schedule page pattern) so admins don't see phantom classes.
-
-**4. Fix phantom enrollment data**
-
-The permanent schedule session "Signature Flow Pilates - All Levels" at 8:00 AM on Feb 21 shows `current_enrollment: 2` but only has 1 actual confirmed booking. Reset this counter to match reality.
+**3. Reset the Feb 21 session enrollment to 0**
+- No valid bookings remain on session `13e38267-e5e7-4b00-be5a-20d00c0a3995`
 
 ### Technical Details
 
-| File | Change |
-|------|--------|
-| `src/components/booking/TempClassSchedule.tsx` | Filter enrollment query with `.in('class_types.name', SOFT_LAUNCH_CLASS_NAMES)`. Change `typeName?.includes(className)` to `typeName === className` in `getEnrollmentForSlot`. |
-| `src/components/admin/SoftLaunchClassManagement.tsx` | Filter DB sessions query with `.in('class_types.name', SOFT_LAUNCH_CLASS_NAMES)`. Change `typeName?.includes(entry.name)` to `typeName === entry.name` in merge logic. |
-| `src/pages/admin/Classes.tsx` | Replace the full-schedule tab content with a "Coming Soon" placeholder during soft launch, removing the live session list that shows permanent schedule data. |
-| `src/lib/softLaunchSchedule.ts` | Export `SOFT_LAUNCH_CLASS_NAMES` (already exported, just confirming it's used). |
-| Database | Fix `current_enrollment` on the mismatched session (2 to 1). |
+```sql
+-- 1. Cancel the phantom booking
+UPDATE class_bookings
+SET status = 'cancelled'
+WHERE id = '6958d372-386f-48e2-8274-8d6ac331c80b';
+
+-- 2. Restore both credits (cancelled booking never refunded + phantom booking)
+UPDATE class_passes
+SET classes_remaining = 10
+WHERE id = '0fbd26ad-e4ad-4dd3-a29d-768f31788f7b';
+
+-- 3. Reset enrollment on the phantom session
+UPDATE class_sessions
+SET current_enrollment = 0
+WHERE id = '13e38267-e5e7-4b00-be5a-20d00c0a3995';
+```
+
+### Follow-up: Prevent Future Credit Leaks
+
+The `create_atomic_class_booking` RPC deducts credits on booking but there is no corresponding logic to restore credits when a booking is cancelled. A cancellation handler should be added to automatically refund credits/pass uses when bookings are set to `cancelled`. This can be addressed separately.
 
