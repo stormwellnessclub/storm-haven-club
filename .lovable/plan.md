@@ -1,38 +1,37 @@
 
 
-## Fix: Booking Confirmation and Visibility
+## Fix: Isolate Soft Launch from Permanent Schedule
 
 ### The Problem
-When someone books a class from the temp schedule (/schedule page), they only see a brief toast message "Class booked successfully!" that disappears after a few seconds. There is:
-- No confirmation email sent
-- No detailed confirmation with class name, date, and time
-- No clear direction to view the booking in their portal
+The permanent class schedule generator pre-created database sessions (e.g., "Signature Flow Pilates - All Levels" at 8:00 AM) that are not supposed to be live yet. These show up in the admin "Full Schedule" tab with incorrect enrollment counts, creating confusion. The enrollment data queries also don't filter by soft-launch class names, which risks cross-contamination between the two systems.
 
-The bookings **are** being saved to the database (Sahar's booking is there), and they **should** appear in the member portal's "My Bookings" page. But with just a fleeting toast, users have no confidence the booking went through.
+### What Will Change
 
-### The Fix
+**1. Filter enrollment queries to soft-launch classes only**
 
-**1. Better confirmation toast with details (useTempClassBooking.ts)**
-- Change the `onSuccess` callback to accept the class details (name, date, time) and show a richer toast: "Booking Confirmed -- Signature Flow on Feb 20 at 8:00 PM"
-- Include a "View My Bookings" link in the toast that navigates to `/member/bookings` (for members) or `/portal/bookings` (for non-members)
+Both `TempClassSchedule.tsx` and `SoftLaunchClassManagement.tsx` query ALL `class_sessions` for a date range. This means permanent schedule sessions (like "Signature Flow Pilates - All Levels") can accidentally match soft-launch entries via the loose `includes` name check.
 
-**2. Send confirmation email (useTempClassBooking.ts)**
-- After a successful booking, call the `send-email` edge function with `type: "booking_confirmation"` -- the same pattern the full `useBookClass` hook already uses
-- Include class name, date, time, and location in the email data
+Fix: Add a filter to both enrollment queries so they only fetch sessions whose class type name exactly matches the soft-launch class names ("Signature Flow", "Reformer Flow", "Reformer Sculpt"). This is done by adding `.in('class_types.name', SOFT_LAUNCH_CLASS_NAMES)` to the queries.
 
-**3. Invalidate portal booking queries (useTempClassBooking.ts)**
-- Add `portal-bookings` to the list of invalidated query keys so non-member portal bookings also refresh immediately
+**2. Use exact name matching instead of `includes`**
+
+The current merge logic does `typeName?.includes(entry.name)` which means "Signature Flow Pilates - All Levels" would match "Signature Flow". Change to exact equality: `typeName === entry.name`.
+
+**3. Hide the admin Full Schedule tab during soft launch**
+
+The "Full Schedule" admin tab pulls ALL sessions from the database for today, including pre-generated permanent schedule classes that are not supposed to be active. Replace the full schedule content with a "Coming Soon" placeholder (matching the public schedule page pattern) so admins don't see phantom classes.
+
+**4. Fix phantom enrollment data**
+
+The permanent schedule session "Signature Flow Pilates - All Levels" at 8:00 AM on Feb 21 shows `current_enrollment: 2` but only has 1 actual confirmed booking. Reset this counter to match reality.
 
 ### Technical Details
 
-**File: `src/hooks/useTempClassBooking.ts`**
-
-| Change | Detail |
-|--------|--------|
-| Pass class details to onSuccess | Change `bookMutation.mutate` call signature to pass `className`, `date`, `time` through to the success handler |
-| Rich toast | Replace generic toast with: `toast.success("Booking Confirmed", { description: "Signature Flow - Thu, Feb 20 at 8:00 PM", action: { label: "View Bookings", onClick: () => navigate("/member/bookings") } })` |
-| Send confirmation email | After successful RPC call, invoke `supabase.functions.invoke("send-email", { body: { type: "booking_confirmation", to: userEmail, data: { class_name, date, time, location } } })` |
-| Invalidate portal queries | Add `queryClient.invalidateQueries({ queryKey: ["portal-bookings"] })` to onSuccess |
-
-No other files need changes. The member portal bookings page already correctly queries and displays bookings from `class_bookings`.
+| File | Change |
+|------|--------|
+| `src/components/booking/TempClassSchedule.tsx` | Filter enrollment query with `.in('class_types.name', SOFT_LAUNCH_CLASS_NAMES)`. Change `typeName?.includes(className)` to `typeName === className` in `getEnrollmentForSlot`. |
+| `src/components/admin/SoftLaunchClassManagement.tsx` | Filter DB sessions query with `.in('class_types.name', SOFT_LAUNCH_CLASS_NAMES)`. Change `typeName?.includes(entry.name)` to `typeName === entry.name` in merge logic. |
+| `src/pages/admin/Classes.tsx` | Replace the full-schedule tab content with a "Coming Soon" placeholder during soft launch, removing the live session list that shows permanent schedule data. |
+| `src/lib/softLaunchSchedule.ts` | Export `SOFT_LAUNCH_CLASS_NAMES` (already exported, just confirming it's used). |
+| Database | Fix `current_enrollment` on the mismatched session (2 to 1). |
 
