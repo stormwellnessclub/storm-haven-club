@@ -4556,6 +4556,16 @@ export type Database = {
       }
       current_user_email: { Args: never; Returns: string }
       current_user_email_lower: { Args: never; Returns: string }
+      find_or_create_temp_class_session: {
+        Args: {
+          _class_name: string
+          _end_time: string
+          _max_capacity?: number
+          _session_date: string
+          _start_time: string
+        }
+        Returns: string
+      }
       generate_class_sessions: {
         Args: { _start_date?: string; _weeks_ahead?: number }
         Returns: {
