@@ -414,13 +414,16 @@ export function PaymentSectionEnhanced({
           </div>
         </div>
 
-        {/* Important Notice */}
-        <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-          <p className="text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        {/* Non-Refundable Fee Warning */}
+        <div className="p-4 bg-destructive/10 border-2 border-destructive/40 rounded-lg">
+          <p className="text-sm text-destructive flex items-start gap-2 font-medium">
+            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
             <span>
-              <strong>Your card will NOT be charged today.</strong> Payment is only processed 
-              when your membership is approved and you choose to activate it.
+              <strong className="text-base">⚠️ IMPORTANT: Your card WILL be charged upon approval.</strong>
+              <br className="mb-1" />
+              By saving your payment method, you authorize Storm Wellness Club to charge the 
+              <strong> non-refundable</strong> initiation fee (Women: $300 / Men: $175) when your 
+              membership is approved. <strong>Do not apply if you are not ready to commit to a 1-year membership.</strong>
             </span>
           </p>
         </div>
@@ -527,7 +530,7 @@ export function PaymentSectionEnhanced({
               onCheckedChange={(checked) => onCheckboxChange("creditCardAuth", checked as boolean)}
             />
             <Label htmlFor="creditCardAuth" className="font-normal cursor-pointer text-sm leading-relaxed">
-              I authorize Storm Wellness Club to charge my saved payment method upon membership activation. *
+              I authorize Storm Wellness Club to charge the <strong>non-refundable</strong> initiation fee (Women: $300 / Men: $175) and recurring membership dues to this card. I understand the initiation fee is charged upon approval and is <strong>non-refundable</strong>. *
             </Label>
           </div>
         </div>
@@ -555,7 +558,7 @@ export function PaymentSectionEnhanced({
               onCheckedChange={(checked) => onCheckboxChange("paymentAcknowledged", checked as boolean)}
             />
             <Label htmlFor="paymentAcknowledged" className="font-normal cursor-pointer text-sm leading-relaxed">
-              I acknowledge that the initiation fee will be charged upon activation and I agree to the billing terms. *
+              I understand this is a minimum <strong>1-year membership commitment</strong>. I agree not to file a chargeback or payment dispute for the initiation fee or any authorized membership charges. *
             </Label>
           </div>
         </div>
