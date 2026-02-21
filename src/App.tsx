@@ -79,6 +79,7 @@ import Reports from "./pages/admin/Reports";
 import FrontDeskPOS from "./pages/admin/FrontDeskPOS";
 import Marketing from "./pages/admin/Marketing";
 import NonMemberAccounts from "./pages/admin/NonMemberAccounts";
+import NonMemberDetail from "./pages/admin/NonMemberDetail";
 import DesignSystem from "./pages/DesignSystem";
 import GuestFeedback from "./pages/GuestFeedback";
 import { ProtectedPortalRoute } from "@/components/portal/ProtectedPortalRoute";
@@ -190,6 +191,7 @@ const App = () => (
               <Route path="/admin/front-desk" element={<ProtectedAdminRoute><FrontDeskPOS /></ProtectedAdminRoute>} />
               <Route path="/admin/marketing" element={<ProtectedAdminRoute><Marketing /></ProtectedAdminRoute>} />
               <Route path="/admin/non-member-accounts" element={<ProtectedAdminRoute><NonMemberAccounts /></ProtectedAdminRoute>} />
+              <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
