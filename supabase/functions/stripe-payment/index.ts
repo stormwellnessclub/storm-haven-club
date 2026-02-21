@@ -66,7 +66,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card';
   // For non-member recovery checkout
   serviceName?: string;
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
@@ -5885,6 +5885,209 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ url: recoverySession.url }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'admin_refresh_nonmember_card': {
+        logStep("Admin refreshing non-member card", { userId: body.userId });
+
+        // Verify admin role
+        const { data: adminRefreshRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+        const adminRefreshRoleNames = (adminRefreshRoles || []).map((r: any) => r.role);
+        if (!['super_admin', 'admin', 'manager', 'front_desk'].some(r => adminRefreshRoleNames.includes(r))) {
+          throw new Error('Unauthorized: admin role required');
+        }
+
+        const targetUserId = body.userId;
+        if (!targetUserId) throw new Error('userId is required');
+
+        // Get non-member profile to find email
+        const { data: nmProfile } = await supabase
+          .from('non_member_profiles')
+          .select('email, stripe_customer_id')
+          .eq('user_id', targetUserId)
+          .maybeSingle();
+
+        if (!nmProfile?.email) throw new Error('Non-member profile not found');
+
+        let nmCustomerId = nmProfile.stripe_customer_id;
+        if (!nmCustomerId) {
+          // Try to find by email in Stripe
+          const nmCustomers = await stripe.customers.list({ email: nmProfile.email, limit: 1 });
+          if (nmCustomers.data.length === 0) throw new Error('No Stripe customer found for this email');
+          nmCustomerId = nmCustomers.data[0].id;
+        }
+
+        // Get default payment method
+        const nmCustomer = await stripe.customers.retrieve(nmCustomerId);
+        if (nmCustomer.deleted) throw new Error('Stripe customer has been deleted');
+
+        const nmDefaultPmId = nmCustomer.invoice_settings?.default_payment_method as string | null;
+        let cardUpdate: Record<string, any> = { stripe_customer_id: nmCustomerId };
+
+        if (nmDefaultPmId) {
+          const nmPm = await stripe.paymentMethods.retrieve(nmDefaultPmId);
+          cardUpdate.card_brand = nmPm.card?.brand || null;
+          cardUpdate.card_last4 = nmPm.card?.last4 || null;
+          cardUpdate.card_exp_month = nmPm.card?.exp_month || null;
+          cardUpdate.card_exp_year = nmPm.card?.exp_year || null;
+        } else {
+          // Try listing payment methods
+          const nmPms = await stripe.paymentMethods.list({ customer: nmCustomerId, type: 'card', limit: 1 });
+          if (nmPms.data.length > 0) {
+            const firstPm = nmPms.data[0];
+            cardUpdate.card_brand = firstPm.card?.brand || null;
+            cardUpdate.card_last4 = firstPm.card?.last4 || null;
+            cardUpdate.card_exp_month = firstPm.card?.exp_month || null;
+            cardUpdate.card_exp_year = firstPm.card?.exp_year || null;
+          }
+        }
+
+        await supabase.from('non_member_profiles').update(cardUpdate).eq('user_id', targetUserId);
+
+        return new Response(
+          JSON.stringify({ success: true, ...cardUpdate }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'admin_import_stripe_class_passes': {
+        logStep("Admin importing Stripe class passes", { priceId: (body as any).priceId, confirm: (body as any).confirm });
+
+        // Verify admin role
+        const { data: adminImportRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+        const adminImportRoleNames = (adminImportRoles || []).map((r: any) => r.role);
+        if (!['super_admin', 'admin', 'manager'].some(r => adminImportRoleNames.includes(r))) {
+          throw new Error('Unauthorized: admin role required');
+        }
+
+        const importPriceId = (body as any).priceId;
+        const confirmImport = (body as any).confirm === true;
+        const selectedSessionIds: string[] = (body as any).sessionIds || [];
+
+        if (!importPriceId) throw new Error('priceId is required');
+
+        // Determine category and pass type from price ID
+        let importCategory = 'other';
+        let importPassType = 'single';
+        let importClassCount = 1;
+        
+        const pcSingle = [STRIPE_PRODUCTS.classPasses.pilatesCycling.single.member, STRIPE_PRODUCTS.classPasses.pilatesCycling.single.nonMember];
+        const pcTen = [STRIPE_PRODUCTS.classPasses.pilatesCycling.tenPack.member, STRIPE_PRODUCTS.classPasses.pilatesCycling.tenPack.nonMember];
+        const otSingle = [STRIPE_PRODUCTS.classPasses.otherClasses.single.member, STRIPE_PRODUCTS.classPasses.otherClasses.single.nonMember];
+        const otTen = [STRIPE_PRODUCTS.classPasses.otherClasses.tenPack.member, STRIPE_PRODUCTS.classPasses.otherClasses.tenPack.nonMember];
+
+        if (pcSingle.includes(importPriceId)) { importCategory = 'pilates_cycling'; importPassType = 'single'; importClassCount = 1; }
+        else if (pcTen.includes(importPriceId)) { importCategory = 'pilates_cycling'; importPassType = '10-pack'; importClassCount = 10; }
+        else if (otSingle.includes(importPriceId)) { importCategory = 'other'; importPassType = 'single'; importClassCount = 1; }
+        else if (otTen.includes(importPriceId)) { importCategory = 'other'; importPassType = '10-pack'; importClassCount = 10; }
+
+        // Fetch completed checkout sessions from Stripe with this price
+        const checkoutSessions = await stripe.checkout.sessions.list({
+          limit: 100,
+          status: 'complete',
+        });
+
+        // Filter to sessions that contain the target price
+        const matchingSessions: any[] = [];
+        for (const session of checkoutSessions.data) {
+          if (!session.customer_email) continue;
+          const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
+          const hasTargetPrice = lineItems.data.some((li: any) => li.price?.id === importPriceId);
+          if (hasTargetPrice) {
+            matchingSessions.push({
+              sessionId: session.id,
+              customerEmail: session.customer_email,
+              customerName: session.customer_details?.name || '',
+              amount: session.amount_total || 0,
+              currency: session.currency || 'usd',
+              created: Math.floor(new Date(session.created * 1000).getTime() / 1000),
+              productName: lineItems.data[0]?.description || 'Class Pass',
+            });
+          }
+        }
+
+        // Match emails to auth accounts
+        const emailList = [...new Set(matchingSessions.map(s => s.customerEmail.toLowerCase()))];
+        
+        // Get user IDs by email from profiles
+        const { data: profileMatches } = await supabase
+          .from('profiles')
+          .select('user_id, email')
+          .in('email', emailList);
+
+        const emailToUserId: Record<string, string> = {};
+        (profileMatches || []).forEach((p: any) => {
+          if (p.email) emailToUserId[p.email.toLowerCase()] = p.user_id;
+        });
+
+        // Check which sessions are already imported (by checking existing class_passes metadata)
+        // We'll check if a pass with matching purchased_at date and user exists
+        const { data: existingPasses } = await supabase
+          .from('class_passes')
+          .select('user_id, purchased_at')
+          .eq('category', importCategory)
+          .eq('pass_type', importPassType);
+
+        const existingKeys = new Set(
+          (existingPasses || []).map((p: any) => `${p.user_id}_${p.purchased_at?.split('T')[0]}`)
+        );
+
+        const sessionsWithStatus = matchingSessions.map(s => {
+          const matchedUserId = emailToUserId[s.customerEmail.toLowerCase()];
+          const purchaseDate = new Date(s.created * 1000).toISOString().split('T')[0];
+          const alreadyImported = matchedUserId ? existingKeys.has(`${matchedUserId}_${purchaseDate}`) : false;
+          return {
+            ...s,
+            matched: !!matchedUserId,
+            matchedUserId,
+            alreadyImported,
+          };
+        });
+
+        if (!confirmImport) {
+          // Preview mode
+          return new Response(
+            JSON.stringify({ success: true, sessions: sessionsWithStatus }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Confirm mode: import selected sessions
+        let importedCount = 0;
+        for (const session of sessionsWithStatus) {
+          if (!selectedSessionIds.includes(session.sessionId)) continue;
+          if (!session.matched || session.alreadyImported || !session.matchedUserId) continue;
+
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 90); // 90-day expiration
+
+          const { error: insertError } = await supabase.from('class_passes').insert({
+            user_id: session.matchedUserId,
+            category: importCategory,
+            pass_type: importPassType,
+            classes_total: importClassCount,
+            classes_remaining: importClassCount,
+            price_paid: session.amount / 100,
+            is_member_price: false,
+            expires_at: expiresAt.toISOString(),
+            purchased_at: new Date(session.created * 1000).toISOString(),
+            status: 'active',
+          });
+
+          if (!insertError) importedCount++;
+          else logStep("Failed to import session", { sessionId: session.sessionId, error: insertError.message });
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, imported: importedCount }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
