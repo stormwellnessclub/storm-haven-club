@@ -1,88 +1,77 @@
 
 
-## Redesign: Full-Page Non-Member Account Management
+## Fix: Clear Payment Disclosures to Stop Chargebacks
 
-### Problem
+### What's Changing
 
-The current Non-Member Accounts page crams everything into small tabs and a narrow slide-out sheet. You can't edit anything inline, you have to copy-paste emails between tabs, and the detail view is a tiny sidebar. Compare this to the Member Detail page (`/admin/members/:id`) which gives a full page with inline editing, tabbed sections, and direct action buttons -- that's the standard we need to match.
-
-### Solution
-
-Replace the fragmented tabbed layout with a **master-detail pattern**:
-
-1. **List View** (`/admin/non-member-accounts`) -- Full-width table of all non-member accounts with search, filters, and quick-action buttons directly in each row (add package, send activation, view detail)
-2. **Detail View** (`/admin/non-member-accounts/:userId`) -- A dedicated full-page view for each non-member (modeled after the Member Detail page) with:
-   - Editable profile section (name, email, phone) with inline edit/save
-   - Card on file display with Stripe refresh
-   - Waiver status with toggle
-   - Class passes section with ability to add packages directly from this page
-   - Booking history
-   - Quick actions: Send activation email, add package, refresh card -- all without leaving the page
-
-The Stripe Import tool stays as a standalone section accessible from the list view header since it's a bulk operation, not per-account.
-
-### Technical Details
-
-**Files to modify:**
-
-| File | Change |
-|------|--------|
-| `src/pages/admin/NonMemberAccounts.tsx` | Rewrite as a clean list page with row actions, remove tabs, add route to detail page |
-| `src/App.tsx` | Add route `/admin/non-member-accounts/:userId` |
-| `src/lib/permissions.ts` | Add detail route permission |
-
-**Files to create:**
-
-| File | Purpose |
-|------|--------|
-| `src/pages/admin/NonMemberDetail.tsx` | Full-page detail view for a single non-member account |
-
-**Files to remove/deprecate:**
-
-| File | Reason |
-|------|--------|
-| `src/components/admin/NonMemberDetailSheet.tsx` | Replaced by the full-page detail view |
+Five specific text/UI updates across two files to make financial obligations unmistakable before anyone submits an application.
 
 ---
 
-### List Page Redesign (`/admin/non-member-accounts`)
+### 1. Replace the misleading "NOT charged" notice
 
-- Remove the 4-tab layout entirely
-- Full-width accounts table with search bar
-- Each row has a dropdown menu (like the Members page) with:
-  - "View Details" (navigates to `/admin/non-member-accounts/:userId`)
-  - "Add Package" (opens inline dialog)
-  - "Send Activation Email" (one-click action)
-- Header area includes:
-  - "Import from Stripe" button that opens a dialog/collapsible for the Stripe import tool
-  - "Send Activation Link" button that opens a quick email input dialog
-- Summary stats at the top: total accounts, accounts with active passes, accounts missing waivers
+**File:** `PaymentSectionEnhanced.tsx` (lines 417-426)
 
-### Detail Page (`/admin/non-member-accounts/:userId`)
+The current blue box says "Your card will NOT be charged today." This is replaced with a bold amber/red warning:
 
-Modeled after `MemberDetail.tsx`, this full-page view includes:
+> **IMPORTANT: Your card WILL be charged upon approval.**
+> By saving your payment method, you authorize Storm Wellness Club to charge the non-refundable initiation fee (Women: $300 / Men: $175) when your membership is approved. Do not apply if you are not ready to commit.
 
-**Header Section:**
-- Back button to list
-- Breadcrumb navigation
-- Name, email, join date prominently displayed
-- Edit/Save toggle for profile fields
+---
 
-**Left Column (Profile and Billing):**
-- Editable profile card: first name, last name, email, phone
-- Card on file card with Stripe refresh button
-- Waiver status card with admin override toggle
+### 2. Rewrite the "Authorize Billing" checkbox (Step 2)
 
-**Right Column (Passes and Activity):**
-- Class Passes card showing all active and expired passes with remaining counts
-- Inline "Add Package" form (category, pass type, expiration) -- no need to navigate away
-- Recent Bookings card with class name, date, and status
-- Quick Actions card: Send activation email, refresh card from Stripe
+**File:** `PaymentSectionEnhanced.tsx` (lines 529-531)
 
-### Key Improvements Over Current Design
+Current: "I authorize Storm Wellness Club to charge my saved payment method upon membership activation."
 
-1. **No more copy-pasting** -- Actions like "Add Package" are embedded in the detail page with the user's info pre-filled
-2. **Full page width** -- No more cramped sheet sidebar; the detail view uses the entire content area
-3. **Inline editing** -- Edit profile fields directly on the page, just like Member Detail
-4. **Row-level actions** -- Common tasks accessible from the list view without navigating
-5. **Consistent with Member management** -- Follows the same patterns staff already know from managing members
+New: "I authorize Storm Wellness Club to charge the **non-refundable** initiation fee (Women: $300 / Men: $175) and recurring membership dues to this card. I understand the initiation fee is charged upon approval and is **non-refundable**."
+
+---
+
+### 3. Rewrite the "Acknowledge Terms" checkbox (Step 3)
+
+**File:** `PaymentSectionEnhanced.tsx` (lines 557-558)
+
+Current: "I acknowledge that the initiation fee will be charged upon activation and I agree to the billing terms."
+
+New: "I understand this is a minimum **1-year membership commitment**. I agree not to file a chargeback or payment dispute for the initiation fee or any authorized membership charges."
+
+---
+
+### 4. Add founding member pricing breakdown
+
+**File:** `Apply.tsx` (lines 1310-1346)
+
+When someone selects "Yes" for founding member, a pricing table appears below showing the exact annual cost per tier:
+
+| Tier | Women | Men |
+|------|-------|-----|
+| Diamond | $6,000/year | Women only |
+| Platinum | $4,200/year | $2,100/year |
+| Gold | $3,000/year | $1,860/year |
+| Silver | $2,400/year | $1,440/year |
+
+With a note: "This full annual amount is due upon activation, in addition to the non-refundable initiation fee ($300 women / $175 men)."
+
+---
+
+### 5. Rewrite agreement checkboxes + add "STOP" warning
+
+**File:** `Apply.tsx` (lines 1385-1438)
+
+- Add a prominent red-bordered **"STOP -- Read Before Applying"** card at the top of the Agreements section summarizing: initiation fee is non-refundable, 1-year commitment, founding members pay full year upfront
+- **One-Year Commitment checkbox** (line 1411): Change from generic "I agree to terms" to: "I understand this is a minimum 1-year commitment. The initiation fee (Women: $300 / Men: $175) is non-refundable and will be charged upon approval. I will not dispute these authorized charges."
+- **Authorization checkbox** (line 1435): Change from generic "I agree to terms" to: "I authorize the non-refundable initiation fee to be charged upon approval. I understand founding members pay full annual dues upfront. I accept that all described charges are final and non-refundable."
+
+---
+
+### Files Modified
+
+| File | What Changes |
+|------|-------------|
+| `src/components/PaymentSectionEnhanced.tsx` | Replace blue notice with red warning; rewrite Step 2 and Step 3 checkbox text |
+| `src/pages/Apply.tsx` | Add founding member pricing table; add STOP warning card; rewrite agreement checkboxes |
+
+No database changes. No new files. Uses existing pricing constants from `membershipPricing.ts`.
+
