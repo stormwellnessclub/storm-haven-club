@@ -105,7 +105,8 @@ export function SoftLaunchClassManagement() {
         .from('class_sessions')
         .select(`id, start_time, current_enrollment, max_capacity, is_cancelled, cancellation_reason, class_types!inner(name)`)
         .eq('session_date', dateStr)
-        .eq('is_cancelled', false);
+        .eq('is_cancelled', false)
+        .in('class_types.name', ['Signature Flow', 'Reformer Flow', 'Reformer Sculpt']);
       if (error) throw error;
       return data || [];
     },
@@ -116,7 +117,7 @@ export function SoftLaunchClassManagement() {
     const dbTime = parseTimeToDb(entry.time);
     const match = dbSessions.find((s: any) => {
       const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
-      return s.start_time === dbTime && typeName?.includes(entry.name);
+      return s.start_time === dbTime && typeName === entry.name;
     });
     return {
       entry,

@@ -143,7 +143,8 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
         .select("id, session_date, start_time, current_enrollment, max_capacity, class_types!inner(name)")
         .gte("session_date", weekStartStr)
         .lte("session_date", weekEndStr)
-        .eq("is_cancelled", false);
+        .eq("is_cancelled", false)
+        .in("class_types.name", ["Signature Flow", "Reformer Flow", "Reformer Sculpt"]);
       if (error) throw error;
       return data || [];
     },
@@ -155,7 +156,7 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
     const dbTime = parseTimeToDb(time);
     const match = liveEnrollment.find((s: any) => {
       const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
-      return s.session_date === dateStr && s.start_time === dbTime && typeName?.includes(className);
+      return s.session_date === dateStr && s.start_time === dbTime && typeName === className;
     });
     if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity };
     return { enrolled: 0, maxCapacity: 8 };
