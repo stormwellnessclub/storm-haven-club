@@ -1,95 +1,88 @@
 
-## Build Non-Member Admin Management Hub
+
+## Redesign: Full-Page Non-Member Account Management
 
 ### Problem
-The current "Non-Member Portal" link in the admin sidebar points to `/portal`, which is the self-service portal for non-members. When an admin visits it, they see end-user prompts like "Add a card on file" -- this is not an admin tool.
+
+The current Non-Member Accounts page crams everything into small tabs and a narrow slide-out sheet. You can't edit anything inline, you have to copy-paste emails between tabs, and the detail view is a tiny sidebar. Compare this to the Member Detail page (`/admin/members/:id`) which gives a full page with inline editing, tabbed sections, and direct action buttons -- that's the standard we need to match.
 
 ### Solution
-Replace that link with a proper admin page at `/admin/non-member-accounts` that gives staff full control over non-member class pass holders.
 
----
+Replace the fragmented tabbed layout with a **master-detail pattern**:
 
-### New Page: `/admin/non-member-accounts`
+1. **List View** (`/admin/non-member-accounts`) -- Full-width table of all non-member accounts with search, filters, and quick-action buttons directly in each row (add package, send activation, view detail)
+2. **Detail View** (`/admin/non-member-accounts/:userId`) -- A dedicated full-page view for each non-member (modeled after the Member Detail page) with:
+   - Editable profile section (name, email, phone) with inline edit/save
+   - Card on file display with Stripe refresh
+   - Waiver status with toggle
+   - Class passes section with ability to add packages directly from this page
+   - Booking history
+   - Quick actions: Send activation email, add package, refresh card -- all without leaving the page
 
-A tabbed admin interface inside AdminLayout with four sections:
-
-#### Tab 1: Accounts Overview
-- Query `non_member_profiles` joined with `class_passes` (via user_id) to list all non-member accounts
-- Display table: name, email, phone, card on file (brand/last4), waiver status, active passes count, total spent
-- Clicking a row opens a detail sheet showing:
-  - Full profile info
-  - Card on file details with "Refresh from Stripe" button
-  - Waiver status
-  - All class passes (active + expired) with remaining/total counts
-  - Booking history
-
-#### Tab 2: Add Package
-- Search for a non-member by email
-- Select class category (Pilates/Cycling, Other Classes) and pass type (single, 10-pack)
-- Set expiration date and class count
-- Creates a `class_passes` record linked to their `user_id`
-- Metadata marks it as "admin_grant" for audit trail
-
-#### Tab 3: Stripe Import
-- Input a Stripe price ID (pre-filled dropdown with known class pass price IDs from `stripeProducts.ts`)
-- Calls edge function to fetch completed Checkout Sessions from Stripe for that price
-- Shows preview table: customer email, date, amount, product name
-- Matches emails to existing auth accounts
-- On confirm, creates `class_passes` records for matched purchases
-- Lists unmatched emails so admin can send activation links
-
-#### Tab 4: Send Activation Link
-- Enter an email address for someone who purchased via Stripe but has no account
-- Sends a branded email with a link to `/auth?redirect=/portal`
-- Uses existing `send-email` edge function with a new template
-
----
+The Stripe Import tool stays as a standalone section accessible from the list view header since it's a bulk operation, not per-account.
 
 ### Technical Details
-
-**Files to create:**
-
-| File | Purpose |
-|------|---------|
-| `src/pages/admin/NonMemberAccounts.tsx` | Main admin hub page with 4 tabs |
-| `src/components/admin/NonMemberDetailSheet.tsx` | Slide-out detail view for individual non-member |
-| `src/components/admin/NonMemberStripeImport.tsx` | Stripe import tool UI |
-| `src/components/admin/NonMemberAddPackage.tsx` | Manual package grant form |
 
 **Files to modify:**
 
 | File | Change |
 |------|--------|
-| `src/components/admin/AdminSidebar.tsx` | Change "Non-Member Portal" link from `/portal` to `/admin/non-member-accounts` |
-| `src/lib/permissions.ts` | Add `/admin/non-member-accounts` with roles `super_admin, admin, manager, front_desk`; remove `/portal` entry |
-| `src/App.tsx` | Add route for `/admin/non-member-accounts` wrapped in `ProtectedAdminRoute` |
+| `src/pages/admin/NonMemberAccounts.tsx` | Rewrite as a clean list page with row actions, remove tabs, add route to detail page |
+| `src/App.tsx` | Add route `/admin/non-member-accounts/:userId` |
+| `src/lib/permissions.ts` | Add detail route permission |
 
-**Edge function changes (`supabase/functions/stripe-payment/index.ts`):**
+**Files to create:**
 
-Three new actions:
-1. `admin_import_stripe_class_passes` -- Fetches Stripe Checkout Sessions by price ID, returns preview data; on confirm, creates `class_passes` records
-2. `admin_add_nonmember_package` -- Inserts a `class_passes` record for a user with category, pass type, expiration, and audit metadata
-3. `admin_refresh_nonmember_card` -- Looks up a non-member's Stripe customer by email, fetches default payment method, updates `non_member_profiles`
+| File | Purpose |
+|------|--------|
+| `src/pages/admin/NonMemberDetail.tsx` | Full-page detail view for a single non-member account |
 
-All three actions verify the caller has an admin/manager role before executing.
+**Files to remove/deprecate:**
 
-**Edge function changes (`supabase/functions/send-email/index.ts`):**
-
-Add `account_activation_invite` template type that sends a branded email with a sign-up/sign-in link redirecting to `/portal`.
+| File | Reason |
+|------|--------|
+| `src/components/admin/NonMemberDetailSheet.tsx` | Replaced by the full-page detail view |
 
 ---
 
-### Sidebar Change
-The sidebar entry changes from:
-```
-{ title: "Non-Member Portal", url: "/portal", ... }
-```
-to:
-```
-{ title: "Non-Member Accounts", url: "/admin/non-member-accounts", ... }
-```
+### List Page Redesign (`/admin/non-member-accounts`)
 
-This keeps everything within the admin context and eliminates the confusing redirect to the end-user portal.
+- Remove the 4-tab layout entirely
+- Full-width accounts table with search bar
+- Each row has a dropdown menu (like the Members page) with:
+  - "View Details" (navigates to `/admin/non-member-accounts/:userId`)
+  - "Add Package" (opens inline dialog)
+  - "Send Activation Email" (one-click action)
+- Header area includes:
+  - "Import from Stripe" button that opens a dialog/collapsible for the Stripe import tool
+  - "Send Activation Link" button that opens a quick email input dialog
+- Summary stats at the top: total accounts, accounts with active passes, accounts missing waivers
 
-### No Database Schema Changes Required
-All data uses existing tables: `non_member_profiles`, `class_passes`, `auth.users`.
+### Detail Page (`/admin/non-member-accounts/:userId`)
+
+Modeled after `MemberDetail.tsx`, this full-page view includes:
+
+**Header Section:**
+- Back button to list
+- Breadcrumb navigation
+- Name, email, join date prominently displayed
+- Edit/Save toggle for profile fields
+
+**Left Column (Profile and Billing):**
+- Editable profile card: first name, last name, email, phone
+- Card on file card with Stripe refresh button
+- Waiver status card with admin override toggle
+
+**Right Column (Passes and Activity):**
+- Class Passes card showing all active and expired passes with remaining counts
+- Inline "Add Package" form (category, pass type, expiration) -- no need to navigate away
+- Recent Bookings card with class name, date, and status
+- Quick Actions card: Send activation email, refresh card from Stripe
+
+### Key Improvements Over Current Design
+
+1. **No more copy-pasting** -- Actions like "Add Package" are embedded in the detail page with the user's info pre-filled
+2. **Full page width** -- No more cramped sheet sidebar; the detail view uses the entire content area
+3. **Inline editing** -- Edit profile fields directly on the page, just like Member Detail
+4. **Row-level actions** -- Common tasks accessible from the list view without navigating
+5. **Consistent with Member management** -- Follows the same patterns staff already know from managing members
