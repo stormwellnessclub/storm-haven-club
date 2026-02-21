@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Check, ExternalLink, Loader2, AlertCircle } from "lucide-react";
+import { Check, ExternalLink, Loader2, AlertCircle, FileText, Download } from "lucide-react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { loadStripe } from "@stripe/stripe-js";
@@ -17,6 +17,8 @@ import { ApplicationProgress, getStepCompletion, APPLICATION_STEPS } from "@/com
 import { PaymentSectionEnhanced, CardDetails } from "@/components/PaymentSectionEnhanced";
 import { ApplicationValidationSummary } from "@/components/ApplicationValidationSummary";
 import { DraftSaveIndicator } from "@/components/DraftSaveIndicator";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { resolvePdfUrl } from "@/lib/pdfAssets";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
@@ -191,6 +193,7 @@ interface MembershipAgreementSectionProps {
 
 function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAgreementSectionProps) {
   const { data: membershipAgreements, isLoading: agreementsLoading } = useAgreements("membership_agreement");
+  const isMobile = useIsMobile();
   
   const getPdfUrls = () => {
     if (!membershipAgreements || membershipAgreements.length === 0) return [];
@@ -199,39 +202,92 @@ function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAg
 
   const pdfUrls = getPdfUrls();
 
+  const downloadPdf = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
+
   return (
     <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>Membership Agreement</CardTitle>
+      <CardHeader className="px-4 sm:px-6">
+        <CardTitle className="text-lg sm:text-xl">Membership Agreement</CardTitle>
         <CardDescription>
           Please review and agree to the Membership Agreement before submitting your application.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-4 sm:px-6">
         {agreementsLoading ? (
-          <div className="flex items-center justify-center h-[500px]">
+          <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">Loading agreement...</p>
             </div>
           </div>
         ) : pdfUrls.length > 0 ? (
-          <AgreementPDFViewer
-            pdfUrl={pdfUrls}
-            title="Membership Agreement"
-            height="500px"
-            showControls={true}
-          />
+          isMobile ? (
+            /* Mobile: always show download buttons, no iframe */
+            <div className="space-y-3">
+              {pdfUrls.map((url, index) => {
+                const resolvedUrl = resolvePdfUrl(url);
+                const filename = typeof url === 'string' ? (url.split('/').pop() || 'membership-agreement.pdf') : `agreement-${index + 1}.pdf`;
+                return (
+                  <div key={index} className="flex flex-col items-center gap-3 p-5 rounded-lg border bg-muted/30">
+                    <FileText className="h-10 w-10 text-accent" />
+                    <p className="text-sm font-medium text-center">Membership Agreement{pdfUrls.length > 1 ? ` (${index + 1})` : ''}</p>
+                    <div className="flex flex-col gap-2 w-full">
+                      <Button size="lg" className="w-full gap-2" onClick={() => downloadPdf(resolvedUrl, filename)}>
+                        <Download className="h-4 w-4" />
+                        Download Agreement
+                      </Button>
+                      <Button variant="outline" size="lg" className="w-full gap-2" asChild>
+                        <a href={resolvedUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                          Open in Browser
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <AgreementPDFViewer
+              pdfUrl={pdfUrls}
+              title="Membership Agreement"
+              height="500px"
+              showControls={true}
+            />
+          )
         ) : (
-          <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-amber-700">Agreement Not Available</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  The membership agreement document is not currently available. Please contact support or try refreshing the page.
-                </p>
-              </div>
+          /* No PDF available — show download fallback to the static file */
+          <div className="flex flex-col items-center gap-3 p-5 rounded-lg border bg-muted/30">
+            <FileText className="h-10 w-10 text-accent" />
+            <p className="text-sm font-medium">Membership Agreement</p>
+            <div className={`flex gap-2 w-full ${isMobile ? 'flex-col' : 'flex-row justify-center'}`}>
+              <Button size="lg" className="gap-2" onClick={() => downloadPdf(resolvePdfUrl('membership-agreement.pdf'), 'membership-agreement.pdf')}>
+                <Download className="h-4 w-4" />
+                Download Agreement
+              </Button>
+              <Button variant="outline" size="lg" className="gap-2" asChild>
+                <a href={resolvePdfUrl('membership-agreement.pdf')} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  Open in Browser
+                </a>
+              </Button>
             </div>
           </div>
         )}
@@ -882,12 +938,12 @@ export default function Apply() {
       <DraftSaveIndicator lastSavedAt={lastSavedAt} />
 
       {/* Application Form */}
-      <section className="py-8 bg-background">
-        <div className="container mx-auto px-6 max-w-3xl">
+      <section className="py-4 sm:py-8 bg-background">
+        <div className="container mx-auto px-3 sm:px-6 max-w-3xl">
           <form onSubmit={handleSubmit}>
             {/* Personal Information */}
-            <div ref={(el) => sectionRefs.current["personal"] = el} className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-gold">Personal Information</h2>
+            <div ref={(el) => sectionRefs.current["personal"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Personal Information</h2>
               
               <div className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -1080,8 +1136,8 @@ export default function Apply() {
             </div>
 
             {/* Wellness Goals and Interests */}
-            <div ref={(el) => sectionRefs.current["goals"] = el} className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-gold">Wellness Goals and Interests</h2>
+            <div ref={(el) => sectionRefs.current["goals"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Wellness Goals and Interests</h2>
               
               <div className="space-y-6">
                 <div>
@@ -1161,8 +1217,8 @@ export default function Apply() {
             </div>
 
             {/* Wellness Background */}
-            <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-gold">Wellness Background</h2>
+            <div className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Wellness Background</h2>
               
               <div>
                 <Label className="mb-3 block">Have you previously been a member of a fitness center, or wellness club?</Label>
@@ -1196,8 +1252,8 @@ export default function Apply() {
             </div>
 
             {/* Motivation for Joining */}
-            <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-gold">Motivation for Joining</h2>
+            <div className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Motivation for Joining</h2>
               
               <div>
                 <Label className="mb-3 block">Why have you chosen Storm Wellness Club for your wellness journey? (Select all that apply)</Label>
@@ -1238,8 +1294,8 @@ export default function Apply() {
             </div>
 
             {/* Getting to Know You Better */}
-            <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-gold">Getting to Know You Better</h2>
+            <div className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Getting to Know You Better</h2>
               
               <div className="space-y-4">
                 <div>
@@ -1303,8 +1359,8 @@ export default function Apply() {
             </div>
 
             {/* Alignment with Our Wellness Community */}
-            <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-gold">Alignment with Our Wellness Community</h2>
+            <div className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Alignment with Our Wellness Community</h2>
               
               <div>
                 <Label className="mb-3 block">Would you like to become a founding member? *</Label>
@@ -1421,8 +1477,8 @@ export default function Apply() {
                 onCheckboxChange={handleCheckboxChange}
               />
             </div>
-            <div className="card-luxury p-8 mb-8">
-              <h2 className="font-serif text-2xl mb-6 text-gold">Agreements</h2>
+            <div className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Agreements</h2>
               
               {/* STOP Warning Card */}
               <div className="mb-6 p-5 bg-destructive/10 border-2 border-destructive/40 rounded-lg">
