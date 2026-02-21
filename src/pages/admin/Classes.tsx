@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -113,7 +113,13 @@ function formatTime(time: string) {
 export default function Classes() {
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('tab') || 'soft-launch';
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -235,7 +241,7 @@ export default function Classes() {
           </div>
         </div>
 
-        <Tabs defaultValue={defaultTab}>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="soft-launch">Soft Launch Schedule</TabsTrigger>
             <TabsTrigger value="full-schedule">Full Schedule</TabsTrigger>
