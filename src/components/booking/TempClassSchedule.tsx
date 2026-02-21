@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +11,14 @@ import { useTempClassBooking } from "@/hooks/useTempClassBooking";
 
 function toDateOnly(d: Date) {
   return d.getFullYear() * 10000 + d.getMonth() * 100 + d.getDate();
+}
+
+function parseTimeToDb(timeStr: string): string {
+  const [time, period] = timeStr.split(" ");
+  let [hours, minutes] = time.split(":").map(Number);
+  if (period === "PM" && hours !== 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
 }
 
 type ClassEntry = {
@@ -61,12 +71,14 @@ interface TempClassCardProps {
   canBook: boolean;
   isBooked: boolean;
   isBooking: boolean;
+  enrolled: number;
+  maxCapacity: number;
   onBook: () => void;
   onGetPass: () => void;
   onSignIn: () => void;
 }
 
-function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, onBook, onGetPass, onSignIn }: TempClassCardProps) {
+function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, enrolled, maxCapacity, onBook, onGetPass, onSignIn }: TempClassCardProps) {
   const renderButton = () => {
     if (readOnly) return null;
 
@@ -121,7 +133,7 @@ function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooki
           <div className="flex items-center gap-2"><Clock className="h-4 w-4" /><span>50 min</span></div>
           <div className="flex items-center gap-2"><User className="h-4 w-4" /><span>Duha</span></div>
           <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /><span>Reformer Studio</span></div>
-          <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>8 spots</span></div>
+          <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{maxCapacity - enrolled} of {maxCapacity} spots left</span></div>
         </div>
         {renderButton()}
       </CardContent>
@@ -167,6 +179,36 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
       outOfRange: getClassesForDate(date).length === 0,
     };
   });
+
+  // Query live enrollment for sessions in the current week
+  const weekStartStr = format(weekStart, "yyyy-MM-dd");
+  const weekEndStr = format(addDays(weekStart, 6), "yyyy-MM-dd");
+  
+  const { data: liveEnrollment = [] } = useQuery({
+    queryKey: ["temp-schedule-enrollment", weekStartStr, weekEndStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("class_sessions")
+        .select("id, session_date, start_time, current_enrollment, max_capacity, class_types!inner(name)")
+        .gte("session_date", weekStartStr)
+        .lte("session_date", weekEndStr)
+        .eq("is_cancelled", false);
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 30000, // refresh every 30s
+  });
+
+  // Helper to find enrollment for a specific class slot
+  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number } {
+    const dbTime = parseTimeToDb(time);
+    const match = liveEnrollment.find((s: any) => {
+      const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
+      return s.session_date === dateStr && s.start_time === dbTime && typeName?.includes(className);
+    });
+    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity };
+    return { enrolled: 0, maxCapacity: 8 };
+  }
 
   return (
     <div className="space-y-6">
@@ -215,21 +257,26 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
               {day.classes.length === 0 ? (
                 <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
               ) : (
-                day.classes.map((cls, i) => (
-                  <TempClassCard
-                    key={i}
-                    entry={cls}
-                    date={day.date}
-                    readOnly={readOnly}
-                    isLoggedIn={isLoggedIn}
-                    canBook={canBook}
-                    isBooked={isBooked(day.date, cls.time)}
-                    isBooking={isBooking}
-                    onBook={() => bookClass({ className: cls.name, date: day.date, time: cls.time })}
-                    onGetPass={() => navigate("/class-passes")}
-                    onSignIn={() => navigate("/auth")}
-                  />
-                ))
+                day.classes.map((cls, i) => {
+                  const { enrolled, maxCapacity } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                  return (
+                    <TempClassCard
+                      key={i}
+                      entry={cls}
+                      date={day.date}
+                      readOnly={readOnly}
+                      isLoggedIn={isLoggedIn}
+                      canBook={canBook}
+                      isBooked={isBooked(day.date, cls.time)}
+                      isBooking={isBooking}
+                      enrolled={enrolled}
+                      maxCapacity={maxCapacity}
+                      onBook={() => bookClass({ className: cls.name, date: day.date, time: cls.time })}
+                      onGetPass={() => navigate("/class-passes")}
+                      onSignIn={() => navigate("/auth")}
+                    />
+                  );
+                })
               )}
             </div>
           </div>

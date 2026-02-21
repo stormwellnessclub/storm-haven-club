@@ -30,6 +30,9 @@ import { TempClassSchedule } from "@/components/booking/TempClassSchedule";
 const SOFT_LAUNCH_START = new Date(2026, 1, 20); // Feb 20
 const SOFT_LAUNCH_END = new Date(2026, 2, 18);   // Mar 18
 
+// Only show sessions for soft-launch class types
+const SOFT_LAUNCH_CLASS_NAMES = ['Signature Flow', 'Reformer Flow', 'Reformer Sculpt'];
+
 interface ClassSession {
   id: string;
   class_type_id: string;
@@ -131,8 +134,8 @@ export function SoftLaunchClassManagement() {
   const canGoPrev = !isBefore(subDays(selectedDate, 1), SOFT_LAUNCH_START);
   const canGoNext = !isAfter(addDays(selectedDate, 1), SOFT_LAUNCH_END);
 
-  // Fetch sessions for selected date
-  const { data: sessions = [], isLoading } = useQuery({
+  // Fetch sessions for selected date (filter to soft-launch class types)
+  const { data: allSessions = [], isLoading } = useQuery({
     queryKey: ['soft-launch-sessions', dateStr],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -144,6 +147,11 @@ export function SoftLaunchClassManagement() {
       return data as ClassSession[];
     },
   });
+
+  // Filter to only soft-launch class types (match by partial name)
+  const sessions = allSessions.filter(s =>
+    SOFT_LAUNCH_CLASS_NAMES.some(name => s.class_types?.name?.includes(name))
+  );
 
   // Fetch bookings for selected session
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({

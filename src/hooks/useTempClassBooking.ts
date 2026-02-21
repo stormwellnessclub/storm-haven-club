@@ -132,6 +132,8 @@ export function useTempClassBooking() {
       queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["user-credits"] });
       queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["temp-schedule-enrollment"] });
+      queryClient.invalidateQueries({ queryKey: ["soft-launch-sessions"] });
       toast.success("Class booked successfully! 🎉");
     },
     onError: (error: Error) => {
