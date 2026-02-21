@@ -19,6 +19,7 @@ import {
   Dumbbell,
   Shield,
   UserCog,
+  UserPlus,
   MessageSquare,
   Snowflake,
   ScanLine,
@@ -74,6 +75,7 @@ const managementItems: MenuItem[] = [
   { title: "Guest Passes", url: "/admin/guest-passes", icon: Ticket, requiredRoles: ['super_admin', 'manager', 'front_desk'] },
   { title: "Guest Accounts", url: "/admin/guests", icon: Users, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
   { title: "Marketing", url: "/admin/marketing", icon: Megaphone, requiredRoles: ['super_admin', 'admin'] },
+  { title: "Non-Member Portal", url: "/portal", icon: UserPlus, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
 ];
 
 const servicesItems: MenuItem[] = [
