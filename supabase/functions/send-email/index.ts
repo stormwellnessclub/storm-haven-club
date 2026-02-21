@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1960,6 +1961,27 @@ serve(async (req) => {
     });
 
     console.log("Email sent successfully:", emailResponse);
+
+    // Log to email_audit_log for tracking
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      
+      await supabaseAdmin.from('email_audit_log').insert({
+        email_type: type,
+        recipient_email: to,
+        recipient_name: data?.name || data?.first_name || null,
+        subject,
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        trigger_source: 'send-email-function',
+        template_data: data || null,
+      });
+    } catch (auditErr) {
+      console.warn("Failed to log email audit:", auditErr);
+      // Don't fail the response if audit logging fails
+    }
 
     return new Response(
       JSON.stringify({ success: true, data: emailResponse }),
