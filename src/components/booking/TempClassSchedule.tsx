@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays, Check, Loader2 } from "lucide-react";
 import { startOfWeek, addDays, addWeeks, format, isSameDay } from "date-fns";
+import { useTempClassBooking } from "@/hooks/useTempClassBooking";
 
 function toDateOnly(d: Date) {
   return d.getFullYear() * 10000 + d.getMonth() * 100 + d.getDate();
@@ -16,47 +17,34 @@ type ClassEntry = {
   type: "signature" | "reformer-flow" | "reformer-sculpt";
 };
 
-type TempClassCardProps = { entry: ClassEntry; onBookRequest?: () => void };
-
-const SOFT_LAUNCH_START = new Date(2026, 1, 20); // Feb 20
-const SOFT_LAUNCH_END = new Date(2026, 2, 18);   // Mar 18
-
-// Staggered start dates
-const MORNING_START = new Date(2026, 1, 23);     // Feb 23 (Mon)
-const SUNDAY_MORNING_START = new Date(2026, 2, 1); // Mar 1
+const SOFT_LAUNCH_START = new Date(2026, 1, 20);
+const SOFT_LAUNCH_END = new Date(2026, 2, 18);
+const MORNING_START = new Date(2026, 1, 23);
+const SUNDAY_MORNING_START = new Date(2026, 2, 1);
 
 function getClassesForDate(date: Date): ClassEntry[] {
   const dateNum = toDateOnly(date);
   if (dateNum < toDateOnly(SOFT_LAUNCH_START) || dateNum > toDateOnly(SOFT_LAUNCH_END)) return [];
 
-  const dow = date.getDay(); // 0=Sun
+  const dow = date.getDay();
   const classes: ClassEntry[] = [];
 
-  // Sunday mornings: from Mar 1
   if (dow === 0 && dateNum >= toDateOnly(SUNDAY_MORNING_START)) {
     classes.push({ time: "10:00 AM", name: "Signature Flow", type: "signature" });
     classes.push({ time: "11:00 AM", name: "Reformer Sculpt", type: "reformer-sculpt" });
   }
-
-  // Mon-Thu mornings: from Feb 23
   if (dow >= 1 && dow <= 4 && dateNum >= toDateOnly(MORNING_START)) {
     classes.push({ time: "9:00 AM", name: "Signature Flow", type: "signature" });
     classes.push({ time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" });
   }
-
-  // Friday
   if (dow === 5) {
-    // Morning from Feb 23
     if (dateNum >= toDateOnly(MORNING_START)) {
       classes.push({ time: "9:00 AM", name: "Signature Flow", type: "signature" });
       classes.push({ time: "10:00 AM", name: "Reformer Flow", type: "reformer-flow" });
     }
-    // Evening from Feb 20 (always within soft launch)
     classes.push({ time: "8:00 PM", name: "Signature Flow", type: "signature" });
     classes.push({ time: "9:00 PM", name: "Reformer Flow", type: "reformer-flow" });
   }
-
-  // Saturday evening only (no mornings)
   if (dow === 6) {
     classes.push({ time: "8:00 PM", name: "Signature Flow", type: "signature" });
     classes.push({ time: "9:00 PM", name: "Reformer Sculpt", type: "reformer-sculpt" });
@@ -65,53 +53,86 @@ function getClassesForDate(date: Date): ClassEntry[] {
   return classes;
 }
 
-function TempClassCard({ entry, onBookRequest }: TempClassCardProps) {
+interface TempClassCardProps {
+  entry: ClassEntry;
+  date: Date;
+  readOnly?: boolean;
+  isLoggedIn: boolean;
+  canBook: boolean;
+  isBooked: boolean;
+  isBooking: boolean;
+  onBook: () => void;
+  onGetPass: () => void;
+  onSignIn: () => void;
+}
+
+function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, onBook, onGetPass, onSignIn }: TempClassCardProps) {
+  const renderButton = () => {
+    if (readOnly) return null;
+
+    if (isBooked) {
+      return (
+        <Button size="sm" className="w-full" disabled variant="secondary">
+          <Check className="h-4 w-4 mr-1" />
+          Booked
+        </Button>
+      );
+    }
+
+    if (!isLoggedIn) {
+      return (
+        <Button size="sm" className="w-full" variant="outline" onClick={onSignIn}>
+          Sign In to Book
+        </Button>
+      );
+    }
+
+    if (!canBook) {
+      return (
+        <Button size="sm" className="w-full" variant="outline" onClick={onGetPass}>
+          Get a Pass
+        </Button>
+      );
+    }
+
+    return (
+      <Button size="sm" className="w-full" onClick={onBook} disabled={isBooking}>
+        {isBooking ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+        {isBooking ? "Booking..." : "Book Class"}
+      </Button>
+    );
+  };
+
   return (
-    <Card className="group hover:shadow-md transition-shadow">
+    <Card className={`group hover:shadow-md transition-shadow ${isBooked ? "border-primary/50 bg-primary/5" : ""}`}>
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
             <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
               {entry.name}
             </h3>
-            <Badge variant="secondary" className="text-xs mt-1">
-              Pilates
-            </Badge>
+            <Badge variant="secondary" className="text-xs mt-1">Pilates</Badge>
           </div>
           <div className="text-right">
             <span className="text-lg font-bold text-primary">{entry.time}</span>
           </div>
         </div>
-
         <div className="space-y-1 text-sm text-muted-foreground mb-3">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            <span>50 min</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            <span>Duha</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            <span>Reformer Studio</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span>8 spots</span>
-          </div>
+          <div className="flex items-center gap-2"><Clock className="h-4 w-4" /><span>50 min</span></div>
+          <div className="flex items-center gap-2"><User className="h-4 w-4" /><span>Duha</span></div>
+          <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /><span>Reformer Studio</span></div>
+          <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>8 spots</span></div>
         </div>
-
-        <Button size="sm" className="w-full" onClick={onBookRequest}>
-          Book Class
-        </Button>
+        {renderButton()}
       </CardContent>
     </Card>
   );
 }
 
-export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => void }) {
-  // Calculate the first full week that overlaps the soft launch
+export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) {
+  const navigate = useNavigate();
+  const { isLoggedIn, canBook, isBooked, bookClass, isBooking } = useTempClassBooking();
+
   const baseWeekStart = startOfWeek(SOFT_LAUNCH_START, { weekStartsOn: 0 });
 
   function getInitialWeekOffset() {
@@ -130,16 +151,11 @@ export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => voi
   }, []);
 
   const weekStart = addWeeks(baseWeekStart, weekOffset);
-  const weekEnd = addDays(weekStart, 6);
-
-  // Determine valid range of week offsets
   const maxWeekStart = startOfWeek(SOFT_LAUNCH_END, { weekStartsOn: 0 });
   const totalWeeks = Math.round((maxWeekStart.getTime() - baseWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000));
 
-  // Generate 7 day columns
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(weekStart, i);
-    const dow = date.getDay();
     return {
       date,
       dateStr: format(date, "yyyy-MM-dd"),
@@ -154,7 +170,7 @@ export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => voi
 
   return (
     <div className="space-y-6">
-      {/* Soft Launch banner for this tab */}
+      {/* Soft Launch banner */}
       <div className="bg-primary/10 border-2 border-primary/40 rounded-xl py-5 px-6">
         <div className="flex items-start gap-4">
           <CalendarDays className="h-7 w-7 text-primary flex-shrink-0 mt-0.5" />
@@ -175,23 +191,13 @@ export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => voi
 
       {/* Week Navigation */}
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setWeekOffset((p) => Math.max(p - 1, 0))}
-          disabled={weekOffset === 0}
-        >
+        <Button variant="outline" size="icon" onClick={() => setWeekOffset((p) => Math.max(p - 1, 0))} disabled={weekOffset === 0}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-sm font-medium min-w-[180px] text-center">
           Week of {format(weekStart, "MMM d, yyyy")}
         </span>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setWeekOffset((p) => Math.min(p + 1, totalWeeks))}
-          disabled={weekOffset >= totalWeeks}
-        >
+        <Button variant="outline" size="icon" onClick={() => setWeekOffset((p) => Math.min(p + 1, totalWeeks))} disabled={weekOffset >= totalWeeks}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -199,33 +205,30 @@ export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => voi
       {/* Calendar Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
         {weekDays.map((day) => (
-          <div
-            key={day.dateStr}
-            ref={day.isToday ? todayRef : undefined}
-            className={`space-y-3 ${day.outOfRange ? "opacity-40" : ""}`}
-          >
-            {/* Day header matching ClassCalendar */}
-            <div
-              className={`text-center p-2 rounded-lg ${
-                day.isToday
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted"
-              }`}
-            >
+          <div key={day.dateStr} ref={day.isToday ? todayRef : undefined} className={`space-y-3 ${day.outOfRange ? "opacity-40" : ""}`}>
+            <div className={`text-center p-2 rounded-lg ${day.isToday ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
               <div className="text-xs font-medium uppercase">{day.dayName}</div>
               <div className="text-lg font-bold">{day.dayNum}</div>
               <div className="text-xs">{day.month}</div>
             </div>
-
-            {/* Classes */}
             <div className="space-y-2">
               {day.classes.length === 0 ? (
-                <div className="text-center text-muted-foreground text-sm py-8">
-                  No classes
-                </div>
+                <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
               ) : (
                 day.classes.map((cls, i) => (
-                  <TempClassCard key={i} entry={cls} onBookRequest={onBookRequest} />
+                  <TempClassCard
+                    key={i}
+                    entry={cls}
+                    date={day.date}
+                    readOnly={readOnly}
+                    isLoggedIn={isLoggedIn}
+                    canBook={canBook}
+                    isBooked={isBooked(day.date, cls.time)}
+                    isBooking={isBooking}
+                    onBook={() => bookClass({ className: cls.name, date: day.date, time: cls.time })}
+                    onGetPass={() => navigate("/class-passes")}
+                    onSignIn={() => navigate("/auth")}
+                  />
                 ))
               )}
             </div>
@@ -234,7 +237,7 @@ export function TempClassSchedule({ onBookRequest }: { onBookRequest?: () => voi
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        Soft launch schedule: Feb 20 – Mar 18, 2026. Click "Book Class" to select your session.
+        Soft launch schedule: Feb 20 – Mar 18, 2026. {!readOnly && 'Click "Book Class" to reserve your spot.'}
       </p>
     </div>
   );

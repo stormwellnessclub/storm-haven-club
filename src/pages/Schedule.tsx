@@ -116,7 +116,7 @@ export default function Schedule() {
 
           {/* ── CLASS SCHEDULE (Temp / Reference) ── */}
           <TabsContent value="schedule">
-            <TempClassSchedule onBookRequest={() => navigate("/class-passes")} />
+            <TempClassSchedule />
           </TabsContent>
 
           {/* ── FULL SCHEDULE (view-only, no booking) ── */}

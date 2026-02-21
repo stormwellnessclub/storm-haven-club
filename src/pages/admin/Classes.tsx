@@ -257,7 +257,7 @@ export default function Classes() {
           </TabsList>
 
           <TabsContent value="soft-launch">
-            <TempClassSchedule />
+            <TempClassSchedule readOnly />
           </TabsContent>
 
           <TabsContent value="full-schedule">
