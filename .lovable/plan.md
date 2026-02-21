@@ -1,28 +1,26 @@
 
 
-## Add Tabbed Layout to Admin Classes Page
+## Add Non-Member Portal Link to Admin Sidebar
 
-### Overview
-Add two tabs to the `/admin/classes` page:
-1. **Soft Launch Schedule** (default) -- renders the existing `TempClassSchedule` component so admins can see the active timetable
-2. **Full Schedule** -- contains the current "today's sessions" view with roster, attendance, and cancellation controls (this is the permanent database-driven schedule)
+### Change
 
-### Changes
+Add a new menu item to the **Management** section of the admin sidebar (`src/components/admin/AdminSidebar.tsx`):
 
-**File: `src/pages/admin/Classes.tsx`**
+- **Label**: "Non-Member Portal"
+- **URL**: `/portal`
+- **Icon**: `Users` (or `UserPlus` for distinction)
+- **Required Roles**: `super_admin`, `admin`, `manager`, `front_desk`
 
-- Import `Tabs, TabsList, TabsTrigger, TabsContent` from `@/components/ui/tabs`
-- Import `TempClassSchedule` from `@/components/booking/TempClassSchedule`
-- Wrap the page header and content area in a `Tabs` component with `defaultValue="soft-launch"`
-- Move all existing session cards, roster dialog, and cancel dialog into a `TabsContent value="full-schedule"` block
-- Add a `TabsContent value="soft-launch"` block that renders `<TempClassSchedule />` (without the booking action, since this is admin view)
-- Keep all existing dialogs (roster, cancel) outside the tabs so they remain accessible from the full schedule tab
+### Technical Details
 
-### What Admins Will See
+**File: `src/components/admin/AdminSidebar.tsx`**
 
-| Tab | Content |
-|-----|---------|
-| **Soft Launch Schedule** (default) | The same weekly pilates timetable members see (Feb 20 - Mar 18) |
-| **Full Schedule** | Today's database-driven sessions with roster view, check-in, and cancel controls |
+- Add a new entry to the `managementItems` array:
+  ```ts
+  { title: "Non-Member Portal", url: "/portal", icon: UserPlus, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] }
+  ```
+- Import `UserPlus` from `lucide-react`
+- Add `/portal` to `PAGE_PERMISSIONS` in `src/lib/permissions.ts` with the same roles so the `canAccessPage` filter passes
 
-No backend changes needed.
+Two files modified, no backend changes.
+
