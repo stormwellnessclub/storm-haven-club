@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserCredits } from "@/hooks/useUserCredits";
@@ -27,8 +28,8 @@ export function useTempClassBooking() {
   const { data: credits } = useUserCredits();
   const { data: bookings = [] } = useMyBookings();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  // Passes valid for pilates_cycling (all temp schedule classes are reformer pilates)
   const validPasses =
     credits?.classPasses.filter(
       (p) =>
@@ -36,7 +37,6 @@ export function useTempClassBooking() {
         ["reformer", "cycling", "pilates_cycling"].includes(p.category)
     ) || [];
 
-  // Also check member class credits
   const hasClassCredits =
     credits?.isMember &&
     credits?.memberStatus === "active" &&
@@ -45,8 +45,8 @@ export function useTempClassBooking() {
 
   const hasValidPass = validPasses.length > 0;
   const canBook = hasValidPass || !!hasClassCredits;
+  const isMember = !!credits?.isMember;
 
-  // Build a set of "date_startTime" keys for already-booked classes
   const bookedKeys = new Set(
     bookings
       .filter((b) => b.status === "confirmed")
@@ -71,7 +71,6 @@ export function useTempClassBooking() {
     }) => {
       if (!user) throw new Error("Please sign in to book a class.");
 
-      // Refresh session
       const {
         data: { session: authSession },
       } = await supabase.auth.getSession();
@@ -81,7 +80,6 @@ export function useTempClassBooking() {
       const endTime = addMinutesToTime(dbTime, 50);
       const dateStr = format(date, "yyyy-MM-dd");
 
-      // 1. Find or create the class session
       const { data: sessionId, error: sessionError } = await (supabase.rpc as any)(
         "find_or_create_temp_class_session",
         {
@@ -96,7 +94,6 @@ export function useTempClassBooking() {
       if (sessionError) throw sessionError;
       if (!sessionId) throw new Error("Failed to create class session");
 
-      // 2. Determine payment method and IDs
       let paymentMethod: string;
       let memberCreditId: string | null = null;
       let passId: string | null = null;
@@ -111,7 +108,6 @@ export function useTempClassBooking() {
         throw new Error("No valid class pass or credits available.");
       }
 
-      // 3. Book atomically
       const { data: result, error: bookError } = await (supabase.rpc as any)(
         "create_atomic_class_booking",
         {
@@ -126,15 +122,41 @@ export function useTempClassBooking() {
       if (bookError) throw bookError;
       if (!result?.success) throw new Error(result?.error || "Booking failed");
 
-      return result;
+      // Send confirmation email (fire-and-forget)
+      const formattedDate = format(date, "EEEE, MMM d, yyyy");
+      supabase.functions.invoke("send-email", {
+        body: {
+          type: "booking_confirmation",
+          to: user.email,
+          data: {
+            class_name: className,
+            date: formattedDate,
+            time,
+            location: "Reformer Studio",
+          },
+        },
+      }).catch(() => {});
+
+      return { className, date, time, formattedDate };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["user-credits"] });
       queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["temp-schedule-enrollment"] });
       queryClient.invalidateQueries({ queryKey: ["soft-launch-sessions"] });
-      toast.success("Class booked successfully! 🎉");
+      queryClient.invalidateQueries({ queryKey: ["portal-bookings"] });
+
+      const bookingsPath = isMember ? "/member/bookings" : "/portal/bookings";
+
+      toast.success("Booking Confirmed ✅", {
+        description: `${data.className} — ${data.formattedDate} at ${data.time}`,
+        duration: 8000,
+        action: {
+          label: "View Bookings",
+          onClick: () => navigate(bookingsPath),
+        },
+      });
     },
     onError: (error: Error) => {
       toast.error(error.message);
