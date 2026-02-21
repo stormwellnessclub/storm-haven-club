@@ -1310,7 +1310,7 @@ export default function Apply() {
                 <Label className="mb-3 block">Would you like to become a founding member? *</Label>
                 <p className="text-sm text-muted-foreground mb-4">
                   We are limiting our Founding Members to a total of 100. You can become a Founding Member 
-                  by paying your membership annually in advance. This status grants you a special founding 
+                  by <strong className="text-foreground">paying your full annual membership dues upfront</strong>. This status grants you a special founding 
                   member card, exclusive branded apparel, a premium gym bag, and priority access to all 
                   private events. You'll also receive behind-the-scenes information and play a pivotal role 
                   in shaping our transformative community.
@@ -1343,6 +1343,50 @@ export default function Apply() {
                     <Label htmlFor="foundingMember-no" className="font-normal cursor-pointer">No</Label>
                   </div>
                 </div>
+
+                {formData.foundingMember === "yes" && (
+                  <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-3">
+                      ⚠️ Founding Member = Full Annual Dues Paid Upfront
+                    </p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left py-2 pr-4 font-medium text-foreground">Tier</th>
+                            <th className="text-left py-2 pr-4 font-medium text-foreground">Women</th>
+                            <th className="text-left py-2 font-medium text-foreground">Men</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-muted-foreground">
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 pr-4 font-medium text-foreground">Diamond</td>
+                            <td className="py-2 pr-4">$6,000/year</td>
+                            <td className="py-2 text-muted-foreground/60 italic">Women only</td>
+                          </tr>
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 pr-4 font-medium text-foreground">Platinum</td>
+                            <td className="py-2 pr-4">$4,200/year</td>
+                            <td className="py-2">$2,100/year</td>
+                          </tr>
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 pr-4 font-medium text-foreground">Gold</td>
+                            <td className="py-2 pr-4">$3,000/year</td>
+                            <td className="py-2">$1,860/year</td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 pr-4 font-medium text-foreground">Silver</td>
+                            <td className="py-2 pr-4">$2,400/year</td>
+                            <td className="py-2">$1,440/year</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">
+                      This full annual amount is due upon membership activation, <strong>in addition to</strong> the non-refundable initiation fee (Women: $300 / Men: $175).
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1385,6 +1429,17 @@ export default function Apply() {
             <div className="card-luxury p-8 mb-8">
               <h2 className="font-serif text-2xl mb-6 text-gold">Agreements</h2>
               
+              {/* STOP Warning Card */}
+              <div className="mb-6 p-5 bg-destructive/10 border-2 border-destructive/40 rounded-lg">
+                <p className="text-base font-bold text-destructive mb-2">🛑 STOP — Read Before Applying</p>
+                <ul className="text-sm text-destructive space-y-1.5 list-disc list-inside">
+                  <li>The <strong>initiation fee (Women: $300 / Men: $175) is non-refundable</strong> and will be charged upon membership approval.</li>
+                  <li>This is a <strong>minimum 1-year membership commitment</strong>.</li>
+                  <li>Founding members pay their <strong>full annual dues upfront</strong> (see pricing above).</li>
+                  <li><strong>Do not apply if you are not ready to commit.</strong> Disputes and chargebacks for authorized charges will be contested.</li>
+                </ul>
+              </div>
+
               <div className="space-y-6">
                 {/* Membership Agreement */}
                 <MembershipAgreementSection
@@ -1409,7 +1464,7 @@ export default function Apply() {
                       required
                     />
                     <Label htmlFor="oneYearCommitment" className="font-normal cursor-pointer text-sm">
-                      I have read, understand, and agree to abide by the terms and conditions stated on this application. *
+                      I understand this is a minimum 1-year commitment. The initiation fee (Women: $300 / Men: $175) is <strong>non-refundable</strong> and will be charged upon approval. I will not dispute these authorized charges. *
                     </Label>
                   </div>
                 </div>
@@ -1433,7 +1488,7 @@ export default function Apply() {
                       required
                     />
                     <Label htmlFor="authAcknowledgment" className="font-normal cursor-pointer text-sm">
-                      I have read, understand, and agree to abide by the terms and conditions stated on this application. *
+                      I authorize the <strong>non-refundable</strong> initiation fee to be charged upon approval. I understand founding members pay full annual dues upfront. I accept that all described charges are final and <strong>non-refundable</strong>. *
                     </Label>
                   </div>
                 </div>
