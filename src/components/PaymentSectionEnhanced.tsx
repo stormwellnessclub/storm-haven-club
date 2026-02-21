@@ -421,9 +421,9 @@ export function PaymentSectionEnhanced({
             <span>
               <strong className="text-base">⚠️ IMPORTANT: Your card WILL be charged upon approval.</strong>
               <br className="mb-1" />
-              By saving your payment method, you authorize Storm Wellness Club to charge the 
-              <strong> non-refundable</strong> initiation fee (Women: $300 / Men: $175) when your 
-              membership is approved. <strong>Do not apply if you are not ready to commit to a 1-year membership.</strong>
+               By saving your payment method, you authorize Storm Wellness Club to charge the 
+               <strong> non-refundable</strong> initiation fee ($300) when your 
+               membership is approved. <strong>Do not apply if you are not ready to commit to a 1-year membership.</strong>
             </span>
           </p>
         </div>
@@ -530,7 +530,7 @@ export function PaymentSectionEnhanced({
               onCheckedChange={(checked) => onCheckboxChange("creditCardAuth", checked as boolean)}
             />
             <Label htmlFor="creditCardAuth" className="font-normal cursor-pointer text-sm leading-relaxed">
-              I authorize Storm Wellness Club to charge the <strong>non-refundable</strong> initiation fee (Women: $300 / Men: $175) and recurring membership dues to this card. I understand the initiation fee is charged upon approval and is <strong>non-refundable</strong>. *
+              I authorize Storm Wellness Club to charge the <strong>non-refundable</strong> initiation fee ($300) and recurring membership dues to this card. I understand the initiation fee is charged upon approval and is <strong>non-refundable</strong>. *
             </Label>
           </div>
         </div>

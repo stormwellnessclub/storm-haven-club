@@ -1351,39 +1351,34 @@ export default function Apply() {
                     </p>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm border-collapse">
-                        <thead>
+                         <thead>
                           <tr className="border-b border-border">
-                            <th className="text-left py-2 pr-4 font-medium text-foreground">Tier</th>
-                            <th className="text-left py-2 pr-4 font-medium text-foreground">Women</th>
-                            <th className="text-left py-2 font-medium text-foreground">Men</th>
-                          </tr>
-                        </thead>
-                        <tbody className="text-muted-foreground">
-                          <tr className="border-b border-border/50">
-                            <td className="py-2 pr-4 font-medium text-foreground">Diamond</td>
-                            <td className="py-2 pr-4">$6,000/year</td>
-                            <td className="py-2 text-muted-foreground/60 italic">Women only</td>
-                          </tr>
-                          <tr className="border-b border-border/50">
-                            <td className="py-2 pr-4 font-medium text-foreground">Platinum</td>
-                            <td className="py-2 pr-4">$4,200/year</td>
-                            <td className="py-2">$2,100/year</td>
-                          </tr>
-                          <tr className="border-b border-border/50">
-                            <td className="py-2 pr-4 font-medium text-foreground">Gold</td>
-                            <td className="py-2 pr-4">$3,000/year</td>
-                            <td className="py-2">$1,860/year</td>
-                          </tr>
-                          <tr>
-                            <td className="py-2 pr-4 font-medium text-foreground">Silver</td>
-                            <td className="py-2 pr-4">$2,400/year</td>
-                            <td className="py-2">$1,440/year</td>
-                          </tr>
-                        </tbody>
+                             <th className="text-left py-2 pr-4 font-medium text-foreground">Tier</th>
+                             <th className="text-left py-2 font-medium text-foreground">Annual Price</th>
+                           </tr>
+                         </thead>
+                         <tbody className="text-muted-foreground">
+                           <tr className="border-b border-border/50">
+                             <td className="py-2 pr-4 font-medium text-foreground">Diamond</td>
+                             <td className="py-2">$6,000/year</td>
+                           </tr>
+                           <tr className="border-b border-border/50">
+                             <td className="py-2 pr-4 font-medium text-foreground">Platinum</td>
+                             <td className="py-2">$4,200/year</td>
+                           </tr>
+                           <tr className="border-b border-border/50">
+                             <td className="py-2 pr-4 font-medium text-foreground">Gold</td>
+                             <td className="py-2">$3,000/year</td>
+                           </tr>
+                           <tr>
+                             <td className="py-2 pr-4 font-medium text-foreground">Silver</td>
+                             <td className="py-2">$2,400/year</td>
+                           </tr>
+                         </tbody>
                       </table>
                     </div>
                     <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">
-                      This full annual amount is due upon membership activation, <strong>in addition to</strong> the non-refundable initiation fee (Women: $300 / Men: $175).
+                      This full annual amount is due upon membership activation, <strong>in addition to</strong> the non-refundable initiation fee ($300).
                     </p>
                   </div>
                 )}
@@ -1433,7 +1428,7 @@ export default function Apply() {
               <div className="mb-6 p-5 bg-destructive/10 border-2 border-destructive/40 rounded-lg">
                 <p className="text-base font-bold text-destructive mb-2">🛑 STOP — Read Before Applying</p>
                 <ul className="text-sm text-destructive space-y-1.5 list-disc list-inside">
-                  <li>The <strong>initiation fee (Women: $300 / Men: $175) is non-refundable</strong> and will be charged upon membership approval.</li>
+                  <li>The <strong>initiation fee ($300) is non-refundable</strong> and will be charged upon membership approval.</li>
                   <li>This is a <strong>minimum 1-year membership commitment</strong>.</li>
                   <li>Founding members pay their <strong>full annual dues upfront</strong> (see pricing above).</li>
                   <li><strong>Do not apply if you are not ready to commit.</strong> Disputes and chargebacks for authorized charges will be contested.</li>
@@ -1464,7 +1459,7 @@ export default function Apply() {
                       required
                     />
                     <Label htmlFor="oneYearCommitment" className="font-normal cursor-pointer text-sm">
-                      I understand this is a minimum 1-year commitment. The initiation fee (Women: $300 / Men: $175) is <strong>non-refundable</strong> and will be charged upon approval. I will not dispute these authorized charges. *
+                      I understand this is a minimum 1-year commitment. The initiation fee ($300) is <strong>non-refundable</strong> and will be charged upon approval. I will not dispute these authorized charges. *
                     </Label>
                   </div>
                 </div>
