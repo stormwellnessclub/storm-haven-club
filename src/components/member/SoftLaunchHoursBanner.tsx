@@ -8,7 +8,7 @@ const STORAGE_KEY = 'soft-launch-banner-dismissed';
 const softLaunchHours = [
   { days: "Monday – Thursday", hours: "7:00 AM – 10:00 PM" },
   { days: "Friday", hours: "7:00 AM – 8:00 PM" },
-  { days: "Saturday – Sunday", hours: "7:00 AM – 6:00 PM" },
+  { days: "Saturday – Sunday", hours: "8:00 AM – 6:00 PM" },
 ];
 
 export function SoftLaunchHoursBanner() {
