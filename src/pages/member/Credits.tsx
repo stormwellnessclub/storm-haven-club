@@ -316,14 +316,22 @@ export default function MemberCredits() {
 
         {/* Class Passes */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Ticket className="h-5 w-5 text-accent" />
               <h2 className="text-xl font-semibold">Class Passes</h2>
             </div>
-            <Button asChild variant="outline">
-              <Link to="/class-passes">Buy More Passes</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/member/bookings">View Booking History</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/schedule">Book a Class</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/class-passes">Buy More Passes</Link>
+              </Button>
+            </div>
           </div>
 
           {classPasses.length === 0 ? (
@@ -573,12 +581,17 @@ function PassCard({ pass }: PassCardProps) {
           className="h-2"
         />
       </div>
-      <div className="flex items-center gap-2 text-sm">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
-        <span className={isExpiringSoon ? "text-destructive" : "text-muted-foreground"}>
-          Expires {format(expiresDate, "MMM d, yyyy")}
-          {isExpiringSoon && ` (${daysUntilExpiry} days)`}
-        </span>
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className={isExpiringSoon ? "text-destructive" : "text-muted-foreground"}>
+            Expires {format(expiresDate, "MMM d, yyyy")}
+            {isExpiringSoon && ` (${daysUntilExpiry} days)`}
+          </span>
+        </div>
+        <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
+          <Link to="/schedule">Book a Class</Link>
+        </Button>
       </div>
     </div>
   );

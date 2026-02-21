@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { format, parseISO, isValid, startOfToday, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
+import { getCategoryDisplayName } from "@/lib/classCategories";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Habit } from "@/hooks/useHabits";
 import { supabase } from "@/integrations/supabase/client";
@@ -283,13 +284,42 @@ export default function MemberDashboard() {
             <CardContent>
               {creditsLoading ? (
                 <Skeleton className="h-8 w-24" />
+              ) : credits?.classPasses && credits.classPasses.length > 0 ? (
+                <div className="space-y-3">
+                  {credits.classPasses.map((pass) => {
+                    const pct = (pass.classes_remaining / pass.classes_total) * 100;
+                    const expiresDate = parseISO(pass.expires_at);
+                    const daysLeft = differenceInDays(expiresDate, new Date());
+                    return (
+                      <div key={pass.id} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
+                            {getCategoryDisplayName(pass.category)} — {pass.pass_type}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={pct} className="h-1.5 flex-1" />
+                          <span className="text-xs font-semibold whitespace-nowrap">
+                            {pass.classes_remaining}/{pass.classes_total}
+                          </span>
+                        </div>
+                        <p className={`text-xs ${daysLeft <= 14 ? "text-destructive" : "text-muted-foreground"}`}>
+                          Expires {format(expiresDate, "MMM d, yyyy")}
+                        </p>
+                      </div>
+                    );
+                  })}
+                  <Link to="/member/credits" className="text-xs text-primary hover:underline mt-1 inline-block">
+                    View details →
+                  </Link>
+                </div>
               ) : (
-                <>
-                  <div className="text-2xl font-bold font-serif">
-                    {credits?.classPasses?.length || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground">active passes</p>
-                </>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">No active passes</p>
+                  <Button asChild size="sm" variant="outline" className="w-full">
+                    <Link to="/class-passes">Buy Passes</Link>
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
