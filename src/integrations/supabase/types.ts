@@ -716,6 +716,7 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"]
           updated_at: string
           user_id: string
+          walk_in_name: string | null
         }
         Insert: {
           amount_paid?: number | null
@@ -734,6 +735,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"]
           updated_at?: string
           user_id: string
+          walk_in_name?: string | null
         }
         Update: {
           amount_paid?: number | null
@@ -752,6 +754,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"]
           updated_at?: string
           user_id?: string
+          walk_in_name?: string | null
         }
         Relationships: [
           {
