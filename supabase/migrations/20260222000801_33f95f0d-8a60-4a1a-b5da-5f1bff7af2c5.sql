@@ -1,0 +1,1 @@
+ALTER TABLE public.class_bookings ADD COLUMN walk_in_name text;
