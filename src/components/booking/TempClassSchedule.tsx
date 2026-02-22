@@ -140,10 +140,10 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_sessions")
-        .select("id, session_date, start_time, current_enrollment, max_capacity, class_types!inner(name)")
+        .select("id, session_date, start_time, current_enrollment, max_capacity, is_cancelled, is_hidden, class_types!inner(name)")
         .gte("session_date", weekStartStr)
         .lte("session_date", weekEndStr)
-        .eq("is_cancelled", false)
+        .eq("is_hidden", false)
         .in("class_types.name", ["Signature Flow", "Reformer Flow", "Reformer Sculpt"]);
       if (error) throw error;
       return data || [];
@@ -152,14 +152,14 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
   });
 
   // Helper to find enrollment for a specific class slot
-  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number } {
+  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean } {
     const dbTime = parseTimeToDb(time);
     const match = liveEnrollment.find((s: any) => {
       const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
       return s.session_date === dateStr && s.start_time === dbTime && typeName === className;
     });
-    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity };
-    return { enrolled: 0, maxCapacity: 8 };
+    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled };
+    return { enrolled: 0, maxCapacity: 8, isCancelled: false };
   }
 
   return (
@@ -210,7 +210,20 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
                 <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
               ) : (
                 day.classes.map((cls, i) => {
-                  const { enrolled, maxCapacity } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                  const { enrolled, maxCapacity, isCancelled } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                  if (isCancelled) {
+                    return (
+                      <Card key={i} className="opacity-60 border-destructive/30">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-semibold text-foreground line-through">{cls.name}</h3>
+                            <span className="text-lg font-bold text-muted-foreground">{cls.time}</span>
+                          </div>
+                          <Badge variant="destructive" className="text-xs">Cancelled</Badge>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
                   return (
                     <TempClassCard
                       key={i}

@@ -49,6 +49,7 @@ interface ClassBooking {
   profile?: {
     first_name: string | null;
     last_name: string | null;
+    email?: string | null;
   } | null;
 }
 
@@ -165,7 +166,7 @@ export function ClassRosterDialog({
       if (missingUserIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("user_id, first_name, last_name")
+          .select("user_id, first_name, last_name, email")
           .in("user_id", missingUserIds);
 
         if (profiles?.length) {
@@ -554,7 +555,9 @@ export function ClassRosterDialog({
     if (booking.profile?.first_name || booking.profile?.last_name) {
       return `${booking.profile.first_name || ""} ${booking.profile.last_name || ""}`.trim();
     }
-    return booking.walk_in_name || "Unknown";
+    if (booking.walk_in_name) return booking.walk_in_name;
+    if (booking.profile?.email) return booking.profile.email;
+    return "Unknown";
   };
 
   const getInitials = (booking: ClassBooking) => {
@@ -566,6 +569,7 @@ export function ClassRosterDialog({
       const parts = booking.walk_in_name.split(" ");
       return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`;
     }
+    if (booking.profile?.email) return booking.profile.email[0]?.toUpperCase() || "?";
     return "?";
   };
 
