@@ -1039,6 +1039,7 @@ export type Database = {
           id: string
           instructor_id: string | null
           is_cancelled: boolean
+          is_hidden: boolean
           max_capacity: number
           room: string | null
           schedule_id: string | null
@@ -1055,6 +1056,7 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           is_cancelled?: boolean
+          is_hidden?: boolean
           max_capacity: number
           room?: string | null
           schedule_id?: string | null
@@ -1071,6 +1073,7 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           is_cancelled?: boolean
+          is_hidden?: boolean
           max_capacity?: number
           room?: string | null
           schedule_id?: string | null
