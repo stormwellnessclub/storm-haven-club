@@ -46,6 +46,10 @@ interface ClassBooking {
     last_name: string;
     photo_url: string | null;
   } | null;
+  profile?: {
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
 }
 
 interface ClassRosterDialogProps {
@@ -151,7 +155,30 @@ export function ClassRosterDialog({
         .eq("session_id", selectedSlot.dbSessionId)
         .in("status", ["confirmed", "completed"]);
       if (error) throw error;
-      return data as ClassBooking[];
+      const bookingsData = (data || []) as ClassBooking[];
+
+      // Secondary lookup: fetch profiles for bookings without a members record
+      const missingUserIds = bookingsData
+        .filter(b => !b.members && b.user_id)
+        .map(b => b.user_id);
+
+      if (missingUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name")
+          .in("user_id", missingUserIds);
+
+        if (profiles?.length) {
+          const profileMap = new Map(profiles.map(p => [p.user_id, p]));
+          for (const booking of bookingsData) {
+            if (!booking.members && booking.user_id) {
+              booking.profile = profileMap.get(booking.user_id) || null;
+            }
+          }
+        }
+      }
+
+      return bookingsData;
     },
     enabled: !!selectedSlot?.dbSessionId && open,
   });
@@ -511,11 +538,17 @@ export function ClassRosterDialog({
 
   const getDisplayName = (booking: ClassBooking) => {
     if (booking.members) return `${booking.members.first_name} ${booking.members.last_name}`;
+    if (booking.profile?.first_name || booking.profile?.last_name) {
+      return `${booking.profile.first_name || ""} ${booking.profile.last_name || ""}`.trim();
+    }
     return booking.walk_in_name || "Unknown";
   };
 
   const getInitials = (booking: ClassBooking) => {
     if (booking.members) return `${booking.members.first_name?.[0] || ""}${booking.members.last_name?.[0] || ""}`;
+    if (booking.profile?.first_name || booking.profile?.last_name) {
+      return `${booking.profile.first_name?.[0] || ""}${booking.profile.last_name?.[0] || ""}`;
+    }
     if (booking.walk_in_name) {
       const parts = booking.walk_in_name.split(" ");
       return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`;
