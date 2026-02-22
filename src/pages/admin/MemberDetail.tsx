@@ -27,6 +27,7 @@ import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/u
 import { useMemberActivities } from "@/hooks/useMemberActivities";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
 import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth";
@@ -90,7 +91,7 @@ import {
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
   Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle,
-  ArrowUpDown, Send, Info, RotateCcw, CalendarClock, Ban
+  ArrowUpDown, Send, Info, RotateCcw, CalendarClock, Ban, Pencil
 } from "lucide-react";
 import {
   Table,
@@ -227,6 +228,9 @@ export default function MemberDetail() {
 
   // Activation email state
   const [isSendingActivationEmail, setIsSendingActivationEmail] = useState(false);
+
+  // Edit class pass state
+  const [editingPass, setEditingPass] = useState<any>(null);
 
   // Cancellation email state
   const [isSendingCancellationEmail, setIsSendingCancellationEmail] = useState(false);
@@ -1128,6 +1132,7 @@ export default function MemberDetail() {
   }
 
   return (
+    <>
     <AdminLayout title="">
       <div className="space-y-6">
         {/* Breadcrumb & Header */}
@@ -1884,9 +1889,16 @@ export default function MemberDetail() {
                           <div key={pass.id} className={`p-4 border rounded-lg ${isActive ? 'border-primary/30' : 'opacity-60'}`}>
                             <div className="flex items-center justify-between mb-1">
                               <p className="font-medium text-sm">{pass.pass_type}</p>
-                              <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
-                                {isActive ? 'Active' : pass.status}
-                              </Badge>
+                              <div className="flex items-center gap-1">
+                                {isSuperAdmin() && (
+                                  <Button variant="ghost" size="icon-sm" onClick={() => setEditingPass(pass)}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
+                                  {isActive ? 'Active' : pass.status}
+                                </Badge>
+                              </div>
                             </div>
                             <p className="text-xs text-muted-foreground capitalize mb-2">Category: {pass.category?.replace(/_/g, ' ')}</p>
                             <div className="flex items-center justify-between text-sm mb-1">
@@ -2714,6 +2726,16 @@ export default function MemberDetail() {
         </AlertDialogContent>
       </AlertDialog>
     </AdminLayout>
+
+    {editingPass && (
+      <EditClassPassDialog
+        open={!!editingPass}
+        onOpenChange={(open) => { if (!open) setEditingPass(null); }}
+        pass={editingPass}
+        queryKeysToInvalidate={[["member-class-passes-admin", id]]}
+      />
+    )}
+    </>
   );
 }
 
