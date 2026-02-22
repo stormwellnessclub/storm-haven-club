@@ -10,7 +10,7 @@ import { Check, ExternalLink, Loader2, AlertCircle, FileText, Download } from "l
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { loadStripe } from "@stripe/stripe-js";
-import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
+// AgreementPDFViewer removed — now using download-only UI for all devices
 import { useAgreements } from "@/hooks/useAgreements";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApplicationProgress, getStepCompletion, APPLICATION_STEPS } from "@/components/ApplicationProgress";
@@ -238,40 +238,30 @@ function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAg
             </div>
           </div>
         ) : pdfUrls.length > 0 ? (
-          isMobile ? (
-            /* Mobile: always show download buttons, no iframe */
-            <div className="space-y-3">
-              {pdfUrls.map((url, index) => {
-                const resolvedUrl = resolvePdfUrl(url);
-                const filename = typeof url === 'string' ? (url.split('/').pop() || 'membership-agreement.pdf') : `agreement-${index + 1}.pdf`;
-                return (
-                  <div key={index} className="flex flex-col items-center gap-3 p-5 rounded-lg border bg-muted/30">
-                    <FileText className="h-10 w-10 text-accent" />
-                    <p className="text-sm font-medium text-center">Membership Agreement{pdfUrls.length > 1 ? ` (${index + 1})` : ''}</p>
-                    <div className="flex flex-col gap-2 w-full">
-                      <Button size="lg" className="w-full gap-2" onClick={() => downloadPdf(resolvedUrl, filename)}>
-                        <Download className="h-4 w-4" />
-                        Download Agreement
-                      </Button>
-                      <Button variant="outline" size="lg" className="w-full gap-2" asChild>
-                        <a href={resolvedUrl} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                          Open in Browser
-                        </a>
-                      </Button>
-                    </div>
+          <div className="space-y-3">
+            {pdfUrls.map((url, index) => {
+              const resolvedUrl = resolvePdfUrl(url);
+              const filename = typeof url === 'string' ? (url.split('/').pop() || 'membership-agreement.pdf') : `agreement-${index + 1}.pdf`;
+              return (
+                <div key={index} className="flex flex-col items-center gap-3 p-5 rounded-lg border bg-muted/30">
+                  <FileText className="h-10 w-10 text-accent" />
+                  <p className="text-sm font-medium text-center">Membership Agreement{pdfUrls.length > 1 ? ` (${index + 1})` : ''}</p>
+                  <div className={`flex gap-2 w-full ${isMobile ? 'flex-col' : 'flex-row justify-center'}`}>
+                    <Button size="lg" className="gap-2" onClick={() => downloadPdf(resolvedUrl, filename)}>
+                      <Download className="h-4 w-4" />
+                      Download Agreement
+                    </Button>
+                    <Button variant="outline" size="lg" className="gap-2" asChild>
+                      <a href={resolvedUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        Open in Browser
+                      </a>
+                    </Button>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <AgreementPDFViewer
-              pdfUrl={pdfUrls}
-              title="Membership Agreement"
-              height="500px"
-              showControls={true}
-            />
-          )
+                </div>
+              );
+            })}
+          </div>
         ) : (
           /* No PDF available — show download fallback to the static file */
           <div className="flex flex-col items-center gap-3 p-5 rounded-lg border bg-muted/30">
@@ -1487,7 +1477,7 @@ export default function Apply() {
                   <li>The <strong>initiation fee ($300) is non-refundable</strong> and will be charged upon membership approval.</li>
                   <li>This is a <strong>minimum 1-year membership commitment</strong>.</li>
                   <li>Founding members pay their <strong>full annual dues upfront</strong> (see pricing above).</li>
-                  <li><strong>Do not apply if you are not ready to commit.</strong> Disputes and chargebacks for authorized charges will be contested.</li>
+                  <li><strong>Do not apply if you are not ready to commit.</strong></li>
                 </ul>
               </div>
 
