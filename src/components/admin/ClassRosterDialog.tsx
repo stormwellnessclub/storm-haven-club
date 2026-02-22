@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X,
+  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -156,6 +156,39 @@ export function ClassRosterDialog({
     enabled: !!selectedSlot?.dbSessionId && open,
   });
 
+  // Fetch waitlist for session
+  const { data: waitlist = [], isLoading: waitlistLoading } = useQuery({
+    queryKey: ["session-waitlist", selectedSlot?.dbSessionId],
+    queryFn: async () => {
+      if (!selectedSlot?.dbSessionId) return [];
+      const { data, error } = await supabase
+        .from("class_waitlist")
+        .select("id, user_id, position, status, notified_at, claimed_at, claim_expires_at, created_at")
+        .eq("session_id", selectedSlot.dbSessionId)
+        .in("status", ["waiting", "notified"])
+        .order("position", { ascending: true });
+      if (error) throw error;
+
+      // Resolve user names from profiles
+      if (!data?.length) return [];
+      const userIds = data.map(w => w.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, email")
+        .in("user_id", userIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      return data.map(w => ({
+        ...w,
+        profile: profileMap.get(w.user_id) || null,
+      }));
+    },
+    enabled: !!selectedSlot?.dbSessionId && open,
+  });
+
+  // Roster/waitlist tab state
+  const [rosterTab, setRosterTab] = useState<"roster" | "waitlist">("roster");
+
   // Helper to ensure session exists
   const ensureSession = async () => {
     if (!selectedSlot) throw new Error("No slot selected");
@@ -183,6 +216,7 @@ export function ClassRosterDialog({
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["soft-launch-bookings", selectedSlot?.dbSessionId] });
     queryClient.invalidateQueries({ queryKey: ["soft-launch-sessions", dateStr] });
+    queryClient.invalidateQueries({ queryKey: ["session-waitlist", selectedSlot?.dbSessionId] });
   };
 
   // Check in mutation
@@ -198,14 +232,58 @@ export function ClassRosterDialog({
     onError: () => toast.error("Failed to check in"),
   });
 
-  // Remove booking mutation
+  // Remove booking mutation — with credit/pass refund
   const removeMutation = useMutation({
     mutationFn: async (bookingId: string) => {
+      // First fetch the booking to check payment details
+      const { data: booking, error: fetchErr } = await supabase
+        .from("class_bookings")
+        .select("id, payment_method, pass_id, member_credit_id, credits_used")
+        .eq("id", bookingId)
+        .single();
+      if (fetchErr || !booking) throw new Error("Booking not found");
+
+      // Refund credit if paid with credits
+      if (booking.payment_method === "credits" && booking.member_credit_id) {
+        const { data: credit } = await supabase
+          .from("member_credits")
+          .select("credits_remaining")
+          .eq("id", booking.member_credit_id)
+          .single();
+        if (credit) {
+          await supabase
+            .from("member_credits")
+            .update({ credits_remaining: credit.credits_remaining + (booking.credits_used || 1) })
+            .eq("id", booking.member_credit_id);
+        }
+      }
+
+      // Refund pass if paid with pass
+      if (booking.payment_method === "pass" && booking.pass_id) {
+        const { data: pass } = await supabase
+          .from("class_passes")
+          .select("classes_remaining, status")
+          .eq("id", booking.pass_id)
+          .single();
+        if (pass) {
+          await supabase
+            .from("class_passes")
+            .update({
+              classes_remaining: pass.classes_remaining + 1,
+              status: "active" as any,
+            })
+            .eq("id", booking.pass_id);
+        }
+      }
+
+      // Cancel the booking
       const { error } = await supabase
         .from("class_bookings")
         .update({ status: "cancelled" as const, cancelled_at: new Date().toISOString() })
         .eq("id", bookingId);
       if (error) throw error;
+
+      // Decrement enrollment
       if (selectedSlot?.dbSessionId) {
         await supabase
           .from("class_sessions")
@@ -213,8 +291,59 @@ export function ClassRosterDialog({
           .eq("id", selectedSlot.dbSessionId);
       }
     },
-    onSuccess: () => { invalidateAll(); toast.success("Removed from class"); },
+    onSuccess: () => { invalidateAll(); toast.success("Removed from class — credit/pass restored"); },
     onError: () => toast.error("Failed to remove"),
+  });
+
+  // Promote waitlisted person into class
+  const promoteMutation = useMutation({
+    mutationFn: async (waitlistEntry: { id: string; user_id: string }) => {
+      if (!selectedSlot?.dbSessionId) throw new Error("No session");
+
+      // Get member_id if exists
+      const { data: member } = await supabase
+        .from("members")
+        .select("id")
+        .eq("user_id", waitlistEntry.user_id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      // Create a comp booking for promoted waitlist person
+      await supabase.from("class_bookings").insert({
+        session_id: selectedSlot.dbSessionId,
+        user_id: waitlistEntry.user_id,
+        member_id: member?.id || null,
+        status: "confirmed",
+        payment_method: "comp",
+        booked_at: new Date().toISOString(),
+      });
+
+      // Update enrollment
+      await supabase
+        .from("class_sessions")
+        .update({ current_enrollment: selectedSlot.enrolled + 1 })
+        .eq("id", selectedSlot.dbSessionId);
+
+      // Mark waitlist entry as claimed
+      await supabase
+        .from("class_waitlist")
+        .update({ status: "claimed" as any, claimed_at: new Date().toISOString() })
+        .eq("id", waitlistEntry.id);
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Promoted from waitlist"); },
+    onError: () => toast.error("Failed to promote"),
+  });
+
+  // Remove from waitlist
+  const removeWaitlistMutation = useMutation({
+    mutationFn: async (waitlistId: string) => {
+      await supabase
+        .from("class_waitlist")
+        .update({ status: "expired" as any })
+        .eq("id", waitlistId);
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Removed from waitlist"); },
+    onError: () => toast.error("Failed to remove from waitlist"),
   });
 
   // Main add-to-class mutation
@@ -536,78 +665,163 @@ export function ClassRosterDialog({
             </div>
           )}
 
-          {/* Roster Table */}
-          {bookingsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : !selectedSlot?.dbSessionId || bookings.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No one registered for this class yet</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bookings.map((booking) => {
-                  const isCheckedIn = booking.status === "completed" || !!booking.checked_in_at;
-                  const isWalkIn = !booking.member_id && !!booking.walk_in_name;
-                  return (
-                    <TableRow key={booking.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                            {getInitials(booking)}
-                          </div>
-                          <span>{getDisplayName(booking)}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {isWalkIn ? (
-                          <Badge variant="outline" className="text-xs">Walk-In</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">Member</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs text-muted-foreground">{paymentLabel(booking.payment_method)}</span>
-                      </TableCell>
-                      <TableCell>
-                        {isCheckedIn ? (
-                          <Badge variant="default" className="bg-green-500">
-                            <CheckCircle className="h-3 w-3 mr-1" /> Checked In
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Registered</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        {!isCheckedIn && (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(booking.id)} disabled={checkInMutation.isPending}>
-                              <UserCheck className="h-4 w-4 mr-1" /> Check In
-                            </Button>
-                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeMutation.mutate(booking.id)} disabled={removeMutation.isPending}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </TableCell>
+          {/* Roster / Waitlist Tabs */}
+          <Tabs value={rosterTab} onValueChange={(v) => setRosterTab(v as "roster" | "waitlist")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="roster">Roster ({bookings.length})</TabsTrigger>
+              <TabsTrigger value="waitlist">Waitlist ({waitlist.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="roster">
+              {bookingsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : !selectedSlot?.dbSessionId || bookings.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No one registered for this class yet</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+                  </TableHeader>
+                  <TableBody>
+                    {bookings.map((booking) => {
+                      const isCheckedIn = booking.status === "completed" || !!booking.checked_in_at;
+                      const isWalkIn = !booking.member_id && !!booking.walk_in_name;
+                      return (
+                        <TableRow key={booking.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                                {getInitials(booking)}
+                              </div>
+                              <span>{getDisplayName(booking)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {isWalkIn ? (
+                              <Badge variant="outline" className="text-xs">Walk-In</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">Member</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs text-muted-foreground">{paymentLabel(booking.payment_method)}</span>
+                          </TableCell>
+                          <TableCell>
+                            {isCheckedIn ? (
+                              <Badge variant="default" className="bg-green-500">
+                                <CheckCircle className="h-3 w-3 mr-1" /> Checked In
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">Registered</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            {!isCheckedIn && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(booking.id)} disabled={checkInMutation.isPending}>
+                                  <UserCheck className="h-4 w-4 mr-1" /> Check In
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeMutation.mutate(booking.id)} disabled={removeMutation.isPending}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+
+            <TabsContent value="waitlist">
+              {waitlistLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : waitlist.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No one on the waitlist</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {waitlist.map((entry) => {
+                      const name = entry.profile
+                        ? `${entry.profile.first_name || ""} ${entry.profile.last_name || ""}`.trim()
+                        : "Unknown";
+                      const initials = entry.profile
+                        ? `${entry.profile.first_name?.[0] || ""}${entry.profile.last_name?.[0] || ""}`
+                        : "?";
+                      const statusBadge = entry.status === "notified"
+                        ? <Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1" />Notified</Badge>
+                        : <Badge variant="secondary" className="text-xs">Waiting</Badge>;
+
+                      return (
+                        <TableRow key={entry.id}>
+                          <TableCell className="font-medium">{entry.position}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                                {initials}
+                              </div>
+                              <div>
+                                <p className="text-sm">{name}</p>
+                                {entry.profile?.email && (
+                                  <p className="text-xs text-muted-foreground">{entry.profile.email}</p>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{statusBadge}</TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => promoteMutation.mutate({ id: entry.id, user_id: entry.user_id })}
+                              disabled={promoteMutation.isPending}
+                            >
+                              <ArrowUp className="h-4 w-4 mr-1" /> Promote
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => removeWaitlistMutation.mutate(entry.id)}
+                              disabled={removeWaitlistMutation.isPending}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
