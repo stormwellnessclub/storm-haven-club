@@ -1,47 +1,44 @@
 
 
-## Fix: Roster Showing "Unknown" and Missing Bookings
+## Urgent Fix: Stale Enrollment Counters + Nahla's Name
 
-### Problem
+### What's Wrong
 
-The Class Roster query only joins the `members` table for names. When someone books a class via a class pass (non-member / portal user), they may not have a `members` record, so:
-- Their name shows as "Unknown"
-- If they also have no `walk_in_name`, the row appears blank
+**Two separate issues:**
 
-This explains both issues:
-- **Feb 27**: 1 enrolled but roster appears empty (the booking exists but the name resolver returns nothing useful)
-- **Feb 28 at 9 PM**: 2 enrolled but one shows as "Unknown" (one has a member record, the other doesn't)
+1. **Nahla's name not showing**: The profile lookup fix from the last edit is correctly implemented in the code. Her name (`Nahla Hammoud`) exists in the `profiles` table and the fallback logic will now display it. This should already be working with the deployed code.
+
+2. **Enrollment counters are wrong (the real bug)**:
+   - **Feb 27, 8 PM**: Shows 1/8 enrolled, but the only booking (Rayann Haidar) was **cancelled**. The counter should be 0.
+   - **Feb 28, 9 PM**: Shows 2/8 enrolled, but only 1 confirmed booking exists (Nahla Hammoud). The counter should be 1.
+   - The `update_session_enrollment` trigger exists and is enabled, but these counters drifted -- likely from a booking cancellation that didn't fire the trigger correctly (e.g., a direct status update or race condition).
 
 ### Fix
 
-After fetching bookings, do a secondary lookup of `profiles` by `user_id` for any booking where `members` is null. Use the profile's `first_name` / `last_name` as fallback.
+| Step | What |
+|------|------|
+| 1. SQL migration | Run a one-time counter correction: set `current_enrollment` to the actual count of confirmed/completed bookings for all soft-launch sessions. |
+| 2. Code change | Add a recount function that admins can trigger from the roster dialog, and also auto-correct on roster load -- compare `current_enrollment` with the actual booking count and fix silently if they differ. |
 
-### Changes
+### SQL Migration
+
+```sql
+UPDATE class_sessions cs
+SET current_enrollment = (
+  SELECT COUNT(*)
+  FROM class_bookings cb
+  WHERE cb.session_id = cs.id
+  AND cb.status IN ('confirmed', 'completed')
+)
+WHERE cs.session_date >= '2026-02-20'
+AND cs.session_date <= '2026-03-18';
+```
+
+### Code Change
 
 | File | Change |
 |------|--------|
-| `src/components/admin/ClassRosterDialog.tsx` | After the bookings query, fetch `profiles` for any booking where `members` is null. Enrich the booking data with profile info. Update `getDisplayName` and `getInitials` to use the profile fallback before falling through to "Unknown". |
+| `src/components/admin/ClassRosterDialog.tsx` | After fetching bookings, compare `bookings.length` with `selectedSlot.enrolled`. If they differ, silently update `current_enrollment` in `class_sessions` to the correct count and invalidate the query cache. |
 
-### Technical Detail
-
-The bookings query currently does:
-```
-select("id, user_id, member_id, status, ..., members (id, first_name, last_name, photo_url)")
-```
-
-After this query returns, we collect `user_id` values from bookings where `members` is null, then:
-```typescript
-const { data: profiles } = await supabase
-  .from("profiles")
-  .select("user_id, first_name, last_name")
-  .in("user_id", missingUserIds);
-```
-
-Then merge that into each booking as a `profile` fallback field. The display logic becomes:
-1. Use `members.first_name + last_name` if available
-2. Else use `profile.first_name + last_name` if available
-3. Else use `walk_in_name`
-4. Else "Unknown"
-
-No database changes needed.
+This prevents future drift from accumulating -- every time an admin opens a roster, the count self-heals.
 
