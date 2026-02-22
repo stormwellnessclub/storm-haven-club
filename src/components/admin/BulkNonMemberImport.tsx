@@ -93,9 +93,9 @@ export function BulkNonMemberImport() {
 
   // Send activation email
   const sendEmailMutation = useMutation({
-    mutationFn: async (email: string) => {
+    mutationFn: async ({ email, firstName }: { email: string; firstName: string }) => {
       const { data, error } = await supabase.functions.invoke("send-email", {
-        body: { type: "account_activation_invite", to: email, data: { email } },
+        body: { type: "account_activation_invite", to: email, data: { email, first_name: firstName } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -235,7 +235,7 @@ export function BulkNonMemberImport() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => sendEmailMutation.mutate(imp.email)}
+                          onClick={() => sendEmailMutation.mutate({ email: imp.email, firstName: imp.first_name })}
                           disabled={sendEmailMutation.isPending}
                         >
                           <Mail className="h-4 w-4" />

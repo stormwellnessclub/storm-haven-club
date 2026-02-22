@@ -1914,7 +1914,7 @@ serve(async (req) => {
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="${emailStyles.heading}">Your Class Passes Are Ready</h2>
+              <h2 style="${emailStyles.heading}">${data.first_name ? `Hi ${data.first_name}, Your` : 'Your'} Class Passes Are Ready</h2>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
                 Thank you for your recent purchase at Storm Wellness Club. To access your class passes and start booking, please create your free account using the button below.
