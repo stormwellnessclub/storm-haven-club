@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Mail, Loader2, CheckCircle, Clock } from "lucide-react";
+import { Plus, Trash2, Upload, Mail, Loader2, CheckCircle, Clock, Send } from "lucide-react";
+import { format } from "date-fns";
 
 interface PendingPerson {
   firstName: string;
@@ -91,18 +92,44 @@ export function BulkNonMemberImport() {
     onError: (err: Error) => toast.error(`Failed: ${err.message}`),
   });
 
-  // Send activation email
+  // Send activation email and track it
   const sendEmailMutation = useMutation({
-    mutationFn: async ({ email, firstName }: { email: string; firstName: string }) => {
+    mutationFn: async ({ id, email, firstName }: { id: string; email: string; firstName: string }) => {
       const { data, error } = await supabase.functions.invoke("send-email", {
         body: { type: "account_activation_invite", to: email, data: { email, first_name: firstName } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // Record email_sent_at
+      await supabase
+        .from("pending_non_member_imports")
+        .update({ email_sent_at: new Date().toISOString() } as any)
+        .eq("id", id);
+
       return data;
     },
-    onSuccess: () => toast.success("Activation email sent"),
+    onSuccess: () => {
+      toast.success("Activation email sent");
+      queryClient.invalidateQueries({ queryKey: ["pending-non-member-imports"] });
+    },
     onError: (err: Error) => toast.error(`Email failed: ${err.message}`),
+  });
+
+  // Send all unsent emails
+  const sendAllMutation = useMutation({
+    mutationFn: async (imports: any[]) => {
+      const unsent = imports.filter((imp) => imp.status === "pending" && !imp.email_sent_at);
+      for (const imp of unsent) {
+        await sendEmailMutation.mutateAsync({ id: imp.id, email: imp.email, firstName: imp.first_name });
+      }
+      return unsent.length;
+    },
+    onSuccess: (count) => {
+      if (count > 0) toast.success(`Sent ${count} activation email(s)`);
+      else toast.info("All emails already sent");
+    },
+    onError: (err: Error) => toast.error(`Bulk send failed: ${err.message}`),
   });
 
   const validPeople = people.filter(
@@ -116,6 +143,10 @@ export function BulkNonMemberImport() {
       default: return "Other";
     }
   };
+
+  const unsentCount = (pendingImports || []).filter(
+    (imp: any) => imp.status === "pending" && !imp.email_sent_at
+  ).length;
 
   return (
     <Card>
@@ -198,14 +229,33 @@ export function BulkNonMemberImport() {
         {/* Pending imports list */}
         {(pendingImports?.length ?? 0) > 0 && (
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold">Pending Imports</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold">Pending Imports</h4>
+              {unsentCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => sendAllMutation.mutate(pendingImports || [])}
+                  disabled={sendAllMutation.isPending || sendEmailMutation.isPending}
+                >
+                  {sendAllMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-1" />
+                  )}
+                  Send All ({unsentCount})
+                </Button>
+              )}
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead className="hidden md:table-cell">Phone</TableHead>
                   <TableHead>Pass</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Email Sent</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -216,6 +266,7 @@ export function BulkNonMemberImport() {
                       {imp.first_name} {imp.last_name}
                     </TableCell>
                     <TableCell className="text-sm">{imp.email}</TableCell>
+                    <TableCell className="hidden md:table-cell text-sm">{imp.phone || "—"}</TableCell>
                     <TableCell className="text-sm">
                       {categoryLabel(imp.pass_category)} ({imp.classes_total})
                     </TableCell>
@@ -231,11 +282,22 @@ export function BulkNonMemberImport() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {imp.status === "pending" && (
+                      {imp.email_sent_at ? (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          <Mail className="h-3 w-3 mr-1" /> {format(new Date(imp.email_sent_at), "MMM d")}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-muted text-muted-foreground">
+                          Not Sent
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {imp.status === "pending" && !imp.email_sent_at && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => sendEmailMutation.mutate({ email: imp.email, firstName: imp.first_name })}
+                          onClick={() => sendEmailMutation.mutate({ id: imp.id, email: imp.email, firstName: imp.first_name })}
                           disabled={sendEmailMutation.isPending}
                         >
                           <Mail className="h-4 w-4" />
