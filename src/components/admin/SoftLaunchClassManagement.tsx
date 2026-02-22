@@ -42,9 +42,16 @@ export function SoftLaunchClassManagement() {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
-    if (isBefore(today, SOFT_LAUNCH_START)) return SOFT_LAUNCH_START;
-    if (isAfter(today, SOFT_LAUNCH_END)) return SOFT_LAUNCH_END;
-    return today;
+    const start = isBefore(today, SOFT_LAUNCH_START) ? SOFT_LAUNCH_START : isAfter(today, SOFT_LAUNCH_END) ? SOFT_LAUNCH_END : today;
+    if (getClassesForDate(start).length > 0) return start;
+    // Search forward then backward for nearest date with classes
+    for (let i = 1; i <= 30; i++) {
+      const fwd = addDays(start, i);
+      if (!isAfter(fwd, SOFT_LAUNCH_END) && getClassesForDate(fwd).length > 0) return fwd;
+      const bwd = subDays(start, i);
+      if (!isBefore(bwd, SOFT_LAUNCH_START) && getClassesForDate(bwd).length > 0) return bwd;
+    }
+    return start;
   });
   const [selectedSlot, setSelectedSlot] = useState<ScheduleSlot | null>(null);
   const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
