@@ -182,7 +182,7 @@ function BookingCard({ booking, isUpcoming }: BookingCardProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to cancel this booking? Late cancellations (less than 12 hours before class) may result in the loss of your class credit or pass.
+                    Are you sure you want to cancel this booking? Late cancellations (less than 24 hours before class) may result in the loss of your class credit or pass.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
