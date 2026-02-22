@@ -1,46 +1,76 @@
 
 
-## Fix: Restore Both Missing Credits to Carly's Pass
+## Enhance Admin Class Roster: Add Walk-In / New Person with Charge Option
 
 ### The Problem
-Carly's 10-pack pass started at 10 and is now at 8. Two credits were deducted:
-
-1. **Feb 21, 8:00 AM booking** (confirmed) -- permanent schedule class that isn't happening
-2. **Feb 24, 5:00 PM booking** (cancelled) -- was cancelled but the credit was never restored
-
-Neither class is valid during the soft launch, and the cancelled booking should have returned its credit automatically but didn't.
+The current "Add Member" button in the class roster dialog only searches existing active members. There's no way for staff to:
+- Add a walk-in or non-member to a class
+- Add someone brand new (not in the system at all)
+- Charge a drop-in fee at the time of adding
 
 ### What Will Change
 
-**1. Cancel the Feb 21 booking**
-- Set booking `6958d372-386f-48e2-8274-8d6ac331c80b` status to `cancelled`
+**1. Replace "Add Member" with a two-option panel**
 
-**2. Restore both credits to Carly's pass**
-- Update pass `0fbd26ad-e4ad-4dd3-a29d-768f31788f7b` from 8 back to **10** `classes_remaining`
+Instead of a single member search, the "Add" section will have two clear paths:
 
-**3. Reset the Feb 21 session enrollment to 0**
-- No valid bookings remain on session `13e38267-e5e7-4b00-be5a-20d00c0a3995`
+- **Add Existing Member** -- works like today, searches the `members` table
+- **Add Walk-In / New Person** -- a quick form for name + email (optional), with the option to charge a drop-in fee
+
+**2. Walk-In form fields**
+
+A compact inline form with:
+- First Name (required)
+- Last Name (required)
+- Email (optional)
+- Phone (optional)
+- Charge drop-in fee toggle (with price display, e.g. $30)
+
+**3. Walk-in booking logic**
+
+When adding a walk-in:
+- If an email is provided, check `non_member_profiles` and `profiles` tables to see if they already exist. If found, link the booking to their `user_id`.
+- If no match or no email, create the booking with a `payment_method` of `walk_in` and store the walk-in's name in the booking notes or a metadata field.
+- The roster display will show walk-in names even without a linked member record.
+
+**4. Drop-in charge option**
+
+When the "Charge drop-in fee" toggle is on:
+- Use the existing `stripe-payment` edge function's `charge_saved_card` action if the person has a card on file
+- Or generate a Stripe Checkout link for the drop-in amount ($30 single class) that staff can share or process on the spot
+- Record the charge in `manual_charges` for audit trail
+
+**5. Roster display update**
+
+The roster table will show walk-in entries alongside member bookings, displaying the walk-in name from the booking metadata when no member record is linked.
 
 ### Technical Details
 
-```sql
--- 1. Cancel the phantom booking
-UPDATE class_bookings
-SET status = 'cancelled'
-WHERE id = '6958d372-386f-48e2-8274-8d6ac331c80b';
+| File | Change |
+|------|--------|
+| `src/components/admin/SoftLaunchClassManagement.tsx` | Expand the "Add Member" section into a tabbed panel with "Member" and "Walk-In" options. Add walk-in form with name/email/phone fields and charge toggle. Update the roster display to show walk-in names from booking metadata. Update the booking insert to support `walk_in` payment method with metadata. |
+| `src/components/admin/SoftLaunchClassManagement.tsx` | Update the bookings query to also pull walk-in data (bookings without a `member_id` but with walk-in metadata). |
+| Database migration | Add a `walk_in_name` column (nullable text) to `class_bookings` to store the name for unlinked walk-ins. This avoids overloading existing fields and keeps the schema clean. |
 
--- 2. Restore both credits (cancelled booking never refunded + phantom booking)
-UPDATE class_passes
-SET classes_remaining = 10
-WHERE id = '0fbd26ad-e4ad-4dd3-a29d-768f31788f7b';
+### Walk-In Booking Flow
 
--- 3. Reset enrollment on the phantom session
-UPDATE class_sessions
-SET current_enrollment = 0
-WHERE id = '13e38267-e5e7-4b00-be5a-20d00c0a3995';
+```text
+Staff clicks "Add Walk-In"
+        |
+  Enters name + optional email
+        |
+  [Toggle] Charge drop-in fee?
+   /              \
+ Yes               No
+  |                 |
+Check for card    Insert booking
+on file           (payment_method: 'walk_in',
+  |                walk_in_name: 'Jane Doe')
+Has card? ------> Charge via Stripe
+No card? -------> Generate payment link
+                   or mark as "pay at desk"
 ```
 
-### Follow-up: Prevent Future Credit Leaks
-
-The `create_atomic_class_booking` RPC deducts credits on booking but there is no corresponding logic to restore credits when a booking is cancelled. A cancellation handler should be added to automatically refund credits/pass uses when bookings are set to `cancelled`. This can be addressed separately.
-
+### Pricing Reference
+- Single drop-in (non-member): $30
+- Single drop-in (member): $25
