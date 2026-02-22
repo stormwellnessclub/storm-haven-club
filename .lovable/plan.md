@@ -1,35 +1,45 @@
 
 
-## Two Changes to the Membership Application
+## Add Super Admin Class Pass Management
 
-### 1. Remove Dispute/Chargeback Language
+### What You'll Get
 
-The bullet point "Do not apply if you are not ready to commit. Disputes and chargebacks for authorized charges will be contested." in the STOP warning card will be shortened to just:
+An "Edit Pass" button on every class pass card (in both Member Detail and Non-Member Detail admin pages) that opens a dialog where super admins can:
 
-**"Do not apply if you are not ready to commit."**
+- **Change status** -- Deactivate, reactivate, or mark as expired/exhausted
+- **Edit expiration date** -- Push it forward or back
+- **Edit purchased date** -- Correct the original purchase date
+- **Adjust remaining classes** -- Set to any number (0 to total)
+- **Delete the pass entirely** -- With confirmation
 
-The dispute/chargeback sentence is removed entirely.
-
-**File:** `src/pages/Apply.tsx` (line 1490)
+This will be restricted to **super_admin** role only.
 
 ---
 
-### 2. Simplify Membership Agreement to Download-Only (All Devices)
+### Implementation
 
-Right now, desktop users see an embedded PDF iframe viewer (via `AgreementPDFViewer`), which is causing 404 errors. The fix is to remove the iframe entirely and show **only** the download/open buttons on all devices -- not just mobile.
+**1. New Component: `src/components/admin/EditClassPassDialog.tsx`**
 
-The `MembershipAgreementSection` component (lines 194-307) will be simplified to always show the download card UI (the same one mobile currently gets), removing the desktop iframe branch completely. This means:
+A dialog with:
+- Status dropdown (active, expired, exhausted, refunded)
+- Expiration date picker
+- Purchased date picker  
+- Classes remaining number input (capped at classes_total)
+- Save button that updates the `class_passes` row
+- Delete button with a confirmation step
+- All changes logged via toast notifications
 
-- A prominent "Download Agreement" button (blob download for reliability)
-- An "Open in Browser" link as a secondary option
-- The checkbox to confirm they've read it stays the same
+**2. Update `src/pages/admin/MemberDetail.tsx` (Credits tab, lines 1880-1905)**
 
-**File:** `src/pages/Apply.tsx` -- `MembershipAgreementSection` component (lines 240-273 replaced with download-only UI for all screen sizes)
+Add an "Edit" icon button on each class pass card (visible only to super admins). Clicking opens the `EditClassPassDialog` with the pass data pre-filled.
+
+**3. Update `src/pages/admin/NonMemberDetail.tsx`**
+
+Same edit button on each pass card in the non-member detail view, also restricted to super admins.
 
 ### Technical Details
 
-| File | Lines | Change |
-|------|-------|--------|
-| `src/pages/Apply.tsx` | 1490 | Remove "Disputes and chargebacks for authorized charges will be contested." from the bullet text |
-| `src/pages/Apply.tsx` | 240-273 | Remove the mobile/desktop branching logic and `AgreementPDFViewer` usage; always render the download buttons UI regardless of device |
-
+- **Mutation**: Direct `supabase.from("class_passes").update(...)` for edits, `.delete()` for removal
+- **Role check**: Uses existing `useUserRoles()` hook -- `isSuperAdmin()` gate on the edit button
+- **Query invalidation**: Invalidates `member-class-passes-admin` and `admin-nonmember-passes` queries after save/delete
+- **No database changes needed** -- all columns already exist and are updatable
