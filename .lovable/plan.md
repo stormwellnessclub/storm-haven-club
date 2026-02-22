@@ -1,31 +1,47 @@
 
 
-## Add "Send Password Reset Link" to Admin Member Detail
+## Fix: Roster Showing "Unknown" and Missing Bookings
 
-### What's Being Added
+### Problem
 
-A new action button in the Member Detail Sheet that lets admins send a password reset email to any member, directly from their profile. This uses the same `supabase.auth.resetPasswordForEmail()` call already used on the self-service `/reset-password` page.
+The Class Roster query only joins the `members` table for names. When someone books a class via a class pass (non-member / portal user), they may not have a `members` record, so:
+- Their name shows as "Unknown"
+- If they also have no `walk_in_name`, the row appears blank
 
-### How It Works
+This explains both issues:
+- **Feb 27**: 1 enrolled but roster appears empty (the booking exists but the name resolver returns nothing useful)
+- **Feb 28 at 9 PM**: 2 enrolled but one shows as "Unknown" (one has a member record, the other doesn't)
 
-- Admin clicks "Send Password Reset" on a member's detail sheet
-- A confirmation dialog appears showing the member's email
-- On confirm, the system sends a password reset email to that member
-- A success/error toast confirms the result
+### Fix
+
+After fetching bookings, do a secondary lookup of `profiles` by `user_id` for any booking where `members` is null. Use the profile's `first_name` / `last_name` as fallback.
 
 ### Changes
 
 | File | Change |
 |------|--------|
-| `src/components/admin/MemberDetailSheet.tsx` | Add a "Send Password Reset" `AdminActionButton` with a confirmation dialog. On confirm, call `supabase.auth.resetPasswordForEmail(member.email, { redirectTo: origin + '/update-password' })`. Show success/error toast. |
-| `src/components/admin/AdminActionButton.tsx` | Add `sendPasswordReset` tooltip to the `ADMIN_ACTION_TOOLTIPS` constant. |
+| `src/components/admin/ClassRosterDialog.tsx` | After the bookings query, fetch `profiles` for any booking where `members` is null. Enrich the booking data with profile info. Update `getDisplayName` and `getInitials` to use the profile fallback before falling through to "Unknown". |
 
-### Technical Details
+### Technical Detail
 
-- Uses the existing `supabase.auth.resetPasswordForEmail()` API -- no new edge function needed
-- The button will use the `AdminActionButton` component with a confirmation config, matching the pattern of other admin actions
-- The `KeyRound` icon from lucide-react will be used for the button
-- Placed in the member actions area alongside existing buttons like "Add Card" and "Create Subscription"
+The bookings query currently does:
+```
+select("id, user_id, member_id, status, ..., members (id, first_name, last_name, photo_url)")
+```
+
+After this query returns, we collect `user_id` values from bookings where `members` is null, then:
+```typescript
+const { data: profiles } = await supabase
+  .from("profiles")
+  .select("user_id, first_name, last_name")
+  .in("user_id", missingUserIds);
+```
+
+Then merge that into each booking as a `profile` fallback field. The display logic becomes:
+1. Use `members.first_name + last_name` if available
+2. Else use `profile.first_name + last_name` if available
+3. Else use `walk_in_name`
+4. Else "Unknown"
 
 No database changes needed.
 
