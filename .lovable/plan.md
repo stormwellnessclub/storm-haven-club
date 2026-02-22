@@ -1,47 +1,31 @@
 
 
-## Fix: Password Reset Link "Expired" for Reactivated Members
+## Add "Send Password Reset Link" to Admin Member Detail
 
-### Root Cause
+### What's Being Added
 
-When Alyssa clicked her recovery link, she was already logged in from a prior session. The UpdatePassword page waits for a `PASSWORD_RECOVERY` auth event or a brand-new session to appear. But when the user is already authenticated, the Supabase client may not fire that event reliably -- so the page falls through to "Invalid or Expired Link" even though the user has a perfectly valid session.
+A new action button in the Member Detail Sheet that lets admins send a password reset email to any member, directly from their profile. This uses the same `supabase.auth.resetPasswordForEmail()` call already used on the self-service `/reset-password` page.
 
-She then re-requests the link, clicks the old (consumed) email link again, and gets "One-time token not found" -- a dead end.
+### How It Works
 
-### The Fix
-
-Simplify the UpdatePassword session check: **if the user is on `/update-password` and has any valid session, show the password form.** There's no security risk -- `supabase.auth.updateUser({ password })` requires an authenticated session regardless.
-
-This change removes the fragile dependency on catching a specific auth event within a narrow time window.
+- Admin clicks "Send Password Reset" on a member's detail sheet
+- A confirmation dialog appears showing the member's email
+- On confirm, the system sends a password reset email to that member
+- A success/error toast confirms the result
 
 ### Changes
 
 | File | Change |
 |------|--------|
-| `src/pages/UpdatePassword.tsx` | Simplify the session validation: if `getSession()` returns a session on any retry, show the form immediately. Keep the `PASSWORD_RECOVERY` event listener as a fast-path but don't require it. Remove the strict "only PASSWORD_RECOVERY or fresh SIGNED_IN" gate. |
+| `src/components/admin/MemberDetailSheet.tsx` | Add a "Send Password Reset" `AdminActionButton` with a confirmation dialog. On confirm, call `supabase.auth.resetPasswordForEmail(member.email, { redirectTo: origin + '/update-password' })`. Show success/error toast. |
+| `src/components/admin/AdminActionButton.tsx` | Add `sendPasswordReset` tooltip to the `ADMIN_ACTION_TOOLTIPS` constant. |
 
-### What stays the same
+### Technical Details
 
-- If no session exists after all retries (4 seconds), the "Invalid or Expired Link" screen still shows with a "Request New Reset Link" button
-- AuthContext still skips aggressive validation on `/update-password`
-- SessionMonitor still skips health checks on `/update-password`
-- The password update flow (call `updateUser`, sign out, redirect to `/auth`) is unchanged
-
-### Technical Detail
-
-Before (fragile):
-```text
-Only show form if:
-  - PASSWORD_RECOVERY event fires, OR
-  - SIGNED_IN event fires with a new session
-```
-
-After (robust):
-```text
-Show form if:
-  - Any auth event with a session fires, OR
-  - getSession() returns a session on any retry attempt
-```
+- Uses the existing `supabase.auth.resetPasswordForEmail()` API -- no new edge function needed
+- The button will use the `AdminActionButton` component with a confirmation config, matching the pattern of other admin actions
+- The `KeyRound` icon from lucide-react will be used for the button
+- Placed in the member actions area alongside existing buttons like "Add Card" and "Create Subscription"
 
 No database changes needed.
 
