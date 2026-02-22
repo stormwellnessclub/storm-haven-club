@@ -119,6 +119,37 @@ export default function NonMemberAccounts() {
     onError: (err: Error) => toast.error(`Failed: ${err.message}`),
   });
 
+  // Send pending import activation email
+  const sendPendingEmailMutation = useMutation({
+    mutationFn: async (imp: { id: string; email: string; first_name: string }) => {
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: { type: "account_activation_invite", to: imp.email, data: { email: imp.email, first_name: imp.first_name } },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await supabase
+        .from("pending_non_member_imports")
+        .update({ email_sent_at: new Date().toISOString() })
+        .eq("id", imp.id);
+      return imp;
+    },
+    onSuccess: (imp) => {
+      toast.success(`Activation email sent to ${imp.email}`);
+      queryClient.invalidateQueries({ queryKey: ["pending-non-member-imports"] });
+    },
+    onError: (err: Error) => toast.error(`Failed: ${err.message}`),
+  });
+
+  const unsentPending = (pendingImports || []).filter((p: any) => !p.email_sent_at);
+
+  const handleSendAll = async () => {
+    for (const imp of unsentPending) {
+      if (imp.email) {
+        sendPendingEmailMutation.mutate({ id: imp.id, email: imp.email, first_name: imp.first_name });
+      }
+    }
+  };
+
   const filteredAccounts = (accounts || []).filter((a) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -266,13 +297,28 @@ export default function NonMemberAccounts() {
         {filteredPending.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <UserPlus className="h-5 w-5 text-blue-500" />
-                Pending Registrations
-              </CardTitle>
-              <CardDescription>
-                {pendingCount} people pre-registered but haven't created accounts yet
-              </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5 text-blue-500" />
+                  Pending Registrations
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  {pendingCount} people pre-registered but haven't created accounts yet
+                </CardDescription>
+              </div>
+              {unsentPending.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendAll}
+                  disabled={sendPendingEmailMutation.isPending}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Send All ({unsentPending.length})
+                </Button>
+              )}
+            </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -282,7 +328,8 @@ export default function NonMemberAccounts() {
                     <TableHead>Email</TableHead>
                     <TableHead className="hidden md:table-cell">Phone</TableHead>
                     <TableHead>Pass</TableHead>
-                    <TableHead>Email Sent</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -305,6 +352,18 @@ export default function NonMemberAccounts() {
                           <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                             <Clock className="h-3 w-3 mr-1" /> Not Sent
                           </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {!imp.email_sent_at && imp.email && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => sendPendingEmailMutation.mutate({ id: imp.id, email: imp.email, first_name: imp.first_name })}
+                            disabled={sendPendingEmailMutation.isPending}
+                          >
+                            <Mail className="h-4 w-4" />
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
