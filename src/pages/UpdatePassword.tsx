@@ -36,7 +36,7 @@ export default function UpdatePassword() {
     // 1. Listen for auth state changes (recovery link fires PASSWORD_RECOVERY)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.info("[UpdatePassword] Auth event:", event);
-      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+      if (session) {
         setValid();
       }
     });
