@@ -1,19 +1,27 @@
 
 
-## Remove Reformer Class Banner from Home Page
+## Admin Class Management: Cancellation with Refund + Waitlist Management
 
-The `ClassScheduleBanner` is currently shown on two layouts:
+### What's Being Added
 
-1. **Public pages** (`src/components/Layout.tsx`) -- includes the home page
-2. **Member dashboard** (`src/components/member/MemberLayout.tsx`)
+**1. Fix admin cancellation to refund credits/passes**
 
-### Change
+Currently, the "Remove" button in the Class Roster dialog just marks the booking as cancelled without restoring the member's credit or pass. This needs to match the member-facing cancellation logic that refunds the consumed credit/pass.
 
-Remove the `<ClassScheduleBanner />` component and its import from `src/components/Layout.tsx` so it no longer appears on the home page and other public pages. It will still show in the member dashboard.
+**2. Add Waitlist tab to the Roster dialog**
+
+Add a second tab inside the Class Roster dialog showing everyone on the waitlist for that session. From here, admins can:
+- See who's waiting (in position order)
+- Manually promote someone into the class (books them + removes from waitlist)
+- Remove someone from the waitlist entirely
+- See notification status (waiting, notified, claimed, expired)
 
 ### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/components/Layout.tsx` | Remove `ClassScheduleBanner` import and `<ClassScheduleBanner />` usage |
+| `src/components/admin/ClassRosterDialog.tsx` | **Refund on remove**: Update `removeMutation` to check `payment_method`, `pass_id`, and `member_credit_id` on the booking, then restore the credit/pass (same logic as `useCancelBooking`). Also notify the waitlist after removal. |
+| `src/components/admin/ClassRosterDialog.tsx` | **Waitlist tab**: Add a "Waitlist" tab next to the roster. Query `class_waitlist` for the session. Show position, name, status badge, and action buttons (Promote / Remove). Promoting a person calls the add-to-class flow using their original payment context. |
+
+No database changes needed -- the `class_waitlist` table and all required columns already exist.
 
