@@ -17,17 +17,21 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   ArrowLeft, Edit2, X, Check, CreditCard, RefreshCw, ShieldCheck, ShieldX,
-  Package, Calendar, Loader2, Mail, Phone, User,
+  Package, Calendar, Loader2, Mail, Phone, User, Pencil,
 } from "lucide-react";
+import { useUserRoles } from "@/hooks/useUserRoles";
+import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
 
 export default function NonMemberDetail() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const { isSuperAdmin } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", phone: "" });
+  const [editingPass, setEditingPass] = useState<any>(null);
 
   // Add package state
   const [showAddPackage, setShowAddPackage] = useState(false);
@@ -224,6 +228,7 @@ export default function NonMemberDetail() {
   const activePasses = passes.filter((p) => p.status === "active").length;
 
   return (
+    <>
     <AdminLayout title="Non-Member Detail">
       <div className="space-y-6">
         {/* Breadcrumb + Back */}
@@ -443,13 +448,20 @@ export default function NonMemberDetail() {
                             Expires {format(new Date(pass.expires_at), "MMM d, yyyy")}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <Badge variant={pass.status === "active" ? "default" : "secondary"} className="text-xs">
-                            {pass.status}
-                          </Badge>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {pass.classes_remaining}/{pass.classes_total} left
-                          </p>
+                        <div className="flex items-center gap-2">
+                          {isSuperAdmin() && (
+                            <Button variant="ghost" size="icon-sm" onClick={() => setEditingPass(pass)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <div className="text-right">
+                            <Badge variant={pass.status === "active" ? "default" : "secondary"} className="text-xs">
+                              {pass.status}
+                            </Badge>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {pass.classes_remaining}/{pass.classes_total} left
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -556,5 +568,15 @@ export default function NonMemberDetail() {
         </div>
       </div>
     </AdminLayout>
+
+    {editingPass && (
+      <EditClassPassDialog
+        open={!!editingPass}
+        onOpenChange={(open) => { if (!open) setEditingPass(null); }}
+        pass={editingPass}
+        queryKeysToInvalidate={[["admin-nonmember-passes", userId]]}
+      />
+    )}
+    </>
   );
 }
