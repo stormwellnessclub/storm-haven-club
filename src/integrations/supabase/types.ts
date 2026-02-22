@@ -3368,6 +3368,54 @@ export type Database = {
           },
         ]
       }
+      pending_non_member_imports: {
+        Row: {
+          classes_total: number
+          created_at: string
+          created_by: string | null
+          email: string
+          expiration_days: number
+          first_name: string | null
+          fulfilled_at: string | null
+          id: string
+          last_name: string | null
+          pass_category: Database["public"]["Enums"]["class_category"]
+          pass_type: string
+          phone: string | null
+          status: string
+        }
+        Insert: {
+          classes_total?: number
+          created_at?: string
+          created_by?: string | null
+          email: string
+          expiration_days?: number
+          first_name?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          last_name?: string | null
+          pass_category?: Database["public"]["Enums"]["class_category"]
+          pass_type?: string
+          phone?: string | null
+          status?: string
+        }
+        Update: {
+          classes_total?: number
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          expiration_days?: number
+          first_name?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          last_name?: string | null
+          pass_category?: Database["public"]["Enums"]["class_category"]
+          pass_type?: string
+          phone?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       processed_webhook_events: {
         Row: {
           error_message: string | null

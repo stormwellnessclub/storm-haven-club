@@ -16,10 +16,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Users, Package, Download, Mail, Search, CreditCard, ShieldCheck, ShieldX,
+  Users, Package, Download, Upload, Mail, Search, CreditCard, ShieldCheck, ShieldX,
   MoreHorizontal, Eye, ChevronDown,
 } from "lucide-react";
 import { NonMemberStripeImport } from "@/components/admin/NonMemberStripeImport";
+import { BulkNonMemberImport } from "@/components/admin/BulkNonMemberImport";
 import { format } from "date-fns";
 
 interface NonMemberAccount {
@@ -43,6 +44,7 @@ export default function NonMemberAccounts() {
   const [activationEmail, setActivationEmail] = useState("");
   const [showActivationDialog, setShowActivationDialog] = useState(false);
   const [stripeImportOpen, setStripeImportOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   // Fetch non-member accounts with pass counts
   const { data: accounts, isLoading } = useQuery({
@@ -170,6 +172,9 @@ export default function NonMemberAccounts() {
             />
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setBulkImportOpen(!bulkImportOpen)}>
+              <Upload className="h-4 w-4 mr-2" /> Bulk Pre-Register
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setStripeImportOpen(!stripeImportOpen)}>
               <Download className="h-4 w-4 mr-2" /> Import from Stripe
             </Button>
@@ -204,6 +209,13 @@ export default function NonMemberAccounts() {
             </Dialog>
           </div>
         </div>
+
+        {/* Bulk Import Collapsible */}
+        <Collapsible open={bulkImportOpen} onOpenChange={setBulkImportOpen}>
+          <CollapsibleContent>
+            <BulkNonMemberImport />
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Stripe Import Collapsible */}
         <Collapsible open={stripeImportOpen} onOpenChange={setStripeImportOpen}>
