@@ -715,7 +715,7 @@ export type Database = {
           session_id: string
           status: Database["public"]["Enums"]["booking_status"]
           updated_at: string
-          user_id: string
+          user_id: string | null
           walk_in_name: string | null
         }
         Insert: {
@@ -734,7 +734,7 @@ export type Database = {
           session_id: string
           status?: Database["public"]["Enums"]["booking_status"]
           updated_at?: string
-          user_id: string
+          user_id?: string | null
           walk_in_name?: string | null
         }
         Update: {
@@ -753,7 +753,7 @@ export type Database = {
           session_id?: string
           status?: Database["public"]["Enums"]["booking_status"]
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
           walk_in_name?: string | null
         }
         Relationships: [
