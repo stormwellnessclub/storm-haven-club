@@ -1,44 +1,33 @@
 
 
-## Urgent Fix: Stale Enrollment Counters + Nahla's Name
+## Fix: Update Cancellation Policy from 12 Hours to 24 Hours
 
-### What's Wrong
+The cancellation window is currently 12 hours across the codebase. Updating it to 24 hours in all locations, and confirming that credits/passes are restored and the member is removed from the class list when cancelled within policy.
 
-**Two separate issues:**
+### Changes
 
-1. **Nahla's name not showing**: The profile lookup fix from the last edit is correctly implemented in the code. Her name (`Nahla Hammoud`) exists in the `profiles` table and the fallback logic will now display it. This should already be working with the deployed code.
-
-2. **Enrollment counters are wrong (the real bug)**:
-   - **Feb 27, 8 PM**: Shows 1/8 enrolled, but the only booking (Rayann Haidar) was **cancelled**. The counter should be 0.
-   - **Feb 28, 9 PM**: Shows 2/8 enrolled, but only 1 confirmed booking exists (Nahla Hammoud). The counter should be 1.
-   - The `update_session_enrollment` trigger exists and is enabled, but these counters drifted -- likely from a booking cancellation that didn't fire the trigger correctly (e.g., a direct status update or race condition).
-
-### Fix
-
-| Step | What |
+| File | What |
 |------|------|
-| 1. SQL migration | Run a one-time counter correction: set `current_enrollment` to the actual count of confirmed/completed bookings for all soft-launch sessions. |
-| 2. Code change | Add a recount function that admins can trigger from the roster dialog, and also auto-correct on roster load -- compare `current_enrollment` with the actual booking count and fix silently if they differ. |
+| `src/hooks/useBooking.ts` | Change `hoursUntilClass < 12` to `hoursUntilClass < 24`. Update the two comment references and the toast message from "12 hours" to "24 hours". |
+| `src/pages/member/Bookings.tsx` | Update the cancel dialog description from "less than 12 hours" to "less than 24 hours". |
+| `src/components/booking/BookingModal.tsx` | Update the policy notice from "12 hours" to "24 hours". |
 
-### SQL Migration
+### Data Fix: Restore Rayann's Pass
+
+Run an update to restore her consumed single-class pass:
 
 ```sql
-UPDATE class_sessions cs
-SET current_enrollment = (
-  SELECT COUNT(*)
-  FROM class_bookings cb
-  WHERE cb.session_id = cs.id
-  AND cb.status IN ('confirmed', 'completed')
-)
-WHERE cs.session_date >= '2026-02-20'
-AND cs.session_date <= '2026-03-18';
+UPDATE class_passes
+SET classes_remaining = 1, status = 'active'
+WHERE id = 'da2e2e91-ec29-4a21-9319-dbe88b2e9c9b';
 ```
 
-### Code Change
+### What Already Works
 
-| File | Change |
-|------|--------|
-| `src/components/admin/ClassRosterDialog.tsx` | After fetching bookings, compare `bookings.length` with `selectedSlot.enrolled`. If they differ, silently update `current_enrollment` in `class_sessions` to the correct count and invalidate the query cache. |
+- Cancelling a booking sets status to `cancelled` (removes from roster/class list).
+- The `update_session_enrollment` trigger decrements `current_enrollment` when status changes from `confirmed`.
+- Credits (`member_credits`) and passes (`class_passes`) are restored when cancelled within the allowed window.
+- The auto-heal logic in `ClassRosterDialog.tsx` corrects any counter drift on roster open.
 
-This prevents future drift from accumulating -- every time an admin opens a roster, the count self-heals.
+No structural or schema changes needed -- just the threshold value and user-facing text updates, plus the one-time data correction for Rayann's pass.
 
