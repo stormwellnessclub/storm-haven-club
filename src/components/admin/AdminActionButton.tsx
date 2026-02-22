@@ -175,4 +175,6 @@ export const ADMIN_ACTION_TOOLTIPS = {
     "Opens a secure form to update or replace the member's saved payment card.",
   sendActivationEmail:
     "Sends an email to the member with instructions to complete their account setup.",
+  sendPasswordReset:
+    "Sends a password reset link to the member's email. They will be able to set a new password via the link.",
 } as const;
