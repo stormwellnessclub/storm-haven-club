@@ -1,97 +1,71 @@
 
 
-## Adding 13 Non-Member Class Pass Holders
+## Improvements to the Activation Email and Signup Flow
 
-### Current Situation
+### Problems Found
 
-| Status | People | Names |
-|--------|--------|-------|
-| Already have accounts + profiles | 3 | Nahla Hammoud, Souad Jomaa, Sindus Altalib |
-| No account yet | 10 | Samar Salam, Bayan Mehanna, Nada Almadhagi, Randa Dirani, Reem Alhaddi, Salma Kazan, Summer Hamid, Yasmeena Serhane, Liana Dawoud, Samar Hannawi |
+1. **Impersonal email** -- The activation email says "Thank you for your recent purchase" but never addresses the person by name, even though we store their first and last name in `pending_non_member_imports`.
 
-### The Challenge
+2. **Profile data not transferred** -- When someone signs up and the trigger creates their class pass, it does NOT copy the `first_name`, `last_name`, or `phone` from the pending import into their `non_member_profiles` row. So their portal profile will be blank except for email.
 
-Both the `non_member_profiles` and `class_passes` tables require a `user_id` (NOT NULL). The 10 new people don't have accounts yet, so we can't insert their records until they sign up.
+3. **No visual issues** -- The email template itself is well-branded (Storm logo, gold accents, clear CTA). The link correctly points to `/auth?redirect=/portal`, and the redirect logic is safe and tested.
 
-### Step-by-Step Plan
+### What the Email Currently Looks Like
 
-**Step 1: Immediately add class passes for the 3 existing accounts**
+- **Subject**: "Access Your Class Passes -- Storm Wellness Club"
+- **Header**: Storm Wellness Club logo with gold gradient bar
+- **Body**: Generic message thanking them for their purchase, with a warning to use the same email address
+- **Button**: "Create Your Account" linking to the sign-up page
+- **Bullet list**: What they can do once signed up (view passes, book classes, track history)
+- **Footer**: Standard Storm Wellness Club footer
 
-Insert 10-class Pilates/Cycling passes for Nahla, Souad, and Sindus directly via SQL. They already have `user_id`s in the system.
+### Where It Takes Them
 
-| Name | Email | Pass Type |
-|------|-------|-----------|
-| Nahla Hammoud | nahlahammoud99@gmail.com | Pilates/Cycling 10-pack |
-| Souad Jomaa | sjomaa11@gmail.com | Pilates/Cycling 10-pack |
-| Sindus Altalib | smaltayib@yahoo.com | Pilates/Cycling 10-pack |
+The button links to `/auth?redirect=/portal`. After creating their account:
+1. They land on the **Non-Member Portal** (`/portal`)
+2. Their `non_member_profiles` row is auto-created
+3. The database trigger matches their email to the pending import and creates their class pass
+4. Their passes appear immediately in the portal
 
-**Step 2: Build a "Bulk Pre-Register" admin tool**
+This flow is correct and functional.
 
-Create a new component that lets you paste or enter multiple non-members at once. For each person, the system will:
+### Proposed Fixes
 
-1. Store a **pending registration record** in a new `pending_non_member_imports` table (name, email, phone, pass category, class count)
-2. Send them the **activation email** automatically
-3. When they sign up, a **database trigger** will automatically:
-   - Create their `non_member_profile`
-   - Create their `class_passes` record from the pending import
-   - Mark the import as fulfilled
+**Fix 1: Personalize the activation email**
 
-This way you don't have to manually go back and add passes after each person signs up.
+Pass `first_name` from the pending import record into the email template so it reads "Hi Samar," instead of a generic greeting.
 
-**Step 3: Send activation emails**
+- Modify `BulkNonMemberImport.tsx` to send `{ email, first_name }` in the email data
+- Update the `account_activation_invite` template in `send-email/index.ts` to use `data.first_name` when available
 
-The tool will send activation invite emails to all 10 people. When they click the link and create their account, the trigger handles everything.
+**Fix 2: Transfer profile data on fulfillment**
 
-### Database Changes
+Update the `auto_fulfill_pending_import` trigger function to also set `first_name`, `last_name`, and `phone` on the `non_member_profiles` row when creating the class pass.
 
-**New table: `pending_non_member_imports`**
+- Add an `UPDATE non_member_profiles SET first_name, last_name, phone` step inside the trigger
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| email | text | Their email (unique, used for matching) |
-| first_name | text | First name |
-| last_name | text | Last name |
-| phone | text | Phone number |
-| pass_category | class_category | pilates_cycling, aerobics, other |
-| pass_type | text | "10-pack" or "single" |
-| classes_total | integer | Number of classes |
-| expiration_days | integer | Days until expiry (default 90) |
-| status | text | pending, fulfilled, expired |
-| created_at | timestamptz | When imported |
-| fulfilled_at | timestamptz | When account was created and pass assigned |
+### Technical Details
 
-**New trigger: `auto_fulfill_pending_import`**
+**Files to modify:**
 
-Fires when a new `non_member_profiles` row is inserted. Checks `pending_non_member_imports` for a matching email. If found:
-- Creates the `class_passes` record automatically
-- Marks the import as `fulfilled`
-
-### New UI Component
-
-**`src/components/admin/BulkNonMemberImport.tsx`**
-
-A form on the Non-Member Accounts page (collapsible, like the existing Stripe Import section) where you can:
-- Add multiple people with name, email, phone, and pass type
-- Review the list before submitting
-- One-click to insert all pending records and send activation emails
-
-### Files to Create/Modify
-
-| File | Action |
+| File | Change |
 |------|--------|
-| Database migration | Create `pending_non_member_imports` table + trigger |
-| `src/components/admin/BulkNonMemberImport.tsx` | New bulk import form |
-| `src/pages/admin/NonMemberAccounts.tsx` | Add the bulk import section (similar to Stripe import collapsible) |
+| `src/components/admin/BulkNonMemberImport.tsx` | Send `first_name` alongside `email` in the email invocation |
+| `supabase/functions/send-email/index.ts` | Add personalized greeting using `data.first_name` |
+| Database migration | Update `auto_fulfill_pending_import()` to copy name and phone to `non_member_profiles` |
 
-### Immediate Data Insert (Step 1)
+**Database trigger update (migration SQL):**
 
-For the 3 existing users, class passes will be inserted with:
-- **category**: `pilates_cycling`
-- **pass_type**: `10-pack`
-- **classes_total**: 10
-- **classes_remaining**: 10
-- **price_paid**: 0 (admin grant)
-- **expires_at**: 90 days from now
-- **status**: `active`
+The updated trigger will add this step after creating the class pass:
+
+```text
+UPDATE non_member_profiles
+SET first_name = v_pending.first_name,
+    last_name  = v_pending.last_name,
+    phone      = v_pending.phone
+WHERE user_id = NEW.user_id
+  AND (first_name IS NULL OR first_name = '');
+```
+
+This ensures the profile is populated with the data you already entered in the bulk import form, so the person's portal shows their name and phone immediately after signup.
 
