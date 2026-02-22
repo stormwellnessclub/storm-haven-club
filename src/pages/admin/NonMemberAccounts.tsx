@@ -12,12 +12,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Users, Package, Download, Upload, Mail, Search, CreditCard, ShieldCheck, ShieldX,
-  MoreHorizontal, Eye, ChevronDown,
+  MoreHorizontal, Eye, ChevronDown, Clock, UserPlus,
 } from "lucide-react";
 import { NonMemberStripeImport } from "@/components/admin/NonMemberStripeImport";
 import { BulkNonMemberImport } from "@/components/admin/BulkNonMemberImport";
@@ -40,6 +40,7 @@ interface NonMemberAccount {
 
 export default function NonMemberAccounts() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [activationEmail, setActivationEmail] = useState("");
   const [showActivationDialog, setShowActivationDialog] = useState(false);
@@ -86,6 +87,20 @@ export default function NonMemberAccounts() {
     },
   });
 
+  // Fetch pending imports
+  const { data: pendingImports } = useQuery({
+    queryKey: ["pending-non-member-imports"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pending_non_member_imports")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Send activation invite
   const sendActivationMutation = useMutation({
     mutationFn: async (email: string) => {
@@ -115,16 +130,28 @@ export default function NonMemberAccounts() {
     );
   });
 
+  const filteredPending = (pendingImports || []).filter((p: any) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      p.email?.toLowerCase().includes(q) ||
+      p.first_name?.toLowerCase().includes(q) ||
+      p.last_name?.toLowerCase().includes(q) ||
+      p.phone?.includes(q)
+    );
+  });
+
   // Summary stats
   const totalAccounts = accounts?.length || 0;
   const withActivePasses = accounts?.filter((a) => a.activePasses > 0).length || 0;
   const missingWaivers = accounts?.filter((a) => !a.waiver_signed).length || 0;
+  const pendingCount = pendingImports?.length || 0;
 
   return (
     <AdminLayout title="Non-Member Accounts">
       <div className="space-y-6">
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -154,6 +181,17 @@ export default function NonMemberAccounts() {
                 <div>
                   <p className="text-2xl font-bold">{missingWaivers}</p>
                   <p className="text-xs text-muted-foreground">Missing Waivers</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <UserPlus className="h-8 w-8 text-blue-500" />
+                <div>
+                  <p className="text-2xl font-bold">{pendingCount}</p>
+                  <p className="text-xs text-muted-foreground">Pending Registration</p>
                 </div>
               </div>
             </CardContent>
@@ -223,6 +261,59 @@ export default function NonMemberAccounts() {
             <NonMemberStripeImport />
           </CollapsibleContent>
         </Collapsible>
+
+        {/* Pending Registrations */}
+        {filteredPending.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-blue-500" />
+                Pending Registrations
+              </CardTitle>
+              <CardDescription>
+                {pendingCount} people pre-registered but haven't created accounts yet
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead className="hidden md:table-cell">Phone</TableHead>
+                    <TableHead>Pass</TableHead>
+                    <TableHead>Email Sent</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPending.map((imp: any) => (
+                    <TableRow key={imp.id}>
+                      <TableCell className="font-medium">
+                        {imp.first_name} {imp.last_name}
+                      </TableCell>
+                      <TableCell className="text-sm">{imp.email}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">{imp.phone || "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        {imp.pass_category === "pilates_cycling" ? "Pilates/Cycling" : imp.pass_category === "aerobics" ? "Aerobics" : "Other"} ({imp.classes_total})
+                      </TableCell>
+                      <TableCell>
+                        {imp.email_sent_at ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            <Mail className="h-3 w-3 mr-1" /> {format(new Date(imp.email_sent_at), "MMM d")}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                            <Clock className="h-3 w-3 mr-1" /> Not Sent
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Accounts Table */}
         <Card>
