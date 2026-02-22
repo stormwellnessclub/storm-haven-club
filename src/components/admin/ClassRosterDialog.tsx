@@ -178,6 +178,19 @@ export function ClassRosterDialog({
         }
       }
 
+      // Auto-heal: if actual confirmed count differs from current_enrollment, fix it silently
+      if (selectedSlot?.dbSessionId) {
+        const confirmedCount = bookingsData.filter(b => b.status === 'confirmed' || b.status === 'completed').length;
+        if (confirmedCount !== selectedSlot.enrolled) {
+          await supabase
+            .from("class_sessions")
+            .update({ current_enrollment: confirmedCount })
+            .eq("id", selectedSlot.dbSessionId);
+          // Invalidate the sessions query so the parent grid updates
+          queryClient.invalidateQueries({ queryKey: ["soft-launch-sessions"] });
+        }
+      }
+
       return bookingsData;
     },
     enabled: !!selectedSlot?.dbSessionId && open,
