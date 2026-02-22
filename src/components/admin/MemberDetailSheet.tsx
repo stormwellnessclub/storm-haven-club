@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye, RotateCcw } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye, RotateCcw, KeyRound } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
@@ -1203,6 +1203,31 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   Activate Member (Super Admin)
                 </Button>
               )}
+
+              <AdminActionButton
+                label="Send Password Reset"
+                icon={<KeyRound className="h-4 w-4 mr-2" />}
+                variant="outline"
+                tooltip={ADMIN_ACTION_TOOLTIPS.sendPasswordReset}
+                className="w-full mt-4"
+                confirmationConfig={{
+                  title: "Send Password Reset Link?",
+                  description: (
+                    <p>A password reset email will be sent to <strong>{member.email}</strong>. They can use the link to set a new password.</p>
+                  ),
+                  confirmLabel: "Send Reset Link",
+                }}
+                onClick={async () => {
+                  const { error } = await supabase.auth.resetPasswordForEmail(member.email, {
+                    redirectTo: `${window.location.origin}/update-password`,
+                  });
+                  if (error) {
+                    toast.error(`Failed to send reset link: ${error.message}`);
+                  } else {
+                    toast.success(`Password reset link sent to ${member.email}`);
+                  }
+                }}
+              />
 
               {member.status !== "suspended" && member.status !== "cancelled" && member.status === "active" && (
                 <Button 
