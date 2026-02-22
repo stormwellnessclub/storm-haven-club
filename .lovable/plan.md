@@ -1,76 +1,91 @@
 
 
-## Enhance Admin Class Roster: Add Walk-In / New Person with Charge Option
+## Upgrade Admin Roster: Full Payment Control When Adding to Class
 
 ### The Problem
-The current "Add Member" button in the class roster dialog only searches existing active members. There's no way for staff to:
-- Add a walk-in or non-member to a class
-- Add someone brand new (not in the system at all)
-- Charge a drop-in fee at the time of adding
+
+The current "Add to Class" panel has three gaps:
+
+1. **No non-member pass holder support** -- A non-member who bought a class pass can't be found or added because the "Existing Member" tab only searches the `members` table (active members only). Non-members with passes in `class_passes` or `non_member_profiles` are invisible.
+
+2. **No payment method choice** -- The charge toggle is a binary on/off with auto-pricing ($25/$30). Staff can't pick whether to use:
+   - An existing class pass (deduct a credit)
+   - An existing member credit
+   - A single drop-in (member or non-member rate)
+   - Sell a new package (single or 10-pack) on the spot
+
+3. **No pricing control** -- Staff can't choose member vs. non-member pricing or select a different product (e.g. 10-pack instead of single drop-in).
+
+---
 
 ### What Will Change
 
-**1. Replace "Add Member" with a two-option panel**
+**1. Unified person search (replaces "Existing Member" tab)**
 
-Instead of a single member search, the "Add" section will have two clear paths:
+The "Existing Member" tab will search across three sources:
+- `members` table (gym members)
+- `profiles` table (any account holder)
+- `non_member_profiles` table (non-member pass holders)
 
-- **Add Existing Member** -- works like today, searches the `members` table
-- **Add Walk-In / New Person** -- a quick form for name + email (optional), with the option to charge a drop-in fee
+Results will show a badge indicating "Member", "Pass Holder", or "Account" so staff know who they're picking. When a person is selected, the system checks their available passes/credits and displays them.
 
-**2. Walk-In form fields**
+**2. "How to pay" step after selecting a person (or for walk-ins)**
 
-A compact inline form with:
-- First Name (required)
-- Last Name (required)
-- Email (optional)
-- Phone (optional)
-- Charge drop-in fee toggle (with price display, e.g. $30)
+After identifying who to add, a payment method selector appears with these options:
 
-**3. Walk-in booking logic**
+| Option | When Available | What Happens |
+|--------|---------------|--------------|
+| **Use existing class pass** | Person has active `class_passes` with remaining credits | Shows each pass with remaining count; selecting one deducts 1 credit (uses `create_atomic_class_booking` RPC or equivalent logic) |
+| **Use member credits** | Person is a member with `member_credits` of type `class` | Deducts 1 member credit |
+| **Charge single drop-in** | Always | Staff picks member ($25) or non-member ($30) rate; charges card or flags for desk collection |
+| **Sell a package now** | Always | Opens the existing `SellClassPackage` dialog pre-filled with this person, then adds them to class after purchase |
+| **Comp / No charge** | Always | Adds to class with `payment_method: 'comp'` -- no charge, no credit deduction |
 
-When adding a walk-in:
-- If an email is provided, check `non_member_profiles` and `profiles` tables to see if they already exist. If found, link the booking to their `user_id`.
-- If no match or no email, create the booking with a `payment_method` of `walk_in` and store the walk-in's name in the booking notes or a metadata field.
-- The roster display will show walk-in names even without a linked member record.
+**3. Walk-in tab gets the same payment options**
 
-**4. Drop-in charge option**
+After entering name/email for a walk-in, the same payment selector appears. If the email matches an existing account, their passes are loaded automatically.
 
-When the "Charge drop-in fee" toggle is on:
-- Use the existing `stripe-payment` edge function's `charge_saved_card` action if the person has a card on file
-- Or generate a Stripe Checkout link for the drop-in amount ($30 single class) that staff can share or process on the spot
-- Record the charge in `manual_charges` for audit trail
+**4. Existing member tab -- also shows pass/credit info inline**
 
-**5. Roster display update**
+When searching members, results show available pass counts so staff can make informed decisions before adding.
 
-The roster table will show walk-in entries alongside member bookings, displaying the walk-in name from the booking metadata when no member record is linked.
+---
 
 ### Technical Details
 
-| File | Change |
-|------|--------|
-| `src/components/admin/SoftLaunchClassManagement.tsx` | Expand the "Add Member" section into a tabbed panel with "Member" and "Walk-In" options. Add walk-in form with name/email/phone fields and charge toggle. Update the roster display to show walk-in names from booking metadata. Update the booking insert to support `walk_in` payment method with metadata. |
-| `src/components/admin/SoftLaunchClassManagement.tsx` | Update the bookings query to also pull walk-in data (bookings without a `member_id` but with walk-in metadata). |
-| Database migration | Add a `walk_in_name` column (nullable text) to `class_bookings` to store the name for unlinked walk-ins. This avoids overloading existing fields and keeps the schema clean. |
+**File: `src/components/admin/ClassRosterDialog.tsx`**
 
-### Walk-In Booking Flow
+Major changes:
+- Add a unified search that queries `members`, `profiles`, and `non_member_profiles`
+- After person selection (or walk-in email match), fetch their `class_passes` (active, classes_remaining > 0) and `member_credits` (class type, credits_remaining > 0)
+- Add a "Payment Method" radio group with the options above
+- When "Use existing pass" is selected, show a dropdown of their active passes with remaining counts
+- When "Charge drop-in" is selected, show a member/non-member price toggle
+- When "Sell package" is selected, open `SellClassPackage` dialog pre-populated
+- When "Comp" is selected, just add with no charge
+- For pass/credit deduction, replicate the atomic logic from `create_atomic_class_booking` or call it directly
+- Update the walk-in tab to also show the payment selector once name is entered
 
-```text
-Staff clicks "Add Walk-In"
-        |
-  Enters name + optional email
-        |
-  [Toggle] Charge drop-in fee?
-   /              \
- Yes               No
-  |                 |
-Check for card    Insert booking
-on file           (payment_method: 'walk_in',
-  |                walk_in_name: 'Jane Doe')
-Has card? ------> Charge via Stripe
-No card? -------> Generate payment link
-                   or mark as "pay at desk"
+**No new database changes required** -- all needed columns (`walk_in_name`, nullable `user_id`) and tables (`class_passes`, `member_credits`, `non_member_profiles`) already exist.
+
+**Queries to add:**
+```
+-- Fetch active passes for a user
+SELECT id, pass_type, category, classes_remaining, expires_at
+FROM class_passes
+WHERE user_id = ? AND status = 'active' AND classes_remaining > 0 AND expires_at > now()
+
+-- Fetch member credits for a member
+SELECT id, credit_type, credits_remaining, expires_at
+FROM member_credits
+WHERE member_id = ? AND credit_type = 'class' AND credits_remaining > 0 AND expires_at > now()
 ```
 
-### Pricing Reference
-- Single drop-in (non-member): $30
-- Single drop-in (member): $25
+**Payment flow per option:**
+
+- **Pass**: Deduct via `UPDATE class_passes SET classes_remaining = classes_remaining - 1` + insert booking with `payment_method: 'pass'` and `pass_id`
+- **Credits**: Deduct via `UPDATE member_credits SET credits_remaining = credits_remaining - 1` + insert booking with `payment_method: 'credits'` and `member_credit_id`
+- **Drop-in charge**: Use existing `stripe-payment` edge function `charge_saved_card` action, or flag for desk collection
+- **Sell package**: Open `SellClassPackage`, on close re-fetch passes and auto-select the new one
+- **Comp**: Insert booking with `payment_method: 'comp'`, no charge
+
