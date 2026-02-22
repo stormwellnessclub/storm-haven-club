@@ -188,7 +188,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Free cancellation up to 12 hours before class. Late cancellations
+              Free cancellation up to 24 hours before class. Late cancellations
               will forfeit your credit or pass.
             </AlertDescription>
           </Alert>

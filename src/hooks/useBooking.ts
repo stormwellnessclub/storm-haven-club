@@ -385,14 +385,14 @@ export function useCancelBooking() {
 
       if (bookingError) throw bookingError;
 
-      // Check 12-hour cancellation policy
+      // Check 24-hour cancellation policy
       const sessionDateTime = new Date(
         `${booking.session.session_date}T${booking.session.start_time}`
       );
       const hoursUntilClass = differenceInHours(sessionDateTime, new Date());
 
       let forfeitCredit = false;
-      if (hoursUntilClass < 12) {
+      if (hoursUntilClass < 24) {
         forfeitCredit = true;
       }
 
@@ -411,7 +411,7 @@ export function useCancelBooking() {
 
       if (error) throw error;
 
-      // Refund credit/pass if cancelled more than 12 hours in advance
+      // Refund credit/pass if cancelled more than 24 hours in advance
       if (!forfeitCredit) {
         if (booking.member_credit_id) {
           // Refund member credit
@@ -496,7 +496,7 @@ export function useCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["user-credits"] });
       
       if (data.forfeitCredit) {
-        toast.warning("Class cancelled. Credit/pass forfeited due to late cancellation (less than 12 hours before class).");
+        toast.warning("Class cancelled. Credit/pass forfeited due to late cancellation (less than 24 hours before class).");
       } else {
         toast.success("Class cancelled successfully. Credit/pass refunded.");
       }
