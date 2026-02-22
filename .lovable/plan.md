@@ -1,25 +1,19 @@
 
 
-## Fix: Add Send Email Button to Pending Registrations Table
+## Remove Reformer Class Banner from Home Page
 
-### The Problem
+The `ClassScheduleBanner` is currently shown on two layouts:
 
-The "Pending Registrations" table on the main Non-Member Accounts page shows "Not Sent" for Samar and Nada, but there's no button to actually send the email from that table. The send button only exists inside the collapsed "Bulk Pre-Register" section, which you have to open separately.
+1. **Public pages** (`src/components/Layout.tsx`) -- includes the home page
+2. **Member dashboard** (`src/components/member/MemberLayout.tsx`)
 
-### The Fix
+### Change
 
-Add a "Send" button column to the Pending Registrations table so you can send activation emails directly from the main view -- no need to dig into the collapsible section.
-
-Changes:
-- Add a send email mutation directly in `NonMemberAccounts.tsx`
-- Add a "Send All" button in the card header for unsent emails
-- Add an individual send button (mail icon) on each row where the email hasn't been sent yet
-- Once sent, the button disappears and the badge updates to show the sent date
+Remove the `<ClassScheduleBanner />` component and its import from `src/components/Layout.tsx` so it no longer appears on the home page and other public pages. It will still show in the member dashboard.
 
 ### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/pages/admin/NonMemberAccounts.tsx` | Add `sendEmailMutation` (calls `send-email` edge function and updates `email_sent_at`). Add a "Send All" button next to the card title. Add a new table column with an individual send button per unsent row. |
+| `src/components/Layout.tsx` | Remove `ClassScheduleBanner` import and `<ClassScheduleBanner />` usage |
 
-No database changes needed -- the `email_sent_at` column already exists.
