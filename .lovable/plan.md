@@ -1,26 +1,24 @@
 
 
-## Fix: Show "First Month Cash" Option More Reliably
+## Already Complete: Cash Payment Option for Super Admins
 
-### Problem
-The "First month paid in cash" checkbox only appears when the application record has a `stripe_customer_id` set (meaning `paymentStatus?.hasCard` is true). However, many pending applications show `stripe_customer_id` as null in the database even when a card may exist in Stripe under the member's email. This hides the cash activation option.
+The change has already been applied in the previous edit. Here is what was done:
 
-### Fix
-Relax the visibility condition so super admins always see the "First month paid in cash" option in immediate mode, regardless of whether a card is currently on file. The card-on-file requirement is not strictly necessary for the cash flow -- the admin is recording a cash payment for month 1, and the subscription can be created later once a card is added.
+### Change Made
+**File:** `src/components/admin/SingleActivationDialog.tsx`
 
-### Technical Details
+The visibility condition for the "First month paid in cash" checkbox was relaxed from:
+```
+isSuperAdmin && activationMode === "immediate" && paymentStatus?.hasCard
+```
+to:
+```
+isSuperAdmin && activationMode === "immediate"
+```
 
-**File: `src/components/admin/SingleActivationDialog.tsx`**
+### Result
+Super admins now see the "First month paid in cash" option when activating **any** pending member in immediate mode -- whether or not that member has a card on file. No further code changes are needed.
 
-- Change the condition from:
-  ```
-  isSuperAdmin && activationMode === "immediate" && paymentStatus?.hasCard
-  ```
-  to:
-  ```
-  isSuperAdmin && activationMode === "immediate"
-  ```
-- This lets super admins see the cash option for any pending member, with or without a card on file
-- The existing subscription creation logic already handles the no-card case gracefully (it skips subscription creation when there's no `stripe_customer_id`)
+### Recommended Next Step
+Open the admin Applications page, select a pending member, choose "Activate Immediately", and verify the cash payment checkbox appears.
 
-This is a one-line condition change.
