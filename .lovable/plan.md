@@ -1,32 +1,44 @@
 
 
-## Fix: Auto-Navigate to Next Date With Classes
+## Fix: Allow Super Admin to Add Any Credit Type as a Gift
 
 ### The Problem
 
-The Soft Launch Class Management page defaults to today's date. Today (Sunday, Feb 22) has no classes scheduled because Sunday classes don't start until March 1. So you see "No soft-launch classes on this date" with no class cards and no cancel buttons.
+When you click "Add" on the Credits tab and select a credit type like Class Credits or Red Light Therapy, if the member doesn't already have an active credit record of that type, the system throws an error: **"No active [type] credits found for this member."**
 
-The cancel buttons, roster view, and both cancellation modes (visible + silent removal) are all implemented -- they just aren't visible because there are no class cards on today's date.
+This is because the code only knows how to create new credit records for Guest Pass credits. For all other types, it tries to find an existing record and fails.
 
 ### The Fix
 
-Update `SoftLaunchClassManagement.tsx` so that when today has no classes, it automatically starts on the **nearest date that does have classes** (looking forward first, then backward). This way admins always land on a useful view.
+Extend the credit adjustment logic so that when **adding** credits of any type and no existing credit record exists, the system creates a new one -- exactly like it already does for guest passes.
 
-For example, today (Sunday Feb 22) would auto-advance to Monday Feb 23, which has 9:00 AM Signature Flow and 10:00 AM Reformer Flow.
+### Technical Details
 
-### What's Already Working
+**File: `src/pages/admin/MemberDetail.tsx`**
 
-Once you navigate to a date with classes (use the arrow buttons to go to Monday), you will see:
-- Class cards with a red X button to cancel each class
-- Cancel dialog with two modes: "Show as cancelled" (visible badge) or "Remove from schedule" (disappears entirely)
-- Roster view with name display (falls back to email if no name set)
-- Enrollment counts
+The mutation at line ~470 currently has this flow:
 
-### Technical Detail
+```text
+1. Look for existing credit of that type
+2. If not found AND type is guest_pass --> create new record (works)
+3. If not found AND type is anything else --> throw error (broken)
+```
 
-| File | Change |
-|------|--------|
-| `src/components/admin/SoftLaunchClassManagement.tsx` | Update the `useState` initializer for `selectedDate` to find the nearest date with classes using `getClassesForDate` |
+The fix changes step 2 to handle ALL credit types when adding:
 
-The initializer will loop forward (up to the soft-launch end date) to find the first date with scheduled classes, ensuring the admin always lands on a day with actionable content.
+```text
+1. Look for existing credit of that type
+2. If not found AND adjustment > 0 (adding) --> create new record for ANY type
+3. If not found AND adjustment < 0 (removing) --> throw error (can't remove what doesn't exist)
+```
 
+The new credit record will be created with:
+- `credits_total` and `credits_remaining` set to the gift amount
+- `cycle_start` set to today
+- `cycle_end` set to end of current month
+- `expires_at` set to end of current month (admin can adjust later if needed)
+- Linked to the member via `member_id` and `user_id`
+
+The guest pass email notification will continue to only fire for guest pass credits.
+
+No database or RLS changes are needed -- the existing `member_credits` INSERT policy already allows staff roles.
