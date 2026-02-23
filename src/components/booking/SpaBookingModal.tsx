@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatTime12h } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 
 interface SpaService {
   id: number;
@@ -459,15 +460,34 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
           </div>
 
           {/* Total */}
-          <div className="border-t pt-4">
-            <div className="flex justify-between items-center text-lg font-semibold">
-              <span>Total</span>
-              {paymentMethod === "credit" ? (
+          <div className="border-t pt-4 space-y-1">
+            {paymentMethod === "credit" ? (
+              <div className="flex justify-between items-center text-lg font-semibold">
+                <span>Total</span>
                 <span className="text-accent">FREE (1 Credit)</span>
-              ) : (
-                <span className="text-accent">${finalPrice.toFixed(2)}</span>
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span>Service</span>
+                  <span>${finalPrice.toFixed(2)}</span>
+                </div>
+                {paymentMethod === "card" && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Processing Fee</span>
+                    <span>+${calculateProcessingFeeFromDollars(finalPrice).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-lg font-semibold">
+                  <span>Total</span>
+                  <span className="text-accent">
+                    ${paymentMethod === "card" 
+                      ? (finalPrice + calculateProcessingFeeFromDollars(finalPrice)).toFixed(2)
+                      : finalPrice.toFixed(2)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

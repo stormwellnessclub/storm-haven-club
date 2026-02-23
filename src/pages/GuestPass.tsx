@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addDays, startOfDay } from "date-fns";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { cn } from "@/lib/utils";
 import { AccountRequiredSection } from "@/components/AccountRequiredSection";
 import { SimpleAgreementCard } from "@/components/SimpleAgreementCard";
@@ -405,7 +406,7 @@ function GuestPassForm() {
             </>
           ) : (
             <>
-              Complete Your Guest Pass — ${calculateTotal()}
+              Complete Your Guest Pass — ${calculateTotal()} + ${calculateProcessingFeeFromDollars(calculateTotal()).toFixed(2)} processing fee
             </>
           )}
         </Button>

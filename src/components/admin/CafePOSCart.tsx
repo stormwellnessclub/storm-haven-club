@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ShoppingCart, Plus, Minus, CreditCard, Loader2, User, Search } from "lucide-react";
 import { MI_SALES_TAX_RATE, calculateTax } from "@/hooks/useCafeMenu";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import type { POSCartItem } from "./CafePOSMenu";
 
 interface CafePOSCartProps {
@@ -31,11 +32,11 @@ export function CafePOSCart({
   onClearCart,
   isPlacing,
 }: CafePOSCartProps) {
+  const canChargeCard = selectedMember?.cardOnFile && selectedMember?.stripeCustomerId;
   const subtotal = cart.reduce((sum, item) => sum + getItemTotal(item), 0);
   const tax = calculateTax(subtotal);
-  const total = subtotal + tax;
-
-  const canChargeCard = selectedMember?.cardOnFile && selectedMember?.stripeCustomerId;
+  const processingFee = canChargeCard ? calculateProcessingFeeFromDollars(subtotal + tax) : 0;
+  const total = subtotal + tax + processingFee;
 
   return (
     <div className="space-y-4">
@@ -121,6 +122,12 @@ export function CafePOSCart({
                   <span>MI Sales Tax ({(MI_SALES_TAX_RATE * 100).toFixed(0)}%)</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
+                {canChargeCard && processingFee > 0 && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Processing Fee</span>
+                    <span>${processingFee.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-semibold">
                   <span>Total</span>
                   <span>${total.toFixed(2)}</span>

@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DollarSign, Loader2, Banknote, Plus } from "lucide-react";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
   MEMBERSHIP_PRICING,
   INITIATION_FEE,
@@ -576,19 +577,28 @@ export function ChargeItemSelector({
               </div>
 
               {/* Tax line for cafe items */}
-              {isCafeItem && (
+              {/* Fee breakdown */}
+              {(isCafeItem || (!isManualPayment && effectiveAmount > 0)) && (
                 <div className="rounded-lg border p-3 space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
                     <span>${effectiveAmount.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>MI Sales Tax (6%)</span>
-                    <span>${cafeTax.toFixed(2)}</span>
-                  </div>
+                  {isCafeItem && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>MI Sales Tax (6%)</span>
+                      <span>${cafeTax.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {!isManualPayment && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Processing Fee</span>
+                      <span>+${calculateProcessingFeeFromDollars(isCafeItem ? totalWithTax : effectiveAmount).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold border-t pt-1">
                     <span>Total</span>
-                    <span>${totalWithTax.toFixed(2)}</span>
+                    <span>${(isCafeItem ? totalWithTax : effectiveAmount + (!isManualPayment ? calculateProcessingFeeFromDollars(effectiveAmount) : 0)).toFixed(2)}</span>
                   </div>
                 </div>
               )}
