@@ -122,7 +122,7 @@ serve(async (req) => {
       if (profile?.equipment_ids && profile.equipment_ids.length > 0) {
         const { data: equipment } = await supabase
           .from('equipment')
-          .select('id, name, category, description, image_url, technogym_id, technogym_exercise_id')
+          .select('id, name, category, description, technogym_id, technogym_exercise_id')
           .in('id', profile.equipment_ids)
           .eq('is_active', true);
         
@@ -201,7 +201,7 @@ serve(async (req) => {
         // Fetch ALL active equipment from database for workout generation
         const { data: allEquipment } = await supabase
           .from('equipment')
-          .select('id, name, category, description, image_url, technogym_id, technogym_exercise_id')
+          .select('id, name, category, description, technogym_id, technogym_exercise_id')
           .eq('is_active', true)
           .order('display_order');
         

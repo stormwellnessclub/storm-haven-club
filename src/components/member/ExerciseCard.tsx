@@ -31,6 +31,7 @@ interface Exercise {
 interface ExerciseCardProps {
   exercise: Exercise;
   index: number;
+  imageUrl?: string | null;
 }
 
 // Map body parts to icons and colors
@@ -52,12 +53,25 @@ const getBodyPartStyle = (bodyPart?: string) => {
   return styles[lowerBodyPart] || { color: "text-muted-foreground", bgColor: "bg-muted" };
 };
 
-export function ExerciseCard({ exercise, index }: ExerciseCardProps) {
+export function ExerciseCard({ exercise, index, imageUrl }: ExerciseCardProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const bodyPartStyle = getBodyPartStyle(exercise.bodyPart);
+
+  const showImage = imageUrl && !imgError;
 
   return (
     <Card className="overflow-hidden">
+      {showImage && (
+        <div className="w-full h-32 bg-muted overflow-hidden">
+          <img
+            src={imageUrl}
+            alt={exercise.equipment || exercise.name}
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+          />
+        </div>
+      )}
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
           {/* Exercise number indicator */}
