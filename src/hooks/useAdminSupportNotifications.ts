@@ -19,14 +19,29 @@ export function useAdminSupportNotifications() {
 
       if (openError) throw openError;
 
-      // Count unread messages from members
-      const { count: unreadCount, error: unreadError } = await supabase
-        .from('email_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('sender_type', 'member')
-        .eq('is_read', false);
+      // Get IDs of active conversations
+      const { data: activeConvos, error: activeError } = await supabase
+        .from('email_conversations')
+        .select('id')
+        .in('status', ['open', 'in_progress']);
 
-      if (unreadError) throw unreadError;
+      if (activeError) throw activeError;
+
+      const activeIds = (activeConvos || []).map(c => c.id);
+
+      // Count unread messages only from active conversations
+      let unreadCount = 0;
+      if (activeIds.length > 0) {
+        const { count, error: unreadError } = await supabase
+          .from('email_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('sender_type', 'member')
+          .eq('is_read', false)
+          .in('conversation_id', activeIds);
+
+        if (unreadError) throw unreadError;
+        unreadCount = count || 0;
+      }
 
       return {
         openCount: openCount || 0,
