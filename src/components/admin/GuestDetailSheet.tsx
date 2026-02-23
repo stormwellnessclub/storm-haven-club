@@ -58,6 +58,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
   const [adminNotes, setAdminNotes] = useState('');
   const [editingNotes, setEditingNotes] = useState(false);
   const [sendingFeedback, setSendingFeedback] = useState(false);
+  const [sendingConfirmation, setSendingConfirmation] = useState(false);
   if (!guest) return null;
 
   const isActiveToday = guest.valid_date === format(new Date(), "yyyy-MM-dd") && guest.status === 'active' && !guest.no_show;
@@ -304,6 +305,56 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
               </div>
             </>
           )}
+
+          <Separator />
+
+          {/* Confirmation Email */}
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              Confirmation Email
+            </h4>
+            {guest.guest_email ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={sendingConfirmation}
+                onClick={async () => {
+                  setSendingConfirmation(true);
+                  try {
+                    const visitDate = guest.valid_date
+                      ? format(new Date(guest.valid_date), "MMMM d, yyyy")
+                      : format(new Date(guest.purchased_at), "MMMM d, yyyy");
+                    const { error: emailError } = await supabase.functions.invoke('send-email', {
+                      body: {
+                        type: 'guest_pass_purchase_confirmation',
+                        to: guest.guest_email,
+                        data: {
+                          name: guest.guest_name,
+                          visitDate,
+                          amountPaid: guest.price_paid.toFixed(2),
+                        },
+                      },
+                    });
+                    if (emailError) throw emailError;
+                    toast.success('Confirmation email sent!');
+                  } catch (err: any) {
+                    toast.error(err?.message || 'Failed to send confirmation email');
+                  } finally {
+                    setSendingConfirmation(false);
+                  }
+                }}
+              >
+                {sendingConfirmation ? (
+                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Sending...</>
+                ) : (
+                  <><Send className="h-3 w-3 mr-1" /> Resend Confirmation Email</>
+                )}
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No email on file</p>
+            )}
+          </div>
 
           <Separator />
 
