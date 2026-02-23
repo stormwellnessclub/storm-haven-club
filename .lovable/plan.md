@@ -1,18 +1,26 @@
 
-## Fix: Unread Support Badge Counting Resolved Conversations
+
+## Fix: Show "First Month Cash" Option More Reliably
 
 ### Problem
-The notification badge counts **all** unread member messages, including those in conversations already marked as "resolved" or "closed". This causes a phantom "1 unread" badge even after staff has handled the conversation.
+The "First month paid in cash" checkbox only appears when the application record has a `stripe_customer_id` set (meaning `paymentStatus?.hasCard` is true). However, many pending applications show `stripe_customer_id` as null in the database even when a card may exist in Stripe under the member's email. This hides the cash activation option.
 
 ### Fix
-Update the unread count query in `useAdminSupportNotifications.ts` to only count unread messages from conversations that are still **open** or **in_progress**.
+Relax the visibility condition so super admins always see the "First month paid in cash" option in immediate mode, regardless of whether a card is currently on file. The card-on-file requirement is not strictly necessary for the cash flow -- the admin is recording a cash payment for month 1, and the subscription can be created later once a card is added.
 
 ### Technical Details
 
-**File:** `src/hooks/useAdminSupportNotifications.ts`
+**File: `src/components/admin/SingleActivationDialog.tsx`**
 
-- Change the unread messages query to first fetch IDs of active conversations (status = open or in\_progress), then only count unread messages belonging to those conversations.
-- Uses a two-step approach: get active conversation IDs, then filter unread messages by those IDs with an `.in('conversation_id', activeIds)` clause.
-- If there are no active conversations, the unread count is automatically 0 (skip the query).
+- Change the condition from:
+  ```
+  isSuperAdmin && activationMode === "immediate" && paymentStatus?.hasCard
+  ```
+  to:
+  ```
+  isSuperAdmin && activationMode === "immediate"
+  ```
+- This lets super admins see the cash option for any pending member, with or without a card on file
+- The existing subscription creation logic already handles the no-card case gracefully (it skips subscription creation when there's no `stripe_customer_id`)
 
-This is a single-file, ~10-line change. No database or backend modifications needed.
+This is a one-line condition change.
