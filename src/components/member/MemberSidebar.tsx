@@ -59,7 +59,7 @@ const memberMenuItems: MenuItem[] = [
   { title: "My Bookings", url: "/member/bookings", icon: Calendar },
   { title: "Visit History", url: "/member/check-in-history", icon: Activity },
   { title: "Support", url: "/member/support", icon: MessageCircle },
-  { title: "Book Classes", url: "/schedule", icon: CalendarPlus },
+  { title: "Book Classes", url: "/member/schedule", icon: CalendarPlus },
   { title: "Buy Passes", url: "/class-passes", icon: Ticket },
   { title: "Wellness Booking", url: "/member/wellness", icon: Zap },
   { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },

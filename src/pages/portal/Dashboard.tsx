@@ -5,43 +5,61 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { CalendarPlus, Ticket, Zap, CreditCard, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { format, parseISO, differenceInDays } from "date-fns";
+import { formatTime12h } from "@/lib/timeFormat";
+import { getCategoryDisplayName } from "@/lib/classCategories";
 
 export default function PortalDashboard() {
   const { user } = useAuth();
   const { profile, isLoading: profileLoading } = useNonMemberProfile();
 
-  // Get upcoming bookings count
-  const { data: upcomingCount = 0 } = useQuery({
-    queryKey: ["portal-upcoming-count", user?.id],
+  // Get upcoming bookings with details
+  const { data: upcomingBookings = [], isLoading: bookingsLoading } = useQuery({
+    queryKey: ["portal-upcoming-bookings", user?.id],
     queryFn: async () => {
       const today = new Date().toISOString().slice(0, 10);
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from("class_bookings")
-        .select("*, class_sessions!inner(session_date)", { count: "exact", head: true })
+        .select(`
+          id,
+          status,
+          class_sessions (
+            session_date,
+            start_time,
+            end_time,
+            room,
+            class_types ( name, category, duration_minutes )
+          )
+        `)
         .eq("user_id", user!.id)
         .eq("status", "confirmed")
-        .gte("class_sessions.session_date", today);
+        .gte("class_sessions.session_date", today)
+        .order("booked_at", { ascending: true });
       if (error) throw error;
-      return count || 0;
+      // Filter out rows where the join didn't match (session_date < today)
+      return (data || []).filter((b: any) => b.class_sessions?.session_date >= today);
     },
     enabled: !!user,
   });
 
-  // Get active passes count
-  const { data: activePasses = 0 } = useQuery({
-    queryKey: ["portal-active-passes", user?.id],
+  // Get active passes with full details
+  const { data: activePasses = [], isLoading: passesLoading } = useQuery({
+    queryKey: ["portal-active-passes-detail", user?.id],
     queryFn: async () => {
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from("class_passes")
-        .select("*", { count: "exact", head: true })
+        .select("*")
         .eq("user_id", user!.id)
         .eq("status", "active")
-        .gt("classes_remaining", 0);
+        .gt("classes_remaining", 0)
+        .order("expires_at", { ascending: true });
       if (error) throw error;
-      return count || 0;
+      return data || [];
     },
     enabled: !!user,
   });
@@ -76,31 +94,104 @@ export default function PortalDashboard() {
           </Card>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Upcoming Bookings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">{upcomingCount}</span>
-                <Calendar className="h-5 w-5 text-muted-foreground" />
+        {/* Upcoming Bookings - Detailed */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Upcoming Classes</CardTitle>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/portal/bookings">View All</Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {bookingsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Active Passes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">{activePasses}</span>
-                <Ticket className="h-5 w-5 text-muted-foreground" />
+            ) : upcomingBookings.length > 0 ? (
+              <div className="space-y-3">
+                {upcomingBookings.slice(0, 3).map((booking: any) => {
+                  const session = booking.class_sessions;
+                  const classType = session?.class_types;
+                  const sessionDate = session?.session_date ? parseISO(session.session_date) : null;
+                  return (
+                    <div key={booking.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="font-medium">{classType?.name || "Class"}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {sessionDate ? format(sessionDate, "EEEE, MMM d") : "Date TBA"} · {formatTime12h(session?.start_time)}
+                          </p>
+                        </div>
+                      </div>
+                      {session?.room && (
+                        <Badge variant="outline">{session.room}</Badge>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <Calendar className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No upcoming classes</p>
+                <Button asChild variant="link" size="sm" className="mt-1">
+                  <Link to="/schedule">Browse Schedule</Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Active Passes - Detailed */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Active Passes</CardTitle>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/portal/passes">View All</Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {passesLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-14 w-full" />
+              </div>
+            ) : activePasses.length > 0 ? (
+              <div className="space-y-4">
+                {activePasses.map((pass: any) => {
+                  const pct = (pass.classes_remaining / pass.classes_total) * 100;
+                  const expiresDate = parseISO(pass.expires_at);
+                  const daysLeft = differenceInDays(expiresDate, new Date());
+                  return (
+                    <div key={pass.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                          {getCategoryDisplayName(pass.category)} — {pass.pass_type}
+                        </span>
+                        <span className="text-xs font-semibold">
+                          {pass.classes_remaining}/{pass.classes_total}
+                        </span>
+                      </div>
+                      <Progress value={pct} className="h-1.5" />
+                      <p className={`text-xs ${daysLeft <= 14 ? "text-destructive" : "text-muted-foreground"}`}>
+                        Expires {format(expiresDate, "MMM d, yyyy")}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <Ticket className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No active passes</p>
+                <Button asChild variant="link" size="sm" className="mt-1">
+                  <Link to="/class-passes">Buy Passes</Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
         <div>
