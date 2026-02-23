@@ -467,8 +467,8 @@ export default function MemberDetail() {
 
       let credit = memberCredits.find((c) => c.credit_type === creditType);
       
-      // For guest_pass, create a new credit row if none exists
-      if (!credit && creditType === "guest_pass" && adjustment > 0) {
+      // Create a new credit row if none exists and we're adding credits
+      if (!credit && adjustment > 0) {
         if (!member) throw new Error("Member data not available");
         const now = new Date();
         const cycleStart = format(now, "yyyy-MM-dd");
@@ -480,7 +480,7 @@ export default function MemberDetail() {
           .insert({
             user_id: member.user_id,
             member_id: id,
-            credit_type: "guest_pass",
+            credit_type: creditType,
             credits_total: adjustment,
             credits_remaining: adjustment,
             cycle_start: cycleStart,
@@ -509,7 +509,7 @@ export default function MemberDetail() {
 
         if (logError) throw logError;
 
-        // Send email notification for guest pass credit
+        // Send email notification for guest pass credit only
         if (member.email && creditType === "guest_pass") {
           const expiresDate = format(new Date(expiresAt), "MMMM d, yyyy");
           supabase.functions.invoke("send-email", {
@@ -529,7 +529,7 @@ export default function MemberDetail() {
       }
 
       if (!credit) {
-        throw new Error(`No active ${CREDIT_TYPE_LABELS[creditType]} credits found for this member`);
+        throw new Error(`Cannot remove credits: no active ${CREDIT_TYPE_LABELS[creditType]} credits found for this member`);
       }
 
       const previousBalance = credit.credits_remaining;
