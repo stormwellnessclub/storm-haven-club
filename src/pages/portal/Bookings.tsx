@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, AlertTriangle } from "lucide-react";
+import { Calendar, AlertTriangle, User } from "lucide-react";
 import { formatTime12h } from "@/lib/timeFormat";
 import { useCancelBooking } from "@/hooks/useBooking";
 import {
@@ -38,7 +38,8 @@ export default function PortalBookings() {
             start_time,
             end_time,
             room,
-            class_types ( name, category, duration_minutes )
+            class_types ( name, category, duration_minutes ),
+            instructors ( first_name, last_name )
           )
         `)
         .eq("user_id", user!.id)
@@ -61,6 +62,7 @@ export default function PortalBookings() {
   const BookingCard = ({ booking, showCancel = false }: { booking: any; showCancel?: boolean }) => {
     const session = booking.class_sessions;
     const classType = session?.class_types;
+    const instructor = session?.instructors;
     const sessionDate = session?.session_date ? parseISO(session.session_date) : null;
 
     // Check if within 24-hour window
@@ -79,10 +81,16 @@ export default function PortalBookings() {
               <p className="font-medium truncate">{classType?.name || "Class"}</p>
               <p className="text-sm text-muted-foreground">
                 {sessionDate ? format(sessionDate, "EEEE, MMM d, yyyy") : "—"}{" "}
-                · {formatTime12h(session?.start_time)}
+                · {formatTime12h(session?.start_time)} - {formatTime12h(session?.end_time)}
               </p>
               {session?.room && (
                 <p className="text-xs text-muted-foreground">Room: {session.room}</p>
+              )}
+              {instructor && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  {instructor.first_name} {instructor.last_name}
+                </p>
               )}
             </div>
           </div>

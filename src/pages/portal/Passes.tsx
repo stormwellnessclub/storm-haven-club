@@ -5,9 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Ticket } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Ticket, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, differenceInDays, parseISO } from "date-fns";
+import { getCategoryDisplayName } from "@/lib/classCategories";
 
 export default function PortalPasses() {
   const { user } = useAuth();
@@ -33,6 +35,15 @@ export default function PortalPasses() {
   return (
     <PortalLayout title="My Passes">
       <div className="max-w-3xl space-y-6">
+        <div className="flex items-center justify-end gap-3">
+          <Button variant="outline" asChild>
+            <Link to="/schedule"><Calendar className="h-4 w-4 mr-2" />Book a Class</Link>
+          </Button>
+          <Button asChild>
+            <Link to="/class-passes">Buy More Passes</Link>
+          </Button>
+        </div>
+
         {/* Active Passes */}
         <div>
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
@@ -50,24 +61,36 @@ export default function PortalPasses() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {activePasses.map((pass) => (
-                <Card key={pass.id}>
-                  <CardContent className="py-4 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium capitalize">
-                        {pass.category.replace("_", " ")} — {pass.pass_type.replace("_", " ")}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {pass.classes_remaining} of {pass.classes_total} classes remaining
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Expires {format(new Date(pass.expires_at), "MMM d, yyyy")}
-                      </p>
-                    </div>
-                    <Badge>Active</Badge>
-                  </CardContent>
-                </Card>
-              ))}
+              {activePasses.map((pass) => {
+                const daysLeft = differenceInDays(parseISO(pass.expires_at), new Date());
+                const progressPct = pass.classes_total > 0 ? (pass.classes_remaining / pass.classes_total) * 100 : 0;
+                return (
+                  <Card key={pass.id}>
+                    <CardContent className="py-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">
+                            {getCategoryDisplayName(pass.category)} — {pass.pass_type.replace("_", " ")}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {pass.classes_remaining} of {pass.classes_total} classes remaining
+                          </p>
+                        </div>
+                        <Badge>Active</Badge>
+                      </div>
+                      <Progress value={progressPct} className="h-2" />
+                      <div className="flex items-center justify-between">
+                        <p className={`text-xs ${daysLeft <= 14 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                          Expires {format(parseISO(pass.expires_at), "MMM d, yyyy")}{daysLeft <= 14 ? ` (${daysLeft} days left)` : ""}
+                        </p>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to="/schedule">Book a Class</Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -83,8 +106,8 @@ export default function PortalPasses() {
                 <Card key={pass.id} className="opacity-60">
                   <CardContent className="py-4 flex items-center justify-between">
                     <div>
-                      <p className="font-medium capitalize">
-                        {pass.category.replace("_", " ")} — {pass.pass_type.replace("_", " ")}
+                      <p className="font-medium">
+                        {getCategoryDisplayName(pass.category)} — {pass.pass_type.replace("_", " ")}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {pass.classes_remaining} of {pass.classes_total} remaining
