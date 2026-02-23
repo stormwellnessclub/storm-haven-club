@@ -21,6 +21,7 @@ import {
   type WorkoutProgram 
 } from "@/hooks/useWorkoutPrograms";
 import { ProgramWorkoutCard } from "./ProgramWorkoutCard";
+import { useEquipmentImages } from "@/hooks/useEquipmentImages";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,7 @@ export function ProgramDashboard({ program, onProgramDeleted, onRegenerateProgra
   const completeWorkout = useCompleteProgramWorkout();
   const completeProgram = useCompleteProgram();
   const deleteProgram = useDeleteProgram();
+  const { data: equipmentImages } = useEquipmentImages();
 
   // Group workouts by week
   const workoutsByWeek = workouts.reduce((acc, workout) => {
@@ -273,6 +275,7 @@ export function ProgramDashboard({ program, onProgramDeleted, onRegenerateProgra
                   workout={workout}
                   onComplete={() => handleCompleteWorkout(workout.id)}
                   isCompleting={completeWorkout.isPending}
+                  equipmentImages={equipmentImages}
                 />
               ))
             )}

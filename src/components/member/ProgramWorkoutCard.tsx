@@ -6,14 +6,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Check, ChevronDown, Clock, Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProgramWorkout, Exercise } from "@/hooks/useWorkoutPrograms";
+import { type EquipmentImageMap, findEquipmentImage } from "@/hooks/useEquipmentImages";
 
 interface ProgramWorkoutCardProps {
   workout: ProgramWorkout;
   onComplete: () => void;
   isCompleting?: boolean;
+  equipmentImages?: EquipmentImageMap;
 }
 
-export function ProgramWorkoutCard({ workout, onComplete, isCompleting }: ProgramWorkoutCardProps) {
+export function ProgramWorkoutCard({ workout, onComplete, isCompleting, equipmentImages }: ProgramWorkoutCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -69,29 +71,39 @@ export function ProgramWorkoutCard({ workout, onComplete, isCompleting }: Progra
           <CardContent className="pt-0 space-y-4">
             {/* Exercises List */}
             <div className="space-y-3">
-              {(workout.exercises as Exercise[]).map((exercise, idx) => (
-                <div 
-                  key={idx} 
-                  className="flex items-start justify-between p-3 rounded-lg bg-secondary/50"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{exercise.name}</p>
-                    {exercise.equipment && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {exercise.equipment}
-                      </p>
+              {(workout.exercises as Exercise[]).map((exercise, idx) => {
+                const imgUrl = findEquipmentImage(exercise.equipment, equipmentImages);
+                return (
+                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
+                    {imgUrl && (
+                      <div className="flex-shrink-0 w-16 h-16 rounded-md overflow-hidden bg-muted">
+                        <img
+                          src={imgUrl}
+                          alt={exercise.equipment || exercise.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{exercise.name}</p>
+                      {exercise.equipment && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {exercise.equipment}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right text-sm flex-shrink-0">
+                      <p className="text-foreground">
+                        {exercise.sets} × {exercise.reps}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Rest: {exercise.rest}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right text-sm">
-                    <p className="text-foreground">
-                      {exercise.sets} × {exercise.reps}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Rest: {exercise.rest}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Notes */}
