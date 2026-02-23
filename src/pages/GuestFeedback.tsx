@@ -38,10 +38,30 @@ export default function GuestFeedback() {
 
     setIsSubmitting(true);
     try {
+      // Look up guest pass to populate name/email on feedback
+      const guestPassId = token?.startsWith('fb-') ? token.slice(3) : null;
+      let guestName: string | null = null;
+      let guestEmail: string | null = null;
+
+      if (guestPassId) {
+        const { data: passData } = await (supabase
+          .from("guest_passes" as any)
+          .select("guest_name, guest_email")
+          .eq("id", guestPassId)
+          .maybeSingle() as any);
+        if (passData) {
+          guestName = passData.guest_name;
+          guestEmail = passData.guest_email;
+        }
+      }
+
       const { error } = await (supabase
         .from("guest_feedback" as any)
         .insert({
           feedback_token: token,
+          guest_pass_id: guestPassId,
+          guest_name: guestName,
+          guest_email: guestEmail,
           rating,
           comment: comment.trim() || null,
         }) as any);

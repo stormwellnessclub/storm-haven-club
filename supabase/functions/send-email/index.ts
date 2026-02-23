@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite';
   to: string;
   data: Record<string, any>;
 }
@@ -1945,6 +1945,63 @@ serve(async (req) => {
               </div>
             </div>
             ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'guest_pass_purchase_confirmation':
+        subject = 'Your Guest Pass is Confirmed — Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Thank You, ${data.name || 'Guest'}!</h2>
+              
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Your guest pass purchase has been confirmed. We're looking forward to welcoming you to Storm Wellness Club.
+              </p>
+              
+              <div style="${emailStyles.successBox}">
+                <h3 style="margin: 0 0 12px 0; color: #1C170F; font-family: Georgia, serif; font-size: 16px;">🎫 Guest Pass Details</h3>
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #C1B19C; color: #6C5D3E;">Guest Name</td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #C1B19C; color: #1C170F; text-align: right; font-weight: 600;">${data.name || 'Guest'}</td>
+                  </tr>
+                  ${data.visitDate ? `
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #C1B19C; color: #6C5D3E;">Visit Date</td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #C1B19C; color: #1C170F; text-align: right; font-weight: 600;">${data.visitDate}</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Amount Paid</td>
+                    <td style="padding: 8px 0; color: #1C170F; text-align: right; font-weight: 600;">$${data.amountPaid || '60.00'}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <div style="${emailStyles.infoBox}">
+                <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, serif;">
+                  📍 What to Expect
+                </p>
+                <ul style="color: #374151; line-height: 2; padding-left: 20px; margin: 10px 0 0 0;">
+                  <li>Full access to the gym floor and amenities</li>
+                  <li>Locker room and shower facilities</li>
+                  <li>Access to our wellness amenities (subject to availability)</li>
+                </ul>
+              </div>
+              
+              <p style="font-size: 15px; line-height: 1.8; color: #6b7280; margin-bottom: 20px;">
+                Please check in at the front desk upon arrival. A team member will be happy to show you around.
+              </p>
+              
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">See you soon,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getReceiptFooter()}
           </div>
         `;
         break;

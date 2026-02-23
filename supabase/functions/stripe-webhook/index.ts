@@ -557,6 +557,29 @@ serve(async (req) => {
                 addOnsCount: addOns.length,
               });
 
+              // Send confirmation email to guest if email provided
+              if (guestEmail) {
+                try {
+                  const amountPaid = session.amount_total ? (session.amount_total / 100).toFixed(2) : '60.00';
+                  const formattedDate = new Date(validDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                  await supabase.functions.invoke('send-email', {
+                    body: {
+                      type: 'guest_pass_purchase_confirmation',
+                      to: guestEmail,
+                      data: {
+                        name: guestName,
+                        visitDate: formattedDate,
+                        amountPaid,
+                      },
+                    },
+                  });
+                  logStep("Guest pass experience confirmation email sent", { guestEmail });
+                } catch (emailError) {
+                  logError(emailError, "GUEST_PASS_EXPERIENCE_CONFIRMATION_EMAIL");
+                  // Don't fail the webhook if email fails
+                }
+              }
+
               // Create class passes if class add-ons were purchased
               const classAddons = addOns.filter((addon: { id: string }) => 
                 addon.id === 'class_pilates_cycling' || addon.id === 'class_other'
