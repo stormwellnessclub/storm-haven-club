@@ -108,6 +108,25 @@ const CARD_SETUP_STATUS_OPTIONS = [
 export const REPORTS: ReportDefinition[] = [
   // Financial Reports
   {
+    id: 'sales-segmentation',
+    name: 'Sales Segmentation',
+    description: 'Detailed revenue breakdown by all sources: memberships, café, spa, classes, guest passes',
+    category: 'financial',
+    icon: PieChart,
+    filters: [],
+    defaultDateRange: 'thisMonth',
+  },
+  {
+    id: 'next-month-projection',
+    name: 'Next Month Projected Revenue',
+    description: 'Forecast next month revenue based on active members and 30-day averages',
+    category: 'financial',
+    icon: TrendingUp,
+    filters: [],
+    defaultDateRange: 'thisMonth',
+  },
+  // Financial Reports
+  {
     id: 'revenue-summary',
     name: 'Revenue Summary',
     description: 'Total revenue by period with breakdown by category',

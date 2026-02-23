@@ -10,7 +10,7 @@ interface RevenueByCategoryReportProps {
   filters: Record<string, string | boolean>;
 }
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+const COLORS = ['hsl(142, 76%, 36%)', 'hsl(45, 93%, 47%)', 'hsl(199, 89%, 48%)', 'hsl(280, 67%, 50%)', 'hsl(25, 95%, 53%)', 'hsl(0, 84%, 60%)', 'hsl(170, 70%, 40%)'];
 
 export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportProps) {
   const { data, isLoading } = useQuery({
@@ -19,61 +19,48 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
       const startDate = format(dateRange.start, 'yyyy-MM-dd');
       const endDate = format(dateRange.end, 'yyyy-MM-dd');
 
-      // Fetch manual charges (memberships, spa, etc.)
-      const { data: manualCharges } = await supabase
-        .from('manual_charges')
-        .select('amount, description, created_at')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
-        .eq('status', 'succeeded');
+      const [chargesRes, cafeRes, spaRes, classPassRes, guestPassRes] = await Promise.all([
+        supabase.from('manual_charges').select('amount, description, created_at')
+          .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'succeeded'),
+        supabase.from('cafe_orders').select('total_amount')
+          .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'completed'),
+        supabase.from('spa_appointments').select('service_price, member_price')
+          .gte('appointment_date', startDate).lte('appointment_date', endDate).eq('status', 'completed'),
+        supabase.from('class_passes').select('price_paid')
+          .gte('purchased_at', startDate).lte('purchased_at', endDate),
+        supabase.from('guest_passes').select('price_paid')
+          .gte('purchased_at', startDate).lte('purchased_at', endDate),
+      ]);
 
-      // Fetch class passes
-      const { data: classPasses } = await supabase
-        .from('class_passes')
-        .select('price_paid, category, purchased_at')
-        .gte('purchased_at', startDate)
-        .lte('purchased_at', endDate);
-
-      // Fetch guest passes
-      const { data: guestPasses } = await supabase
-        .from('guest_passes')
-        .select('price_paid, purchased_at')
-        .gte('purchased_at', startDate)
-        .lte('purchased_at', endDate);
-
-      // Calculate revenue by category
-      let membershipRevenue = 0;
-      let spaRevenue = 0;
-      let otherRevenue = 0;
-
-      (manualCharges || []).forEach(charge => {
-        const desc = charge.description?.toLowerCase() || '';
-        const amountDollars = (Number(charge.amount) || 0) / 100;
-        if (desc.includes('membership') || desc.includes('dues') || desc.includes('annual')) {
-          membershipRevenue += amountDollars;
-        } else if (desc.includes('spa') || desc.includes('massage') || desc.includes('treatment')) {
-          spaRevenue += amountDollars;
-        } else {
-          otherRevenue += amountDollars;
-        }
+      let membershipRevenue = 0, initiationFees = 0, annualFees = 0, otherCharges = 0;
+      (chargesRes.data || []).forEach(c => {
+        const desc = (c.description || '').toLowerCase();
+        const amt = (Number(c.amount) || 0) / 100;
+        if (desc.includes('initiation')) initiationFees += amt;
+        else if (desc.includes('annual')) annualFees += amt;
+        else if (desc.includes('membership') || desc.includes('dues')) membershipRevenue += amt;
+        else otherCharges += amt;
       });
 
-      const classRevenue = (classPasses || []).reduce((sum, p) => sum + (Number(p.price_paid) || 0), 0);
-      const guestPassRevenue = (guestPasses || []).reduce((sum, p) => sum + (Number(p.price_paid) || 0), 0);
+      const cafeRevenue = (cafeRes.data || []).reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
+      const spaRevenue = (spaRes.data || []).reduce((s, a) => s + (Number(a.member_price) || Number(a.service_price) || 0), 0);
+      const classRevenue = (classPassRes.data || []).reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
+      const guestPassRevenue = (guestPassRes.data || []).reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
 
       return [
         { name: 'Memberships', value: membershipRevenue },
-        { name: 'Classes', value: classRevenue },
-        { name: 'Spa', value: spaRevenue },
+        { name: 'Initiation Fees', value: initiationFees },
+        { name: 'Annual Fees', value: annualFees },
+        { name: 'Café / Juice Bar', value: cafeRevenue },
+        { name: 'Spa Services', value: spaRevenue },
+        { name: 'Class Passes', value: classRevenue },
         { name: 'Guest Passes', value: guestPassRevenue },
-        { name: 'Other', value: otherRevenue },
+        { name: 'Other', value: otherCharges },
       ].filter(item => item.value > 0);
     },
   });
 
-  if (isLoading) {
-    return <Skeleton className="h-[400px] w-full" />;
-  }
+  if (isLoading) return <Skeleton className="h-[400px] w-full" />;
 
   const total = (data || []).reduce((sum, item) => sum + item.value, 0);
 
@@ -81,29 +68,18 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Revenue Distribution</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-lg">Revenue Distribution</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
+                <Pie data={data} cx="50%" cy="50%" labelLine={false}
                   label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {(data || []).map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  outerRadius={100} dataKey="value">
+                  {(data || []).map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip 
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
-                />
+                <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -111,18 +87,13 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Category Breakdown</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-lg">Category Breakdown</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(data || []).map((item, index) => (
+              {(data || []).map((item, i) => (
                 <div key={item.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                     <span className="font-medium">{item.name}</span>
                   </div>
                   <div className="text-right">
