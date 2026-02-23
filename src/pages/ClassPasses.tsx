@@ -4,6 +4,7 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
 import { Check, Info, Clock, Loader2, ShoppingCart, FileText } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMembership } from "@/hooks/useUserMembership";
@@ -291,6 +292,7 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
                 <h3 className="font-serif text-xl mb-2">Pass Validity</h3>
                     <p className="text-muted-foreground text-sm mb-4">
                       10 Class Packs are valid for 2 months. Single Class Passes are valid for 1 week.
+                      A small processing fee applies at checkout.
                     </p>
                     <ul className="space-y-2">
                       <li className="flex items-start gap-2 text-sm">

@@ -2048,6 +2048,67 @@ serve(async (req) => {
         break;
       }
 
+      case 'invoice.created': {
+        // Add processing fee to draft invoices for recurring subscriptions
+        try {
+          const invoice = event.data.object as Stripe.Invoice;
+          
+          // Only process draft invoices (before finalization) for subscriptions
+          if (invoice.status !== 'draft' || !invoice.subscription) {
+            logStep("Skipping invoice.created - not a draft subscription invoice", { 
+              invoiceId: invoice.id, 
+              status: invoice.status,
+              hasSubscription: !!invoice.subscription 
+            });
+            break;
+          }
+
+          // Don't add fee if there's already a processing fee line item
+          const existingFeeItem = invoice.lines?.data?.find(
+            (line: any) => line.description?.toLowerCase().includes('processing fee')
+          );
+          if (existingFeeItem) {
+            logStep("Processing fee already exists on invoice", { invoiceId: invoice.id });
+            break;
+          }
+
+          const subtotalCents = invoice.subtotal || 0;
+          if (subtotalCents <= 0) {
+            logStep("Invoice subtotal is zero - skipping fee", { invoiceId: invoice.id });
+            break;
+          }
+
+          // Calculate processing fee: total = ceil((base + 30) / 0.971), fee = total - base
+          const totalCents = Math.ceil((subtotalCents + 30) / 0.971);
+          const feeCents = totalCents - subtotalCents;
+
+          if (feeCents <= 0) {
+            logStep("Calculated fee is zero - skipping", { invoiceId: invoice.id, subtotalCents });
+            break;
+          }
+
+          // Add processing fee as an invoice item
+          await stripe.invoiceItems.create({
+            customer: invoice.customer as string,
+            invoice: invoice.id,
+            amount: feeCents,
+            currency: 'usd',
+            description: 'Processing Fee',
+          });
+
+          logStep("Processing fee added to invoice", { 
+            invoiceId: invoice.id, 
+            subtotalCents, 
+            feeCents,
+            totalCents
+          });
+        } catch (invoiceCreatedError) {
+          logError(invoiceCreatedError, "INVOICE_CREATED_PROCESSING_FEE");
+          // Don't fail - fee is nice-to-have, shouldn't block invoice
+        }
+        break;
+      }
+
       default:
         logStep(`Unhandled event type: ${event.type}`, { eventId: event.id });
     }

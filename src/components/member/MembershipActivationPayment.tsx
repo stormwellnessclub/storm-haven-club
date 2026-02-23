@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, AlertCircle, CreditCard } from "lucide-react";
 import { toast } from "sonner";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { supabase } from "@/integrations/supabase/client";
 
 interface MembershipActivationPaymentProps {
@@ -148,9 +149,19 @@ export function MembershipActivationPayment({
             <CreditCard className="h-5 w-5" />
             Payment Information
           </CardTitle>
-          <CardDescription>
-            Total: ${amount.toFixed(2)}
-            {isFoundingMember && " (Annual payment)"}
+          <CardDescription className="space-y-1">
+            <span className="flex justify-between">
+              <span>Membership{isFoundingMember ? " (Annual)" : ""}:</span>
+              <span>${amount.toFixed(2)}</span>
+            </span>
+            <span className="flex justify-between text-xs">
+              <span>Processing Fee:</span>
+              <span>+${calculateProcessingFeeFromDollars(amount).toFixed(2)}</span>
+            </span>
+            <span className="flex justify-between font-medium pt-1 border-t border-border">
+              <span>Total:</span>
+              <span>${(amount + calculateProcessingFeeFromDollars(amount)).toFixed(2)}</span>
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -199,7 +210,7 @@ export function MembershipActivationPayment({
               className="flex-1"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Pay ${amount.toFixed(2)} & Activate
+              Pay ${(amount + calculateProcessingFeeFromDollars(amount)).toFixed(2)} & Activate
             </Button>
           </div>
         </CardContent>

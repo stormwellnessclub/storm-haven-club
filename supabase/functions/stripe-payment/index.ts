@@ -7,6 +7,55 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Processing fee calculation: covers Stripe's 2.9% + $0.30
+function calculateProcessingFee(amountInCents: number): number {
+  if (amountInCents <= 0) return 0;
+  const totalCents = Math.ceil((amountInCents + 30) / 0.971);
+  return totalCents - amountInCents;
+}
+
+// Cache the Processing Fee product ID to avoid repeated lookups
+let processingFeeProductId: string | null = null;
+
+async function getOrCreateProcessingFeeProduct(stripe: Stripe): Promise<string> {
+  if (processingFeeProductId) return processingFeeProductId;
+  
+  // Search for existing product
+  const products = await stripe.products.search({
+    query: "name:'Processing Fee'",
+    limit: 1,
+  });
+  
+  if (products.data.length > 0) {
+    processingFeeProductId = products.data[0].id;
+    return processingFeeProductId;
+  }
+  
+  // Create new product
+  const product = await stripe.products.create({
+    name: 'Processing Fee',
+    description: 'Card processing fee (2.9% + $0.30)',
+    metadata: { type: 'processing_fee' },
+  });
+  processingFeeProductId = product.id;
+  return processingFeeProductId;
+}
+
+async function createProcessingFeeLineItem(stripe: Stripe, baseAmountCents: number): Promise<{ price: string; quantity: number } | null> {
+  const feeCents = calculateProcessingFee(baseAmountCents);
+  if (feeCents <= 0) return null;
+  
+  const productId = await getOrCreateProcessingFeeProduct(stripe);
+  
+  const price = await stripe.prices.create({
+    product: productId,
+    unit_amount: feeCents,
+    currency: 'usd',
+  });
+  
+  return { price: price.id, quantity: 1 };
+}
+
 // Credit allocations by tier (matching webhook)
 const TIER_CREDITS: Record<string, { class: number; red_light: number; dry_cryo: number }> = {
   silver: { class: 0, red_light: 0, dry_cryo: 0 },
@@ -474,9 +523,15 @@ serve(async (req) => {
           }
         }
 
+        // Add processing fee line item
+        const classPassPrice = await stripe.prices.retrieve(priceId);
+        const classPassFeeItem = await createProcessingFeeLineItem(stripe, classPassPrice.unit_amount || 0);
+        const classPassLineItems: { price: string; quantity: number }[] = [{ price: priceId, quantity: 1 }];
+        if (classPassFeeItem) classPassLineItems.push(classPassFeeItem);
+
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
-          line_items: [{ price: priceId, quantity: 1 }],
+          line_items: classPassLineItems,
           mode: 'payment',
           payment_intent_data: {
             setup_future_usage: 'off_session',
@@ -516,10 +571,16 @@ serve(async (req) => {
 
         const customerId = await getOrCreateCustomer();
 
+        // Add processing fee for guest pass
+        const guestPassPrice = await stripe.prices.retrieve(priceId);
+        const guestPassFeeItem = await createProcessingFeeLineItem(stripe, guestPassPrice.unit_amount || 0);
+        const guestPassLineItems: { price: string; quantity: number }[] = [{ price: priceId, quantity: 1 }];
+        if (guestPassFeeItem) guestPassLineItems.push(guestPassFeeItem);
+
         // Create checkout session for guest pass
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
-          line_items: [{ price: priceId, quantity: 1 }],
+          line_items: guestPassLineItems,
           mode: 'payment',
           payment_intent_data: {
             setup_future_usage: 'off_session',
@@ -528,7 +589,7 @@ serve(async (req) => {
           cancel_url: cancelUrl,
           metadata: {
             type: 'guest_pass',
-            user_id: user.id, // Admin user who is selling the pass
+            user_id: user.id,
             guest_name: guestName,
             guest_email: guestEmail || '',
             guest_gender: body.guestGender || '',
@@ -612,6 +673,15 @@ serve(async (req) => {
 
         const customerId = await getOrCreateCustomer();
 
+        // Calculate total and add processing fee
+        let experienceTotalCents = 0;
+        for (const li of lineItems) {
+          const p = await stripe.prices.retrieve(li.price);
+          experienceTotalCents += (p.unit_amount || 0) * li.quantity;
+        }
+        const experienceFeeItem = await createProcessingFeeLineItem(stripe, experienceTotalCents);
+        if (experienceFeeItem) lineItems.push(experienceFeeItem);
+
         // Create checkout session with all line items
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
@@ -661,22 +731,40 @@ serve(async (req) => {
 
         const customerId = await getOrCreateCustomer();
 
+        // Calculate processing fee for freeze
+        const freezeAmountCents = freezeFeeAmount * 100;
+        const freezeFeeCents = calculateProcessingFee(freezeAmountCents);
+        
+        const freezeLineItems: any[] = [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: 'Membership Freeze Fee',
+                description: `Freeze fee for membership hold`,
+              },
+              unit_amount: freezeAmountCents,
+            },
+            quantity: 1,
+          },
+        ];
+
+        if (freezeFeeCents > 0) {
+          const freezeFeeProductId = await getOrCreateProcessingFeeProduct(stripe);
+          freezeLineItems.push({
+            price_data: {
+              currency: 'usd',
+              product: freezeFeeProductId,
+              unit_amount: freezeFeeCents,
+            },
+            quantity: 1,
+          });
+        }
+
         // Create one-time payment for freeze fee
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
-          line_items: [
-            {
-              price_data: {
-                currency: 'usd',
-                product_data: {
-                  name: 'Membership Freeze Fee',
-                  description: `Freeze fee for membership hold`,
-                },
-                unit_amount: freezeFeeAmount * 100, // Convert to cents
-              },
-              quantity: 1,
-            },
-          ],
+          line_items: freezeLineItems,
           mode: 'payment',
           payment_intent_data: {
             setup_future_usage: 'off_session',
@@ -1145,20 +1233,29 @@ serve(async (req) => {
         const cardBrand = paymentMethod.card?.brand ? paymentMethod.card.brand.charAt(0).toUpperCase() + paymentMethod.card.brand.slice(1) : 'Card';
         const cardLast4 = paymentMethod.card?.last4 || '****';
 
+        // Calculate processing fee and add to charge
+        const processingFeeCents = calculateProcessingFee(amount);
+        const totalAmountWithFee = amount + processingFeeCents;
+        const feeDescription = processingFeeCents > 0 
+          ? `${description} (includes $${(processingFeeCents / 100).toFixed(2)} processing fee)` 
+          : description;
+
         // Create and confirm a payment intent
         const paymentIntent = await stripe.paymentIntents.create({
-          amount: amount, // Already in cents
+          amount: totalAmountWithFee,
           currency: 'usd',
           customer: customerId,
           payment_method: paymentMethodId,
           off_session: true,
           confirm: true,
-          description: description,
+          description: feeDescription,
           metadata: {
             type: 'manual_charge',
             member_id: memberIdForLog || 'application',
             charged_by: user.id,
             customer_name: customerName,
+            base_amount: String(amount),
+            processing_fee: String(processingFeeCents),
           },
         });
 
@@ -1416,14 +1513,21 @@ serve(async (req) => {
           // Use automatic confirmation for ACH
         }
 
+        // Calculate processing fee and add to charge
+        const processingFee3ds = calculateProcessingFee(amount);
+        const totalAmount3ds = amount + processingFee3ds;
+        const feeDescription3ds = processingFee3ds > 0
+          ? `${description} (includes $${(processingFee3ds / 100).toFixed(2)} processing fee)`
+          : description;
+
         // Create payment intent
         const paymentIntent3ds = await stripe.paymentIntents.create({
-          amount: amount,
+          amount: totalAmount3ds,
           currency: 'usd',
           customer: customerId,
           payment_method: paymentMethod3ds.id,
           payment_method_types: pmTypes,
-          description: description,
+          description: feeDescription3ds,
           confirmation_method: paymentMethodType === 'card' ? 'manual' : 'automatic',
           confirm: true,
           return_url: `${Deno.env.get('SUPABASE_URL') || 'https://localhost'}/`,
@@ -1433,6 +1537,8 @@ serve(async (req) => {
             application_id: applicationIdForLog || '',
             charged_by: user.id,
             customer_name: customerName,
+            base_amount: String(amount),
+            processing_fee: String(processingFee3ds),
           },
         });
 
@@ -5873,9 +5979,15 @@ serve(async (req) => {
           stripe_customer_id: recoveryCustomerId,
         }, { onConflict: 'user_id' });
 
+        // Add processing fee
+        const recoveryPrice = await stripe.prices.retrieve(recoveryPriceId);
+        const recoveryFeeItem = await createProcessingFeeLineItem(stripe, recoveryPrice.unit_amount || 0);
+        const recoveryLineItems: { price: string; quantity: number }[] = [{ price: recoveryPriceId, quantity: 1 }];
+        if (recoveryFeeItem) recoveryLineItems.push(recoveryFeeItem);
+
         const recoverySession = await stripe.checkout.sessions.create({
           customer: recoveryCustomerId,
-          line_items: [{ price: recoveryPriceId, quantity: 1 }],
+          line_items: recoveryLineItems,
           mode: 'payment',
           success_url: `${req.headers.get('origin') || ''}/portal?recovery=success`,
           cancel_url: `${req.headers.get('origin') || ''}/portal/wellness?recovery=cancelled`,
