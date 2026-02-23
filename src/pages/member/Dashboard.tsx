@@ -634,68 +634,62 @@ export default function MemberDashboard() {
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
         </AnimatedSection>
         <StaggerContainer className="grid gap-4 md:grid-cols-3" staggerDelay={80}>
-          <Card variant="interactive" className="hover-lift-sm">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-accent/10">
-                    <Calendar className="h-6 w-6 text-accent" />
+          <Link to="/member/schedule" className="block">
+            <Card variant="interactive" className="hover-lift-sm cursor-pointer h-full">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-accent/10">
+                      <Calendar className="h-6 w-6 text-accent" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Book a Class</h3>
+                      <p className="text-sm text-muted-foreground">View schedule and book</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">Book a Class</h3>
-                    <p className="text-sm text-muted-foreground">View schedule and book</p>
-                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <Button asChild variant="ghost" size="icon">
-                  <Link to="/schedule">
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card variant="interactive" className="hover-lift-sm">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-accent/10">
-                    <User className="h-6 w-6 text-accent" />
+          <Link to="/member/profile" className="block">
+            <Card variant="interactive" className="hover-lift-sm cursor-pointer h-full">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-accent/10">
+                      <User className="h-6 w-6 text-accent" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Update Profile</h3>
+                      <p className="text-sm text-muted-foreground">Manage your info</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">Update Profile</h3>
-                    <p className="text-sm text-muted-foreground">Manage your info</p>
-                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <Button asChild variant="ghost" size="icon">
-                  <Link to="/member/profile">
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card variant="interactive" className="hover-lift-sm">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-accent/10">
-                    <Ticket className="h-6 w-6 text-accent" />
+          <Link to="/class-passes" className="block">
+            <Card variant="interactive" className="hover-lift-sm cursor-pointer h-full">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-accent/10">
+                      <Ticket className="h-6 w-6 text-accent" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Buy Class Passes</h3>
+                      <p className="text-sm text-muted-foreground">Get more classes</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">Buy Class Passes</h3>
-                    <p className="text-sm text-muted-foreground">Get more classes</p>
-                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <Button asChild variant="ghost" size="icon">
-                  <Link to="/class-passes">
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         </StaggerContainer>
 
         {/* Upcoming Bookings Preview */}
