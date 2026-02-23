@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUpcomingBookings, usePastBookings, useCancelBooking } from "@/hooks/useBooking";
-import { Calendar, Clock, MapPin, User, X } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { Calendar, Clock, MapPin, User, X, AlertTriangle } from "lucide-react";
+import { format, parseISO, differenceInHours } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import {
   AlertDialog,
@@ -123,6 +123,12 @@ function BookingCard({ booking, isUpcoming }: BookingCardProps) {
   
   const cancelBooking = useCancelBooking();
 
+  const isLateCancel = (() => {
+    if (!session?.session_date || !session?.start_time) return false;
+    const classStart = new Date(`${session.session_date}T${session.start_time}`);
+    return differenceInHours(classStart, new Date()) < 24;
+  })();
+
   const handleCancel = () => {
     cancelBooking.mutate(booking.id);
   };
@@ -182,7 +188,16 @@ function BookingCard({ booking, isUpcoming }: BookingCardProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to cancel this booking? Late cancellations (less than 24 hours before class) may result in the loss of your class credit or pass.
+                    {isLateCancel ? (
+                      <span className="flex items-start gap-2">
+                        <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                        <span>
+                          This class starts in less than 24 hours. Your credit or pass <strong>will not be refunded</strong>.
+                        </span>
+                      </span>
+                    ) : (
+                      "Are you sure you want to cancel this booking? Your credit or pass will be refunded."
+                    )}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -191,7 +206,7 @@ function BookingCard({ booking, isUpcoming }: BookingCardProps) {
                     onClick={handleCancel}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Cancel Booking
+                    {isLateCancel ? "Cancel Anyway" : "Yes, Cancel"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
