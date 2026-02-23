@@ -87,7 +87,7 @@ export function CreateSubscriptionDialog({
   });
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [chargeCalendarOpen, setChargeCalendarOpen] = useState(false);
-  const [paymentMode, setPaymentMode] = useState<"now" | "cash_paid_ahead" | "custom">("now");
+  const [paymentMode, setPaymentMode] = useState<"now" | "cash_first_month" | "cash_paid_ahead" | "custom">("now");
   const [firstChargeDate, setFirstChargeDate] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export function CreateSubscriptionDialog({
     ? format(effectiveChargeDate, "MMM d, yyyy")
     : "Today";
   
-  const isCashPaidAhead = paymentMode === "cash_paid_ahead";
+  const isCashPaidAhead = paymentMode === "cash_paid_ahead" || paymentMode === "cash_first_month";
   const isLongDeferral = effectiveChargeDate && Math.abs(effectiveChargeDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24) > 90;
 
   const subscriptionPreview = useMemo(() => {
@@ -265,14 +265,16 @@ export function CreateSubscriptionDialog({
                    
                    <RadioGroup
                      value={paymentMode}
-                     onValueChange={(val: "now" | "cash_paid_ahead" | "custom") => {
-                       setPaymentMode(val);
-                       if (val === "now") {
-                         setFirstChargeDate(null);
-                       } else if (val === "cash_paid_ahead") {
-                         setFirstChargeDate(addDays(startDate, 365));
-                       }
-                     }}
+                      onValueChange={(val: "now" | "cash_first_month" | "cash_paid_ahead" | "custom") => {
+                        setPaymentMode(val);
+                        if (val === "now") {
+                          setFirstChargeDate(null);
+                        } else if (val === "cash_first_month") {
+                          setFirstChargeDate(addDays(startDate, 30));
+                        } else if (val === "cash_paid_ahead") {
+                          setFirstChargeDate(addDays(startDate, 365));
+                        }
+                      }}
                      className="space-y-2"
                    >
                      <div className="flex items-center space-x-2">
@@ -281,8 +283,15 @@ export function CreateSubscriptionDialog({
                          Charge now
                        </Label>
                      </div>
-                     <div className="flex items-center space-x-2">
-                       <RadioGroupItem value="cash_paid_ahead" id="cash-paid-ahead" />
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="cash_first_month" id="cash-first-month" />
+                        <Label htmlFor="cash-first-month" className="text-sm cursor-pointer flex items-center gap-1.5">
+                          <Banknote className="h-3.5 w-3.5 text-primary" />
+                          First month paid in cash
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="cash_paid_ahead" id="cash-paid-ahead" />
                        <Label htmlFor="cash-paid-ahead" className="text-sm cursor-pointer flex items-center gap-1.5">
                          <Banknote className="h-3.5 w-3.5 text-primary" />
                          Cash paid ahead (1 year)
@@ -303,11 +312,37 @@ export function CreateSubscriptionDialog({
                      </div>
                    )}
 
-                   {paymentMode === "cash_paid_ahead" && (
-                     <div className="space-y-2">
-                       <div className="text-xs text-muted-foreground">
-                         Member paid cash for the current period. First Stripe charge scheduled for:
-                       </div>
+                    {paymentMode === "cash_first_month" && (
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground">
+                          Cash covers month 1. First Stripe charge scheduled for:
+                        </div>
+                        <Popover open={chargeCalendarOpen} onOpenChange={setChargeCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="w-full justify-start text-left font-medium">
+                              <Calendar className="h-4 w-4 mr-2" />
+                              {firstChargeDate ? format(firstChargeDate, "MMM d, yyyy") : "Select charge date..."}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarPicker
+                              mode="single"
+                              selected={firstChargeDate || undefined}
+                              onSelect={(date) => { if (date) setFirstChargeDate(date); setChargeCalendarOpen(false); }}
+                              disabled={isChargeDateDisabled}
+                              initialFocus
+                              className="pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    )}
+
+                    {paymentMode === "cash_paid_ahead" && (
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground">
+                          Member paid cash for the current period. First Stripe charge scheduled for:
+                        </div>
                        <Popover open={chargeCalendarOpen} onOpenChange={setChargeCalendarOpen}>
                          <PopoverTrigger asChild>
                            <Button variant="outline" size="sm" className="w-full justify-start text-left font-medium">
