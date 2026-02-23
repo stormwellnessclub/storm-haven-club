@@ -27,7 +27,8 @@ import { CreditBalancesReport } from "./reports/CreditBalancesReport";
 import { WorkoutActivityReport } from "./reports/WorkoutActivityReport";
 import { GoalsProgressReport } from "./reports/GoalsProgressReport";
 import { PaymentFollowUpReport } from "./reports/PaymentFollowUpReport";
-
+import { SalesSegmentationReport } from "./reports/SalesSegmentationReport";
+import { NextMonthProjectionReport } from "./reports/NextMonthProjectionReport";
 interface ReportPreviewProps {
   report: ReportDefinition | null;
   dateRange: { start: Date; end: Date };
@@ -107,6 +108,8 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
   const reportComponents: Record<string, React.ComponentType<{ dateRange: { start: Date; end: Date }; filters: Record<string, string | boolean> }>> = {
     'revenue-summary': RevenueSummaryReport,
     'revenue-by-category': RevenueByCategoryReport,
+    'sales-segmentation': SalesSegmentationReport,
+    'next-month-projection': NextMonthProjectionReport,
     'cash-flow-projection': CashFlowProjectionReport,
     'class-revenue-projection': ClassRevenueProjectionReport,
     'payment-analysis': PaymentAnalysisReport,

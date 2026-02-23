@@ -26,9 +26,8 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
     queryFn: async () => {
       const { data: members, error } = await supabase
         .from('members')
-        .select('membership_type, status, is_founding_member, gender, created_at')
-        .gte('created_at', dateRange.start.toISOString())
-        .lte('created_at', dateRange.end.toISOString());
+        .select('membership_type, status, is_founding_member, gender, created_at, subscription_status')
+        .in('status', ['active']);
 
       if (error) throw error;
 
@@ -59,10 +58,8 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
           tierData[tier] = { tier, foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 };
         }
         
-        if (member.status === 'active' || member.status === 'pending_activation') {
-          tierData[tier].foundingCount += 1;
-          tierData[tier].foundingAnnual += getAnnualPrice(tier, gender);
-        }
+        tierData[tier].foundingCount += 1;
+        tierData[tier].foundingAnnual += getAnnualPrice(tier, gender);
       });
 
       // Process regular members - they pay monthly
@@ -74,10 +71,8 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
           tierData[tier] = { tier, foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 };
         }
         
-        if (member.status === 'active' || member.status === 'pending_activation') {
-          tierData[tier].regularCount += 1;
-          tierData[tier].regularMonthly += getMonthlyPrice(tier, gender);
-        }
+        tierData[tier].regularCount += 1;
+        tierData[tier].regularMonthly += getMonthlyPrice(tier, gender);
       });
 
       const tierRevenue = Object.values(tierData);
@@ -117,7 +112,7 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
                 <Users className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Members</p>
+                <p className="text-sm text-muted-foreground">Active Members</p>
                 <p className="text-2xl font-bold">{data?.totalMembers || 0}</p>
               </div>
             </div>

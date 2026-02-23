@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recha
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface Props {
   dateRange: { start: Date; end: Date };
@@ -72,8 +73,31 @@ export function MemberStatusReport({ dateRange, filters }: Props) {
     return <Skeleton className="h-96 w-full" />;
   }
 
+  const payingCount = data?.statusCounts.find(s => s.status === 'active')?.count || 0;
+
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <p className="text-4xl font-bold text-primary">{payingCount}</p>
+            <p className="text-sm text-muted-foreground mt-1">Active / Paying Members</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <p className="text-4xl font-bold text-muted-foreground">{(data?.total || 0) - payingCount}</p>
+            <p className="text-sm text-muted-foreground mt-1">Non-Paying (Frozen, Cancelled, Pending…)</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <p className="text-4xl font-bold">{data?.total || 0}</p>
+            <p className="text-sm text-muted-foreground mt-1">Total All Statuses</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pie Chart */}
         <div className="h-80">
@@ -102,8 +126,9 @@ export function MemberStatusReport({ dateRange, filters }: Props) {
         {/* Summary */}
         <div className="flex items-center justify-center">
           <div className="text-center">
-            <p className="text-6xl font-bold text-primary">{data?.total || 0}</p>
-            <p className="text-lg text-muted-foreground mt-2">Total Members</p>
+            <p className="text-6xl font-bold text-primary">{payingCount}</p>
+            <p className="text-lg text-muted-foreground mt-2">Active / Paying Members</p>
+            <p className="text-sm text-muted-foreground mt-1">{data?.total || 0} total across all statuses</p>
           </div>
         </div>
       </div>
