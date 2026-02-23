@@ -333,7 +333,7 @@ export function SingleActivationDialog({
           )}
 
           {/* Super-Admin: First Month Cash Option */}
-          {isSuperAdmin && activationMode === "immediate" && paymentStatus?.hasCard && (
+          {isSuperAdmin && activationMode === "immediate" && (
             <div className="space-y-3">
               <div className="flex items-center space-x-2 p-3 border rounded-lg bg-muted/50">
                 <Checkbox
