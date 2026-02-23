@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, Plus, Minus, CreditCard, Loader2, User, Search } from "lucide-react";
+import { ShoppingCart, Plus, Minus, CreditCard, Loader2, User, Search, Banknote } from "lucide-react";
 import { MI_SALES_TAX_RATE, calculateTax } from "@/hooks/useCafeMenu";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import type { POSCartItem } from "./CafePOSMenu";
@@ -12,7 +13,7 @@ interface CafePOSCartProps {
   memberSearch: string;
   setMemberSearch: (v: string) => void;
   selectedMember: { name: string; cardOnFile: boolean; stripeCustomerId?: string | null } | null;
-  onPlaceOrder: () => void;
+  onPlaceOrder: (paymentMethod: "card" | "cash") => void;
   onClearCart: () => void;
   isPlacing: boolean;
 }
@@ -33,10 +34,19 @@ export function CafePOSCart({
   isPlacing,
 }: CafePOSCartProps) {
   const canChargeCard = selectedMember?.cardOnFile && selectedMember?.stripeCustomerId;
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">(canChargeCard ? "card" : "cash");
+  const [cashReceived, setCashReceived] = useState("");
+
   const subtotal = cart.reduce((sum, item) => sum + getItemTotal(item), 0);
   const tax = calculateTax(subtotal);
-  const processingFee = canChargeCard ? calculateProcessingFeeFromDollars(subtotal + tax) : 0;
+  const processingFee = paymentMethod === "card" && canChargeCard ? calculateProcessingFeeFromDollars(subtotal + tax) : 0;
   const total = subtotal + tax + processingFee;
+
+  const cashReceivedNum = parseFloat(cashReceived) || 0;
+  const changeDue = cashReceivedNum - total;
+
+  // Reset to cash if member changes and has no card
+  const effectiveMethod = canChargeCard ? paymentMethod : "cash";
 
   return (
     <div className="space-y-4">
@@ -64,17 +74,50 @@ export function CafePOSCart({
               {canChargeCard ? (
                 <p className="text-sm text-green-600 flex items-center gap-1">
                   <CreditCard className="h-3 w-3" />
-                  Card on file — will charge via Stripe
+                  Card on file
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No card on file — order will be recorded only
+                  No card on file
                 </p>
               )}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Payment Method Toggle */}
+      {cart.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Payment Method</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              {canChargeCard && (
+                <Button
+                  variant={effectiveMethod === "card" ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setPaymentMethod("card")}
+                >
+                  <CreditCard className="h-4 w-4 mr-1" />
+                  Card on File
+                </Button>
+              )}
+              <Button
+                variant={effectiveMethod === "cash" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setPaymentMethod("cash")}
+              >
+                <Banknote className="h-4 w-4 mr-1" />
+                Cash
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cart */}
       <Card>
@@ -122,7 +165,7 @@ export function CafePOSCart({
                   <span>MI Sales Tax ({(MI_SALES_TAX_RATE * 100).toFixed(0)}%)</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
-                {canChargeCard && processingFee > 0 && (
+                {effectiveMethod === "card" && canChargeCard && processingFee > 0 && (
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Processing Fee</span>
                     <span>${processingFee.toFixed(2)}</span>
@@ -133,6 +176,33 @@ export function CafePOSCart({
                   <span>${total.toFixed(2)}</span>
                 </div>
               </div>
+
+              {/* Cash Received Input */}
+              {effectiveMethod === "cash" && (
+                <div className="border-t pt-3 mt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium whitespace-nowrap">Cash Received</label>
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                      <Input
+                        className="pl-7"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={cashReceived}
+                        onChange={(e) => setCashReceived(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  {cashReceivedNum > 0 && (
+                    <div className={`flex justify-between font-semibold text-sm ${changeDue >= 0 ? "text-green-600" : "text-destructive"}`}>
+                      <span>Change Due</span>
+                      <span>${changeDue >= 0 ? changeDue.toFixed(2) : `(${Math.abs(changeDue).toFixed(2)})`}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -140,16 +210,21 @@ export function CafePOSCart({
 
       {/* Payment Buttons */}
       <div className="space-y-2">
-        <Button className="w-full" disabled={cart.length === 0 || isPlacing} onClick={onPlaceOrder}>
+        <Button className="w-full" disabled={cart.length === 0 || isPlacing} onClick={() => onPlaceOrder(effectiveMethod)}>
           {isPlacing ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Processing...
             </>
+          ) : effectiveMethod === "cash" ? (
+            <>
+              <Banknote className="h-4 w-4 mr-2" />
+              Record Cash Sale — ${total.toFixed(2)}
+            </>
           ) : (
             <>
               <CreditCard className="h-4 w-4 mr-2" />
-              {canChargeCard ? `Charge Card on File` : "Record Order"} — ${total.toFixed(2)}
+              Charge Card on File — ${total.toFixed(2)}
             </>
           )}
         </Button>

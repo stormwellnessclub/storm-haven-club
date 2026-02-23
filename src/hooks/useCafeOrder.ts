@@ -28,7 +28,7 @@ export interface CafeOrder {
 
 interface CreateOrderParams {
   orderItems: CafeOrderItem[];
-  paymentMethod: "card" | "member_account";
+  paymentMethod: "card" | "member_account" | "cash";
   paymentIntentId?: string;
 }
 

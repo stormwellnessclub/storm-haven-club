@@ -60,6 +60,7 @@ import { History } from "lucide-react";
 import { AddApplicantCardModal } from "@/components/admin/AddApplicantCardModal";
 import { MarkPaidDialog, ManualPaymentMethod } from "@/components/admin/MarkPaidDialog";
 import { PersonalizedLetterModal } from "@/components/admin/PersonalizedLetterModal";
+import { useUserRoles } from "@/hooks/useUserRoles";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -174,6 +175,7 @@ const getAnnualFeeBadge = (status: string) => {
 
 export default function Applications() {
   const { user } = useAuth();
+  const { isSuperAdmin } = useUserRoles();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
@@ -3048,6 +3050,7 @@ export default function Applications() {
           onConfirm={handleSingleActivation}
           isLoading={isSingleActivating}
           initialMode="immediate"
+          isSuperAdmin={isSuperAdmin()}
         />
         
         {/* Single Activation Dialog - Locked Date Mode */}
@@ -3058,6 +3061,7 @@ export default function Applications() {
           onConfirm={handleSingleActivation}
           isLoading={isSingleActivating}
           initialMode="locked"
+          isSuperAdmin={isSuperAdmin()}
         />
 
         {/* Add Applicant Card Modal */}

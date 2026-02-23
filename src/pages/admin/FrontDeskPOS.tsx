@@ -91,7 +91,7 @@ export default function FrontDeskPOS() {
     }
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (paymentMethod: "card" | "cash" = "card") => {
     if (cart.length === 0) return;
     setIsCharging(true);
 
@@ -105,8 +105,8 @@ export default function FrontDeskPOS() {
 
       const itemNames = cart.map((i) => i.name).join(", ");
 
-      // If member has card on file, charge via Stripe first
-      if (selectedMember?.stripeCustomerId && selectedMember.cardOnFile) {
+      // If paying by card and member has card on file, charge via Stripe first
+      if (paymentMethod === "card" && selectedMember?.stripeCustomerId && selectedMember.cardOnFile) {
         const amountCents = Math.round(total * 100);
         const { data: chargeResult, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
           body: {
@@ -150,10 +150,14 @@ export default function FrontDeskPOS() {
         category: "Tax",
       });
 
+      const orderPaymentMethod = paymentMethod === "cash" ? "cash" : (selectedMember?.cardOnFile ? "member_account" : "card");
+
       await createOrder.mutateAsync({
         orderItems,
-        paymentMethod: selectedMember?.cardOnFile ? "member_account" : "card",
+        paymentMethod: orderPaymentMethod,
       });
+
+      toast.success(paymentMethod === "cash" ? "Cash sale recorded" : "Order placed");
       clearCart();
     } catch (error: any) {
       console.error("Failed to place order:", error);

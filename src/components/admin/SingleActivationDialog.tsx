@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { format, addDays, startOfDay } from "date-fns";
-import { CalendarIcon, Zap, CreditCard, AlertCircle, Loader2, Lock, CalendarCheck, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Zap, CreditCard, AlertCircle, Loader2, Lock, CalendarCheck, AlertTriangle, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -47,9 +48,12 @@ interface SingleActivationDialogProps {
     startDate: Date;
     chargeAnnualFee: boolean;
     createSubscription: boolean;
+    firstMonthCash?: boolean;
+    cashNote?: string;
   }) => void;
   isLoading?: boolean;
   initialMode?: ActivationMode;
+  isSuperAdmin?: boolean;
 }
 
 export function SingleActivationDialog({
@@ -59,12 +63,15 @@ export function SingleActivationDialog({
   onConfirm,
   isLoading = false,
   initialMode = "immediate",
+  isSuperAdmin = false,
 }: SingleActivationDialogProps) {
   const [activationMode, setActivationMode] = useState<ActivationMode>(initialMode);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [chargeUnpaidFees, setChargeUnpaidFees] = useState(true);
   const [createSubscription, setCreateSubscription] = useState(true);
+  const [firstMonthCash, setFirstMonthCash] = useState(false);
+  const [cashNote, setCashNote] = useState("");
 
   // Reset mode when dialog opens or initialMode changes
   useEffect(() => {
@@ -108,6 +115,8 @@ export function SingleActivationDialog({
       startDate,
       chargeAnnualFee: shouldChargeFee,
       createSubscription: shouldCreateSubscription,
+      firstMonthCash: firstMonthCash && isSuperAdmin,
+      cashNote: firstMonthCash && isSuperAdmin ? cashNote : undefined,
     });
   };
 
@@ -323,7 +332,44 @@ export function SingleActivationDialog({
             </div>
           )}
 
-          {/* Warning for no card */}
+          {/* Super-Admin: First Month Cash Option */}
+          {isSuperAdmin && activationMode === "immediate" && paymentStatus?.hasCard && (
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2 p-3 border rounded-lg bg-muted/50">
+                <Checkbox
+                  id="first-month-cash"
+                  checked={firstMonthCash}
+                  onCheckedChange={(checked) => setFirstMonthCash(checked === true)}
+                />
+                <label
+                  htmlFor="first-month-cash"
+                  className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
+                >
+                  <Banknote className="h-4 w-4" />
+                  First month paid in cash
+                </label>
+              </div>
+              {firstMonthCash && (
+                <div className="space-y-2 pl-1">
+                  <Alert className="border-primary/20 bg-primary/5">
+                    <Banknote className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
+                      Subscription will start billing in month 2. First month dues recorded as cash payment.
+                    </AlertDescription>
+                  </Alert>
+                  <Textarea
+                    placeholder="Cash payment notes (e.g., Received $500 cash)"
+                    value={cashNote}
+                    onChange={(e) => setCashNote(e.target.value)}
+                    className="text-sm"
+                    rows={2}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+
           {!paymentStatus?.isPaid && !paymentStatus?.hasCard && (
             <Alert variant="default" className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
               <AlertCircle className="h-4 w-4 text-amber-600" />
