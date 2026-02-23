@@ -1,5 +1,7 @@
 import { useState } from "react";
 import * as React from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,7 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkoutLogs, useCreateWorkoutLog, useUpdateWorkoutLog, useDeleteWorkoutLog, WorkoutLog, CreateWorkoutLogData } from "@/hooks/useWorkoutLogs";
 import { useAIWorkouts, useGenerateAIWorkout, useCompleteAIWorkout, useDeleteAIWorkout, AIWorkout, WorkoutPreferences } from "@/hooks/useAIWorkouts";
-import { useWorkoutPrograms, useGenerateProgram } from "@/hooks/useWorkoutPrograms";
+import { useWorkoutPrograms, useGenerateProgram, WorkoutProgram } from "@/hooks/useWorkoutPrograms";
 import { useFitnessProfile } from "@/hooks/useFitnessProfile";
 import { useWorkoutTemplates, useDeleteTemplate, useLogFromTemplate, type WorkoutTemplate } from "@/hooks/useWorkoutTemplates";
 import { GenerateWorkoutModal } from "@/components/member/GenerateWorkoutModal";
@@ -42,6 +44,7 @@ import { GenerateProgramModal, ProgramPreferences } from "@/components/member/Ge
 import { ExerciseCard } from "@/components/member/ExerciseCard";
 import { ProgramDashboard } from "@/components/member/ProgramDashboard";
 import { WorkoutBuilder } from "@/components/member/WorkoutBuilder";
+import { useEquipmentImages, findEquipmentImage } from "@/hooks/useEquipmentImages";
 import {
   Dumbbell,
   Plus,
@@ -58,6 +61,8 @@ import {
   Star,
   Play,
   LayoutTemplate,
+  History,
+  RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
@@ -98,6 +103,7 @@ export default function Workouts() {
   const { data: programs, isLoading: programsLoading } = useWorkoutPrograms();
   const { data: fitnessProfile } = useFitnessProfile();
   const { data: templates, isLoading: templatesLoading } = useWorkoutTemplates();
+  const { data: equipmentImages } = useEquipmentImages();
   const deleteTemplate = useDeleteTemplate();
   const logFromTemplate = useLogFromTemplate();
   const createWorkout = useCreateWorkoutLog();
@@ -110,6 +116,29 @@ export default function Workouts() {
 
   // Get active program
   const activeProgram = programs?.find(p => p.is_active);
+  const pastPrograms = programs?.filter(p => !p.is_active) || [];
+
+  const [reactivating, setReactivating] = useState<string | null>(null);
+
+  const handleReactivateProgram = async (program: WorkoutProgram) => {
+    setReactivating(program.id);
+    try {
+      if (activeProgram) {
+        await supabase
+          .from("workout_programs")
+          .update({ is_active: false })
+          .eq("id", activeProgram.id);
+      }
+      await supabase
+        .from("workout_programs")
+        .update({ is_active: true })
+        .eq("id", program.id);
+      window.location.reload();
+    } catch {
+      toast.error("Failed to reactivate program");
+      setReactivating(null);
+    }
+  };
 
   // Calculate statistics
   const stats = {
@@ -481,6 +510,46 @@ export default function Workouts() {
                 </CardContent>
               </Card>
             )}
+
+
+            {/* Past Programs */}
+            {pastPrograms.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-3">
+                  <History className="h-4 w-4" />
+                  Past Programs ({pastPrograms.length})
+                </h3>
+                <div className="space-y-2">
+                  {pastPrograms.map((program) => (
+                    <Card key={program.id} className="p-4 opacity-80">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">{program.program_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {program.program_type} · {program.duration_weeks} weeks · {program.days_per_week} days/week
+                            {program.completed_at && ` · Completed ${format(new Date(program.completed_at), "MMM d, yyyy")}`}
+                            {!program.completed_at && program.created_at && ` · Created ${format(new Date(program.created_at), "MMM d, yyyy")}`}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={reactivating === program.id}
+                          onClick={() => handleReactivateProgram(program)}
+                        >
+                          {reactivating === program.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          Reactivate
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="templates">
@@ -694,7 +763,12 @@ export default function Workouts() {
                           <p className="text-sm font-medium">Exercises:</p>
                           <div className="grid gap-3 md:grid-cols-2">
                             {workout.exercises.map((exercise, idx) => (
-                              <ExerciseCard key={idx} exercise={exercise} index={idx} />
+                              <ExerciseCard
+                                key={idx}
+                                exercise={exercise}
+                                index={idx}
+                                imageUrl={findEquipmentImage(exercise.equipment, equipmentImages)}
+                              />
                             ))}
                           </div>
                         </div>

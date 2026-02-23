@@ -326,6 +326,11 @@ export function useGenerateProgram() {
         throw new Error(response.data.error);
       }
 
+      // Check if program was actually saved
+      if (response.data?.saved === false) {
+        throw new Error(response.data.error || "Program was generated but could not be saved. Please try again.");
+      }
+
       return response.data;
     },
     onSuccess: () => {
