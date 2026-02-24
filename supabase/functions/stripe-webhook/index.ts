@@ -28,6 +28,75 @@ const TIER_CREDITS: Record<string, { class: number; red_light: number; dry_cryo:
   diamond: { class: 10, red_light: 10, dry_cryo: 6 },
 };
 
+// Processing fee calculation: covers Stripe's 2.9% + $0.30
+function calculateProcessingFee(amountInCents: number): number {
+  if (amountInCents <= 0) return 0;
+  const totalCents = Math.ceil((amountInCents + 30) / 0.971);
+  return totalCents - amountInCents;
+}
+
+// Cache the Processing Fee product ID
+let processingFeeProductId: string | null = null;
+
+async function getOrCreateProcessingFeeProduct(stripe: Stripe): Promise<string> {
+  if (processingFeeProductId) return processingFeeProductId;
+  const products = await stripe.products.search({ query: "name:'Processing Fee'", limit: 1 });
+  if (products.data.length > 0) {
+    processingFeeProductId = products.data[0].id;
+    return processingFeeProductId;
+  }
+  const product = await stripe.products.create({
+    name: 'Processing Fee',
+    description: 'Card processing fee (2.9% + $0.30)',
+    metadata: { type: 'processing_fee' },
+  });
+  processingFeeProductId = product.id;
+  return processingFeeProductId;
+}
+
+async function getOrCreateRecurringProcessingFeePrice(
+  stripe: Stripe,
+  baseAmountCents: number,
+  interval: 'month' | 'year'
+): Promise<string | null> {
+  const feeCents = calculateProcessingFee(baseAmountCents);
+  if (feeCents <= 0) return null;
+  const productId = await getOrCreateProcessingFeeProduct(stripe);
+  const existingPrices = await stripe.prices.list({ product: productId, type: 'recurring', active: true, limit: 100 });
+  const matchingPrice = existingPrices.data.find(p => p.unit_amount === feeCents && p.recurring?.interval === interval);
+  if (matchingPrice) return matchingPrice.id;
+  const price = await stripe.prices.create({
+    product: productId,
+    unit_amount: feeCents,
+    currency: 'usd',
+    recurring: { interval },
+    metadata: { type: 'processing_fee', base_amount: String(baseAmountCents) },
+  });
+  return price.id;
+}
+
+async function addRecurringProcessingFeeItems(
+  stripe: Stripe,
+  items: Array<{ price: string; quantity?: number }>
+): Promise<Array<{ price: string; quantity?: number }>> {
+  const result = [...items];
+  for (const item of items) {
+    try {
+      const basePrice = await stripe.prices.retrieve(item.price);
+      const baseAmount = basePrice.unit_amount || 0;
+      const interval = (basePrice.recurring?.interval as 'month' | 'year') || 'year';
+      const feePriceId = await getOrCreateRecurringProcessingFeePrice(stripe, baseAmount, interval);
+      if (feePriceId) {
+        result.push({ price: feePriceId, quantity: 1 });
+        logStep(`Added recurring processing fee: ${feePriceId} (${calculateProcessingFee(baseAmount)}¢ per ${interval})`);
+      }
+    } catch (e) {
+      logStep(`Warning: Could not add processing fee for price ${item.price}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return result;
+}
+
 // Helper to get tier name from membership type
 function getTierName(membershipType: string): string {
   const normalized = membershipType.toLowerCase().trim();
@@ -330,10 +399,11 @@ serve(async (req) => {
                   const startDateObj = new Date(startDate);
                   const annualFeeAnchor = Math.floor(startDateObj.getTime() / 1000);
                   
-                  // Create annual fee subscription (yearly recurring)
+                  // Create annual fee subscription (yearly recurring) with processing fee
+                  const annualFeeWebhookItems = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceId }]);
                   const annualFeeSubscription = await stripe.subscriptions.create({
                     customer: session.customer as string,
-                    items: [{ price: annualFeePriceId }],
+                    items: annualFeeWebhookItems,
                     default_payment_method: defaultPaymentMethodId,
                     billing_cycle_anchor: annualFeeAnchor,
                     proration_behavior: 'none',
