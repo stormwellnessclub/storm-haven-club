@@ -7,6 +7,7 @@ import {
   Users,
   UsersRound,
   QrCode,
+  ClipboardList,
   FileText,
   FileBarChart,
   Calendar,
@@ -60,6 +61,7 @@ const quickAccessItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Soft Launch Classes", url: "/admin/classes?tab=soft-launch", icon: Calendar, highlight: true, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
   { title: "Check-In", url: "/admin/check-in", icon: QrCode, highlight: true, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
+  { title: "Check-In History", url: "/admin/check-in-history", icon: ClipboardList, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
   { title: "Scanner", url: "/admin/scanner", icon: ScanLine, highlight: true, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
 ];
 
