@@ -1,14 +1,24 @@
 import { useState } from "react";
 import { Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-const SOFT_LAUNCH_END = new Date('2026-02-23T00:00:00');
-const STORAGE_KEY = 'soft-launch-banner-dismissed';
+const SOFT_LAUNCH_END = new Date('2026-03-02T00:00:00');
+const STORAGE_KEY = 'soft-launch-banner-dismissed-week2';
 
-const softLaunchHours = [
-  { days: "Monday – Thursday", hours: "7:00 AM – 10:00 PM" },
-  { days: "Friday", hours: "7:00 AM – 8:00 PM" },
-  { days: "Saturday – Sunday", hours: "8:00 AM – 6:00 PM" },
+type HourBlock = {
+  days: string;
+  hours: string;
+  special?: string;
+};
+
+const softLaunchHours: HourBlock[] = [
+  { days: "Monday – Thursday", hours: "7:00 AM – 11:00 PM" },
+  { days: "Friday", hours: "7:00 AM – 5:00 PM" },
+  { days: "Friday", hours: "8:00 PM – 11:30 PM", special: "Pop-Up Event" },
+  { days: "Saturday", hours: "8:00 AM – 5:00 PM" },
+  { days: "Saturday", hours: "8:00 PM – 11:30 PM", special: "Pop-Up Event" },
+  { days: "Sunday", hours: "8:00 AM – 6:00 PM" },
 ];
 
 export function SoftLaunchHoursBanner() {
@@ -48,25 +58,27 @@ export function SoftLaunchHoursBanner() {
                 Soft Launch Hours
               </h3>
               <p className="text-xs text-muted-foreground">
-                February 16 – 22, 2026
+                February 23 – March 1, 2026
               </p>
             </div>
             <div className="space-y-1">
-              {softLaunchHours.map((item) => (
+              {softLaunchHours.map((item, i) => (
                 <div
-                  key={item.days}
-                  className="flex justify-between gap-6 text-sm"
+                  key={`${item.days}-${i}`}
+                  className="flex items-center justify-between gap-4 text-sm"
                 >
                   <span className="text-foreground/80">{item.days}</span>
-                  <span className="font-medium text-foreground whitespace-nowrap">
+                  <span className="flex items-center gap-2 font-medium text-foreground whitespace-nowrap">
                     {item.hours}
+                    {item.special && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-gold/50 text-gold bg-gold/10">
+                        {item.special}
+                      </Badge>
+                    )}
                   </span>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground italic">
-              Regular hours begin after Feb 22, 2026.
-            </p>
           </div>
         </div>
       </div>
