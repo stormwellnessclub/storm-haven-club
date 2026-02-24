@@ -1,53 +1,107 @@
 
 
-## Hide Past Dates from Public Schedule, Keep History for Admin
+## Build a Proper Staff Portal with Smart Routing
 
-### Problem
-Currently the temp class schedule shows all dates from Feb 20 onward, including dates that have already passed. Members see old classes they can no longer book. Admins need to keep seeing the full history.
+### The Problem Today
 
-### Changes
+When you invite a staff member and they sign up, here is what happens:
 
-#### 1. TempClassSchedule.tsx -- Hide past dates for non-admin users
+1. They click "Create Your Account" in the invite email, which takes them to `/auth?staff_invite=true`
+2. They create their account, the database trigger assigns their roles automatically
+3. The Auth page redirects them to `/member` (the default)
+4. `ProtectedMemberRoute` checks their membership status, finds none, and redirects them to `/portal` (the non-member class pass portal)
+5. They land in a portal designed for class pass customers -- not staff
 
-- Add an `isPast` check for each day in the weekly grid
-- For public/member views (`readOnly=false` or default), past days will be visually dimmed and their class cards will show as "Completed" instead of "Book Class" -- or better, past days simply won't render class cards with booking buttons
-- The week navigation will no longer allow navigating to weeks entirely in the past (for public view)
-- The initial week offset will always start at the current week (already does this)
-- Past day columns will show a subtle "Past" label instead of class cards, keeping the grid layout clean
+Staff members have no clear path to their admin workspace. They would need to manually navigate to `/admin` in the URL bar.
 
-#### 2. TempClassSchedule.tsx -- Past class handling within the current week
+### The Solution (Multi-Step)
 
-- For the current week, days before today will show classes as non-bookable with a "Completed" or grayed-out state
-- Today and future days remain fully interactive with booking buttons
+Build a proper post-login routing system that detects staff roles and sends them directly to the right place, plus a dedicated staff onboarding experience.
 
-#### 3. Admin view stays unchanged
+---
 
-- The admin classes page (`/admin/classes`) already has its own management view and is not affected
-- The `readOnly` prop on TempClassSchedule will be extended: when `readOnly` is true (used on public-facing landing previews), past dates are still hidden
-- A new `showHistory` prop (default `false`) can be added if admin needs the full schedule view with past dates
+### Step 1: Smart Post-Login Routing
 
-#### 4. Member Bookings page -- already correct
+**Problem:** The Auth page always defaults to `/member` after login.
 
-- The member bookings page (`/member/bookings`) already separates "Upcoming" and "Past" tabs using `useUpcomingBookings` and `usePastBookings` hooks -- no changes needed there
+**Fix:** After successful login, check if the user has staff roles. If they do, route them to their appropriate admin page instead of the member portal.
+
+- In `Auth.tsx`, after login/signup, query `user_roles` for the logged-in user
+- If roles exist, redirect to the correct admin landing page using the existing `getDefaultAdminPage()` function (e.g., front desk goes to `/admin/check-in`, instructors go to `/admin/classes`, admins go to `/admin`)
+- If no roles exist, continue with the current member/portal flow
+- The staff invite email link will change from `/auth?staff_invite=true` to `/auth?staff_invite=true&redirect=/admin` so the intent is clear even before roles are checked
+
+### Step 2: Update the Staff Invite Email
+
+**Problem:** The invite email sends staff to a generic auth page with no context about where they will end up.
+
+**Fix:** Update the `staff_invite` email template in the `send-email` edge function to:
+- Include the specific role(s) they are being assigned
+- Set the CTA link to `/auth?staff_invite=true&redirect=/admin`
+- Add a line like "Once your account is created, you will be taken directly to your staff dashboard"
+- Update the email footer to remove member-portal-specific links (use the receipt footer instead)
+
+### Step 3: Post-Signup Staff Welcome Screen
+
+**Problem:** After signing up, staff may need to sign the liability waiver (which currently shows a generic member-facing waiver screen) and have no orientation.
+
+**Fix:** Create a lightweight staff welcome/onboarding component:
+- After signup + role detection, show a brief "Welcome to the Team" screen instead of the generic waiver step
+- Display their assigned role(s) with descriptions of what they can access
+- Show a "Go to Your Dashboard" button that routes to their `getDefaultAdminPage()`
+- If a waiver is still required, integrate it into this flow but with staff-appropriate messaging
+
+### Step 4: Protect Staff from Member/Portal Routing Traps
+
+**Problem:** `ProtectedMemberRoute` and `ProtectedPortalRoute` can intercept staff members who navigate to `/member` and bounce them around.
+
+**Fix:**
+- In `ProtectedMemberRoute`: If the user has staff roles but no member record, redirect to `/admin` (their default admin page) instead of `/portal`
+- In `ProtectedPortalRoute`: Already allows staff through, but add awareness so staff with roles are subtly guided to `/admin` if they land on `/portal` by accident
+- This ensures that no matter how a staff member arrives, they always end up in the right place
+
+### Step 5: Staff Quick-Switch in Admin Sidebar
+
+**Problem:** Staff who are also members (e.g., an instructor who has a gym membership) have no easy way to switch between their admin view and member view.
+
+**Fix:**
+- Add a "Member Portal" link in the admin sidebar footer (only visible if the staff member also has an active membership)
+- This is already partially there with "Back to Website" -- add a conditional "My Membership" link next to it
+
+---
 
 ### Technical Details
 
-**File: `src/components/booking/TempClassSchedule.tsx`**
+#### Files to Create
+- `src/components/staff/StaffWelcome.tsx` -- Post-signup welcome screen for new staff
 
-- Import `isBefore`, `startOfDay` from date-fns
-- In the `weekDays` mapping, add an `isPast` flag: `isPast: isBefore(date, startOfDay(new Date()))`
-- In the calendar grid rendering:
-  - Past days get `opacity-40` styling and show "Past" text instead of class cards with booking buttons
-  - Class cards for past days are hidden (no booking possible)
-- Constrain the week navigator's backward button: don't allow navigating to weeks where all 7 days are in the past
-- Update `getInitialWeekOffset` to ensure we always land on the current or next valid week
+#### Files to Modify
+- `src/pages/Auth.tsx` -- Add post-login role detection and smart routing
+- `src/components/member/ProtectedMemberRoute.tsx` -- Add staff-role fallback routing to `/admin`
+- `src/components/admin/AdminSidebar.tsx` -- Add conditional "My Membership" link
+- `supabase/functions/send-email/index.ts` -- Update `staff_invite` template with better CTA link and messaging
 
-**File: `src/pages/Schedule.tsx`**
+#### No Database Changes Required
+The existing `staff_invites` table, `user_roles` table, and `auto_assign_staff_roles_on_signup` trigger are all correctly set up. This is purely a frontend routing and UX improvement.
 
-- No structural changes needed -- it already wraps `TempClassSchedule` which will self-filter past dates
+#### Routing Logic Summary
 
-**Files untouched:**
-- `src/pages/admin/Classes.tsx` -- admin view retains full access to all dates
-- `src/pages/member/Bookings.tsx` -- already has upcoming/past separation
-- `src/lib/softLaunchSchedule.ts` -- schedule definition unchanged
+```text
+User logs in
+  |
+  +-- Has staff roles?
+  |     |
+  |     +-- YES --> Staff Welcome (first login) or getDefaultAdminPage()
+  |     |             - super_admin/admin/manager --> /admin
+  |     |             - front_desk --> /admin/check-in
+  |     |             - spa_staff --> /admin/appointments
+  |     |             - class_instructor --> /admin/classes
+  |     |             - cafe_staff --> /admin/cafe
+  |     |             - childcare_staff --> /admin/childcare
+  |     |
+  |     +-- NO --> Has member record?
+  |                 |
+  |                 +-- YES --> /member
+  |                 +-- NO --> /portal (non-member class pass portal)
+```
 
