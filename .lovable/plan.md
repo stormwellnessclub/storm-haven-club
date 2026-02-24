@@ -1,49 +1,29 @@
 
 
-## Fix: Credits Not Showing and Cannot Be Added for Some Members
+## Fix Missing Gold Tier Credits for Zeinab Beydoun (STM-000068)
 
-### Problem Identified
+### Problem
+Zeinab is an **active Gold member** but is missing her wellness credits. She currently only has a guest pass credit. Gold members should receive:
+- 4 Red Light Therapy sessions/month
+- 2 Dry Cryo sessions/month
 
-After investigating the code and database, there are two issues with the credit management:
-
-### Issue 1: `.or()` Filter May Silently Fail
-
-The credit query on line 309 uses:
-```
-.or(`expires_at.gt.${new Date().toISOString()},credits_remaining.gt.0`)
-```
-
-The ISO timestamp includes special characters (`:`, `+`, `.`) that can cause issues with PostgREST's filter parsing. If the filter fails silently, no credits would be returned -- making it appear as if a member has no credits even when they do.
-
-**Fix**: Wrap the timestamp value in double quotes to ensure PostgREST parses it correctly:
-```
-.or(`expires_at.gt."${new Date().toISOString()}",credits_remaining.gt.0`)
-```
-
-### Issue 2: Adding Credits When `credits_remaining` is 0
-
-When a member has an existing credit row with `credits_remaining = 0` **and** the expiration is in the past, the old `.gt()` filter (before the previous fix) would not return it. The new `.or()` filter should return it since `credits_remaining.gt.0` catches any positive balance -- but a row with 0 remaining would be invisible. This means when the admin tries to "add" credits, the code looks for an existing credit record, doesn't find one, and tries to INSERT a new row. If there's already a row for that credit type (even expired with 0 remaining), the insert succeeds and creates a duplicate -- but the update path is skipped.
-
-This isn't a blocker per se, but could cause confusion. The real blocker is Issue 1.
-
-### Changes
-
-**File**: `src/pages/admin/MemberDetail.tsx`
-
-1. **Fix the `.or()` filter** (line 309): Quote the ISO timestamp value properly
-2. **Broaden the credit query** to include all credits for the member (remove the filter entirely and let the UI decide what to show), OR use a simpler filter approach that avoids special character issues
+### Fix
+Insert the two missing credit records into the `member_credits` table, using her existing cycle dates (Feb 14 - Feb 28, expires Mar 1) so everything stays aligned.
 
 ### Technical Details
 
-The fix is a single-line change:
+**Data insert** into `member_credits`:
 
-```typescript
-// Before (line 309):
-.or(`expires_at.gt.${new Date().toISOString()},credits_remaining.gt.0`)
+| Field | Red Light | Dry Cryo |
+|-------|-----------|----------|
+| member_id | f4266d87-8ac0-43ef-a5d2-c9fc618a2546 | f4266d87-8ac0-43ef-a5d2-c9fc618a2546 |
+| user_id | 74ec321a-d5bd-479f-b98c-a6ca2ffff3c4 | 74ec321a-d5bd-479f-b98c-a6ca2ffff3c4 |
+| credit_type | red_light | dry_cryo |
+| credits_total | 4 | 2 |
+| credits_remaining | 4 | 2 |
+| cycle_start | 2026-02-14 | 2026-02-14 |
+| cycle_end | 2026-02-28 | 2026-02-28 |
+| expires_at | 2026-03-01 04:59:59+00 | 2026-03-01 04:59:59+00 |
 
-// After:
-.or(`expires_at.gt."${new Date().toISOString()}",credits_remaining.gt.0`)
-```
-
-This ensures PostgREST correctly parses the timestamp value in the OR clause.
+No code changes needed -- this is a one-time data correction using a database insert.
 
