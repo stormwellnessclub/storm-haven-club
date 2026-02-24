@@ -301,11 +301,12 @@ export default function MemberDetail() {
     queryKey: ["member-credits", id],
     queryFn: async () => {
       if (!id) return [];
+      // Fetch all non-expired credits, plus any with remaining > 0 (even if technically expired)
       const { data, error } = await supabase
         .from("member_credits")
         .select("*")
         .eq("member_id", id)
-        .gt("expires_at", new Date().toISOString())
+        .or(`expires_at.gt.${new Date().toISOString()},credits_remaining.gt.0`)
         .order("credit_type", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -470,6 +471,10 @@ export default function MemberDetail() {
       // Create a new credit row if none exists and we're adding credits
       if (!credit && adjustment > 0) {
         if (!member) throw new Error("Member data not available");
+        
+        // user_id is required (NOT NULL) — use member's user_id or fall back to admin's id
+        const effectiveUserId = member.user_id || user.id;
+        
         const now = new Date();
         const cycleStart = format(now, "yyyy-MM-dd");
         const cycleEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
@@ -478,7 +483,7 @@ export default function MemberDetail() {
         const { data: newCredit, error: insertError } = await supabase
           .from("member_credits")
           .insert({
-            user_id: member.user_id,
+            user_id: effectiveUserId,
             member_id: id,
             credit_type: creditType,
             credits_total: adjustment,
@@ -490,7 +495,10 @@ export default function MemberDetail() {
           .select()
           .single();
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error("Credit insert error:", insertError);
+          throw new Error(`Failed to create credit record: ${insertError.message}`);
+        }
 
         // Log the adjustment
         const { error: logError } = await supabase
