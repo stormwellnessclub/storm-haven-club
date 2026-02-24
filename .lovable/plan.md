@@ -1,39 +1,90 @@
 
 
-## Fix: Admin Cannot Cancel Classes
+## Events Page for Storm Wellness Club
 
-### Root Cause
+### Overview
+Create a branded public Events page at `/events` with two sections:
+1. **Upcoming Events** - A curated showcase of club events with rich cards
+2. **Host an Event** - An inquiry form for people interested in hosting events at the club
 
-When you try to cancel a class from the Soft Launch management page, it fails because of a **parameter name mismatch** in a database function call.
+Both sections will be backed by database tables so admins can manage events and review hosting inquiries.
 
-The code in `SoftLaunchClassManagement.tsx` calls the function with parameter names starting with `p_` (e.g., `p_class_name`), but the database function expects names starting with `_` (e.g., `_class_name`). This means when a class has no bookings yet (no database record exists), the system can't create one to mark it as cancelled, and the operation fails with an error.
+---
 
-Classes that already have bookings (and therefore already have a database record) may cancel successfully, but any class with 0 enrollments will fail.
+### Database
 
-### Fix
+**Table: `events`**
+- `id` (uuid, PK)
+- `title` (text)
+- `description` (text)
+- `event_date` (date)
+- `start_time` (time)
+- `end_time` (time)
+- `location` (text) - e.g. "Main Studio", "Rooftop Lounge"
+- `image_url` (text, nullable)
+- `category` (text) - e.g. "Wellness", "Social", "Workshop", "Community"
+- `is_members_only` (boolean, default false)
+- `capacity` (integer, nullable)
+- `is_published` (boolean, default true)
+- `created_at` / `updated_at` (timestamps)
 
-**File: `src/components/admin/SoftLaunchClassManagement.tsx`** (lines 114-124)
+RLS: Public read for published events. Admin insert/update/delete.
 
-Change the RPC call parameter names from `p_` prefix to `_` prefix to match the database function signature:
+**Table: `event_hosting_inquiries`**
+- `id` (uuid, PK)
+- `full_name` (text)
+- `email` (text)
+- `phone` (text, nullable)
+- `event_type` (text) - what kind of event they want to host
+- `preferred_date` (text, nullable)
+- `estimated_guests` (integer, nullable)
+- `message` (text)
+- `status` (text, default 'pending') - pending / contacted / approved / declined
+- `created_at` (timestamp)
 
-```
-Before:
-  p_class_name  -> _class_name
-  p_session_date -> _session_date
-  p_start_time  -> _start_time
-  p_end_time    -> _end_time
-  p_max_capacity -> _max_capacity
-  p_room        -> (remove -- not a parameter of this function)
-```
+RLS: Public insert (anyone can submit). Admin read/update.
 
-This is a one-line fix in a single file. After this change, all class cancellations (both visible and silent) will work regardless of whether the class has existing bookings.
+---
 
-### Summary
+### Frontend
 
-| What | Detail |
+**New file: `src/pages/Events.tsx`**
+
+Fully branded page using the existing `Layout`, `SectionHeading`, `AnimatedSection`, and `StaggerContainer` components. Structure:
+
+1. **Hero Section** - Dark overlay on a club image (reuse `main-lobby.jpeg`), with the heading "Upcoming Events" and a tagline. Matches the style of the homepage hero but shorter.
+
+2. **Events Grid** - Cards showing each published event with:
+   - Event image (or a gradient placeholder if no image)
+   - Category badge
+   - Date formatted nicely (e.g. "SAT, MAR 15")
+   - Title, description preview
+   - Time and location
+   - "Members Only" badge where applicable
+   - Staggered scroll-reveal animations
+
+3. **Empty State** - If no events exist, a styled message saying "Stay tuned for upcoming events."
+
+4. **Host an Event Section** - Dark `bg-primary` section (matching the membership benefits section style) with:
+   - Heading: "Host Your Event at Storm"
+   - Brief copy about the venue
+   - Form fields: Name, Email, Phone, Event Type (dropdown), Preferred Date, Estimated Guests, Message
+   - Submit button with `variant="gold"`
+   - Success toast on submission
+
+**Route**: Add `/events` to `App.tsx` as a public route.
+
+**Navigation**: Add "Events" link to `navLinks` in `Navigation.tsx` and "Events" to the footer links.
+
+---
+
+### Technical Details
+
+| Item | Detail |
 |------|--------|
-| File | `src/components/admin/SoftLaunchClassManagement.tsx` |
-| Lines | 114-124 |
-| Issue | Wrong parameter names in database function call |
-| Fix | Rename `p_*` parameters to `_*` to match the function signature |
+| New files | `src/pages/Events.tsx` |
+| Modified files | `src/App.tsx` (route), `src/components/Navigation.tsx` (nav link), `src/components/Footer.tsx` (footer link) |
+| Database | 2 new tables: `events`, `event_hosting_inquiries` with RLS policies |
+| Dependencies | None new -- uses existing react-hook-form, zod, sonner, date-fns |
+| Styling | Matches existing brand: Cormorant Garamond headings, Montserrat body, gold accents, card-luxury class, charcoal dark sections |
 
