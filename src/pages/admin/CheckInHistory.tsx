@@ -50,32 +50,48 @@ export default function AdminCheckInHistory() {
   const { data: checkIns, isLoading } = useQuery({
     queryKey: ["admin-check-in-history", startDate.toISOString(), endDate.toISOString()],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("check_ins")
-        .select(`
-          id,
-          member_id,
-          checked_in_at,
-          checked_out_at,
-          checked_in_by,
-          notes,
-          members!check_ins_member_id_fkey (
-            id,
-            first_name,
-            last_name,
-            member_id,
-            membership_type,
-            status,
-            photo_url
-          )
-        `)
-        .gte("checked_in_at", startOfDay(startDate).toISOString())
-        .lte("checked_in_at", endOfDay(endDate).toISOString())
-        .order("checked_in_at", { ascending: false })
-        .limit(500);
+      const allResults: any[] = [];
+      const batchSize = 1000;
+      let offset = 0;
+      let hasMore = true;
 
-      if (error) throw error;
-      return data as any[];
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("check_ins")
+          .select(`
+            id,
+            member_id,
+            checked_in_at,
+            checked_out_at,
+            checked_in_by,
+            notes,
+            members!check_ins_member_id_fkey (
+              id,
+              first_name,
+              last_name,
+              member_id,
+              membership_type,
+              status,
+              photo_url
+            )
+          `)
+          .gte("checked_in_at", startOfDay(startDate).toISOString())
+          .lte("checked_in_at", endOfDay(endDate).toISOString())
+          .order("checked_in_at", { ascending: false })
+          .range(offset, offset + batchSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allResults.push(...data);
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      return allResults;
     },
   });
 
