@@ -116,6 +116,30 @@ const CLASS_PASS_CONFIG: Record<string, { category: string; classes: number; val
   'tenPack_otherClasses': { category: 'aerobics', classes: 10, validityDays: 60 },
 };
 
+// Reverse map: Stripe price ID → { category, passType, isMember, classes, validityDays, label }
+const PRICE_ID_MAP: Record<string, {
+  productType: 'class_pass' | 'guest_pass' | 'guest_addon';
+  category: string;
+  passType: string;
+  isMember: boolean;
+  classes: number;
+  validityDays: number;
+  label: string;
+}> = {
+  // Pilates/Cycling
+  'price_1SlA2vLyZrsSqLhsBHHWlQPD': { productType: 'class_pass', category: 'pilates_cycling', passType: 'single', isMember: true, classes: 1, validityDays: 7, label: 'Pilates/Cycling Single (Member)' },
+  'price_1T2XzALyZrsSqLhs1N07i160': { productType: 'class_pass', category: 'pilates_cycling', passType: 'single', isMember: false, classes: 1, validityDays: 7, label: 'Pilates/Cycling Single (Non-Member)' },
+  'price_1SlA9sLyZrsSqLhsM0X8VDhN': { productType: 'class_pass', category: 'pilates_cycling', passType: 'tenPack', isMember: true, classes: 10, validityDays: 60, label: 'Pilates/Cycling 10-Pack (Member)' },
+  'price_1T2XzfLyZrsSqLhsd8Gu4c7B': { productType: 'class_pass', category: 'pilates_cycling', passType: 'tenPack', isMember: false, classes: 10, validityDays: 60, label: 'Pilates/Cycling 10-Pack (Non-Member)' },
+  // Other Classes
+  'price_1T2XmKLyZrsSqLhsmtaMSUiF': { productType: 'class_pass', category: 'aerobics', passType: 'single', isMember: true, classes: 1, validityDays: 7, label: 'Other Classes Single (Member)' },
+  'price_1SlABFLyZrsSqLhsGOpvWGFE': { productType: 'class_pass', category: 'aerobics', passType: 'single', isMember: false, classes: 1, validityDays: 7, label: 'Other Classes Single (Non-Member)' },
+  'price_1T2YiALyZrsSqLhsuJGaqAaK': { productType: 'class_pass', category: 'aerobics', passType: 'tenPack', isMember: true, classes: 10, validityDays: 60, label: 'Other Classes 10-Pack (Member)' },
+  'price_1T2XoiLyZrsSqLhsjN7Hb2Lk': { productType: 'class_pass', category: 'aerobics', passType: 'tenPack', isMember: false, classes: 10, validityDays: 60, label: 'Other Classes 10-Pack (Non-Member)' },
+  // Guest Pass
+  'price_1SxATYLyZrsSqLhs6vDu1QWg': { productType: 'guest_pass', category: 'guest', passType: 'guest_pass', isMember: false, classes: 0, validityDays: 1, label: 'Guest Pass ($60)' },
+};
+
 // Helper to return success response (HTTP 200)
 const successResponse = (data?: unknown) => {
   return new Response(JSON.stringify({ received: true, ...(data ? { data } : {}) }), {
@@ -997,7 +1021,125 @@ serve(async (req) => {
               return errorResponse(annualFeeLinkError, "ANNUAL_FEE_LINK");
             }
           } else {
-            logStep("Unknown checkout type", { type: metadata.type, sessionId: session.id });
+            // FALLBACK: Handle purchases from Stripe Payment Links (no metadata)
+            logStep("No recognized metadata type — attempting price-based fallback", { type: metadata.type, sessionId: session.id });
+
+            try {
+              // 1. Retrieve line items to identify what was purchased
+              const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
+              const priceIds = lineItems.data
+                .map((li: { price?: { id?: string } }) => li.price?.id)
+                .filter(Boolean) as string[];
+
+              logStep("Fallback: line item price IDs", { priceIds });
+
+              if (priceIds.length === 0) {
+                logStep("Fallback: no line items found, skipping", { sessionId: session.id });
+              } else {
+                // 2. Match price IDs against known products
+                const matchedProduct = priceIds
+                  .map((pid: string) => ({ priceId: pid, info: PRICE_ID_MAP[pid] }))
+                  .find((m: { priceId: string; info: typeof PRICE_ID_MAP[string] | undefined }) => m.info);
+
+                if (!matchedProduct || !matchedProduct.info) {
+                  logStep("Fallback: no known price ID matched — logging for manual review", {
+                    sessionId: session.id,
+                    priceIds,
+                    customerEmail: session.customer_details?.email,
+                    amount: session.amount_total,
+                  });
+                } else {
+                  const product = matchedProduct.info;
+                  logStep("Fallback: matched product", { label: product.label, priceId: matchedProduct.priceId });
+
+                  // 3. Look up the buyer by email
+                  const customerEmail = session.customer_details?.email;
+                  let matchedUserId: string | null = null;
+                  let matchedMemberId: string | null = null;
+
+                  if (customerEmail) {
+                    // Check members table first
+                    const { data: memberMatch } = await supabase
+                      .from('members')
+                      .select('id, user_id')
+                      .ilike('email', customerEmail)
+                      .maybeSingle();
+
+                    if (memberMatch?.user_id) {
+                      matchedUserId = memberMatch.user_id;
+                      matchedMemberId = memberMatch.id;
+                      logStep("Fallback: matched to member", { memberId: memberMatch.id, email: customerEmail });
+                    } else {
+                      // Check non_member_profiles
+                      const { data: nonMemberMatch } = await supabase
+                        .from('non_member_profiles')
+                        .select('id, user_id')
+                        .ilike('email', customerEmail)
+                        .maybeSingle();
+
+                      if (nonMemberMatch?.user_id) {
+                        matchedUserId = nonMemberMatch.user_id;
+                        logStep("Fallback: matched to non-member profile", { id: nonMemberMatch.id, email: customerEmail });
+                      } else {
+                        logStep("Fallback: no account found for email", { email: customerEmail });
+                      }
+                    }
+                  }
+
+                  // 4. Create the record based on product type
+                  if (product.productType === 'class_pass' && matchedUserId) {
+                    const now = new Date();
+                    const expiresAt = new Date(now);
+                    expiresAt.setDate(expiresAt.getDate() + product.validityDays);
+
+                    const pricePaid = (session.amount_total || 0) / 100;
+
+                    const { error: insertError } = await supabase
+                      .from('class_passes')
+                      .insert({
+                        user_id: matchedUserId,
+                        member_id: matchedMemberId,
+                        category: product.category as 'pilates_cycling' | 'aerobics',
+                        pass_type: product.passType === 'tenPack' ? '10-pack' : 'single',
+                        classes_total: product.classes,
+                        classes_remaining: product.classes,
+                        price_paid: pricePaid,
+                        is_member_price: product.isMember,
+                        purchased_at: now.toISOString(),
+                        expires_at: expiresAt.toISOString(),
+                        status: 'active',
+                      });
+
+                    if (insertError) {
+                      logError(insertError, "FALLBACK_CLASS_PASS_INSERT");
+                    } else {
+                      logStep("Fallback: class pass created successfully", {
+                        label: product.label,
+                        userId: matchedUserId,
+                        classes: product.classes,
+                        email: customerEmail,
+                      });
+                    }
+                  } else if (product.productType === 'class_pass' && !matchedUserId) {
+                    logStep("Fallback: class pass purchased but no matching account — needs manual reconciliation", {
+                      label: product.label,
+                      email: customerEmail,
+                      amount: session.amount_total,
+                      sessionId: session.id,
+                    });
+                  } else if (product.productType === 'guest_pass') {
+                    logStep("Fallback: guest pass purchased via payment link — needs manual processing", {
+                      email: customerEmail,
+                      amount: session.amount_total,
+                      sessionId: session.id,
+                    });
+                  }
+                }
+              }
+            } catch (fallbackError) {
+              logError(fallbackError, "PAYMENT_LINK_FALLBACK");
+              // Don't fail the webhook for fallback errors
+            }
           }
         } catch (checkoutError) {
           logError(checkoutError, "CHECKOUT_SESSION_COMPLETED");
