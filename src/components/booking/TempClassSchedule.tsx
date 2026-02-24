@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays, Check, Loader2 } from "lucide-react";
-import { startOfWeek, addDays, addWeeks, format, isSameDay } from "date-fns";
+import { startOfWeek, addDays, addWeeks, format, isSameDay, isBefore, startOfDay } from "date-fns";
 import { useTempClassBooking } from "@/hooks/useTempClassBooking";
 import {
   SOFT_LAUNCH_START, SOFT_LAUNCH_END,
@@ -92,18 +92,21 @@ function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooki
   );
 }
 
-export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) {
+export function TempClassSchedule({ readOnly = false, showHistory = false }: { readOnly?: boolean; showHistory?: boolean }) {
   const navigate = useNavigate();
   const { isLoggedIn, canBook, isBooked, bookClass, isBooking } = useTempClassBooking();
 
   const baseWeekStart = startOfWeek(SOFT_LAUNCH_START, { weekStartsOn: 0 });
+  const today = startOfDay(new Date());
+
+  // Minimum week offset: the current week (unless showHistory allows going back)
+  const currentWeekOffset = Math.max(0, Math.round(
+    (startOfWeek(new Date(), { weekStartsOn: 0 }).getTime() - baseWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)
+  ));
+  const minWeekOffset = showHistory ? 0 : currentWeekOffset;
 
   function getInitialWeekOffset() {
-    const todayWeekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
-    const diff = Math.round(
-      (todayWeekStart.getTime() - baseWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)
-    );
-    return Math.max(0, diff);
+    return Math.max(minWeekOffset, currentWeekOffset);
   }
 
   const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset);
@@ -128,6 +131,7 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
       classes: getClassesForDate(date),
       isToday: isSameDay(date, new Date()),
       outOfRange: getClassesForDate(date).length === 0,
+      isPast: isBefore(date, today),
     };
   });
 
@@ -185,7 +189,7 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
 
       {/* Week Navigation */}
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={() => setWeekOffset((p) => Math.max(p - 1, 0))} disabled={weekOffset === 0}>
+        <Button variant="outline" size="icon" onClick={() => setWeekOffset((p) => Math.max(p - 1, minWeekOffset))} disabled={weekOffset <= minWeekOffset}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-sm font-medium min-w-[180px] text-center">
@@ -198,54 +202,59 @@ export function TempClassSchedule({ readOnly = false }: { readOnly?: boolean }) 
 
       {/* Calendar Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
-        {weekDays.map((day) => (
-          <div key={day.dateStr} ref={day.isToday ? todayRef : undefined} className={`space-y-3 ${day.outOfRange ? "opacity-40" : ""}`}>
-            <div className={`text-center p-2 rounded-lg ${day.isToday ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-              <div className="text-xs font-medium uppercase">{day.dayName}</div>
-              <div className="text-lg font-bold">{day.dayNum}</div>
-              <div className="text-xs">{day.month}</div>
-            </div>
-            <div className="space-y-2">
-              {day.classes.length === 0 ? (
-                <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
-              ) : (
-                day.classes.map((cls, i) => {
-                  const { enrolled, maxCapacity, isCancelled } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
-                  if (isCancelled) {
+        {weekDays.map((day) => {
+          const hidePast = day.isPast && !showHistory;
+          return (
+            <div key={day.dateStr} ref={day.isToday ? todayRef : undefined} className={`space-y-3 ${day.outOfRange || hidePast ? "opacity-40" : ""}`}>
+              <div className={`text-center p-2 rounded-lg ${day.isToday ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                <div className="text-xs font-medium uppercase">{day.dayName}</div>
+                <div className="text-lg font-bold">{day.dayNum}</div>
+                <div className="text-xs">{day.month}</div>
+              </div>
+              <div className="space-y-2">
+                {hidePast ? (
+                  <div className="text-center text-muted-foreground text-xs py-8">Past</div>
+                ) : day.classes.length === 0 ? (
+                  <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
+                ) : (
+                  day.classes.map((cls, i) => {
+                    const { enrolled, maxCapacity, isCancelled } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                    if (isCancelled) {
+                      return (
+                        <Card key={i} className="opacity-60 border-destructive/30">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <h3 className="font-semibold text-foreground line-through">{cls.name}</h3>
+                              <span className="text-lg font-bold text-muted-foreground">{cls.time}</span>
+                            </div>
+                            <Badge variant="destructive" className="text-xs">Cancelled</Badge>
+                          </CardContent>
+                        </Card>
+                      );
+                    }
                     return (
-                      <Card key={i} className="opacity-60 border-destructive/30">
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold text-foreground line-through">{cls.name}</h3>
-                            <span className="text-lg font-bold text-muted-foreground">{cls.time}</span>
-                          </div>
-                          <Badge variant="destructive" className="text-xs">Cancelled</Badge>
-                        </CardContent>
-                      </Card>
+                      <TempClassCard
+                        key={i}
+                        entry={cls}
+                        date={day.date}
+                        readOnly={readOnly || day.isPast}
+                        isLoggedIn={isLoggedIn}
+                        canBook={canBook}
+                        isBooked={isBooked(day.date, cls.time)}
+                        isBooking={isBooking}
+                        enrolled={enrolled}
+                        maxCapacity={maxCapacity}
+                        onBook={() => bookClass({ className: cls.name, date: day.date, time: cls.time })}
+                        onGetPass={() => navigate("/class-passes")}
+                        onSignIn={() => navigate("/auth")}
+                      />
                     );
-                  }
-                  return (
-                    <TempClassCard
-                      key={i}
-                      entry={cls}
-                      date={day.date}
-                      readOnly={readOnly}
-                      isLoggedIn={isLoggedIn}
-                      canBook={canBook}
-                      isBooked={isBooked(day.date, cls.time)}
-                      isBooking={isBooking}
-                      enrolled={enrolled}
-                      maxCapacity={maxCapacity}
-                      onBook={() => bookClass({ className: cls.name, date: day.date, time: cls.time })}
-                      onGetPass={() => navigate("/class-passes")}
-                      onSignIn={() => navigate("/auth")}
-                    />
-                  );
-                })
-              )}
+                  })
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
