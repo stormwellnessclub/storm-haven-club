@@ -11,8 +11,9 @@ import {
   Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle,
 } from "lucide-react";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -586,19 +587,21 @@ export function ClassRosterDialog({
 
   return (
     <>
-      <Dialog
+      <Sheet
         open={open}
         onOpenChange={(o) => { onOpenChange(o); if (!o) resetForm(); }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <SheetContent side="right" className="sm:max-w-2xl w-full flex flex-col p-0">
+          <SheetHeader className="px-6 pt-6 pb-2">
+            <SheetTitle>
               {selectedSlot?.entry.name} — {format(selectedDate, "MMM d")} at {selectedSlot?.entry.time}
-            </DialogTitle>
-            <DialogDescription>
+            </SheetTitle>
+            <SheetDescription>
               {selectedSlot?.dbSessionId ? `${bookings.length} registered` : "No bookings yet"}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
+
+          <ScrollArea className="flex-1 px-6 pb-6">
 
           {/* Add Button */}
           <div className="flex justify-end">
@@ -872,8 +875,9 @@ export function ClassRosterDialog({
               )}
             </TabsContent>
           </Tabs>
-        </DialogContent>
-      </Dialog>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
 
       {/* Sell Package Dialog */}
       <SellClassPackage
