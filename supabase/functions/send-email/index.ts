@@ -1873,19 +1873,19 @@ serve(async (req) => {
         break;
 
       case 'staff_invite':
-        subject = `You're Invited to Join Storm Wellness Club`;
+        subject = `You're Invited to Join the Storm Wellness Club Team`;
         html = `
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="${emailStyles.heading}">Welcome, ${data.firstName}!</h2>
+              <h2 style="${emailStyles.heading}">Welcome to the Team, ${data.firstName}!</h2>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
-                You've been invited to join the Storm Wellness Club team as <strong>${data.roles}</strong>.
+                You've been invited to join Storm Wellness Club as <strong>${data.roles}</strong>.
               </p>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
-                To get started, create your staff account using the button below. Once your account is created, you'll automatically have access to the tools and features assigned to your role.
+                To get started, create your staff account using the button below. Once your account is created, you'll be taken directly to your staff dashboard with all the tools assigned to your role.
               </p>
               
               <div style="${emailStyles.infoBox}">
@@ -1895,7 +1895,7 @@ serve(async (req) => {
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${BASE_URL}/auth?staff_invite=true" style="${emailStyles.button}">Create Your Account</a>
+                <a href="${BASE_URL}/auth?staff_invite=true&redirect=/admin" style="${emailStyles.button}">Create Your Staff Account</a>
               </div>
               
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
@@ -1903,7 +1903,7 @@ serve(async (req) => {
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
               </div>
             </div>
-            ${getEmailFooter()}
+            ${getReceiptFooter()}
           </div>
         `;
         break;
