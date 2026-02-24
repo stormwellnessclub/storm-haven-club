@@ -54,6 +54,7 @@ import Members from "./pages/admin/Members";
 import MemberDetail from "./pages/admin/MemberDetail";
 import MemberCreditsAdmin from "./pages/admin/MemberCredits";
 import CheckIn from "./pages/admin/CheckIn";
+import AdminCheckInHistory from "./pages/admin/CheckInHistory";
 import Scanner from "./pages/admin/Scanner";
 import Applications from "./pages/admin/Applications";
 import Appointments from "./pages/admin/Appointments";
@@ -165,6 +166,7 @@ const App = () => (
               {/* Admin Routes - Protected by Role */}
               <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />
               <Route path="/admin/check-in" element={<ProtectedAdminRoute><CheckIn /></ProtectedAdminRoute>} />
+              <Route path="/admin/check-in-history" element={<ProtectedAdminRoute><AdminCheckInHistory /></ProtectedAdminRoute>} />
               <Route path="/admin/scanner" element={<ProtectedAdminRoute><Scanner /></ProtectedAdminRoute>} />
               <Route path="/admin/members" element={<ProtectedAdminRoute><Members /></ProtectedAdminRoute>} />
               <Route path="/admin/members/:id" element={<ProtectedAdminRoute><MemberDetail /></ProtectedAdminRoute>} />

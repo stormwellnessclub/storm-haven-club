@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -753,13 +753,14 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           </SheetHeader>
 
           <Tabs defaultValue="profile" className="mt-6">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="membership">Membership</TabsTrigger>
               <TabsTrigger value="contract">Contract</TabsTrigger>
               <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsTrigger value="visits">Visits</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
@@ -1579,6 +1580,10 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
               <MemberActivityTimeline memberId={member.id} />
             </TabsContent>
 
+            <TabsContent value="visits" className="space-y-4 mt-4">
+              <MemberVisitHistory memberId={member.id} />
+            </TabsContent>
+
             <TabsContent value="analytics" className="space-y-4 mt-4">
               <MemberAnalytics memberId={member.id} />
             </TabsContent>
@@ -2022,6 +2027,84 @@ function MemberActivityTimeline({ memberId }: { memberId: string }) {
         </div>
       ) : (
         <p className="text-sm text-muted-foreground text-center py-4">No activities yet</p>
+      )}
+    </div>
+  );
+}
+
+// Member Visit History Component
+function MemberVisitHistory({ memberId }: { memberId: string }) {
+  const { data: checkIns, isLoading } = useQuery({
+    queryKey: ["member-visit-history", memberId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("check_ins")
+        .select("*")
+        .eq("member_id", memberId)
+        .order("checked_in_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const thisMonth = useMemo(() => {
+    if (!checkIns) return 0;
+    const now = new Date();
+    return checkIns.filter((ci) => {
+      const d = new Date(ci.checked_in_at);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+  }, [checkIns]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-4">
+        <Card className="flex-1">
+          <CardContent className="pt-4 text-center">
+            <p className="text-2xl font-bold">{checkIns?.length || 0}</p>
+            <p className="text-xs text-muted-foreground">Total Visits</p>
+          </CardContent>
+        </Card>
+        <Card className="flex-1">
+          <CardContent className="pt-4 text-center">
+            <p className="text-2xl font-bold">{thisMonth}</p>
+            <p className="text-xs text-muted-foreground">This Month</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {checkIns && checkIns.length > 0 ? (
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          {checkIns.map((ci) => (
+            <div key={ci.id} className="flex items-center justify-between p-3 rounded-md border bg-card">
+              <div>
+                <p className="text-sm font-medium">
+                  {format(new Date(ci.checked_in_at), "EEE, MMM d, yyyy")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  In: {format(new Date(ci.checked_in_at), "h:mm a")}
+                  {ci.checked_out_at && ` · Out: ${format(new Date(ci.checked_out_at), "h:mm a")}`}
+                </p>
+              </div>
+              {ci.notes && (
+                <span className="text-xs text-muted-foreground max-w-[200px] truncate">
+                  {ci.notes}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-center text-muted-foreground py-6">No visit history found.</p>
       )}
     </div>
   );
