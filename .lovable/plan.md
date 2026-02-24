@@ -1,33 +1,39 @@
 
 
-## Add "First Month Paid in Cash" Option to Create Subscription Dialog
+## Update Soft Launch Hours Banner + Create Email Template
 
-### What This Does
-Adds a new radio option called **"First month paid in cash"** to the Create Subscription dialog. When selected, it automatically sets the first Stripe charge date to 1 month after the start date -- so the member's first month is covered by their cash payment, and Stripe billing kicks in for month 2 onward.
+### Banner Changes (`src/components/member/SoftLaunchHoursBanner.tsx`)
 
-### How It Works
-1. You open the Create Subscription dialog for any member
-2. Under "When should the first payment occur?" you'll see a new option: **"First month paid in cash"**
-3. Selecting it auto-calculates the first charge date as ~30 days from the subscription start date
-4. The summary shows that cash covers month 1, and the first Stripe charge happens on the calculated date
-5. You can still adjust the charge date if needed
+- Change `SOFT_LAUNCH_END` from `2026-02-23` to `2026-03-02` (covers through Sunday March 1)
+- Reset `STORAGE_KEY` to `'soft-launch-banner-dismissed-week2'` so everyone sees the updated banner
+- Update date label to **"February 23 - March 1, 2026"**
+- Replace the hours data with a richer structure supporting multiple time blocks per day and a "special event" flag:
+  - **Monday - Thursday**: 7:00 AM - 11:00 PM
+  - **Friday**: 7:00 AM - 5:00 PM + 8:00 PM - 11:30 PM (Pop-Up Event)
+  - **Saturday**: 8:00 AM - 5:00 PM + 8:00 PM - 11:30 PM (Pop-Up Event)
+  - **Sunday**: 8:00 AM - 6:00 PM
+- Friday and Saturday evening blocks get a small highlighted "Pop-Up Event" badge
+- **Remove** the "Regular hours begin after..." note entirely
 
-### Payment Options After This Change
-- **Charge now** -- card charged today (existing)
-- **First month paid in cash** -- first charge ~1 month out (NEW)
-- **Cash paid ahead (1 year)** -- first charge ~1 year out (existing)
-- **Schedule for a specific date** -- pick any future date (existing)
+### Email Template (database insert)
 
-### Technical Details
+Insert a new row into `email_templates`:
+- **Name**: "Weekly Hours - Feb 23"
+- **Category**: "announcement"
+- **Subject**: "This Week's Hours at Storm Wellness Club"
+- **Merge fields**: `{name}`
+- **Body**: Styled HTML email with the same hours table, pop-up event callout for Friday/Saturday evenings, and a greeting using `{name}`
 
-**File:** `src/components/admin/CreateSubscriptionDialog.tsx`
+### Technical Detail
 
-1. Add `"cash_first_month"` to the `paymentMode` state type
-2. Add a new radio option between "Charge now" and "Cash paid ahead (1 year)" with label "First month paid in cash" and a Banknote icon
-3. When selected, auto-set `firstChargeDate` to `addDays(startDate, 30)` (or use `addMonths` from date-fns for calendar-month accuracy)
-4. Show a date picker so the admin can adjust if needed, pre-filled with the calculated date
-5. Update the summary section and button labels to handle the new mode
-6. Update `isCashPaidAhead` logic to also recognize this mode for the summary display
+**No new dependencies** -- the component already uses `useState`, `Clock`, `X`, and `Button`. The hours array changes from a flat structure to one that supports multiple blocks per day:
 
-No backend changes needed -- the `onConfirm(startDate, firstChargeDate)` signature already supports deferred charge dates.
+```text
+type HourBlock = {
+  days: string;
+  hours: string;
+  special?: string;  // e.g. "Pop-Up Event"
+};
+```
 
+Friday and Saturday each get two entries -- one for daytime, one for the evening event. The render logic adds a gold badge next to entries with a `special` value.
