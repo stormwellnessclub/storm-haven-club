@@ -1,90 +1,53 @@
 
 
-## Events Page for Storm Wellness Club
+## Hide Past Dates from Public Schedule, Keep History for Admin
 
-### Overview
-Create a branded public Events page at `/events` with two sections:
-1. **Upcoming Events** - A curated showcase of club events with rich cards
-2. **Host an Event** - An inquiry form for people interested in hosting events at the club
+### Problem
+Currently the temp class schedule shows all dates from Feb 20 onward, including dates that have already passed. Members see old classes they can no longer book. Admins need to keep seeing the full history.
 
-Both sections will be backed by database tables so admins can manage events and review hosting inquiries.
+### Changes
 
----
+#### 1. TempClassSchedule.tsx -- Hide past dates for non-admin users
 
-### Database
+- Add an `isPast` check for each day in the weekly grid
+- For public/member views (`readOnly=false` or default), past days will be visually dimmed and their class cards will show as "Completed" instead of "Book Class" -- or better, past days simply won't render class cards with booking buttons
+- The week navigation will no longer allow navigating to weeks entirely in the past (for public view)
+- The initial week offset will always start at the current week (already does this)
+- Past day columns will show a subtle "Past" label instead of class cards, keeping the grid layout clean
 
-**Table: `events`**
-- `id` (uuid, PK)
-- `title` (text)
-- `description` (text)
-- `event_date` (date)
-- `start_time` (time)
-- `end_time` (time)
-- `location` (text) - e.g. "Main Studio", "Rooftop Lounge"
-- `image_url` (text, nullable)
-- `category` (text) - e.g. "Wellness", "Social", "Workshop", "Community"
-- `is_members_only` (boolean, default false)
-- `capacity` (integer, nullable)
-- `is_published` (boolean, default true)
-- `created_at` / `updated_at` (timestamps)
+#### 2. TempClassSchedule.tsx -- Past class handling within the current week
 
-RLS: Public read for published events. Admin insert/update/delete.
+- For the current week, days before today will show classes as non-bookable with a "Completed" or grayed-out state
+- Today and future days remain fully interactive with booking buttons
 
-**Table: `event_hosting_inquiries`**
-- `id` (uuid, PK)
-- `full_name` (text)
-- `email` (text)
-- `phone` (text, nullable)
-- `event_type` (text) - what kind of event they want to host
-- `preferred_date` (text, nullable)
-- `estimated_guests` (integer, nullable)
-- `message` (text)
-- `status` (text, default 'pending') - pending / contacted / approved / declined
-- `created_at` (timestamp)
+#### 3. Admin view stays unchanged
 
-RLS: Public insert (anyone can submit). Admin read/update.
+- The admin classes page (`/admin/classes`) already has its own management view and is not affected
+- The `readOnly` prop on TempClassSchedule will be extended: when `readOnly` is true (used on public-facing landing previews), past dates are still hidden
+- A new `showHistory` prop (default `false`) can be added if admin needs the full schedule view with past dates
 
----
+#### 4. Member Bookings page -- already correct
 
-### Frontend
-
-**New file: `src/pages/Events.tsx`**
-
-Fully branded page using the existing `Layout`, `SectionHeading`, `AnimatedSection`, and `StaggerContainer` components. Structure:
-
-1. **Hero Section** - Dark overlay on a club image (reuse `main-lobby.jpeg`), with the heading "Upcoming Events" and a tagline. Matches the style of the homepage hero but shorter.
-
-2. **Events Grid** - Cards showing each published event with:
-   - Event image (or a gradient placeholder if no image)
-   - Category badge
-   - Date formatted nicely (e.g. "SAT, MAR 15")
-   - Title, description preview
-   - Time and location
-   - "Members Only" badge where applicable
-   - Staggered scroll-reveal animations
-
-3. **Empty State** - If no events exist, a styled message saying "Stay tuned for upcoming events."
-
-4. **Host an Event Section** - Dark `bg-primary` section (matching the membership benefits section style) with:
-   - Heading: "Host Your Event at Storm"
-   - Brief copy about the venue
-   - Form fields: Name, Email, Phone, Event Type (dropdown), Preferred Date, Estimated Guests, Message
-   - Submit button with `variant="gold"`
-   - Success toast on submission
-
-**Route**: Add `/events` to `App.tsx` as a public route.
-
-**Navigation**: Add "Events" link to `navLinks` in `Navigation.tsx` and "Events" to the footer links.
-
----
+- The member bookings page (`/member/bookings`) already separates "Upcoming" and "Past" tabs using `useUpcomingBookings` and `usePastBookings` hooks -- no changes needed there
 
 ### Technical Details
 
-| Item | Detail |
-|------|--------|
-| New files | `src/pages/Events.tsx` |
-| Modified files | `src/App.tsx` (route), `src/components/Navigation.tsx` (nav link), `src/components/Footer.tsx` (footer link) |
-| Database | 2 new tables: `events`, `event_hosting_inquiries` with RLS policies |
-| Dependencies | None new -- uses existing react-hook-form, zod, sonner, date-fns |
-| Styling | Matches existing brand: Cormorant Garamond headings, Montserrat body, gold accents, card-luxury class, charcoal dark sections |
+**File: `src/components/booking/TempClassSchedule.tsx`**
+
+- Import `isBefore`, `startOfDay` from date-fns
+- In the `weekDays` mapping, add an `isPast` flag: `isPast: isBefore(date, startOfDay(new Date()))`
+- In the calendar grid rendering:
+  - Past days get `opacity-40` styling and show "Past" text instead of class cards with booking buttons
+  - Class cards for past days are hidden (no booking possible)
+- Constrain the week navigator's backward button: don't allow navigating to weeks where all 7 days are in the past
+- Update `getInitialWeekOffset` to ensure we always land on the current or next valid week
+
+**File: `src/pages/Schedule.tsx`**
+
+- No structural changes needed -- it already wraps `TempClassSchedule` which will self-filter past dates
+
+**Files untouched:**
+- `src/pages/admin/Classes.tsx` -- admin view retains full access to all dates
+- `src/pages/member/Bookings.tsx` -- already has upcoming/past separation
+- `src/lib/softLaunchSchedule.ts` -- schedule definition unchanged
 
