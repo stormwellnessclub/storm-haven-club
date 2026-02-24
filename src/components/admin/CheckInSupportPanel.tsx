@@ -55,32 +55,36 @@ function getAudioContext(): AudioContext | null {
 
 // Warm up AudioContext on first user interaction (required by browsers)
 function warmUpAudio() {
-  if (audioCtxWarmedUp) return;
   const ctx = getAudioContext();
-  if (ctx && ctx.state === "suspended") {
+  if (!ctx) return;
+  if (ctx.state === "suspended") {
     ctx.resume().catch(() => {});
   }
-  audioCtxWarmedUp = true;
+  if (ctx.state === "running") {
+    audioCtxWarmedUp = true;
+  }
 }
 
-// Attach warm-up listener once
+// Persistent warm-up listener — keeps firing until AudioContext is running
 if (typeof window !== "undefined") {
-  const warmUpOnce = () => {
+  const warmUpHandler = () => {
     warmUpAudio();
-    document.removeEventListener("click", warmUpOnce);
-    document.removeEventListener("keydown", warmUpOnce);
+    if (audioCtxWarmedUp) {
+      document.removeEventListener("click", warmUpHandler);
+      document.removeEventListener("keydown", warmUpHandler);
+    }
   };
-  document.addEventListener("click", warmUpOnce, { once: true });
-  document.addEventListener("keydown", warmUpOnce, { once: true });
+  document.addEventListener("click", warmUpHandler);
+  document.addEventListener("keydown", warmUpHandler);
 }
 
-function playNotificationChime() {
+async function playNotificationChime() {
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
 
     if (ctx.state === "suspended") {
-      ctx.resume();
+      await ctx.resume();
     }
 
     const playSequence = (startTime: number, volume: number) => {
@@ -317,6 +321,13 @@ export function CheckInSupportPanel() {
     };
   }, [isMuted, queryClient]);
 
+  // Warm up AudioContext on any click while on this page
+  useEffect(() => {
+    const handler = () => warmUpAudio();
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, []);
+
   const conciergeItems = conversations?.filter((c) => c.category === "concierge") || [];
   const classSupportItems = conversations?.filter((c) => c.category === "class_support") || [];
   const supportItems = conversations?.filter((c) => c.category !== "concierge" && c.category !== "class_support") || [];
@@ -401,6 +412,10 @@ export function CheckInSupportPanel() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => {
+                  const ctx = getAudioContext();
+                  if (ctx && ctx.state === "suspended") {
+                    ctx.resume().catch(() => {});
+                  }
                   warmUpAudio();
                   setIsMuted(!isMuted);
                 }}
