@@ -591,7 +591,7 @@ export function ClassRosterDialog({
         open={open}
         onOpenChange={(o) => { onOpenChange(o); if (!o) resetForm(); }}
       >
-        <SheetContent side="right" className="sm:max-w-2xl w-full flex flex-col p-0">
+        <SheetContent side="right" className="!w-full !max-w-none sm:!max-w-2xl flex flex-col p-0 h-full">
           <SheetHeader className="px-6 pt-6 pb-2">
             <SheetTitle>
               {selectedSlot?.entry.name} — {format(selectedDate, "MMM d")} at {selectedSlot?.entry.time}
@@ -601,7 +601,7 @@ export function ClassRosterDialog({
             </SheetDescription>
           </SheetHeader>
 
-          <ScrollArea className="flex-1 px-6 pb-6">
+          <ScrollArea className="flex-1 min-h-0 overflow-hidden px-6 pb-6">
 
           {/* Add Button */}
           <div className="flex justify-end">
