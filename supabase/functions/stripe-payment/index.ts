@@ -56,6 +56,68 @@ async function createProcessingFeeLineItem(stripe: Stripe, baseAmountCents: numb
   return { price: price.id, quantity: 1 };
 }
 
+// Get or create a recurring processing fee price for subscription items
+async function getOrCreateRecurringProcessingFeePrice(
+  stripe: Stripe,
+  baseAmountCents: number,
+  interval: 'month' | 'year'
+): Promise<string | null> {
+  const feeCents = calculateProcessingFee(baseAmountCents);
+  if (feeCents <= 0) return null;
+  
+  const productId = await getOrCreateProcessingFeeProduct(stripe);
+  
+  // Search for existing recurring price with matching amount and interval
+  const existingPrices = await stripe.prices.list({
+    product: productId,
+    type: 'recurring',
+    active: true,
+    limit: 100,
+  });
+  
+  const matchingPrice = existingPrices.data.find(p => 
+    p.unit_amount === feeCents && 
+    p.recurring?.interval === interval
+  );
+  
+  if (matchingPrice) return matchingPrice.id;
+  
+  // Create new recurring price
+  const price = await stripe.prices.create({
+    product: productId,
+    unit_amount: feeCents,
+    currency: 'usd',
+    recurring: { interval },
+    metadata: { type: 'processing_fee', base_amount: String(baseAmountCents) },
+  });
+  
+  return price.id;
+}
+
+// Add recurring processing fee items to a subscription items array
+// Looks up each base price to determine amount and interval, then adds a matching fee item
+async function addRecurringProcessingFeeItems(
+  stripe: Stripe,
+  items: Array<{ price: string; quantity?: number }>
+): Promise<Array<{ price: string; quantity?: number }>> {
+  const result = [...items];
+  for (const item of items) {
+    try {
+      const basePrice = await stripe.prices.retrieve(item.price);
+      const baseAmount = basePrice.unit_amount || 0;
+      const interval = (basePrice.recurring?.interval as 'month' | 'year') || 'year';
+      const feePriceId = await getOrCreateRecurringProcessingFeePrice(stripe, baseAmount, interval);
+      if (feePriceId) {
+        result.push({ price: feePriceId, quantity: 1 });
+        console.log(`[STRIPE-PAYMENT] Added recurring processing fee: ${feePriceId} (${calculateProcessingFee(baseAmount)}¢ per ${interval})`);
+      }
+    } catch (e) {
+      console.log(`[STRIPE-PAYMENT] Warning: Could not add processing fee for price ${item.price}:`, e instanceof Error ? e.message : String(e));
+    }
+  }
+  return result;
+}
+
 // Credit allocations by tier (matching webhook)
 const TIER_CREDITS: Record<string, { class: number; red_light: number; dry_cryo: number }> = {
   silver: { class: 0, red_light: 0, dry_cryo: 0 },
@@ -427,9 +489,12 @@ serve(async (req) => {
         const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
 
         // Build line items - ONLY membership subscription (annual fee will be created separately as recurring subscription)
-        const lineItems: { price: string; quantity: number }[] = [
+        const baseLineItems: { price: string; quantity: number }[] = [
           { price: membershipPriceId, quantity: 1 },
         ];
+        
+        // Add processing fee as recurring line item
+        const lineItems = await addRecurringProcessingFeeItems(stripe, baseLineItems);
         
         // Note: Annual fee is NOT included in checkout line items
         // It will be created as a separate recurring subscription after checkout completes (in webhook)
@@ -850,9 +915,12 @@ serve(async (req) => {
         }
 
         // Create annual fee subscription (yearly recurring)
+        // Add processing fee to annual fee checkout
+        const annualFeeLineItems = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceId, quantity: 1 }]);
+        
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
-          line_items: [{ price: annualFeePriceId, quantity: 1 }],
+          line_items: annualFeeLineItems,
           mode: 'subscription',
           payment_method_types: ['card', 'us_bank_account'],
           subscription_data: {
@@ -2010,13 +2078,16 @@ serve(async (req) => {
         const startDateObj = new Date(startDate);
         const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
 
-        const lineItems: { price: string; quantity: number }[] = [
+        const baseLineItems: { price: string; quantity: number }[] = [
           { price: membershipPriceId, quantity: 1 },
         ];
         
         if (annualFeePriceId) {
-          lineItems.push({ price: annualFeePriceId, quantity: 1 });
+          baseLineItems.push({ price: annualFeePriceId, quantity: 1 });
         }
+        
+        // Add processing fee for each subscription item
+        const lineItems = await addRecurringProcessingFeeItems(stripe, baseLineItems);
 
         // For founding members paying annual upfront, charge 12 months
         if (isFoundingMember && billingType === 'annual') {
@@ -2192,9 +2263,10 @@ serve(async (req) => {
 
         // If price ID exists, use subscription checkout instead (recurring yearly)
         if (annualFeePriceId) {
+          const annualFeeCheckoutItems = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceId, quantity: 1 }]);
           const session = await stripe.checkout.sessions.create({
             customer: customerId,
-            line_items: [{ price: annualFeePriceId, quantity: 1 }],
+            line_items: annualFeeCheckoutItems,
             mode: 'subscription',
             payment_method_types: ['card', 'us_bank_account'],
             subscription_data: {
@@ -2394,10 +2466,11 @@ serve(async (req) => {
         const startDateObj = new Date(startDate);
         const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
 
-        // Create membership subscription with saved payment method
+        // Create membership subscription with saved payment method + processing fee
+        const membershipSubItems = await addRecurringProcessingFeeItems(stripe, [{ price: membershipPriceId }]);
         const subscription = await stripe.subscriptions.create({
           customer: memberData.stripe_customer_id,
-          items: [{ price: membershipPriceId }],
+          items: membershipSubItems,
           default_payment_method: paymentMethodId,
           billing_cycle_anchor: billingAnchor,
           proration_behavior: 'none',
@@ -2470,10 +2543,10 @@ serve(async (req) => {
           try {
             console.log(`[STRIPE-PAYMENT] Creating annual fee subscription - ${JSON.stringify({ memberId, annualFeePriceId })}`);
             
+            const annualFeeSubItems = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceId }]);
             const annualFeeSubscription = await stripe.subscriptions.create({
               customer: memberData.stripe_customer_id,
-              items: [{ price: annualFeePriceId }],
-              default_payment_method: paymentMethodId,
+              items: annualFeeSubItems,
               billing_cycle_anchor: billingAnchor,
               proration_behavior: 'none',
               metadata: {
@@ -2616,9 +2689,10 @@ serve(async (req) => {
         const isStartDateInPast = benefitsStartDate < now;
 
         // Build subscription parameters - handle different scenarios
+        const membershipAdminItems = await addRecurringProcessingFeeItems(stripe, [{ price: membershipPriceId }]);
         const subscriptionParams: any = {
           customer: memberData.stripe_customer_id,
-          items: [{ price: membershipPriceId }],
+          items: membershipAdminItems,
           default_payment_method: paymentMethodId,
           proration_behavior: 'none',
           metadata: {
@@ -2794,9 +2868,10 @@ serve(async (req) => {
               // No existing subscription found - create new one
               logStep("Creating annual fee subscription for admin activation", { memberId, annualFeePriceId });
               
+              const annualFeeAdminItems = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceId }]);
               const annualFeeSubscription = await stripe.subscriptions.create({
                 customer: memberData.stripe_customer_id,
-                items: [{ price: annualFeePriceId }],
+                items: annualFeeAdminItems,
                 default_payment_method: paymentMethodId,
                 proration_behavior: 'none',
                 metadata: {
@@ -3108,14 +3183,14 @@ serve(async (req) => {
         }
 
         // Create checkout session for subscription
+        // Add processing fee to membership dues checkout
+        const duesLineItems = await addRecurringProcessingFeeItems(stripe, [{ price: priceId, quantity: 1 }]);
+        
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           mode: 'subscription',
           payment_method_types: ['card', 'us_bank_account'],
-          line_items: [{
-            price: priceId,
-            quantity: 1,
-          }],
+          line_items: duesLineItems,
           success_url: successUrl,
           cancel_url: cancelUrl,
           metadata: {
@@ -3585,9 +3660,12 @@ serve(async (req) => {
         const feeAmount = normalizedFeeGender === 'men' ? 175 : 300;
 
         // Create checkout session for annual fee subscription
+        // Add processing fee to annual fee payment link
+        const feePaymentLineItems = await addRecurringProcessingFeeItems(stripe, [{ price: feePriceId, quantity: 1 }]);
+        
         const linkSession = await stripe.checkout.sessions.create({
           customer: feeCustomerId,
-          line_items: [{ price: feePriceId, quantity: 1 }],
+          line_items: feePaymentLineItems,
           mode: 'subscription',
           payment_method_types: ['card', 'us_bank_account'],
           success_url: feeSuccessUrl || 'https://storm-haven-club.lovable.app/payment-success?type=annual_fee',
@@ -4278,10 +4356,10 @@ serve(async (req) => {
             chargeImmediately: true
           });
 
+          const initiationItems1 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
-            items: [{ price: annualFeePriceIdForMember }],
-            default_payment_method: paymentMethodIdForFee,
+            items: initiationItems1,
             proration_behavior: 'none',
             metadata: {
               member_id: memberId,
@@ -4301,10 +4379,10 @@ serve(async (req) => {
             billingAnchor 
           });
 
+          const initiationItems2 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
-            items: [{ price: annualFeePriceIdForMember }],
-            default_payment_method: paymentMethodIdForFee,
+            items: initiationItems2,
             billing_cycle_anchor: billingAnchor,
             proration_behavior: 'none',
             metadata: {
@@ -4321,10 +4399,10 @@ serve(async (req) => {
             originalStartDate: subscriptionStart.toISOString() 
           });
 
+          const initiationItems3 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
-            items: [{ price: annualFeePriceIdForMember }],
-            default_payment_method: paymentMethodIdForFee,
+            items: initiationItems3,
             proration_behavior: 'none',
             metadata: {
               member_id: memberId,
@@ -4337,10 +4415,10 @@ serve(async (req) => {
           });
         } else {
           // Today: Normal immediate subscription
+          const initiationItems4 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
-            items: [{ price: annualFeePriceIdForMember }],
-            default_payment_method: paymentMethodIdForFee,
+            items: initiationItems4,
             proration_behavior: 'none',
             metadata: {
               member_id: memberId,
@@ -4513,9 +4591,10 @@ serve(async (req) => {
         });
 
         // Create the initiation fee subscription with delayed first charge
+        const initiationItemsNoCharge = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdNoCharge }]);
         const initiationFeeSubNoCharge = await stripe.subscriptions.create({
           customer: customerIdNoCharge,
-          items: [{ price: annualFeePriceIdNoCharge }],
+          items: initiationItemsNoCharge,
           default_payment_method: paymentMethodIdNoCharge,
           billing_cycle_anchor: billingAnchorNoCharge,
           proration_behavior: 'none',
