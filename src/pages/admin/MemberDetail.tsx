@@ -306,7 +306,7 @@ export default function MemberDetail() {
         .from("member_credits")
         .select("*")
         .eq("member_id", id)
-        .or(`expires_at.gt.${new Date().toISOString()},credits_remaining.gt.0`)
+        .or(`expires_at.gt."${new Date().toISOString()}",credits_remaining.gt.0`)
         .order("credit_type", { ascending: true });
       if (error) throw error;
       return data || [];
