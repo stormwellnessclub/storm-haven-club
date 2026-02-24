@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { clearAuthStorage } from "@/lib/authStorage";
 import { isJwtError, handleJwtError } from "@/lib/jwtErrorHandler";
+import { getDefaultAdminPage, type AppRole } from "@/lib/permissions";
 
 interface ProtectedMemberRouteProps {
   children: ReactNode;
@@ -20,8 +21,29 @@ type SessionState = "validating" | "valid" | "invalid" | "needs_repair";
 export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   const { user, session, loading: authLoading, signOut } = useAuth();
   const [sessionState, setSessionState] = useState<SessionState>("validating");
+  const [staffRedirect, setStaffRedirect] = useState<string | null>(null);
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
   const location = useLocation();
+
+  // Check if user has staff roles (for no_application fallback)
+  useEffect(() => {
+    if (!user || statusLoading || !applicationStatus) return;
+    if (applicationStatus.status !== "no_application") return;
+
+    const checkStaffRoles = async () => {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      if (data && data.length > 0) {
+        const roles = data.map((r) => r.role as AppRole);
+        setStaffRedirect(getDefaultAdminPage(roles));
+      }
+    };
+
+    checkStaffRoles();
+  }, [user, applicationStatus, statusLoading]);
 
   const validateSession = useCallback(async () => {
     setSessionState("validating");
@@ -186,8 +208,12 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   // Payment notices are shown in MemberLayout (non-blocking)
   // Members can always access the portal regardless of payment status
 
-  // Non-members (no application, no member record) go to the class portal
+  // Non-members: check if they're staff before sending to /portal
   if (applicationStatus?.status === "no_application") {
+    // Staff without a member record should go to admin, not portal
+    if (staffRedirect) {
+      return <Navigate to={staffRedirect} replace />;
+    }
     return <Navigate to="/portal" replace />;
   }
 

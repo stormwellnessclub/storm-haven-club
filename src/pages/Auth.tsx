@@ -13,6 +13,8 @@ import { clearAuthStorage, hasAuthData } from "@/lib/authStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { isJwtError, forceAuthReset } from "@/lib/jwtErrorHandler";
 import { WaiverSigningStep } from "@/components/WaiverSigningStep";
+import { StaffWelcome } from "@/components/staff/StaffWelcome";
+import { getDefaultAdminPage, type AppRole } from "@/lib/permissions";
 import { Shield } from "lucide-react";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -30,6 +32,8 @@ export default function Auth() {
   const [isCleaningSession, setIsCleaningSession] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showWaiverStep, setShowWaiverStep] = useState(false);
+  const [staffRoles, setStaffRoles] = useState<AppRole[] | null>(null);
+  const [showStaffWelcome, setShowStaffWelcome] = useState(false);
 
   const { user, signUp, signIn } = useAuth();
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -100,21 +104,51 @@ export default function Auth() {
     checkAndCleanSession();
   }, []);
 
-  // Check if user needs to sign waiver or should be redirected
+  // Check staff roles and determine routing after login
   useEffect(() => {
     if (isCleaningSession || !user || profileLoading) return;
-    
-    // If waiver not signed, show waiver step
-    if (profile && !profile.waiver_signed) {
-      setShowWaiverStep(true);
-      return;
-    }
-    
-    // Waiver is signed (or profile check complete), redirect
-    if (profile?.waiver_signed) {
-      navigate(getRedirectTarget());
-    }
-  }, [user, profile, profileLoading, navigate, isCleaningSession, getRedirectTarget]);
+
+    const checkStaffAndRoute = async () => {
+      // Check for staff roles
+      const { data: rolesData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      if (rolesData && rolesData.length > 0) {
+        const roles = rolesData.map((r) => r.role as AppRole);
+        setStaffRoles(roles);
+
+        // If waiver not signed, show waiver step first (staff still need waivers)
+        if (profile && !profile.waiver_signed) {
+          setShowWaiverStep(true);
+          return;
+        }
+
+        // Check if this is a first-time staff login (staff_invite param present)
+        if (isStaffInvite) {
+          setShowStaffWelcome(true);
+          return;
+        }
+
+        // Staff with waiver signed → go directly to admin
+        navigate(getDefaultAdminPage(roles));
+        return;
+      }
+
+      // Non-staff flow: waiver check then redirect
+      if (profile && !profile.waiver_signed) {
+        setShowWaiverStep(true);
+        return;
+      }
+
+      if (profile?.waiver_signed) {
+        navigate(getRedirectTarget());
+      }
+    };
+
+    checkStaffAndRoute();
+  }, [user, profile, profileLoading, navigate, isCleaningSession, getRedirectTarget, isStaffInvite]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -306,9 +340,23 @@ export default function Auth() {
     );
   }
 
+  // Show staff welcome screen for first-time staff login
+  if (showStaffWelcome && user && staffRoles && staffRoles.length > 0) {
+    return (
+      <StaffWelcome
+        roles={staffRoles}
+        onContinue={() => setShowStaffWelcome(false)}
+      />
+    );
+  }
+
   // Show waiver signing step if user is logged in but hasn't signed liability waiver
   if (showWaiverStep && user) {
-    return <WaiverSigningStep redirectTo={getRedirectTarget()} />;
+    // For staff, redirect to admin after waiver
+    const waiverRedirect = staffRoles && staffRoles.length > 0
+      ? getDefaultAdminPage(staffRoles)
+      : getRedirectTarget();
+    return <WaiverSigningStep redirectTo={waiverRedirect} />;
   }
 
   return (

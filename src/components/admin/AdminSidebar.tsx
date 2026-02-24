@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   Home,
+  User,
   Ticket,
   Coffee,
   Baby,
@@ -103,10 +104,25 @@ const systemItems: MenuItem[] = [
 export function AdminSidebar() {
   const location = useLocation();
   const { state } = useSidebar();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { roles } = useUserRoles();
   const isCollapsed = state === "collapsed";
   const [todaysGuestCount, setTodaysGuestCount] = useState(0);
+  const [hasMembership, setHasMembership] = useState(false);
+
+  // Check if staff member also has an active membership
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("members")
+      .select("id")
+      .eq("user_id", user.id)
+      .in("status", ["active", "frozen", "past_due"])
+      .maybeSingle()
+      .then(({ data }) => {
+        setHasMembership(!!data);
+      });
+  }, [user]);
 
   // Fetch today's guest count
   useEffect(() => {
@@ -280,6 +296,16 @@ export function AdminSidebar() {
 
       <SidebarFooter className="p-4 border-t border-border space-y-2">
         <SidebarMenu>
+          {hasMembership && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="My Membership">
+                <NavLink to="/member">
+                  <User className="h-4 w-4" />
+                  <span>My Membership</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Back to Website">
               <NavLink to="/">
