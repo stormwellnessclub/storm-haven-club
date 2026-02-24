@@ -1,73 +1,49 @@
 
 
-## Add Processing Fee to All Subscription Invoices
+## Fix: Credits Not Showing and Cannot Be Added for Some Members
 
-### The Problem
+### Problem Identified
 
-The processing fee (2.9% + $0.30) is being added to one-time checkout payments (class passes, guest passes, freeze fees, etc.) but **not** to recurring subscription invoices (monthly membership dues, annual fees). The original fix relied on the `invoice.created` webhook event, but Stripe's dashboard won't let you register that event for your endpoint.
+After investigating the code and database, there are two issues with the credit management:
 
-### The Solution
+### Issue 1: `.or()` Filter May Silently Fail
 
-Instead of relying on a webhook, we'll add the processing fee **at subscription creation time** using Stripe's `add_invoice_items` parameter. This adds a one-time "Processing Fee" charge to the subscription's first invoice. For subsequent renewals, we'll use a **recurring processing fee price** added as a second subscription item so the fee appears on every invoice automatically.
-
-### How It Works
-
-1. **Create a helper function** called `getOrCreateRecurringProcessingFeePrice` that:
-   - Takes the base subscription price ID and billing interval (monthly/yearly)
-   - Looks up the base price to get its amount
-   - Calculates the processing fee (2.9% + $0.30)
-   - Creates (or finds cached) a recurring price on the "Processing Fee" product matching that fee amount and interval
-   - Returns the price ID to add as a second subscription item
-
-2. **Update every `stripe.subscriptions.create` call** to include the processing fee as a second item:
-   ```text
-   items: [
-     { price: membershipPriceId },
-     { price: processingFeePriceId }   // <-- new recurring fee item
-   ]
-   ```
-
-3. **Affected subscription creation points** (all in `stripe-payment/index.ts` and `stripe-webhook/index.ts`):
-   - `create_subscription_from_payment` (~line 2398) - member self-activation
-   - Annual fee subscription in same flow (~line 2473)
-   - `admin_create_member_subscription` (~line 2656) - admin activation
-   - Admin annual fee subscription (~line 2797)
-   - `admin_create_initiation_fee_subscription` (~lines 4281, 4304, 4324, 4340) - initiation fees
-   - `admin_create_initiation_fee_subscription_no_charge` (~line 4516)
-   - Webhook annual fee subscription creation (~line 334)
-   - Subscription checkout sessions (`create_activation_checkout` ~line 443, `pay_annual_fee` ~line 853, `create_member_dues_checkout` ~line 3111, `create_annual_fee_payment_link` ~line 3588) -- these use `mode: 'subscription'` checkout and don't currently include a processing fee line item
-
-4. **For checkout sessions** (mode: subscription), we add the processing fee as an additional `line_items` entry, just like we already do for one-time checkouts.
-
-5. **Keep the `invoice.created` webhook handler** as a safety net -- if Stripe ever starts sending those events, it will still work (it already checks for duplicate fee items).
-
-### Technical Detail
-
-New helper function:
-
-```text
-async function getOrCreateRecurringProcessingFeePrice(
-  stripe: Stripe,
-  baseAmountCents: number,
-  interval: 'month' | 'year'
-): Promise<string | null>
+The credit query on line 309 uses:
+```
+.or(`expires_at.gt.${new Date().toISOString()},credits_remaining.gt.0`)
 ```
 
-This creates a recurring price like:
-- Product: "Processing Fee" (reuses existing product)
-- Amount: calculated fee in cents
-- Interval: matches the subscription interval (month or year)
-- Metadata tag to enable lookup/caching
+The ISO timestamp includes special characters (`:`, `+`, `.`) that can cause issues with PostgREST's filter parsing. If the filter fails silently, no credits would be returned -- making it appear as if a member has no credits even when they do.
 
-For checkout sessions, we reuse the existing `createProcessingFeeLineItem` function (which creates one-time prices) since Stripe Checkout handles the recurring billing separately via `subscription_data`.
+**Fix**: Wrap the timestamp value in double quotes to ensure PostgREST parses it correctly:
+```
+.or(`expires_at.gt."${new Date().toISOString()}",credits_remaining.gt.0`)
+```
 
-### Files Changed
+### Issue 2: Adding Credits When `credits_remaining` is 0
 
-- `supabase/functions/stripe-payment/index.ts` -- add helper, update ~12 subscription creation calls and ~4 checkout session calls
-- `supabase/functions/stripe-webhook/index.ts` -- update 1 subscription creation call (annual fee in checkout.session.completed handler)
+When a member has an existing credit row with `credits_remaining = 0` **and** the expiration is in the past, the old `.gt()` filter (before the previous fix) would not return it. The new `.or()` filter should return it since `credits_remaining.gt.0` catches any positive balance -- but a row with 0 remaining would be invisible. This means when the admin tries to "add" credits, the code looks for an existing credit record, doesn't find one, and tries to INSERT a new row. If there's already a row for that credit type (even expired with 0 remaining), the insert succeeds and creates a duplicate -- but the update path is skipped.
 
-### Impact on Existing Members
+This isn't a blocker per se, but could cause confusion. The real blocker is Issue 1.
 
-- **No impact** on existing subscriptions -- only new subscriptions going forward will include the processing fee item
-- Existing subscriptions without the fee will continue as-is unless manually updated in Stripe
+### Changes
+
+**File**: `src/pages/admin/MemberDetail.tsx`
+
+1. **Fix the `.or()` filter** (line 309): Quote the ISO timestamp value properly
+2. **Broaden the credit query** to include all credits for the member (remove the filter entirely and let the UI decide what to show), OR use a simpler filter approach that avoids special character issues
+
+### Technical Details
+
+The fix is a single-line change:
+
+```typescript
+// Before (line 309):
+.or(`expires_at.gt.${new Date().toISOString()},credits_remaining.gt.0`)
+
+// After:
+.or(`expires_at.gt."${new Date().toISOString()}",credits_remaining.gt.0`)
+```
+
+This ensures PostgREST correctly parses the timestamp value in the OR clause.
 
