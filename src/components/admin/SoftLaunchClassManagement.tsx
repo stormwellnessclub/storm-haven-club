@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Calendar, Clock, Users, Dumbbell, XCircle,
-  Eye, Loader2, ChevronLeft, ChevronRight,
+  Eye, Loader2, ChevronLeft, ChevronRight, RotateCcw,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -36,6 +36,7 @@ interface ScheduleSlot {
   enrolled: number;
   maxCapacity: number;
   isCancelled: boolean;
+  isHidden: boolean;
 }
 
 export function SoftLaunchClassManagement() {
@@ -90,8 +91,6 @@ export function SoftLaunchClassManagement() {
         const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
         return s.start_time === dbTime && typeName === entry.name;
       });
-      // If session is hidden, don't show in admin either (silent removal)
-      if (match?.is_hidden) return null;
       return {
         entry,
         dateStr,
@@ -99,9 +98,9 @@ export function SoftLaunchClassManagement() {
         enrolled: match?.current_enrollment || 0,
         maxCapacity: match?.max_capacity || 8,
         isCancelled: match?.is_cancelled || false,
+        isHidden: match?.is_hidden || false,
       };
-    })
-    .filter(Boolean) as ScheduleSlot[];
+    });
 
   // Helper to ensure session exists for cancellation
   const ensureSessionForSlot = async (slot: ScheduleSlot): Promise<string> => {
@@ -133,14 +132,12 @@ export function SoftLaunchClassManagement() {
       const sessionId = await ensureSessionForSlot(selectedSlot);
 
       if (cancelMode === "silent") {
-        // Silent removal: mark as cancelled AND hidden
         const { error } = await supabase
           .from('class_sessions')
           .update({ is_cancelled: true, is_hidden: true, cancellation_reason: cancellationReason || null })
           .eq('id', sessionId);
         if (error) throw error;
       } else {
-        // Visible cancellation: mark as cancelled, keep visible
         const { error } = await supabase
           .from('class_sessions')
           .update({ is_cancelled: true, is_hidden: false, cancellation_reason: cancellationReason || null })
@@ -158,6 +155,24 @@ export function SoftLaunchClassManagement() {
       toast.success(cancelMode === "silent" ? "Class removed from schedule" : "Class cancelled");
     },
     onError: () => toast.error("Failed to cancel class"),
+  });
+
+  // Restore a hidden/cancelled session
+  const restoreSessionMutation = useMutation({
+    mutationFn: async (slot: ScheduleSlot) => {
+      if (!slot.dbSessionId) throw new Error("No session to restore");
+      const { error } = await supabase
+        .from('class_sessions')
+        .update({ is_cancelled: false, is_hidden: false, cancellation_reason: null })
+        .eq('id', slot.dbSessionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['soft-launch-sessions', dateStr] });
+      queryClient.invalidateQueries({ queryKey: ['temp-schedule-enrollment'] });
+      toast.success("Class restored to schedule");
+    },
+    onError: () => toast.error("Failed to restore class"),
   });
 
   return (
@@ -188,16 +203,19 @@ export function SoftLaunchClassManagement() {
           {slots.map((slot, idx) => (
             <Card
               key={`${slot.dateStr}-${slot.entry.time}-${slot.entry.name}`}
-              className={`transition-colors hover:border-primary/50 ${slot.isCancelled ? 'opacity-60 border-destructive/30' : ''}`}
+              className={`transition-colors hover:border-primary/50 ${slot.isCancelled && !slot.isHidden ? 'opacity-60 border-destructive/30' : ''} ${slot.isHidden ? 'opacity-50 border-muted' : ''}`}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className={`text-base ${slot.isCancelled ? 'line-through' : ''}`}>{slot.entry.name}</CardTitle>
+                    <CardTitle className={`text-base ${slot.isCancelled || slot.isHidden ? 'line-through' : ''}`}>{slot.entry.name}</CardTitle>
                     <CardDescription>Duha · Reformer Studio</CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
-                    {slot.isCancelled && (
+                    {slot.isHidden && (
+                      <Badge variant="outline" className="text-xs">Removed</Badge>
+                    )}
+                    {slot.isCancelled && !slot.isHidden && (
                       <Badge variant="destructive" className="text-xs">Cancelled</Badge>
                     )}
                     <Badge variant="secondary">{slot.entry.time}</Badge>
@@ -215,7 +233,30 @@ export function SoftLaunchClassManagement() {
                   <Users className="h-3 w-3" />
                   {slot.enrolled}/{slot.maxCapacity} enrolled
                 </div>
-                {!slot.isCancelled && (
+                {(slot.isCancelled || slot.isHidden) ? (
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      size="sm"
+                      onClick={() => { setSelectedSlot(slot); setRosterDialogOpen(true); }}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View History
+                    </Button>
+                    {slot.dbSessionId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => restoreSessionMutation.mutate(slot)}
+                        disabled={restoreSessionMutation.isPending}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Restore
+                      </Button>
+                    )}
+                  </div>
+                ) : (
                   <div className="flex gap-2 pt-2">
                     <Button
                       variant="outline"
@@ -251,7 +292,7 @@ export function SoftLaunchClassManagement() {
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <TempClassSchedule readOnly />
+          <TempClassSchedule readOnly showHistory />
         </CollapsibleContent>
       </Collapsible>
 
