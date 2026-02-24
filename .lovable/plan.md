@@ -1,50 +1,56 @@
 
 
-## Fix: Track Class Pass Purchases from Stripe Payment Links
+## Require Accounts for All Purchases — Unified Customer Tracking
 
-### The Problem
+### What's Happening Now
 
-When someone like Yasmin Dabaja buys a class pass through a **Stripe Payment Link** (shared via text, email, or social media), the purchase completes successfully in Stripe -- but **nothing gets recorded in your system**. This is because:
+Your **in-app purchase pages** (Class Passes, Guest Pass) already require an account before checkout — that part is working correctly. The problem is **Stripe Payment Links** — the links you share via text, Instagram, email, etc. When someone clicks those and pays through Stripe directly, they never create an account in your system, so:
 
-1. Your app's checkout flow embeds metadata (user ID, pass type, category) into every Stripe session
-2. Your webhook handler **relies on that metadata** to know what was purchased and who bought it
-3. Stripe Payment Links don't carry your custom metadata, so the webhook sees "Unknown checkout type" and skips it entirely
+- You can't see what they bought in your admin tools
+- They have no waiver on file
+- They can't track their own passes or bookings
+- You can't contact them through the system
 
-This means: money comes in, but no class pass gets created, and you can't see the purchase in your admin tools.
+### The Fix
 
-### The Solution
+Instead of trying to block Stripe Payment Links (which are useful for marketing), we'll close the loop from both sides:
 
-Add a **fallback handler** in the webhook that catches checkout sessions **without metadata** (or with unrecognized types). When this happens, the system will:
+**1. Auto-create accounts for Payment Link buyers (backend)**
+When someone buys through a Payment Link and has no account, the webhook will automatically create a `non_member_profiles` record using their Stripe email. This means every buyer — regardless of how they paid — shows up in your Non-Member Accounts admin page.
 
-1. Look at the **price ID** from the Stripe line items to identify what was purchased (class pass type, guest pass, etc.)
-2. Look up the buyer by their **Stripe customer email** in the `non_member_profiles` or `members` tables
-3. If a matching user is found, create the class pass record automatically
-4. If no user is found, create a **pending purchase record** so you can see the transaction in admin and manually link it later
+**2. Send a "Complete Your Account" email after purchase (backend)**
+After creating their profile, the system sends a branded email inviting them to set a password and finish their profile. This gets them into the portal where they can sign waivers, see their passes, and book classes.
+
+**3. Add a "People" search across all account types (admin)**
+Add a unified search in your admin panel that queries both `members` and `non_member_profiles` so you can find anyone who has ever purchased a service — whether they're a member, non-member, or guest pass buyer.
 
 ### Technical Details
 
 **File: `supabase/functions/stripe-webhook/index.ts`**
+- In the Payment Link fallback handler (the code we just added), when no matching user is found by email:
+  - Use `supabase.auth.admin.createUser()` with the Stripe customer email to create an auth account (with a random password and `email_confirm: true`)
+  - Insert a `non_member_profiles` record linked to the new user
+  - Create the `class_passes` or credit record linked to this new user
+  - Trigger a `payment_link_welcome` email via the `send-email` edge function with a password reset link so they can set their own password
 
-Update the `else` block at line 999 (currently just logging "Unknown checkout type") to:
+**File: `supabase/functions/send-email/index.ts`**
+- Add a `payment_link_welcome` email template that includes:
+  - Confirmation of what they purchased
+  - A "Set Your Password" button linking to the password reset flow
+  - Brief explanation of the portal benefits (track passes, sign waivers, book classes)
 
-1. Retrieve the session's line items from Stripe using `stripe.checkout.sessions.listLineItems(session.id)`
-2. Match the price IDs against the known `STRIPE_PRODUCTS` map to determine what was purchased
-3. Look up the customer email from `session.customer_details?.email` or by retrieving the Stripe customer
-4. Search for a matching user in `members` (by email) or `non_member_profiles` (by email)
-5. If a class pass price is identified:
-   - Create a `class_passes` record with the matched user_id (or null if no match)
-   - Log the purchase for admin visibility
-6. If no price match is found, log the full session details for manual review
+**File: `src/pages/admin/Members.tsx` or new unified search**
+- Add a search component that queries both `members` and `non_member_profiles` tables
+- Display results with a badge indicating account type (Member / Non-Member / Guest)
+- Link to the appropriate detail view
 
-**New helper**: Add a `reverseMapPriceId()` function that maps a Stripe price ID back to a category and pass type using the existing `STRIPE_PRODUCTS` constant already defined in the webhook file.
+**Database: No schema changes needed**
+- `non_member_profiles` already has all the fields needed (email, name, stripe_customer_id, waiver_signed)
+- `class_passes` already supports `user_id` linking
 
-**File: `supabase/functions/stripe-payment/index.ts`**
+### What This Achieves
 
-No changes needed -- the existing `admin_import_stripe_class_passes` action already handles manual reconciliation for historical purchases.
-
-### What This Fixes
-
-- Purchases via Stripe Payment Links will automatically create class pass records
-- The buyer will be matched to their account by email when possible
-- Unmatched purchases will still be logged so nothing falls through the cracks
-- No changes to the existing in-app purchase flow (which already works correctly)
+- Every person who pays you — through the app or a Payment Link — gets an account automatically
+- You can find and manage all customers from one place in admin
+- Buyers get an email to finish setting up their account, sign waivers, and use the portal
+- No changes to your existing in-app checkout flows (they already work correctly)
