@@ -147,7 +147,6 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
         .select("id, session_date, start_time, current_enrollment, max_capacity, is_cancelled, is_hidden, class_types!inner(name)")
         .gte("session_date", weekStartStr)
         .lte("session_date", weekEndStr)
-        .eq("is_hidden", false)
         .in("class_types.name", ["Signature Flow", "Reformer Flow", "Reformer Sculpt"]);
       if (error) throw error;
       return data || [];
@@ -156,14 +155,14 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
   });
 
   // Helper to find enrollment for a specific class slot
-  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean } {
+  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean } {
     const dbTime = parseTimeToDb(time);
     const match = liveEnrollment.find((s: any) => {
       const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
       return s.session_date === dateStr && s.start_time === dbTime && typeName === className;
     });
-    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled };
-    return { enrolled: 0, maxCapacity: 8, isCancelled: false };
+    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden };
+    return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false };
   }
 
   return (
@@ -218,7 +217,9 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                   <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
                 ) : (
                   day.classes.map((cls, i) => {
-                    const { enrolled, maxCapacity, isCancelled } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                    const { enrolled, maxCapacity, isCancelled, isHidden } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                    // For customer view: completely hide cancelled or hidden classes
+                    if (!showHistory && (isCancelled || isHidden)) return null;
                     if (isCancelled) {
                       return (
                         <Card key={i} className="opacity-60 border-destructive/30">
@@ -228,6 +229,19 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                               <span className="text-lg font-bold text-muted-foreground">{cls.time}</span>
                             </div>
                             <Badge variant="destructive" className="text-xs">Cancelled</Badge>
+                          </CardContent>
+                        </Card>
+                      );
+                    }
+                    if (isHidden) {
+                      return (
+                        <Card key={i} className="opacity-50 border-muted">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <h3 className="font-semibold text-muted-foreground line-through">{cls.name}</h3>
+                              <span className="text-lg font-bold text-muted-foreground">{cls.time}</span>
+                            </div>
+                            <Badge variant="outline" className="text-xs">Removed</Badge>
                           </CardContent>
                         </Card>
                       );
