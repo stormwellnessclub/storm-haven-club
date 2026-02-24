@@ -1,49 +1,39 @@
 
 
-## Fix: Concierge Sound Alert Not Playing
+## Fix: Admin Cannot Cancel Classes
 
-### Problem
+### Root Cause
 
-The 3-tone concierge chime is not audible even though:
-- Realtime is correctly enabled on `email_conversations` and `email_messages`
-- The realtime subscription fires and invalidates queries properly
-- The `playNotificationChime()` function is called
+When you try to cancel a class from the Soft Launch management page, it fails because of a **parameter name mismatch** in a database function call.
 
-The root cause is a **browser autoplay policy issue**: the Web Audio API `AudioContext` starts in a "suspended" state and can only be resumed after a direct user click. The current code has two flaws:
+The code in `SoftLaunchClassManagement.tsx` calls the function with parameter names starting with `p_` (e.g., `p_class_name`), but the database function expects names starting with `_` (e.g., `_class_name`). This means when a class has no bookings yet (no database record exists), the system can't create one to mark it as cancelled, and the operation fails with an error.
 
-1. **`ctx.resume()` is async but tones are scheduled immediately** -- the oscillators are created before the context actually resumes, so they play into a suspended context and produce no sound
-2. **The warm-up click listener fires once at module load** -- if the user clicks anywhere before navigating to the Check-In page, the listener is consumed but the AudioContext may still be suspended by the time a notification arrives
+Classes that already have bookings (and therefore already have a database record) may cancel successfully, but any class with 0 enrollments will fail.
 
 ### Fix
 
-**File: `src/components/admin/CheckInSupportPanel.tsx`**
+**File: `src/components/admin/SoftLaunchClassManagement.tsx`** (lines 114-124)
 
-1. **Make `playNotificationChime` async and await `ctx.resume()`** before scheduling tones:
-   ```
-   async function playNotificationChime() {
-     const ctx = getAudioContext();
-     if (!ctx) return;
-     if (ctx.state === "suspended") {
-       await ctx.resume();
-     }
-     // ... schedule tones using ctx.currentTime (now guaranteed to be live)
-   }
-   ```
+Change the RPC call parameter names from `p_` prefix to `_` prefix to match the database function signature:
 
-2. **Keep the warm-up listener persistent** -- instead of `{ once: true }`, re-attach on every click until the context is confirmed "running". This ensures that even if the first click happens before the component mounts, subsequent clicks will still warm up the context.
+```
+Before:
+  p_class_name  -> _class_name
+  p_session_date -> _session_date
+  p_start_time  -> _start_time
+  p_end_time    -> _end_time
+  p_max_capacity -> _max_capacity
+  p_room        -> (remove -- not a parameter of this function)
+```
 
-3. **Add a fallback warm-up inside the component** -- attach a click listener in the `useEffect` that calls `warmUpAudio()` on the Check-In page itself, so the admin's first click on that page guarantees the AudioContext is running before any notification arrives.
+This is a one-line fix in a single file. After this change, all class cancellations (both visible and silent) will work regardless of whether the class has existing bookings.
 
-4. **Add an explicit "Enable Sound" interaction** -- when the mute/unmute bell button is clicked, call `ctx.resume()` directly. This guarantees that the admin has performed a user gesture that unlocks audio. The current code already calls `warmUpAudio()` on bell click, but doesn't await the resume.
+### Summary
 
-### Summary of Changes
-
-| Change | Detail |
-|--------|--------|
-| `playNotificationChime` | Make async, await `ctx.resume()` before scheduling oscillators |
-| Warm-up listener | Keep re-attaching until `ctx.state === "running"` instead of `once: true` |
-| Component `useEffect` | Add document click listener on mount that calls `warmUpAudio()` |
-| Bell button click | Await `ctx.resume()` to guarantee audio is unlocked |
-
-Only one file changes: `src/components/admin/CheckInSupportPanel.tsx`
+| What | Detail |
+|------|--------|
+| File | `src/components/admin/SoftLaunchClassManagement.tsx` |
+| Lines | 114-124 |
+| Issue | Wrong parameter names in database function call |
+| Fix | Rename `p_*` parameters to `_*` to match the function signature |
 
