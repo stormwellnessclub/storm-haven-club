@@ -70,8 +70,7 @@ serve(async (req) => {
     const { data: members, error: membersError } = await supabase
       .from("members")
       .select("id, user_id, membership_type, membership_start_date, status")
-      .eq("status", "active")
-      .not("user_id", "is", null);
+      .eq("status", "active");
 
     if (membersError) {
       console.error("[process-monthly-credits] Error fetching members:", membersError);
@@ -127,7 +126,7 @@ serve(async (req) => {
       const { data: existingCredits } = await supabase
         .from("member_credits")
         .select("id, credit_type")
-        .eq("user_id", member.user_id)
+        .eq("member_id", member.id)
         .eq("cycle_start", cycleStartStr);
 
       const existingTypes = new Set(existingCredits?.map((c: any) => c.credit_type) || []);
@@ -136,7 +135,7 @@ serve(async (req) => {
 
       if (tierCredits.class > 0 && !existingTypes.has("class")) {
         creditsToCreate.push({
-          user_id: member.user_id,
+          user_id: member.user_id || null,
           member_id: member.id,
           credit_type: "class",
           credits_total: tierCredits.class,
@@ -149,7 +148,7 @@ serve(async (req) => {
 
       if (tierCredits.red_light > 0 && !existingTypes.has("red_light")) {
         creditsToCreate.push({
-          user_id: member.user_id,
+          user_id: member.user_id || null,
           member_id: member.id,
           credit_type: "red_light",
           credits_total: tierCredits.red_light,
@@ -162,7 +161,7 @@ serve(async (req) => {
 
       if (tierCredits.dry_cryo > 0 && !existingTypes.has("dry_cryo")) {
         creditsToCreate.push({
-          user_id: member.user_id,
+          user_id: member.user_id || null,
           member_id: member.id,
           credit_type: "dry_cryo",
           credits_total: tierCredits.dry_cryo,
