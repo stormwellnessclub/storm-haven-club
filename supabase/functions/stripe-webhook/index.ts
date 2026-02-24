@@ -1081,7 +1081,109 @@ serve(async (req) => {
                         matchedUserId = nonMemberMatch.user_id;
                         logStep("Fallback: matched to non-member profile", { id: nonMemberMatch.id, email: customerEmail });
                       } else {
-                        logStep("Fallback: no account found for email", { email: customerEmail });
+                        // AUTO-CREATE: No account found — create auth user + non_member_profile
+                        logStep("Fallback: no account found — auto-creating account", { email: customerEmail });
+                        try {
+                          // Generate a random password (user will reset via email)
+                          const randomPassword = crypto.randomUUID() + '!Aa1';
+                          
+                          const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
+                            email: customerEmail,
+                            password: randomPassword,
+                            email_confirm: true, // Skip email verification since they already paid
+                            user_metadata: { source: 'payment_link' },
+                          });
+
+                          if (createUserError) {
+                            // If user already exists, try to find them
+                            if (createUserError.message?.includes('already been registered') || createUserError.message?.includes('already exists')) {
+                              logStep("Fallback: user already exists in auth, looking up", { email: customerEmail });
+                              const { data: existingUsers } = await supabase.auth.admin.listUsers();
+                              const existingUser = existingUsers?.users?.find(
+                                (u: { email?: string }) => u.email?.toLowerCase() === customerEmail.toLowerCase()
+                              );
+                              if (existingUser) {
+                                matchedUserId = existingUser.id;
+                                logStep("Fallback: found existing auth user", { userId: existingUser.id });
+                                // Ensure non_member_profile exists
+                                await supabase.from('non_member_profiles').upsert({
+                                  user_id: existingUser.id,
+                                  email: customerEmail,
+                                  stripe_customer_id: session.customer as string || null,
+                                }, { onConflict: 'user_id' });
+                              }
+                            } else {
+                              logError(createUserError, "AUTO_CREATE_USER");
+                            }
+                          } else if (newUser?.user) {
+                            matchedUserId = newUser.user.id;
+                            logStep("Fallback: auth user created", { userId: newUser.user.id, email: customerEmail });
+
+                            // Extract name from Stripe customer if available
+                            let firstName: string | null = null;
+                            let lastName: string | null = null;
+                            const fullName = session.customer_details?.name;
+                            if (fullName) {
+                              const parts = fullName.trim().split(/\s+/);
+                              firstName = parts[0] || null;
+                              lastName = parts.slice(1).join(' ') || null;
+                            }
+
+                            // Create non_member_profile
+                            const { error: profileError } = await supabase
+                              .from('non_member_profiles')
+                              .insert({
+                                user_id: newUser.user.id,
+                                email: customerEmail,
+                                first_name: firstName,
+                                last_name: lastName,
+                                stripe_customer_id: session.customer as string || null,
+                              });
+
+                            if (profileError) {
+                              logError(profileError, "AUTO_CREATE_PROFILE");
+                            } else {
+                              logStep("Fallback: non_member_profile created", { userId: newUser.user.id });
+                            }
+
+                            // Also create a profiles record for auth consistency
+                            await supabase.from('profiles').upsert({
+                              user_id: newUser.user.id,
+                              email: customerEmail,
+                              full_name: fullName || customerEmail,
+                            }, { onConflict: 'user_id' });
+
+                            // Send welcome email with password reset link
+                            try {
+                              // Generate password reset link
+                              const { data: resetData } = await supabase.auth.admin.generateLink({
+                                type: 'recovery',
+                                email: customerEmail,
+                              });
+
+                              const resetUrl = resetData?.properties?.action_link || `${Deno.env.get('APP_BASE_URL') || 'https://stormwellnessclub.com'}/reset-password`;
+
+                              await supabase.functions.invoke('send-email', {
+                                body: {
+                                  type: 'payment_link_welcome',
+                                  to: customerEmail,
+                                  data: {
+                                    name: firstName || 'there',
+                                    productLabel: product.label,
+                                    resetUrl,
+                                  },
+                                },
+                              });
+                              logStep("Fallback: welcome email sent", { email: customerEmail });
+                            } catch (emailError) {
+                              logError(emailError, "AUTO_CREATE_WELCOME_EMAIL");
+                              // Don't fail webhook for email errors
+                            }
+                          }
+                        } catch (autoCreateError) {
+                          logError(autoCreateError, "AUTO_CREATE_ACCOUNT");
+                          // Don't fail webhook for auto-create errors
+                        }
                       }
                     }
                   }
@@ -1121,18 +1223,43 @@ serve(async (req) => {
                       });
                     }
                   } else if (product.productType === 'class_pass' && !matchedUserId) {
-                    logStep("Fallback: class pass purchased but no matching account — needs manual reconciliation", {
+                    logStep("Fallback: class pass purchased but could not create account — needs manual reconciliation", {
                       label: product.label,
                       email: customerEmail,
                       amount: session.amount_total,
                       sessionId: session.id,
                     });
                   } else if (product.productType === 'guest_pass') {
-                    logStep("Fallback: guest pass purchased via payment link — needs manual processing", {
-                      email: customerEmail,
-                      amount: session.amount_total,
-                      sessionId: session.id,
-                    });
+                    // For guest passes, still create the record if we have a user
+                    if (matchedUserId) {
+                      const now = new Date();
+                      const expiresAt = new Date(now);
+                      expiresAt.setDate(expiresAt.getDate() + 30); // 30 days to use guest pass
+
+                      const { error: gpError } = await supabase
+                        .from('guest_passes')
+                        .insert({
+                          user_id: matchedUserId,
+                          guest_name: session.customer_details?.name || customerEmail || 'Guest',
+                          guest_email: customerEmail,
+                          price_paid: (session.amount_total || 0) / 100,
+                          status: 'active',
+                          expires_at: expiresAt.toISOString(),
+                          valid_date: now.toISOString().split('T')[0],
+                        });
+
+                      if (gpError) {
+                        logError(gpError, "FALLBACK_GUEST_PASS_INSERT");
+                      } else {
+                        logStep("Fallback: guest pass created", { userId: matchedUserId, email: customerEmail });
+                      }
+                    } else {
+                      logStep("Fallback: guest pass purchased but no account — needs manual processing", {
+                        email: customerEmail,
+                        amount: session.amount_total,
+                        sessionId: session.id,
+                      });
+                    }
                   }
                 }
               }
