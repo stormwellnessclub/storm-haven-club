@@ -1,60 +1,75 @@
 
 
-## Fix: Grant Missing Gold Member Credits and Fix Provisioning Bug
+## Add Admin Check-In History Log
 
-### Immediate Fix — Grant Missing Credits
+### Problem
 
-Two Gold members are missing their wellness credits and need them added now:
+The admin check-in page (`/admin/check-in`) only shows **today's check-ins**. There is:
+1. **No way to view past check-in history** -- once the day is over, those records disappear from the admin view
+2. **No per-member check-in history** visible from the admin member detail sheet
+3. The existing `DailyCheckinsReport` in the Reports section shows aggregate counts but not individual records with names/times
 
-**Sara Ghamloush** — has zero credits (no auth account linked, so she was skipped entirely)
-- Add: 4 Red Light, 2 Dry Cryo, 1 Guest Pass for current cycle
+### Solution
 
-**Amal Hachem** — only has a guest pass, missing wellness credits
-- Add: 4 Red Light, 2 Dry Cryo for current cycle
+Two additions to give admins full visibility:
 
-This will be done via an admin-callable endpoint or direct database insert through a migration.
+---
 
-### Root Cause Fix — Update `process-monthly-credits` Edge Function
+### 1. New Admin Page: `/admin/check-in-history`
 
-**File: `supabase/functions/process-monthly-credits/index.ts`**
+A dedicated "Check-In History" page with:
 
-The monthly credit renewal function has two bugs that prevent credits from being created for certain members:
+- **Date range picker** (default: last 7 days) to browse any time period
+- **Search/filter** by member name, member ID, or membership type
+- **Full table** showing: Photo, Name, Member ID, Membership Type, Status, Check-In Time, Check-Out Time, Notes (including override notes)
+- **Clickable rows** that navigate to the member's detail page
+- **Export-friendly** layout (sortable columns)
+- **Summary stats** at the top: total check-ins, unique members, avg per day for selected range
 
-1. **Member query excludes members without auth accounts** (line ~74): The filter `.not("user_id", "is", null)` skips any member who was imported by admin but hasn't created a login yet. This should be removed — credits should be tied to `member_id`, not `user_id`.
+**Files to create:**
+- `src/pages/admin/CheckInHistory.tsx` -- new page component
 
-2. **Duplicate check uses `user_id` instead of `member_id`** (line ~130): The existing-credit lookup uses `.eq("user_id", member.user_id)` which fails when `user_id` is null. Change to `.eq("member_id", member.id)` for reliable deduplication.
+**Files to modify:**
+- `src/App.tsx` -- add route `/admin/check-in-history`
+- `src/components/admin/AdminSidebar.tsx` -- add "Check-In History" link under Quick Access (next to Check-In), with `ClipboardList` icon, accessible to `super_admin`, `admin`, `manager`, `front_desk`
 
-3. **Credit insert should allow null `user_id`**: When creating credits, use `member.user_id || null` so members without auth accounts still get their credits provisioned against their `member_id`.
+---
 
-### Database: Insert Missing Credits via Migration
+### 2. Check-In History Tab on Member Detail Sheet
 
-A small migration will insert the missing credit records for Sara and Amal:
+Add a "Visit History" tab inside `MemberDetailSheet.tsx` that shows:
 
+- The member's last 50 check-ins with dates, times, and notes
+- Total visit count and visits this month
+- Uses the existing `useCheckInHistory` hook (already supports passing a `memberId`)
+
+**Files to modify:**
+- `src/components/admin/MemberDetailSheet.tsx` -- add a new tab to the existing Tabs component showing that member's check-in records
+
+---
+
+### Technical Details
+
+**New page query pattern** (for `/admin/check-in-history`):
 ```sql
--- Sara Ghamloush (member_id: 7e5e3d7c-..., no user_id)
-INSERT INTO member_credits (member_id, user_id, credit_type, credits_total, credits_remaining, cycle_start, cycle_end, expires_at)
-VALUES 
-  ('7e5e3d7c-...', null, 'red_light', 4, 4, '2026-02-09', '2026-03-09', '2026-03-16T05:00:00+00'),
-  ('7e5e3d7c-...', null, 'dry_cryo', 2, 2, '2026-02-09', '2026-03-09', '2026-03-16T05:00:00+00'),
-  ('7e5e3d7c-...', null, 'guest_pass', 1, 1, '2026-02-14', '2026-02-28', '2026-03-01T04:59:59+00');
-
--- Amal Hachem (member_id: 750ccfaa-..., user_id: 25d71d58-...)
-INSERT INTO member_credits (member_id, user_id, credit_type, credits_total, credits_remaining, cycle_start, cycle_end, expires_at)
-VALUES 
-  ('750ccfaa-...', '25d71d58-...', 'red_light', 4, 4, '2026-02-09', '2026-03-09', '2026-03-16T05:00:00+00'),
-  ('750ccfaa-...', '25d71d58-...', 'dry_cryo', 2, 2, '2026-02-09', '2026-03-09', '2026-03-16T05:00:00+00');
+SELECT ci.*, m.first_name, m.last_name, m.member_id, m.membership_type, m.status, m.photo_url
+FROM check_ins ci
+JOIN members m ON ci.member_id = m.id
+WHERE ci.checked_in_at BETWEEN :start AND :end
+ORDER BY ci.checked_in_at DESC
+LIMIT 500
 ```
 
-### Summary of Changes
+No database changes needed -- the `check_ins` table already has all the data; it's just not exposed in the admin UI beyond today.
 
-| File | Change |
-|------|--------|
-| `supabase/functions/process-monthly-credits/index.ts` | Remove `user_id` not-null filter, switch duplicate check to `member_id`, allow null `user_id` in inserts |
-| Database migration | Insert 5 missing credit records for Sara Ghamloush and Amal Hachem |
+**Sidebar placement:** "Check-In History" will appear right below the existing "Check-In" item in Quick Access, using a `ClipboardList` icon.
 
-### What This Prevents Going Forward
+### Summary
 
-- Members imported by admin (without an auth account) will still receive their monthly credits automatically
-- The duplicate check will work reliably for all members regardless of auth status
-- No more "phantom missing credits" that require manual intervention
+| Change | File |
+|--------|------|
+| New page with date range, search, full table | `src/pages/admin/CheckInHistory.tsx` (new) |
+| Add route | `src/App.tsx` |
+| Add sidebar link | `src/components/admin/AdminSidebar.tsx` |
+| Add visit history tab to member detail | `src/components/admin/MemberDetailSheet.tsx` |
 
