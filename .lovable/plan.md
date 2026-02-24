@@ -1,107 +1,52 @@
 
 
-## Build a Proper Staff Portal with Smart Routing
+## Fix Hidden/Cancelled Classes and Past Day Visibility
 
-### The Problem Today
+### Problem
 
-When you invite a staff member and they sign up, here is what happens:
+There are three bugs in how hidden and cancelled classes interact with the schedule views:
 
-1. They click "Create Your Account" in the invite email, which takes them to `/auth?staff_invite=true`
-2. They create their account, the database trigger assigns their roles automatically
-3. The Auth page redirects them to `/member` (the default)
-4. `ProtectedMemberRoute` checks their membership status, finds none, and redirects them to `/portal` (the non-member class pass portal)
-5. They land in a portal designed for class pass customers -- not staff
+1. **Hidden classes still show as bookable to customers**: When you mark a class as "Remove from schedule" (silent cancel), the enrollment query correctly filters it out. But the hardcoded schedule still lists the class, and since no matching DB record is found, it defaults to showing it as a normal bookable class with 8 spots available. This is the opposite of what should happen.
 
-Staff members have no clear path to their admin workspace. They would need to manually navigate to `/admin` in the URL bar.
+2. **Admin loses history of hidden classes**: The admin management view also filters out hidden sessions, so once a class is silently removed, admins can no longer see it or its attendance data.
 
-### The Solution (Multi-Step)
+3. **Admin reference timetable hides past days**: The collapsible "Reference: Planned Timetable" in the admin view doesn't pass `showHistory={true}`, so admins can't navigate to past weeks.
 
-Build a proper post-login routing system that detects staff roles and sends them directly to the right place, plus a dedicated staff onboarding experience.
+### Solution
 
----
+#### 1. Fix the customer-facing enrollment query (TempClassSchedule.tsx)
 
-### Step 1: Smart Post-Login Routing
+- Remove the `is_hidden: false` filter from the enrollment query so we fetch ALL sessions (including hidden and cancelled ones)
+- In the rendering logic, skip classes where the DB record is either `is_hidden: true` OR `is_cancelled: true` -- customers should not see these at all
+- Update `getEnrollmentForSlot` to also return `isHidden` so the rendering can check both flags
 
-**Problem:** The Auth page always defaults to `/member` after login.
+This ensures that when you silently remove a class, it truly disappears from the customer view instead of reappearing as a default bookable class.
 
-**Fix:** After successful login, check if the user has staff roles. If they do, route them to their appropriate admin page instead of the member portal.
+#### 2. Fix the admin view to preserve history (SoftLaunchClassManagement.tsx)
 
-- In `Auth.tsx`, after login/signup, query `user_roles` for the logged-in user
-- If roles exist, redirect to the correct admin landing page using the existing `getDefaultAdminPage()` function (e.g., front desk goes to `/admin/check-in`, instructors go to `/admin/classes`, admins go to `/admin`)
-- If no roles exist, continue with the current member/portal flow
-- The staff invite email link will change from `/auth?staff_invite=true` to `/auth?staff_invite=true&redirect=/admin` so the intent is clear even before roles are checked
+- Remove the line that filters out hidden sessions (line 94: `if (match?.is_hidden) return null`)
+- Instead, show hidden sessions with a distinct visual indicator (e.g., "Removed" badge) so admins can see attendance and booking history
+- Add a "Restore" button for hidden sessions so admins can un-hide them if needed
 
-### Step 2: Update the Staff Invite Email
+#### 3. Pass showHistory to admin reference schedule (SoftLaunchClassManagement.tsx)
 
-**Problem:** The invite email sends staff to a generic auth page with no context about where they will end up.
-
-**Fix:** Update the `staff_invite` email template in the `send-email` edge function to:
-- Include the specific role(s) they are being assigned
-- Set the CTA link to `/auth?staff_invite=true&redirect=/admin`
-- Add a line like "Once your account is created, you will be taken directly to your staff dashboard"
-- Update the email footer to remove member-portal-specific links (use the receipt footer instead)
-
-### Step 3: Post-Signup Staff Welcome Screen
-
-**Problem:** After signing up, staff may need to sign the liability waiver (which currently shows a generic member-facing waiver screen) and have no orientation.
-
-**Fix:** Create a lightweight staff welcome/onboarding component:
-- After signup + role detection, show a brief "Welcome to the Team" screen instead of the generic waiver step
-- Display their assigned role(s) with descriptions of what they can access
-- Show a "Go to Your Dashboard" button that routes to their `getDefaultAdminPage()`
-- If a waiver is still required, integrate it into this flow but with staff-appropriate messaging
-
-### Step 4: Protect Staff from Member/Portal Routing Traps
-
-**Problem:** `ProtectedMemberRoute` and `ProtectedPortalRoute` can intercept staff members who navigate to `/member` and bounce them around.
-
-**Fix:**
-- In `ProtectedMemberRoute`: If the user has staff roles but no member record, redirect to `/admin` (their default admin page) instead of `/portal`
-- In `ProtectedPortalRoute`: Already allows staff through, but add awareness so staff with roles are subtly guided to `/admin` if they land on `/portal` by accident
-- This ensures that no matter how a staff member arrives, they always end up in the right place
-
-### Step 5: Staff Quick-Switch in Admin Sidebar
-
-**Problem:** Staff who are also members (e.g., an instructor who has a gym membership) have no easy way to switch between their admin view and member view.
-
-**Fix:**
-- Add a "Member Portal" link in the admin sidebar footer (only visible if the staff member also has an active membership)
-- This is already partially there with "Back to Website" -- add a conditional "My Membership" link next to it
-
----
+- Change line 254 from `<TempClassSchedule readOnly />` to `<TempClassSchedule readOnly showHistory />`
+- This lets admins navigate to past weeks in the reference timetable
 
 ### Technical Details
 
-#### Files to Create
-- `src/components/staff/StaffWelcome.tsx` -- Post-signup welcome screen for new staff
+**File: `src/components/booking/TempClassSchedule.tsx`**
 
-#### Files to Modify
-- `src/pages/Auth.tsx` -- Add post-login role detection and smart routing
-- `src/components/member/ProtectedMemberRoute.tsx` -- Add staff-role fallback routing to `/admin`
-- `src/components/admin/AdminSidebar.tsx` -- Add conditional "My Membership" link
-- `supabase/functions/send-email/index.ts` -- Update `staff_invite` template with better CTA link and messaging
+- Remove `.eq("is_hidden", false)` from the enrollment query (line 150) so hidden sessions are fetched
+- Add `isHidden` to the return type of `getEnrollmentForSlot`
+- In the class rendering loop (lines 220-253), add a check: if `isCancelled || isHidden`, skip rendering entirely for the customer view (when `!showHistory`)
+- For the admin/history view (`showHistory=true`), show cancelled/hidden classes with appropriate badges
 
-#### No Database Changes Required
-The existing `staff_invites` table, `user_roles` table, and `auto_assign_staff_roles_on_signup` trigger are all correctly set up. This is purely a frontend routing and UX improvement.
+**File: `src/components/admin/SoftLaunchClassManagement.tsx`**
 
-#### Routing Logic Summary
-
-```text
-User logs in
-  |
-  +-- Has staff roles?
-  |     |
-  |     +-- YES --> Staff Welcome (first login) or getDefaultAdminPage()
-  |     |             - super_admin/admin/manager --> /admin
-  |     |             - front_desk --> /admin/check-in
-  |     |             - spa_staff --> /admin/appointments
-  |     |             - class_instructor --> /admin/classes
-  |     |             - cafe_staff --> /admin/cafe
-  |     |             - childcare_staff --> /admin/childcare
-  |     |
-  |     +-- NO --> Has member record?
-  |                 |
-  |                 +-- YES --> /member
-  |                 +-- NO --> /portal (non-member class pass portal)
-```
+- Remove line 94 (`if (match?.is_hidden) return null`) so hidden sessions appear in the admin list
+- Add an `isHidden` flag to the `ScheduleSlot` interface
+- Show hidden sessions with a "Removed" badge and dimmed styling, with a "Restore" action button
+- Add a restore mutation that sets `is_cancelled: false, is_hidden: false` on the session
+- Change the reference schedule on line 254 to include `showHistory`: `<TempClassSchedule readOnly showHistory />`
 
