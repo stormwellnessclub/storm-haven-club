@@ -1,29 +1,63 @@
 
 
-## Fix: "Function does not exist" error when adding participants to class roster
+## Fix: Enrollment Count Mismatch + Convert Roster to Full-Page View
 
-### Root Cause
+### Problem 1: Enrollment Numbers Don't Match
 
-The `ClassRosterDialog.tsx` component calls the `find_or_create_temp_class_session` database function with **wrong parameter names**. It uses `p_` prefixed names (`p_class_name`, `p_session_date`, etc.) but the actual function expects `_` prefixed names (`_class_name`, `_session_date`, etc.).
+**Root cause**: The class cards on the management page display `current_enrollment` from the database (`class_sessions.current_enrollment`), but this counter frequently goes out of sync with the actual number of confirmed bookings. When you click into the roster, it counts the real bookings from `class_bookings` and silently corrects the number -- that's why you see one number on the card and a different number inside.
 
-This causes a "function does not exist" error because PostgreSQL matches functions by both name AND parameter names.
+The mismatch happens because multiple operations (adding, removing, cancelling bookings) each try to manually increment/decrement `current_enrollment`, and if any step fails or runs out of order, the counter drifts.
 
-### The Fix
+**Fix**: Instead of trusting `current_enrollment`, fetch the actual confirmed booking count for each session directly. This makes the card numbers always accurate.
 
-**File: `src/components/admin/ClassRosterDialog.tsx`** (lines 244-250)
+- **File to modify**: `src/components/admin/SoftLaunchClassManagement.tsx`
+- **Change**: After fetching `class_sessions`, run a second query to get the real count of confirmed/completed bookings per session from `class_bookings`, and use that count on the cards instead of `current_enrollment`.
 
-Change the `ensureSession` function's RPC call parameters from:
+---
 
-```text
-p_class_name  -->  _class_name
-p_session_date  -->  _session_date
-p_start_time  -->  _start_time
-p_end_time  -->  _end_time
-p_max_capacity  -->  _max_capacity
-p_room  -->  (remove, not a parameter of this function)
-```
+### Problem 2: Roster Opens as a Small Side Panel
 
-The function only accepts 5 parameters: `_class_name`, `_session_date`, `_start_time`, `_end_time`, `_max_capacity`. The extra `p_room` parameter also needs to be removed as it does not exist on the function.
+**Root cause**: The roster currently uses a `Sheet` component (a slide-out side panel capped at `sm:max-w-2xl`). Per the admin portal design principles, all management interfaces should use full-page views, not small dialogs or sheets.
 
-This is a one-line fix (updating the parameter object) in a single file.
+**Fix**: Convert the roster from a Sheet overlay to a full-page route at `/admin/class-roster/:sessionId`, following the same master-detail pattern used by Member Management and Staff Management.
+
+- **New file**: `src/pages/admin/ClassRoster.tsx` -- A full-page roster view with all existing functionality (roster table, waitlist, add-to-class panel) but laid out across the full screen width.
+- **Modify**: `src/components/admin/SoftLaunchClassManagement.tsx` -- Change the "View Roster" / "Manage" buttons to navigate to the new full-page route instead of opening a sheet.
+- **Modify**: `src/App.tsx` -- Register the new `/admin/class-roster/:sessionId` route.
+- **Modify**: `src/lib/permissions.ts` -- Add permission entry for the new route.
+
+The new full-page layout will include:
+- A back button to return to class management
+- The class name, date, and time in the page header
+- The roster table at full width with better spacing
+- The waitlist tab alongside the roster
+- The add-to-class panel as an expandable section (not crammed into a tiny sheet)
+
+---
+
+### Technical Details
+
+#### Enrollment Count Fix (SoftLaunchClassManagement.tsx)
+
+The current flow:
+1. Fetch `class_sessions` with `current_enrollment` (often stale)
+2. Display `slot.enrolled` on card
+
+The new flow:
+1. Fetch `class_sessions` as before
+2. For sessions that exist in DB, batch-query `class_bookings` to count confirmed/completed bookings per `session_id`
+3. Use the real count on the cards, and silently update `current_enrollment` if it differs
+
+#### Full-Page Roster (new ClassRoster.tsx page)
+
+- Uses `useParams()` to get the session ID from the URL
+- Fetches session details, bookings, and waitlist using the same queries from `ClassRosterDialog.tsx`
+- All mutation logic (check-in, remove, add, promote from waitlist) moves to the page
+- The existing `ClassRosterDialog.tsx` file can be kept for backward compatibility or removed
+
+#### Navigation Flow
+
+- Admin clicks "View Roster" on a class card
+- If no DB session exists yet, the system calls `ensureTempClassSession` to create it first, then navigates to `/admin/class-roster/{sessionId}`
+- The roster page has a "Back to Classes" button that returns to the management view
 
