@@ -69,6 +69,7 @@ import CafePOS from "./pages/admin/CafePOS";
 import Childcare from "./pages/admin/Childcare";
 import AdminClasses from "./pages/admin/Classes";
 import StaffRoles from "./pages/admin/StaffRoles";
+import StaffDetail from "./pages/admin/StaffDetail";
 import ClassTypes from "./pages/admin/ClassTypes";
 import ClassTypeDetail from "./pages/admin/ClassTypeDetail";
 import Instructors from "./pages/admin/Instructors";
@@ -187,6 +188,7 @@ const App = () => (
               <Route path="/admin/instructors" element={<ProtectedAdminRoute><Instructors /></ProtectedAdminRoute>} />
               <Route path="/admin/class-schedules" element={<ProtectedAdminRoute><ClassSchedules /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles" element={<ProtectedAdminRoute><StaffRoles /></ProtectedAdminRoute>} />
+              <Route path="/admin/staff-roles/:userId" element={<ProtectedAdminRoute><StaffDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
               <Route path="/admin/emails" element={<ProtectedAdminRoute><EmailManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/freeze-requests" element={<ProtectedAdminRoute><FreezeRequests /></ProtectedAdminRoute>} />

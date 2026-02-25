@@ -94,7 +94,7 @@ const servicesItems: MenuItem[] = [
 ];
 
 const systemItems: MenuItem[] = [
-  { title: "Staff Roles", url: "/admin/staff-roles", icon: Shield, requiredRoles: ['super_admin', 'admin'] },
+  { title: "Staff Management", url: "/admin/staff-roles", icon: Shield, requiredRoles: ['super_admin', 'admin'] },
   { title: "Equipment", url: "/admin/equipment", icon: Dumbbell, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Agreements", url: "/admin/agreements", icon: FileText, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Support", url: "/admin/emails", icon: MessageSquare, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
