@@ -242,12 +242,11 @@ export function ClassRosterDialog({
     const { data: sessionId, error } = await (supabase.rpc as any)(
       "find_or_create_temp_class_session",
       {
-        p_class_name: selectedSlot.entry.name,
-        p_session_date: selectedSlot.dateStr,
-        p_start_time: dbTime,
-        p_end_time: endTime,
-        p_max_capacity: 8,
-        p_room: "Reformer Studio",
+        _class_name: selectedSlot.entry.name,
+        _session_date: selectedSlot.dateStr,
+        _start_time: dbTime,
+        _end_time: endTime,
+        _max_capacity: 8,
       }
     );
     if (error) throw error;
