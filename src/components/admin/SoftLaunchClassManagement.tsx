@@ -27,6 +27,7 @@ import {
   getClassesForDate, parseTimeToDb,
   type ClassEntry,
 } from "@/lib/softLaunchSchedule";
+import { ensureTempClassSession } from "@/lib/ensureTempClassSession";
 
 // Represents a scheduled class slot from the hardcoded timetable, enriched with DB data
 interface ScheduleSlot {
@@ -105,24 +106,13 @@ export function SoftLaunchClassManagement() {
   // Helper to ensure session exists for cancellation
   const ensureSessionForSlot = async (slot: ScheduleSlot): Promise<string> => {
     if (slot.dbSessionId) return slot.dbSessionId;
-    const dbTime = parseTimeToDb(slot.entry.time);
-    const [h, m] = dbTime.split(":").map(Number);
-    const totalMin = h * 60 + m + 50;
-    const endTime = `${Math.floor(totalMin / 60).toString().padStart(2, "0")}:${(totalMin % 60).toString().padStart(2, "0")}:00`;
 
-    const { data: sessionId, error } = await (supabase.rpc as any)(
-      "find_or_create_temp_class_session",
-      {
-        _class_name: slot.entry.name,
-        _session_date: slot.dateStr,
-        _start_time: dbTime,
-        _end_time: endTime,
-        _max_capacity: 8,
-      }
-    );
-    if (error) throw error;
-    if (!sessionId) throw new Error("Failed to create session");
-    return sessionId;
+    return ensureTempClassSession({
+      className: slot.entry.name,
+      sessionDate: slot.dateStr,
+      startTimeLabel: slot.entry.time,
+      maxCapacity: 8,
+    });
   };
 
   // Cancel session mutation — supports visible and silent modes

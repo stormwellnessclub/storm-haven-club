@@ -18,8 +18,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { parseTimeToDb } from "@/lib/softLaunchSchedule";
 import type { ClassEntry } from "@/lib/softLaunchSchedule";
+import { ensureTempClassSession } from "@/lib/ensureTempClassSession";
 import { PersonSearch, type PersonResult } from "./roster/PersonSearch";
 import { PaymentMethodSelector, type PaymentOption } from "./roster/PaymentMethodSelector";
 import { SellClassPackage } from "./SellClassPackage";
@@ -234,24 +234,13 @@ export function ClassRosterDialog({
   // Helper to ensure session exists
   const ensureSession = async () => {
     if (!selectedSlot) throw new Error("No slot selected");
-    const dbTime = parseTimeToDb(selectedSlot.entry.time);
-    const [h, m] = dbTime.split(":").map(Number);
-    const totalMin = h * 60 + m + 50;
-    const endTime = `${Math.floor(totalMin / 60).toString().padStart(2, "0")}:${(totalMin % 60).toString().padStart(2, "0")}:00`;
 
-    const { data: sessionId, error } = await (supabase.rpc as any)(
-      "find_or_create_temp_class_session",
-      {
-        _class_name: selectedSlot.entry.name,
-        _session_date: selectedSlot.dateStr,
-        _start_time: dbTime,
-        _end_time: endTime,
-        _max_capacity: 8,
-      }
-    );
-    if (error) throw error;
-    if (!sessionId) throw new Error("Failed to create session");
-    return sessionId;
+    return ensureTempClassSession({
+      className: selectedSlot.entry.name,
+      sessionDate: selectedSlot.dateStr,
+      startTimeLabel: selectedSlot.entry.time,
+      maxCapacity: 8,
+    });
   };
 
   const invalidateAll = () => {
