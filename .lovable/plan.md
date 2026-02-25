@@ -1,63 +1,41 @@
 
 
-## Fix: Enrollment Count Mismatch + Convert Roster to Full-Page View
+## Fix: Credits Not Restored on Early Class Cancellation
 
-### Problem 1: Enrollment Numbers Don't Match
+### Root Cause
 
-**Root cause**: The class cards on the management page display `current_enrollment` from the database (`class_sessions.current_enrollment`), but this counter frequently goes out of sync with the actual number of confirmed bookings. When you click into the roster, it counts the real bookings from `class_bookings` and silently corrects the number -- that's why you see one number on the card and a different number inside.
+The cancellation code in `useCancelBooking` correctly attempts to restore credits/passes when a member cancels more than 24 hours before class. However, the database security policies (RLS) on `member_credits` and `class_passes` only grant UPDATE access to staff roles -- not to regular members. This means the credit restoration update is **silently rejected** by the database every time a member cancels.
 
-The mismatch happens because multiple operations (adding, removing, cancelling bookings) each try to manually increment/decrement `current_enrollment`, and if any step fails or runs out of order, the counter drifts.
+### Solution
 
-**Fix**: Instead of trusting `current_enrollment`, fetch the actual confirmed booking count for each session directly. This makes the card numbers always accurate.
+Create a new database function `cancel_class_booking` that runs with elevated privileges (SECURITY DEFINER), handling the entire cancellation atomically:
+1. Verify the booking belongs to the calling user
+2. Check the 24-hour cancellation policy
+3. Cancel the booking
+4. Restore credits/pass if within the free cancellation window
+5. Return the result (including whether credit was forfeited)
 
-- **File to modify**: `src/components/admin/SoftLaunchClassManagement.tsx`
-- **Change**: After fetching `class_sessions`, run a second query to get the real count of confirmed/completed bookings per session from `class_bookings`, and use that count on the cards instead of `current_enrollment`.
+Then update `useCancelBooking` in the frontend to call this single RPC instead of doing multiple separate queries that get blocked by RLS.
 
----
+### Changes
 
-### Problem 2: Roster Opens as a Small Side Panel
+**1. Database Migration -- New `cancel_class_booking` RPC**
 
-**Root cause**: The roster currently uses a `Sheet` component (a slide-out side panel capped at `sm:max-w-2xl`). Per the admin portal design principles, all management interfaces should use full-page views, not small dialogs or sheets.
+A SECURITY DEFINER function that:
+- Takes a booking ID
+- Validates the booking belongs to `auth.uid()`
+- Calculates whether it's a late cancellation (less than 24 hours)
+- Updates booking status to `cancelled`
+- If early cancellation: restores `member_credits.credits_remaining` or `class_passes.classes_remaining`
+- Returns a JSON object with success status, whether credit was forfeited, and session details for the email
 
-**Fix**: Convert the roster from a Sheet overlay to a full-page route at `/admin/class-roster/:sessionId`, following the same master-detail pattern used by Member Management and Staff Management.
+**2. Update `src/hooks/useBooking.ts` -- `useCancelBooking` function**
 
-- **New file**: `src/pages/admin/ClassRoster.tsx` -- A full-page roster view with all existing functionality (roster table, waitlist, add-to-class panel) but laid out across the full screen width.
-- **Modify**: `src/components/admin/SoftLaunchClassManagement.tsx` -- Change the "View Roster" / "Manage" buttons to navigate to the new full-page route instead of opening a sheet.
-- **Modify**: `src/App.tsx` -- Register the new `/admin/class-roster/:sessionId` route.
-- **Modify**: `src/lib/permissions.ts` -- Add permission entry for the new route.
+Replace the current multi-step approach (select booking, update booking, update credits separately) with a single `supabase.rpc('cancel_class_booking', { _booking_id: bookingId })` call. The email sending and waitlist notification logic stays in the frontend as secondary actions.
 
-The new full-page layout will include:
-- A back button to return to class management
-- The class name, date, and time in the page header
-- The roster table at full width with better spacing
-- The waitlist tab alongside the roster
-- The add-to-class panel as an expandable section (not crammed into a tiny sheet)
+### Why This Approach
 
----
-
-### Technical Details
-
-#### Enrollment Count Fix (SoftLaunchClassManagement.tsx)
-
-The current flow:
-1. Fetch `class_sessions` with `current_enrollment` (often stale)
-2. Display `slot.enrolled` on card
-
-The new flow:
-1. Fetch `class_sessions` as before
-2. For sessions that exist in DB, batch-query `class_bookings` to count confirmed/completed bookings per `session_id`
-3. Use the real count on the cards, and silently update `current_enrollment` if it differs
-
-#### Full-Page Roster (new ClassRoster.tsx page)
-
-- Uses `useParams()` to get the session ID from the URL
-- Fetches session details, bookings, and waitlist using the same queries from `ClassRosterDialog.tsx`
-- All mutation logic (check-in, remove, add, promote from waitlist) moves to the page
-- The existing `ClassRosterDialog.tsx` file can be kept for backward compatibility or removed
-
-#### Navigation Flow
-
-- Admin clicks "View Roster" on a class card
-- If no DB session exists yet, the system calls `ensureTempClassSession` to create it first, then navigates to `/admin/class-roster/{sessionId}`
-- The roster page has a "Back to Classes" button that returns to the management view
+- Atomic: Credit restoration and booking cancellation happen in the same database transaction, so they can't get out of sync
+- Secure: The RPC validates ownership internally, so we don't need to open up UPDATE policies on credit tables to all users
+- Reliable: No more silent RLS failures
 
