@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addDays, subDays, isBefore, isAfter } from "date-fns";
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TempClassSchedule } from "@/components/booking/TempClassSchedule";
-import { ClassRosterDialog } from "@/components/admin/ClassRosterDialog";
 import {
   SOFT_LAUNCH_START, SOFT_LAUNCH_END,
   getClassesForDate, parseTimeToDb,
@@ -42,11 +42,11 @@ interface ScheduleSlot {
 
 export function SoftLaunchClassManagement() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     const start = isBefore(today, SOFT_LAUNCH_START) ? SOFT_LAUNCH_START : isAfter(today, SOFT_LAUNCH_END) ? SOFT_LAUNCH_END : today;
     if (getClassesForDate(start).length > 0) return start;
-    // Search forward then backward for nearest date with classes
     for (let i = 1; i <= 30; i++) {
       const fwd = addDays(start, i);
       if (!isAfter(fwd, SOFT_LAUNCH_END) && getClassesForDate(fwd).length > 0) return fwd;
@@ -56,11 +56,11 @@ export function SoftLaunchClassManagement() {
     return start;
   });
   const [selectedSlot, setSelectedSlot] = useState<ScheduleSlot | null>(null);
-  const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
   const [cancelMode, setCancelMode] = useState<"visible" | "silent">("visible");
   const [refScheduleOpen, setRefScheduleOpen] = useState(false);
+  const [navigatingSlot, setNavigatingSlot] = useState<string | null>(null);
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
@@ -84,7 +84,28 @@ export function SoftLaunchClassManagement() {
     },
   });
 
-  // Merge hardcoded schedule with DB data
+  // Fetch REAL booking counts from class_bookings instead of trusting current_enrollment
+  const sessionIds = dbSessions.map((s: any) => s.id).filter(Boolean);
+  const { data: bookingCounts = {} } = useQuery({
+    queryKey: ['soft-launch-booking-counts', dateStr, sessionIds.join(',')],
+    queryFn: async () => {
+      if (sessionIds.length === 0) return {};
+      const { data, error } = await supabase
+        .from('class_bookings')
+        .select('session_id')
+        .in('session_id', sessionIds)
+        .in('status', ['confirmed', 'completed']);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      for (const row of data || []) {
+        counts[row.session_id] = (counts[row.session_id] || 0) + 1;
+      }
+      return counts;
+    },
+    enabled: sessionIds.length > 0,
+  });
+
+  // Merge hardcoded schedule with DB data, using REAL booking counts
   const slots: ScheduleSlot[] = hardcodedClasses
     .map((entry) => {
       const dbTime = parseTimeToDb(entry.time);
@@ -92,11 +113,12 @@ export function SoftLaunchClassManagement() {
         const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
         return s.start_time === dbTime && typeName === entry.name;
       });
+      const realCount = match ? (bookingCounts as Record<string, number>)[match.id] || 0 : 0;
       return {
         entry,
         dateStr,
         dbSessionId: match?.id || null,
-        enrolled: match?.current_enrollment || 0,
+        enrolled: realCount,
         maxCapacity: match?.max_capacity || 8,
         isCancelled: match?.is_cancelled || false,
         isHidden: match?.is_hidden || false,
@@ -229,9 +251,18 @@ export function SoftLaunchClassManagement() {
                       variant="outline"
                       className="flex-1"
                       size="sm"
-                      onClick={() => { setSelectedSlot(slot); setRosterDialogOpen(true); }}
+                      disabled={navigatingSlot === `${slot.dateStr}-${slot.entry.time}-${slot.entry.name}`}
+                      onClick={async () => {
+                        const key = `${slot.dateStr}-${slot.entry.time}-${slot.entry.name}`;
+                        setNavigatingSlot(key);
+                        try {
+                          const sid = await ensureSessionForSlot(slot);
+                          navigate(`/admin/class-roster/${sid}`);
+                        } catch { toast.error("Failed to open roster"); }
+                        finally { setNavigatingSlot(null); }
+                      }}
                     >
-                      <Eye className="h-4 w-4 mr-1" />
+                      {navigatingSlot === `${slot.dateStr}-${slot.entry.time}-${slot.entry.name}` ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
                       View History
                     </Button>
                     {slot.dbSessionId && (
@@ -252,9 +283,18 @@ export function SoftLaunchClassManagement() {
                       variant="outline"
                       className="flex-1"
                       size="sm"
-                      onClick={() => { setSelectedSlot(slot); setRosterDialogOpen(true); }}
+                      disabled={navigatingSlot === `${slot.dateStr}-${slot.entry.time}-${slot.entry.name}`}
+                      onClick={async () => {
+                        const key = `${slot.dateStr}-${slot.entry.time}-${slot.entry.name}`;
+                        setNavigatingSlot(key);
+                        try {
+                          const sid = await ensureSessionForSlot(slot);
+                          navigate(`/admin/class-roster/${sid}`);
+                        } catch { toast.error("Failed to open roster"); }
+                        finally { setNavigatingSlot(null); }
+                      }}
                     >
-                      <Eye className="h-4 w-4 mr-1" />
+                      {navigatingSlot === `${slot.dateStr}-${slot.entry.time}-${slot.entry.name}` ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
                       {slot.enrolled > 0 ? 'View Roster' : 'Manage'}
                     </Button>
                     <Button
@@ -286,14 +326,8 @@ export function SoftLaunchClassManagement() {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Roster Dialog */}
-      <ClassRosterDialog
-        open={rosterDialogOpen}
-        onOpenChange={setRosterDialogOpen}
-        selectedSlot={selectedSlot}
-        selectedDate={selectedDate}
-        dateStr={dateStr}
-      />
+
+
 
       {/* Cancel Dialog */}
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
