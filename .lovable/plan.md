@@ -1,52 +1,124 @@
 
 
-## Fix Hidden/Cancelled Classes and Past Day Visibility
+## Comprehensive Staff Management Portal for Super Admins
 
-### Problem
+### What Exists Today
 
-There are three bugs in how hidden and cancelled classes interact with the schedule views:
+The current "Staff Roles" page (`/admin/staff-roles`) is very basic:
+- A grid of cards showing staff name, email, and role badges
+- A small dialog to toggle roles on/off
+- An invite dialog to send activation emails
+- No way to view a staff member's profile in detail
+- No way to delete/deactivate a staff member
+- No activity tracking or audit trail
+- No visibility into what actions a staff member has performed
 
-1. **Hidden classes still show as bookable to customers**: When you mark a class as "Remove from schedule" (silent cancel), the enrollment query correctly filters it out. But the hardcoded schedule still lists the class, and since no matching DB record is found, it defaults to showing it as a normal bookable class with 8 spots available. This is the opposite of what should happen.
+### What We Will Build
 
-2. **Admin loses history of hidden classes**: The admin management view also filters out hidden sessions, so once a class is silently removed, admins can no longer see it or its attendance data.
+A full **Staff Management** system following the same master-detail pattern used for Members and Non-Member Accounts. This will be built in phases:
 
-3. **Admin reference timetable hides past days**: The collapsible "Reference: Planned Timetable" in the admin view doesn't pass `showHistory={true}`, so admins can't navigate to past weeks.
+---
 
-### Solution
+### Phase 1: Staff Detail Page (Master-Detail View)
 
-#### 1. Fix the customer-facing enrollment query (TempClassSchedule.tsx)
+**New page: `/admin/staff-roles/:userId`**
 
-- Remove the `is_hidden: false` filter from the enrollment query so we fetch ALL sessions (including hidden and cancelled ones)
-- In the rendering logic, skip classes where the DB record is either `is_hidden: true` OR `is_cancelled: true` -- customers should not see these at all
-- Update `getEnrollmentForSlot` to also return `isHidden` so the rendering can check both flags
+A full-page staff profile with multiple sections:
 
-This ensures that when you silently remove a class, it truly disappears from the customer view instead of reappearing as a default bookable class.
+**Header Section:**
+- Staff name, email, phone (from profiles table)
+- Status indicator (Active / Deactivated)
+- Role badges
+- "Edit Profile", "Deactivate", and "Delete" action buttons
 
-#### 2. Fix the admin view to preserve history (SoftLaunchClassManagement.tsx)
+**Profile Information Card:**
+- First name, last name, email, phone -- editable inline
+- Date added (from `user_roles.assigned_at`)
+- Invited by (from `staff_invites.invited_by`)
+- Account created date (from `profiles.created_at`)
 
-- Remove the line that filters out hidden sessions (line 94: `if (match?.is_hidden) return null`)
-- Instead, show hidden sessions with a distinct visual indicator (e.g., "Removed" badge) so admins can see attendance and booking history
-- Add a "Restore" button for hidden sessions so admins can un-hide them if needed
+**Roles Management Card:**
+- All roles listed with checkboxes (same as current dialog but inline on the page)
+- Save button to update roles
+- Shows who assigned each role and when (`user_roles.assigned_by`, `assigned_at`)
 
-#### 3. Pass showHistory to admin reference schedule (SoftLaunchClassManagement.tsx)
+**Activity Log Card (read-only tracking):**
+- **Check-ins performed**: From `check_ins.checked_in_by` matching this staff user_id
+- **Scans performed**: From `scanner_access_logs.scanned_by` matching this user_id
+- **Spa appointments managed**: From `spa_appointments.staff_id`
+- **Guest passes sold**: From `guest_passes.sold_by`
+- **Guest passes checked in**: From `guest_passes.checked_in_by`
+- Displayed as a chronological feed with date/time and action type
+- Filterable by date range and action type
 
-- Change line 254 from `<TempClassSchedule readOnly />` to `<TempClassSchedule readOnly showHistory />`
-- This lets admins navigate to past weeks in the reference timetable
+**Invite History Card:**
+- Shows the original invite record from `staff_invites` (when invited, by whom, which roles were pre-assigned, status)
+
+---
+
+### Phase 2: Enhanced Staff List Page
+
+**Upgrade `/admin/staff-roles` from cards to a table view:**
+
+- Table columns: Name, Email, Roles, Status, Date Added, Last Active, Actions
+- Click any row to navigate to the detail page (`/admin/staff-roles/:userId`)
+- "Last Active" derived from the most recent entry in check_ins/scanner_access_logs by that user
+- Status column showing Active/Deactivated badge
+- Bulk actions are not needed initially
+
+---
+
+### Phase 3: Deactivate and Delete Staff
+
+**Deactivate (soft removal):**
+- Removes all roles from `user_roles` for that user
+- Staff can no longer access any admin pages
+- The profile and activity history remain for audit purposes
+- A "Reactivate" button appears on deactivated profiles to re-add roles
+
+**Delete (hard removal -- super_admin only):**
+- Confirmation dialog with the staff member's name typed to confirm
+- Deletes all `user_roles` records for the user
+- Deletes the `staff_invites` record
+- Does NOT delete the `profiles` record (the user account still exists, they just lose staff access)
+- Activity history in `check_ins`, `scanner_access_logs`, etc. is preserved (foreign keys remain as historical data)
+
+---
+
+### Phase 4: Database -- Staff Activity Tracking View
+
+Create a database view or query pattern to aggregate staff activity:
+
+- Count of check-ins performed (today, this week, this month, all time)
+- Count of scans performed
+- Count of guest passes sold/checked in
+- Last activity timestamp
+
+No new tables are needed -- all data already exists in `check_ins`, `scanner_access_logs`, `guest_passes`, and `spa_appointments`. We just need to query them by the staff user's ID.
+
+---
 
 ### Technical Details
 
-**File: `src/components/booking/TempClassSchedule.tsx`**
+#### Files to Create
+- `src/pages/admin/StaffDetail.tsx` -- Full-page staff profile with all sections described above
+- `src/components/admin/StaffActivityLog.tsx` -- Activity feed component querying check_ins, scanner_access_logs, guest_passes, spa_appointments by staff user_id
+- `src/components/admin/StaffProfileCard.tsx` -- Editable profile information card
+- `src/components/admin/StaffRolesCard.tsx` -- Inline roles management with assignment metadata
 
-- Remove `.eq("is_hidden", false)` from the enrollment query (line 150) so hidden sessions are fetched
-- Add `isHidden` to the return type of `getEnrollmentForSlot`
-- In the class rendering loop (lines 220-253), add a check: if `isCancelled || isHidden`, skip rendering entirely for the customer view (when `!showHistory`)
-- For the admin/history view (`showHistory=true`), show cancelled/hidden classes with appropriate badges
+#### Files to Modify
+- `src/pages/admin/StaffRoles.tsx` -- Convert from card grid to table view with clickable rows navigating to detail page
+- `src/lib/permissions.ts` -- Add route permission for `/admin/staff-roles/:userId`
+- `src/App.tsx` (or router config) -- Add route for `/admin/staff-roles/:userId`
+- `src/components/admin/AdminSidebar.tsx` -- Rename "Staff Roles" to "Staff Management" in the sidebar
 
-**File: `src/components/admin/SoftLaunchClassManagement.tsx`**
+#### Database Changes
+- No new tables needed
+- No schema migrations required
+- All activity data is already tracked in existing tables with staff user_id references (`checked_in_by`, `scanned_by`, `sold_by`, `checked_in_by`, `staff_id`)
 
-- Remove line 94 (`if (match?.is_hidden) return null`) so hidden sessions appear in the admin list
-- Add an `isHidden` flag to the `ScheduleSlot` interface
-- Show hidden sessions with a "Removed" badge and dimmed styling, with a "Restore" action button
-- Add a restore mutation that sets `is_cancelled: false, is_hidden: false` on the session
-- Change the reference schedule on line 254 to include `showHistory`: `<TempClassSchedule readOnly showHistory />`
+#### Security
+- Staff detail page restricted to `super_admin` and `admin` roles (same as current Staff Roles page)
+- Delete action restricted to `super_admin` only
+- All queries use existing RLS policies
 
