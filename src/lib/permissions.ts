@@ -47,6 +47,7 @@ export const PAGE_PERMISSIONS: Record<string, AppRole[]> = {
   '/admin/cafe': ['super_admin', 'admin', 'cafe_staff'],
   '/admin/childcare': ['super_admin', 'admin', 'childcare_staff'],
   '/admin/classes': ['super_admin', 'admin', 'class_instructor'],
+  '/admin/class-roster/:sessionId': ['super_admin', 'admin', 'manager', 'front_desk', 'class_instructor'],
   '/admin/class-types': ['super_admin', 'admin', 'manager'],
   '/admin/class-types/:id': ['super_admin', 'admin', 'manager'],
   '/admin/class-schedules': ['super_admin', 'admin', 'manager'],
