@@ -4552,6 +4552,14 @@ export type Database = {
       }
     }
     Functions: {
+      admin_cancel_class_session: {
+        Args: {
+          _cancellation_reason?: string
+          _is_hidden?: boolean
+          _session_id: string
+        }
+        Returns: Json
+      }
       admin_link_member_to_user: {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
