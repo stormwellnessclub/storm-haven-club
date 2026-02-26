@@ -137,34 +137,32 @@ export function SoftLaunchClassManagement() {
     });
   };
 
-  // Cancel session mutation — supports visible and silent modes
+  // Cancel session mutation — uses atomic RPC that also restores credits/passes
   const cancelSessionMutation = useMutation({
     mutationFn: async () => {
       if (!selectedSlot) return;
       const sessionId = await ensureSessionForSlot(selectedSlot);
 
-      if (cancelMode === "silent") {
-        const { error } = await supabase
-          .from('class_sessions')
-          .update({ is_cancelled: true, is_hidden: true, cancellation_reason: cancellationReason || null })
-          .eq('id', sessionId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('class_sessions')
-          .update({ is_cancelled: true, is_hidden: false, cancellation_reason: cancellationReason || null })
-          .eq('id', sessionId);
-        if (error) throw error;
-      }
+      const { data: result, error } = await (supabase.rpc as any)('admin_cancel_class_session', {
+        _session_id: sessionId,
+        _is_hidden: cancelMode === "silent",
+        _cancellation_reason: cancellationReason || null,
+      });
+      if (error) throw error;
+      if (!result?.success) throw new Error(result?.error || 'Failed to cancel class');
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['soft-launch-sessions', dateStr] });
+      queryClient.invalidateQueries({ queryKey: ['soft-launch-booking-counts'] });
       queryClient.invalidateQueries({ queryKey: ['temp-schedule-enrollment'] });
       setCancelDialogOpen(false);
       setCancellationReason("");
       setCancelMode("visible");
       setSelectedSlot(null);
-      toast.success(cancelMode === "silent" ? "Class removed from schedule" : "Class cancelled");
+      const refunded = result?.refunded_count || 0;
+      const suffix = refunded > 0 ? ` — ${refunded} ${refunded === 1 ? 'booking' : 'bookings'} refunded` : '';
+      toast.success((cancelMode === "silent" ? "Class removed from schedule" : "Class cancelled") + suffix);
     },
     onError: () => toast.error("Failed to cancel class"),
   });
