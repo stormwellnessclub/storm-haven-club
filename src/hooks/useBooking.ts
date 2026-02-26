@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, differenceInHours, addWeeks, parseISO, parse } from "date-fns";
+import { format, addWeeks, parseISO, parse } from "date-fns";
 
 export interface Booking {
   id: string;
@@ -367,128 +367,68 @@ export function useCancelBooking() {
         throw new Error("Your session has expired. Please sign in again.");
       }
 
-      // Get booking details with session info for email and refund
-      const { data: booking, error: bookingError } = await supabase
-        .from("class_bookings")
-        .select(`
-          *,
-          member_credit_id,
-          pass_id,
-          session:class_sessions(
-            *,
-            class_type:class_types(name),
-            instructor:instructors(first_name, last_name)
-          )
-        `)
-        .eq("id", bookingId)
-        .single();
+      // Use atomic RPC to cancel booking and restore credits in one transaction
+      const { data: result, error: rpcError } = await (supabase.rpc as any)("cancel_class_booking", {
+        _booking_id: bookingId,
+      });
 
-      if (bookingError) throw bookingError;
-
-      // Check 24-hour cancellation policy
-      const sessionDateTime = new Date(
-        `${booking.session.session_date}T${booking.session.start_time}`
-      );
-      const hoursUntilClass = differenceInHours(sessionDateTime, new Date());
-
-      let forfeitCredit = false;
-      if (hoursUntilClass < 24) {
-        forfeitCredit = true;
-      }
-
-      const { data, error } = await supabase
-        .from("class_bookings")
-        .update({
-          status: "cancelled",
-          cancelled_at: new Date().toISOString(),
-          cancellation_reason: forfeitCredit
-            ? "Late cancellation - credit forfeited"
-            : "Member cancelled",
-        })
-        .eq("id", bookingId)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Refund credit/pass if cancelled more than 24 hours in advance
-      if (!forfeitCredit) {
-        if (booking.member_credit_id) {
-          // Refund member credit
-          const { data: credit } = await supabase
-            .from("member_credits")
-            .select("credits_remaining, credits_total")
-            .eq("id", booking.member_credit_id)
-            .single();
-
-          if (credit) {
-            await supabase
-              .from("member_credits")
-              .update({ 
-                credits_remaining: Math.min(credit.credits_remaining + 1, credit.credits_total) 
-              })
-              .eq("id", booking.member_credit_id);
-          }
-        } else if (booking.pass_id) {
-          // Refund class pass
-          const { data: pass } = await supabase
-            .from("class_passes")
-            .select("classes_remaining, classes_total")
-            .eq("id", booking.pass_id)
-            .single();
-
-          if (pass) {
-            await supabase
-              .from("class_passes")
-              .update({ 
-                classes_remaining: Math.min(pass.classes_remaining + 1, pass.classes_total) 
-              })
-              .eq("id", booking.pass_id);
-          }
+      if (rpcError) {
+        if (rpcError.code === "42883" || rpcError.message?.includes("does not exist")) {
+          throw new Error("Cancellation system is temporarily unavailable. Please try again later.");
         }
+        throw rpcError;
       }
 
-      // Send cancellation confirmation email
+      const cancelResult = result as {
+        success: boolean;
+        error?: string;
+        forfeit_credit?: boolean;
+        session_id?: string;
+        session_date?: string;
+        start_time?: string;
+        room?: string;
+        class_name?: string;
+        instructor_name?: string;
+      };
+
+      if (!cancelResult?.success) {
+        throw new Error(cancelResult?.error || "Failed to cancel booking");
+      }
+
+      // Send cancellation confirmation email (secondary - don't block on failure)
       try {
         const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-        if (currentUser?.email && booking.session) {
-          const classType = Array.isArray(booking.session.class_type)
-            ? booking.session.class_type[0]
-            : booking.session.class_type;
-          const instructor = Array.isArray(booking.session.instructor)
-            ? booking.session.instructor[0]
-            : booking.session.instructor;
-
+        if (currentUser?.email && cancelResult.session_date) {
           await supabase.functions.invoke("send-email", {
             body: {
               type: "booking_cancellation",
               to: currentUser.email,
               data: {
-                class_name: classType?.name || "Class",
-                date: format(parseISO(booking.session.session_date), "EEEE, MMMM d, yyyy"),
-                time: format(parse(booking.session.start_time, "HH:mm:ss", new Date()), "h:mm a"),
-                credit_refunded: !forfeitCredit,
+                class_name: cancelResult.class_name || "Class",
+                date: format(parseISO(cancelResult.session_date), "EEEE, MMMM d, yyyy"),
+                time: format(parse(cancelResult.start_time || "00:00:00", "HH:mm:ss", new Date()), "h:mm a"),
+                credit_refunded: !cancelResult.forfeit_credit,
               },
             },
           });
         }
       } catch (emailError) {
         console.error("Failed to send cancellation email:", emailError);
-        // Don't throw - cancellation succeeded, email is secondary
       }
 
-      // Notify next person on waitlist if there is one
+      // Notify next person on waitlist
       try {
-        await supabase.functions.invoke("notify-waitlist", {
-          body: { session_id: booking.session.id },
-        });
+        if (cancelResult.session_id) {
+          await supabase.functions.invoke("notify-waitlist", {
+            body: { session_id: cancelResult.session_id },
+          });
+        }
       } catch (waitlistError) {
         console.error("Failed to notify waitlist:", waitlistError);
-        // Don't throw - cancellation succeeded, waitlist notification is secondary
       }
 
-      return { ...data, forfeitCredit };
+      return { forfeitCredit: cancelResult.forfeit_credit };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
