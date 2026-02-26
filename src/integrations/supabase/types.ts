@@ -4578,6 +4578,7 @@ export type Database = {
       }
       calculate_health_score: { Args: { _member_id: string }; Returns: number }
       calculate_member_ltv: { Args: { p_member_id: string }; Returns: number }
+      cancel_class_booking: { Args: { _booking_id: string }; Returns: Json }
       check_and_award_achievements: {
         Args: { _member_id: string }
         Returns: undefined
