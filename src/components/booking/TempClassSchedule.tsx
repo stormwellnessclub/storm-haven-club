@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays, Check, Loader2 } from "lucide-react";
 import { startOfWeek, addDays, addWeeks, format, isSameDay, isBefore, startOfDay } from "date-fns";
 import { useTempClassBooking } from "@/hooks/useTempClassBooking";
+import { useWaitlistStatus, useJoinWaitlist } from "@/hooks/useWaitlist";
 import {
   SOFT_LAUNCH_START, SOFT_LAUNCH_END,
   getClassesForDate, parseTimeToDb,
@@ -24,12 +25,16 @@ interface TempClassCardProps {
   isBooking: boolean;
   enrolled: number;
   maxCapacity: number;
+  isFull: boolean;
+  isOnWaitlist: boolean;
+  isJoiningWaitlist: boolean;
   onBook: () => void;
   onGetPass: () => void;
   onSignIn: () => void;
+  onJoinWaitlist: () => void;
 }
 
-function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, enrolled, maxCapacity, onBook, onGetPass, onSignIn }: TempClassCardProps) {
+function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, enrolled, maxCapacity, isFull, isOnWaitlist, isJoiningWaitlist, onBook, onGetPass, onSignIn, onJoinWaitlist }: TempClassCardProps) {
   const renderButton = () => {
     if (readOnly) return null;
 
@@ -38,6 +43,29 @@ function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooki
         <Button size="sm" className="w-full" disabled variant="secondary">
           <Check className="h-4 w-4 mr-1" />
           Booked
+        </Button>
+      );
+    }
+
+    if (isFull) {
+      if (!isLoggedIn) {
+        return (
+          <Button size="sm" className="w-full" variant="outline" onClick={onSignIn}>
+            Sign In to Join Waitlist
+          </Button>
+        );
+      }
+      if (isOnWaitlist) {
+        return (
+          <Button size="sm" className="w-full" disabled variant="secondary">
+            On Waitlist
+          </Button>
+        );
+      }
+      return (
+        <Button size="sm" className="w-full" variant="outline" onClick={onJoinWaitlist} disabled={isJoiningWaitlist}>
+          {isJoiningWaitlist ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+          {isJoiningWaitlist ? "Joining..." : "Join Waitlist"}
         </Button>
       );
     }
@@ -84,7 +112,12 @@ function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooki
           <div className="flex items-center gap-2"><Clock className="h-4 w-4" /><span>50 min</span></div>
           <div className="flex items-center gap-2"><User className="h-4 w-4" /><span>Duha</span></div>
           <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /><span>Reformer Studio</span></div>
-          <div className="flex items-center gap-2"><Users className="h-4 w-4" /><span>{maxCapacity - enrolled} of {maxCapacity} spots left</span></div>
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            <span className={isFull ? "text-destructive font-medium" : ""}>
+              {isFull ? "Class Full" : `${maxCapacity - enrolled} of ${maxCapacity} spots left`}
+            </span>
+          </div>
         </div>
         {renderButton()}
       </CardContent>
@@ -155,15 +188,20 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
   });
 
   // Helper to find enrollment for a specific class slot
-  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean } {
+  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null } {
     const dbTime = parseTimeToDb(time);
     const match = liveEnrollment.find((s: any) => {
       const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
       return s.session_date === dateStr && s.start_time === dbTime && typeName === className;
     });
-    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden };
-    return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false };
+    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden, sessionId: match.id };
+    return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false, sessionId: null };
   }
+
+  // Collect all session IDs for waitlist status check
+  const allSessionIds = liveEnrollment.map((s: any) => s.id).filter(Boolean);
+  const { data: waitlistMap = {} } = useWaitlistStatus(allSessionIds);
+  const joinWaitlistMutation = useJoinWaitlist();
 
   return (
     <div className="space-y-6">
@@ -217,7 +255,8 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                   <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
                 ) : (
                   day.classes.map((cls, i) => {
-                    const { enrolled, maxCapacity, isCancelled, isHidden } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                    const slotIsFull = enrolled >= maxCapacity;
                     // For customer view: completely hide cancelled or hidden classes
                     if (!showHistory && (isCancelled || isHidden)) return null;
                     if (isCancelled) {
@@ -258,9 +297,13 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                         isBooking={isBooking}
                         enrolled={enrolled}
                         maxCapacity={maxCapacity}
+                        isFull={slotIsFull}
+                        isOnWaitlist={sessionId ? !!waitlistMap[sessionId] : false}
+                        isJoiningWaitlist={joinWaitlistMutation.isPending}
                         onBook={() => bookClass({ className: cls.name, date: day.date, time: cls.time })}
                         onGetPass={() => navigate("/class-passes")}
                         onSignIn={() => navigate("/auth")}
+                        onJoinWaitlist={() => sessionId && joinWaitlistMutation.mutate({ sessionId })}
                       />
                     );
                   })
