@@ -8,11 +8,13 @@ import { format, parse } from "date-fns";
 interface ClassCardProps {
   session: ClassSession;
   onBook: (session: ClassSession) => void;
+  onJoinWaitlist?: (session: ClassSession) => void;
   isBooked?: boolean;
+  isOnWaitlist?: boolean;
   bookingDisabled?: boolean;
 }
 
-export function ClassCard({ session, onBook, isBooked = false, bookingDisabled = false }: ClassCardProps) {
+export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false }: ClassCardProps) {
   const spotsRemaining = session.max_capacity - session.current_enrollment;
   const isFull = spotsRemaining <= 0;
   const isLowSpots = spotsRemaining > 0 && spotsRemaining <= 3;
@@ -109,13 +111,13 @@ export function ClassCard({ session, onBook, isBooked = false, bookingDisabled =
           </div>
         ) : (
           <Button
-            onClick={() => onBook(session)}
-            disabled={isFull || isBooked}
-            variant={isBooked ? "secondary" : isFull ? "outline" : "default"}
+            onClick={() => isFull ? onJoinWaitlist?.(session) : onBook(session)}
+            disabled={isBooked || (isFull && (!onJoinWaitlist || isOnWaitlist))}
+            variant={isBooked ? "secondary" : isOnWaitlist ? "secondary" : isFull ? "outline" : "default"}
             className="w-full"
             size="sm"
           >
-            {isBooked ? "Booked" : isFull ? "Join Waitlist" : "Book Class"}
+            {isBooked ? "Booked" : isOnWaitlist ? "On Waitlist" : isFull ? "Join Waitlist" : "Book Class"}
           </Button>
         )}
       </CardContent>
