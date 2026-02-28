@@ -15,12 +15,11 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 
 const REWARDS = [
-  { type: "red_light_session", label: "Red Light Therapy Session", points: 300, icon: Zap },
-  { type: "dry_cryo_session", label: "Dry Cryo Session", points: 400, icon: Snowflake },
-  { type: "class_credit", label: "1 Class Credit", points: 250, icon: Dumbbell },
-  { type: "guest_pass", label: "1 Guest Pass", points: 200, icon: Ticket },
+  { type: "red_light_session", label: "Red Light Therapy Session", points: 1000, icon: Zap },
+  { type: "dry_cryo_session", label: "Dry Cryo Session", points: 500, icon: Snowflake },
+  { type: "class_credit", label: "1 Class Credit", points: 1000, icon: Dumbbell },
+  { type: "guest_pass", label: "1 Guest Pass", points: 500, icon: Ticket },
   { type: "cafe_credit", label: "Cafe Credit ($10)", points: 500, icon: Coffee },
-  { type: "spa_discount", label: "Spa Service Discount (20%)", points: 750, icon: Sparkles },
 ];
 
 const MILESTONES = [
