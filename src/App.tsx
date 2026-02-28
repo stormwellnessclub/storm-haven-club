@@ -30,6 +30,7 @@ import FitnessProfile from "@/pages/member/FitnessProfile";
 import MemberWellness from "@/pages/member/Wellness";
 import CheckInHistory from "@/pages/member/CheckInHistory";
 import MemberSchedule from "@/pages/member/Schedule";
+import MemberReferrals from "@/pages/member/Referrals";
 import Index from "./pages/Index";
 import Classes from "./pages/Classes";
 import Spa from "./pages/Spa";
@@ -154,6 +155,7 @@ const App = () => (
               <Route path="/member/wellness" element={<ProtectedMemberRoute><MemberWellness /></ProtectedMemberRoute>} />
               <Route path="/member/check-in-history" element={<ProtectedMemberRoute><CheckInHistory /></ProtectedMemberRoute>} />
               <Route path="/member/schedule" element={<ProtectedMemberRoute><MemberSchedule /></ProtectedMemberRoute>} />
+              <Route path="/member/referrals" element={<ProtectedMemberRoute><MemberReferrals /></ProtectedMemberRoute>} />
               
               {/* Portal Routes - Non-Member Class Portal */}
               <Route path="/portal" element={<ProtectedPortalRoute><PortalDashboard /></ProtectedPortalRoute>} />

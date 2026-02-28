@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
+  Users,
   User,
   CreditCard,
   IdCard,
@@ -65,6 +66,7 @@ const memberMenuItems: MenuItem[] = [
   { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
   { title: "Register Guest", url: "/member/credits", icon: Gift },
   { title: "Waivers", url: "/member/waivers", icon: FileCheck },
+  { title: "Refer a Friend", url: "/member/referrals", icon: Users },
 ];
 
 const wellnessMenuItems: MenuItem[] = [
