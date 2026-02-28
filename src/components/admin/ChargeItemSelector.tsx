@@ -138,6 +138,7 @@ export function ChargeItemSelector({
   const [proteinFlavor, setProteinFlavor] = useState("");
   const [customFlavor, setCustomFlavor] = useState("");
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [quantity, setQuantity] = useState(1);
 
   const isPendingActivation = member.status === "pending_activation";
 
@@ -217,6 +218,7 @@ export function ChargeItemSelector({
     setSelectedAddons([]);
     setProteinFlavor("");
     setCustomFlavor("");
+    setQuantity(1);
 
     const item = allChargeItems.find((i) => i.id === itemId);
     if (item) {
@@ -238,7 +240,8 @@ export function ChargeItemSelector({
   };
 
   const isCafeItem = chargeType === "cafe" && selectedCafeItem;
-  const effectiveAmount = isCafeItem ? getEffectiveAmount() : parseFloat(chargeAmount) || 0;
+  const unitAmount = isCafeItem ? getEffectiveAmount() : parseFloat(chargeAmount) || 0;
+  const effectiveAmount = unitAmount * quantity;
   const cafeTax = isCafeItem ? calculateTax(effectiveAmount) : 0;
   const totalWithTax = isCafeItem ? effectiveAmount + cafeTax : effectiveAmount;
 
@@ -286,6 +289,7 @@ export function ChargeItemSelector({
     }
 
     let desc = chargeDescription.trim();
+    if (quantity > 1) desc = `${quantity}x ${desc}`;
     if (isCafeItem) {
       const flavorStr = proteinFlavor === "other" ? customFlavor || "Custom" : proteinFlavor;
       if (flavorStr) desc += ` (${flavorStr})`;
@@ -365,6 +369,7 @@ export function ChargeItemSelector({
     setSelectedAddons([]);
     setProteinFlavor("");
     setCustomFlavor("");
+    setQuantity(1);
     onOpenChange(false);
   };
 
@@ -553,6 +558,35 @@ export function ChargeItemSelector({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Quantity selector */}
+          {selectedItemId && !showingForm && selectedItemId !== "custom" && (
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <Label className="text-sm font-medium">Quantity</Label>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  disabled={quantity <= 1}
+                >
+                  −
+                </Button>
+                <span className="w-8 text-center font-semibold">{quantity}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setQuantity((q) => q + 1)}
+                >
+                  +
+                </Button>
+              </div>
             </div>
           )}
 
