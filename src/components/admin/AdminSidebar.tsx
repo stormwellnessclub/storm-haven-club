@@ -21,6 +21,7 @@ import {
   Baby,
   Dumbbell,
   Shield,
+  ShieldX,
   UserCog,
   UserPlus,
   MessageSquare,
@@ -95,6 +96,7 @@ const servicesItems: MenuItem[] = [
 
 const systemItems: MenuItem[] = [
   { title: "Staff Management", url: "/admin/staff-roles", icon: Shield, requiredRoles: ['super_admin', 'admin'] },
+  { title: "Blocked Persons", url: "/admin/blocked", icon: ShieldX, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Equipment", url: "/admin/equipment", icon: Dumbbell, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Agreements", url: "/admin/agreements", icon: FileText, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Support", url: "/admin/emails", icon: MessageSquare, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },

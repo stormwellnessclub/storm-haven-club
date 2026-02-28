@@ -323,6 +323,61 @@ export type Database = {
           },
         ]
       }
+      blocked_persons: {
+        Row: {
+          blocked_at: string
+          blocked_by: string | null
+          email: string
+          full_name: string | null
+          id: string
+          member_id: string | null
+          notes: string | null
+          reason: string | null
+        }
+        Insert: {
+          blocked_at?: string
+          blocked_by?: string | null
+          email: string
+          full_name?: string | null
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          reason?: string | null
+        }
+        Update: {
+          blocked_at?: string
+          blocked_by?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocked_persons_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocked_persons_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocked_persons_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cafe_menu_addons: {
         Row: {
           category_id: string | null
@@ -4864,6 +4919,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_email_blocked: { Args: { p_email: string }; Returns: boolean }
       link_member_by_email: {
         Args: never
         Returns: {

@@ -54,6 +54,7 @@ export const PAGE_PERMISSIONS: Record<string, AppRole[]> = {
   '/admin/instructors': ['super_admin', 'admin', 'manager'],
   '/admin/settings': ['super_admin', 'admin'],
   '/admin/staff-roles': ['super_admin', 'admin'],
+  '/admin/blocked': ['super_admin', 'admin', 'manager'],
   '/admin/staff-roles/:userId': ['super_admin', 'admin'],
   '/admin/revenue-analytics': ['super_admin'],
   '/admin/reports': ['super_admin'],
