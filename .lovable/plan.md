@@ -1,66 +1,32 @@
 
+# Update Soft Launch Hours Banner for Saturday Feb 28
 
-## Fix: Overbooking Prevention and Waitlist Integration
+## What Changes
 
-### Problems Found
+Update the `SoftLaunchHoursBanner` component with tomorrow's special schedule:
 
-**1. Enrollment count mismatch (the "9 vs 8" issue)**
-The `current_enrollment` counter on several sessions is inflated -- showing higher numbers than the actual confirmed bookings. For example, one session shows `current_enrollment = 4` but only has 2 confirmed bookings. This means the displayed "spots left" count is wrong. The counter gets out of sync when bookings are cancelled (especially admin cancellations or the recent RPC changes).
+**Current Saturday hours:**
+- Saturday: 8:00 AM - 5:00 PM
+- Saturday: 8:00 PM - 11:30 PM (Pop-Up Event)
 
-**2. No full-class protection on the soft-launch schedule**
-The `TempClassCard` component has NO check for whether a class is full. It always shows "Book Class" regardless of enrollment. A member can click "Book" on a class at capacity. The only safety net is the database `create_atomic_class_booking` RPC which checks capacity -- but by then the UX is confusing.
+**New Saturday Feb 28 hours:**
+- Saturday: 10:00 AM - 7:00 PM
+- Saturday: 9:00 PM - Sell Out (Pop-Up Event)
+- Special note: "Members have access to gym and amenities from 7 PM to 10 PM tomorrow only -- courtesy extended hours"
 
-**3. "Join Waitlist" button is disabled/non-functional**
-In `ClassCard.tsx` (the regular schedule), when a class is full, it shows a "Join Waitlist" button but it's `disabled={isFull}`, so it literally can't be clicked. The `class_waitlist` table exists and the email notification system is built, but there's no UI flow to actually join the waitlist.
+## Implementation Details
 
-### Solution
+### File: `src/components/member/SoftLaunchHoursBanner.tsx`
 
-**Step 1: Fix enrollment counter sync (Database Migration)**
+1. Update the `softLaunchHours` array:
+   - Change Saturday regular hours from `8:00 AM - 5:00 PM` to `10:00 AM - 7:00 PM`
+   - Change Saturday pop-up hours from `8:00 PM - 11:30 PM` to `9:00 PM - Sell Out`
 
-Create a one-time data fix migration that recalculates `current_enrollment` for ALL sessions based on actual confirmed bookings. This corrects the existing drift.
+2. Add a courtesy note below the hours table with a distinct visual treatment (e.g., a small info callout) stating:
+   > "Members have access to gym and amenities from 7 PM – 10 PM tomorrow only — courtesy extended hours."
 
-```
-UPDATE class_sessions cs
-SET current_enrollment = (
-  SELECT COUNT(*) FROM class_bookings cb 
-  WHERE cb.session_id = cs.id AND cb.status = 'confirmed'
-);
-```
+3. Bump the `STORAGE_KEY` to `soft-launch-banner-dismissed-week2-sat` so the updated banner reappears for all members who previously dismissed it.
 
-**Step 2: Add full-class handling to the soft-launch schedule**
+4. Update the date range label from "February 23 - March 1" to "February 28, 2026" (or keep the week range and highlight Saturday specifically -- will match the single-day focus).
 
-Update `TempClassCard` to:
-- Show "Class Full" when `enrolled >= maxCapacity`
-- Disable the "Book Class" button when full
-- Show a "Join Waitlist" button instead (if user is eligible)
-
-**Step 3: Build the waitlist join flow**
-
-Create a `useJoinWaitlist` hook that:
-- Inserts into `class_waitlist` with the user's ID, session ID, and position
-- Shows a success toast: "You've been added to the waitlist"
-- The existing `notify-waitlist` edge function and `process-expired-waitlist` function already handle the notification side
-
-Wire this into both `TempClassCard` (soft-launch) and `ClassCard` (regular schedule) so the "Join Waitlist" button actually works.
-
-**Step 4: Prevent double-waitlist entries**
-
-Add a check before inserting: if the user already has a `waiting` or `notified` entry for that session, show "On Waitlist" instead of "Join Waitlist".
-
-### Files Changed
-
-| File | Change |
-|------|--------|
-| Database migration | Sync `current_enrollment` to actual confirmed bookings |
-| `src/hooks/useWaitlist.ts` | New hook: `useJoinWaitlist` and `useIsOnWaitlist` |
-| `src/components/booking/TempClassSchedule.tsx` | Add full-class detection, show "Join Waitlist" or "On Waitlist" |
-| `src/components/booking/ClassCard.tsx` | Enable and wire the existing "Join Waitlist" button |
-| `src/hooks/useTempClassBooking.ts` | No changes needed -- the RPC already blocks overbooking |
-
-### What Already Works (No Changes Needed)
-
-- The `create_atomic_class_booking` RPC already locks the session row and checks capacity before inserting -- this is the true overbooking guard
-- The `notify-waitlist` edge function already emails the next waitlisted person when a spot opens
-- The `cancel_class_booking` RPC already calls `notify-waitlist` after cancellation
-- The `class_waitlist` table schema is already in place with position, status, and claim expiry fields
-
+No database or backend changes needed -- this is a frontend-only banner update.
