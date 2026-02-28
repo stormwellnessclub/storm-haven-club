@@ -14,10 +14,11 @@ import {
   Snowflake,
   Clock,
   Ban,
+  ShieldX,
 } from "lucide-react";
 
 export interface EffectiveStatus {
-  status: 'active' | 'payment_failed' | 'no_subscription' | 'no_card' | 'pending_activation' | 'frozen' | 'past_due' | 'cancelled' | 'expired' | 'suspended';
+  status: 'active' | 'payment_failed' | 'no_subscription' | 'no_card' | 'pending_activation' | 'frozen' | 'past_due' | 'cancelled' | 'expired' | 'suspended' | 'blocked';
   canCheckIn: boolean;
   label: string;
   description: string;
@@ -203,6 +204,11 @@ const statusConfig: Record<EffectiveStatus['status'], {
     icon: XCircle,
     badgeClass: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700',
     iconClass: 'text-gray-600 dark:text-gray-400',
+  },
+  blocked: {
+    icon: ShieldX,
+    badgeClass: 'bg-red-950 text-red-100 border-red-800 dark:bg-red-950 dark:text-red-200 dark:border-red-800',
+    iconClass: 'text-red-300 dark:text-red-400',
   },
 };
 

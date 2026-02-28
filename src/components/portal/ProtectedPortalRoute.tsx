@@ -1,6 +1,8 @@
 import { ReactNode, useEffect, useState, useCallback } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBlockedStatus } from "@/hooks/useBlockedStatus";
+import { AccessRevoked } from "@/components/member/AccessRevoked";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
@@ -12,8 +14,8 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
   const { user, loading: authLoading } = useAuth();
   const [checking, setChecking] = useState(true);
   const [isMember, setIsMember] = useState(false);
-
   const [isStaff, setIsStaff] = useState(false);
+  const { data: isBlocked, isLoading: blockedLoading } = useBlockedStatus();
 
   const checkMembership = useCallback(async () => {
     if (!user) {
@@ -57,7 +59,7 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
     }
   }, [authLoading, checkMembership]);
 
-  if (authLoading || checking) {
+  if (authLoading || checking || blockedLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -67,6 +69,10 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
 
   if (!user) {
     return <Navigate to="/auth?redirect=/portal" replace />;
+  }
+
+  if (isBlocked) {
+    return <AccessRevoked />;
   }
 
   if (isMember && !isStaff) {

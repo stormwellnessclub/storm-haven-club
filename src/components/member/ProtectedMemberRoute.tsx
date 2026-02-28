@@ -2,7 +2,9 @@ import { ReactNode, useEffect, useState, useCallback } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
+import { useBlockedStatus } from "@/hooks/useBlockedStatus";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
+import { AccessRevoked } from "./AccessRevoked";
 import { SessionRepair } from "./SessionRepair";
 import { UnlinkedMemberFix } from "./UnlinkedMemberFix";
 import { Loader2, AlertCircle } from "lucide-react";
@@ -23,6 +25,7 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   const [sessionState, setSessionState] = useState<SessionState>("validating");
   const [staffRedirect, setStaffRedirect] = useState<string | null>(null);
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
+  const { data: isBlocked, isLoading: blockedLoading } = useBlockedStatus();
   const location = useLocation();
 
   // Check if user has staff roles (for no_application fallback)
@@ -164,14 +167,19 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Show loading while checking application/member status
-  if (statusLoading) {
+  // Show loading while checking application/member status or blocked status
+  if (statusLoading || blockedLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />
         <p className="text-muted-foreground">Checking membership status...</p>
       </div>
     );
+  }
+
+  // Show Access Revoked if user is blocked
+  if (isBlocked) {
+    return <AccessRevoked />;
   }
 
   // Show error state with retry option

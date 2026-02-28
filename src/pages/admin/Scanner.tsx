@@ -208,6 +208,7 @@ export default function Scanner() {
       membership_expired: "Membership expired",
       membership_cancelled: "Membership cancelled",
       membership_frozen: "Membership frozen",
+      access_revoked: "ACCESS REVOKED — This person is on the block list",
     };
     return reasons[reason] || reason.replace(/_/g, " ");
   };
@@ -461,13 +462,20 @@ export default function Scanner() {
                                 Membership {scanResult.denial_reason.replace("membership_", "")}
                               </div>
                             )}
+                            {scanResult.denial_reason === "access_revoked" && (
+                              <div className="flex items-center gap-2 text-destructive font-semibold">
+                                <ShieldAlert className="h-4 w-4" />
+                                ACCESS REVOKED — Do not admit
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
 
                       {scanResult.member &&
                         scanResult.denial_reason !== "membership_expired" &&
-                        scanResult.denial_reason !== "membership_cancelled" && (
+                        scanResult.denial_reason !== "membership_cancelled" &&
+                        scanResult.denial_reason !== "access_revoked" && (
                           <Button
                             variant="outline"
                             className="w-full"
