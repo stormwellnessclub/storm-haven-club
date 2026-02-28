@@ -171,7 +171,7 @@ export default function Referrals() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {REWARDS.map((reward) => {
                 const canAfford = pointsBalance >= reward.points;
-                const isProvisionable = !["cafe_credit", "spa_discount"].includes(reward.type);
+                const isProvisionable = reward.type !== "cafe_credit";
                 return (
                   <div
                     key={reward.type}
