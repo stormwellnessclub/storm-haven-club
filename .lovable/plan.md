@@ -1,26 +1,24 @@
 
+# Add Quantity Support to Charge POS Dialog
 
-# Referral Rewards Update
+## Problem
+The `ChargeItemSelector` component (the charge dialog used from member profiles and the Front Desk POS) only charges 1 unit at a time. There's no way to set a quantity, so if a member wants 3 waters, you'd have to charge them 3 separate times.
 
-## Changes to Reward Point Costs
+## Solution
+Add a quantity selector (with +/- buttons) to the `ChargeItemSelector` dialog that multiplies the item price by the chosen quantity before charging.
 
-Update the `REWARDS` array in `src/pages/member/Referrals.tsx`:
+## Changes
 
-| Reward | Current | New |
-|--------|---------|-----|
-| Red Light Therapy Session | 300 pts | 1,000 pts |
-| Dry Cryo Session | 400 pts | 500 pts |
-| 1 Class Credit | 250 pts | 1,000 pts |
-| 1 Guest Pass | 200 pts | 500 pts |
-| Cafe Credit ($10) | 500 pts | 500 pts (no change) |
-| Spa Service Discount (20%) | 750 pts | **REMOVED** |
+### File: `src/components/admin/ChargeItemSelector.tsx`
 
-The minimum redeemable reward is now 500 points, meaning a member needs at least 1 successful referral (which earns 500 pts) before they can redeem anything.
+1. **Add quantity state** -- new `quantity` state variable, defaulting to 1, reset when item selection changes or dialog closes.
 
-## Files Modified
+2. **Add quantity UI** -- After the item selector (and after the shake customization section if applicable), add a "Quantity" row with minus/plus buttons and a count display. Styled consistently with the rest of the dialog.
 
-- **`src/pages/member/Referrals.tsx`** -- Update the `REWARDS` array with new point values and remove the spa discount entry.
-- **Database migration** -- Update the `redeem_referral_points` function to reflect the new point costs and remove the `spa_discount` case.
+3. **Update amount calculations** -- Multiply `effectiveAmount` by `quantity` so the subtotal, tax, processing fee, and total all reflect the correct multi-item amount. The description will also note the quantity (e.g., "2x Cafe - Fiji Water").
 
-No other logic changes needed -- the existing balance check (`pointsBalance >= reward.points`) already prevents redemption if they don't have enough points.
+4. **Update charge button** -- The charge button amount will reflect the quantity-adjusted total.
 
+### What stays the same
+- The Cafe POS page (`CafePOS.tsx` / `CafePOSCart.tsx`) already has its own cart with quantity controls -- no changes needed there.
+- All backend charge logic stays the same since it already accepts any dollar amount and description.
