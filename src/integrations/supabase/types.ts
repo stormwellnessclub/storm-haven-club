@@ -2864,6 +2864,85 @@ export type Database = {
           },
         ]
       }
+      member_referrals: {
+        Row: {
+          created_at: string
+          id: string
+          points_awarded: number
+          points_awarded_at: string | null
+          referred_email: string
+          referred_member_id: string | null
+          referring_member_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          points_awarded?: number
+          points_awarded_at?: string | null
+          referred_email: string
+          referred_member_id?: string | null
+          referring_member_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          points_awarded?: number
+          points_awarded_at?: string | null
+          referred_email?: string
+          referred_member_id?: string | null
+          referring_member_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_referrals_referred_member_id_fkey"
+            columns: ["referred_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_referrals_referred_member_id_fkey"
+            columns: ["referred_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_referrals_referred_member_id_fkey"
+            columns: ["referred_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_referrals_referring_member_id_fkey"
+            columns: ["referring_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_referrals_referring_member_id_fkey"
+            columns: ["referring_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_referrals_referring_member_id_fkey"
+            columns: ["referring_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_tags: {
         Row: {
           created_at: string
@@ -2944,6 +3023,7 @@ export type Database = {
           original_tier_at_application: string | null
           phone: string | null
           photo_url: string | null
+          referral_points_balance: number
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -2986,6 +3066,7 @@ export type Database = {
           original_tier_at_application?: string | null
           phone?: string | null
           photo_url?: string | null
+          referral_points_balance?: number
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -3028,6 +3109,7 @@ export type Database = {
           original_tier_at_application?: string | null
           phone?: string | null
           photo_url?: string | null
+          referral_points_balance?: number
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -3648,6 +3730,101 @@ export type Database = {
           sent_by?: string | null
         }
         Relationships: []
+      }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          member_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          member_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_codes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_codes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_codes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_point_transactions: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          member_id: string
+          points: number
+          reference_id: string | null
+          transaction_type: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          member_id: string
+          points: number
+          reference_id?: string | null
+          transaction_type: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          member_id?: string
+          points?: number
+          reference_id?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_point_transactions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_point_transactions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_point_transactions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       refund_requests: {
         Row: {
@@ -4564,6 +4741,10 @@ export type Database = {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
       }
+      award_referral_points: {
+        Args: { _referred_member_id: string; _referring_member_id: string }
+        Returns: undefined
+      }
       book_wellness_appointment: {
         Args: {
           p_appointment_date: string
@@ -4639,6 +4820,7 @@ export type Database = {
           sessions_skipped: number
         }[]
       }
+      generate_referral_code: { Args: { _member_id: string }; Returns: string }
       get_dunning_efficiency: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
@@ -4741,6 +4923,10 @@ export type Database = {
           p_guest_phone: string
           p_visit_date: string
         }
+        Returns: Json
+      }
+      redeem_referral_points: {
+        Args: { _member_id: string; _points_cost: number; _reward_type: string }
         Returns: Json
       }
       track_payment_method_update: {
