@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Clock, X, Info } from "lucide-react";
+import { Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 const SOFT_LAUNCH_END = new Date('2026-03-02T00:00:00');
-const STORAGE_KEY = 'soft-launch-banner-dismissed-week2-sat';
+const STORAGE_KEY = 'soft-launch-banner-dismissed-week2-sun';
 
 type HourBlock = {
   days: string;
@@ -18,7 +18,7 @@ const softLaunchHours: HourBlock[] = [
   { days: "Friday", hours: "8:00 PM – 11:30 PM", special: "Pop-Up Event" },
   { days: "Saturday", hours: "10:00 AM – 7:00 PM" },
   { days: "Saturday", hours: "9:00 PM – Sell Out", special: "Pop-Up Event" },
-  { days: "Sunday", hours: "8:00 AM – 6:00 PM" },
+  { days: "Sunday", hours: "9:00 AM – 6:00 PM" },
 ];
 
 export function SoftLaunchHoursBanner() {
@@ -58,7 +58,7 @@ export function SoftLaunchHoursBanner() {
                 Soft Launch Hours
               </h3>
               <p className="text-xs text-muted-foreground">
-                Saturday, February 28, 2026
+                Sunday, March 1, 2026
               </p>
             </div>
             <div className="space-y-1">
@@ -78,12 +78,6 @@ export function SoftLaunchHoursBanner() {
                   </span>
                 </div>
               ))}
-            </div>
-            <div className="flex items-start gap-2 mt-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
-              <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-              <p className="text-xs text-foreground/80">
-                Members have access to gym and amenities from 7 PM – 10 PM tomorrow only — courtesy extended hours.
-              </p>
             </div>
           </div>
         </div>
