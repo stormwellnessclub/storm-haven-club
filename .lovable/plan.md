@@ -1,89 +1,69 @@
 
 
-# Blocked/Banned Access System
+# Unified Check-In Hub
 
-## Overview
-Create a universal block list that prevents specific people (members and non-members) from entering the club, booking services, or accessing the portal. Blocked users see an "Access Revoked" screen instead of the normal portal.
+## Problem
+The current Check-In page only searches the `members` table and only counts/displays member check-ins. Guests (guest passes), class attendees (class bookings), and spa visitors don't appear in the check-in flow or today's attendance count.
 
-## Database Changes
+## Solution
+Transform the Check-In page into a **Unified Check-In Hub** that searches across all visitor types and shows a combined today's attendance feed.
 
-### New table: `blocked_persons`
-Stores blocked individuals by email (the universal identifier across members and non-members).
+## Changes
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid (PK) | Auto-generated |
-| email | text (unique, not null) | Lowercase, the lookup key |
-| full_name | text | For admin display |
-| reason | text | Why they were blocked (e.g., "Filed dispute after refund") |
-| blocked_by | uuid (FK -> auth.users) | Staff who blocked them |
-| blocked_at | timestamptz | Default now() |
-| member_id | uuid (nullable) | Reference to members table if applicable |
-| notes | text | Additional admin notes |
+### 1. Unified Person Search on Check-In Page
+Replace the members-only search with a search that queries across:
+- **Members** (existing)
+- **Guest Passes** (today's active guest passes by guest name/email)
+- **Class Bookings** (today's confirmed bookings, including non-member walk-ins)
+- **Spa Appointments** (today's confirmed appointments)
 
-RLS: Read/write restricted to admin, super_admin, and manager roles.
+Each search result gets a **type label**:
+- "Member" -- standard member check-in
+- "Guest Pass" -- guest visiting on a day pass
+- "Class Booking" -- person here for a class (shows class name)
+- "Spa Appointment" -- person here for a spa service (shows service name)
 
-### Update `process_member_scan` (both overloads)
-Add a check at the top: if the scanned member's email exists in `blocked_persons`, immediately return access denied with reason `'access_revoked'`.
+### 2. Context-Aware Detail Panel
+When a person is selected, the right panel adapts:
+- **Member**: Current behavior (status banner, membership info, check-in button inserts into `check_ins`)
+- **Guest Pass**: Shows guest name, pass status, valid date, referring member. "Check In" marks the guest pass as `used` (updates `used_at`, `checked_in_by`, status to `used`)
+- **Class Booking**: Shows class name, time, booking status. "Check In" updates `class_bookings.checked_in_at` and sets status to `completed`
+- **Spa Appointment**: Shows service name, time, duration. "Check In" updates `spa_appointments.checked_in_at`
 
-### Update `create_atomic_class_booking`
-Add a check: if the booking user's email is in `blocked_persons`, reject with "Your access has been revoked. Please contact the club."
+### 3. Unified Today's Attendance Feed
+Replace the members-only check-in list with a combined feed pulling from:
+- `check_ins` table (members) -- labeled "Member"
+- `guest_passes` where `used_at` is today -- labeled "Guest"
+- `class_bookings` where `checked_in_at` is today -- labeled "Class"
+- `spa_appointments` where `checked_in_at` is today -- labeled "Spa"
 
-## Frontend Changes
+Each row shows the person's name, a colored type badge, and the check-in time. The total count at the top reflects **all** visitor types combined.
 
-### 1. Access Revoked Screen (`src/components/member/AccessRevoked.tsx`)
-A full-page component shown to blocked users:
-- Large red shield/ban icon
-- "Access Revoked" heading
-- "Your access to Storm Wellness Club has been revoked. If you believe this is an error, please contact us at [email/phone]."
-- Sign out button
-
-### 2. Member Portal Guard (`ProtectedMemberRoute.tsx`)
-After session validation, before status checks: query `blocked_persons` for the current user's email. If found, render `<AccessRevoked />` instead of children.
-
-### 3. Non-Member Portal Guard (`ProtectedPortalRoute.tsx`)
-Same check -- query `blocked_persons` for the user's email. If blocked, show `<AccessRevoked />`.
-
-### 4. `useApplicationStatus.ts`
-Add a `"blocked"` status. Before all other checks, query `blocked_persons` by email. If found, return `{ status: "blocked" }`.
-
-### 5. Effective Status Badge (`EffectiveStatusBadge.tsx`)
-Add `'blocked'` to the status union type with a red/black `ShieldX` icon and label "Blocked".
-
-### 6. Admin: Block/Unblock UI
-- **Member Detail page** (`MemberDetail.tsx`): Add a "Block Member" action button (in the danger zone or actions dropdown). Opens a dialog asking for a reason, then inserts into `blocked_persons`.
-- **Non-Member Detail page** (`NonMemberDetail.tsx`): Same "Block" action.
-- **Blocked Persons admin page** (`/admin/blocked`): A simple table listing all blocked people with the ability to unblock (delete from `blocked_persons`). Accessible from the admin sidebar.
-
-### 7. Scanner Updates
-The `process_member_scan` RPC changes will cause the scanner to show "Access Revoked" for blocked members. Add `'access_revoked'` as a recognized denial reason in `Scanner.tsx` with distinct messaging.
-
-## Enforcement Summary
-
-| Touchpoint | How it's blocked |
-|------------|-----------------|
-| Member portal login | `ProtectedMemberRoute` shows AccessRevoked screen |
-| Non-member portal login | `ProtectedPortalRoute` shows AccessRevoked screen |
-| QR scanner entry | `process_member_scan` RPC denies with `access_revoked` |
-| Manual check-in | Effective status shows "Blocked" -- cannot check in |
-| Class booking | `create_atomic_class_booking` RPC rejects |
-| Guest pass purchase | Blocked at portal level (can't access) |
+### 4. Updated Stats Cards
+- "Total Check-Ins" counts all types combined
+- "Currently In" remains member-only (only `check_ins` has `checked_out_at`)
+- Add a third stat: breakdown by type (e.g., "12 Members, 3 Guests, 5 Class, 2 Spa")
 
 ## Technical Details
 
-### Files to create
-- `src/components/member/AccessRevoked.tsx` -- Full-page revoked access screen
-- `src/pages/admin/BlockedPersons.tsx` -- Admin management page
-- Migration SQL for `blocked_persons` table + RLS + RPC updates
-
 ### Files to modify
-- `src/components/member/ProtectedMemberRoute.tsx` -- Add blocked check
-- `src/components/portal/ProtectedPortalRoute.tsx` -- Add blocked check
-- `src/hooks/useApplicationStatus.ts` -- Add "blocked" status
-- `src/components/admin/EffectiveStatusBadge.tsx` -- Add blocked status config
-- `src/pages/admin/Scanner.tsx` -- Handle `access_revoked` denial reason
-- `src/pages/admin/MemberDetail.tsx` -- Add block action
-- `src/pages/admin/NonMemberDetail.tsx` -- Add block action
-- `src/App.tsx` -- Add `/admin/blocked` route
-- Admin sidebar -- Add "Blocked" nav link
+- `src/pages/admin/CheckIn.tsx` -- Major refactor of search, detail panel, attendance feed, and stats
+
+### No database changes needed
+All the tables already have the necessary columns:
+- `guest_passes`: `used_at`, `checked_in_by`, `status`
+- `class_bookings`: `checked_in_at`, `status`
+- `spa_appointments`: `checked_in_at`
+
+### Search approach
+A single search input queries in parallel:
+1. `members` by name/email/member_id/phone (existing)
+2. `guest_passes` (today, active) by `guest_name`/`guest_email`
+3. `class_bookings` joined with `class_sessions` (today, confirmed) joined with `members`/`non_member_profiles` by name
+4. `spa_appointments` (today, confirmed) joined with `members` by name
+
+Results are deduplicated and merged into a unified list with type badges.
+
+### Detail panel
+Uses a discriminated union type (e.g., `SelectedPerson`) with `type` field to render the appropriate detail view and check-in action for each visitor type.
 
