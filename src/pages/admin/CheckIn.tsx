@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { 
-  Search, 
-  UserCheck, 
-  Clock, 
+import {
+  Search,
+  UserCheck,
+  Clock,
   CheckCircle2,
   AlertTriangle,
   XCircle,
@@ -19,307 +19,471 @@ import {
   Calendar,
   Loader2,
   ShieldAlert,
-  DollarSign
+  DollarSign,
+  Ticket,
+  BookOpen,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, addYears, isBefore } from "date-fns";
+import { format } from "date-fns";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 import { EffectiveStatusBadge, getEffectiveStatus } from "@/components/admin/EffectiveStatusBadge";
 import { CheckInSupportPanel } from "@/components/admin/CheckInSupportPanel";
+import { useUnifiedCheckInSearch, UnifiedSearchResult, VisitorType } from "@/hooks/useUnifiedCheckInSearch";
+import { useUnifiedAttendance, AttendanceType } from "@/hooks/useUnifiedAttendance";
 
-type MemberStatus = "active" | "past_due" | "frozen" | "expired" | "cancelled";
+// ─── Type badge config ───────────────────────────────────────────────
+const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
+  member: { label: "Member", className: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300", icon: User },
+  guest_pass: { label: "Guest Pass", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300", icon: Ticket },
+  guest: { label: "Guest", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300", icon: Ticket },
+  class_booking: { label: "Class", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300", icon: BookOpen },
+  class: { label: "Class", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300", icon: BookOpen },
+  spa_appointment: { label: "Spa", className: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300", icon: Sparkles },
+  spa: { label: "Spa", className: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300", icon: Sparkles },
+};
 
-interface Member {
-  id: string;
-  member_id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string | null;
-  membership_type: string;
-  status: MemberStatus;
-  membership_end_date: string | null;
-  photo_url: string | null;
-  annual_fee_paid_at: string | null;
-  stripe_subscription_id: string | null;
-}
-
-interface CheckInRecord {
-  id: string;
-  member_id: string;
-  checked_in_at: string;
-  notes: string | null;
-  members: {
-    id: string;
-    member_id: string;
-    first_name: string;
-    last_name: string;
-    membership_type: string;
-    photo_url: string | null;
-    status: string;
-  };
+function TypeBadge({ type }: { type: VisitorType | AttendanceType }) {
+  const cfg = typeBadgeConfig[type];
+  return <Badge className={cfg.className}>{cfg.label}</Badge>;
 }
 
 export default function CheckIn() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Member[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selected, setSelected] = useState<UnifiedSearchResult | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
-  const [recentCheckIns, setRecentCheckIns] = useState<CheckInRecord[]>([]);
-  const [todayStats, setTodayStats] = useState({ total: 0, currentlyIn: 0 });
-  const [memberCheckInCount, setMemberCheckInCount] = useState(0);
   const [isOverriding, setIsOverriding] = useState(false);
+  const [memberCheckInCount, setMemberCheckInCount] = useState(0);
 
-  // Get billing issues data for effective status calculation
+  const { results, isSearching, search, clearResults } = useUnifiedCheckInSearch();
+  const { entries, stats, refetch } = useUnifiedAttendance();
   const { data: billingIssues } = useMembersBillingIssues();
 
-  // Get payment status for selected member
-  const memberPaymentStatus = selectedMember 
+  // For member-type selections only
+  const memberData = selected?.type === "member" ? selected.data : null;
+  const memberPaymentStatus = memberData
     ? checkMemberPaymentStatus({
-        status: selectedMember.status,
-        annual_fee_paid_at: selectedMember.annual_fee_paid_at,
-        stripe_subscription_id: selectedMember.stripe_subscription_id,
+        status: memberData.status,
+        annual_fee_paid_at: memberData.annual_fee_paid_at,
+        stripe_subscription_id: memberData.stripe_subscription_id,
       })
     : null;
-
-  // Calculate effective status for selected member
-  const effectiveStatus = selectedMember 
-    ? getEffectiveStatus(selectedMember.status, billingIssues?.memberIssues?.[selectedMember.id])
+  const effectiveStatus = memberData
+    ? getEffectiveStatus(memberData.status, billingIssues?.memberIssues?.[memberData.id])
     : null;
 
-  // Fetch recent check-ins on mount and poll every 15 seconds
-  useEffect(() => {
-    fetchRecentCheckIns();
-    fetchTodayStats();
-    const interval = setInterval(() => {
-      fetchRecentCheckIns();
-      fetchTodayStats();
-    }, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchRecentCheckIns = async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const { data, error } = await supabase
-      .from("check_ins")
-      .select(`
-        id,
-        member_id,
-        checked_in_at,
-        notes,
-        members (
-          id,
-          member_id,
-          first_name,
-          last_name,
-          membership_type,
-          photo_url,
-          status
-        )
-      `)
-      .gte("checked_in_at", today.toISOString())
-      .order("checked_in_at", { ascending: false });
-
-    if (!error && data) {
-      setRecentCheckIns(data as unknown as CheckInRecord[]);
-    }
-  };
-
-  const fetchTodayStats = async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const { count: totalToday } = await supabase
-      .from("check_ins")
-      .select("*", { count: "exact", head: true })
-      .gte("checked_in_at", today.toISOString());
-
-    const { count: currentlyIn } = await supabase
-      .from("check_ins")
-      .select("*", { count: "exact", head: true })
-      .gte("checked_in_at", today.toISOString())
-      .is("checked_out_at", null);
-
-    setTodayStats({
-      total: totalToday || 0,
-      currentlyIn: currentlyIn || 0,
-    });
-  };
-
-  const handleSearch = async () => {
+  // ─── Search handler ────────────────────────────────────────────────
+  const handleSearch = () => {
     if (!searchQuery.trim()) return;
-
-    setIsSearching(true);
-    setSearchResults([]);
-    setSelectedMember(null);
-
-    const { data, error } = await supabase
-      .from("members")
-      .select("*")
-      .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,member_id.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
-      .limit(10);
-
-    setIsSearching(false);
-
-    if (error) {
-      toast.error("Search failed");
-      return;
-    }
-
-    if (data && data.length > 0) {
-      setSearchResults(data as Member[]);
-    } else {
-      toast.info("No members found");
-    }
+    setSelected(null);
+    search(searchQuery);
   };
 
-  const selectMember = async (member: Member) => {
-    setSelectedMember(member);
-    setSearchResults([]);
+  // ─── Select a result ──────────────────────────────────────────────
+  const selectResult = async (result: UnifiedSearchResult) => {
+    setSelected(result);
+    clearResults();
     setSearchQuery("");
 
-    // Fetch this month's check-in count
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const { count } = await supabase
-      .from("check_ins")
-      .select("*", { count: "exact", head: true })
-      .eq("member_id", member.id)
-      .gte("checked_in_at", startOfMonth.toISOString());
-
-    setMemberCheckInCount(count || 0);
+    if (result.type === "member") {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      const { count } = await supabase
+        .from("check_ins")
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", result.data.id)
+        .gte("checked_in_at", startOfMonth.toISOString());
+      setMemberCheckInCount(count || 0);
+    }
   };
 
-  const handleCheckIn = async (override: boolean = false) => {
-    if (!selectedMember || !user) return;
-
-    if (override) {
-      setIsOverriding(true);
-    } else {
-      setIsCheckingIn(true);
-    }
+  // ─── Check-in actions ─────────────────────────────────────────────
+  const handleMemberCheckIn = async (override = false) => {
+    if (!memberData || !user) return;
+    override ? setIsOverriding(true) : setIsCheckingIn(true);
 
     try {
-      // Check for duplicate check-in (within last 30 minutes)
-      const { data: existingCheckIn, error: checkError } = await (supabase.rpc as any)('check_for_duplicate_check_in', {
-        p_member_id: selectedMember.id,
-        p_check_in_window_minutes: 30
+      const { data: dup } = await (supabase.rpc as any)("check_for_duplicate_check_in", {
+        p_member_id: memberData.id,
+        p_check_in_window_minutes: 30,
       });
-
-      if (checkError) {
-        console.error('Error checking for duplicate check-in:', checkError);
-        // Continue with check-in if check fails
-      }
-
-      if (existingCheckIn) {
-        // Duplicate check-in found
+      if (dup) {
+        toast.warning(`${memberData.first_name} ${memberData.last_name} is already checked in (within 30 min)`);
         setIsCheckingIn(false);
         setIsOverriding(false);
-        toast.warning(`${selectedMember.first_name} ${selectedMember.last_name} is already checked in (within last 30 minutes)`);
-        fetchRecentCheckIns();
-        fetchTodayStats();
         return;
       }
 
-      const notes = override 
+      const notes = override
         ? `OVERRIDE: Payment issue - checked in by admin (${user.email})`
         : null;
 
       const { error } = await supabase.from("check_ins").insert({
-        member_id: selectedMember.id,
+        member_id: memberData.id,
         checked_in_by: user.id,
         notes,
       });
+      if (error) throw error;
 
+      toast.success(
+        override
+          ? `${memberData.first_name} ${memberData.last_name} checked in with OVERRIDE.`
+          : `${memberData.first_name} ${memberData.last_name} checked in!`
+      );
+      setMemberCheckInCount((c) => c + 1);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.message || "Check-in failed");
+    } finally {
       setIsCheckingIn(false);
       setIsOverriding(false);
-
-      if (error) {
-        toast.error("Check-in failed");
-        return;
-      }
-
-      if (override) {
-        toast.warning(`${selectedMember.first_name} ${selectedMember.last_name} checked in with OVERRIDE. Payment issue noted.`);
-      } else {
-        toast.success(`${selectedMember.first_name} ${selectedMember.last_name} checked in!`);
-      }
-      setMemberCheckInCount((prev) => prev + 1);
-      fetchRecentCheckIns();
-      fetchTodayStats();
-    } catch (error: any) {
-      console.error('Check-in error:', error);
-      setIsCheckingIn(false);
-      setIsOverriding(false);
-      toast.error(error?.message || "Check-in failed");
     }
   };
 
-  const getStatusConfig = (status: MemberStatus) => {
-    switch (status) {
-      case "active":
-        return {
-          icon: CheckCircle2,
-          label: "Check-In Approved",
-          badge: <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">Active</Badge>,
-          bgClass: "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800",
-          iconClass: "text-green-600",
-          canCheckIn: true,
-        };
-      case "past_due":
-        return {
-          icon: ShieldAlert,
-          label: "Payment Required - Cannot Check In",
-          badge: <Badge className="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">Past Due</Badge>,
-          bgClass: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
-          iconClass: "text-red-600",
-          canCheckIn: false,
-        };
-      case "frozen":
-        return {
-          icon: AlertTriangle,
-          label: "Membership Frozen",
-          badge: <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">Frozen</Badge>,
-          bgClass: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800",
-          iconClass: "text-blue-600",
-          canCheckIn: false,
-        };
-      case "expired":
-      case "cancelled":
-        return {
-          icon: XCircle,
-          label: status === "expired" ? "Membership Expired" : "Membership Cancelled",
-          badge: <Badge className="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">{status === "expired" ? "Expired" : "Cancelled"}</Badge>,
-          bgClass: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
-          iconClass: "text-red-600",
-          canCheckIn: false,
-        };
-      default:
-        return {
-          icon: User,
-          label: "Unknown Status",
-          badge: <Badge variant="outline">Unknown</Badge>,
-          bgClass: "bg-secondary",
-          iconClass: "text-muted-foreground",
-          canCheckIn: false,
-        };
+  const handleGuestCheckIn = async () => {
+    if (!selected || selected.type !== "guest_pass" || !user) return;
+    setIsCheckingIn(true);
+    try {
+      const { error } = await supabase
+        .from("guest_passes")
+        .update({ status: "used", used_at: new Date().toISOString(), checked_in_by: user.id })
+        .eq("id", selected.data.id);
+      if (error) throw error;
+      toast.success(`${selected.data.guest_name} checked in as guest!`);
+      refetch();
+      setSelected(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Guest check-in failed");
+    } finally {
+      setIsCheckingIn(false);
     }
   };
 
+  const handleClassCheckIn = async () => {
+    if (!selected || selected.type !== "class_booking" || !user) return;
+    setIsCheckingIn(true);
+    try {
+      const { error } = await supabase
+        .from("class_bookings")
+        .update({ checked_in_at: new Date().toISOString(), status: "completed" as any })
+        .eq("id", selected.data.id);
+      if (error) throw error;
+      toast.success(`${selected.data.memberName} checked in for ${selected.data.className}!`);
+      refetch();
+      setSelected(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Class check-in failed");
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  const handleSpaCheckIn = async () => {
+    if (!selected || selected.type !== "spa_appointment" || !user) return;
+    setIsCheckingIn(true);
+    try {
+      const { error } = await (supabase.from as any)("spa_appointments")
+        .update({ checked_in_at: new Date().toISOString() })
+        .eq("id", selected.data.id);
+      if (error) throw error;
+      toast.success(`${selected.data.memberName} checked in for ${selected.data.service_name}!`);
+      refetch();
+      setSelected(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Spa check-in failed");
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  const handleCheckInAction = () => {
+    if (!selected) return;
+    switch (selected.type) {
+      case "member": return handleMemberCheckIn(false);
+      case "guest_pass": return handleGuestCheckIn();
+      case "class_booking": return handleClassCheckIn();
+      case "spa_appointment": return handleSpaCheckIn();
+    }
+  };
+
+  // ─── Render detail panel ──────────────────────────────────────────
+  const renderDetailPanel = () => {
+    if (!selected) {
+      return (
+        <div className="text-center py-12 text-muted-foreground">
+          <User className="h-12 w-12 mx-auto mb-4 opacity-30" />
+          <p className="font-medium">No Person Selected</p>
+          <p className="text-sm mt-1">Search and select someone to check in</p>
+        </div>
+      );
+    }
+
+    // ── Member detail ──
+    if (selected.type === "member" && memberData) {
+      return (
+        <div className="space-y-4">
+          {/* Status Banner */}
+          <div className={`p-4 rounded-lg border ${effectiveStatus?.canCheckIn
+            ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
+            : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+          }`}>
+            <div className="flex items-center gap-3">
+              {effectiveStatus?.canCheckIn ? (
+                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+              ) : (
+                <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+              )}
+              <div className="flex-1">
+                <p className="font-semibold text-lg">
+                  {effectiveStatus?.canCheckIn ? "Check-In Approved" : "Cannot Check In"}
+                </p>
+                <p className="text-sm text-muted-foreground">{effectiveStatus?.description}</p>
+              </div>
+              <EffectiveStatusBadge
+                memberStatus={memberData.status}
+                billingIssues={billingIssues?.memberIssues?.[memberData.id]}
+                size="lg"
+              />
+            </div>
+          </div>
+
+          {/* Member Info */}
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
+              <User className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">{memberData.first_name} {memberData.last_name}</h3>
+              <p className="text-sm text-muted-foreground">{memberData.member_id}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Membership</p>
+                <p className="font-medium">{memberData.membership_type}</p>
+              </div>
+              <EffectiveStatusBadge memberStatus={memberData.status} billingIssues={billingIssues?.memberIssues?.[memberData.id]} size="sm" showTooltip={false} />
+            </div>
+            {memberData.membership_end_date && (
+              <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Expires</p>
+                  <p className="font-medium">{format(new Date(memberData.membership_end_date), "MMM d, yyyy")}</p>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Check-ins This Month</p>
+                <p className="font-medium">{memberCheckInCount}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Issues */}
+          {memberPaymentStatus?.hasPaymentIssues && (
+            <div className="p-4 bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-lg space-y-3">
+              <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
+                <ShieldAlert className="h-5 w-5" />
+                Cannot Check In - Payment Required
+              </div>
+              <div className="text-sm space-y-1 text-red-600 dark:text-red-400">
+                {memberPaymentStatus.isDuesPastDue && (
+                  <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />Monthly dues past due</div>
+                )}
+                {!memberPaymentStatus.isInitiationFeePaid && (
+                  <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />Initiation fee unpaid</div>
+                )}
+                {!memberPaymentStatus.hasActiveSubscription && memberPaymentStatus.isInitiationFeePaid && (
+                  <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />No active subscription</div>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                className="w-full border-red-300 text-red-700 hover:bg-red-200 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/50"
+                onClick={() => handleMemberCheckIn(true)}
+                disabled={isOverriding}
+              >
+                {isOverriding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
+                Override Check-In (Admin)
+              </Button>
+              <p className="text-xs text-center text-red-600 dark:text-red-400">Override will be logged for accountability</p>
+            </div>
+          )}
+
+          {effectiveStatus?.canCheckIn && (
+            <Button className="w-full" size="lg" onClick={() => handleMemberCheckIn(false)} disabled={isCheckingIn}>
+              {isCheckingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserCheck className="h-4 w-4 mr-2" />}
+              Check In Member
+            </Button>
+          )}
+
+          {!effectiveStatus?.canCheckIn && !memberPaymentStatus?.hasPaymentIssues && (
+            <p className="text-sm text-center text-destructive">Cannot check in - {effectiveStatus?.description}</p>
+          )}
+        </div>
+      );
+    }
+
+    // ── Guest Pass detail ──
+    if (selected.type === "guest_pass") {
+      const g = selected.data;
+      return (
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg border bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-3">
+              <Ticket className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+              <div className="flex-1">
+                <p className="font-semibold text-lg">Guest Pass</p>
+                <p className="text-sm text-muted-foreground">Ready to check in</p>
+              </div>
+              <TypeBadge type="guest_pass" />
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
+              <Ticket className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">{g.guest_name}</h3>
+              <p className="text-sm text-muted-foreground">{g.guest_email || "No email"}</p>
+            </div>
+          </div>
+          <div className="grid gap-3">
+            <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Valid Date</p>
+                <p className="font-medium">{g.valid_date ? format(new Date(g.valid_date), "MMM d, yyyy") : "—"}</p>
+              </div>
+            </div>
+            {g.member_referral && (
+              <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Referred By</p>
+                  <p className="font-medium">{g.member_referral}</p>
+                </div>
+              </div>
+            )}
+          </div>
+          <Button className="w-full" size="lg" onClick={handleCheckInAction} disabled={isCheckingIn}>
+            {isCheckingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserCheck className="h-4 w-4 mr-2" />}
+            Check In Guest
+          </Button>
+        </div>
+      );
+    }
+
+    // ── Class Booking detail ──
+    if (selected.type === "class_booking") {
+      const cb = selected.data;
+      return (
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg border bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800">
+            <div className="flex items-center gap-3">
+              <BookOpen className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+              <div className="flex-1">
+                <p className="font-semibold text-lg">Class Booking</p>
+                <p className="text-sm text-muted-foreground">Ready to check in</p>
+              </div>
+              <TypeBadge type="class_booking" />
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
+              <BookOpen className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">{cb.memberName}</h3>
+              <p className="text-sm text-muted-foreground">{cb.className}</p>
+            </div>
+          </div>
+          <div className="grid gap-3">
+            <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Class Time</p>
+                <p className="font-medium">{cb.session?.start_time?.slice(0, 5)} – {cb.session?.end_time?.slice(0, 5)}</p>
+              </div>
+            </div>
+          </div>
+          <Button className="w-full" size="lg" onClick={handleCheckInAction} disabled={isCheckingIn}>
+            {isCheckingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserCheck className="h-4 w-4 mr-2" />}
+            Check In for Class
+          </Button>
+        </div>
+      );
+    }
+
+    // ── Spa Appointment detail ──
+    if (selected.type === "spa_appointment") {
+      const sa = selected.data;
+      return (
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg border bg-pink-50 dark:bg-pink-950/30 border-pink-200 dark:border-pink-800">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-8 w-8 text-pink-600 dark:text-pink-400" />
+              <div className="flex-1">
+                <p className="font-semibold text-lg">Spa Appointment</p>
+                <p className="text-sm text-muted-foreground">Ready to check in</p>
+              </div>
+              <TypeBadge type="spa_appointment" />
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
+              <Sparkles className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">{sa.memberName}</h3>
+              <p className="text-sm text-muted-foreground">{sa.service_name}</p>
+            </div>
+          </div>
+          <div className="grid gap-3">
+            <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Appointment Time</p>
+                <p className="font-medium">{sa.appointment_time?.slice(0, 5)}</p>
+              </div>
+            </div>
+            {sa.duration_minutes && (
+              <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Duration</p>
+                  <p className="font-medium">{sa.duration_minutes} min</p>
+                </div>
+              </div>
+            )}
+          </div>
+          <Button className="w-full" size="lg" onClick={handleCheckInAction} disabled={isCheckingIn}>
+            {isCheckingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserCheck className="h-4 w-4 mr-2" />}
+            Check In for Spa
+          </Button>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  // ─── Main render ──────────────────────────────────────────────────
   return (
-    <AdminLayout title="Member Check-In">
+    <AdminLayout title="Check-In Hub">
       <div className="space-y-6">
-        {/* Support Panels - In-Club Requests & Support Tickets */}
         <CheckInSupportPanel />
 
         {/* Main Check-In Area */}
@@ -327,321 +491,152 @@ export default function CheckIn() {
           {/* Search Panel */}
           <Card className="lg:col-span-3">
             <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <Search className="h-5 w-5" />
-                    Member Lookup
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    Search by name, member ID, email, or phone
-                  </CardDescription>
-                </div>
-              </div>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Search className="h-5 w-5" />
+                Visitor Lookup
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Search members, guest passes, class bookings, and spa appointments
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Search Input */}
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by name, member ID, email, or phone..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Button onClick={handleSearch} disabled={isSearching}>
-                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
-                  </Button>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, member ID, email, or phone..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    className="pl-10"
+                  />
                 </div>
+                <Button onClick={handleSearch} disabled={isSearching}>
+                  {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
+                </Button>
               </div>
 
               {/* Search Results */}
-              {searchResults.length > 0 && (
+              {results.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Search Results</p>
                   <div className="grid gap-2 max-h-[300px] overflow-y-auto">
-                    {searchResults.map((member) => (
-                      <button
-                        key={member.id}
-                        onClick={() => selectMember(member)}
-                        className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors text-left w-full"
-                      >
-                        <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                          <User className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
-                            {member.first_name} {member.last_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {member.member_id} • {member.membership_type}
-                          </p>
-                        </div>
-                        {getStatusConfig(member.status).badge}
-                      </button>
-                    ))}
+                    {results.map((r) => {
+                      const cfg = typeBadgeConfig[r.type];
+                      const Icon = cfg.icon;
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => selectResult(r)}
+                          className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors text-left w-full"
+                        >
+                          <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                            <Icon className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{r.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{r.subtitle}</p>
+                          </div>
+                          <TypeBadge type={r.type} />
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {/* Empty State */}
-              {!selectedMember && searchResults.length === 0 && (
+              {!selected && results.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground">
                   <Search className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                  <p className="font-medium">Search for a member</p>
+                  <p className="font-medium">Search for a visitor</p>
                   <p className="text-sm mt-1">Enter a name, member ID, email, or phone number</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Member Result Panel */}
+          {/* Detail Panel */}
           <Card className="lg:col-span-2">
             <CardHeader className="pb-4">
-              <CardTitle className="text-base">Member Details</CardTitle>
+              <CardTitle className="text-base">Visitor Details</CardTitle>
             </CardHeader>
-            <CardContent>
-              {selectedMember ? (
-                <div className="space-y-4">
-                  {/* Status Banner - Uses Effective Status for clear access decision */}
-                  <div className={`p-4 rounded-lg border ${effectiveStatus?.canCheckIn 
-                    ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
-                    : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      {effectiveStatus?.canCheckIn ? (
-                        <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
-                      )}
-                      <div className="flex-1">
-                        <p className="font-semibold text-lg">
-                          {effectiveStatus?.canCheckIn ? 'Check-In Approved' : 'Cannot Check In'}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {effectiveStatus?.description}
-                        </p>
-                      </div>
-                      <EffectiveStatusBadge
-                        memberStatus={selectedMember.status}
-                        billingIssues={billingIssues?.memberIssues?.[selectedMember.id]}
-                        size="lg"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Member Info */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
-                        <User className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold">
-                          {selectedMember.first_name} {selectedMember.last_name}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">{selectedMember.member_id}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3">
-                      <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
-                        <CreditCard className="h-4 w-4 text-muted-foreground" />
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">Membership</p>
-                          <p className="font-medium">{selectedMember.membership_type}</p>
-                        </div>
-                        <EffectiveStatusBadge
-                          memberStatus={selectedMember.status}
-                          billingIssues={billingIssues?.memberIssues?.[selectedMember.id]}
-                          size="sm"
-                          showTooltip={false}
-                        />
-                      </div>
-
-                      {selectedMember.membership_end_date && (
-                        <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <div className="flex-1">
-                            <p className="text-xs text-muted-foreground">Expires</p>
-                            <p className="font-medium">
-                              {format(new Date(selectedMember.membership_end_date), "MMM d, yyyy")}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
-                        <UserCheck className="h-4 w-4 text-muted-foreground" />
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">Check-ins This Month</p>
-                          <p className="font-medium">{memberCheckInCount}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payment Issue Alert for members with payment problems */}
-                  {memberPaymentStatus?.hasPaymentIssues && (
-                    <div className="p-4 bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-lg space-y-3">
-                      <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
-                        <ShieldAlert className="h-5 w-5" />
-                        Cannot Check In - Payment Required
-                      </div>
-                      <div className="text-sm space-y-1 text-red-600 dark:text-red-400">
-                        {memberPaymentStatus.isDuesPastDue && (
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" />
-                            Monthly dues past due
-                          </div>
-                        )}
-                        {!memberPaymentStatus.isInitiationFeePaid && (
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            Initiation fee unpaid
-                          </div>
-                        )}
-                        {!memberPaymentStatus.hasActiveSubscription && memberPaymentStatus.isInitiationFeePaid && (
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" />
-                            No active subscription
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="w-full border-red-300 text-red-700 hover:bg-red-200 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/50"
-                        onClick={() => handleCheckIn(true)}
-                        disabled={isOverriding}
-                      >
-                        {isOverriding ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <AlertTriangle className="h-4 w-4 mr-2" />
-                        )}
-                        Override Check-In (Admin)
-                      </Button>
-                      <p className="text-xs text-center text-red-600 dark:text-red-400">
-                        Override will be logged for accountability
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Show normal check-in button when access is granted */}
-                  {effectiveStatus?.canCheckIn && (
-                    <Button
-                      className="w-full"
-                      size="lg"
-                      onClick={() => handleCheckIn(false)}
-                      disabled={isCheckingIn}
-                    >
-                      {isCheckingIn ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <UserCheck className="h-4 w-4 mr-2" />
-                      )}
-                      Check In Member
-                    </Button>
-                  )}
-
-                  {/* Show denial message when access is not granted (but no payment issues - handled above) */}
-                  {!effectiveStatus?.canCheckIn && !memberPaymentStatus?.hasPaymentIssues && (
-                    <p className="text-sm text-center text-destructive">
-                      Cannot check in - {effectiveStatus?.description}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <User className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                  <p className="font-medium">No Member Selected</p>
-                  <p className="text-sm mt-1">Search and select a member to check in</p>
-                </div>
-              )}
-            </CardContent>
+            <CardContent>{renderDetailPanel()}</CardContent>
           </Card>
         </div>
 
         {/* Today's Stats */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2 max-w-md">
+        <div className="grid gap-4 sm:grid-cols-3 max-w-2xl">
           <div className="text-center p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border">
-            <p className="text-3xl font-bold text-green-700 dark:text-green-400">{todayStats.total}</p>
+            <p className="text-3xl font-bold text-green-700 dark:text-green-400">{stats.total}</p>
             <p className="text-xs text-green-600 dark:text-green-500">Total Check-Ins</p>
           </div>
           <div className="text-center p-4 bg-secondary/50 rounded-lg border">
-            <p className="text-3xl font-bold">{todayStats.currentlyIn}</p>
-            <p className="text-xs text-muted-foreground">Currently In</p>
+            <p className="text-3xl font-bold">{stats.currentlyIn}</p>
+            <p className="text-xs text-muted-foreground">Members Currently In</p>
+          </div>
+          <div className="text-center p-4 bg-secondary/50 rounded-lg border space-y-1">
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-sm font-medium">
+              {stats.members > 0 && <span>{stats.members} Members</span>}
+              {stats.guests > 0 && <span>{stats.guests} Guests</span>}
+              {stats.classes > 0 && <span>{stats.classes} Class</span>}
+              {stats.spa > 0 && <span>{stats.spa} Spa</span>}
+              {stats.total === 0 && <span className="text-muted-foreground">—</span>}
+            </div>
+            <p className="text-xs text-muted-foreground">Breakdown</p>
           </div>
         </div>
 
-        {/* Today's Check-Ins - Full List */}
+        {/* Today's Attendance Feed */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Today's Check-Ins ({recentCheckIns.length})
+              Today's Attendance ({entries.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {recentCheckIns.length > 0 ? (
+            {entries.length > 0 ? (
               <div className="overflow-y-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[50px]"></TableHead>
                       <TableHead>Name</TableHead>
-                      <TableHead>Member ID</TableHead>
-                      <TableHead>Membership</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Details</TableHead>
                       <TableHead>Time</TableHead>
                       <TableHead>Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentCheckIns.map((checkIn) => {
-                      const initials = `${checkIn.members?.first_name?.[0] || ''}${checkIn.members?.last_name?.[0] || ''}`.toUpperCase();
-                      const statusColor = checkIn.members?.status === 'active' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-                        : checkIn.members?.status === 'frozen'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+                    {entries.map((entry) => {
+                      const initials = entry.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2);
                       return (
                         <TableRow
-                          key={checkIn.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/admin/members/${checkIn.members?.id}`)}
+                          key={entry.id}
+                          className={entry.navigateTo ? "cursor-pointer hover:bg-muted/50" : ""}
+                          onClick={() => entry.navigateTo && navigate(entry.navigateTo)}
                         >
                           <TableCell>
                             <Avatar className="h-8 w-8">
-                              {checkIn.members?.photo_url && (
-                                <AvatarImage src={checkIn.members.photo_url} alt={`${checkIn.members.first_name} ${checkIn.members.last_name}`} />
-                              )}
+                              {entry.photoUrl && <AvatarImage src={entry.photoUrl} alt={entry.name} />}
                               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                             </Avatar>
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {checkIn.members?.first_name} {checkIn.members?.last_name}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-xs font-mono">
-                            {checkIn.members?.member_id}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {checkIn.members?.membership_type}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={statusColor}>
-                              {checkIn.members?.status}
-                            </Badge>
-                          </TableCell>
+                          <TableCell className="font-medium">{entry.name}</TableCell>
+                          <TableCell><TypeBadge type={entry.type} /></TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{entry.subtitle}</TableCell>
                           <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                            {format(new Date(checkIn.checked_in_at), "h:mm a")}
+                            {format(new Date(entry.time), "h:mm a")}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
-                            {checkIn.notes || '—'}
+                            {entry.notes || "—"}
                           </TableCell>
                         </TableRow>
                       );
