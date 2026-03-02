@@ -92,6 +92,13 @@ function buildChargeItems(
   ];
 }
 
+interface NonMemberInfo {
+  userId: string;
+  stripeCustomerId?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 interface ChargeItemSelectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -104,6 +111,7 @@ interface ChargeItemSelectorProps {
     billing_type: string | null;
     status?: string;
   };
+  nonMember?: NonMemberInfo;
   onChargeSuccess?: () => void;
   onRequires3DS?: (amount: number, description: string) => void;
 }
@@ -112,6 +120,7 @@ export function ChargeItemSelector({
   open,
   onOpenChange,
   member,
+  nonMember,
   onChargeSuccess,
   onRequires3DS,
 }: ChargeItemSelectorProps) {
@@ -308,14 +317,18 @@ export function ChargeItemSelector({
     setIsCharging(true);
     try {
       if (isManualPayment) {
-        const { error } = await supabase.from("manual_charges").insert({
-          member_id: member.id,
+        // For non-members, use user_id; for members, use member_id
+        const insertData: any = {
           amount: amountInCents,
           description: `[${manualPaymentMethod.toUpperCase()}] ${desc} (${chargeType})`,
           status: "succeeded",
           charged_by: user?.id || "unknown",
-          user_id: user?.id || "unknown",
-        });
+          user_id: nonMember?.userId || user?.id || "unknown",
+        };
+        if (!nonMember) {
+          insertData.member_id = member.id;
+        }
+        const { error } = await supabase.from("manual_charges").insert(insertData);
         if (error) throw error;
 
         if (alsoActivate && isPendingActivation) {
@@ -334,8 +347,19 @@ export function ChargeItemSelector({
         }
         toast.success(`Manual payment of $${finalAmount.toFixed(2)} recorded`);
       } else {
+        // For non-members, pass stripeCustomerId directly; for members, pass memberId
+        const chargeBody: any = {
+          action: "charge_saved_card_with_3ds",
+          amount: amountInCents,
+          description: desc,
+        };
+        if (nonMember?.stripeCustomerId) {
+          chargeBody.stripeCustomerId = nonMember.stripeCustomerId;
+        } else {
+          chargeBody.memberId = member.id;
+        }
         const { data, error } = await supabase.functions.invoke("stripe-payment", {
-          body: { action: "charge_saved_card_with_3ds", memberId: member.id, amount: amountInCents, description: desc },
+          body: chargeBody,
         });
         if (error) throw error;
         if (data?.requires_action && onRequires3DS) {

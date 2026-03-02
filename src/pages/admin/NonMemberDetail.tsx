@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addDays } from "date-fns";
+import { format, addDays, differenceInDays } from "date-fns";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,24 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import {
   ArrowLeft, Edit2, X, Check, CreditCard, RefreshCw, ShieldCheck, ShieldX,
-  Package, Calendar, Loader2, Mail, Phone, User, Pencil,
+  Package, Calendar, Loader2, Mail, Phone, User, Pencil, DollarSign, Clock,
+  Plus,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
+import { ChargeItemSelector } from "@/components/admin/ChargeItemSelector";
+import { getCategoryDisplayName } from "@/lib/classCategories";
 
 export default function NonMemberDetail() {
   const { userId } = useParams<{ userId: string }>();
@@ -32,6 +40,7 @@ export default function NonMemberDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", phone: "" });
   const [editingPass, setEditingPass] = useState<any>(null);
+  const [showChargeSelector, setShowChargeSelector] = useState(false);
 
   // Add package state
   const [showAddPackage, setShowAddPackage] = useState(false);
@@ -69,17 +78,50 @@ export default function NonMemberDetail() {
     },
   });
 
-  // Fetch bookings
+  // Fetch bookings with instructor info
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
     queryKey: ["admin-nonmember-bookings", userId],
     enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_bookings")
-        .select("*, class_sessions(session_date, start_time, class_types(name))")
+        .select("*, class_sessions(session_date, start_time, end_time, class_types(name), instructors(name))")
         .eq("user_id", userId!)
         .order("booked_at", { ascending: false })
-        .limit(20);
+        .limit(100);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch credit usage (bookings where credits_used > 0)
+  const { data: creditUsage = [] } = useQuery({
+    queryKey: ["admin-nonmember-credit-usage", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("class_bookings")
+        .select("id, credits_used, booked_at, class_sessions(session_date, class_types(name))")
+        .eq("user_id", userId!)
+        .gt("credits_used", 0)
+        .order("booked_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch charge history
+  const { data: charges = [] } = useQuery({
+    queryKey: ["admin-nonmember-charges", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("manual_charges")
+        .select("*")
+        .eq("user_id", userId!)
+        .order("created_at", { ascending: false })
+        .limit(100);
       if (error) throw error;
       return data || [];
     },
@@ -227,6 +269,16 @@ export default function NonMemberDetail() {
   const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unknown";
   const activePasses = passes.filter((p) => p.status === "active").length;
 
+  // Build pseudo-member for ChargeItemSelector
+  const pseudoMember = {
+    id: `nonmember-${userId}`,
+    first_name: profile.first_name || "Non",
+    last_name: profile.last_name || "Member",
+    membership_type: "non-member",
+    gender: null as string | null,
+    billing_type: null as string | null,
+  };
+
   return (
     <>
     <AdminLayout title="Non-Member Detail">
@@ -251,323 +303,514 @@ export default function NonMemberDetail() {
           </Button>
         </div>
 
-        {/* Main 2-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* LEFT COLUMN */}
-          <div className="space-y-6">
-            {/* Profile Card */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-4 w-4" /> Profile
-                  </CardTitle>
-                  {!isEditing ? (
-                    <Button variant="ghost" size="sm" onClick={startEditing}>
-                      <Edit2 className="h-4 w-4 mr-1" /> Edit
-                    </Button>
-                  ) : (
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)} disabled={isSaving}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" onClick={saveProfile} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-                        Save
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">First Name</Label>
-                        <Input value={editForm.first_name} onChange={(e) => setEditForm((f) => ({ ...f, first_name: e.target.value }))} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Last Name</Label>
-                        <Input value={editForm.last_name} onChange={(e) => setEditForm((f) => ({ ...f, last_name: e.target.value }))} />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Email</Label>
-                      <Input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Phone</Label>
-                      <Input value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> Email</span>
-                      <span>{profile.email || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" /> Phone</span>
-                      <span>{profile.phone || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Joined</span>
-                      <span>{format(new Date(profile.created_at), "MMM d, yyyy")}</span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+        {/* Tabbed Layout */}
+        <Tabs defaultValue="profile" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="passes">Passes & Bookings</TabsTrigger>
+            <TabsTrigger value="payments">Payments</TabsTrigger>
+          </TabsList>
 
-            {/* Card on File */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Card on File</CardTitle>
-                  <Button
-                    variant="ghost" size="sm"
-                    onClick={() => refreshCardMutation.mutate()}
-                    disabled={refreshCardMutation.isPending}
-                  >
-                    {refreshCardMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    <span className="ml-1 text-xs">Refresh</span>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {profile.card_last4 ? (
-                  <div className="flex items-center gap-3">
-                    <CreditCard className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium capitalize">{profile.card_brand || "Card"} •••• {profile.card_last4}</p>
-                      {profile.card_exp_month && profile.card_exp_year && (
-                        <p className="text-xs text-muted-foreground">
-                          Expires {String(profile.card_exp_month).padStart(2, "0")}/{profile.card_exp_year}
-                        </p>
+          {/* ===== PROFILE TAB ===== */}
+          <TabsContent value="profile">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                {/* Profile Card */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <User className="h-4 w-4" /> Profile
+                      </CardTitle>
+                      {!isEditing ? (
+                        <Button variant="ghost" size="sm" onClick={startEditing}>
+                          <Edit2 className="h-4 w-4 mr-1" /> Edit
+                        </Button>
+                      ) : (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)} disabled={isSaving}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" onClick={saveProfile} disabled={isSaving}>
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
+                            Save
+                          </Button>
+                        </div>
                       )}
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No card on file</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Waiver Status */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Waiver Status</CardTitle>
-                  <Button
-                    variant="ghost" size="sm"
-                    onClick={() => toggleWaiverMutation.mutate(!profile.waiver_signed)}
-                    disabled={toggleWaiverMutation.isPending}
-                  >
-                    {toggleWaiverMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : profile.waiver_signed ? (
-                      <span className="text-xs text-destructive">Revoke</span>
-                    ) : (
-                      <span className="text-xs text-green-700">Mark Signed</span>
-                    )}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {profile.waiver_signed ? (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    <ShieldCheck className="h-3 w-3 mr-1" /> Signed
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                    <ShieldX className="h-3 w-3 mr-1" /> Missing
-                  </Badge>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  variant="outline" size="sm" className="w-full justify-start"
-                  onClick={() => sendActivationMutation.mutate()}
-                  disabled={sendActivationMutation.isPending || !profile.email}
-                >
-                  {sendActivationMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-                  Send Activation Email
-                </Button>
-                <Button
-                  variant="outline" size="sm" className="w-full justify-start"
-                  onClick={() => setShowAddPackage(true)}
-                >
-                  <Package className="h-4 w-4 mr-2" /> Add Package
-                </Button>
-                <Button
-                  variant="outline" size="sm" className="w-full justify-start"
-                  onClick={() => refreshCardMutation.mutate()}
-                  disabled={refreshCardMutation.isPending}
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" /> Refresh Card from Stripe
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* RIGHT COLUMN */}
-          <div className="space-y-6">
-            {/* Class Passes */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    Class Passes ({passes.length})
-                  </CardTitle>
-                  <Badge variant="outline">{activePasses} active</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {passesLoading ? (
-                  <Skeleton className="h-16 w-full" />
-                ) : passes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No class passes</p>
-                ) : (
-                  <div className="space-y-3">
-                    {passes.map((pass) => (
-                      <div key={pass.id} className="flex items-center justify-between p-3 rounded-sm border border-border bg-background">
-                        <div>
-                          <p className="text-sm font-medium capitalize">
-                            {pass.category?.replace("_", " ")} — {pass.pass_type}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Expires {format(new Date(pass.expires_at), "MMM d, yyyy")}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isSuperAdmin() && (
-                            <Button variant="ghost" size="icon-sm" onClick={() => setEditingPass(pass)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          <div className="text-right">
-                            <Badge variant={pass.status === "active" ? "default" : "secondary"} className="text-xs">
-                              {pass.status}
-                            </Badge>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {pass.classes_remaining}/{pass.classes_total} left
-                            </p>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">First Name</Label>
+                            <Input value={editForm.first_name} onChange={(e) => setEditForm((f) => ({ ...f, first_name: e.target.value }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Last Name</Label>
+                            <Input value={editForm.last_name} onChange={(e) => setEditForm((f) => ({ ...f, last_name: e.target.value }))} />
                           </div>
                         </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Email</Label>
+                          <Input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Phone</Label>
+                          <Input value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    ) : (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> Email</span>
+                          <span>{profile.email || "—"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" /> Phone</span>
+                          <span>{profile.phone || "—"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Joined</span>
+                          <span>{format(new Date(profile.created_at), "MMM d, yyyy")}</span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-            {/* Inline Add Package */}
-            {showAddPackage && (
-              <Card className="border-primary/30">
+                {/* Waiver Status */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium">Waiver Status</CardTitle>
+                      <Button
+                        variant="ghost" size="sm"
+                        onClick={() => toggleWaiverMutation.mutate(!profile.waiver_signed)}
+                        disabled={toggleWaiverMutation.isPending}
+                      >
+                        {toggleWaiverMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : profile.waiver_signed ? (
+                          <span className="text-xs text-destructive">Revoke</span>
+                        ) : (
+                          <span className="text-xs text-green-700">Mark Signed</span>
+                        )}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {profile.waiver_signed ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <ShieldCheck className="h-3 w-3 mr-1" /> Signed
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                        <ShieldX className="h-3 w-3 mr-1" /> Missing
+                      </Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-6">
+                {/* Card on File */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium">Card on File</CardTitle>
+                      <Button
+                        variant="ghost" size="sm"
+                        onClick={() => refreshCardMutation.mutate()}
+                        disabled={refreshCardMutation.isPending}
+                      >
+                        {refreshCardMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        <span className="ml-1 text-xs">Refresh</span>
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {profile.card_last4 ? (
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium capitalize">{profile.card_brand || "Card"} •••• {profile.card_last4}</p>
+                          {profile.card_exp_month && profile.card_exp_year && (
+                            <p className="text-xs text-muted-foreground">
+                              Expires {String(profile.card_exp_month).padStart(2, "0")}/{profile.card_exp_year}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No card on file</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Actions */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Button
+                      variant="outline" size="sm" className="w-full justify-start"
+                      onClick={() => sendActivationMutation.mutate()}
+                      disabled={sendActivationMutation.isPending || !profile.email}
+                    >
+                      {sendActivationMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                      Send Activation Email
+                    </Button>
+                    <Button
+                      variant="outline" size="sm" className="w-full justify-start"
+                      onClick={() => setShowChargeSelector(true)}
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" /> Charge / Record Payment
+                    </Button>
+                    <Button
+                      variant="outline" size="sm" className="w-full justify-start"
+                      onClick={() => refreshCardMutation.mutate()}
+                      disabled={refreshCardMutation.isPending}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" /> Refresh Card from Stripe
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ===== PASSES & BOOKINGS TAB ===== */}
+          <TabsContent value="passes">
+            <div className="space-y-6">
+              {/* Class Passes with Progress Bars */}
+              <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium">Add Package</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setShowAddPackage(false)}>
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Class Passes ({passes.length})
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{activePasses} active</Badge>
+                      <Button variant="outline" size="sm" onClick={() => setShowAddPackage(!showAddPackage)}>
+                        <Plus className="h-3 w-3 mr-1" /> Add
+                      </Button>
+                    </div>
                   </div>
-                  <CardDescription className="text-xs">Grant class pass credits to this account.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Category</Label>
-                      <Select value={category} onValueChange={setCategory}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pilatesCycling">Pilates / Cycling</SelectItem>
-                          <SelectItem value="otherClasses">Other Classes</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Pass Type</Label>
-                      <Select value={passType} onValueChange={setPassType}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="single">Single Class</SelectItem>
-                          <SelectItem value="tenPack">10-Pack</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Expires In (days)</Label>
-                      <Input type="number" value={expirationDays} onChange={(e) => setExpirationDays(e.target.value)} min="1" max="365" />
-                    </div>
-                  </div>
-                  {category && passType && (
-                    <div className="p-3 rounded-sm border border-border bg-muted/20 text-sm">
-                      <strong>Summary:</strong> {classCountMap[passType] || 1} credit{(classCountMap[passType] || 1) > 1 ? "s" : ""} for{" "}
-                      <span className="capitalize">{category === "pilatesCycling" ? "Pilates/Cycling" : "Other Classes"}</span>,
-                      expiring {format(addDays(new Date(), parseInt(expirationDays)), "MMM d, yyyy")}.
+                <CardContent>
+                  {passesLoading ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : passes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No class passes</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {passes.map((pass) => {
+                        const pct = pass.classes_total > 0 ? (pass.classes_remaining / pass.classes_total) * 100 : 0;
+                        const isActive = pass.status === "active";
+                        const daysLeft = differenceInDays(new Date(pass.expires_at), new Date());
+                        const expiringSoon = isActive && daysLeft <= 14 && daysLeft > 0;
+                        const expired = daysLeft <= 0;
+
+                        return (
+                          <div
+                            key={pass.id}
+                            className={`p-4 rounded-lg border ${isActive ? "border-primary/20 bg-primary/5" : "border-border bg-muted/30"}`}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {getCategoryDisplayName(pass.category)} — {pass.pass_type}
+                                </p>
+                                <p className={`text-xs ${expiringSoon ? "text-destructive font-medium" : expired ? "text-destructive" : "text-muted-foreground"}`}>
+                                  {expired
+                                    ? "Expired"
+                                    : expiringSoon
+                                    ? `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`
+                                    : `Expires ${format(new Date(pass.expires_at), "MMM d, yyyy")}`}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {isSuperAdmin() && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingPass(pass)}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
+                                  {pass.status}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>{pass.classes_remaining} remaining</span>
+                                <span>{pass.classes_total} total</span>
+                              </div>
+                              <Progress value={pct} className="h-2" />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-                  <Button
-                    onClick={() => addPackageMutation.mutate()}
-                    disabled={!category || !passType || addPackageMutation.isPending}
-                    size="sm"
-                  >
-                    {addPackageMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="h-4 w-4 mr-2" />}
-                    Add Package
-                  </Button>
                 </CardContent>
               </Card>
-            )}
 
-            {/* Booking History */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Recent Bookings ({bookings.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {bookingsLoading ? (
-                  <Skeleton className="h-16 w-full" />
-                ) : bookings.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No bookings yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {bookings.map((booking: any) => (
-                      <div key={booking.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                        <div>
-                          <p className="text-sm font-medium">
-                            {booking.class_sessions?.class_types?.name || "Class"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {booking.class_sessions?.session_date
-                              ? format(new Date(booking.class_sessions.session_date), "MMM d, yyyy")
-                              : "—"}
-                          </p>
-                        </div>
-                        <Badge variant={booking.status === "confirmed" ? "default" : "secondary"} className="text-xs">
-                          {booking.status}
-                        </Badge>
+              {/* Add Package Form */}
+              {showAddPackage && (
+                <Card className="border-primary/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium">Add Package</CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => setShowAddPackage(false)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <CardDescription className="text-xs">Grant class pass credits to this account.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Category</Label>
+                        <Select value={category} onValueChange={setCategory}>
+                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pilatesCycling">Pilates / Cycling</SelectItem>
+                            <SelectItem value="otherClasses">Other Classes</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    ))}
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Pass Type</Label>
+                        <Select value={passType} onValueChange={setPassType}>
+                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="single">Single Class</SelectItem>
+                            <SelectItem value="tenPack">10-Pack</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Expires In (days)</Label>
+                        <Input type="number" value={expirationDays} onChange={(e) => setExpirationDays(e.target.value)} min="1" max="365" />
+                      </div>
+                    </div>
+                    {category && passType && (
+                      <div className="p-3 rounded-sm border border-border bg-muted/20 text-sm">
+                        <strong>Summary:</strong> {classCountMap[passType] || 1} credit{(classCountMap[passType] || 1) > 1 ? "s" : ""} for{" "}
+                        <span className="capitalize">{category === "pilatesCycling" ? "Pilates/Cycling" : "Other Classes"}</span>,
+                        expiring {format(addDays(new Date(), parseInt(expirationDays)), "MMM d, yyyy")}.
+                      </div>
+                    )}
+                    <Button
+                      onClick={() => addPackageMutation.mutate()}
+                      disabled={!category || !passType || addPackageMutation.isPending}
+                      size="sm"
+                    >
+                      {addPackageMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="h-4 w-4 mr-2" />}
+                      Add Package
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Booking History Table */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Booking History ({bookings.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {bookingsLoading ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : bookings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No bookings yet</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Time</TableHead>
+                          <TableHead>Class</TableHead>
+                          <TableHead>Instructor</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Credits</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bookings.map((booking: any) => {
+                          const session = booking.class_sessions;
+                          return (
+                            <TableRow key={booking.id}>
+                              <TableCell className="text-sm">
+                                {session?.session_date
+                                  ? format(new Date(session.session_date), "MMM d, yyyy")
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {session?.start_time
+                                  ? format(new Date(`2000-01-01T${session.start_time}`), "h:mm a")
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-sm font-medium">
+                                {session?.class_types?.name || "—"}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {session?.instructors?.name || "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={booking.status === "confirmed" ? "default" : "secondary"} className="text-xs">
+                                  {booking.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right text-sm">
+                                {booking.credits_used > 0 ? booking.credits_used : "—"}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Credit Usage History */}
+              {creditUsage.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Credit Usage History
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Class</TableHead>
+                          <TableHead className="text-right">Credits Used</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {creditUsage.map((usage: any) => (
+                          <TableRow key={usage.id}>
+                            <TableCell className="text-sm">
+                              {usage.class_sessions?.session_date
+                                ? format(new Date(usage.class_sessions.session_date), "MMM d, yyyy")
+                                : format(new Date(usage.booked_at), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {usage.class_sessions?.class_types?.name || "Class"}
+                            </TableCell>
+                            <TableCell className="text-right text-sm font-medium text-destructive">
+                              -{usage.credits_used}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ===== PAYMENTS TAB ===== */}
+          <TabsContent value="payments">
+            <div className="space-y-6">
+              {/* POS Button */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">Point of Sale</CardTitle>
+                    <Button size="sm" onClick={() => setShowChargeSelector(true)}>
+                      <DollarSign className="h-4 w-4 mr-1" /> Charge / Record Payment
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Sell cafe items, wellness services, class passes, or record custom charges.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Charge History */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Charge History ({charges.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {charges.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No charges recorded</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {charges.map((charge: any) => (
+                          <TableRow key={charge.id}>
+                            <TableCell className="text-sm">
+                              {format(new Date(charge.created_at), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell className="text-sm max-w-[250px] truncate">
+                              {charge.description || "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={charge.status === "succeeded" ? "default" : "secondary"}
+                                className="text-xs"
+                              >
+                                {charge.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right text-sm font-medium">
+                              ${(charge.amount / 100).toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
+
+    {/* ChargeItemSelector Dialog */}
+    <ChargeItemSelector
+      open={showChargeSelector}
+      onOpenChange={setShowChargeSelector}
+      member={pseudoMember}
+      nonMember={{
+        userId: userId!,
+        stripeCustomerId: profile.stripe_customer_id || undefined,
+        firstName: profile.first_name || undefined,
+        lastName: profile.last_name || undefined,
+      }}
+      onChargeSuccess={() => {
+        queryClient.invalidateQueries({ queryKey: ["admin-nonmember-charges", userId] });
+      }}
+    />
 
     {editingPass && (
       <EditClassPassDialog

@@ -47,8 +47,8 @@ export default function People() {
           .limit(50),
         supabase
           .from("non_member_profiles")
-          .select("id, user_id, first_name, last_name, email, waiver_signed, created_at")
-          .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
+          .select("id, user_id, first_name, last_name, email, phone, waiver_signed, created_at")
+          .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%,phone.ilike.%${q}%`)
           .limit(50),
         supabase
           .from("class_passes")
