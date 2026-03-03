@@ -11,12 +11,15 @@ import { format } from "date-fns";
 import { CafePOSMenu, type POSCartItem } from "@/components/admin/CafePOSMenu";
 import { CafePOSCart } from "@/components/admin/CafePOSCart";
 import { calculateTax } from "@/hooks/useCafeMenu";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import type { POSCustomer } from "@/components/admin/POSCustomerSearch";
 
 export default function CafePOS() {
   const [cart, setCart] = useState<POSCartItem[]>([]);
-  const [memberSearch, setMemberSearch] = useState("");
-  const [selectedMember, setSelectedMember] = useState<{ name: string; cardOnFile: boolean; stripeCustomerId?: string | null } | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<POSCustomer | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [isCharging, setIsCharging] = useState(false);
 
   const { data: orders, isLoading: ordersLoading } = useAdminCafeOrders({ status: statusFilter });
   const updateStatus = useUpdateCafeOrderStatus();
@@ -45,43 +48,81 @@ export default function CafePOS() {
 
   const clearCart = () => {
     setCart([]);
-    setSelectedMember(null);
-    setMemberSearch("");
+    setSelectedCustomer(null);
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (paymentMethod: "card" | "cash" = "card") => {
     if (cart.length === 0) return;
-    const subtotal = cart.reduce((sum, item) => {
-      const addonTotal = item.addons.reduce((s, a) => s + a.price, 0);
-      return sum + (item.basePrice + addonTotal) * item.quantity;
-    }, 0);
-    const tax = calculateTax(subtotal);
-
-    const orderItems: CafeOrderItem[] = cart.map((item) => ({
-      id: parseInt(item.itemId.slice(0, 8), 16) || 0,
-      name: item.name,
-      price: item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
-      quantity: item.quantity,
-      category: item.categoryName,
-    }));
-
-    // Add tax as a line item
-    orderItems.push({
-      id: 0,
-      name: `MI Sales Tax (6%)`,
-      price: tax,
-      quantity: 1,
-      category: "Tax",
-    });
+    setIsCharging(true);
 
     try {
+      const subtotal = cart.reduce((sum, item) => {
+        const addonTotal = item.addons.reduce((s, a) => s + a.price, 0);
+        return sum + (item.basePrice + addonTotal) * item.quantity;
+      }, 0);
+      const tax = calculateTax(subtotal);
+      const total = subtotal + tax;
+      const itemNames = cart.map((i) => i.name).join(", ");
+
+      // If paying by card and customer has card on file, charge via Stripe
+      if (paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile) {
+        const amountCents = Math.round(total * 100);
+        const { data: chargeResult, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "charge_saved_card",
+            customerId: selectedCustomer.stripeCustomerId,
+            amount: amountCents,
+            description: `Cafe POS - ${itemNames}`,
+            chargeType: "pos",
+          },
+        });
+
+        if (chargeError) {
+          toast.error("Payment failed: " + (chargeError.message || "Unknown error"));
+          setIsCharging(false);
+          return;
+        }
+
+        if (chargeResult && !chargeResult.success) {
+          toast.error("Card declined: " + (chargeResult.error || "Payment was not successful"));
+          setIsCharging(false);
+          return;
+        }
+
+        toast.success("Card charged successfully");
+      }
+
+      // Create the order record
+      const orderItems: CafeOrderItem[] = cart.map((item) => ({
+        id: parseInt(item.itemId.slice(0, 8), 16) || 0,
+        name: item.name,
+        price: item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
+        quantity: item.quantity,
+        category: item.categoryName,
+      }));
+
+      orderItems.push({
+        id: 0,
+        name: `MI Sales Tax (6%)`,
+        price: tax,
+        quantity: 1,
+        category: "Tax",
+      });
+
+      const orderPaymentMethod = paymentMethod === "cash" ? "cash" : (selectedCustomer?.cardOnFile ? "member_account" : "card");
+
       await createOrder.mutateAsync({
         orderItems,
-        paymentMethod: selectedMember?.cardOnFile ? "member_account" : "card",
+        paymentMethod: orderPaymentMethod,
       });
+
+      toast.success(paymentMethod === "cash" ? "Cash sale recorded" : "Order placed");
       clearCart();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to place order:", error);
+      toast.error(error?.message || "Failed to place order");
+    } finally {
+      setIsCharging(false);
     }
   };
 
@@ -205,12 +246,11 @@ export default function CafePOS() {
               <CafePOSCart
                 cart={cart}
                 updateQuantity={updateQuantity}
-                memberSearch={memberSearch}
-                setMemberSearch={setMemberSearch}
-                selectedMember={selectedMember}
+                selectedCustomer={selectedCustomer}
+                onCustomerSelect={setSelectedCustomer}
                 onPlaceOrder={handlePlaceOrder}
                 onClearCart={clearCart}
-                isPlacing={createOrder.isPending}
+                isPlacing={isCharging || createOrder.isPending}
               />
             </div>
           </TabsContent>
