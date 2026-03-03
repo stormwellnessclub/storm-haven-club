@@ -1,76 +1,101 @@
 
 
-# Upgrade Non-Member Admin Detail to Full CRM
+# Upgrade Non-Member Portal + Fix Package Linking
 
-## Overview
-Transform the Non-Member Detail page from a basic profile viewer into a full-featured CRM that matches the Member Detail page. This enables admins to manage non-members with the same power they have for members: charging for services, managing cards, viewing detailed class credits, booking history, and more.
+## Two Problems Found
 
-## What Changes
+### Problem 1: Pending import packages are not linking
+When admin adds a pending import (bulk import) for a user who has **already signed up**, the class pass is never created. The `auto_fulfill_pending_import` trigger only fires on new `non_member_profiles` INSERT -- so if the user already has an account, nothing happens. Example: Samar (shannawi@outlook.com) signed up Feb 22, pending import was created Feb 24, and her import is still `status: 'pending'` with 0 class passes.
 
-### 1. Tabbed Layout (Profile | Passes & Bookings | Payments)
-Replace the current flat 2-column layout with a tabbed interface:
-- **Profile tab**: Contact info (editable), waiver status, card on file with add/update capability, quick actions
-- **Passes & Bookings tab**: Detailed class passes with progress bars, full booking history table with time/instructor/credits used, credit usage tracking, add package form
-- **Payments tab**: Charge Item Selector (POS) for selling cafe items, wellness services, class passes, and custom amounts; plus charge history
+**Fix:** Add a second trigger on `pending_non_member_imports` INSERT that checks if a matching user already exists and immediately fulfills the import.
 
-### 2. Detailed Class Passes with Progress Bars
-Upgrade the basic pass list to rich cards showing:
-- Visual progress bars (classes_remaining / classes_total)
-- Color-coded active vs expired/exhausted states
-- Category labels with proper display names
-- Expiration dates with warnings for soon-to-expire passes
-- Edit button (super_admin only, already exists)
+### Problem 2: User-facing portal missing features
+The non-member portal (/portal) is functional but sparse compared to the member portal. Key gaps:
 
-### 3. Full Booking History Table
-Replace the basic 20-item list with a proper data table:
-- Remove the limit(20) cap, increase to 100
-- Add columns: Date, Time, Class Name, Instructor, Status, Credits Used
-- Join class_sessions with instructors table for instructor names
-- Sort by session date descending
+| Feature | Member Portal | Non-Member Portal |
+|---------|:---:|:---:|
+| Dashboard with passes + bookings | Yes | Yes |
+| Detailed booking history | Yes | Yes |
+| Class passes with progress | Yes | Yes |
+| Payment history | Yes | Stub (empty page) |
+| Recovery booking | Yes | Yes |
+| Payment methods | Yes | Yes |
+| Cafe ordering | N/A | Missing |
 
-### 4. Credit Usage Tracking
-Add a "Credit Usage History" section showing:
-- Which bookings consumed pass credits
-- Date, class name, and credits deducted
-- Query class_bookings where credits_used > 0
+The **Payment History** page is a stub showing "No payment history yet" with no actual data query.
 
-### 5. Add/Update Card on File
-Integrate the existing AdminAddCardForm component:
-- Create SetupIntent via the stripe-payment edge function using the non-member's stripe_customer_id
-- On success, refresh card info from Stripe
-- Show the same card management UI as MemberDetail
+### Problem 3: Admin detail page changes may not be visible
+The NonMemberDetail page was already refactored with tabs (Profile, Passes & Bookings, Payments) in the previous change. If it still looks the same, it may be a browser cache issue. No code changes needed here.
 
-### 6. POS / Charge Item Selector for Non-Members
-Adapt ChargeItemSelector to work with non-members:
-- Add optional `stripeCustomerId` and `userId` props as alternatives to the `member` prop
-- When charging a non-member, pass `stripeCustomerId` directly to the edge function instead of looking it up via memberId
-- This enables selling: cafe items, recovery sessions, class passes, guest passes, custom amounts
+---
 
-### 7. Charge History
-Show past charges from the manual_charges table filtered by user_id, displaying amount, description, date, and status.
+## Plan
 
-### 8. People Search Enhancement
-Update the People page to also search non-members by phone number, improving discoverability for walk-in customers.
+### 1. Database: Add auto-fulfill trigger on pending import creation
+Create a new trigger on `pending_non_member_imports` INSERT that:
+- Checks if a `non_member_profiles` row already exists with matching email and a `user_id`
+- If found, immediately creates the class pass, copies profile data, and marks the import as `fulfilled`
+- This handles the case where admin imports packages for users who already have accounts
+
+### 2. Database: Backfill Samar's pending import
+Run a one-time migration to fulfill any existing pending imports that match already-registered users.
+
+### 3. Portal: Build real Payment History page
+Replace the stub `src/pages/portal/PaymentHistory.tsx` with a functional page that:
+- Queries `manual_charges` by `user_id` to show admin-initiated charges
+- Queries `class_passes` purchases (non-zero `price_paid`) for pass purchase history
+- Displays date, description, amount, and status in a clean list
+
+### 4. Verify admin detail page
+The admin NonMemberDetail page was already upgraded with the three-tab layout. If you're still seeing the old flat layout, try a hard refresh (Ctrl+Shift+R). No code changes needed.
 
 ## Technical Details
 
-### Files to Modify
-- **src/pages/admin/NonMemberDetail.tsx** -- Major refactor: add tabs, progress bars, full booking table, card management, charge history, POS integration
-- **src/components/admin/ChargeItemSelector.tsx** -- Add optional `stripeCustomerId` + `userId` props; when provided, charge via customer ID directly instead of member lookup
-- **src/pages/admin/People.tsx** -- Add phone to non-member search query
+### Database migration (new trigger)
+```sql
+CREATE OR REPLACE FUNCTION public.auto_fulfill_import_on_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_profile RECORD;
+BEGIN
+  -- Check if user already has an account
+  SELECT * INTO v_profile
+  FROM public.non_member_profiles
+  WHERE LOWER(email) = LOWER(NEW.email)
+    AND user_id IS NOT NULL
+  LIMIT 1;
 
-### Edge Function Updates
-- **stripe-payment**: The `charge_saved_card_with_3ds` action may need a small update to accept `stripeCustomerId` directly (the guest management system already uses this pattern, so it may already work)
+  IF FOUND THEN
+    -- Create class pass immediately
+    INSERT INTO public.class_passes (...)
+    VALUES (v_profile.user_id, NEW.pass_category, ...);
 
-### No Database Changes Needed
-- `class_bookings` already has `user_id` and `credits_used` columns
-- `manual_charges` already has `user_id` column
-- `non_member_profiles` already has all card metadata columns
-- `class_passes` already has `user_id` column
+    -- Mark fulfilled
+    NEW.status := 'fulfilled';
+    NEW.fulfilled_at := now();
+  END IF;
 
-### Key Architectural Decisions
-- ChargeItemSelector will accept an optional `nonMember` prop containing `{userId, stripeCustomerId, firstName, lastName}` as an alternative to the `member` prop
-- When `nonMember` is provided, charges go through `stripeCustomerId` and records use `user_id` instead of `member_id`
-- The booking history query will join through `class_sessions` -> `instructors` and `class_sessions` -> `class_types` for full context
-- Card management reuses the existing `AdminAddCardForm` + `StripeProvider` components with the non-member's `stripe_customer_id`
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_auto_fulfill_import_on_insert
+  BEFORE INSERT ON public.pending_non_member_imports
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_fulfill_import_on_insert();
+```
+
+### Backfill query
+Fulfill any pending imports where the user already has an account.
+
+### Files to modify
+- `src/pages/portal/PaymentHistory.tsx` -- Replace stub with real charge/purchase history
+
+### Files unchanged
+- `src/pages/admin/NonMemberDetail.tsx` -- Already upgraded (verify with hard refresh)
+- All other portal pages -- Already functional
 
