@@ -1,54 +1,48 @@
 
 
-# Fix Non-Member Class Booking -- Both Admin and User Side
+# Fix POS Customer Search to Include Non-Members and Guests
 
-## Problems Identified
+## The Problem
 
-### 1. Admin Roster: PersonSearch silently fails for non-members
-The `PersonSearch` component queries `non_member_profiles.full_name` -- but that column **does not exist**. The table has `first_name` and `last_name` as separate columns. This means searching by name for non-members returns nothing. The query also filters by `full_name` in the `.or()` clause, which silently produces zero results instead of erroring.
+Both POS terminals (Cafe POS and Front Desk POS) only search the `members` table when looking up a customer. Non-members who have cards on file (via `non_member_profiles.stripe_customer_id`) and guests with saved cards are completely invisible to staff. This means staff cannot charge their saved cards for cafe purchases or other POS transactions.
 
-**File:** `src/components/admin/roster/PersonSearch.tsx` (line 46)
-
-### 2. Admin Roster: PaymentMethodSelector doesn't show `pilates_cycling` pass label
-The `getCategoryLabel` function in `PaymentMethodSelector` only handles `reformer`, `cycling`, and `aerobics` -- it doesn't show `pilates_cycling` properly. Non-members with Pilates/Cycling passes see the raw DB value instead of a friendly label.
-
-**File:** `src/components/admin/roster/PaymentMethodSelector.tsx` (lines 101-108)
-
-### 3. Non-member self-booking: `useTempClassBooking` uses hardcoded category filter
-The `useTempClassBooking` hook filters valid passes with a hardcoded list `["reformer", "cycling", "pilates_cycling"]` but doesn't use the centralized `classCategories.ts` mapping. This works but is fragile.
-
-### 4. Portal discoverability: No "Book a Class" shortcut from the Passes page
-When non-members look at their passes in `/portal/passes`, they see a "Book a Class" button but may not easily connect their pass to available classes if the schedule page doesn't clearly show their credits.
-
----
+Additionally, the Cafe POS (`CafePOS.tsx`) has a member search input that **does nothing** -- there is no `handleMemberSelect` function wired up. Only the Front Desk POS has working search logic, and even that only queries `members`.
 
 ## Plan
 
-### Fix 1: Repair PersonSearch for non-members
-Update the `non_member_profiles` query in `PersonSearch.tsx` to use `first_name` and `last_name` instead of the non-existent `full_name` column. Build the search filter using `.or()` on both name fields and email. Construct `name` from `first_name + last_name` in the results mapping.
+### 1. Add unified customer search to both POS pages
 
-### Fix 2: Use centralized category labels in PaymentMethodSelector
-Replace the local `getCategoryLabel` function with the imported `getCategoryDisplayName` from `@/lib/classCategories.ts`. This ensures consistent labeling for all pass categories including `pilates_cycling`.
+Update `FrontDeskPOS.tsx` `handleMemberSelect` (and create one for `CafePOS.tsx`) to search across three sources:
 
-### Fix 3: Add admin "Book into Class" action from NonMemberDetail
-On the Non-Member Detail page's "Passes & Bookings" tab, add a quick-action button "Book into a Class" that navigates admin staff to the schedule management page, making it faster to add non-members to classes from their profile.
+1. **Members** -- `members` table (existing, searching `first_name`, `last_name`, `email` where `status = 'active'`)
+2. **Non-members** -- `non_member_profiles` table (searching `first_name`, `last_name`, `email` where `stripe_customer_id` is not null)
+3. **Guests** -- `guest_passes` table (searching `guest_name`, `guest_email` where they have a linked user with Stripe)
 
----
+Present results as a dropdown list with type badges (Member, Non-Member, Guest) so staff can pick the right person.
 
-## Technical Details
+### 2. Extract shared customer search into a reusable component
 
-### Files to modify
+Create `src/components/admin/POSCustomerSearch.tsx` that:
+- Accepts a search string and returns matching customers from all three tables
+- Shows a dropdown of results with name, email, type badge, and card-on-file indicator
+- On selection, passes back `{ name, cardOnFile, stripeCustomerId, type }` to the parent POS
 
-**`src/components/admin/roster/PersonSearch.tsx`**
-- Line 44-47: Change `non_member_profiles` select from `"user_id, full_name, email"` to `"user_id, first_name, last_name, email"`
-- Line 46: Change `.or()` filter from `full_name` to `first_name` and `last_name`: `.or(\`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%\`)`
-- Lines 84-96: Construct `name` from `nm.first_name` and `nm.last_name` instead of `nm.full_name`
+### 3. Wire card charging for non-members
 
-**`src/components/admin/roster/PaymentMethodSelector.tsx`**
-- Import `getCategoryDisplayName` from `@/lib/classCategories`
-- Replace the local `getCategoryLabel` function (lines 101-108) with `getCategoryDisplayName`
-- Update the pass dropdown label (line 143) to use the imported function
+The `charge_saved_card` action in the `stripe-payment` edge function already accepts a `customerId` parameter -- it doesn't care if the customer is a member or non-member. So the charging logic in `FrontDeskPOS.tsx` will work as-is once we pass the correct `stripeCustomerId` from the non-member profile.
 
-**`src/pages/admin/NonMemberDetail.tsx`**
-- Add a "Book into Class" button on the Passes & Bookings tab that links to `/admin/classes` so staff can quickly navigate to add the non-member to a session via the roster
+### 4. Update CafePOS to actually process card payments
+
+`CafePOS.tsx` currently calls `createOrder.mutateAsync` but never charges a card via Stripe. Copy the Stripe charging logic from `FrontDeskPOS.tsx` so card-on-file payments actually go through.
+
+## Files to Modify
+
+- **`src/components/admin/POSCustomerSearch.tsx`** (New) -- Shared search component querying members + non_member_profiles + guest profiles, with dropdown results
+- **`src/components/admin/CafePOSCart.tsx`** -- Replace the simple search input with the new `POSCustomerSearch` component
+- **`src/pages/admin/CafePOS.tsx`** -- Add Stripe card charging logic (like FrontDeskPOS), wire up customer selection callback
+- **`src/pages/admin/FrontDeskPOS.tsx`** -- Replace inline member search with the shared `POSCustomerSearch`, expand to include non-members
+
+## No database changes required
+
+The `non_member_profiles` table already has `stripe_customer_id`, `card_brand`, and `card_last4` columns. The `charge_saved_card` edge function is customer-type agnostic.
 
