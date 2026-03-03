@@ -1,48 +1,67 @@
 
 
-# Fix POS Customer Search to Include Non-Members and Guests
+# Why Gold Member Credits Keep Disappearing — Root Cause & Fix
 
-## The Problem
+## What's Happening
 
-Both POS terminals (Cafe POS and Front Desk POS) only search the `members` table when looking up a customer. Non-members who have cards on file (via `non_member_profiles.stripe_customer_id`) and guests with saved cards are completely invisible to staff. This means staff cannot charge their saved cards for cafe purchases or other POS transactions.
+**40 of your active members** (including Lauren Ogarek) have their `subscription_status` stuck at `"none"` in the database, even though they have valid Stripe subscriptions. This is causing two cascading failures:
 
-Additionally, the Cafe POS (`CafePOS.tsx`) has a member search input that **does nothing** -- there is no `handleMemberSelect` function wired up. Only the Front Desk POS has working search logic, and even that only queries `members`.
+### Problem 1: Benefits show as "Frozen"
+The member portal checks `subscription_status` and only accepts `"active"` or `"trialing"`. When it sees `"none"`, it treats the member as having **no subscription at all** and freezes all their benefits — even though they're paying and their membership status says "active."
 
-## Plan
+Lauren Ogarek's data right now:
+- `status`: active
+- `stripe_subscription_id`: exists (valid)
+- `subscription_status`: **none** ← this is the problem
 
-### 1. Add unified customer search to both POS pages
+### Problem 2: Credits disappear / never get provisioned
+Lauren has **zero credits** in the database. The monthly credit provisioning job runs correctly, but if benefits were frozen when credits should have been allocated (or if the system didn't re-provision after a status change), credits simply don't appear. There's no recovery mechanism.
 
-Update `FrontDeskPOS.tsx` `handleMemberSelect` (and create one for `CafePOS.tsx`) to search across three sources:
+### Why `subscription_status` is stuck at "none"
+The sync function exists but it's only triggered manually. The Stripe webhook should update this column, but for these 40 members, it either never fired or the update didn't stick during initial onboarding. The value `"none"` is the default, and nothing ever changed it.
 
-1. **Members** -- `members` table (existing, searching `first_name`, `last_name`, `email` where `status = 'active'`)
-2. **Non-members** -- `non_member_profiles` table (searching `first_name`, `last_name`, `email` where `stripe_customer_id` is not null)
-3. **Guests** -- `guest_passes` table (searching `guest_name`, `guest_email` where they have a linked user with Stripe)
+---
 
-Present results as a dropdown list with type badges (Member, Non-Member, Guest) so staff can pick the right person.
+## The Fix (3 parts)
 
-### 2. Extract shared customer search into a reusable component
+### 1. Run a Stripe sync to fix the 40 broken members immediately
+Call the existing `sync-subscription-status` edge function to pull actual subscription statuses from Stripe and update the database. This will fix all 40 members in one shot.
 
-Create `src/components/admin/POSCustomerSearch.tsx` that:
-- Accepts a search string and returns matching customers from all three tables
-- Shows a dropdown of results with name, email, type badge, and card-on-file indicator
-- On selection, passes back `{ name, cardOnFile, stripeCustomerId, type }` to the parent POS
+### 2. Fix the code so "none" doesn't freeze benefits
+Update `usePaymentStatus.ts` so that when `subscription_status` is `"none"` but a valid `stripe_subscription_id` exists and the member `status` is `"active"`, the system treats it as having an active subscription instead of freezing benefits. This prevents the problem from recurring if the webhook misses an update.
 
-### 3. Wire card charging for non-members
+**File:** `src/hooks/usePaymentStatus.ts` (lines 60-63)
 
-The `charge_saved_card` action in the `stripe-payment` edge function already accepts a `customerId` parameter -- it doesn't care if the customer is a member or non-member. So the charging logic in `FrontDeskPOS.tsx` will work as-is once we pass the correct `stripeCustomerId` from the non-member profile.
+Current logic:
+```typescript
+const hasActiveSubscription = isCashBilling ? true : (
+  !!membership.stripe_subscription_id && 
+  ['active', 'trialing'].includes(subscriptionStatus || '')
+);
+```
 
-### 4. Update CafePOS to actually process card payments
+Fixed logic — also accept `"none"` or empty when a subscription ID is present:
+```typescript
+const hasActiveSubscription = isCashBilling ? true : (
+  !!membership.stripe_subscription_id && 
+  !['incomplete', 'incomplete_expired', 'canceled', 'unpaid'].includes(subscriptionStatus || '')
+);
+```
 
-`CafePOS.tsx` currently calls `createOrder.mutateAsync` but never charges a card via Stripe. Copy the Stripe charging logic from `FrontDeskPOS.tsx` so card-on-file payments actually go through.
+This flips the logic from an allowlist (`active`/`trialing` only) to a blocklist (only block known-bad statuses). If `subscription_status` is `"none"` or hasn't synced yet, but the subscription ID exists, the member is treated as active.
+
+### 3. Provision missing credits for affected members
+After the sync fixes `subscription_status`, manually trigger the `process-monthly-credits` function to provision credits for members like Lauren who are missing them. Additionally, add a one-time data fix to create current-cycle credits for all Gold+ members who should have them but don't.
+
+**Database migration:** Insert missing credits for active Gold/Platinum/Diamond members whose current billing cycle has no credits.
+
+---
 
 ## Files to Modify
 
-- **`src/components/admin/POSCustomerSearch.tsx`** (New) -- Shared search component querying members + non_member_profiles + guest profiles, with dropdown results
-- **`src/components/admin/CafePOSCart.tsx`** -- Replace the simple search input with the new `POSCustomerSearch` component
-- **`src/pages/admin/CafePOS.tsx`** -- Add Stripe card charging logic (like FrontDeskPOS), wire up customer selection callback
-- **`src/pages/admin/FrontDeskPOS.tsx`** -- Replace inline member search with the shared `POSCustomerSearch`, expand to include non-members
-
-## No database changes required
-
-The `non_member_profiles` table already has `stripe_customer_id`, `card_brand`, and `card_last4` columns. The `charge_saved_card` edge function is customer-type agnostic.
+| File | Change |
+|------|--------|
+| `src/hooks/usePaymentStatus.ts` | Switch `hasActiveSubscription` from allowlist to blocklist logic |
+| Database migration (SQL) | Backfill missing credits for current cycle for affected members |
+| Edge function call | Trigger `sync-subscription-status` to fix the 40 members' `subscription_status` |
 
