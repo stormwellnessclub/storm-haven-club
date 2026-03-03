@@ -59,7 +59,7 @@ export function usePaymentStatus(): PaymentStatusResult {
     // Cash billing members don't need a Stripe subscription
     const hasActiveSubscription = isCashBilling ? true : (
       !!membership.stripe_subscription_id && 
-      ['active', 'trialing'].includes(subscriptionStatus || '')
+      !['incomplete', 'incomplete_expired', 'canceled', 'unpaid'].includes(subscriptionStatus || '')
     );
     
     // No subscription OR subscription exists but is incomplete/failed
