@@ -72,6 +72,16 @@ export function VisitFrequencyReport({ dateRange, filters }: VisitFrequencyRepor
           : 0;
       });
 
+      // Fetch all-time check-ins for lifetime counts
+      const { data: allTimeCheckIns } = await supabase
+        .from('check_ins')
+        .select('member_id');
+
+      const lifetimeCounts: Record<string, number> = {};
+      (allTimeCheckIns || []).forEach(ci => {
+        lifetimeCounts[ci.member_id] = (lifetimeCounts[ci.member_id] || 0) + 1;
+      });
+
       // Get top visitors
       const topVisitors = (members || [])
         .map(m => ({
@@ -79,6 +89,7 @@ export function VisitFrequencyReport({ dateRange, filters }: VisitFrequencyRepor
           name: `${m.first_name} ${m.last_name}`,
           tier: ['diamond', 'platinum', 'gold', 'silver'].find(t => m.membership_type?.toLowerCase().includes(t)) || 'other',
           visits: checkInCounts[m.id] || 0,
+          lifetime: lifetimeCounts[m.id] || 0,
         }))
         .filter(m => m.visits > 0)
         .sort((a, b) => b.visits - a.visits)
@@ -164,7 +175,8 @@ export function VisitFrequencyReport({ dateRange, filters }: VisitFrequencyRepor
                 <TableRow>
                   <TableHead>Member</TableHead>
                   <TableHead>Tier</TableHead>
-                  <TableHead className="text-right">Visits</TableHead>
+                  <TableHead className="text-right">Period</TableHead>
+                  <TableHead className="text-right">Lifetime</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -175,6 +187,7 @@ export function VisitFrequencyReport({ dateRange, filters }: VisitFrequencyRepor
                     </TableCell>
                     <TableCell className="capitalize">{visitor.tier}</TableCell>
                     <TableCell className="text-right font-bold">{visitor.visits}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{visitor.lifetime}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -18,6 +18,8 @@ import { PaymentAnalysisReport } from "./reports/PaymentAnalysisReport";
 import { DailyCheckinsReport } from "./reports/DailyCheckinsReport";
 import { PeakHoursReport } from "./reports/PeakHoursReport";
 import { VisitFrequencyReport } from "./reports/VisitFrequencyReport";
+import { MemberAttendanceOverviewReport } from "./reports/MemberAttendanceOverviewReport";
+import { VisitDurationReport } from "./reports/VisitDurationReport";
 import { ClassAttendanceReport } from "./reports/ClassAttendanceReport";
 import { ClassUtilizationReport } from "./reports/ClassUtilizationReport";
 import { InstructorPerformanceReport } from "./reports/InstructorPerformanceReport";
@@ -122,6 +124,8 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'daily-checkins': DailyCheckinsReport,
     'peak-hours': PeakHoursReport,
     'visit-frequency': VisitFrequencyReport,
+    'member-attendance-overview': MemberAttendanceOverviewReport,
+    'visit-duration-analysis': VisitDurationReport,
     'class-attendance': ClassAttendanceReport,
     'class-utilization': ClassUtilizationReport,
     'instructor-performance': InstructorPerformanceReport,

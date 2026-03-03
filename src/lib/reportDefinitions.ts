@@ -274,6 +274,27 @@ export const REPORTS: ReportDefinition[] = [
     ],
     defaultDateRange: 'last30days',
   },
+  {
+    id: 'member-attendance-overview',
+    name: 'Member Attendance Overview',
+    description: 'Lifetime check-ins, avg duration, and per-member trends',
+    category: 'attendance',
+    icon: Users,
+    filters: [
+      { id: 'tier', label: 'Membership Tier', type: 'select', options: TIER_OPTIONS },
+      { id: 'status', label: 'Member Status', type: 'select', options: STATUS_OPTIONS },
+    ],
+    defaultDateRange: 'thisMonth',
+  },
+  {
+    id: 'visit-duration-analysis',
+    name: 'Visit Duration Analysis',
+    description: 'Avg duration by tier, day of week, and distribution',
+    category: 'attendance',
+    icon: Clock,
+    filters: [],
+    defaultDateRange: 'last30days',
+  },
   
   // Class Reports
   {
