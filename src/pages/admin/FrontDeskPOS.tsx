@@ -13,18 +13,11 @@ import { CafePOSCart } from "@/components/admin/CafePOSCart";
 import { calculateTax } from "@/hooks/useCafeMenu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
-interface SelectedMember {
-  name: string;
-  cardOnFile: boolean;
-  stripeCustomerId: string | null;
-  memberId: string | null;
-}
+import type { POSCustomer } from "@/components/admin/POSCustomerSearch";
 
 export default function FrontDeskPOS() {
   const [cart, setCart] = useState<POSCartItem[]>([]);
-  const [memberSearch, setMemberSearch] = useState("");
-  const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<POSCustomer | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [isCharging, setIsCharging] = useState(false);
 
@@ -55,40 +48,7 @@ export default function FrontDeskPOS() {
 
   const clearCart = () => {
     setCart([]);
-    setSelectedMember(null);
-    setMemberSearch("");
-  };
-
-  // Member lookup: query members table for stripe info
-  const handleMemberSelect = async (searchTerm: string) => {
-    if (!searchTerm || searchTerm.length < 2) {
-      setSelectedMember(null);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("members")
-        .select("id, first_name, last_name, stripe_customer_id, card_brand, card_last4")
-        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-        .eq("status", "active")
-        .limit(1)
-        .single();
-
-      if (error || !data) {
-        setSelectedMember(null);
-        return;
-      }
-
-      setSelectedMember({
-        name: `${data.first_name} ${data.last_name}`,
-        cardOnFile: !!(data.stripe_customer_id && data.card_last4),
-        stripeCustomerId: data.stripe_customer_id,
-        memberId: data.id,
-      });
-    } catch {
-      setSelectedMember(null);
-    }
+    setSelectedCustomer(null);
   };
 
   const handlePlaceOrder = async (paymentMethod: "card" | "cash" = "card") => {
@@ -105,13 +65,13 @@ export default function FrontDeskPOS() {
 
       const itemNames = cart.map((i) => i.name).join(", ");
 
-      // If paying by card and member has card on file, charge via Stripe first
-      if (paymentMethod === "card" && selectedMember?.stripeCustomerId && selectedMember.cardOnFile) {
+      // If paying by card and customer has card on file, charge via Stripe first
+      if (paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile) {
         const amountCents = Math.round(total * 100);
         const { data: chargeResult, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
           body: {
             action: "charge_saved_card",
-            customerId: selectedMember.stripeCustomerId,
+            customerId: selectedCustomer.stripeCustomerId,
             amount: amountCents,
             description: `Front Desk POS - ${itemNames}`,
             chargeType: "pos",
@@ -150,7 +110,7 @@ export default function FrontDeskPOS() {
         category: "Tax",
       });
 
-      const orderPaymentMethod = paymentMethod === "cash" ? "cash" : (selectedMember?.cardOnFile ? "member_account" : "card");
+      const orderPaymentMethod = paymentMethod === "cash" ? "cash" : (selectedCustomer?.cardOnFile ? "member_account" : "card");
 
       await createOrder.mutateAsync({
         orderItems,
@@ -202,12 +162,8 @@ export default function FrontDeskPOS() {
               <CafePOSCart
                 cart={cart}
                 updateQuantity={updateQuantity}
-                memberSearch={memberSearch}
-                setMemberSearch={(v) => {
-                  setMemberSearch(v);
-                  handleMemberSelect(v);
-                }}
-                selectedMember={selectedMember}
+                selectedCustomer={selectedCustomer}
+                onCustomerSelect={setSelectedCustomer}
                 onPlaceOrder={handlePlaceOrder}
                 onClearCart={clearCart}
                 isPlacing={isCharging || createOrder.isPending}

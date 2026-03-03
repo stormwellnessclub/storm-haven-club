@@ -2,17 +2,17 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShoppingCart, Plus, Minus, CreditCard, Loader2, User, Search, Banknote } from "lucide-react";
+import { ShoppingCart, Plus, Minus, CreditCard, Loader2, User, Banknote } from "lucide-react";
 import { MI_SALES_TAX_RATE, calculateTax } from "@/hooks/useCafeMenu";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import type { POSCartItem } from "./CafePOSMenu";
+import { POSCustomerSearch, type POSCustomer } from "./POSCustomerSearch";
 
 interface CafePOSCartProps {
   cart: POSCartItem[];
   updateQuantity: (itemId: string, delta: number) => void;
-  memberSearch: string;
-  setMemberSearch: (v: string) => void;
-  selectedMember: { name: string; cardOnFile: boolean; stripeCustomerId?: string | null } | null;
+  selectedCustomer: POSCustomer | null;
+  onCustomerSelect: (customer: POSCustomer | null) => void;
   onPlaceOrder: (paymentMethod: "card" | "cash") => void;
   onClearCart: () => void;
   isPlacing: boolean;
@@ -26,14 +26,13 @@ function getItemTotal(item: POSCartItem) {
 export function CafePOSCart({
   cart,
   updateQuantity,
-  memberSearch,
-  setMemberSearch,
-  selectedMember,
+  selectedCustomer,
+  onCustomerSelect,
   onPlaceOrder,
   onClearCart,
   isPlacing,
 }: CafePOSCartProps) {
-  const canChargeCard = selectedMember?.cardOnFile && selectedMember?.stripeCustomerId;
+  const canChargeCard = selectedCustomer?.cardOnFile && selectedCustomer?.stripeCustomerId;
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">(canChargeCard ? "card" : "cash");
   const [cashReceived, setCashReceived] = useState("");
 
@@ -50,39 +49,16 @@ export function CafePOSCart({
 
   return (
     <div className="space-y-4">
-      {/* Member Lookup */}
+      {/* Customer Lookup */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <User className="h-4 w-4" />
-            Member Lookup
+            Customer Lookup
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              placeholder="Search member..."
-              value={memberSearch}
-              onChange={(e) => setMemberSearch(e.target.value)}
-            />
-          </div>
-          {selectedMember && (
-            <div className="mt-3 p-3 bg-muted rounded-lg">
-              <p className="font-medium">{selectedMember.name}</p>
-              {canChargeCard ? (
-                <p className="text-sm text-green-600 flex items-center gap-1">
-                  <CreditCard className="h-3 w-3" />
-                  Card on file
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No card on file
-                </p>
-              )}
-            </div>
-          )}
+          <POSCustomerSearch selected={selectedCustomer} onSelect={onCustomerSelect} />
         </CardContent>
       </Card>
 
