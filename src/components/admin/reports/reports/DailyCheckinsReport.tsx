@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, TrendingUp, Calendar } from "lucide-react";
+import { Users, TrendingUp, Calendar, Clock } from "lucide-react";
 
 interface Props {
   dateRange: { start: Date; end: Date };
@@ -18,7 +18,7 @@ export function DailyCheckinsReport({ dateRange, filters }: Props) {
     queryFn: async () => {
       const { data: checkins, error } = await supabase
         .from('check_ins')
-        .select('checked_in_at, member_id')
+        .select('checked_in_at, checked_out_at, member_id')
         .gte('checked_in_at', dateRange.start.toISOString())
         .lte('checked_in_at', dateRange.end.toISOString());
 
@@ -52,7 +52,16 @@ export function DailyCheckinsReport({ dateRange, filters }: Props) {
       const uniqueTotal = new Set((checkins || []).map(c => c.member_id)).size;
       const avgPerDay = chartData.length > 0 ? total / chartData.length : 0;
 
-      return { chartData, dailyCounts: Object.values(dailyCounts), total, uniqueTotal, avgPerDay };
+      // Calculate avg visit duration from check-ins with checkout times
+      const durationsMinutes = (checkins || [])
+        .filter(c => c.checked_out_at)
+        .map(c => (new Date(c.checked_out_at!).getTime() - new Date(c.checked_in_at).getTime()) / 60000)
+        .filter(d => d > 0 && d < 1440);
+      const avgDuration = durationsMinutes.length > 0
+        ? durationsMinutes.reduce((s, d) => s + d, 0) / durationsMinutes.length
+        : 0;
+
+      return { chartData, dailyCounts: Object.values(dailyCounts), total, uniqueTotal, avgPerDay, avgDuration };
     },
   });
 
@@ -63,7 +72,7 @@ export function DailyCheckinsReport({ dateRange, filters }: Props) {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -93,6 +102,19 @@ export function DailyCheckinsReport({ dateRange, filters }: Props) {
               <div>
                 <p className="text-sm text-muted-foreground">Avg per Day</p>
                 <p className="text-2xl font-bold">{data?.avgPerDay.toFixed(1) || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <Clock className="h-8 w-8 text-orange-500" />
+              <div>
+                <p className="text-sm text-muted-foreground">Avg Duration</p>
+                <p className="text-2xl font-bold">
+                  {data?.avgDuration ? `${Math.floor(data.avgDuration / 60)}h ${Math.round(data.avgDuration % 60)}m` : '—'}
+                </p>
               </div>
             </div>
           </CardContent>
