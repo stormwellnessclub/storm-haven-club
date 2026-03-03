@@ -1,101 +1,106 @@
 
 
-# Upgrade Non-Member Portal + Fix Package Linking
+# Comprehensive Cafe Menu Management System
 
-## Two Problems Found
+## The Problem
 
-### Problem 1: Pending import packages are not linking
-When admin adds a pending import (bulk import) for a user who has **already signed up**, the class pass is never created. The `auto_fulfill_pending_import` trigger only fires on new `non_member_profiles` INSERT -- so if the user already has an account, nothing happens. Example: Samar (shannawi@outlook.com) signed up Feb 22, pending import was created Feb 24, and her import is still `status: 'pending'` with 0 class passes.
+The front-facing Cafe page at `/cafe` shows **fake hardcoded items** (Green Storm smoothie, Acai Bowl, etc.) that have nothing to do with your actual inventory. Meanwhile, the admin POS has the real items (NOOMA, GEORGIE, ELEVE, AllWello, etc.) stored in the database but with no way to edit prices, add images, manage stock, or mark seasonal items. There is also no dedicated admin menu management page -- item creation is buried inside the POS terminal.
 
-**Fix:** Add a second trigger on `pending_non_member_imports` INSERT that checks if a matching user already exists and immediately fulfills the import.
+## The Solution
 
-### Problem 2: User-facing portal missing features
-The non-member portal (/portal) is functional but sparse compared to the member portal. Key gaps:
+### 1. Build a Dedicated Admin Cafe Menu Management Page
 
-| Feature | Member Portal | Non-Member Portal |
-|---------|:---:|:---:|
-| Dashboard with passes + bookings | Yes | Yes |
-| Detailed booking history | Yes | Yes |
-| Class passes with progress | Yes | Yes |
-| Payment history | Yes | Stub (empty page) |
-| Recovery booking | Yes | Yes |
-| Payment methods | Yes | Yes |
-| Cafe ordering | N/A | Missing |
+Create a new `/admin/cafe-menu` page (separate from the POS) with a master-detail layout following admin design principles:
 
-The **Payment History** page is a stub showing "No payment history yet" with no actual data query.
+**Left panel -- Category list with drag-to-reorder**
+- View all categories, toggle active/inactive, rename, reorder
 
-### Problem 3: Admin detail page changes may not be visible
-The NonMemberDetail page was already refactored with tabs (Profile, Passes & Bookings, Payments) in the previous change. If it still looks the same, it may be a browser cache issue. No code changes needed here.
+**Right panel -- Full item management for selected category**
+- Table view of all items (including inactive ones grayed out)
+- Inline editing for price, name, brand, flavor, size, description
+- Toggle `is_active` to disable/enable items instantly
+- Toggle `is_seasonal` with optional seasonal label (e.g., "Summer Special")
+- Upload item image (stored in a `cafe_menu_images` storage bucket)
+- Set `stock_quantity` (null = unlimited, 0 = sold out, shows "Sold Out" badge)
+- Set `display_order` within category
+- Add calories and dietary tags
+- Bulk actions: deactivate multiple items, update prices
 
----
+### 2. Database Schema Updates
 
-## Plan
+Add new columns to `cafe_menu_items`:
+```text
+image_url        TEXT         -- URL to uploaded image
+stock_quantity   INTEGER      -- null = unlimited, 0 = sold out
+is_seasonal      BOOLEAN      -- default false
+seasonal_label   TEXT         -- e.g., "Summer Special", "Limited Time"
+display_order    INTEGER      -- sort order within category
+calories         INTEGER      -- optional
+dietary_tags     TEXT[]        -- e.g., {"Vegan", "GF", "Dairy-Free"}
+```
 
-### 1. Database: Add auto-fulfill trigger on pending import creation
-Create a new trigger on `pending_non_member_imports` INSERT that:
-- Checks if a `non_member_profiles` row already exists with matching email and a `user_id`
-- If found, immediately creates the class pass, copies profile data, and marks the import as `fulfilled`
-- This handles the case where admin imports packages for users who already have accounts
+Add new columns to `cafe_menu_categories`:
+```text
+description      TEXT         -- category description for front-facing menu
+image_url        TEXT         -- category hero image
+```
 
-### 2. Database: Backfill Samar's pending import
-Run a one-time migration to fulfill any existing pending imports that match already-registered users.
+Create a storage bucket `cafe-menu-images` for item photos.
 
-### 3. Portal: Build real Payment History page
-Replace the stub `src/pages/portal/PaymentHistory.tsx` with a functional page that:
-- Queries `manual_charges` by `user_id` to show admin-initiated charges
-- Queries `class_passes` purchases (non-zero `price_paid`) for pass purchase history
-- Displays date, description, amount, and status in a clean list
+### 3. Rebuild Front-Facing Cafe Page from Database
 
-### 4. Verify admin detail page
-The admin NonMemberDetail page was already upgraded with the three-tab layout. If you're still seeing the old flat layout, try a hard refresh (Ctrl+Shift+R). No code changes needed.
+Replace the entire hardcoded menu in `src/pages/Cafe.tsx` with live data from `cafe_menu_items` + `cafe_menu_categories`:
+
+- Pull categories and items from the database (only `is_active = true`)
+- Show item images when available (fallback to category image or placeholder)
+- Display dietary tags, calories, seasonal badges
+- Show "Sold Out" overlay when `stock_quantity = 0`
+- Keep the existing cart + payment flow but wire it to real item IDs and prices
+- Category filter tabs generated from database categories
+
+### 4. Admin Sidebar Navigation
+
+Add a "Cafe Menu" link in the admin sidebar under the existing "Cafe POS" entry so staff can quickly jump between managing the menu and processing orders.
 
 ## Technical Details
 
-### Database migration (new trigger)
-```sql
-CREATE OR REPLACE FUNCTION public.auto_fulfill_import_on_insert()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  v_profile RECORD;
-BEGIN
-  -- Check if user already has an account
-  SELECT * INTO v_profile
-  FROM public.non_member_profiles
-  WHERE LOWER(email) = LOWER(NEW.email)
-    AND user_id IS NOT NULL
-  LIMIT 1;
+### Files to Create
+- `src/pages/admin/CafeMenuManager.tsx` -- Full menu management page with category list + item table/editor
+- Route registration in `App.tsx`
 
-  IF FOUND THEN
-    -- Create class pass immediately
-    INSERT INTO public.class_passes (...)
-    VALUES (v_profile.user_id, NEW.pass_category, ...);
+### Files to Modify
+- `src/pages/Cafe.tsx` -- Replace hardcoded items with database queries; wire images, dietary tags, seasonal badges, sold-out states
+- `src/hooks/useCafeMenu.ts` -- Add new hooks: `useUpdateCafeMenuItemFull` (all fields), `useDeleteCafeMenuItem` (soft delete), `useUpdateCafeCategory`, `useAllCafeMenuItems` (includes inactive for admin)
+- `src/components/admin/AdminSidebar.tsx` -- Add "Cafe Menu" link
+- Database migration for new columns + storage bucket
 
-    -- Mark fulfilled
-    NEW.status := 'fulfilled';
-    NEW.fulfilled_at := now();
-  END IF;
+### Database Migration
+- ALTER `cafe_menu_items` to add: `image_url`, `stock_quantity`, `is_seasonal`, `seasonal_label`, `display_order`, `calories`, `dietary_tags`
+- ALTER `cafe_menu_categories` to add: `description`, `image_url`
+- Create `cafe-menu-images` storage bucket with public read access
+- RLS: authenticated users can upload to bucket; public can read
 
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER trg_auto_fulfill_import_on_insert
-  BEFORE INSERT ON public.pending_non_member_imports
-  FOR EACH ROW
-  EXECUTE FUNCTION public.auto_fulfill_import_on_insert();
+### Menu Manager UI Layout
+```text
++----------------------------------+----------------------------------------+
+| Categories                       | Items in "Energy Drinks"               |
+|                                  |                                        |
+| [+] Add Category                 | [+] Add Item    [Bulk Edit]            |
+|                                  |                                        |
+| > Water                          | Brand    | Flavor   | Price | Stock |  |
+|   Cold Pressed Juice             | NOOMA    | Tangerine| $5.00 | --    |  |
+|   Shots                          | NOOMA    | Cherry   | $5.00 | --    |  |
+| * Energy Drinks  <-- selected    | GEORGIE  | Tropical | $4.00 | 12    |  |
+|   Cafe                           | ELEVE    | Rose     | $8.00 | --    |  |
+|   Protein Shakes                 |                                        |
+|   ...                            | [Click row to expand: edit all fields, |
+|                                  |  upload image, set seasonal, etc.]     |
++----------------------------------+----------------------------------------+
 ```
 
-### Backfill query
-Fulfill any pending imports where the user already has an account.
-
-### Files to modify
-- `src/pages/portal/PaymentHistory.tsx` -- Replace stub with real charge/purchase history
-
-### Files unchanged
-- `src/pages/admin/NonMemberDetail.tsx` -- Already upgraded (verify with hard refresh)
-- All other portal pages -- Already functional
+### Front-Facing Menu Rendering
+- Each item card shows: image (if available), name, description, price, dietary badges, calorie count
+- Seasonal items get a ribbon/badge ("Limited Time", "Summer Special")
+- Sold-out items show grayed overlay with "Sold Out" text, add-to-cart disabled
+- Categories as horizontal filter tabs (same UX as current, but dynamic)
 
