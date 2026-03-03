@@ -495,6 +495,9 @@ export default function NonMemberDetail() {
                     </CardTitle>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{activePasses} active</Badge>
+                      <Button variant="outline" size="sm" onClick={() => navigate("/admin/classes")}>
+                        <Calendar className="h-3 w-3 mr-1" /> Book into Class
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => setShowAddPackage(!showAddPackage)}>
                         <Plus className="h-3 w-3 mr-1" /> Add
                       </Button>

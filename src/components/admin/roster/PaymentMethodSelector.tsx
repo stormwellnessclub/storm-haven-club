@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CreditCard, Ticket, DollarSign, ShoppingBag, Gift } from "lucide-react";
+import { getCategoryDisplayName } from "@/lib/classCategories";
 
 export type PaymentOption = "pass" | "credits" | "dropin" | "sell" | "comp";
 
@@ -98,15 +99,6 @@ export function PaymentMethodSelector({
   const hasPasses = passes.length > 0;
   const hasCredits = credits.length > 0;
 
-  const getCategoryLabel = (cat: string) => {
-    switch (cat) {
-      case "reformer": return "Reformer";
-      case "cycling": return "Cycling";
-      case "aerobics": return "Aerobics";
-      default: return cat;
-    }
-  };
-
   return (
     <div className="space-y-3">
       <Label className="text-sm font-medium">Payment Method</Label>
@@ -140,7 +132,7 @@ export function PaymentMethodSelector({
                   <SelectContent>
                     {passes.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {getCategoryLabel(p.category)} {p.pass_type === "single" ? "Single" : "10-Pack"} — {p.classes_remaining} left
+                        {getCategoryDisplayName(p.category)} {p.pass_type === "single" ? "Single" : "10-Pack"} — {p.classes_remaining} left
                       </SelectItem>
                     ))}
                   </SelectContent>

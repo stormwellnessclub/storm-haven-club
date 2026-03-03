@@ -42,8 +42,8 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
           .limit(10),
         supabase
           .from("non_member_profiles")
-          .select("user_id, full_name, email")
-          .or(`email.ilike.%${q}%,full_name.ilike.%${q}%`)
+          .select("user_id, first_name, last_name, email")
+          .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
           .limit(10),
         // Get users with active passes
         supabase
@@ -85,10 +85,11 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
         if (!nm.user_id || seen.has(nm.user_id)) return;
         seen.add(nm.user_id);
         const pc = passMap.get(nm.user_id) || 0;
+        const nmName = [nm.first_name, nm.last_name].filter(Boolean).join(" ");
         out.push({
           userId: nm.user_id,
           memberId: null,
-          name: nm.full_name || nm.email || "Unknown",
+          name: nmName || nm.email || "Unknown",
           email: nm.email || "",
           type: pc > 0 ? "pass_holder" : "account",
           passCount: pc,
