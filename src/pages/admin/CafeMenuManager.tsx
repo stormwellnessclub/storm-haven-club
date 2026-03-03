@@ -1,0 +1,684 @@
+import { useState, useRef } from "react";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import {
+  Plus, Edit2, Upload, Save, X, Loader2, ImageIcon, Leaf, Snowflake, Package,
+} from "lucide-react";
+import {
+  useAllCafeMenuCategories,
+  useAllCafeMenuItems,
+  useAddCafeCategory,
+  useAddCafeMenuItem,
+  useUpdateCafeMenuItem,
+  useUpdateCafeCategory,
+  uploadCafeMenuImage,
+  type CafeMenuCategory,
+  type CafeMenuItem,
+} from "@/hooks/useCafeMenu";
+
+export default function CafeMenuManager() {
+  const { data: categories = [], isLoading: catLoading } = useAllCafeMenuCategories();
+  const { data: allItems = [], isLoading: itemsLoading } = useAllCafeMenuItems();
+  const addCategory = useAddCafeCategory();
+  const addItem = useAddCafeMenuItem();
+  const updateItem = useUpdateCafeMenuItem();
+  const updateCategory = useUpdateCafeCategory();
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [editingItem, setEditingItem] = useState<CafeMenuItem | null>(null);
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CafeMenuCategory | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId) || categories[0];
+  const categoryItems = allItems.filter((i) => i.category_id === selectedCategory?.id);
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    await addCategory.mutateAsync(newCategoryName.trim());
+    setNewCategoryName("");
+    setShowAddCategory(false);
+  };
+
+  const handleToggleItemActive = async (item: CafeMenuItem) => {
+    await updateItem.mutateAsync({ id: item.id, is_active: !item.is_active });
+    toast.success(item.is_active ? "Item disabled" : "Item enabled");
+  };
+
+  const handleToggleCategoryActive = async (cat: CafeMenuCategory) => {
+    await updateCategory.mutateAsync({ id: cat.id, is_active: !cat.is_active });
+    toast.success(cat.is_active ? "Category disabled" : "Category enabled");
+  };
+
+  return (
+    <AdminLayout>
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Cafe Menu Manager</h1>
+            <p className="text-muted-foreground text-sm">Manage categories, items, prices, images, and availability</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Categories Panel */}
+          <Card className="lg:col-span-1">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Categories</CardTitle>
+                <Button size="icon" variant="ghost" onClick={() => setShowAddCategory(true)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1 p-3">
+              {showAddCategory && (
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Category name"
+                    className="h-8 text-sm"
+                    onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+                  />
+                  <Button size="sm" onClick={handleAddCategory} disabled={addCategory.isPending}>
+                    <Save className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowAddCategory(false)}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+              {catLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : (
+                categories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className={`flex items-center justify-between rounded-md px-3 py-2 cursor-pointer transition-colors text-sm ${
+                      selectedCategory?.id === cat.id
+                        ? "bg-accent text-accent-foreground"
+                        : cat.is_active
+                        ? "hover:bg-muted"
+                        : "opacity-50 hover:bg-muted"
+                    }`}
+                    onClick={() => setSelectedCategoryId(cat.id)}
+                  >
+                    <span className="truncate">{cat.name}</span>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="secondary" className="text-xs">
+                        {allItems.filter((i) => i.category_id === cat.id).length}
+                      </Badge>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingCategory(cat);
+                        }}
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Items Panel */}
+          <Card className="lg:col-span-3">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">
+                  {selectedCategory ? `Items in "${selectedCategory.name}"` : "Select a category"}
+                </CardTitle>
+                {selectedCategory && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={selectedCategory.is_active}
+                      onCheckedChange={() => handleToggleCategoryActive(selectedCategory)}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {selectedCategory.is_active ? "Active" : "Disabled"}
+                    </span>
+                    <Button size="sm" onClick={() => setShowAddItem(true)}>
+                      <Plus className="h-4 w-4 mr-1" /> Add Item
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {itemsLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : !selectedCategory ? (
+                <p className="text-muted-foreground text-sm text-center py-12">Select a category from the left panel</p>
+              ) : categoryItems.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-12">No items in this category yet</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">Img</TableHead>
+                      <TableHead>Name / Brand</TableHead>
+                      <TableHead>Flavor / Size</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-center">Stock</TableHead>
+                      <TableHead className="text-center">Seasonal</TableHead>
+                      <TableHead className="text-center">Active</TableHead>
+                      <TableHead className="w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {categoryItems.map((item) => (
+                      <TableRow key={item.id} className={!item.is_active ? "opacity-50" : ""}>
+                        <TableCell>
+                          {item.image_url ? (
+                            <img src={item.image_url} alt="" className="h-8 w-8 rounded object-cover" />
+                          ) : (
+                            <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <span className="font-medium">{item.item_name || item.brand_name || "—"}</span>
+                            {item.brand_name && item.item_name && (
+                              <span className="text-xs text-muted-foreground block">{item.brand_name}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {item.flavor && <span>{item.flavor}</span>}
+                            {item.size && <span className="text-muted-foreground ml-1">({item.size})</span>}
+                          </div>
+                          {item.dietary_tags && item.dietary_tags.length > 0 && (
+                            <div className="flex gap-1 mt-0.5">
+                              {item.dietary_tags.map((t) => (
+                                <Badge key={t} variant="outline" className="text-[10px] px-1 py-0">
+                                  {t}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">${item.price.toFixed(2)}</TableCell>
+                        <TableCell className="text-center">
+                          {item.stock_quantity === null ? (
+                            <span className="text-muted-foreground text-xs">∞</span>
+                          ) : item.stock_quantity === 0 ? (
+                            <Badge variant="destructive" className="text-xs">Sold Out</Badge>
+                          ) : (
+                            <span className="text-sm">{item.stock_quantity}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {item.is_seasonal && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Snowflake className="h-3 w-3 mr-1" />
+                              {item.seasonal_label || "Seasonal"}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={item.is_active}
+                            onCheckedChange={() => handleToggleItemActive(item)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingItem(item)}>
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Edit Item Dialog */}
+      <ItemEditDialog
+        item={editingItem}
+        open={!!editingItem}
+        onClose={() => setEditingItem(null)}
+        onSave={async (updates) => {
+          if (!editingItem) return;
+          await updateItem.mutateAsync({ id: editingItem.id, ...updates });
+          toast.success("Item updated");
+          setEditingItem(null);
+        }}
+      />
+
+      {/* Add Item Dialog */}
+      {selectedCategory && (
+        <AddItemDialog
+          categoryId={selectedCategory.id}
+          open={showAddItem}
+          onClose={() => setShowAddItem(false)}
+          onSave={async (item) => {
+            await addItem.mutateAsync(item);
+            setShowAddItem(false);
+          }}
+          isPending={addItem.isPending}
+        />
+      )}
+
+      {/* Edit Category Dialog */}
+      <CategoryEditDialog
+        category={editingCategory}
+        open={!!editingCategory}
+        onClose={() => setEditingCategory(null)}
+        onSave={async (updates) => {
+          if (!editingCategory) return;
+          await updateCategory.mutateAsync({ id: editingCategory.id, ...updates });
+          toast.success("Category updated");
+          setEditingCategory(null);
+        }}
+      />
+    </AdminLayout>
+  );
+}
+
+// ---- Item Edit Dialog ----
+function ItemEditDialog({
+  item,
+  open,
+  onClose,
+  onSave,
+}: {
+  item: CafeMenuItem | null;
+  open: boolean;
+  onClose: () => void;
+  onSave: (updates: Partial<CafeMenuItem>) => Promise<void>;
+}) {
+  const [form, setForm] = useState<Partial<CafeMenuItem>>({});
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Reset form when item changes
+  const resetForm = () => {
+    if (item) {
+      setForm({
+        item_name: item.item_name,
+        brand_name: item.brand_name,
+        flavor: item.flavor,
+        size: item.size,
+        description: item.description,
+        price: item.price,
+        image_url: item.image_url,
+        stock_quantity: item.stock_quantity,
+        is_seasonal: item.is_seasonal,
+        seasonal_label: item.seasonal_label,
+        display_order: item.display_order,
+        calories: item.calories,
+        dietary_tags: item.dietary_tags,
+      });
+    }
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadCafeMenuImage(file);
+      setForm((f) => ({ ...f, image_url: url }));
+      toast.success("Image uploaded");
+    } catch {
+      toast.error("Failed to upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(form);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); else resetForm(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onOpenAutoFocus={() => resetForm()}>
+        <DialogHeader>
+          <DialogTitle>Edit Item</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Item Name</Label>
+              <Input value={form.item_name || ""} onChange={(e) => setForm((f) => ({ ...f, item_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Brand</Label>
+              <Input value={form.brand_name || ""} onChange={(e) => setForm((f) => ({ ...f, brand_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Flavor</Label>
+              <Input value={form.flavor || ""} onChange={(e) => setForm((f) => ({ ...f, flavor: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Size</Label>
+              <Input value={form.size || ""} onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Price ($)</Label>
+              <Input type="number" step="0.01" value={form.price ?? ""} onChange={(e) => setForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }))} />
+            </div>
+            <div>
+              <Label>Calories</Label>
+              <Input type="number" value={form.calories ?? ""} onChange={(e) => setForm((f) => ({ ...f, calories: e.target.value ? parseInt(e.target.value) : null }))} />
+            </div>
+            <div>
+              <Label>Stock Qty</Label>
+              <Input type="number" placeholder="∞ (blank = unlimited)" value={form.stock_quantity ?? ""} onChange={(e) => setForm((f) => ({ ...f, stock_quantity: e.target.value ? parseInt(e.target.value) : null }))} />
+            </div>
+            <div>
+              <Label>Display Order</Label>
+              <Input type="number" value={form.display_order ?? 0} onChange={(e) => setForm((f) => ({ ...f, display_order: parseInt(e.target.value) || 0 }))} />
+            </div>
+          </div>
+          <div>
+            <Label>Description</Label>
+            <Textarea value={form.description || ""} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} />
+          </div>
+          <div>
+            <Label>Dietary Tags (comma separated)</Label>
+            <Input
+              value={(form.dietary_tags || []).join(", ")}
+              onChange={(e) => setForm((f) => ({ ...f, dietary_tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) }))}
+              placeholder="Vegan, GF, Dairy-Free"
+            />
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch checked={form.is_seasonal || false} onCheckedChange={(v) => setForm((f) => ({ ...f, is_seasonal: v }))} />
+              <Label>Seasonal</Label>
+            </div>
+            {form.is_seasonal && (
+              <Input
+                placeholder="e.g. Summer Special"
+                value={form.seasonal_label || ""}
+                onChange={(e) => setForm((f) => ({ ...f, seasonal_label: e.target.value }))}
+                className="flex-1"
+              />
+            )}
+          </div>
+          <div>
+            <Label>Image</Label>
+            <div className="flex items-center gap-3 mt-1">
+              {form.image_url ? (
+                <img src={form.image_url} alt="" className="h-16 w-16 rounded object-cover" />
+              ) : (
+                <div className="h-16 w-16 rounded bg-muted flex items-center justify-center">
+                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                Upload
+              </Button>
+              {form.image_url && (
+                <Button variant="ghost" size="sm" onClick={() => setForm((f) => ({ ...f, image_url: null }))}>
+                  Remove
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Add Item Dialog ----
+function AddItemDialog({
+  categoryId,
+  open,
+  onClose,
+  onSave,
+  isPending,
+}: {
+  categoryId: string;
+  open: boolean;
+  onClose: () => void;
+  onSave: (item: any) => Promise<void>;
+  isPending: boolean;
+}) {
+  const [form, setForm] = useState({
+    item_name: "",
+    brand_name: "",
+    flavor: "",
+    size: "",
+    description: "",
+    price: 0,
+    calories: null as number | null,
+    dietary_tags: [] as string[],
+    is_seasonal: false,
+    seasonal_label: "",
+    stock_quantity: null as number | null,
+    image_url: "",
+  });
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadCafeMenuImage(file);
+      setForm((f) => ({ ...f, image_url: url }));
+    } catch {
+      toast.error("Failed to upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!form.item_name && !form.brand_name) {
+      toast.error("Item name or brand is required");
+      return;
+    }
+    if (form.price <= 0) {
+      toast.error("Price is required");
+      return;
+    }
+    await onSave({
+      category_id: categoryId,
+      item_name: form.item_name || null,
+      brand_name: form.brand_name || null,
+      flavor: form.flavor || null,
+      size: form.size || null,
+      description: form.description || null,
+      price: form.price,
+      calories: form.calories,
+      dietary_tags: form.dietary_tags.length > 0 ? form.dietary_tags : null,
+      is_seasonal: form.is_seasonal,
+      seasonal_label: form.seasonal_label || null,
+      stock_quantity: form.stock_quantity,
+      image_url: form.image_url || null,
+    });
+    // Reset
+    setForm({
+      item_name: "", brand_name: "", flavor: "", size: "", description: "", price: 0,
+      calories: null, dietary_tags: [], is_seasonal: false, seasonal_label: "",
+      stock_quantity: null, image_url: "",
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add New Item</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Item Name</Label>
+              <Input value={form.item_name} onChange={(e) => setForm((f) => ({ ...f, item_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Brand</Label>
+              <Input value={form.brand_name} onChange={(e) => setForm((f) => ({ ...f, brand_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Flavor</Label>
+              <Input value={form.flavor} onChange={(e) => setForm((f) => ({ ...f, flavor: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Size</Label>
+              <Input value={form.size} onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Price ($) *</Label>
+              <Input type="number" step="0.01" value={form.price || ""} onChange={(e) => setForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }))} />
+            </div>
+            <div>
+              <Label>Calories</Label>
+              <Input type="number" value={form.calories ?? ""} onChange={(e) => setForm((f) => ({ ...f, calories: e.target.value ? parseInt(e.target.value) : null }))} />
+            </div>
+          </div>
+          <div>
+            <Label>Description</Label>
+            <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} />
+          </div>
+          <div>
+            <Label>Dietary Tags (comma separated)</Label>
+            <Input
+              value={form.dietary_tags.join(", ")}
+              onChange={(e) => setForm((f) => ({ ...f, dietary_tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) }))}
+              placeholder="Vegan, GF, Dairy-Free"
+            />
+          </div>
+          <div>
+            <Label>Stock Quantity (leave blank for unlimited)</Label>
+            <Input type="number" value={form.stock_quantity ?? ""} onChange={(e) => setForm((f) => ({ ...f, stock_quantity: e.target.value ? parseInt(e.target.value) : null }))} />
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch checked={form.is_seasonal} onCheckedChange={(v) => setForm((f) => ({ ...f, is_seasonal: v }))} />
+              <Label>Seasonal</Label>
+            </div>
+            {form.is_seasonal && (
+              <Input placeholder="e.g. Summer Special" value={form.seasonal_label} onChange={(e) => setForm((f) => ({ ...f, seasonal_label: e.target.value }))} className="flex-1" />
+            )}
+          </div>
+          <div>
+            <Label>Image</Label>
+            <div className="flex items-center gap-3 mt-1">
+              {form.image_url ? (
+                <img src={form.image_url} alt="" className="h-16 w-16 rounded object-cover" />
+              ) : (
+                <div className="h-16 w-16 rounded bg-muted flex items-center justify-center">
+                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                Upload
+              </Button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={isPending}>
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
+              Add Item
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Category Edit Dialog ----
+function CategoryEditDialog({
+  category,
+  open,
+  onClose,
+  onSave,
+}: {
+  category: CafeMenuCategory | null;
+  open: boolean;
+  onClose: () => void;
+  onSave: (updates: Partial<CafeMenuCategory>) => Promise<void>;
+}) {
+  const [form, setForm] = useState({ name: "", description: "", has_addons: false });
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => {
+      if (!v) onClose();
+      else if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons });
+    }}>
+      <DialogContent className="max-w-md" onOpenAutoFocus={() => {
+        if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons });
+      }}>
+        <DialogHeader>
+          <DialogTitle>Edit Category</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Name</Label>
+            <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Description</Label>
+            <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={form.has_addons} onCheckedChange={(v) => setForm((f) => ({ ...f, has_addons: v }))} />
+            <Label>Has Add-ons</Label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={async () => {
+              setSaving(true);
+              try { await onSave(form); } finally { setSaving(false); }
+            }} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Save
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

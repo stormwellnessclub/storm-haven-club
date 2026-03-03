@@ -422,25 +422,31 @@ export type Database = {
       cafe_menu_categories: {
         Row: {
           created_at: string | null
+          description: string | null
           display_order: number | null
           has_addons: boolean | null
           id: string
+          image_url: string | null
           is_active: boolean | null
           name: string
         }
         Insert: {
           created_at?: string | null
+          description?: string | null
           display_order?: number | null
           has_addons?: boolean | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           name: string
         }
         Update: {
           created_at?: string | null
+          description?: string | null
           display_order?: number | null
           has_addons?: boolean | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           name?: string
         }
@@ -449,45 +455,66 @@ export type Database = {
       cafe_menu_items: {
         Row: {
           brand_name: string | null
+          calories: number | null
           category_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          dietary_tags: string[] | null
+          display_order: number | null
           flavor: string | null
           id: string
+          image_url: string | null
           is_active: boolean
+          is_seasonal: boolean
           item_name: string | null
           price: number
           protein_flavor: string | null
+          seasonal_label: string | null
           size: string | null
+          stock_quantity: number | null
         }
         Insert: {
           brand_name?: string | null
+          calories?: number | null
           category_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          dietary_tags?: string[] | null
+          display_order?: number | null
           flavor?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          is_seasonal?: boolean
           item_name?: string | null
           price: number
           protein_flavor?: string | null
+          seasonal_label?: string | null
           size?: string | null
+          stock_quantity?: number | null
         }
         Update: {
           brand_name?: string | null
+          calories?: number | null
           category_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          dietary_tags?: string[] | null
+          display_order?: number | null
           flavor?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          is_seasonal?: boolean
           item_name?: string | null
           price?: number
           protein_flavor?: string | null
+          seasonal_label?: string | null
           size?: string | null
+          stock_quantity?: number | null
         }
         Relationships: [
           {

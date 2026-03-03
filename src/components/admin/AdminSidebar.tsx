@@ -90,6 +90,7 @@ const servicesItems: MenuItem[] = [
   { title: "Class Management", url: "/admin/class-types", icon: Dumbbell, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Instructors", url: "/admin/instructors", icon: UserCog, requiredRoles: ['super_admin', 'admin', 'manager'] },
   { title: "Cafe POS", url: "/admin/cafe", icon: Coffee, requiredRoles: ['super_admin', 'admin', 'cafe_staff'] },
+  { title: "Cafe Menu", url: "/admin/cafe-menu", icon: Coffee, requiredRoles: ['super_admin', 'admin', 'cafe_staff'] },
   { title: "Front Desk POS", url: "/admin/front-desk", icon: Sparkles, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk', 'spa_staff'] },
   { title: "Childcare", url: "/admin/childcare", icon: Baby, requiredRoles: ['super_admin', 'admin', 'childcare_staff'] },
 ];

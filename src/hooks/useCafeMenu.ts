@@ -9,6 +9,8 @@ export interface CafeMenuCategory {
   display_order: number;
   has_addons: boolean;
   is_active: boolean;
+  description: string | null;
+  image_url: string | null;
 }
 
 export interface CafeMenuItem {
@@ -22,6 +24,13 @@ export interface CafeMenuItem {
   protein_flavor: string | null;
   price: number;
   is_active: boolean;
+  image_url: string | null;
+  stock_quantity: number | null;
+  is_seasonal: boolean;
+  seasonal_label: string | null;
+  display_order: number;
+  calories: number | null;
+  dietary_tags: string[] | null;
 }
 
 export interface CafeMenuAddon {
@@ -33,6 +42,7 @@ export interface CafeMenuAddon {
   display_order: number;
 }
 
+// Active categories only (for POS and front-facing)
 export function useCafeMenuCategories() {
   return useQuery({
     queryKey: ["cafe_menu_categories"],
@@ -47,6 +57,21 @@ export function useCafeMenuCategories() {
   });
 }
 
+// ALL categories including inactive (for admin menu manager)
+export function useAllCafeMenuCategories() {
+  return useQuery({
+    queryKey: ["cafe_menu_categories", "all"],
+    queryFn: async (): Promise<CafeMenuCategory[]> => {
+      const { data, error } = await (supabase.from as any)("cafe_menu_categories")
+        .select("*")
+        .order("display_order");
+      if (error) throw error;
+      return (data || []) as CafeMenuCategory[];
+    },
+  });
+}
+
+// Active items only (for POS and front-facing)
 export function useCafeMenuItems() {
   return useQuery({
     queryKey: ["cafe_menu_items"],
@@ -54,7 +79,21 @@ export function useCafeMenuItems() {
       const { data, error } = await (supabase.from as any)("cafe_menu_items")
         .select("*")
         .eq("is_active", true)
-        .order("brand_name");
+        .order("display_order");
+      if (error) throw error;
+      return (data || []) as CafeMenuItem[];
+    },
+  });
+}
+
+// ALL items including inactive (for admin menu manager)
+export function useAllCafeMenuItems() {
+  return useQuery({
+    queryKey: ["cafe_menu_items", "all"],
+    queryFn: async (): Promise<CafeMenuItem[]> => {
+      const { data, error } = await (supabase.from as any)("cafe_menu_items")
+        .select("*")
+        .order("display_order");
       if (error) throw error;
       return (data || []) as CafeMenuItem[];
     },
@@ -99,6 +138,21 @@ export function useAddCafeCategory() {
   });
 }
 
+export function useUpdateCafeCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; is_active?: boolean; description?: string; image_url?: string; display_order?: number; has_addons?: boolean }) => {
+      const { error } = await (supabase.from as any)("cafe_menu_categories")
+        .update(updates)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cafe_menu_categories"] });
+    },
+  });
+}
+
 export function useAddCafeMenuItem() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -111,6 +165,13 @@ export function useAddCafeMenuItem() {
       size?: string;
       description?: string;
       price: number;
+      image_url?: string;
+      stock_quantity?: number | null;
+      is_seasonal?: boolean;
+      seasonal_label?: string;
+      display_order?: number;
+      calories?: number | null;
+      dietary_tags?: string[];
     }) => {
       const { data, error } = await (supabase.from as any)("cafe_menu_items")
         .insert({ ...item, created_by: user?.id })
@@ -150,7 +211,7 @@ export function useAddCafeAddon() {
 export function useUpdateCafeMenuItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; price?: number; is_active?: boolean }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; [key: string]: any }) => {
       const { error } = await (supabase.from as any)("cafe_menu_items")
         .update(updates)
         .eq("id", id);
@@ -181,4 +242,18 @@ export const MI_SALES_TAX_RATE = 0.06;
 
 export function calculateTax(subtotal: number): number {
   return Math.round(subtotal * MI_SALES_TAX_RATE * 100) / 100;
+}
+
+// Upload image to cafe-menu-images bucket
+export async function uploadCafeMenuImage(file: File): Promise<string> {
+  const ext = file.name.split(".").pop();
+  const fileName = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("cafe-menu-images")
+    .upload(fileName, file, { upsert: true });
+  if (error) throw error;
+  const { data: urlData } = supabase.storage
+    .from("cafe-menu-images")
+    .getPublicUrl(fileName);
+  return urlData.publicUrl;
 }
