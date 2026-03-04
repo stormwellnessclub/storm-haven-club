@@ -1,39 +1,53 @@
 
 
-# Referral Portal: Premium Messaging + Points-Only-When-Paid Logic
+# Re-engagement System: In-App Nudges (Phase 1)
 
-## Current State
+Starting with in-app personalized nudge notifications on the member dashboard, since this is the foundation. Email, push, and SMS will follow as subsequent phases.
 
-**UI:** The referral page opens with a points hero card and "Share your code with friends. You earn 500 points when they become active members!" — feels transactional and salesy.
+## How It Works
 
-**Points Logic:** The trigger `check_referral_on_member_activation` fires when a member's status changes to `active`. However, a member can be set to `active` before their first Stripe invoice is actually paid (e.g., during admin onboarding). The trigger does NOT verify `subscription_status = 'active'` or that a valid `stripe_subscription_id` exists. This means points could be awarded before the referred person is genuinely paying.
+When a member logs into their dashboard, the system checks:
+1. **Last check-in date** — from `check_ins` table, most recent `checked_in_at`
+2. **Most-booked class type** — from `class_bookings` (confirmed/completed), grouped by `class_type_id`, ranked by count
+3. **Next available session** — for that class type, from `class_sessions` where `session_date >= today` and has open spots
 
-## Changes
+If the member hasn't checked in for 14+ days and there's an upcoming session of their favorite class with availability, show a nudge card on the dashboard.
 
-### 1. Update referral page banner (`src/pages/member/Referrals.tsx`)
+## UI Component: `EngagementNudge.tsx`
 
-Replace the current points hero card and "Your Referral Code" card description with a premium intro banner at the top of the page containing the provided copy:
+A dismissible card placed on the dashboard after the "Welcome back" header and before "Up Next." Styled subtly — not alarming, more like a gentle suggestion.
 
-> *Storm Wellness Club grows thoughtfully through the introductions of its members...*
-
-The referral code card description changes from "Share your code with friends. You earn 500 points when they become active members!" to something like "Extend a private introduction to someone who shares the Storm ethos."
-
-### 2. Fix trigger to require paid status (database migration)
-
-Update `check_referral_on_member_activation()` to add a guard:
-
-```sql
--- Only award if member has an active, paying subscription
-IF NEW.subscription_status = 'active' AND NEW.stripe_subscription_id IS NOT NULL THEN
-  -- proceed with award
-END IF;
+```text
+┌──────────────────────────────────────────────┐
+│  ✨  We'd love to see you back              │
+│                                              │
+│  Your favorite class — Reformer Pilates —    │
+│  has a spot open Thursday at 9:00 AM.        │
+│                                              │
+│  [Book Now]                          [×]     │
+└──────────────────────────────────────────────┘
 ```
 
-This ensures points are only awarded when the referred person has both `status = 'active'` AND `subscription_status = 'active'` with a valid Stripe subscription — meaning they are genuinely paying.
+- Dismiss stores `nudge_dismissed` in `sessionStorage` (resets each session — non-intrusive)
+- "Book Now" links to `/member/schedule`
+- If no favorite class or no open sessions, the nudge doesn't show
 
-For founding members (who may not have `subscription_status = 'active'` in the same way), the trigger will also check `is_founding_member = true` as an alternative qualifier.
+## New Hook: `useEngagementNudge.ts`
 
-### Files to modify
-- `src/pages/member/Referrals.tsx` — add premium intro banner, update card descriptions
-- Database migration — update `check_referral_on_member_activation()` to require `subscription_status = 'active'` + `stripe_subscription_id IS NOT NULL` (or `is_founding_member = true`)
+Queries:
+1. `check_ins` — latest check-in for the current member (via `useUserMembership` member ID)
+2. `class_bookings` — all confirmed/completed bookings for this user, grouped client-side by class type to find the most-booked
+3. `class_sessions` — next available session for that class type with `current_enrollment < max_capacity` and `session_date >= today`
+
+Returns: `{ shouldShow, className, sessionDate, sessionTime, isLoading }`
+
+## Files to Create
+- `src/hooks/useEngagementNudge.ts` — data hook
+- `src/components/member/EngagementNudge.tsx` — UI card
+
+## Files to Modify
+- `src/pages/member/Dashboard.tsx` — insert `<EngagementNudge />` after the welcome header section
+
+## No database changes needed
+All data comes from existing tables (`check_ins`, `class_bookings`, `class_sessions`, `class_types`).
 
