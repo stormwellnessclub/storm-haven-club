@@ -81,14 +81,35 @@ export function useReferralData() {
   const submitReferral = useMutation({
     mutationFn: async (email: string) => {
       if (!member) throw new Error("No member found");
+      const trimmedEmail = email.toLowerCase().trim();
       const { error } = await supabase.from("member_referrals").insert({
         referring_member_id: member.id,
-        referred_email: email.toLowerCase().trim(),
+        referred_email: trimmedEmail,
       });
       if (error) throw error;
+
+      // Send referral invite email
+      if (referralCode) {
+        const referralLink = `https://stormwellnessclub.com/apply?ref=${referralCode}`;
+        const { error: emailError } = await supabase.functions.invoke("send-email", {
+          body: {
+            type: "referral_invite",
+            to: trimmedEmail,
+            data: {
+              referrerName: member.first_name || "A friend",
+              referralCode,
+              referralLink,
+            },
+          },
+        });
+        if (emailError) {
+          console.error("Failed to send referral email:", emailError);
+          // Don't throw — referral was recorded, email is secondary
+        }
+      }
     },
     onSuccess: () => {
-      toast.success("Referral submitted!");
+      toast.success("Referral submitted & invite sent!");
       queryClient.invalidateQueries({ queryKey: ["member-referrals"] });
     },
     onError: (err: Error) => {
