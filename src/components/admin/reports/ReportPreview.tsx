@@ -33,6 +33,9 @@ import { SalesSegmentationReport } from "./reports/SalesSegmentationReport";
 import { NextMonthProjectionReport } from "./reports/NextMonthProjectionReport";
 import { DailyRevenueReport } from "./reports/DailyRevenueReport";
 import { ClassPassSalesReport } from "./reports/ClassPassSalesReport";
+import { MemberEngagementReport } from "./reports/MemberEngagementReport";
+import { GuestReturnsReport } from "./reports/GuestReturnsReport";
+import { ClassEngagementReport } from "./reports/ClassEngagementReport";
 interface ReportPreviewProps {
   report: ReportDefinition | null;
   dateRange: { start: Date; end: Date };
@@ -138,6 +141,9 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'class-pass-sales': ClassPassSalesReport,
     'workout-activity': WorkoutActivityReport,
     'goals-progress': GoalsProgressReport,
+    'member-engagement': MemberEngagementReport,
+    'guest-returns': GuestReturnsReport,
+    'class-engagement': ClassEngagementReport,
   };
 
   const ReportComponent = reportComponents[reportId];
