@@ -1020,6 +1020,64 @@ serve(async (req) => {
               logError(annualFeeLinkError, "ANNUAL_FEE_LINK");
               return errorResponse(annualFeeLinkError, "ANNUAL_FEE_LINK");
             }
+          } else if (metadata.type === 'wellness_credit_purchase') {
+            // Handle wellness credit pack purchase for non-members
+            const wcUserId = metadata.user_id;
+            const wcCreditType = metadata.credit_type;
+            const wcQuantity = parseInt(metadata.quantity || '0');
+
+            logStep("Processing wellness credit purchase", { userId: wcUserId, creditType: wcCreditType, quantity: wcQuantity });
+
+            if (!wcUserId || !wcCreditType || wcQuantity <= 0) {
+              logStep("Invalid wellness credit purchase metadata", { metadata });
+            } else {
+              try {
+                const now = new Date();
+                const expiresAt = new Date(now.getFullYear(), now.getMonth() + 3, now.getDate()); // 90 day validity
+                const cycleStart = now.toISOString().split('T')[0];
+                const cycleEnd = expiresAt.toISOString().split('T')[0];
+
+                const { error: creditInsertError } = await supabase
+                  .from('member_credits')
+                  .insert({
+                    user_id: wcUserId,
+                    member_id: null,
+                    credit_type: wcCreditType,
+                    credits_total: wcQuantity,
+                    credits_remaining: wcQuantity,
+                    cycle_start: cycleStart,
+                    cycle_end: cycleEnd,
+                    expires_at: expiresAt.toISOString(),
+                  });
+
+                if (creditInsertError) {
+                  logError(creditInsertError, "WELLNESS_CREDIT_INSERT");
+                } else {
+                  logStep("Wellness credits provisioned successfully", { userId: wcUserId, creditType: wcCreditType, quantity: wcQuantity });
+
+                  // Sync Stripe customer ID to non_member_profiles
+                  if (session.customer) {
+                    await supabase.from('non_member_profiles').update({
+                      stripe_customer_id: session.customer as string,
+                    }).eq('user_id', wcUserId);
+                  }
+
+                  // Sync name from Stripe session if available
+                  const customerName = session.customer_details?.name;
+                  if (customerName) {
+                    const nameParts = customerName.split(' ');
+                    const firstName = nameParts[0] || null;
+                    const lastName = nameParts.slice(1).join(' ') || null;
+                    await supabase.from('non_member_profiles').update({
+                      first_name: firstName,
+                      last_name: lastName,
+                    }).eq('user_id', wcUserId).is('first_name', null);
+                  }
+                }
+              } catch (wcError) {
+                logError(wcError, "WELLNESS_CREDIT_PURCHASE");
+              }
+            }
           } else {
             // FALLBACK: Handle purchases from Stripe Payment Links (no metadata)
             logStep("No recognized metadata type — attempting price-based fallback", { type: metadata.type, sessionId: session.id });

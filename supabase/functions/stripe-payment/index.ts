@@ -177,9 +177,13 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'create_wellness_credit_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card';
   // For non-member recovery checkout
   serviceName?: string;
+  embedded?: boolean; // For embedded checkout mode
+  // For wellness credit checkout
+  creditType?: string;
+  quantity?: number;
   // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
   paymentMethodId?: string;
   nickname?: string;
@@ -6031,8 +6035,8 @@ serve(async (req) => {
       }
 
       case 'create_recovery_checkout': {
-        const { serviceName } = body;
-        logStep("Creating recovery checkout", { userId: user.id, serviceName });
+        const { serviceName, embedded } = body;
+        logStep("Creating recovery checkout", { userId: user.id, serviceName, embedded });
 
         if (!serviceName) {
           throw new Error("Service name is required");
@@ -6064,6 +6068,24 @@ serve(async (req) => {
         const recoveryLineItems: { price: string; quantity: number }[] = [{ price: recoveryPriceId, quantity: 1 }];
         if (recoveryFeeItem) recoveryLineItems.push(recoveryFeeItem);
 
+        if (embedded) {
+          // Embedded checkout mode - returns client_secret instead of URL
+          const embeddedSession = await stripe.checkout.sessions.create({
+            customer: recoveryCustomerId,
+            line_items: recoveryLineItems,
+            mode: 'payment',
+            ui_mode: 'embedded',
+            return_url: `${req.headers.get('origin') || ''}/portal/wellness?session_id={CHECKOUT_SESSION_ID}`,
+          });
+
+          logStep("Embedded recovery checkout session created", { sessionId: embeddedSession.id });
+
+          return new Response(
+            JSON.stringify({ clientSecret: embeddedSession.client_secret }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
         const recoverySession = await stripe.checkout.sessions.create({
           customer: recoveryCustomerId,
           line_items: recoveryLineItems,
@@ -6076,6 +6098,62 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ url: recoverySession.url }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_wellness_credit_checkout': {
+        const { creditType, quantity } = body;
+        logStep("Creating wellness credit checkout", { userId: user.id, creditType, quantity });
+
+        if (!creditType || !quantity) {
+          throw new Error("creditType and quantity are required");
+        }
+
+        // Map credit type to price IDs for wellness packs
+        const wellnessPriceMap: Record<string, string> = {
+          'red_light_4': STRIPE_PRODUCTS.guestAddons.rlt20,   // Red Light single session price x4
+          'dry_cryo_4': STRIPE_PRODUCTS.guestAddons.cryo,     // Dry Cryo single session price x4
+        };
+
+        // Use single session price * quantity
+        const singlePriceId = creditType === 'red_light' 
+          ? STRIPE_PRODUCTS.guestAddons.rlt20 
+          : STRIPE_PRODUCTS.guestAddons.cryo;
+
+        const wellnessCustomerId = await getOrCreateCustomer();
+
+        // Save stripe_customer_id to non_member_profiles
+        await supabase.from('non_member_profiles').upsert({
+          user_id: user.id,
+          email: user.email,
+          stripe_customer_id: wellnessCustomerId,
+        }, { onConflict: 'user_id' });
+
+        const wellnessPrice = await stripe.prices.retrieve(singlePriceId);
+        const totalAmount = (wellnessPrice.unit_amount || 0) * quantity;
+        const wellnessFeeItem = await createProcessingFeeLineItem(stripe, totalAmount);
+        const wellnessLineItems: { price: string; quantity: number }[] = [{ price: singlePriceId, quantity }];
+        if (wellnessFeeItem) wellnessLineItems.push(wellnessFeeItem);
+
+        const wellnessSession = await stripe.checkout.sessions.create({
+          customer: wellnessCustomerId,
+          line_items: wellnessLineItems,
+          mode: 'payment',
+          ui_mode: 'embedded',
+          return_url: `${req.headers.get('origin') || ''}/portal/wellness?session_id={CHECKOUT_SESSION_ID}`,
+          metadata: {
+            type: 'wellness_credit_purchase',
+            credit_type: creditType,
+            quantity: quantity.toString(),
+            user_id: user.id,
+          },
+        });
+
+        logStep("Wellness credit checkout session created", { sessionId: wellnessSession.id });
+
+        return new Response(
+          JSON.stringify({ clientSecret: wellnessSession.client_secret }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
