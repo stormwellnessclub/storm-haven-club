@@ -13,6 +13,9 @@ interface PaidMember {
   last_name: string;
   email: string;
   referral_code: string | null;
+  referral_count: number;
+  active_referrals: number;
+  points_balance: number;
 }
 
 const REFERRAL_BASE_URL = "https://stormwellnessclub.com/apply?ref=";
@@ -56,12 +59,36 @@ export function ReferralCampaignTab() {
 
       // Fetch referral codes for these members
       const memberIds = paidMembers.map((m: any) => m.id);
-      const { data: codes } = await supabase
-        .from("referral_codes")
-        .select("member_id, code")
-        .in("member_id", memberIds.length > 0 ? memberIds : ["__none__"]);
+      const safeIds = memberIds.length > 0 ? memberIds : ["__none__"];
+
+      const [{ data: codes }, { data: referrals }, { data: pointsData }] = await Promise.all([
+        supabase
+          .from("referral_codes")
+          .select("member_id, code")
+          .in("member_id", safeIds),
+        supabase
+          .from("member_referrals")
+          .select("referring_member_id, status")
+          .in("referring_member_id", safeIds),
+        supabase
+          .from("members")
+          .select("id, referral_points_balance")
+          .in("id", safeIds),
+      ]);
 
       const codeMap = new Map((codes || []).map((c: any) => [c.member_id, c.code]));
+      
+      // Count referrals per member
+      const referralCountMap = new Map<string, number>();
+      const activeReferralMap = new Map<string, number>();
+      (referrals || []).forEach((r: any) => {
+        referralCountMap.set(r.referring_member_id, (referralCountMap.get(r.referring_member_id) || 0) + 1);
+        if (r.status === "active") {
+          activeReferralMap.set(r.referring_member_id, (activeReferralMap.get(r.referring_member_id) || 0) + 1);
+        }
+      });
+
+      const pointsMap = new Map((pointsData || []).map((p: any) => [p.id, p.referral_points_balance ?? 0]));
 
       setMembers(
         paidMembers.map((m: any) => ({
@@ -70,6 +97,9 @@ export function ReferralCampaignTab() {
           last_name: m.last_name || "",
           email: m.email,
           referral_code: codeMap.get(m.id) || null,
+          referral_count: referralCountMap.get(m.id) || 0,
+          active_referrals: activeReferralMap.get(m.id) || 0,
+          points_balance: pointsMap.get(m.id) || 0,
         }))
       );
     } catch {
@@ -271,6 +301,34 @@ export function ReferralCampaignTab() {
         </div>
       </div>
 
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Referrals</p>
+            <p className="text-2xl font-bold">{members.reduce((s, m) => s + m.referral_count, 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Converted</p>
+            <p className="text-2xl font-bold">{members.reduce((s, m) => s + m.active_referrals, 0)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Members w/ Referrals</p>
+            <p className="text-2xl font-bold">{members.filter(m => m.referral_count > 0).length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total Points Outstanding</p>
+            <p className="text-2xl font-bold">{members.reduce((s, m) => s + m.points_balance, 0).toLocaleString()}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Email Preview */}
       {showPreview && template && (
         <Card>
@@ -319,13 +377,18 @@ export function ReferralCampaignTab() {
                   key={m.id}
                   className="flex items-center justify-between py-3 gap-4"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">
                       {m.first_name} {m.last_name}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
                       {m.email}
                     </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
+                    <span title="Referrals made">{m.referral_count} referral{m.referral_count !== 1 ? "s" : ""}</span>
+                    <span title="Converted">{m.active_referrals} converted</span>
+                    <span title="Points balance">{m.points_balance} pts</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {m.referral_code ? (
