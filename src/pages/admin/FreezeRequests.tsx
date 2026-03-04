@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck } from "lucide-react";
+import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck, StopCircle } from "lucide-react";
 import { format, isBefore, startOfToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -33,8 +33,19 @@ import {
   useApproveFreezeRequest,
   useRejectFreezeRequest,
   useActivateFreeze,
+  useEndFreezeEarly,
   type FreezeRequestWithMember,
 } from "@/hooks/useAdminFreezeRequests";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useUserRoles } from "@/hooks/useUserRoles";
 
 const statusColors: Record<string, string> = {
@@ -52,6 +63,7 @@ export default function FreezeRequests() {
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showWaiveDialog, setShowWaiveDialog] = useState(false);
+  const [showEndFreezeDialog, setShowEndFreezeDialog] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<FreezeRequestWithMember | null>(null);
   const [approveStartDate, setApproveStartDate] = useState<Date>();
   const [rejectReason, setRejectReason] = useState("");
@@ -61,6 +73,7 @@ export default function FreezeRequests() {
   const approveRequest = useApproveFreezeRequest();
   const rejectRequest = useRejectFreezeRequest();
   const activateFreeze = useActivateFreeze();
+  const endFreezeEarly = useEndFreezeEarly();
 
   const filteredRequests = requests?.filter((req) => {
     if (!searchQuery) return true;
@@ -297,6 +310,20 @@ export default function FreezeRequests() {
                                     )}
                                   </div>
                                 )}
+                                {request.status === 'active' && (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      setSelectedRequest(request);
+                                      setShowEndFreezeDialog(true);
+                                    }}
+                                    disabled={endFreezeEarly.isPending}
+                                  >
+                                    <StopCircle className="h-4 w-4 mr-1" />
+                                    End Freeze Early
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -438,6 +465,40 @@ export default function FreezeRequests() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* End Freeze Early Dialog */}
+      <AlertDialog open={showEndFreezeDialog} onOpenChange={setShowEndFreezeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>End Freeze Early</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will immediately end the freeze for{" "}
+              {selectedRequest?.members.first_name} {selectedRequest?.members.last_name},
+              set their membership status to active, and resume billing on their Stripe subscriptions.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (selectedRequest) {
+                  endFreezeEarly.mutate(selectedRequest.id, {
+                    onSuccess: () => {
+                      setShowEndFreezeDialog(false);
+                      setSelectedRequest(null);
+                    },
+                  });
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {endFreezeEarly.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              End Freeze & Resume Billing
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
