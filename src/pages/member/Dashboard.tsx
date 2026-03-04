@@ -41,6 +41,8 @@ import {
   Gift,
   Flame,
   Star,
+  CalendarPlus,
+  Clock,
 } from "lucide-react";
 import { format, parseISO, isValid, startOfToday, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
@@ -93,7 +95,6 @@ export default function MemberDashboard() {
     const earnedTypes = new Set(achievements.map(a => a.achievement_type));
     const locked = allAchievements.filter(a => !earnedTypes.has(a.name));
     if (locked.length === 0) return null;
-    // Return the one with lowest points (easiest)
     return locked.sort((a, b) => (a.points_reward || 0) - (b.points_reward || 0))[0];
   })();
 
@@ -221,6 +222,104 @@ export default function MemberDashboard() {
           </p>
         </AnimatedSection>
 
+        {/* === NEW: Quick Actions Row === */}
+        <AnimatedSection animation="fade-up" delay={50}>
+          <StaggerContainer className="grid gap-3 grid-cols-3" staggerDelay={60}>
+            <Link to="/member/schedule" className="block">
+              <Card variant="interactive" className="hover-lift-sm h-full">
+                <CardContent className="pt-5 pb-4 flex flex-col items-center text-center gap-2">
+                  <div className="p-2.5 rounded-full bg-accent/10">
+                    <CalendarPlus className="h-5 w-5 text-accent" />
+                  </div>
+                  <span className="text-sm font-semibold">Book Class</span>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link to="/member/wellness" className="block">
+              <Card variant="interactive" className="hover-lift-sm h-full">
+                <CardContent className="pt-5 pb-4 flex flex-col items-center text-center gap-2">
+                  <div className="p-2.5 rounded-full bg-accent/10">
+                    <Zap className="h-5 w-5 text-accent" />
+                  </div>
+                  <span className="text-sm font-semibold">Book Amenity</span>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link to="/class-passes" className="block">
+              <Card variant="interactive" className="hover-lift-sm h-full">
+                <CardContent className="pt-5 pb-4 flex flex-col items-center text-center gap-2">
+                  <div className="p-2.5 rounded-full bg-accent/10">
+                    <Ticket className="h-5 w-5 text-accent" />
+                  </div>
+                  <span className="text-sm font-semibold">Buy Passes</span>
+                </CardContent>
+              </Card>
+            </Link>
+          </StaggerContainer>
+        </AnimatedSection>
+
+        {/* === NEW: Up Next - Upcoming Bookings at top === */}
+        <AnimatedSection animation="fade-up" delay={80}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+              Up Next
+            </h3>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/member/bookings">View All</Link>
+            </Button>
+          </div>
+          {bookingsLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : upcomingBookings && upcomingBookings.length > 0 ? (
+            <div className="space-y-2">
+              {upcomingBookings.slice(0, 3).map((booking: Booking) => {
+                const sessionDate = booking.session?.session_date 
+                  ? parseISO(booking.session.session_date) 
+                  : null;
+                const formattedDate = sessionDate && isValid(sessionDate) 
+                  ? format(sessionDate, "EEE, MMM d") 
+                  : "Date TBA";
+                const formattedTime = formatTime12h(booking.session?.start_time);
+                
+                return (
+                  <Card key={booking.id} variant="flat" className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-accent/10 shrink-0">
+                          <Calendar className="h-4 w-4 text-accent" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">
+                            {booking.session?.class_type?.name || "Class"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formattedDate} · {formattedTime}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {booking.session?.room || "Studio"}
+                      </Badge>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card variant="flat" className="p-6 text-center">
+              <Calendar className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">No upcoming bookings</p>
+              <Button asChild variant="link" size="sm" className="mt-1">
+                <Link to="/member/schedule">Browse Schedule</Link>
+              </Button>
+            </Card>
+          )}
+        </AnimatedSection>
+
         {/* Quick Stats */}
         <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" staggerDelay={80}>
           {/* Membership Status */}
@@ -324,7 +423,7 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
 
-          {/* Upcoming Bookings */}
+          {/* Upcoming Bookings count */}
           <Card variant="interactive" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Upcoming Classes</CardTitle>
@@ -575,7 +674,6 @@ export default function MemberDashboard() {
                 <Skeleton className="h-8 w-24" />
               ) : urgentGoal ? (
                 <>
-                  {/* Primary goal with progress ring */}
                   <div className="flex items-center gap-3">
                     <div className="relative h-14 w-14 shrink-0">
                       <svg className="h-14 w-14 -rotate-90" viewBox="0 0 56 56">
@@ -628,128 +726,6 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
         </StaggerContainer>
-
-        {/* Quick Actions */}
-        <AnimatedSection animation="fade-up" delay={150}>
-          <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-        </AnimatedSection>
-        <StaggerContainer className="grid gap-4 md:grid-cols-3" staggerDelay={80}>
-          <Link to="/member/schedule" className="block">
-            <Card variant="interactive" className="hover-lift-sm cursor-pointer h-full">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-accent/10">
-                      <Calendar className="h-6 w-6 text-accent" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Book a Class</h3>
-                      <p className="text-sm text-muted-foreground">View schedule and book</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link to="/member/profile" className="block">
-            <Card variant="interactive" className="hover-lift-sm cursor-pointer h-full">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-accent/10">
-                      <User className="h-6 w-6 text-accent" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Update Profile</h3>
-                      <p className="text-sm text-muted-foreground">Manage your info</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link to="/class-passes" className="block">
-            <Card variant="interactive" className="hover-lift-sm cursor-pointer h-full">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-accent/10">
-                      <Ticket className="h-6 w-6 text-accent" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Buy Class Passes</h3>
-                      <p className="text-sm text-muted-foreground">Get more classes</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        </StaggerContainer>
-
-        {/* Upcoming Bookings Preview */}
-        <AnimatedSection animation="fade-up" delay={200}>
-          <Card variant="elevated">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Upcoming Classes</CardTitle>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/member/bookings">View All</Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {bookingsLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-              </div>
-            ) : upcomingBookings && upcomingBookings.length > 0 ? (
-              <div className="space-y-3">
-                {upcomingBookings.slice(0, 3).map((booking: Booking) => {
-                  const sessionDate = booking.session?.session_date 
-                    ? parseISO(booking.session.session_date) 
-                    : null;
-                  const formattedDate = sessionDate && isValid(sessionDate) 
-                    ? format(sessionDate, "EEEE, MMM d") 
-                    : "Date TBA";
-                  const formattedTime = formatTime12h(booking.session?.start_time);
-                  
-                  return (
-                    <div
-                      key={booking.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
-                    >
-                      <div>
-                        <p className="font-medium">
-                          {booking.session?.class_type?.name || "Class"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {formattedDate} at {formattedTime}
-                        </p>
-                      </div>
-                      <Badge variant="outline">
-                        {booking.session?.room || "Studio"}
-                      </Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No upcoming classes</p>
-                <Button asChild variant="link" className="mt-2">
-                  <Link to="/schedule">Browse Schedule</Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-          </Card>
-        </AnimatedSection>
       </div>
     </MemberLayout>
   );
