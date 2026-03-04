@@ -42,6 +42,8 @@ export default function Referrals() {
     pointsBalance, successfulReferrals,
   } = useReferralData();
 
+  const [referFirstName, setReferFirstName] = useState("");
+  const [referLastName, setReferLastName] = useState("");
   const [referEmail, setReferEmail] = useState("");
 
   const shareUrl = referralCode
@@ -64,8 +66,11 @@ export default function Referrals() {
 
   const handleSubmitReferral = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!referEmail.trim()) return;
-    submitReferral.mutate(referEmail, { onSuccess: () => setReferEmail("") });
+    if (!referFirstName.trim() || !referLastName.trim() || !referEmail.trim()) return;
+    submitReferral.mutate(
+      { firstName: referFirstName, lastName: referLastName, email: referEmail },
+      { onSuccess: () => { setReferFirstName(""); setReferLastName(""); setReferEmail(""); } }
+    );
   };
 
   return (
@@ -116,17 +121,36 @@ export default function Referrals() {
 
             <Separator />
 
-            <form onSubmit={handleSubmitReferral} className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="Enter friend's email to refer..."
-                value={referEmail}
-                onChange={(e) => setReferEmail(e.target.value)}
-                className="flex-1"
-              />
-              <Button type="submit" disabled={submitReferral.isPending || !referEmail.trim()}>
-                {submitReferral.isPending ? "Sending..." : "Refer"}
-              </Button>
+            <form onSubmit={handleSubmitReferral} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Input
+                  type="text"
+                  placeholder="First Name"
+                  value={referFirstName}
+                  onChange={(e) => setReferFirstName(e.target.value)}
+                  required
+                />
+                <Input
+                  type="text"
+                  placeholder="Last Name"
+                  value={referLastName}
+                  onChange={(e) => setReferLastName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="Email address"
+                  value={referEmail}
+                  onChange={(e) => setReferEmail(e.target.value)}
+                  className="flex-1"
+                  required
+                />
+                <Button type="submit" disabled={submitReferral.isPending || !referFirstName.trim() || !referLastName.trim() || !referEmail.trim()}>
+                  {submitReferral.isPending ? "Sending..." : "Refer"}
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -221,7 +245,14 @@ export default function Referrals() {
                       <div className="flex items-center gap-3">
                         <cfg.icon className={`h-4 w-4 ${cfg.color}`} />
                         <div>
-                          <p className="text-sm font-medium">{r.referred_email}</p>
+                          <p className="text-sm font-medium">
+                            {r.referred_first_name && r.referred_last_name
+                              ? `${r.referred_first_name} ${r.referred_last_name}`
+                              : r.referred_email}
+                          </p>
+                          {r.referred_first_name && (
+                            <p className="text-xs text-muted-foreground">{r.referred_email}</p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(r.created_at), "MMM d, yyyy")}
                           </p>

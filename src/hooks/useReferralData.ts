@@ -79,12 +79,14 @@ export function useReferralData() {
 
   // Submit a referral
   const submitReferral = useMutation({
-    mutationFn: async (email: string) => {
+    mutationFn: async ({ firstName, lastName, email }: { firstName: string; lastName: string; email: string }) => {
       if (!member) throw new Error("No member found");
       const trimmedEmail = email.toLowerCase().trim();
       const { error } = await supabase.from("member_referrals").insert({
         referring_member_id: member.id,
         referred_email: trimmedEmail,
+        referred_first_name: firstName.trim(),
+        referred_last_name: lastName.trim(),
       });
       if (error) throw error;
 
@@ -104,8 +106,24 @@ export function useReferralData() {
         });
         if (emailError) {
           console.error("Failed to send referral email:", emailError);
-          // Don't throw — referral was recorded, email is secondary
         }
+      }
+
+      // Send admin notification
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            type: "referral_notification",
+            to: "admin@stormwellnessclub.com",
+            data: {
+              referrerName: `${member.first_name || ""} ${member.last_name || ""}`.trim(),
+              referredName: `${firstName.trim()} ${lastName.trim()}`,
+              referredEmail: trimmedEmail,
+            },
+          },
+        });
+      } catch (e) {
+        console.error("Failed to send admin notification:", e);
       }
     },
     onSuccess: () => {

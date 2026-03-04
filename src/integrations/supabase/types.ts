@@ -2953,6 +2953,8 @@ export type Database = {
           points_awarded: number
           points_awarded_at: string | null
           referred_email: string
+          referred_first_name: string | null
+          referred_last_name: string | null
           referred_member_id: string | null
           referring_member_id: string
           status: string
@@ -2964,6 +2966,8 @@ export type Database = {
           points_awarded?: number
           points_awarded_at?: string | null
           referred_email: string
+          referred_first_name?: string | null
+          referred_last_name?: string | null
           referred_member_id?: string | null
           referring_member_id: string
           status?: string
@@ -2975,6 +2979,8 @@ export type Database = {
           points_awarded?: number
           points_awarded_at?: string | null
           referred_email?: string
+          referred_first_name?: string | null
+          referred_last_name?: string | null
           referred_member_id?: string | null
           referring_member_id?: string
           status?: string
@@ -3106,6 +3112,7 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           referral_points_balance: number
+          referred_by_code: string | null
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -3149,6 +3156,7 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           referral_points_balance?: number
+          referred_by_code?: string | null
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -3192,6 +3200,7 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           referral_points_balance?: number
+          referred_by_code?: string | null
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null

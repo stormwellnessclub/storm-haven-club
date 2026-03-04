@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification';
   to: string;
   data: Record<string, any>;
 }
@@ -2095,6 +2095,33 @@ serve(async (req) => {
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
               </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'referral_notification':
+        subject = `New Referral: ${data.referrerName} referred ${data.referredName}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">New Member Referral</h2>
+              <div style="${emailStyles.infoBox}">
+                <p style="margin: 0 0 8px 0; font-family: Georgia, serif; color: #1C170F;">
+                  <strong>Referred by:</strong> ${data.referrerName}
+                </p>
+                <p style="margin: 0 0 8px 0; font-family: Georgia, serif; color: #1C170F;">
+                  <strong>Referred person:</strong> ${data.referredName}
+                </p>
+                <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
+                  <strong>Email:</strong> ${data.referredEmail}
+                </p>
+              </div>
+              <p style="font-size: 14px; color: #6b7280; font-family: Georgia, serif;">
+                An invitation email has been sent to the referred person automatically.
+              </p>
             </div>
             ${getEmailFooter()}
           </div>
