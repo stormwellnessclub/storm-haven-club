@@ -1,5 +1,9 @@
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { MemberSidebar } from "./MemberSidebar";
+import { MemberBottomNav } from "./MemberBottomNav";
+import { NotificationBar, NotificationItem } from "./NotificationBar";
 import { AnnualFeeNotice } from "./AnnualFeeNotice";
 import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
@@ -8,10 +12,11 @@ import { SoftLaunchHoursBanner } from "./SoftLaunchHoursBanner";
 import { ClassScheduleBanner } from "@/components/ClassScheduleBanner";
 import { WifiBanner } from "./WifiBanner";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
-import { User } from "lucide-react";
+import { User, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
+
 interface MemberLayoutProps {
   children: React.ReactNode;
   title?: string;
@@ -23,34 +28,63 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
   
   const isPendingActivation = membership?.status === "pending_activation";
 
+  // Build notification items for consolidated bar
+  const notifications = useMemo<NotificationItem[]>(() => {
+    const items: NotificationItem[] = [];
+
+    if (isPendingActivation && membership) {
+      items.push({
+        id: "activation",
+        priority: 1,
+        content: (
+          <span>
+            Complete your membership activation to unlock all benefits.{" "}
+            <Link to="/member/membership" className="font-medium underline">
+              Activate Now
+            </Link>
+          </span>
+        ),
+      });
+    }
+
+    if (!isPendingActivation && hasPaymentIssues) {
+      items.push({
+        id: "payment_due",
+        priority: 2,
+        content: (
+          <span>
+            You have a payment issue that needs attention.{" "}
+            <Link to="/member/payment-methods" className="font-medium underline">
+              Update Payment
+            </Link>
+          </span>
+        ),
+      });
+    }
+
+    if (!isPendingActivation && isInitiationFeePaid) {
+      items.push({
+        id: "annual_fee",
+        priority: 3,
+        content: "Your annual fee renewal is coming up.",
+      });
+    }
+
+    return items;
+  }, [isPendingActivation, membership, hasPaymentIssues, isInitiationFeePaid]);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex flex-col w-full bg-background">
-        {/* Soft launch hours banner */}
+        {/* Consolidated notification bar */}
+        <NotificationBar items={notifications} />
+        
+        {/* Info banners */}
         <SoftLaunchHoursBanner />
         <ClassScheduleBanner />
         <WifiBanner />
         
-        {/* Activation notice for pending_activation members */}
-        {isPendingActivation && membership && (
-          <div className="p-4 border-b border-border">
-            <ActivationRequiredNotice 
-              memberData={{
-                first_name: membership.first_name,
-                activation_deadline: membership.activation_deadline || null,
-                membership_type: membership.membership_type,
-              }} 
-            />
-          </div>
-        )}
-        
-        {/* Payment due notice for members with payment issues (initiation fee or subscription) */}
-        {!isPendingActivation && hasPaymentIssues && <PaymentDueNotice />}
-        
-        {/* Annual fee renewal notice (only for members who have paid initially but need to renew) */}
-        {!isPendingActivation && isInitiationFeePaid && <AnnualFeeNotice />}
-        
-        {/* Waiver reminder notice for members who haven't signed required waivers */}
+        {/* Waiver reminder (keeps its own logic) */}
         <WaiverReminderNotice />
         
         <div className="flex flex-1 flex-col md:flex-row">
@@ -64,17 +98,26 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
                 )}
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
+                <Button variant="ghost" size="sm" className="touch-target gap-1.5" asChild>
+                  <Link to="/member/support">
+                    <MessageCircle className="h-5 w-5" />
+                    <span className="hidden sm:inline text-xs">Support</span>
+                  </Link>
+                </Button>
                 <Button variant="ghost" size="icon" className="touch-target">
                   <User className="h-5 w-5" />
                 </Button>
               </div>
             </header>
             <PWAInstallPrompt />
-            <main className="p-4 sm:p-6 safe-area-bottom">
+            <main className="p-4 sm:p-6 pb-20 md:pb-6 safe-area-bottom">
               {children}
             </main>
           </SidebarInset>
         </div>
+        
+        {/* Mobile bottom tab bar */}
+        <MemberBottomNav />
       </div>
     </SidebarProvider>
   );

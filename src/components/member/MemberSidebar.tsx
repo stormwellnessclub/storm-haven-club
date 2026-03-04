@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -26,6 +27,7 @@ import {
   ScanLine,
   Zap,
   Gift,
+  ChevronDown,
 } from "lucide-react";
 import {
   Sidebar,
@@ -40,46 +42,72 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 interface MenuItem {
   title: string;
   url: string;
   icon: React.ElementType;
+  highlighted?: boolean;
 }
 
-const memberMenuItems: MenuItem[] = [
+// Always-visible top items
+const mainItems: MenuItem[] = [
   { title: "Dashboard", url: "/member", icon: LayoutDashboard },
   { title: "Member Entry", url: "/member/entry", icon: ScanLine },
-  { title: "My Profile", url: "/member/profile", icon: User },
-  { title: "My Credits", url: "/member/credits", icon: CreditCard },
-  { title: "My Membership", url: "/member/membership", icon: IdCard },
-  { title: "Payment Methods", url: "/member/payment-methods", icon: Wallet },
-  { title: "Payment History", url: "/member/payment-history", icon: Receipt },
-  { title: "My Bookings", url: "/member/bookings", icon: Calendar },
-  { title: "Visit History", url: "/member/check-in-history", icon: Activity },
   { title: "Support", url: "/member/support", icon: MessageCircle },
   { title: "Book Classes", url: "/member/schedule", icon: CalendarPlus },
-  { title: "Buy Passes", url: "/class-passes", icon: Ticket },
-  { title: "Wellness Booking", url: "/member/wellness", icon: Zap },
-  { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
-  { title: "Register Guest", url: "/member/credits", icon: Gift },
-  { title: "Waivers", url: "/member/waivers", icon: FileCheck },
-  { title: "Refer a Friend", url: "/member/referrals", icon: Users },
 ];
 
-const wellnessMenuItems: MenuItem[] = [
-  { title: "Health Score", url: "/member/health-score", icon: Activity },
-  { title: "Achievements", url: "/member/achievements", icon: Trophy },
-  { title: "Workouts", url: "/member/workouts", icon: Dumbbell },
-  { title: "Habits", url: "/member/habits", icon: CheckCircle2 },
-  { title: "Goals", url: "/member/goals", icon: Target },
-  { title: "Fitness Profile", url: "/member/fitness-profile", icon: Settings },
-];
+interface SidebarGroupDef {
+  label: string;
+  items: MenuItem[];
+}
 
-// Highlight workouts item with AI badge
-const HIGHLIGHTED_ITEMS = ["Workouts"];
+const collapsibleGroups: SidebarGroupDef[] = [
+  {
+    label: "Membership & Billing",
+    items: [
+      { title: "My Membership", url: "/member/membership", icon: IdCard },
+      { title: "My Credits", url: "/member/credits", icon: CreditCard },
+      { title: "Payment Methods", url: "/member/payment-methods", icon: Wallet },
+      { title: "Payment History", url: "/member/payment-history", icon: Receipt },
+      { title: "Buy Passes", url: "/class-passes", icon: Ticket },
+    ],
+  },
+  {
+    label: "Bookings & Visits",
+    items: [
+      { title: "My Bookings", url: "/member/bookings", icon: Calendar },
+      { title: "Visit History", url: "/member/check-in-history", icon: Activity },
+      { title: "Wellness Booking", url: "/member/wellness", icon: Zap },
+    ],
+  },
+  {
+    label: "Health & Wellness",
+    items: [
+      { title: "Health Score", url: "/member/health-score", icon: Activity },
+      { title: "Workouts", url: "/member/workouts", icon: Dumbbell, highlighted: true },
+      { title: "Habits", url: "/member/habits", icon: CheckCircle2 },
+      { title: "Goals", url: "/member/goals", icon: Target },
+      { title: "Achievements", url: "/member/achievements", icon: Trophy },
+      { title: "Fitness Profile", url: "/member/fitness-profile", icon: Settings },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { title: "My Profile", url: "/member/profile", icon: User },
+      { title: "Waivers", url: "/member/waivers", icon: FileCheck },
+      { title: "Freeze Request", url: "/member/freeze", icon: Snowflake },
+      { title: "Register Guest", url: "/member/credits", icon: Gift },
+      { title: "Refer a Friend", url: "/member/referrals", icon: Users },
+    ],
+  },
+];
 
 export function MemberSidebar() {
   const location = useLocation();
@@ -88,10 +116,38 @@ export function MemberSidebar() {
   const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => {
-    if (path === "/member") {
-      return location.pathname === "/member";
-    }
+    if (path === "/member") return location.pathname === "/member";
     return location.pathname.startsWith(path);
+  };
+
+  // Determine which groups should be open based on active route
+  const getDefaultOpen = () => {
+    const open: string[] = [];
+    collapsibleGroups.forEach((group) => {
+      if (group.items.some((item) => isActive(item.url))) {
+        open.push(group.label);
+      }
+    });
+    return open;
+  };
+
+  const [openGroups, setOpenGroups] = useState<string[]>(getDefaultOpen);
+
+  // Update open groups when route changes
+  useEffect(() => {
+    const active = getDefaultOpen();
+    if (active.length > 0) {
+      setOpenGroups((prev) => {
+        const merged = new Set([...prev, ...active]);
+        return [...merged];
+      });
+    }
+  }, [location.pathname]);
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups((prev) =>
+      prev.includes(label) ? prev.filter((g) => g !== label) : [...prev, label]
+    );
   };
 
   const handleSignOut = async () => {
@@ -102,11 +158,7 @@ export function MemberSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border">
       <SidebarHeader className="p-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <img
-            src={stormLogo}
-            alt="Storm Wellness"
-            className="h-8 w-8 object-contain"
-          />
+          <img src={stormLogo} alt="Storm Wellness" className="h-8 w-8 object-contain" />
           {!isCollapsed && (
             <div>
               <h2 className="font-semibold text-sm">Storm Wellness</h2>
@@ -117,19 +169,16 @@ export function MemberSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2">
+        {/* Main - always visible */}
         <SidebarGroup className="pt-4">
           <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
-            My Account
+            Main
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {memberMenuItems.map((item) => (
+              {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={item.title}
-                  >
+                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
                     <NavLink to={item.url} end={item.url === "/member"}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -141,32 +190,47 @@ export function MemberSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
-            Health & Wellness
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {wellnessMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={item.title}
-                  >
-                    <NavLink to={item.url} className="flex items-center gap-2">
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                      {HIGHLIGHTED_ITEMS.includes(item.title) && (
-                        <Sparkles className="h-3 w-3 text-primary ml-auto" />
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Collapsible groups */}
+        {collapsibleGroups.map((group) => (
+          <Collapsible
+            key={group.label}
+            open={openGroups.includes(group.label)}
+            onOpenChange={() => toggleGroup(group.label)}
+          >
+            <SidebarGroup>
+              <CollapsibleTrigger className="w-full">
+                <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2 flex items-center justify-between cursor-pointer hover:text-muted-foreground transition-colors">
+                  {group.label}
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 transition-transform duration-200",
+                      openGroups.includes(group.label) && "rotate-180"
+                    )}
+                  />
+                </SidebarGroupLabel>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {group.items.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                          <NavLink to={item.url} className="flex items-center gap-2">
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                            {item.highlighted && (
+                              <Sparkles className="h-3 w-3 text-primary ml-auto" />
+                            )}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-border space-y-2">
@@ -180,8 +244,8 @@ export function MemberSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton 
-              tooltip="Sign Out" 
+            <SidebarMenuButton
+              tooltip="Sign Out"
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
               onClick={handleSignOut}
             >
