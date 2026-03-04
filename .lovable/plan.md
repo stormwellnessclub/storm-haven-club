@@ -1,87 +1,51 @@
 
 
-# Enhanced Tracking and Projections Dashboard
+# New Reports: Member Engagement, Guest Returns, Class Engagement
 
-## What You're Asking For
+## What's Missing
 
-1. **Application tracking with goal projections** — track application volume over time and project when you'll hit membership targets
-2. **Guest pass tracking** — volume, revenue, trends
-3. **Class pass tracking** — volume, revenue, trends
-4. **Daily revenue from all sales** — broken down by area (cafe, spa, classes, guest passes, memberships)
+The existing engagement reports are basic — Workout Activity just counts logged workouts, Goals Progress tracks goal completion, and Credit Balances shows credit standings. There's no holistic **member engagement score** report, no **guest return tracking** (repeat visitors by email), and no **class engagement** report showing member participation patterns over time.
 
-## What Already Exists vs What's Missing
+## New Reports to Create
 
-| Feature | Status |
-|---------|--------|
-| New Applications report | Exists but basic — just a list with a line chart. No conversion rate, no goal projection |
-| Guest Pass Usage report | Exists but no revenue tracking or trends |
-| Sales Segmentation report | Exists with category breakdown but no daily view |
-| Daily revenue by area | Does not exist |
-| Membership goal projection | Does not exist |
+### 1. Member Engagement Report (`MemberEngagementReport.tsx`)
+A comprehensive engagement dashboard showing how active members really are across all touchpoints.
 
-## Changes
+- **Summary cards**: Total active members, Avg engagement score, High/Medium/Low engagement breakdown
+- **Data source**: Query `members` (active), then for each calculate a simple engagement score from `check_ins` (last 30d), `workout_logs` (last 30d), `class_bookings` (last 30d), `spa_appointments` (last 30d), `cafe_orders` (last 30d)
+- **Engagement tiers**: High (5+ touchpoints/month), Medium (2-4), Low (0-1), Inactive (0 in 60+ days)
+- **Pie chart**: Engagement tier distribution
+- **Bar chart**: Engagement by membership tier
+- **Table**: Bottom 15 least-engaged active members (churn risk)
+- Register as `member-engagement` in the `engagement` category
 
-### 1. New Report: "Daily Revenue Breakdown" (`DailyRevenueReport.tsx`)
+### 2. Guest Returns Report (`GuestReturnsReport.tsx`)
+Track repeat guests by matching `guest_email` across multiple `guest_passes` records.
 
-A new report showing revenue per day, broken down by source area with a stacked bar chart.
+- **Summary cards**: Total unique guests, Repeat guests (2+ passes), Return rate %, Total repeat revenue
+- **Logic**: Group `guest_passes` by `guest_email`, count passes per unique email, identify those with 2+ entries as "returning"
+- **Bar chart**: Distribution of visit count (1 visit, 2 visits, 3+ visits)
+- **Table**: Top returning guests with visit count, total spend, last visit date, and whether they converted to member (check if email exists in `members` table)
+- Register as `guest-returns` in the `services` category
 
-- Query all revenue sources (cafe orders, spa appointments, class passes, guest passes, manual charges, subscription payments) grouped by date
-- Stacked bar chart: each bar is a day, segments colored by area
-- Summary cards: Today's revenue, period average, best day
-- Table with daily totals and per-area columns
-- Register as `daily-revenue` in `reportDefinitions.ts` under `financial` category and wire into `ReportPreview.tsx`
+### 3. Class Engagement Report (`ClassEngagementReport.tsx`)
+Member-centric view of class participation patterns (vs the existing ClassAttendance which is class-centric).
 
-### 2. Enhance: "New Applications Report" (`NewApplicationsReport.tsx`)
+- **Summary cards**: Members taking classes, Avg classes/member, Most popular class, Member-to-class ratio
+- **Data source**: Query `class_bookings` joined with `class_sessions` and `class_types`, group by user
+- **Bar chart**: Classes booked per member (distribution — 1-2, 3-5, 6-10, 10+ classes)
+- **Line chart**: Weekly class participation trend (unique members attending)
+- **Table**: Top 15 most active class participants with class count, favorite class type, attendance rate
+- Register as `class-engagement` in the `classes` category
 
-Add goal-based projection and conversion metrics:
+## Files to Create
+- `src/components/admin/reports/reports/MemberEngagementReport.tsx`
+- `src/components/admin/reports/reports/GuestReturnsReport.tsx`
+- `src/components/admin/reports/reports/ClassEngagementReport.tsx`
 
-- **Conversion funnel cards**: Total Applications, Approved, Activated, Conversion Rate
-- **Goal projection**: Add an input for target member count (e.g., 500). Based on current application rate (apps per week over selected period) and conversion rate, calculate projected date to reach goal. Display as a prominent card: "At current pace, you'll reach 500 members by [date]"
-- **Cumulative growth line**: Add a second line showing cumulative approved members over time alongside daily applications
+## Files to Modify
+- `src/lib/reportDefinitions.ts` — add 3 new report entries
+- `src/components/admin/reports/ReportPreview.tsx` — import and register 3 new components
 
-### 3. Enhance: "Guest Pass Usage Report" (`GuestPassUsageReport.tsx`)
-
-Add revenue and trend data:
-
-- **Revenue card**: Total revenue from paid guest passes in the period
-- **Trend line chart**: Daily/weekly guest pass sales (count and revenue) over the date range
-- **Avg revenue per pass** metric
-
-### 4. New Report: "Class Pass Sales" (`ClassPassSalesReport.tsx`)
-
-Dedicated class pass tracking (currently only exists as a sub-table in Sales Segmentation):
-
-- Summary cards: Total passes sold, Total revenue, By category (Pilates/Cycling/Aerobics), Member vs Non-member split
-- Bar chart: sales by category
-- Trend line: weekly pass sales over time
-- Register as `class-pass-sales` in `reportDefinitions.ts` under `services` category and wire into `ReportPreview.tsx`
-
-### 5. Fix: Revenue reports use `subscription_status` filter
-
-In `RevenueSummaryReport.tsx`, `CashFlowProjectionReport.tsx`, and `NextMonthProjectionReport.tsx`:
-- Add `subscription_status` to the select query
-- Post-filter non-founding members to only include those with `subscription_status = 'active'` and a valid `stripe_subscription_id`
-- Show a warning count of "active but not paying" members
-
-### 6. Fix: Pie chart overlap in `RevenueByCategoryReport.tsx`
-
-- Increase container height from 300 to 450
-- Increase `outerRadius` from 100 to 150
-- Remove inline `label` prop (the one causing overlap), keep `Legend` and `Tooltip`
-
-### Files to create
-- `src/components/admin/reports/reports/DailyRevenueReport.tsx`
-- `src/components/admin/reports/reports/ClassPassSalesReport.tsx`
-
-### Files to modify
-- `src/lib/reportDefinitions.ts` — add 2 new report entries
-- `src/components/admin/reports/ReportPreview.tsx` — import and register 2 new components
-- `src/components/admin/reports/reports/NewApplicationsReport.tsx` — add goal projection + conversion funnel
-- `src/components/admin/reports/reports/GuestPassUsageReport.tsx` — add revenue tracking + trends
-- `src/components/admin/reports/reports/RevenueSummaryReport.tsx` — filter by `subscription_status`
-- `src/components/admin/reports/reports/CashFlowProjectionReport.tsx` — filter by `subscription_status`
-- `src/components/admin/reports/reports/NextMonthProjectionReport.tsx` — filter by `subscription_status`
-- `src/components/admin/reports/reports/RevenueByCategoryReport.tsx` — fix pie chart sizing/overlap
-
-### No database changes needed.
+## No database changes needed.
 
