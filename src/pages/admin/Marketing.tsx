@@ -2,6 +2,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GuestMarketingTab } from "@/components/admin/marketing/GuestMarketingTab";
 import { MemberMarketingTab } from "@/components/admin/marketing/MemberMarketingTab";
+import { ReferralCampaignTab } from "@/components/admin/marketing/ReferralCampaignTab";
 import { TemplatesTab } from "@/components/admin/marketing/TemplatesTab";
 import { CampaignAnalytics } from "@/components/admin/marketing/CampaignAnalytics";
 import { Megaphone } from "lucide-react";
@@ -24,6 +25,7 @@ export default function Marketing() {
           <TabsList>
             <TabsTrigger value="guests">Guests</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
+            <TabsTrigger value="referrals">Referrals</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
@@ -33,6 +35,9 @@ export default function Marketing() {
           </TabsContent>
           <TabsContent value="members">
             <MemberMarketingTab />
+          </TabsContent>
+          <TabsContent value="referrals">
+            <ReferralCampaignTab />
           </TabsContent>
           <TabsContent value="templates">
             <TemplatesTab />
