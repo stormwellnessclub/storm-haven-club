@@ -62,8 +62,14 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
         tierData[tier].foundingAnnual += getAnnualPrice(tier, gender);
       });
 
+      // Filter regular members to only those actually paying
+      const payingRegular = regularMembers.filter(m => 
+        m.subscription_status === 'active' && true
+      );
+      const notPayingCount = regularMembers.length - payingRegular.length;
+
       // Process regular members - they pay monthly
-      regularMembers.forEach(member => {
+      payingRegular.forEach(member => {
         const tier = extractTier(member.membership_type);
         const gender = normalizeGender(member.gender);
         
@@ -90,7 +96,7 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
         regularMonthly: acc.regularMonthly + t.regularMonthly,
       }), { foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 });
 
-      return { tierRevenue, chartData, totals, totalMembers: (filtered || []).length };
+      return { tierRevenue, chartData, totals, totalMembers: (filtered || []).length, notPayingCount };
     },
   });
 

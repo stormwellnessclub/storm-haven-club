@@ -66,52 +66,51 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Revenue Distribution</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={data} cx="50%" cy="50%" labelLine={false}
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={100} dataKey="value">
-                  {(data || []).map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Chart - full width, larger */}
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Revenue Distribution</CardTitle></CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={450}>
+            <PieChart>
+              <Pie data={data} cx="50%" cy="50%" labelLine={false}
+                outerRadius={150} dataKey="value">
+                {(data || []).map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Category Breakdown</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {(data || []).map((item, i) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="font-medium">{item.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold">${item.value.toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {total > 0 ? ((item.value / total) * 100).toFixed(1) : 0}%
-                    </div>
+      {/* Category Breakdown */}
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Category Breakdown</CardTitle></CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {(data || []).map((item, i) => (
+              <div key={item.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                  <span className="font-medium">{item.name}</span>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold">${item.value.toLocaleString()}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {total > 0 ? ((item.value / total) * 100).toFixed(1) : 0}%
                   </div>
                 </div>
-              ))}
-              <div className="border-t pt-4 flex items-center justify-between font-bold">
-                <span>Total Revenue</span>
-                <span>${total.toLocaleString()}</span>
               </div>
+            ))}
+            <div className="border-t pt-4 flex items-center justify-between font-bold">
+              <span>Total Revenue</span>
+              <span>${total.toLocaleString()}</span>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

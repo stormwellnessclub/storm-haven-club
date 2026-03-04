@@ -42,13 +42,14 @@ export function NextMonthProjectionReport({ dateRange, filters }: Props) {
       // 1. Active members for membership dues
       const { data: activeMembers } = await supabase
         .from('members')
-        .select('membership_type, gender, is_founding_member')
+        .select('membership_type, gender, is_founding_member, subscription_status, stripe_subscription_id')
         .eq('status', 'active');
 
       let membershipProjection = 0;
       const tierBreakdown: Record<string, { count: number; revenue: number }> = {};
       (activeMembers || []).forEach(m => {
         if (m.is_founding_member) return; // founding paid upfront
+        if (m.subscription_status !== 'active' || !m.stripe_subscription_id) return; // not actually paying
         const tier = extractTier(m.membership_type);
         const gender = normalizeGender(m.gender);
         const monthly = getMonthlyPrice(tier, gender);

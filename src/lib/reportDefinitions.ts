@@ -108,6 +108,15 @@ const CARD_SETUP_STATUS_OPTIONS = [
 export const REPORTS: ReportDefinition[] = [
   // Financial Reports
   {
+    id: 'daily-revenue',
+    name: 'Daily Revenue Breakdown',
+    description: 'Revenue per day broken down by area: Café, Spa, Classes, Guest Passes, Memberships',
+    category: 'financial',
+    icon: BarChart3,
+    filters: [],
+    defaultDateRange: 'last30days',
+  },
+  {
     id: 'sales-segmentation',
     name: 'Sales Segmentation',
     description: 'Detailed revenue breakdown by all sources: memberships, café, spa, classes, guest passes',
@@ -338,9 +347,18 @@ export const REPORTS: ReportDefinition[] = [
   {
     id: 'guest-pass-usage',
     name: 'Guest Pass Usage',
-    description: 'Passes issued, used, and expired',
+    description: 'Passes issued, used, expired — with revenue tracking and trends',
     category: 'services',
     icon: Ticket,
+    filters: [],
+    defaultDateRange: 'last30days',
+  },
+  {
+    id: 'class-pass-sales',
+    name: 'Class Pass Sales',
+    description: 'Class pass volume, revenue by category, member vs non-member split',
+    category: 'services',
+    icon: Dumbbell,
     filters: [],
     defaultDateRange: 'last30days',
   },
