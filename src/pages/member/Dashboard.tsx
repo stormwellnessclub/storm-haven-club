@@ -51,6 +51,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Habit } from "@/hooks/useHabits";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { EngagementNudge } from "@/components/member/EngagementNudge";
 
 export default function MemberDashboard() {
   const { user } = useAuth();
@@ -221,6 +222,9 @@ export default function MemberDashboard() {
             Here's an overview of your membership
           </p>
         </AnimatedSection>
+
+        {/* Engagement Nudge */}
+        <EngagementNudge />
 
         {/* === NEW: Quick Actions Row === */}
         <AnimatedSection animation="fade-up" delay={50}>
