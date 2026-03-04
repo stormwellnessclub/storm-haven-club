@@ -76,7 +76,28 @@ export default function Referrals() {
   return (
     <MemberLayout title="Refer a Friend">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Points Balance Hero */}
+        {/* Premium Intro Banner */}
+        <Card className="border-primary/10 bg-gradient-to-br from-card to-muted/30">
+          <CardContent className="pt-8 pb-8 px-6 sm:px-10">
+            <h2 className="text-lg font-semibold tracking-tight mb-4">Private Introductions</h2>
+            <div className="space-y-3 text-sm text-muted-foreground leading-relaxed max-w-2xl">
+              <p>
+                Storm Wellness Club grows thoughtfully through the introductions of its members.
+              </p>
+              <p>
+                As an invite-only community, our members play an important role in shaping the culture of the space. We look to those within the club to introduce individuals who share the same appreciation for wellness, calm environments, and intentional living that define the Storm experience.
+              </p>
+              <p>
+                If there is someone in your life who you believe would genuinely align with the spirit of the club, you are welcome to extend a private introduction through the referral portal.
+              </p>
+              <p className="text-foreground/80 font-medium">
+                As a gesture of appreciation, members receive referral points when a referred guest applies and is approved for membership.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Points Balance */}
         <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20">
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -104,7 +125,7 @@ export default function Referrals() {
               <Gift className="h-5 w-5 text-primary" />
               Your Referral Code
             </CardTitle>
-            <CardDescription>Share your code with friends. You earn 500 points when they become active members!</CardDescription>
+            <CardDescription>Extend a private introduction to someone who shares the Storm ethos.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
