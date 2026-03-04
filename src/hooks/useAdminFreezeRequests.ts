@@ -179,11 +179,9 @@ export function useActivateFreeze() {
 
           if (pauseError) {
             console.error("Failed to pause membership subscription:", pauseError);
-            // Don't fail the freeze activation if pause fails, but log it
           }
         } catch (pauseErr) {
           console.error("Error pausing membership subscription:", pauseErr);
-          // Don't fail the freeze activation if pause fails
         }
       }
 
@@ -199,11 +197,9 @@ export function useActivateFreeze() {
 
           if (pauseError) {
             console.error("Failed to pause annual fee subscription:", pauseError);
-            // Don't fail the freeze activation if pause fails, but log it
           }
         } catch (pauseErr) {
           console.error("Error pausing annual fee subscription:", pauseErr);
-          // Don't fail the freeze activation if pause fails
         }
       }
     },
@@ -215,6 +211,100 @@ export function useActivateFreeze() {
     onError: (error) => {
       console.error("Error activating freeze:", error);
       toast.error("Failed to activate freeze");
+    },
+  });
+}
+
+export function useEndFreezeEarly() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (freezeId: string) => {
+      // Get the freeze request and member data
+      const { data: freezeData, error: fetchError } = await supabase
+        .from("member_freezes")
+        .select("member_id")
+        .eq("id", freezeId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Get member's subscription IDs for resuming
+      const { data: memberData, error: memberFetchError } = await supabase
+        .from("members")
+        .select("stripe_subscription_id, annual_fee_subscription_id")
+        .eq("id", freezeData.member_id)
+        .single();
+
+      if (memberFetchError) throw memberFetchError;
+
+      // Mark freeze as completed with today's date
+      const { error: freezeError } = await supabase
+        .from("member_freezes")
+        .update({
+          status: 'completed',
+          actual_end_date: new Date().toISOString().split('T')[0],
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", freezeId);
+
+      if (freezeError) throw freezeError;
+
+      // Set member status back to active
+      const { error: memberError } = await supabase
+        .from("members")
+        .update({
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", freezeData.member_id);
+
+      if (memberError) throw memberError;
+
+      // Resume membership subscription if it exists
+      if (memberData?.stripe_subscription_id) {
+        try {
+          const { error: resumeError } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "resume_subscription",
+              subscriptionId: memberData.stripe_subscription_id,
+            },
+          });
+
+          if (resumeError) {
+            console.error("Failed to resume membership subscription:", resumeError);
+          }
+        } catch (resumeErr) {
+          console.error("Error resuming membership subscription:", resumeErr);
+        }
+      }
+
+      // Resume annual fee subscription if it exists
+      if (memberData?.annual_fee_subscription_id) {
+        try {
+          const { error: resumeError } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "resume_subscription",
+              subscriptionId: memberData.annual_fee_subscription_id,
+            },
+          });
+
+          if (resumeError) {
+            console.error("Failed to resume annual fee subscription:", resumeError);
+          }
+        } catch (resumeErr) {
+          console.error("Error resuming annual fee subscription:", resumeErr);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      toast.success("Freeze ended early — member reactivated and billing resumed");
+    },
+    onError: (error) => {
+      console.error("Error ending freeze early:", error);
+      toast.error("Failed to end freeze early");
     },
   });
 }
