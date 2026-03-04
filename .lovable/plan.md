@@ -1,51 +1,39 @@
 
 
-# New Reports: Member Engagement, Guest Returns, Class Engagement
+# Referral Portal: Premium Messaging + Points-Only-When-Paid Logic
 
-## What's Missing
+## Current State
 
-The existing engagement reports are basic — Workout Activity just counts logged workouts, Goals Progress tracks goal completion, and Credit Balances shows credit standings. There's no holistic **member engagement score** report, no **guest return tracking** (repeat visitors by email), and no **class engagement** report showing member participation patterns over time.
+**UI:** The referral page opens with a points hero card and "Share your code with friends. You earn 500 points when they become active members!" — feels transactional and salesy.
 
-## New Reports to Create
+**Points Logic:** The trigger `check_referral_on_member_activation` fires when a member's status changes to `active`. However, a member can be set to `active` before their first Stripe invoice is actually paid (e.g., during admin onboarding). The trigger does NOT verify `subscription_status = 'active'` or that a valid `stripe_subscription_id` exists. This means points could be awarded before the referred person is genuinely paying.
 
-### 1. Member Engagement Report (`MemberEngagementReport.tsx`)
-A comprehensive engagement dashboard showing how active members really are across all touchpoints.
+## Changes
 
-- **Summary cards**: Total active members, Avg engagement score, High/Medium/Low engagement breakdown
-- **Data source**: Query `members` (active), then for each calculate a simple engagement score from `check_ins` (last 30d), `workout_logs` (last 30d), `class_bookings` (last 30d), `spa_appointments` (last 30d), `cafe_orders` (last 30d)
-- **Engagement tiers**: High (5+ touchpoints/month), Medium (2-4), Low (0-1), Inactive (0 in 60+ days)
-- **Pie chart**: Engagement tier distribution
-- **Bar chart**: Engagement by membership tier
-- **Table**: Bottom 15 least-engaged active members (churn risk)
-- Register as `member-engagement` in the `engagement` category
+### 1. Update referral page banner (`src/pages/member/Referrals.tsx`)
 
-### 2. Guest Returns Report (`GuestReturnsReport.tsx`)
-Track repeat guests by matching `guest_email` across multiple `guest_passes` records.
+Replace the current points hero card and "Your Referral Code" card description with a premium intro banner at the top of the page containing the provided copy:
 
-- **Summary cards**: Total unique guests, Repeat guests (2+ passes), Return rate %, Total repeat revenue
-- **Logic**: Group `guest_passes` by `guest_email`, count passes per unique email, identify those with 2+ entries as "returning"
-- **Bar chart**: Distribution of visit count (1 visit, 2 visits, 3+ visits)
-- **Table**: Top returning guests with visit count, total spend, last visit date, and whether they converted to member (check if email exists in `members` table)
-- Register as `guest-returns` in the `services` category
+> *Storm Wellness Club grows thoughtfully through the introductions of its members...*
 
-### 3. Class Engagement Report (`ClassEngagementReport.tsx`)
-Member-centric view of class participation patterns (vs the existing ClassAttendance which is class-centric).
+The referral code card description changes from "Share your code with friends. You earn 500 points when they become active members!" to something like "Extend a private introduction to someone who shares the Storm ethos."
 
-- **Summary cards**: Members taking classes, Avg classes/member, Most popular class, Member-to-class ratio
-- **Data source**: Query `class_bookings` joined with `class_sessions` and `class_types`, group by user
-- **Bar chart**: Classes booked per member (distribution — 1-2, 3-5, 6-10, 10+ classes)
-- **Line chart**: Weekly class participation trend (unique members attending)
-- **Table**: Top 15 most active class participants with class count, favorite class type, attendance rate
-- Register as `class-engagement` in the `classes` category
+### 2. Fix trigger to require paid status (database migration)
 
-## Files to Create
-- `src/components/admin/reports/reports/MemberEngagementReport.tsx`
-- `src/components/admin/reports/reports/GuestReturnsReport.tsx`
-- `src/components/admin/reports/reports/ClassEngagementReport.tsx`
+Update `check_referral_on_member_activation()` to add a guard:
 
-## Files to Modify
-- `src/lib/reportDefinitions.ts` — add 3 new report entries
-- `src/components/admin/reports/ReportPreview.tsx` — import and register 3 new components
+```sql
+-- Only award if member has an active, paying subscription
+IF NEW.subscription_status = 'active' AND NEW.stripe_subscription_id IS NOT NULL THEN
+  -- proceed with award
+END IF;
+```
 
-## No database changes needed.
+This ensures points are only awarded when the referred person has both `status = 'active'` AND `subscription_status = 'active'` with a valid Stripe subscription — meaning they are genuinely paying.
+
+For founding members (who may not have `subscription_status = 'active'` in the same way), the trigger will also check `is_founding_member = true` as an alternative qualifier.
+
+### Files to modify
+- `src/pages/member/Referrals.tsx` — add premium intro banner, update card descriptions
+- Database migration — update `check_referral_on_member_activation()` to require `subscription_status = 'active'` + `stripe_subscription_id IS NOT NULL` (or `is_founding_member = true`)
 
