@@ -31,6 +31,8 @@ import { GoalsProgressReport } from "./reports/GoalsProgressReport";
 import { PaymentFollowUpReport } from "./reports/PaymentFollowUpReport";
 import { SalesSegmentationReport } from "./reports/SalesSegmentationReport";
 import { NextMonthProjectionReport } from "./reports/NextMonthProjectionReport";
+import { DailyRevenueReport } from "./reports/DailyRevenueReport";
+import { ClassPassSalesReport } from "./reports/ClassPassSalesReport";
 interface ReportPreviewProps {
   report: ReportDefinition | null;
   dateRange: { start: Date; end: Date };
@@ -109,6 +111,7 @@ interface ReportContentProps {
 function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
   const reportComponents: Record<string, React.ComponentType<{ dateRange: { start: Date; end: Date }; filters: Record<string, string | boolean> }>> = {
     'revenue-summary': RevenueSummaryReport,
+    'daily-revenue': DailyRevenueReport,
     'revenue-by-category': RevenueByCategoryReport,
     'sales-segmentation': SalesSegmentationReport,
     'next-month-projection': NextMonthProjectionReport,
@@ -132,6 +135,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'no-show-report': NoShowReport,
     'guest-pass-usage': GuestPassUsageReport,
     'credit-balances': CreditBalancesReport,
+    'class-pass-sales': ClassPassSalesReport,
     'workout-activity': WorkoutActivityReport,
     'goals-progress': GoalsProgressReport,
   };

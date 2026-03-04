@@ -25,7 +25,7 @@ export function CashFlowProjectionReport({ filters }: CashFlowProjectionReportPr
     queryFn: async () => {
       const { data: members, error } = await supabase
         .from('members')
-        .select('membership_type, is_founding_member, status, gender')
+        .select('membership_type, is_founding_member, status, gender, subscription_status, stripe_subscription_id')
         .eq('status', 'active');
 
       if (error) throw error;
@@ -49,7 +49,7 @@ export function CashFlowProjectionReport({ filters }: CashFlowProjectionReportPr
 
       // Separate founding and regular members
       const foundingMembers = filtered.filter(m => m.is_founding_member);
-      const regularMembers = filtered.filter(m => !m.is_founding_member);
+      const regularMembers = filtered.filter(m => !m.is_founding_member && m.subscription_status === 'active' && m.stripe_subscription_id);
 
       for (let i = 0; i < 12; i++) {
         const month = addMonths(now, i);

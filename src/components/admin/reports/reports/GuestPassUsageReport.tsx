@@ -1,16 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { Ticket, CheckCircle, Clock, XCircle } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { Ticket, CheckCircle, Clock, XCircle, DollarSign, TrendingUp } from "lucide-react";
+import { format, parseISO, eachWeekOfInterval, endOfWeek, isWithinInterval } from "date-fns";
 
 interface Props {
   dateRange: { start: Date; end: Date };
   filters: Record<string, string | boolean>;
 }
+
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
 
 export function GuestPassUsageReport({ dateRange, filters }: Props) {
   const { data, isLoading } = useQuery({
@@ -24,12 +27,11 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
 
       if (error) throw error;
 
-      const statusCounts = (passes || []).reduce((acc, pass) => {
+      const allPasses = passes || [];
+
+      const statusCounts = allPasses.reduce((acc, pass) => {
         const status = pass.status || 'unknown';
-        if (!acc[status]) {
-          acc[status] = 0;
-        }
-        acc[status] += 1;
+        acc[status] = (acc[status] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
 
@@ -37,13 +39,33 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
         { name: 'Pending', value: statusCounts['pending'] || 0, color: 'hsl(45, 93%, 47%)' },
         { name: 'Used', value: statusCounts['used'] || 0, color: 'hsl(142, 76%, 36%)' },
         { name: 'Expired', value: statusCounts['expired'] || 0, color: 'hsl(0, 84%, 60%)' },
+        { name: 'Active', value: statusCounts['active'] || 0, color: 'hsl(199, 89%, 48%)' },
       ].filter(d => d.value > 0);
 
-      const total = (passes || []).length;
+      const total = allPasses.length;
       const used = statusCounts['used'] || 0;
       const conversionRate = total > 0 ? (used / total) * 100 : 0;
 
-      return { passes, statusCounts, chartData, total, used, conversionRate };
+      // Revenue metrics
+      const totalRevenue = allPasses.reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
+      const avgRevenuePerPass = total > 0 ? totalRevenue / total : 0;
+
+      // Weekly trend
+      const weeks = eachWeekOfInterval({ start: dateRange.start, end: dateRange.end }, { weekStartsOn: 1 });
+      const weeklyTrend = weeks.map(weekStart => {
+        const wEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+        const weekPasses = allPasses.filter(p => {
+          const d = parseISO(p.created_at!);
+          return isWithinInterval(d, { start: weekStart, end: wEnd });
+        });
+        return {
+          week: format(weekStart, 'MMM d'),
+          Passes: weekPasses.length,
+          Revenue: weekPasses.reduce((s, p) => s + (Number(p.price_paid) || 0), 0),
+        };
+      });
+
+      return { passes: allPasses, statusCounts, chartData, total, used, conversionRate, totalRevenue, avgRevenuePerPass, weeklyTrend };
     },
   });
 
@@ -54,14 +76,14 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <Ticket className="h-8 w-8 text-primary" />
+              <Ticket className="h-7 w-7 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Total Issued</p>
-                <p className="text-2xl font-bold">{data?.total || 0}</p>
+                <p className="text-xs text-muted-foreground">Total Issued</p>
+                <p className="text-xl font-bold">{data?.total || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -69,10 +91,10 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <CheckCircle className="h-7 w-7 text-green-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Used</p>
-                <p className="text-2xl font-bold">{data?.statusCounts?.['used'] || 0}</p>
+                <p className="text-xs text-muted-foreground">Used</p>
+                <p className="text-xl font-bold">{data?.statusCounts?.['used'] || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -80,10 +102,10 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <Clock className="h-8 w-8 text-yellow-500" />
+              <Clock className="h-7 w-7 text-yellow-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold">{data?.statusCounts?.['pending'] || 0}</p>
+                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-xl font-bold">{data?.statusCounts?.['pending'] || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -91,10 +113,32 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <XCircle className="h-8 w-8 text-destructive" />
+              <XCircle className="h-7 w-7 text-destructive" />
               <div>
-                <p className="text-sm text-muted-foreground">Expired</p>
-                <p className="text-2xl font-bold">{data?.statusCounts?.['expired'] || 0}</p>
+                <p className="text-xs text-muted-foreground">Expired</p>
+                <p className="text-xl font-bold">{data?.statusCounts?.['expired'] || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <DollarSign className="h-7 w-7 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground">Total Revenue</p>
+                <p className="text-xl font-bold">{formatCurrency(data?.totalRevenue || 0)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-7 w-7 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground">Avg/Pass</p>
+                <p className="text-xl font-bold">{formatCurrency(data?.avgRevenuePerPass || 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -136,6 +180,24 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
         </div>
       </div>
 
+      {/* Weekly Trend */}
+      {data?.weeklyTrend && data.weeklyTrend.length > 1 && (
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data.weeklyTrend}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="week" className="text-xs" />
+              <YAxis yAxisId="left" allowDecimals={false} className="text-xs" />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `$${v}`} className="text-xs" />
+              <Tooltip />
+              <Legend />
+              <Line yAxisId="left" type="monotone" dataKey="Passes" stroke="hsl(var(--primary))" strokeWidth={2} />
+              <Line yAxisId="right" type="monotone" dataKey="Revenue" stroke="hsl(142, 76%, 36%)" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       {/* Recent Passes Table */}
       <Table>
         <TableHeader>
@@ -143,6 +205,7 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
             <TableHead>Guest Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead className="text-right">Paid</TableHead>
             <TableHead>Issued</TableHead>
             <TableHead>Expires</TableHead>
           </TableRow>
@@ -153,7 +216,8 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
               <TableCell className="font-medium">{pass.guest_name}</TableCell>
               <TableCell>{pass.guest_email}</TableCell>
               <TableCell className="capitalize">{pass.status}</TableCell>
-              <TableCell>{format(parseISO(pass.created_at), 'MMM d, yyyy')}</TableCell>
+              <TableCell className="text-right">{formatCurrency(Number(pass.price_paid) || 0)}</TableCell>
+              <TableCell>{format(parseISO(pass.created_at!), 'MMM d, yyyy')}</TableCell>
               <TableCell>{pass.expires_at ? format(parseISO(pass.expires_at), 'MMM d, yyyy') : '-'}</TableCell>
             </TableRow>
           ))}
