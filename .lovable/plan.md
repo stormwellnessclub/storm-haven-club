@@ -1,65 +1,58 @@
 
 
-# Full Member Portal UX Overhaul
+# Refer-a-Friend Email Template + Dedicated Marketing Tab
 
-Combining all discussed improvements into one implementation.
+## What We're Building
 
-## Changes
+1. **A pre-built "Refer a Friend" email template** — professionally designed HTML template seeded into the `email_templates` table via a database migration, with merge fields for `{name}`, `{referralCode}`, `{referralLink}`, and `{clubName}`
 
-### 1. Support Button in Header (`MemberLayout.tsx`)
-- Add a `MessageCircle` icon button linking to `/member/support` in the sticky header, next to the User icon
-- Desktop: icon + "Support" text. Mobile: icon only
+2. **A new "Referral Campaign" tab or section in the Marketing page** — a dedicated component that:
+   - Fetches active, paid members (filters by `status = 'active'` and has `stripe_subscription_id` or `billing_type = 'cash'`)
+   - Lets you send the referral template to **all paid active members** in bulk, or **individually** one by one
+   - Auto-resolves each member's unique referral code from the `referral_codes` table and injects it into the template
+   - Shows a live preview of the rendered email before sending
 
-### 2. Move Support to #3 in Sidebar (`MemberSidebar.tsx`)
-- Move Support from position #11 to position #3 (after Dashboard, Member Entry)
+3. **Email template preview** — shown inline on the Marketing page so you can see exactly what the email looks like with sample data
 
-### 3. Restructure Dashboard Top Section (`Dashboard.tsx`)
-Reorder the dashboard so the most actionable content appears first:
+## Email Template Design
 
-**New order after alerts + welcome:**
-1. **Quick Actions row** — "Book Class", "Book Amenity" (wellness), "Buy Passes" as prominent buttons (moved from line 632-693)
-2. **Up Next section** — Upcoming class bookings + wellness appointments combined, sorted by date, max 3 items (moved from line 695-751, enhanced with wellness bookings query)
-3. Quick Stats cards (membership, credits, passes, etc.) — stays but moves down
-4. Health & Wellness section — stays in current position relative to stats
+The email will use Storm Wellness Club branding (Smoked Umber primary, Limestone Haze background, Cormorant Garamond headings, Montserrat body) and include:
+- Branded header with club name
+- Personal greeting: "Hi {name},"
+- Value proposition: share wellness with friends, earn rewards (500 points per successful referral)
+- Prominent CTA button linking to the referral page with their unique code
+- Reward breakdown (Red Light Therapy, Class Credits, Dry Cryo, Guest Passes, Cafe Credits)
+- Their unique referral code displayed prominently
 
-This means the current "Quick Actions" (lines 632-693) and "Upcoming Classes" (lines 695-751) sections at the bottom get removed and replaced by their new versions at the top.
+## Technical Changes
 
-### 4. Mobile Bottom Tab Bar (`MemberBottomNav.tsx` — new file)
-Fixed bottom nav visible on mobile only (`md:hidden`) with 5 tabs:
-- **Home** → `/member`
-- **Book** → `/member/schedule`
-- **Entry** → `/member/entry`
-- **Credits** → `/member/credits`
-- **More** → opens sidebar
+### 1. Database Migration — Seed the referral email template
+Insert a system template into `email_templates` with:
+- `name`: "Refer a Friend"
+- `category`: "referral"
+- `is_system`: true
+- `subject`: "{name}, Share the Storm — Earn Rewards"
+- `body_html`: Full branded HTML template
+- `merge_fields`: `["name", "referralCode", "referralLink", "clubName"]`
 
-Add `pb-16 md:pb-0` to main content area in `MemberLayout.tsx` to prevent overlap.
+### 2. New Component: `ReferralCampaignTab.tsx`
+Located at `src/components/admin/marketing/ReferralCampaignTab.tsx`:
+- Fetches active paid members with their referral codes (join `members` + `referral_codes`)
+- Displays member list with search/filter, each with a "Send" button for individual sends
+- "Send to All Paid Members" bulk action
+- Before sending, resolves each member's `referralCode` and builds `referralLink` as `https://stormwellnessclub.com/apply?ref={code}`
+- Shows inline email preview with sample data
+- Uses existing `send-email` edge function and `email_campaigns`/`email_campaign_recipients` logging
 
-### 5. Collapsible Sidebar Groups (`MemberSidebar.tsx`)
-Reorganize 23 flat links into collapsible groups using Radix `Collapsible`:
-- **Main** (always visible): Dashboard, Entry, Support, Book Classes
-- **Membership & Billing** (collapsible): My Membership, Credits, Payment Methods, Payment History, Buy Passes
-- **Bookings & Visits** (collapsible): My Bookings, Visit History, Wellness Booking
-- **Health & Wellness** (collapsible): Health Score, Workouts, Habits, Goals, Achievements, Fitness Profile
-- **Account** (collapsible): My Profile, Waivers, Freeze Request, Register Guest, Refer a Friend
+### 3. Add "Referrals" tab to Marketing page
+Add a new tab to `src/pages/admin/Marketing.tsx` between Members and Templates:
+- `<TabsTrigger value="referrals">Referrals</TabsTrigger>`
+- `<TabsContent value="referrals"><ReferralCampaignTab /></TabsContent>`
 
-Groups auto-expand based on active route.
-
-### 6. Banner Consolidation (`NotificationBar.tsx` — new file)
-Replace stacking banners in `MemberLayout.tsx` with a single `NotificationBar`:
-- Shows highest-priority notice
-- Badge with count if multiple
-- Tap to expand and see all
-- Dismissible per session
-
-## Files
-
+### Files
 | File | Action |
 |------|--------|
-| `src/components/member/MemberLayout.tsx` | Add Support header button, add `MemberBottomNav`, replace banners with `NotificationBar`, add mobile bottom padding |
-| `src/components/member/MemberSidebar.tsx` | Reorganize into collapsible groups, move Support to top |
-| `src/pages/member/Dashboard.tsx` | Move quick actions + upcoming bookings to top, add wellness appointments |
-| `src/components/member/MemberBottomNav.tsx` | **New** — fixed mobile bottom tab bar |
-| `src/components/member/NotificationBar.tsx` | **New** — consolidated dismissible banner |
-
-## No database changes required.
+| `src/components/admin/marketing/ReferralCampaignTab.tsx` | **New** — dedicated referral campaign UI |
+| `src/pages/admin/Marketing.tsx` | Add Referrals tab |
+| Database migration | Seed referral email template |
 
