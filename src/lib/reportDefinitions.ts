@@ -393,6 +393,33 @@ export const REPORTS: ReportDefinition[] = [
     filters: [],
     defaultDateRange: 'thisMonth',
   },
+  {
+    id: 'member-engagement',
+    name: 'Member Engagement',
+    description: 'Holistic engagement scores across all touchpoints with churn risk identification',
+    category: 'engagement',
+    icon: Activity,
+    filters: [],
+    defaultDateRange: 'last30days',
+  },
+  {
+    id: 'guest-returns',
+    name: 'Guest Returns',
+    description: 'Repeat guest tracking by email with return rates and conversion status',
+    category: 'services',
+    icon: UserCheck,
+    filters: [],
+    defaultDateRange: 'thisYear',
+  },
+  {
+    id: 'class-engagement',
+    name: 'Class Engagement',
+    description: 'Member-centric class participation patterns and weekly trends',
+    category: 'classes',
+    icon: Dumbbell,
+    filters: [],
+    defaultDateRange: 'last30days',
+  },
 ];
 
 export function getReportsByCategory(category: ReportCategory): ReportDefinition[] {
