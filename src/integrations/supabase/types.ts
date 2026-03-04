@@ -2505,7 +2505,7 @@ export type Database = {
           cycle_start: string
           expires_at: string
           id: string
-          member_id: string
+          member_id: string | null
           updated_at: string
           user_id: string | null
         }
@@ -2518,7 +2518,7 @@ export type Database = {
           cycle_start: string
           expires_at: string
           id?: string
-          member_id: string
+          member_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -2531,7 +2531,7 @@ export type Database = {
           cycle_start?: string
           expires_at?: string
           id?: string
-          member_id?: string
+          member_id?: string | null
           updated_at?: string
           user_id?: string | null
         }

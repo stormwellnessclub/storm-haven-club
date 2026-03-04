@@ -23,7 +23,7 @@ import {
 import {
   ArrowLeft, Edit2, X, Check, CreditCard, RefreshCw, ShieldCheck, ShieldX,
   Package, Calendar, Loader2, Mail, Phone, User, Pencil, DollarSign, Clock,
-  Plus,
+  Plus, Zap,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
@@ -48,6 +48,12 @@ export default function NonMemberDetail() {
   const [passType, setPassType] = useState("");
   const [expirationDays, setExpirationDays] = useState("90");
 
+  // Wellness credits state
+  const [showAddWellnessCredits, setShowAddWellnessCredits] = useState(false);
+  const [wellnessCreditType, setWellnessCreditType] = useState<"red_light" | "dry_cryo">("red_light");
+  const [wellnessCreditCount, setWellnessCreditCount] = useState("4");
+  const [wellnessExpirationDays, setWellnessExpirationDays] = useState("30");
+
   // Fetch profile
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-nonmember-detail", userId],
@@ -60,6 +66,23 @@ export default function NonMemberDetail() {
         .single();
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch wellness credits for non-member
+  const { data: wellnessCredits = [], isLoading: wellnessCreditsLoading } = useQuery({
+    queryKey: ["admin-nonmember-wellness-credits", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("member_credits")
+        .select("*")
+        .eq("user_id", userId!)
+        .is("member_id", null)
+        .in("credit_type", ["red_light", "dry_cryo"])
+        .order("expires_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -227,6 +250,38 @@ export default function NonMemberDetail() {
       setShowAddPackage(false);
       setCategory("");
       setPassType("");
+    },
+    onError: (err: Error) => toast.error(`Failed: ${err.message}`),
+  });
+
+  // Add wellness credits mutation
+  const addWellnessCreditsMutation = useMutation({
+    mutationFn: async () => {
+      if (!wellnessCreditType || !wellnessCreditCount) throw new Error("Please fill all fields");
+      const credits = parseInt(wellnessCreditCount);
+      if (isNaN(credits) || credits < 1) throw new Error("Invalid credit count");
+      const now = new Date();
+      const expiresAt = addDays(now, parseInt(wellnessExpirationDays));
+      const cycleStart = format(now, "yyyy-MM-dd");
+      const cycleEnd = format(expiresAt, "yyyy-MM-dd");
+
+      const { error } = await supabase.from("member_credits").insert({
+        user_id: userId!,
+        member_id: null,
+        credit_type: wellnessCreditType,
+        credits_total: credits,
+        credits_remaining: credits,
+        cycle_start: cycleStart,
+        cycle_end: cycleEnd,
+        expires_at: expiresAt.toISOString(),
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Wellness credits granted");
+      queryClient.invalidateQueries({ queryKey: ["admin-nonmember-wellness-credits", userId] });
+      setShowAddWellnessCredits(false);
+      setWellnessCreditCount("4");
     },
     onError: (err: Error) => toast.error(`Failed: ${err.message}`),
   });
@@ -620,7 +675,119 @@ export default function NonMemberDetail() {
                 </Card>
               )}
 
-              {/* Booking History Table */}
+              {/* Wellness Credits Section */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      Wellness Credits ({wellnessCredits.length})
+                    </CardTitle>
+                    <Button variant="outline" size="sm" onClick={() => setShowAddWellnessCredits(!showAddWellnessCredits)}>
+                      <Plus className="h-3 w-3 mr-1" /> Grant Credits
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {wellnessCreditsLoading ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : wellnessCredits.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No wellness credits</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {wellnessCredits.map((credit: any) => {
+                        const pct = credit.credits_total > 0 ? (credit.credits_remaining / credit.credits_total) * 100 : 0;
+                        const daysLeft = differenceInDays(new Date(credit.expires_at), new Date());
+                        const expiringSoon = daysLeft <= 14 && daysLeft > 0;
+                        const expired = daysLeft <= 0;
+                        const hasCredits = credit.credits_remaining > 0;
+                        const typeLabel = credit.credit_type === "red_light" ? "Red Light Therapy" : "Dry Cryotherapy";
+
+                        return (
+                          <div
+                            key={credit.id}
+                            className={`p-4 rounded-lg border ${hasCredits && !expired ? "border-primary/20 bg-primary/5" : "border-border bg-muted/30"}`}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <p className="text-sm font-medium">{typeLabel}</p>
+                                <p className={`text-xs ${expiringSoon ? "text-destructive font-medium" : expired ? "text-destructive" : "text-muted-foreground"}`}>
+                                  {expired
+                                    ? "Expired"
+                                    : expiringSoon
+                                    ? `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`
+                                    : `Expires ${format(new Date(credit.expires_at), "MMM d, yyyy")}`}
+                                </p>
+                              </div>
+                              <Badge variant={hasCredits && !expired ? "default" : "secondary"} className="text-xs">
+                                {expired ? "expired" : hasCredits ? "active" : "exhausted"}
+                              </Badge>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>{credit.credits_remaining} remaining</span>
+                                <span>{credit.credits_total} total</span>
+                              </div>
+                              <Progress value={pct} className="h-2" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Add Wellness Credits Form */}
+              {showAddWellnessCredits && (
+                <Card className="border-primary/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium">Grant Wellness Credits</CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => setShowAddWellnessCredits(false)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <CardDescription className="text-xs">Grant Red Light or Dry Cryo credits to this non-member account.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Credit Type</Label>
+                        <Select value={wellnessCreditType} onValueChange={(v) => setWellnessCreditType(v as "red_light" | "dry_cryo")}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="red_light">Red Light Therapy</SelectItem>
+                            <SelectItem value="dry_cryo">Dry Cryotherapy</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Credits</Label>
+                        <Input type="number" value={wellnessCreditCount} onChange={(e) => setWellnessCreditCount(e.target.value)} min="1" max="50" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Expires In (days)</Label>
+                        <Input type="number" value={wellnessExpirationDays} onChange={(e) => setWellnessExpirationDays(e.target.value)} min="1" max="365" />
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-sm border border-border bg-muted/20 text-sm">
+                      <strong>Summary:</strong> {wellnessCreditCount} {wellnessCreditType === "red_light" ? "Red Light Therapy" : "Dry Cryotherapy"} credit{parseInt(wellnessCreditCount) !== 1 ? "s" : ""},
+                      expiring {format(addDays(new Date(), parseInt(wellnessExpirationDays)), "MMM d, yyyy")}.
+                    </div>
+                    <Button
+                      onClick={() => addWellnessCreditsMutation.mutate()}
+                      disabled={addWellnessCreditsMutation.isPending}
+                      size="sm"
+                    >
+                      {addWellnessCreditsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+                      Grant Credits
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">

@@ -85,8 +85,9 @@ export function useUserCredits() {
       let dryCredits: MemberCredit | null = null;
       let guestPassCredits: MemberCredit | null = null;
 
+      const now = new Date().toISOString();
+
       if (isMember && memberId) {
-        const now = new Date().toISOString();
         // Use member_id instead of user_id for credits query
         const { data: credits, error: creditsError } = await supabase
           .from("member_credits")
@@ -124,6 +125,36 @@ export function useUserCredits() {
         }
 
         console.log("[useUserCredits] Parsed credits:", { classCredits, redLightCredits, dryCredits, guestPassCredits });
+      } else if (!isMember) {
+        // Non-member: fetch wellness credits by user_id
+        const { data: nmCredits, error: nmCreditsError } = await supabase
+          .from("member_credits")
+          .select("*")
+          .eq("user_id", user.id)
+          .is("member_id", null)
+          .in("credit_type", ["red_light", "dry_cryo"])
+          .gt("credits_remaining", 0)
+          .gt("expires_at", now)
+          .order("expires_at", { ascending: true });
+
+        if (nmCreditsError) {
+          console.error("[useUserCredits] Error fetching non-member credits:", nmCreditsError);
+        }
+
+        if (nmCredits) {
+          for (const credit of nmCredits) {
+            const typedCredit = credit as unknown as MemberCredit;
+            switch (typedCredit.credit_type) {
+              case "red_light":
+                if (!redLightCredits) redLightCredits = typedCredit;
+                break;
+              case "dry_cryo":
+                if (!dryCredits) dryCredits = typedCredit;
+                break;
+            }
+          }
+        }
+        console.log("[useUserCredits] Non-member wellness credits:", { redLightCredits, dryCredits });
       }
 
       // Get active class passes
