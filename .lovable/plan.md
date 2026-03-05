@@ -1,38 +1,44 @@
 
 
-# Super Admin: Edit Expiration Dates on All Passes & Credits
+# Super Admin: Edit Expiration Dates on Guest Passes + Universal Add/Edit
+
+## Problem
+1. **Guest passes** have no way to edit `expires_at` — only `valid_date` is editable in the GuestDetailSheet
+2. You want super admins to be able to adjust expiration dates on **everything** (guest passes, class passes, wellness credits)
+3. You also want the ability to **add** any type of credit/pass manually as a super admin
 
 ## Current State
-- **Class passes** already have `EditClassPassDialog` with full editing (status, expiration, classes remaining, delete) — gated to `isSuperAdmin()`. This already works.
-- **Wellness credits** (`member_credits` — Red Light, Dry Cryo, Class, Guest Pass) have **no edit dialog**. Admins can grant credits and adjust remaining counts, but cannot change expiration dates or other fields.
+- **Class passes**: `EditClassPassDialog` exists with exp date editing (super admin only) -- working
+- **Wellness credits**: `EditCreditDialog` exists with exp date editing (super admin only) -- working
+- **Guest passes**: `GuestDetailSheet` only allows editing `valid_date`, NOT `expires_at` -- **missing**
 
 ## Plan
 
-### 1. Create `EditCreditDialog` component
-New file: `src/components/admin/EditCreditDialog.tsx`
+### 1. Add expiration date editing to GuestDetailSheet
+In `src/components/admin/GuestDetailSheet.tsx`, add an editable `expires_at` field (same inline edit pattern as `valid_date`) gated behind `isSuperAdmin()`. This lets super admins change when a guest pass expires.
 
-A dialog similar to `EditClassPassDialog` but for `member_credits` rows. Fields:
-- **Credit type** (read-only display)
-- **Credits remaining** (editable, max = credits_total)
-- **Expiration date** (calendar picker — the main ask)
-- **Cycle start / Cycle end** (calendar pickers)
-- Delete option with confirmation
+### 2. Add status editing to GuestDetailSheet
+Allow super admins to change guest pass status (active/exhausted/expired) so they can reactivate expired complimentary passes.
 
-Updates `member_credits` table via supabase. Super admin only.
+### 3. Create `AdminGrantPassDialog` component
+New file: `src/components/admin/AdminGrantPassDialog.tsx`
 
-### 2. Add edit buttons in MemberDetail credits section
-In `src/pages/admin/MemberDetail.tsx`, wherever credits are displayed (the Credits tab), add a pencil icon button gated behind `isSuperAdmin()` that opens `EditCreditDialog`.
+A super-admin-only dialog to manually create any type of pass/credit for any user:
+- **Type selector**: Guest Pass, Class Pass, Wellness Credit (Red Light, Dry Cryo)
+- **Recipient**: Search by name/email (members and non-members)
+- **Details**: Quantity/count, expiration date, notes
+- Inserts directly into the appropriate table (`guest_passes`, `class_passes`, or `member_credits`)
 
-### 3. Add edit buttons in NonMemberDetail credits section
-In `src/pages/admin/NonMemberDetail.tsx`, same treatment for the non-member wellness credits section.
-
-### 4. Add edit buttons in MemberCredits page
-In `src/pages/admin/MemberCredits.tsx` (the dedicated credits management page), add pencil edit buttons for each credit row.
-
-## No database changes needed
-All fields (`expires_at`, `cycle_start`, `cycle_end`, `credits_remaining`) already exist and are updatable.
+### 4. Add "Grant Pass/Credit" button to admin pages
+Add a button (super admin only) in:
+- `GuestPasses.tsx` — to manually create guest passes without Stripe
+- `MemberDetail.tsx` — to add any pass/credit to a member
+- `NonMemberDetail.tsx` — to add any pass/credit to a non-member
 
 ## Files
-- **Create**: `src/components/admin/EditCreditDialog.tsx`
-- **Modify**: `src/pages/admin/MemberDetail.tsx`, `src/pages/admin/NonMemberDetail.tsx`, `src/pages/admin/MemberCredits.tsx` — add edit buttons + dialog integration
+- **Modify**: `src/components/admin/GuestDetailSheet.tsx` — add expires_at editing + status change for super admins
+- **Create**: `src/components/admin/AdminGrantPassDialog.tsx` — universal pass/credit granting dialog
+- **Modify**: `src/pages/admin/GuestPasses.tsx` — add manual grant button
+- **Modify**: `src/pages/admin/MemberDetail.tsx` — add grant button
+- **Modify**: `src/pages/admin/NonMemberDetail.tsx` — add grant button
 
