@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { useUserRoles } from "@/hooks/useUserRoles";
+import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -39,7 +41,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Loader2, Plus, Minus, Coins, History, ArrowUpCircle, ArrowDownCircle, CalendarIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Loader2, Plus, Minus, Coins, History, ArrowUpCircle, ArrowDownCircle, CalendarIcon, X, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
@@ -96,6 +98,8 @@ export default function MemberCreditsAdmin() {
   const [creditType, setCreditType] = useState<CreditType>("class");
   const [amount, setAmount] = useState("1");
   const [reason, setReason] = useState("");
+  const [editingCredit, setEditingCredit] = useState<any>(null);
+  const { isSuperAdmin } = useUserRoles();
 
   // History filters
   const [historySearch, setHistorySearch] = useState("");
@@ -625,6 +629,29 @@ export default function MemberCreditsAdmin() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
+                                {isSuperAdmin() && member.credits.length > 0 && (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button variant="outline" size="sm">
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-2" align="end">
+                                      <p className="text-xs text-muted-foreground mb-2">Edit credit:</p>
+                                      {member.credits.map((c) => (
+                                        <Button
+                                          key={c.id}
+                                          variant="ghost"
+                                          size="sm"
+                                          className="w-full justify-start text-xs"
+                                          onClick={() => setEditingCredit(c)}
+                                        >
+                                          {CREDIT_TYPE_LABELS[c.credit_type]}
+                                        </Button>
+                                      ))}
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1056,6 +1083,15 @@ export default function MemberCreditsAdmin() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {editingCredit && (
+        <EditCreditDialog
+          open={!!editingCredit}
+          onOpenChange={(open) => { if (!open) setEditingCredit(null); }}
+          credit={editingCredit}
+          queryKeysToInvalidate={[["admin-members-with-credits"], ["credit-adjustment-history"]]}
+        />
+      )}
     </AdminLayout>
   );
 }

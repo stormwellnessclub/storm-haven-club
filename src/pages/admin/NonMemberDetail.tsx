@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
+import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { ChargeItemSelector } from "@/components/admin/ChargeItemSelector";
 import { getCategoryDisplayName } from "@/lib/classCategories";
 
@@ -40,6 +41,7 @@ export default function NonMemberDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", phone: "" });
   const [editingPass, setEditingPass] = useState<any>(null);
+  const [editingCredit, setEditingCredit] = useState<any>(null);
   const [showChargeSelector, setShowChargeSelector] = useState(false);
 
   // Add package state
@@ -719,9 +721,16 @@ export default function NonMemberDetail() {
                                     : `Expires ${format(new Date(credit.expires_at), "MMM d, yyyy")}`}
                                 </p>
                               </div>
-                              <Badge variant={hasCredits && !expired ? "default" : "secondary"} className="text-xs">
-                                {expired ? "expired" : hasCredits ? "active" : "exhausted"}
-                              </Badge>
+                              <div className="flex items-center gap-1">
+                                {isSuperAdmin() && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingCredit(credit)}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                <Badge variant={hasCredits && !expired ? "default" : "secondary"} className="text-xs">
+                                  {expired ? "expired" : hasCredits ? "active" : "exhausted"}
+                                </Badge>
+                              </div>
                             </div>
                             <div className="space-y-1">
                               <div className="flex justify-between text-xs text-muted-foreground">
@@ -988,6 +997,15 @@ export default function NonMemberDetail() {
         onOpenChange={(open) => { if (!open) setEditingPass(null); }}
         pass={editingPass}
         queryKeysToInvalidate={[["admin-nonmember-passes", userId]]}
+      />
+    )}
+
+    {editingCredit && (
+      <EditCreditDialog
+        open={!!editingCredit}
+        onOpenChange={(open) => { if (!open) setEditingCredit(null); }}
+        credit={editingCredit}
+        queryKeysToInvalidate={[["admin-nonmember-wellness-credits", userId]]}
       />
     )}
     </>

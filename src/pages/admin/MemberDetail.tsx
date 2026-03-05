@@ -28,6 +28,7 @@ import { useMemberActivities } from "@/hooks/useMemberActivities";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
+import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth";
@@ -231,6 +232,9 @@ export default function MemberDetail() {
 
   // Edit class pass state
   const [editingPass, setEditingPass] = useState<any>(null);
+
+  // Edit credit state
+  const [editingCredit, setEditingCredit] = useState<any>(null);
 
   // Cancellation email state
   const [isSendingCancellationEmail, setIsSendingCancellationEmail] = useState(false);
@@ -1847,7 +1851,14 @@ export default function MemberDetail() {
                         const credit = memberCredits.find((c) => c.credit_type === type);
                         return (
                           <div key={type} className={`p-4 border rounded-lg ${credit && credit.credits_remaining > 0 ? 'border-primary/30 bg-primary/5' : ''}`}>
-                            <p className="text-sm text-muted-foreground mb-1">{CREDIT_TYPE_LABELS[type]}</p>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-sm text-muted-foreground">{CREDIT_TYPE_LABELS[type]}</p>
+                              {credit && isSuperAdmin() && (
+                                <Button variant="ghost" size="icon-sm" onClick={() => setEditingCredit(credit)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
                             {credit ? (
                               <>
                                 <p className="text-2xl font-bold">
@@ -2741,6 +2752,15 @@ export default function MemberDetail() {
         onOpenChange={(open) => { if (!open) setEditingPass(null); }}
         pass={editingPass}
         queryKeysToInvalidate={[["member-class-passes-admin", id]]}
+      />
+    )}
+
+    {editingCredit && (
+      <EditCreditDialog
+        open={!!editingCredit}
+        onOpenChange={(open) => { if (!open) setEditingCredit(null); }}
+        credit={editingCredit}
+        queryKeysToInvalidate={[["member-credits", id]]}
       />
     )}
     </>
