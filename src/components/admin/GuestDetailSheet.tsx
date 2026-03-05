@@ -6,11 +6,13 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { ExternalLink, User, Mail, Phone, Calendar as CalendarIcon, Users, Sparkles, FileText, Pencil, Check, X, CheckCircle2, XCircle, Save, UserCheck, Send, Loader2 } from "lucide-react";
+import { ExternalLink, User, Mail, Phone, Calendar as CalendarIcon, Users, Sparkles, FileText, Pencil, Check, X, CheckCircle2, XCircle, Save, UserCheck, Send, Loader2, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { cn } from "@/lib/utils";
 
 interface GuestPass {
@@ -52,6 +54,7 @@ const INTEREST_LABELS: Record<string, string> = {
 
 export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: GuestDetailSheetProps) {
   const { user } = useAuth();
+  const { isSuperAdmin } = useUserRoles();
   const [editingDate, setEditingDate] = useState(false);
   const [newDate, setNewDate] = useState<Date | undefined>(undefined);
   const [saving, setSaving] = useState(false);
@@ -59,6 +62,10 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
   const [editingNotes, setEditingNotes] = useState(false);
   const [sendingFeedback, setSendingFeedback] = useState(false);
   const [sendingConfirmation, setSendingConfirmation] = useState(false);
+  const [editingExpiration, setEditingExpiration] = useState(false);
+  const [newExpiration, setNewExpiration] = useState<Date | undefined>(undefined);
+  const [savingExpiration, setSavingExpiration] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(false);
   if (!guest) return null;
 
   const isActiveToday = guest.valid_date === format(new Date(), "yyyy-MM-dd") && guest.status === 'active' && !guest.no_show;
@@ -241,9 +248,53 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
                   </div>
                 )}
               </div>
-              <div className="text-muted-foreground">
-                Expires: {format(new Date(guest.expires_at), "MMM d, yyyy h:mm a")}
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>Expires: {format(new Date(guest.expires_at), "MMM d, yyyy h:mm a")}</span>
+                {isSuperAdmin() && !editingExpiration && (
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingExpiration(true); setNewExpiration(new Date(guest.expires_at)); }}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
+              {editingExpiration && isSuperAdmin() && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !newExpiration && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {newExpiration ? format(newExpiration, "PPP") : "Pick date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={newExpiration} onSelect={setNewExpiration} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={!newExpiration || savingExpiration} onClick={async () => {
+                    if (!newExpiration) return;
+                    setSavingExpiration(true);
+                    try {
+                      const { error } = await (supabase
+                        .from("guest_passes" as any)
+                        .update({ expires_at: newExpiration.toISOString() })
+                        .eq("id", guest.id) as any);
+                      if (error) throw error;
+                      toast.success("Expiration date updated");
+                      onRefresh?.();
+                      setEditingExpiration(false);
+                      setNewExpiration(undefined);
+                    } catch (err: any) {
+                      toast.error(err?.message || "Failed to update");
+                    } finally {
+                      setSavingExpiration(false);
+                    }
+                  }}>
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingExpiration(false); setNewExpiration(undefined); }}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
               {guest.used_at && (
                 <div className="text-muted-foreground">Used: {format(new Date(guest.used_at), "MMM d, yyyy h:mm a")}</div>
               )}
@@ -256,7 +307,56 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
             </div>
           </div>
 
-          {/* Visit Interests */}
+          {/* Super Admin: Status Override */}
+          {isSuperAdmin() && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Admin Override
+                </h4>
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground">Pass Status</label>
+                  <Select
+                    value={guest.status}
+                    disabled={changingStatus}
+                    onValueChange={async (val) => {
+                      setChangingStatus(true);
+                      try {
+                        const updateData: any = { status: val };
+                        if (val === 'active') {
+                          updateData.used_at = null;
+                          updateData.no_show = false;
+                        }
+                        const { error } = await (supabase
+                          .from("guest_passes" as any)
+                          .update(updateData)
+                          .eq("id", guest.id) as any);
+                        if (error) throw error;
+                        toast.success(`Status changed to ${val}`);
+                        onRefresh?.();
+                      } catch (err: any) {
+                        toast.error(err?.message || "Failed to change status");
+                      } finally {
+                        setChangingStatus(false);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="exhausted">Checked In</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </>
+          )}
+
           {guest.visit_interests && guest.visit_interests.length > 0 && (
             <>
               <Separator />
