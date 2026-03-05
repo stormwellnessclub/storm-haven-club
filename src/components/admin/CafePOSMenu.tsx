@@ -202,10 +202,10 @@ export function CafePOSMenu({ onAddToCart, highlightCategories }: CafePOSMenuPro
                       <Button
                         key={item.id}
                         variant="outline"
-                        className="h-auto p-3 flex flex-col items-start text-left"
+                        className="h-auto p-3 flex flex-col items-start text-left w-full overflow-hidden"
                         onClick={() => !cat.has_addons && handleItemClick(item, cat)}
                       >
-                        <span className="font-medium text-xs leading-tight">{getItemLabel(item)}</span>
+                        <span className="font-medium text-xs leading-tight line-clamp-2 w-full">{getItemLabel(item)}</span>
                         <span className="text-xs text-muted-foreground">${Number(item.price).toFixed(2)}</span>
                       </Button>
                     ))}

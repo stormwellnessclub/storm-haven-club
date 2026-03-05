@@ -112,7 +112,7 @@ export function CafePOSCart({
                 <div key={item.itemId + (item.proteinFlavor || "")} className="space-y-1">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{item.name}</p>
+                      <p className="text-sm font-medium line-clamp-2 break-words">{item.name}</p>
                       <p className="text-xs text-muted-foreground">${item.basePrice.toFixed(2)} each</p>
                       {item.addons.length > 0 && (
                         <div className="text-xs text-muted-foreground">
