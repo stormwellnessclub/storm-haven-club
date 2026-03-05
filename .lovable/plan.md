@@ -1,53 +1,38 @@
 
 
-# Re-engagement System: In-App Nudges (Phase 1)
+# Super Admin: Edit Expiration Dates on All Passes & Credits
 
-Starting with in-app personalized nudge notifications on the member dashboard, since this is the foundation. Email, push, and SMS will follow as subsequent phases.
+## Current State
+- **Class passes** already have `EditClassPassDialog` with full editing (status, expiration, classes remaining, delete) — gated to `isSuperAdmin()`. This already works.
+- **Wellness credits** (`member_credits` — Red Light, Dry Cryo, Class, Guest Pass) have **no edit dialog**. Admins can grant credits and adjust remaining counts, but cannot change expiration dates or other fields.
 
-## How It Works
+## Plan
 
-When a member logs into their dashboard, the system checks:
-1. **Last check-in date** — from `check_ins` table, most recent `checked_in_at`
-2. **Most-booked class type** — from `class_bookings` (confirmed/completed), grouped by `class_type_id`, ranked by count
-3. **Next available session** — for that class type, from `class_sessions` where `session_date >= today` and has open spots
+### 1. Create `EditCreditDialog` component
+New file: `src/components/admin/EditCreditDialog.tsx`
 
-If the member hasn't checked in for 14+ days and there's an upcoming session of their favorite class with availability, show a nudge card on the dashboard.
+A dialog similar to `EditClassPassDialog` but for `member_credits` rows. Fields:
+- **Credit type** (read-only display)
+- **Credits remaining** (editable, max = credits_total)
+- **Expiration date** (calendar picker — the main ask)
+- **Cycle start / Cycle end** (calendar pickers)
+- Delete option with confirmation
 
-## UI Component: `EngagementNudge.tsx`
+Updates `member_credits` table via supabase. Super admin only.
 
-A dismissible card placed on the dashboard after the "Welcome back" header and before "Up Next." Styled subtly — not alarming, more like a gentle suggestion.
+### 2. Add edit buttons in MemberDetail credits section
+In `src/pages/admin/MemberDetail.tsx`, wherever credits are displayed (the Credits tab), add a pencil icon button gated behind `isSuperAdmin()` that opens `EditCreditDialog`.
 
-```text
-┌──────────────────────────────────────────────┐
-│  ✨  We'd love to see you back              │
-│                                              │
-│  Your favorite class — Reformer Pilates —    │
-│  has a spot open Thursday at 9:00 AM.        │
-│                                              │
-│  [Book Now]                          [×]     │
-└──────────────────────────────────────────────┘
-```
+### 3. Add edit buttons in NonMemberDetail credits section
+In `src/pages/admin/NonMemberDetail.tsx`, same treatment for the non-member wellness credits section.
 
-- Dismiss stores `nudge_dismissed` in `sessionStorage` (resets each session — non-intrusive)
-- "Book Now" links to `/member/schedule`
-- If no favorite class or no open sessions, the nudge doesn't show
-
-## New Hook: `useEngagementNudge.ts`
-
-Queries:
-1. `check_ins` — latest check-in for the current member (via `useUserMembership` member ID)
-2. `class_bookings` — all confirmed/completed bookings for this user, grouped client-side by class type to find the most-booked
-3. `class_sessions` — next available session for that class type with `current_enrollment < max_capacity` and `session_date >= today`
-
-Returns: `{ shouldShow, className, sessionDate, sessionTime, isLoading }`
-
-## Files to Create
-- `src/hooks/useEngagementNudge.ts` — data hook
-- `src/components/member/EngagementNudge.tsx` — UI card
-
-## Files to Modify
-- `src/pages/member/Dashboard.tsx` — insert `<EngagementNudge />` after the welcome header section
+### 4. Add edit buttons in MemberCredits page
+In `src/pages/admin/MemberCredits.tsx` (the dedicated credits management page), add pencil edit buttons for each credit row.
 
 ## No database changes needed
-All data comes from existing tables (`check_ins`, `class_bookings`, `class_sessions`, `class_types`).
+All fields (`expires_at`, `cycle_start`, `cycle_end`, `credits_remaining`) already exist and are updatable.
+
+## Files
+- **Create**: `src/components/admin/EditCreditDialog.tsx`
+- **Modify**: `src/pages/admin/MemberDetail.tsx`, `src/pages/admin/NonMemberDetail.tsx`, `src/pages/admin/MemberCredits.tsx` — add edit buttons + dialog integration
 
