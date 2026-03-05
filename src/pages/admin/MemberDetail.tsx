@@ -29,6 +29,7 @@ import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
 import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
+import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
 import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth";
@@ -92,7 +93,7 @@ import {
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
   Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle,
-  ArrowUpDown, Send, Info, RotateCcw, CalendarClock, Ban, Pencil
+  ArrowUpDown, Send, Info, RotateCcw, CalendarClock, Ban, Pencil, Gift
 } from "lucide-react";
 import {
   Table,
@@ -235,6 +236,7 @@ export default function MemberDetail() {
 
   // Edit credit state
   const [editingCredit, setEditingCredit] = useState<any>(null);
+  const [showGrantDialog, setShowGrantDialog] = useState(false);
 
   // Cancellation email state
   const [isSendingCancellationEmail, setIsSendingCancellationEmail] = useState(false);
@@ -1811,6 +1813,15 @@ export default function MemberDetail() {
                   <div className="flex items-center justify-between">
                     <CardTitle>Current Credits</CardTitle>
                     <div className="flex gap-2">
+                      {isSuperAdmin() && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowGrantDialog(true)}
+                        >
+                          <Gift className="h-4 w-4 mr-1" />Grant
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -2761,6 +2772,23 @@ export default function MemberDetail() {
         onOpenChange={(open) => { if (!open) setEditingCredit(null); }}
         credit={editingCredit}
         queryKeysToInvalidate={[["member-credits", id]]}
+      />
+    )}
+
+    {showGrantDialog && member && (
+      <AdminGrantPassDialog
+        open={showGrantDialog}
+        onOpenChange={setShowGrantDialog}
+        prefill={{
+          memberId: member.id,
+          userId: member.user_id || undefined,
+          name: `${member.first_name} ${member.last_name}`,
+          email: member.email,
+        }}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
+          queryClient.invalidateQueries({ queryKey: ["member-class-passes-admin", id] });
+        }}
       />
     )}
     </>

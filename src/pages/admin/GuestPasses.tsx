@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, CheckCircle2, XCircle, Mail, BarChart3, CreditCard, UserPlus, Megaphone } from "lucide-react";
+import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, CheckCircle2, XCircle, Mail, BarChart3, CreditCard, UserPlus, Megaphone, Gift } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,8 @@ import { GuestPassOverviewTab } from "@/components/admin/GuestPassOverviewTab";
 import { GuestPassMemberCreditsTab } from "@/components/admin/GuestPassMemberCreditsTab";
 import { GuestPassFollowUpTab } from "@/components/admin/GuestPassFollowUpTab";
 import { GuestPassMarketingTab } from "@/components/admin/GuestPassMarketingTab";
+import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
+import { useUserRoles } from "@/hooks/useUserRoles";
 
 const GUEST_PASS_PRICE = 60;
 
@@ -49,6 +51,8 @@ interface GuestPass {
 
 export default function GuestPasses() {
   const { user } = useAuth();
+  const { isSuperAdmin } = useUserRoles();
+  const [showGrantDialog, setShowGrantDialog] = useState(false);
 
   // Quick sale form state
   const [guestName, setGuestName] = useState('');
@@ -226,9 +230,16 @@ export default function GuestPasses() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Guest Passes</h1>
-          <p className="text-muted-foreground">Manage guest access, analytics, credits, and marketing</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Guest Passes</h1>
+            <p className="text-muted-foreground">Manage guest access, analytics, credits, and marketing</p>
+          </div>
+          {isSuperAdmin() && (
+            <Button variant="outline" size="sm" onClick={() => setShowGrantDialog(true)}>
+              <Gift className="h-4 w-4 mr-2" /> Grant Pass
+            </Button>
+          )}
         </div>
 
         {/* Top-Level Tabs */}
@@ -508,6 +519,12 @@ export default function GuestPasses() {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         onRefresh={fetchPasses}
+      />
+
+      <AdminGrantPassDialog
+        open={showGrantDialog}
+        onOpenChange={setShowGrantDialog}
+        onSuccess={fetchPasses}
       />
     </AdminLayout>
   );

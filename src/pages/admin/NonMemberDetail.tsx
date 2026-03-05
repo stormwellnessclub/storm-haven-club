@@ -23,12 +23,13 @@ import {
 import {
   ArrowLeft, Edit2, X, Check, CreditCard, RefreshCw, ShieldCheck, ShieldX,
   Package, Calendar, Loader2, Mail, Phone, User, Pencil, DollarSign, Clock,
-  Plus, Zap,
+  Plus, Zap, Gift,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
 import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { ChargeItemSelector } from "@/components/admin/ChargeItemSelector";
+import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
 import { getCategoryDisplayName } from "@/lib/classCategories";
 
 export default function NonMemberDetail() {
@@ -43,6 +44,7 @@ export default function NonMemberDetail() {
   const [editingPass, setEditingPass] = useState<any>(null);
   const [editingCredit, setEditingCredit] = useState<any>(null);
   const [showChargeSelector, setShowChargeSelector] = useState(false);
+  const [showGrantDialog, setShowGrantDialog] = useState(false);
 
   // Add package state
   const [showAddPackage, setShowAddPackage] = useState(false);
@@ -550,7 +552,7 @@ export default function NonMemberDetail() {
                       <Package className="h-4 w-4" />
                       Class Passes ({passes.length})
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{activePasses} active</Badge>
                       <Button variant="outline" size="sm" onClick={() => navigate("/admin/classes")}>
                         <Calendar className="h-3 w-3 mr-1" /> Book into Class
@@ -558,6 +560,11 @@ export default function NonMemberDetail() {
                       <Button variant="outline" size="sm" onClick={() => setShowAddPackage(!showAddPackage)}>
                         <Plus className="h-3 w-3 mr-1" /> Add
                       </Button>
+                      {isSuperAdmin() && (
+                        <Button variant="outline" size="sm" onClick={() => setShowGrantDialog(true)}>
+                          <Gift className="h-3 w-3 mr-1" /> Grant
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -1006,6 +1013,22 @@ export default function NonMemberDetail() {
         onOpenChange={(open) => { if (!open) setEditingCredit(null); }}
         credit={editingCredit}
         queryKeysToInvalidate={[["admin-nonmember-wellness-credits", userId]]}
+      />
+    )}
+
+    {showGrantDialog && (
+      <AdminGrantPassDialog
+        open={showGrantDialog}
+        onOpenChange={setShowGrantDialog}
+        prefill={{
+          userId: userId!,
+          name: fullName,
+          email: profile.email || undefined,
+        }}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["admin-nonmember-passes", userId] });
+          queryClient.invalidateQueries({ queryKey: ["admin-nonmember-wellness-credits", userId] });
+        }}
       />
     )}
     </>
