@@ -52,6 +52,13 @@ export function UpcomingPaymentsTab() {
   const expectedRevenue30 = payments?.reduce((sum, p) => sum + p.expected_amount, 0) || 0;
   const expiringCards = payments?.filter(p => p.risk_level === "medium").length || 0;
   const highRisk = payments?.filter(p => p.risk_level === "high").length || 0;
+  const atRiskAmount = payments
+    ?.filter(p => p.risk_level === "high" || p.risk_level === "medium")
+    .reduce((sum, p) => sum + p.expected_amount, 0) || 0;
+  const totalPayments = payments?.length || 0;
+  const validCardPayments = payments?.filter(p => p.risk_level === "low").length || 0;
+  const collectionConfidence = totalPayments > 0 ? Math.round((validCardPayments / totalPayments) * 100) : 0;
+  const foundingCount = payments?.filter(p => p.is_founding_member).length || 0;
 
   const getRiskBadge = (risk: "high" | "medium" | "low") => {
     switch (risk) {
@@ -67,7 +74,7 @@ export function UpcomingPaymentsTab() {
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Expected (7 days)</p>
@@ -82,14 +89,28 @@ export function UpcomingPaymentsTab() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Expiring Cards</p>
-            <p className="text-2xl font-bold text-amber-600">{expiringCards}</p>
+            <p className="text-sm text-muted-foreground">At-Risk Amount</p>
+            <p className="text-2xl font-bold text-amber-600">${atRiskAmount.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">High Risk</p>
-            <p className="text-2xl font-bold text-destructive">{highRisk}</p>
+            <p className="text-sm text-muted-foreground">Collection Confidence</p>
+            <p className="text-2xl font-bold" style={{ color: collectionConfidence >= 80 ? 'hsl(var(--primary))' : collectionConfidence >= 50 ? '#d97706' : 'hsl(var(--destructive))' }}>
+              {collectionConfidence}%
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Expiring / High Risk</p>
+            <p className="text-2xl font-bold text-destructive">{expiringCards + highRisk}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Founding ($0 auto-pay)</p>
+            <p className="text-2xl font-bold text-muted-foreground">{foundingCount}</p>
           </CardContent>
         </Card>
       </div>

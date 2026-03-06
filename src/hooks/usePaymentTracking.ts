@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { addMonths, isBefore, isAfter, startOfDay, endOfDay } from "date-fns";
+import { extractTier, normalizeGender, getMonthlyPrice } from "@/lib/membershipPricing";
 import type { DateRange } from "@/components/admin/DateRangePicker";
 
 export interface FailedPayment {
@@ -208,13 +209,13 @@ export function useUpcomingPayments(daysAhead: number = 30, filters?: {
           nextBilling = addMonths(nextBilling, 1);
         }
 
-        // Calculate expected amount based on tier
-        const tierPricing: Record<string, number> = {
-          soul: 300,
-          spirit: 450,
-          aura: 750,
-        };
-        const expectedAmount = tierPricing[member.membership_type.toLowerCase()] || 0;
+        // Calculate expected amount using centralized pricing
+        const tier = extractTier(member.membership_type);
+        const gender = normalizeGender(member.gender);
+        const isFounding = member.is_founding_member || false;
+        
+        // Founding members paid annually — no monthly auto-pay
+        const expectedAmount = isFounding ? 0 : getMonthlyPrice(tier, gender);
 
         // Determine risk level
         let riskLevel: "high" | "medium" | "low" = "low";

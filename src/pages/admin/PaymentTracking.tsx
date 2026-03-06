@@ -5,16 +5,21 @@ import { UpcomingPaymentsTab } from "@/components/admin/UpcomingPaymentsTab";
 import { SuccessfulPaymentsTab } from "@/components/admin/SuccessfulPaymentsTab";
 import { PaymentEmailsTab } from "@/components/admin/PaymentEmailsTab";
 import { StripeLivePaymentsTab } from "@/components/admin/StripeLivePaymentsTab";
-import { XCircle, Clock, CheckCircle, Mail, Zap } from "lucide-react";
+import { AutoPayProjectionsTab } from "@/components/admin/AutoPayProjectionsTab";
+import { XCircle, Clock, CheckCircle, Mail, Zap, TrendingUp } from "lucide-react";
 
 export default function PaymentTracking() {
   return (
     <AdminLayout title="Payment Tracking">
       <Tabs defaultValue="stripe-live" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
           <TabsTrigger value="stripe-live" className="gap-2">
             <Zap className="h-4 w-4 text-amber-500" />
             <span className="hidden sm:inline">Stripe Live</span>
+          </TabsTrigger>
+          <TabsTrigger value="projections" className="gap-2">
+            <TrendingUp className="h-4 w-4 text-green-600" />
+            <span className="hidden sm:inline">Projections</span>
           </TabsTrigger>
           <TabsTrigger value="failed" className="gap-2">
             <XCircle className="h-4 w-4 text-destructive" />
@@ -36,6 +41,10 @@ export default function PaymentTracking() {
 
         <TabsContent value="stripe-live">
           <StripeLivePaymentsTab />
+        </TabsContent>
+
+        <TabsContent value="projections">
+          <AutoPayProjectionsTab />
         </TabsContent>
 
         <TabsContent value="failed">
