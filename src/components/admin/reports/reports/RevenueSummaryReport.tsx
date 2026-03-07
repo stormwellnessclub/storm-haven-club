@@ -26,19 +26,28 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
     queryFn: async () => {
       const { data: members, error } = await supabase
         .from('members')
-        .select('membership_type, status, is_founding_member, gender, created_at, subscription_status')
+        .select('membership_type, status, is_founding_member, gender, created_at, subscription_status, stripe_subscription_id, billing_type')
         .in('status', ['active']);
 
       if (error) throw error;
 
       const tierFilter = filters.tier as string;
-      const filtered = tierFilter && tierFilter !== 'all' 
+      const allActive = tierFilter && tierFilter !== 'all' 
         ? members?.filter(m => m.membership_type?.toLowerCase().includes(tierFilter.toLowerCase()))
         : members;
 
+      // Only count paying members
+      const filtered = (allActive || []).filter(m => {
+        if (m.is_founding_member) return true; // founding = paid upfront
+        if ((m as any).billing_type === 'cash') return true; // cash-billing
+        return m.subscription_status === 'active' && !!m.stripe_subscription_id;
+      });
+
+      const nonPayingCount = (allActive || []).length - filtered.length;
+
       // Separate founding and regular members
-      const foundingMembers = (filtered || []).filter(m => m.is_founding_member);
-      const regularMembers = (filtered || []).filter(m => !m.is_founding_member);
+      const foundingMembers = filtered.filter(m => m.is_founding_member);
+      const regularMembers = filtered.filter(m => !m.is_founding_member);
 
       // Calculate revenue by tier with proper founding vs regular logic
       const tierData: Record<string, {
@@ -62,14 +71,8 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
         tierData[tier].foundingAnnual += getAnnualPrice(tier, gender);
       });
 
-      // Filter regular members to only those actually paying
-      const payingRegular = regularMembers.filter(m => 
-        m.subscription_status === 'active' && true
-      );
-      const notPayingCount = regularMembers.length - payingRegular.length;
-
-      // Process regular members - they pay monthly
-      payingRegular.forEach(member => {
+      // Process regular members - they pay monthly (already filtered to paying only)
+      regularMembers.forEach(member => {
         const tier = extractTier(member.membership_type);
         const gender = normalizeGender(member.gender);
         
@@ -96,7 +99,7 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
         regularMonthly: acc.regularMonthly + t.regularMonthly,
       }), { foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 });
 
-      return { tierRevenue, chartData, totals, totalMembers: (filtered || []).length, notPayingCount };
+      return { tierRevenue, chartData, totals, totalMembers: filtered.length, nonPayingCount };
     },
   });
 
@@ -118,8 +121,11 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
                 <Users className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Active Members</p>
+               <p className="text-sm text-muted-foreground">Paying Members</p>
                 <p className="text-2xl font-bold">{data?.totalMembers || 0}</p>
+                {(data?.nonPayingCount ?? 0) > 0 && (
+                  <p className="text-xs text-muted-foreground">{data?.nonPayingCount} non-paying excluded</p>
+                )}
               </div>
             </div>
           </CardContent>
