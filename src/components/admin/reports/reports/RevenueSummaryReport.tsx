@@ -26,19 +26,28 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
     queryFn: async () => {
       const { data: members, error } = await supabase
         .from('members')
-        .select('membership_type, status, is_founding_member, gender, created_at, subscription_status')
+        .select('membership_type, status, is_founding_member, gender, created_at, subscription_status, stripe_subscription_id, billing_type')
         .in('status', ['active']);
 
       if (error) throw error;
 
       const tierFilter = filters.tier as string;
-      const filtered = tierFilter && tierFilter !== 'all' 
+      const allActive = tierFilter && tierFilter !== 'all' 
         ? members?.filter(m => m.membership_type?.toLowerCase().includes(tierFilter.toLowerCase()))
         : members;
 
+      // Only count paying members
+      const filtered = (allActive || []).filter(m => {
+        if (m.is_founding_member) return true; // founding = paid upfront
+        if ((m as any).billing_type === 'cash') return true; // cash-billing
+        return m.subscription_status === 'active' && !!m.stripe_subscription_id;
+      });
+
+      const nonPayingCount = (allActive || []).length - filtered.length;
+
       // Separate founding and regular members
-      const foundingMembers = (filtered || []).filter(m => m.is_founding_member);
-      const regularMembers = (filtered || []).filter(m => !m.is_founding_member);
+      const foundingMembers = filtered.filter(m => m.is_founding_member);
+      const regularMembers = filtered.filter(m => !m.is_founding_member);
 
       // Calculate revenue by tier with proper founding vs regular logic
       const tierData: Record<string, {
