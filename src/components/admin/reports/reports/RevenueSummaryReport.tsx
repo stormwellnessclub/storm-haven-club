@@ -71,14 +71,8 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
         tierData[tier].foundingAnnual += getAnnualPrice(tier, gender);
       });
 
-      // Filter regular members to only those actually paying
-      const payingRegular = regularMembers.filter(m => 
-        m.subscription_status === 'active' && true
-      );
-      const notPayingCount = regularMembers.length - payingRegular.length;
-
-      // Process regular members - they pay monthly
-      payingRegular.forEach(member => {
+      // Process regular members - they pay monthly (already filtered to paying only)
+      regularMembers.forEach(member => {
         const tier = extractTier(member.membership_type);
         const gender = normalizeGender(member.gender);
         
