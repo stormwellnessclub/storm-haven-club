@@ -1,0 +1,2 @@
+ALTER TABLE public.workout_programs DROP CONSTRAINT IF EXISTS workout_programs_split_type_check;
+ALTER TABLE public.workout_programs ADD CONSTRAINT workout_programs_split_type_check CHECK (split_type IS NULL OR split_type IN ('full_body', 'upper_lower', 'push_pull_legs', 'bro_split', 'custom'));
