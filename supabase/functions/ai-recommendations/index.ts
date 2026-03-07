@@ -489,7 +489,11 @@ Generate a complete ${programDuration}-week program with ${daysPerWeek} workouts
             program_type: programJson.program_type,
             duration_weeks: programJson.duration_weeks,
             days_per_week: programJson.days_per_week,
-            split_type: programJson.split_type,
+            const validSplitTypes = ['full_body', 'upper_lower', 'push_pull_legs', 'bro_split', 'custom'];
+            const sanitizedSplitType = validSplitTypes.includes(programJson.split_type) 
+              ? programJson.split_type 
+              : (validSplitTypes.includes(preferences?.splitType) ? preferences.splitType : 'custom');
+            split_type: sanitizedSplitType,
             difficulty: programJson.difficulty,
             target_body_parts: programJson.target_body_parts,
             progression_style: programJson.progression_style || 'linear',
