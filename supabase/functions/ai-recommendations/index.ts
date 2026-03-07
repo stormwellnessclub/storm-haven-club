@@ -271,6 +271,7 @@ Generate 5-8 exercises for a ${targetDuration} minute ${targetWorkoutType} worko
         const programDuration = programPrefs.durationWeeks || 4;
         const splitType = programPrefs.splitType || 'push_pull_legs';
         const targetParts = programPrefs.targetBodyParts || [];
+        const customSplit = programPrefs.customSplit || [];
 
         // Fetch ALL active equipment
         const { data: programEquipment } = await supabase
