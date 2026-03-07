@@ -99,7 +99,7 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
         regularMonthly: acc.regularMonthly + t.regularMonthly,
       }), { foundingCount: 0, regularCount: 0, foundingAnnual: 0, regularMonthly: 0 });
 
-      return { tierRevenue, chartData, totals, totalMembers: (filtered || []).length, notPayingCount };
+      return { tierRevenue, chartData, totals, totalMembers: filtered.length, nonPayingCount };
     },
   });
 
