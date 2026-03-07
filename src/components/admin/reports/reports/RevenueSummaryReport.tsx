@@ -121,8 +121,11 @@ export function RevenueSummaryReport({ dateRange, filters }: Props) {
                 <Users className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Active Members</p>
+               <p className="text-sm text-muted-foreground">Paying Members</p>
                 <p className="text-2xl font-bold">{data?.totalMembers || 0}</p>
+                {(data?.nonPayingCount ?? 0) > 0 && (
+                  <p className="text-xs text-muted-foreground">{data?.nonPayingCount} non-paying excluded</p>
+                )}
               </div>
             </div>
           </CardContent>
