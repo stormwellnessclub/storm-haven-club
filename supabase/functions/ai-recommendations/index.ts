@@ -291,6 +291,10 @@ PROGRAM REQUIREMENTS:
 - Days Per Week: ${daysPerWeek}
 - Split Type: ${splitType}
 - Target Areas: ${targetParts.length > 0 ? targetParts.join(', ') : 'Balanced full body'}
+${customSplit.length > 0 ? `
+CUSTOM SPLIT ASSIGNMENT (YOU MUST FOLLOW THIS EXACTLY FOR EACH WEEK):
+${customSplit.map((d: any) => `- Day ${d.day}: ${d.muscles.join(', ')}`).join('\n')}
+The user has specifically chosen which muscle groups to train on each day. Follow this split exactly for every week of the program.` : ''}
 
 MEMBER PROFILE:
 - Fitness Level: ${fitnessProfile?.fitness_level || 'intermediate'}

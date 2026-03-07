@@ -33,6 +33,7 @@ export interface ProgramPreferences {
   durationWeeks: number;
   splitType: string;
   targetBodyParts: string[];
+  customSplit?: { day: number; muscles: string[] }[];
 }
 
 const PROGRAM_TYPES = [
@@ -54,7 +55,19 @@ const SPLIT_TYPES = [
   { id: "upper_lower", label: "Upper/Lower", description: "Simple 2-way split" },
   { id: "full_body", label: "Full Body", description: "Each session targets all" },
   { id: "bro_split", label: "Body Part Split", description: "One muscle group per day" },
-  { id: "custom", label: "AI's Choice", description: "Let AI design the optimal split" },
+  { id: "custom", label: "Custom Split", description: "Pick muscles for each day yourself" },
+];
+
+const MUSCLE_GROUPS = [
+  { id: "glutes", label: "Glutes" },
+  { id: "quads", label: "Quads" },
+  { id: "hamstrings", label: "Hamstrings" },
+  { id: "calves", label: "Calves" },
+  { id: "back", label: "Back" },
+  { id: "chest", label: "Chest" },
+  { id: "shoulders", label: "Shoulders" },
+  { id: "arms", label: "Arms" },
+  { id: "core", label: "Core/Abs" },
 ];
 
 const BODY_PARTS = [
@@ -89,8 +102,24 @@ export function GenerateProgramModal({
     durationWeeks: 4,
     splitType: "",
     targetBodyParts: [],
+    customSplit: [],
   });
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+
+  const isCustomSplit = preferences.splitType === "custom" || preferences.splitType === "bro_split";
+
+  // Initialize customSplit when daysPerWeek or splitType changes
+  useEffect(() => {
+    if (isCustomSplit) {
+      setPreferences((prev) => ({
+        ...prev,
+        customSplit: Array.from({ length: prev.daysPerWeek }, (_, i) => ({
+          day: i + 1,
+          muscles: prev.customSplit?.[i]?.muscles || [],
+        })),
+      }));
+    }
+  }, [preferences.daysPerWeek, isCustomSplit]);
 
   // Cycle through loading messages
   useEffect(() => {
@@ -104,6 +133,7 @@ export function GenerateProgramModal({
     return () => clearInterval(interval);
   }, [isGenerating]);
 
+  // Dynamic steps: 1-Type, 2-Days, 3-Split, 4-CustomSplit or Emphasis
   const totalSteps = 4;
 
   const handleNext = () => {
@@ -118,6 +148,18 @@ export function GenerateProgramModal({
     if (step > 1) {
       setStep(step - 1);
     }
+  };
+
+  const toggleMuscleForDay = (dayIndex: number, muscleId: string) => {
+    setPreferences((prev) => {
+      const newSplit = [...(prev.customSplit || [])];
+      const dayEntry = newSplit[dayIndex] || { day: dayIndex + 1, muscles: [] };
+      const muscles = dayEntry.muscles.includes(muscleId)
+        ? dayEntry.muscles.filter((m) => m !== muscleId)
+        : [...dayEntry.muscles, muscleId];
+      newSplit[dayIndex] = { ...dayEntry, muscles };
+      return { ...prev, customSplit: newSplit };
+    });
   };
 
   const toggleBodyPart = (partId: string) => {
@@ -138,7 +180,11 @@ export function GenerateProgramModal({
       case 3:
         return preferences.splitType !== "";
       case 4:
-        return true; // Body parts are optional
+        if (isCustomSplit) {
+          // At least one muscle assigned to each day
+          return (preferences.customSplit || []).every((d) => d.muscles.length > 0);
+        }
+        return true; // Body parts are optional for predefined splits
       default:
         return false;
     }
@@ -152,13 +198,14 @@ export function GenerateProgramModal({
       durationWeeks: 4,
       splitType: "",
       targetBodyParts: [],
+      customSplit: [],
     });
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         {isGenerating ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <div className="relative mb-6">
@@ -312,8 +359,52 @@ export function GenerateProgramModal({
               </div>
             )}
 
-            {/* Step 4: Focus Areas (Optional) */}
-            {step === 4 && (
+            {/* Step 4: Custom Split OR Emphasis */}
+            {step === 4 && isCustomSplit && (
+              <div className="space-y-4">
+                <h3 className="font-medium text-sm text-muted-foreground">
+                  Assign muscle groups to each training day
+                </h3>
+                <div className="space-y-3">
+                  {(preferences.customSplit || []).map((dayEntry, dayIndex) => (
+                    <div key={dayIndex} className="rounded-lg border border-border p-3">
+                      <p className="text-sm font-semibold mb-2">Day {dayEntry.day}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {MUSCLE_GROUPS.map((muscle) => {
+                          const isSelected = dayEntry.muscles.includes(muscle.id);
+                          return (
+                            <Badge
+                              key={muscle.id}
+                              variant={isSelected ? "default" : "outline"}
+                              className={cn(
+                                "cursor-pointer py-1 px-2.5 text-xs transition-all",
+                                isSelected ? "bg-primary hover:bg-primary/90" : "hover:border-primary"
+                              )}
+                              onClick={() => toggleMuscleForDay(dayIndex, muscle.id)}
+                            >
+                              {muscle.label}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Your Split</p>
+                  {(preferences.customSplit || []).map((d) => (
+                    <p key={d.day} className="text-xs text-foreground">
+                      <span className="font-medium">Day {d.day}:</span>{" "}
+                      {d.muscles.length > 0
+                        ? d.muscles.map(m => MUSCLE_GROUPS.find(mg => mg.id === m)?.label || m).join(", ")
+                        : <span className="text-muted-foreground italic">Pick muscles above</span>}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {step === 4 && !isCustomSplit && (
               <div className="space-y-3">
                 <h3 className="font-medium text-sm text-muted-foreground">
                   Any areas you want to emphasize? (Optional)
@@ -337,7 +428,7 @@ export function GenerateProgramModal({
                   })}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {preferences.targetBodyParts.length > 0 
+                  {preferences.targetBodyParts.length > 0
                     ? `Emphasizing: ${preferences.targetBodyParts.join(", ")}`
                     : "Leave empty for balanced training"}
                 </p>

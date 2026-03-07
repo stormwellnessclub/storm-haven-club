@@ -10,6 +10,7 @@ export interface ProgramPreferences {
   durationWeeks: number;
   splitType: string;
   targetBodyParts: string[];
+  customSplit?: { day: number; muscles: string[] }[];
 }
 
 export interface WorkoutProgram {
