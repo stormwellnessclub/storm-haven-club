@@ -465,6 +465,11 @@ Generate a complete ${programDuration}-week program with ${daysPerWeek} workouts
           programData = programData.split('```')[1].split('```')[0].trim();
         }
         
+        // Clean common AI JSON issues: trailing commas, control chars
+        programData = programData
+          .replace(/,\s*([\]}])/g, '$1')
+          .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\r' || ch === '\t' ? ch : '');
+        
         const programJson = JSON.parse(programData);
         
         // Deactivate any existing active programs for this member
@@ -473,6 +478,12 @@ Generate a complete ${programDuration}-week program with ${daysPerWeek} workouts
           .update({ is_active: false })
           .eq('member_id', memberId)
           .eq('is_active', true);
+
+        // Sanitize split_type
+        const validSplitTypes = ['full_body', 'upper_lower', 'push_pull_legs', 'bro_split', 'custom'];
+        const sanitizedSplitType = validSplitTypes.includes(programJson.split_type) 
+          ? programJson.split_type 
+          : (validSplitTypes.includes(preferences?.splitType) ? preferences.splitType : 'custom');
 
         // Save the program
         const { data: savedProgram, error: programError } = await supabase
@@ -484,7 +495,7 @@ Generate a complete ${programDuration}-week program with ${daysPerWeek} workouts
             program_type: programJson.program_type,
             duration_weeks: programJson.duration_weeks,
             days_per_week: programJson.days_per_week,
-            split_type: programJson.split_type,
+            split_type: sanitizedSplitType,
             difficulty: programJson.difficulty,
             target_body_parts: programJson.target_body_parts,
             progression_style: programJson.progression_style || 'linear',
