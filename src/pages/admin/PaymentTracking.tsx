@@ -38,6 +38,10 @@ export default function PaymentTracking() {
             <Mail className="h-4 w-4" />
             <span className="hidden sm:inline">Emails</span>
           </TabsTrigger>
+          <TabsTrigger value="autopay" className="gap-2">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            <span className="hidden sm:inline">Autopay</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="stripe-live">
