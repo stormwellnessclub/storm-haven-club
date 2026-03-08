@@ -67,6 +67,10 @@ export default function PaymentTracking() {
         <TabsContent value="emails">
           <PaymentEmailsTab />
         </TabsContent>
+
+        <TabsContent value="autopay">
+          <AutopayScheduleTab />
+        </TabsContent>
       </Tabs>
     </AdminLayout>
   );
