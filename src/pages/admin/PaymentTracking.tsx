@@ -6,7 +6,8 @@ import { SuccessfulPaymentsTab } from "@/components/admin/SuccessfulPaymentsTab"
 import { PaymentEmailsTab } from "@/components/admin/PaymentEmailsTab";
 import { StripeLivePaymentsTab } from "@/components/admin/StripeLivePaymentsTab";
 import { AutoPayProjectionsTab } from "@/components/admin/AutoPayProjectionsTab";
-import { XCircle, Clock, CheckCircle, Mail, Zap, TrendingUp } from "lucide-react";
+import { AutopayScheduleTab } from "@/components/admin/AutopayScheduleTab";
+import { XCircle, Clock, CheckCircle, Mail, Zap, TrendingUp, CalendarClock } from "lucide-react";
 
 export default function PaymentTracking() {
   return (
