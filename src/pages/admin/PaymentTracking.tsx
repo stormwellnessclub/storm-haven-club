@@ -13,7 +13,7 @@ export default function PaymentTracking() {
   return (
     <AdminLayout title="Payment Tracking">
       <Tabs defaultValue="stripe-live" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
           <TabsTrigger value="stripe-live" className="gap-2">
             <Zap className="h-4 w-4 text-amber-500" />
             <span className="hidden sm:inline">Stripe Live</span>
