@@ -1,50 +1,56 @@
 
 
-# Autopay Schedule Tab — Clear Billing Visibility
+# Projections & Upcoming Auto-Pays System
 
-## Problem
-Monthly dues subscriptions exist in Stripe but are hard to distinguish from annual fee subscriptions in the Stripe dashboard. Both show as flat list entries without clear labeling.
+## Current State
 
-## Solution
-Build an **Autopay Schedule** tab in Payment Tracking that pulls data from both the database and Stripe, clearly labeling each payment type (Monthly Dues vs Annual Fee vs Class Pass etc.).
+You already have several pieces in place:
 
-## Implementation
+1. **Upcoming Payments Tab** (`UpcomingPaymentsTab.tsx`) — shows members with upcoming billing dates, card risk levels, and expected amounts. However, it uses **hardcoded tier pricing** (`soul: 300, spirit: 450, aura: 750`) that doesn't match the centralized pricing in `membershipPricing.ts` (`silver/gold/platinum/diamond` with gender-based pricing).
 
-### 1. New Edge Function Action: `get_autopay_schedule`
-Add to `stripe-payment/index.ts` a new action that:
-- Lists all active subscriptions from Stripe (paginated)
-- For each subscription, identifies the type by matching price IDs against known membership/annual fee prices
-- Returns upcoming invoice dates, amounts, customer info, and payment type labels
-- Also queries `payment_attempts` table for historical success/failure data
+2. **Revenue Analytics page** (`RevenueAnalytics.tsx`) — has a 12-month cash flow projection chart based on current applications/members.
 
-### 2. New Hook: `src/hooks/useAutopaySchedule.ts`
-- Calls the edge function with date range, search, and filter params
-- Combines upcoming (from Stripe subscription data) and historical (from `payment_attempts` + `manual_charges`) into one sorted list
-- Supports filtering by: date range, status (Success/Failed/Upcoming), payment type, search by name
+3. **Reports** — `next-month-projection`, `cash-flow-projection`, and `class-revenue-projection` reports already exist in the report system.
 
-### 3. New Component: `src/components/admin/AutopayScheduleTab.tsx`
-- **Summary cards**: Total upcoming, success rate, total collected, failed count
-- **Filters**: Date range picker, status dropdown, payment type dropdown, search box
-- **Table columns**: Date | Client (clickable → member detail) | Payment Type | Tier | Card Info | Amount | Status
-- **Status badges**: Green "Success", Red "Failed" (with decline reason), Blue "Upcoming"
-- **Payment type labels**: "Monthly Dues", "Annual Fee", "Class Pass", "Manual Charge"
+4. **Stripe Live tab** — shows open/uncollectible invoices from Stripe directly.
 
-### 4. Modify: `src/pages/admin/PaymentTracking.tsx`
-- Add 7th tab "Autopay" with Calendar icon
-- Import and render `AutopayScheduleTab`
+## What's Missing / Broken
 
-### Data Strategy
-- **Upcoming payments**: Query `members` table for active members with `stripe_subscription_id`, use stored `current_period_end` or calculate from subscription metadata
-- **Historical payments**: Query `payment_attempts` table joined with `members` for name/tier/card info
-- **Payment type detection**: Match invoice line item price IDs against `STRIPE_PRODUCTS` constants to label as "Monthly Dues - Silver", "Annual Fee", etc.
+1. **Pricing mismatch**: The Upcoming Payments hook uses `soul/spirit/aura` tiers with flat prices, but your real pricing is `silver/gold/platinum/diamond` with gender-based rates. Expected amounts are likely wrong or $0 for most members.
 
-### Key Feature: Payment Type Labeling
-The core value — each row clearly shows whether it's:
-- **Monthly Dues** (Silver $200 / Gold $250 / Platinum $350)
-- **Annual Initiation Fee** ($300/yr)
-- **Processing Fee** (auto-included)
-- **Class Pass** purchase
-- **Manual Charge**
+2. **No Stripe-based billing dates**: Next billing is calculated by looping `addMonths` from `membership_start_date`, but Stripe has the actual `current_period_end` — the real next charge date. These can drift apart.
 
-This eliminates the confusion of the flat Stripe dashboard view.
+3. **No projection summary dashboard**: The Upcoming Payments tab shows individual rows but lacks aggregated projection cards like "Expected collections this week / this month / next 3 months" with confidence levels.
+
+4. **Founding members shown but have $0 auto-pays**: Founding members who paid annually don't have recurring Stripe charges, but they still appear in the upcoming payments list.
+
+## Plan
+
+### 1. Fix pricing in Upcoming Payments hook
+Update `useUpcomingPayments` in `usePaymentTracking.ts` to use `extractTier()`, `normalizeGender()`, and `getMonthlyPrice()` from `membershipPricing.ts` instead of the hardcoded `soul/spirit/aura` map. Also exclude founding members (they have no monthly auto-pay) or show them with $0 clearly marked.
+
+### 2. Add a "Projections" summary section to the Upcoming Payments tab
+Add projection summary cards to `UpcomingPaymentsTab.tsx`:
+- **This week**: sum of expected payments in next 7 days
+- **This month**: sum in next 30 days
+- **At-risk amount**: sum of payments where card is expiring/expired
+- **Collection confidence**: percentage of payments with valid cards
+
+*(The 7-day and 30-day cards already exist but will now show correct amounts after the pricing fix.)*
+
+### 3. Create a new "Auto-Pay Projections" tab on the Payment Tracking page
+Add a new tab to `PaymentTracking.tsx` called "Projections" that shows:
+- **Monthly projection chart** (next 3-6 months): bar chart of expected auto-pay collections by month, using real member data and correct tier/gender pricing
+- **Breakdown by tier**: how much revenue is expected from each tier
+- **Risk breakdown**: how much is at risk due to card issues
+- **Founding member renewal dates**: when annual founding memberships are up for renewal
+
+This tab will use a new component `AutoPayProjectionsTab.tsx` that queries active members and projects forward.
+
+### Files
+
+- **Modify**: `src/hooks/usePaymentTracking.ts` — fix `useUpcomingPayments` to use centralized pricing, exclude/flag founding members
+- **Modify**: `src/components/admin/UpcomingPaymentsTab.tsx` — update summary cards with collection confidence metric
+- **Create**: `src/components/admin/AutoPayProjectionsTab.tsx` — new projections tab with monthly chart, tier breakdown, risk analysis
+- **Modify**: `src/pages/admin/PaymentTracking.tsx` — add Projections tab
 

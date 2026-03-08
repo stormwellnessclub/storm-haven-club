@@ -6,13 +6,14 @@ import { SuccessfulPaymentsTab } from "@/components/admin/SuccessfulPaymentsTab"
 import { PaymentEmailsTab } from "@/components/admin/PaymentEmailsTab";
 import { StripeLivePaymentsTab } from "@/components/admin/StripeLivePaymentsTab";
 import { AutoPayProjectionsTab } from "@/components/admin/AutoPayProjectionsTab";
-import { XCircle, Clock, CheckCircle, Mail, Zap, TrendingUp } from "lucide-react";
+import { AutopayScheduleTab } from "@/components/admin/AutopayScheduleTab";
+import { XCircle, Clock, CheckCircle, Mail, Zap, TrendingUp, CalendarClock } from "lucide-react";
 
 export default function PaymentTracking() {
   return (
     <AdminLayout title="Payment Tracking">
       <Tabs defaultValue="stripe-live" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
           <TabsTrigger value="stripe-live" className="gap-2">
             <Zap className="h-4 w-4 text-amber-500" />
             <span className="hidden sm:inline">Stripe Live</span>
@@ -36,6 +37,10 @@ export default function PaymentTracking() {
           <TabsTrigger value="emails" className="gap-2">
             <Mail className="h-4 w-4" />
             <span className="hidden sm:inline">Emails</span>
+          </TabsTrigger>
+          <TabsTrigger value="autopay" className="gap-2">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            <span className="hidden sm:inline">Autopay</span>
           </TabsTrigger>
         </TabsList>
 
@@ -61,6 +66,10 @@ export default function PaymentTracking() {
 
         <TabsContent value="emails">
           <PaymentEmailsTab />
+        </TabsContent>
+
+        <TabsContent value="autopay">
+          <AutopayScheduleTab />
         </TabsContent>
       </Tabs>
     </AdminLayout>
