@@ -211,6 +211,7 @@ const App = () => (
               <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/people" element={<ProtectedAdminRoute><People /></ProtectedAdminRoute>} />
               <Route path="/admin/blocked" element={<ProtectedAdminRoute><BlockedPersons /></ProtectedAdminRoute>} />
+              <Route path="/admin/merch" element={<ProtectedAdminRoute><MerchManager /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
