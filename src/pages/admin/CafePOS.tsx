@@ -3,13 +3,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Coffee, Clock, Loader2 } from "lucide-react";
+import { Coffee, Clock, Loader2, ShoppingBag } from "lucide-react";
 import { useState } from "react";
 import { useAdminCafeOrders, useUpdateCafeOrderStatus } from "@/hooks/useAdminCafeOrders";
 import { useCreateCafeOrder, CafeOrderItem } from "@/hooks/useCafeOrder";
 import { format } from "date-fns";
 import { CafePOSMenu, type POSCartItem } from "@/components/admin/CafePOSMenu";
 import { CafePOSCart } from "@/components/admin/CafePOSCart";
+import { MerchPOSTab } from "@/components/admin/MerchPOSTab";
 import { calculateTax } from "@/hooks/useCafeMenu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -151,6 +152,7 @@ export default function CafePOS() {
           <TabsList>
             <TabsTrigger value="orders">Order Queue</TabsTrigger>
             <TabsTrigger value="pos">POS Terminal</TabsTrigger>
+            <TabsTrigger value="merch"><ShoppingBag className="h-4 w-4 mr-1" />Merch</TabsTrigger>
           </TabsList>
 
           <TabsContent value="orders" className="space-y-4">
@@ -242,6 +244,23 @@ export default function CafePOS() {
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="lg:col-span-2">
                 <CafePOSMenu onAddToCart={addToCart} />
+              </div>
+              <CafePOSCart
+                cart={cart}
+                updateQuantity={updateQuantity}
+                selectedCustomer={selectedCustomer}
+                onCustomerSelect={setSelectedCustomer}
+                onPlaceOrder={handlePlaceOrder}
+                onClearCart={clearCart}
+                isPlacing={isCharging || createOrder.isPending}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="merch">
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <MerchPOSTab onAddToCart={addToCart} />
               </div>
               <CafePOSCart
                 cart={cart}

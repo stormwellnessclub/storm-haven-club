@@ -1,0 +1,382 @@
+import { useState } from "react";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Loader2, Plus, Package, Pencil, Trash2 } from "lucide-react";
+import {
+  useMerchProducts,
+  useMerchInventory,
+  useCreateMerchProduct,
+  useUpdateMerchProduct,
+  useUpsertMerchInventory,
+  type MerchProduct,
+} from "@/hooks/useMerchProducts";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+const DEFAULT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+const DEFAULT_COLORS = ["Black", "White", "Gray", "Navy"];
+const DEFAULT_CATEGORIES = ["Hoodies", "T-Shirts", "Hats", "Accessories", "Bottoms"];
+
+interface ProductFormData {
+  name: string;
+  description: string;
+  price: string;
+  category: string;
+  sizes: string[];
+  colors: string[];
+  allow_preorder: boolean;
+  is_active: boolean;
+}
+
+const emptyForm: ProductFormData = {
+  name: "",
+  description: "",
+  price: "",
+  category: "T-Shirts",
+  sizes: ["S", "M", "L", "XL"],
+  colors: ["Black"],
+  allow_preorder: true,
+  is_active: true,
+};
+
+export default function MerchManager() {
+  const { data: products, isLoading } = useMerchProducts();
+  const { data: inventory } = useMerchInventory();
+  const createProduct = useCreateMerchProduct();
+  const updateProduct = useUpdateMerchProduct();
+  const upsertInventory = useUpsertMerchInventory();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<MerchProduct | null>(null);
+  const [form, setForm] = useState<ProductFormData>(emptyForm);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [inventoryDialog, setInventoryDialog] = useState<MerchProduct | null>(null);
+  const [inventoryValues, setInventoryValues] = useState<Record<string, number>>({});
+
+  const openCreate = () => {
+    setEditingProduct(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (p: MerchProduct) => {
+    setEditingProduct(p);
+    setForm({
+      name: p.name,
+      description: p.description || "",
+      price: p.price.toString(),
+      category: p.category,
+      sizes: p.sizes,
+      colors: p.colors,
+      allow_preorder: p.allow_preorder,
+      is_active: p.is_active,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name || !form.price) return;
+    let imageUrl: string | undefined;
+
+    if (imageFile) {
+      setUploading(true);
+      const ext = imageFile.name.split(".").pop();
+      const path = `${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("merch-images").upload(path, imageFile);
+      setUploading(false);
+      if (uploadError) {
+        toast.error("Image upload failed");
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("merch-images").getPublicUrl(path);
+      imageUrl = urlData.publicUrl;
+    }
+
+    const payload: any = {
+      name: form.name,
+      description: form.description || null,
+      price: parseFloat(form.price),
+      category: form.category,
+      sizes: form.sizes,
+      colors: form.colors,
+      allow_preorder: form.allow_preorder,
+      is_active: form.is_active,
+    };
+
+    if (editingProduct) {
+      if (imageUrl) {
+        payload.image_urls = [...(editingProduct.image_urls || []), imageUrl];
+      }
+      await updateProduct.mutateAsync({ id: editingProduct.id, ...payload });
+    } else {
+      if (imageUrl) payload.image_urls = [imageUrl];
+      await createProduct.mutateAsync(payload);
+    }
+
+    setDialogOpen(false);
+    setImageFile(null);
+  };
+
+  const toggleSize = (size: string) => {
+    setForm((f) => ({
+      ...f,
+      sizes: f.sizes.includes(size) ? f.sizes.filter((s) => s !== size) : [...f.sizes, size],
+    }));
+  };
+
+  const toggleColor = (color: string) => {
+    setForm((f) => ({
+      ...f,
+      colors: f.colors.includes(color) ? f.colors.filter((c) => c !== color) : [...f.colors, color],
+    }));
+  };
+
+  const openInventory = (p: MerchProduct) => {
+    const vals: Record<string, number> = {};
+    for (const size of p.sizes) {
+      for (const color of p.colors) {
+        const key = `${size}|${color}`;
+        const inv = inventory?.find((i) => i.product_id === p.id && i.size === size && i.color === color);
+        vals[key] = inv?.quantity ?? 0;
+      }
+    }
+    setInventoryValues(vals);
+    setInventoryDialog(p);
+  };
+
+  const saveInventory = async () => {
+    if (!inventoryDialog) return;
+    const items = Object.entries(inventoryValues).map(([key, quantity]) => {
+      const [size, color] = key.split("|");
+      return { product_id: inventoryDialog.id, size, color, quantity };
+    });
+    await upsertInventory.mutateAsync(items);
+    setInventoryDialog(null);
+  };
+
+  const removeImage = async (product: MerchProduct, url: string) => {
+    const newUrls = product.image_urls.filter((u) => u !== url);
+    await updateProduct.mutateAsync({ id: product.id, image_urls: newUrls } as any);
+  };
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Merch Manager</h1>
+            <p className="text-muted-foreground">Manage branded apparel and merchandise</p>
+          </div>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" /> Add Product
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {products?.map((product) => (
+              <Card key={product.id}>
+                <CardContent className="p-4 space-y-3">
+                  {product.image_urls[0] ? (
+                    <img src={product.image_urls[0]} alt={product.name} className="w-full h-40 object-cover rounded" />
+                  ) : (
+                    <div className="w-full h-40 bg-muted rounded flex items-center justify-center">
+                      <Package className="h-10 w-10 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold">{product.name}</h3>
+                      <p className="text-sm text-muted-foreground">{product.category}</p>
+                    </div>
+                    <p className="text-primary font-bold">${product.price.toFixed(2)}</p>
+                  </div>
+                  <div className="flex gap-1 flex-wrap">
+                    {product.sizes.map((s) => (
+                      <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-1 flex-wrap">
+                    {product.colors.map((c) => (
+                      <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {!product.is_active && <Badge variant="destructive">Inactive</Badge>}
+                    {product.allow_preorder && <Badge variant="outline">Preorder</Badge>}
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" variant="outline" onClick={() => openEdit(product)} className="flex-1">
+                      <Pencil className="h-3 w-3 mr-1" /> Edit
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => openInventory(product)} className="flex-1">
+                      Inventory
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Create/Edit Dialog */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingProduct ? "Edit Product" : "Add Product"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Name</Label>
+                <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Price</Label>
+                  <Input type="number" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Category</Label>
+                  <select
+                    className="flex h-11 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
+                    value={form.category}
+                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  >
+                    {DEFAULT_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <Label>Sizes</Label>
+                <div className="flex gap-2 flex-wrap mt-1">
+                  {DEFAULT_SIZES.map((s) => (
+                    <Button
+                      key={s}
+                      type="button"
+                      size="sm"
+                      variant={form.sizes.includes(s) ? "default" : "outline"}
+                      onClick={() => toggleSize(s)}
+                    >
+                      {s}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>Colors</Label>
+                <div className="flex gap-2 flex-wrap mt-1">
+                  {DEFAULT_COLORS.map((c) => (
+                    <Button
+                      key={c}
+                      type="button"
+                      size="sm"
+                      variant={form.colors.includes(c) ? "default" : "outline"}
+                      onClick={() => toggleColor(c)}
+                    >
+                      {c}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>Product Image</Label>
+                <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} className="mt-1" />
+                {editingProduct && editingProduct.image_urls.length > 0 && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {editingProduct.image_urls.map((url, i) => (
+                      <div key={i} className="relative">
+                        <img src={url} className="h-16 w-16 object-cover rounded" alt="" />
+                        <button
+                          className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                          onClick={() => removeImage(editingProduct, url)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.is_active} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))} />
+                  <Label>Active</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.allow_preorder} onCheckedChange={(v) => setForm((f) => ({ ...f, allow_preorder: v }))} />
+                  <Label>Allow Preorder</Label>
+                </div>
+              </div>
+
+              <Button className="w-full" onClick={handleSave} disabled={uploading || createProduct.isPending || updateProduct.isPending}>
+                {(uploading || createProduct.isPending || updateProduct.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {editingProduct ? "Save Changes" : "Create Product"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Inventory Dialog */}
+        <Dialog open={!!inventoryDialog} onOpenChange={(open) => !open && setInventoryDialog(null)}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Inventory: {inventoryDialog?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              {inventoryDialog?.sizes.map((size) => (
+                <div key={size}>
+                  <p className="font-medium text-sm mb-1">{size}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {inventoryDialog?.colors.map((color) => {
+                      const key = `${size}|${color}`;
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <Label className="text-xs w-16 shrink-0">{color}</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            className="h-8"
+                            value={inventoryValues[key] ?? 0}
+                            onChange={(e) =>
+                              setInventoryValues((v) => ({ ...v, [key]: parseInt(e.target.value) || 0 }))
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <Button className="w-full" onClick={saveInventory} disabled={upsertInventory.isPending}>
+                {upsertInventory.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Save Inventory
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </AdminLayout>
+  );
+}

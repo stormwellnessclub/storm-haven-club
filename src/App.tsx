@@ -88,6 +88,8 @@ import NonMemberAccounts from "./pages/admin/NonMemberAccounts";
 import NonMemberDetail from "./pages/admin/NonMemberDetail";
 import People from "./pages/admin/People";
 import BlockedPersons from "./pages/admin/BlockedPersons";
+import MerchManager from "./pages/admin/MerchManager";
+import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
 import GuestFeedback from "./pages/GuestFeedback";
 import { ProtectedPortalRoute } from "@/components/portal/ProtectedPortalRoute";
@@ -134,6 +136,7 @@ const App = () => (
               <Route path="/guest-pass" element={<GuestPass />} />
               <Route path="/guest-feedback" element={<GuestFeedback />} />
               <Route path="/design-system" element={<DesignSystem />} />
+              <Route path="/merch" element={<Merch />} />
               
               {/* Member Portal Routes - Protected */}
               <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
@@ -208,6 +211,7 @@ const App = () => (
               <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/people" element={<ProtectedAdminRoute><People /></ProtectedAdminRoute>} />
               <Route path="/admin/blocked" element={<ProtectedAdminRoute><BlockedPersons /></ProtectedAdminRoute>} />
+              <Route path="/admin/merch" element={<ProtectedAdminRoute><MerchManager /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
