@@ -75,3 +75,7 @@ verify_jwt = false
 [functions.stripe-failed-invoices]
 enabled = true
 verify_jwt = false
+
+[functions.send-application-reminder]
+enabled = true
+verify_jwt = false
