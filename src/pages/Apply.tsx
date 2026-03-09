@@ -806,8 +806,7 @@ export default function Apply() {
     setIsSubmitting(true);
 
     try {
-      // Save application to database with stripe_customer_id
-      const { error } = await supabase.from("membership_applications").insert({
+      const applicationPayload = {
         first_name: formData.firstName,
         last_name: formData.lastName,
         full_name: `${formData.firstName} ${formData.lastName}`,
@@ -843,7 +842,23 @@ export default function Apply() {
         card_last4: savedCardDetails?.last4 || null,
         card_exp_month: savedCardDetails?.expMonth || null,
         card_exp_year: savedCardDetails?.expYear || null,
-      });
+        status: "pending",
+      };
+
+      // If we already saved a pending_payment application, update it instead of inserting
+      let error;
+      if (savedApplicationId) {
+        console.log("[Apply] Updating existing application:", savedApplicationId);
+        const result = await supabase
+          .from("membership_applications")
+          .update(applicationPayload)
+          .eq("id", savedApplicationId);
+        error = result.error;
+      } else {
+        console.log("[Apply] Inserting new application");
+        const result = await supabase.from("membership_applications").insert(applicationPayload);
+        error = result.error;
+      }
 
       if (error) {
         console.error("Error submitting application:", error);
