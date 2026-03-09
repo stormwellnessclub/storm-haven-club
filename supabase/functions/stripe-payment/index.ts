@@ -6361,6 +6361,141 @@ serve(async (req) => {
         );
       }
 
+      case 'update_billing_anchor': {
+        // Shift the next billing date for a subscription (e.g., after a freeze)
+        // Uses trial_end to defer the next charge without creating an immediate invoice
+        const { subscriptionId, newBillingDate } = body;
+        if (!subscriptionId || !newBillingDate) {
+          throw new Error("Missing subscriptionId or newBillingDate");
+        }
+
+        // Verify admin role
+        const { data: anchorRoleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!anchorRoleData || anchorRoleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        const newDate = new Date(newBillingDate);
+        const now = new Date();
+        
+        if (newDate <= now) {
+          throw new Error("New billing date must be in the future");
+        }
+
+        const newAnchorTimestamp = Math.floor(newDate.getTime() / 1000);
+
+        logStep("Updating billing anchor", { subscriptionId, newBillingDate, newAnchorTimestamp });
+
+        // Get current subscription to log what's changing
+        const currentSub = await stripe.subscriptions.retrieve(subscriptionId);
+        const oldPeriodEnd = currentSub.current_period_end;
+
+        logStep("Current period end", { 
+          oldPeriodEnd: new Date(oldPeriodEnd * 1000).toISOString(),
+          newPeriodEnd: newDate.toISOString()
+        });
+
+        // Use trial_end to shift the next billing date without generating an immediate invoice
+        // This extends the current period to the new date without charging
+        const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+          trial_end: newAnchorTimestamp,
+          proration_behavior: 'none',
+        });
+
+        logStep("Billing anchor updated", { 
+          subscriptionId, 
+          newTrialEnd: updatedSubscription.trial_end,
+          status: updatedSubscription.status 
+        });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            subscription: {
+              id: updatedSubscription.id,
+              status: updatedSubscription.status,
+              trial_end: updatedSubscription.trial_end,
+              current_period_end: updatedSubscription.current_period_end,
+            },
+            old_period_end: new Date(oldPeriodEnd * 1000).toISOString(),
+            new_billing_date: newDate.toISOString(),
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'add_processing_fees_to_subscription': {
+        // Retroactively add processing fee line items to an existing subscription
+        const { subscriptionId } = body;
+        if (!subscriptionId) throw new Error("Missing subscriptionId");
+
+        // Verify admin role
+        const { data: feeRoleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin']);
+
+        if (!feeRoleData || feeRoleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        const existingSub = await stripe.subscriptions.retrieve(subscriptionId);
+        
+        // Check if processing fees already exist
+        const hasProcessingFee = existingSub.items.data.some(item => {
+          const productId = typeof item.price.product === 'string' ? item.price.product : (item.price.product as any)?.id;
+          return item.price.metadata?.type === 'processing_fee' || false;
+        });
+
+        if (hasProcessingFee) {
+          return new Response(
+            JSON.stringify({ success: true, message: "Processing fees already exist on this subscription", skipped: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Find the base price items (non-fee items)
+        const baseItems = existingSub.items.data.filter(item => {
+          return !item.price.metadata?.type || item.price.metadata.type !== 'processing_fee';
+        });
+
+        if (baseItems.length === 0) {
+          throw new Error("No base price items found on subscription");
+        }
+
+        // Add processing fee for each base item
+        const addedFees: string[] = [];
+        for (const baseItem of baseItems) {
+          const baseAmount = baseItem.price.unit_amount || 0;
+          const interval = (baseItem.price.recurring?.interval as 'month' | 'year') || 'month';
+          
+          const feePriceId = await getOrCreateRecurringProcessingFeePrice(stripe, baseAmount, interval);
+          if (feePriceId) {
+            await stripe.subscriptions.update(subscriptionId, {
+              items: [{ price: feePriceId, quantity: 1 }],
+              proration_behavior: 'none',
+            });
+            addedFees.push(feePriceId);
+            logStep("Added processing fee to subscription", { subscriptionId, feePriceId, baseAmount, interval });
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            fees_added: addedFees.length,
+            fee_price_ids: addedFees,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
