@@ -5717,19 +5717,69 @@ serve(async (req) => {
 
         const { data: memberData, error: memberErr } = await supabase
           .from('members')
-          .select('stripe_subscription_id, first_name, last_name, status')
+          .select('stripe_subscription_id, stripe_customer_id, annual_fee_subscription_id, first_name, last_name, status, email')
           .eq('id', memberId)
           .single();
 
         if (memberErr || !memberData) throw new Error("Member not found");
 
-        // Cancel Stripe subscription if exists
+        const cancelledSubs: string[] = [];
+
+        // Cancel the known dues subscription
         if (memberData.stripe_subscription_id) {
           try {
             await stripe.subscriptions.cancel(memberData.stripe_subscription_id);
-            logStep("Cancelled Stripe subscription", { subscriptionId: memberData.stripe_subscription_id });
+            cancelledSubs.push(memberData.stripe_subscription_id);
+            logStep("Cancelled dues subscription", { subscriptionId: memberData.stripe_subscription_id });
           } catch (cancelErr) {
-            logStep("Warning: Failed to cancel subscription", { error: String(cancelErr) });
+            logStep("Warning: Failed to cancel dues subscription", { error: String(cancelErr) });
+          }
+        }
+
+        // Cancel the known annual fee subscription
+        if (memberData.annual_fee_subscription_id) {
+          try {
+            await stripe.subscriptions.cancel(memberData.annual_fee_subscription_id);
+            cancelledSubs.push(memberData.annual_fee_subscription_id);
+            logStep("Cancelled annual fee subscription", { subscriptionId: memberData.annual_fee_subscription_id });
+          } catch (cancelErr) {
+            logStep("Warning: Failed to cancel annual fee subscription", { error: String(cancelErr) });
+          }
+        }
+
+        // CRITICAL: Also cancel ALL remaining active/past_due subscriptions on the Stripe customer
+        // This catches orphaned subscriptions not tracked in our DB
+        const customerId = memberData.stripe_customer_id;
+        if (customerId) {
+          try {
+            const activeStripeSubs = await stripe.subscriptions.list({
+              customer: customerId,
+              status: 'active',
+              limit: 100,
+            });
+            const pastDueStripeSubs = await stripe.subscriptions.list({
+              customer: customerId,
+              status: 'past_due',
+              limit: 100,
+            });
+            const allRemainingSubs = [...activeStripeSubs.data, ...pastDueStripeSubs.data]
+              .filter(s => !cancelledSubs.includes(s.id));
+
+            for (const sub of allRemainingSubs) {
+              try {
+                await stripe.subscriptions.cancel(sub.id);
+                cancelledSubs.push(sub.id);
+                logStep("Cancelled orphaned subscription", { subscriptionId: sub.id, status: sub.status });
+              } catch (orphanErr) {
+                logStep("Warning: Failed to cancel orphaned subscription", { subscriptionId: sub.id, error: String(orphanErr) });
+              }
+            }
+
+            if (allRemainingSubs.length > 0) {
+              logStep("Cancelled orphaned subscriptions", { count: allRemainingSubs.length });
+            }
+          } catch (listErr) {
+            logStep("Warning: Failed to list Stripe subscriptions for cleanup", { error: String(listErr) });
           }
         }
 
@@ -5737,12 +5787,14 @@ serve(async (req) => {
         await supabase.from('members').update({ 
           status: 'suspended',
           subscription_status: 'canceled',
+          stripe_subscription_id: null,
+          annual_fee_subscription_id: null,
         }).eq('id', memberId);
 
-        logStep("Member deactivated", { memberId, name: `${memberData.first_name} ${memberData.last_name}` });
+        logStep("Member deactivated", { memberId, name: `${memberData.first_name} ${memberData.last_name}`, totalCancelled: cancelledSubs.length });
 
         return new Response(
-          JSON.stringify({ success: true, memberId }),
+          JSON.stringify({ success: true, memberId, cancelledSubscriptions: cancelledSubs }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
