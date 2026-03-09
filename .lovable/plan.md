@@ -1,56 +1,97 @@
 
 
-# Projections & Upcoming Auto-Pays System
+# Merch System: POS Tab + Public Preorder Store
 
-## Current State
+## Overview
+Create a dedicated merch product catalog (separate from cafe menu items) with full admin management, a "Merch" tab in both POS terminals, and a public-facing merch store page where members and non-members can browse and preorder.
 
-You already have several pieces in place:
+## Database
 
-1. **Upcoming Payments Tab** (`UpcomingPaymentsTab.tsx`) — shows members with upcoming billing dates, card risk levels, and expected amounts. However, it uses **hardcoded tier pricing** (`soul: 300, spirit: 450, aura: 750`) that doesn't match the centralized pricing in `membershipPricing.ts` (`silver/gold/platinum/diamond` with gender-based pricing).
+### New table: `merch_products`
+- `id` (uuid, PK)
+- `name` (text, not null) — e.g. "Storm Haven Hoodie"
+- `description` (text)
+- `price` (numeric, not null)
+- `image_urls` (text[]) — array of image URLs for gallery
+- `sizes` (text[]) — e.g. ["S","M","L","XL","2XL"]
+- `colors` (text[]) — e.g. ["Black","Gray","White"]
+- `category` (text) — e.g. "Hoodies", "T-Shirts", "Hats"
+- `is_active` (boolean, default true)
+- `allow_preorder` (boolean, default true)
+- `display_order` (int, default 0)
+- `created_at`, `updated_at`
+- `created_by` (uuid, references auth.users)
 
-2. **Revenue Analytics page** (`RevenueAnalytics.tsx`) — has a 12-month cash flow projection chart based on current applications/members.
+### New table: `merch_inventory`
+- `id` (uuid, PK)
+- `product_id` (uuid, FK → merch_products)
+- `size` (text)
+- `color` (text)
+- `quantity` (int, default 0)
+- Unique constraint on (product_id, size, color)
 
-3. **Reports** — `next-month-projection`, `cash-flow-projection`, and `class-revenue-projection` reports already exist in the report system.
+### New table: `merch_orders`
+- `id` (uuid, PK)
+- `user_id` (uuid, nullable — for logged-in users)
+- `customer_name` (text)
+- `customer_email` (text)
+- `customer_phone` (text)
+- `order_items` (jsonb) — [{product_id, name, size, color, quantity, price}]
+- `total_amount` (numeric)
+- `payment_method` (text) — "card", "cash", "preorder_card", "member_account"
+- `status` (text, default "pending") — pending, confirmed, ready_for_pickup, picked_up, cancelled
+- `is_preorder` (boolean, default false)
+- `member_id` (uuid, nullable)
+- `stripe_payment_intent_id` (text, nullable)
+- `notes` (text)
+- `created_at`, `updated_at`
 
-4. **Stripe Live tab** — shows open/uncollectible invoices from Stripe directly.
+### Storage bucket: `merch-images` (public)
 
-## What's Missing / Broken
+### RLS:
+- `merch_products`: public read for active items; admin write
+- `merch_inventory`: public read; admin write
+- `merch_orders`: users can read own orders; admins can read/write all
 
-1. **Pricing mismatch**: The Upcoming Payments hook uses `soul/spirit/aura` tiers with flat prices, but your real pricing is `silver/gold/platinum/diamond` with gender-based rates. Expected amounts are likely wrong or $0 for most members.
+## Admin: POS Merch Tab
 
-2. **No Stripe-based billing dates**: Next billing is calculated by looping `addMonths` from `membership_start_date`, but Stripe has the actual `current_period_end` — the real next charge date. These can drift apart.
+Add a **"Merch"** tab to both `CafePOS.tsx` and `FrontDeskPOS.tsx` (alongside existing Order Queue / POS Terminal tabs). This tab will:
 
-3. **No projection summary dashboard**: The Upcoming Payments tab shows individual rows but lacks aggregated projection cards like "Expected collections this week / this month / next 3 months" with confidence levels.
+1. Show a grid of merch products with images, grouped by category
+2. Clicking a product opens a selector for size + color (filtered by what's in inventory)
+3. Adds to the existing POS cart (reuses `CafePOSCart`)
+4. On sale, decrements inventory for the selected size/color variant
 
-4. **Founding members shown but have $0 auto-pays**: Founding members who paid annually don't have recurring Stripe charges, but they still appear in the upcoming payments list.
+### Admin Merch Manager
+New page at `/admin/merch` — full CRUD for products:
+- Add/edit product: name, description, price, category, sizes, colors, images (multi-upload), preorder toggle
+- Manage inventory per size/color variant (quantity grid)
+- Toggle active/inactive
 
-## Plan
+## Public Merch Store Page
 
-### 1. Fix pricing in Upcoming Payments hook
-Update `useUpcomingPayments` in `usePaymentTracking.ts` to use `extractTier()`, `normalizeGender()`, and `getMonthlyPrice()` from `membershipPricing.ts` instead of the hardcoded `soul/spirit/aura` map. Also exclude founding members (they have no monthly auto-pay) or show them with $0 clearly marked.
+New page at `/merch` (or `/shop`):
+- Grid of active products with images, price, description
+- Click to view product detail with size/color picker
+- "Preorder" button — for logged-in users, charges card on file or creates a Stripe checkout; for guests, collects email/name and creates checkout session
+- Creates a `merch_orders` row with `is_preorder = true`
+- Confirmation page after payment
 
-### 2. Add a "Projections" summary section to the Upcoming Payments tab
-Add projection summary cards to `UpcomingPaymentsTab.tsx`:
-- **This week**: sum of expected payments in next 7 days
-- **This month**: sum in next 30 days
-- **At-risk amount**: sum of payments where card is expiring/expired
-- **Collection confidence**: percentage of payments with valid cards
+## Hooks & Components
 
-*(The 7-day and 30-day cards already exist but will now show correct amounts after the pricing fix.)*
+- `src/hooks/useMerchProducts.ts` — CRUD queries for products + inventory
+- `src/components/admin/MerchManager.tsx` — admin product CRUD + inventory grid
+- `src/components/admin/MerchPOSTab.tsx` — POS merch browsing + size/color selection, adds to cart
+- `src/pages/Merch.tsx` — public store page
+- `src/components/merch/MerchProductCard.tsx` — product card for public store
+- `src/components/merch/MerchProductDetail.tsx` — detail view with size/color/preorder
 
-### 3. Create a new "Auto-Pay Projections" tab on the Payment Tracking page
-Add a new tab to `PaymentTracking.tsx` called "Projections" that shows:
-- **Monthly projection chart** (next 3-6 months): bar chart of expected auto-pay collections by month, using real member data and correct tier/gender pricing
-- **Breakdown by tier**: how much revenue is expected from each tier
-- **Risk breakdown**: how much is at risk due to card issues
-- **Founding member renewal dates**: when annual founding memberships are up for renewal
+## Implementation Order
 
-This tab will use a new component `AutoPayProjectionsTab.tsx` that queries active members and projects forward.
-
-### Files
-
-- **Modify**: `src/hooks/usePaymentTracking.ts` — fix `useUpcomingPayments` to use centralized pricing, exclude/flag founding members
-- **Modify**: `src/components/admin/UpcomingPaymentsTab.tsx` — update summary cards with collection confidence metric
-- **Create**: `src/components/admin/AutoPayProjectionsTab.tsx` — new projections tab with monthly chart, tier breakdown, risk analysis
-- **Modify**: `src/pages/admin/PaymentTracking.tsx` — add Projections tab
+1. Create database tables + storage bucket + RLS
+2. Build hooks for merch products/inventory/orders
+3. Build admin merch manager page
+4. Build MerchPOSTab and integrate into both POS pages
+5. Build public merch store + preorder flow
+6. Add routes to App.tsx and sidebar links
 
