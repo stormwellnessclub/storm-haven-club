@@ -268,6 +268,18 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
+      // Block check before proceeding with auth
+      const { data: isBlocked } = await supabase.rpc('is_email_blocked', { p_email: email.trim().toLowerCase() });
+      if (isBlocked) {
+        toast({
+          title: "Access Denied",
+          description: "You are not permitted to access our services. If you believe this is an error, please contact us.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       if (isSignUp) {
         const { error } = await signUp(email, password, {
           first_name: firstName,

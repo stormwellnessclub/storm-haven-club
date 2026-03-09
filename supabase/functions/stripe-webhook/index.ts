@@ -1583,6 +1583,44 @@ serve(async (req) => {
           if (memberError) {
             logError(memberError, "INVOICE_PAYMENT_SUCCEEDED_MEMBER_LOOKUP");
           } else if (memberData) {
+            // Block check: if member's email is blocked, refund and cancel
+            const { data: memberEmail } = await supabase
+              .from('members')
+              .select('email')
+              .eq('id', memberData.id)
+              .maybeSingle();
+            if (memberEmail?.email) {
+              const { data: blockedMember } = await supabase
+                .from('blocked_persons')
+                .select('id')
+                .ilike('email', memberEmail.email.toLowerCase())
+                .maybeSingle();
+              if (blockedMember) {
+                logStep("BLOCKED person payment detected — refunding and cancelling", { memberId: memberData.id, email: memberEmail.email });
+                // Refund the payment
+                try {
+                  const pi = invoice.payment_intent;
+                  const piId = typeof pi === 'string' ? pi : pi?.id;
+                  if (piId) {
+                    await stripe.refunds.create({ payment_intent: piId });
+                    logStep("Refund created for blocked person", { paymentIntentId: piId });
+                  }
+                } catch (refundErr) {
+                  logError(refundErr, "BLOCKED_PERSON_REFUND");
+                }
+                // Cancel the subscription
+                try {
+                  const subId = invoice.subscription as string;
+                  if (subId) {
+                    await stripe.subscriptions.cancel(subId);
+                    logStep("Subscription cancelled for blocked person", { subscriptionId: subId });
+                  }
+                } catch (cancelErr) {
+                  logError(cancelErr, "BLOCKED_PERSON_CANCEL_SUB");
+                }
+                return successResponse({ blocked: true, memberId: memberData.id });
+              }
+            }
             // Get payment intent and charge details
             const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
             const charge = invoice.charge as Stripe.Charge | string | null;

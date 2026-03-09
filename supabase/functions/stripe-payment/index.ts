@@ -281,6 +281,20 @@ serve(async (req) => {
         throw new Error("Missing required fields for application setup (email, name)");
       }
 
+      // Block check for application setup
+      const { data: blockedApp } = await supabase
+        .from('blocked_persons')
+        .select('id')
+        .ilike('email', applicantEmail.trim())
+        .maybeSingle();
+      if (blockedApp) {
+        logStep("BLOCKED person attempted application setup", { email: applicantEmail });
+        return new Response(
+          JSON.stringify({ error: "Access denied. You are not permitted to use our services." }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(applicantEmail)) {
@@ -429,6 +443,22 @@ serve(async (req) => {
       throw new Error("Invalid authorization");
     }
     logStep("User authenticated", { userId: user.id, email: user.email });
+
+    // Block check: reject all payment actions for blocked persons
+    if (user.email) {
+      const { data: blockedPerson } = await supabase
+        .from('blocked_persons')
+        .select('id')
+        .ilike('email', user.email.toLowerCase())
+        .maybeSingle();
+      if (blockedPerson) {
+        logStep("BLOCKED person attempted payment action", { email: user.email, action });
+        return new Response(
+          JSON.stringify({ error: "Access denied. You are not permitted to use our services." }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+    }
 
     // Get or create Stripe customer
     const getOrCreateCustomer = async (): Promise<string> => {
