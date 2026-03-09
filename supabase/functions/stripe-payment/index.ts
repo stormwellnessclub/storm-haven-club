@@ -295,10 +295,6 @@ serve(async (req) => {
         );
       }
 
-      if (false) {
-        throw new Error("Missing required fields for application setup (email, name)");
-      }
-
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(applicantEmail)) {
