@@ -79,3 +79,7 @@ verify_jwt = false
 [functions.send-application-reminder]
 enabled = true
 verify_jwt = false
+
+[functions.get-autopay-dates]
+enabled = true
+verify_jwt = false
