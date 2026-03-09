@@ -1759,6 +1759,18 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change Billing Date Dialog */}
+      {member && (
+        <ChangeBillingDateDialog
+          open={showChangeBillingDate}
+          onOpenChange={setShowChangeBillingDate}
+          memberId={member.id}
+          memberName={`${member.first_name} ${member.last_name}`}
+          subscriptionId={member.stripe_subscription_id}
+          annualFeeSubscriptionId={member.annual_fee_subscription_id}
+        />
+      )}
     </>
   );
 }
