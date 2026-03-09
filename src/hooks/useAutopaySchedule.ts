@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { addMonths, isBefore, isAfter, startOfDay, endOfDay, format } from "date-fns";
+import { addMonths, isBefore, isAfter, startOfDay, endOfDay, format, addDays } from "date-fns";
 import { extractTier, normalizeGender, getMonthlyPrice } from "@/lib/membershipPricing";
 import type { DateRange } from "@/components/admin/DateRangePicker";
 
@@ -126,6 +126,33 @@ export function useAutopaySchedule(
       const now = new Date();
       const rangeEnd = dateRange.to ? endOfDay(dateRange.to) : addMonths(now, 3);
 
+      // Fetch real billing dates from Stripe
+      const subscriptionIds = (activeMembers || [])
+        .filter((m) => m.stripe_subscription_id && !m.is_founding_member)
+        .map((m) => m.stripe_subscription_id as string);
+
+      // Also include annual fee subscription IDs
+      const annualSubIds = (activeMembers || [])
+        .filter((m) => m.annual_fee_subscription_id && !m.is_founding_member)
+        .map((m) => m.annual_fee_subscription_id as string);
+
+      const allSubIds = [...new Set([...subscriptionIds, ...annualSubIds])];
+
+      let billingAnchors: Record<string, string> = {};
+      if (allSubIds.length > 0) {
+        try {
+          const { data: anchors, error: anchorsError } = await supabase.functions.invoke(
+            "get-autopay-dates",
+            { body: { subscription_ids: allSubIds } }
+          );
+          if (!anchorsError && anchors) {
+            billingAnchors = anchors as Record<string, string>;
+          }
+        } catch (e) {
+          console.warn("Failed to fetch Stripe billing anchors, falling back to membership_start_date", e);
+        }
+      }
+
       for (const m of activeMembers || []) {
         if (m.is_founding_member) continue;
 
@@ -136,13 +163,20 @@ export function useAutopaySchedule(
 
         if (!monthlyPrice) continue;
 
-        // Calculate ALL billing dates within the range
-        const startDate = new Date(m.membership_start_date);
-        let billingDate = new Date(startDate);
+        // Use real Stripe anchor if available, otherwise fall back to membership_start_date
+        const stripeAnchor = m.stripe_subscription_id ? billingAnchors[m.stripe_subscription_id] : null;
+        let billingDate: Date;
 
-        // Advance to first billing date at or after now
-        while (isBefore(billingDate, now)) {
-          billingDate = addMonths(billingDate, 1);
+        if (stripeAnchor) {
+          // current_period_end from Stripe = next billing date
+          billingDate = new Date(stripeAnchor);
+        } else {
+          // Fallback: calculate from membership_start_date
+          const startDate = new Date(m.membership_start_date);
+          billingDate = new Date(startDate);
+          while (isBefore(billingDate, now)) {
+            billingDate = addMonths(billingDate, 1);
+          }
         }
 
         // Generate all monthly billing dates within range
@@ -151,7 +185,7 @@ export function useAutopaySchedule(
             (!dateRange.from || !isBefore(billingDate, startOfDay(dateRange.from))) &&
             !isAfter(billingDate, rangeEnd);
 
-          if (inRange) {
+          if (inRange && !isBefore(billingDate, now)) {
             const dateStr = format(billingDate, "yyyy-MM-dd");
             entries.push({
               id: `upcoming-${m.id}-dues-${dateStr}`,
@@ -176,9 +210,17 @@ export function useAutopaySchedule(
         // Annual fee upcoming
         if (m.annual_fee_subscription_id) {
           const annualFee = gender === "men" ? 175 : 300;
-          let nextAnnual = new Date(startDate);
-          while (isBefore(nextAnnual, now)) {
-            nextAnnual = addMonths(nextAnnual, 12);
+          const annualAnchor = billingAnchors[m.annual_fee_subscription_id];
+          let nextAnnual: Date;
+
+          if (annualAnchor) {
+            nextAnnual = new Date(annualAnchor);
+          } else {
+            const startDate = new Date(m.membership_start_date);
+            nextAnnual = new Date(startDate);
+            while (isBefore(nextAnnual, now)) {
+              nextAnnual = addMonths(nextAnnual, 12);
+            }
           }
 
           while (!isAfter(nextAnnual, rangeEnd)) {
@@ -186,7 +228,7 @@ export function useAutopaySchedule(
               (!dateRange.from || !isBefore(nextAnnual, startOfDay(dateRange.from))) &&
               !isAfter(nextAnnual, rangeEnd);
 
-            if (inRange) {
+            if (inRange && !isBefore(nextAnnual, now)) {
               const dateStr = format(nextAnnual, "yyyy-MM-dd");
               entries.push({
                 id: `upcoming-${m.id}-annual-${dateStr}`,
