@@ -448,6 +448,22 @@ serve(async (req) => {
     }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Block check: reject all payment actions for blocked persons
+    if (user.email) {
+      const { data: blockedPerson } = await supabase
+        .from('blocked_persons')
+        .select('id')
+        .ilike('email', user.email.toLowerCase())
+        .maybeSingle();
+      if (blockedPerson) {
+        logStep("BLOCKED person attempted payment action", { email: user.email, action });
+        return new Response(
+          JSON.stringify({ error: "Access denied. You are not permitted to use our services." }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+    }
+
     // Get or create Stripe customer
     const getOrCreateCustomer = async (): Promise<string> => {
       const customers = await stripe.customers.list({ email: user.email!, limit: 1 });

@@ -807,6 +807,13 @@ export default function Apply() {
     setIsSubmitting(true);
 
     try {
+      // Block check before submission
+      const { data: isBlocked } = await supabase.rpc('is_email_blocked', { p_email: formData.email.trim().toLowerCase() });
+      if (isBlocked) {
+        toast.error("You are not permitted to apply for membership. If you believe this is an error, please contact us.");
+        setIsSubmitting(false);
+        return;
+      }
       const applicationPayload = {
         first_name: formData.firstName,
         last_name: formData.lastName,
