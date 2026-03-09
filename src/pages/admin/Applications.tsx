@@ -1843,6 +1843,10 @@ export default function Applications() {
             <Button variant={statusFilter === "approved" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("approved")}>Approved</Button>
             <Button variant={statusFilter === "rejected" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("rejected")}>Rejected</Button>
             <Button variant={statusFilter === "cancelled" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("cancelled")}>Cancelled</Button>
+            <Button variant={statusFilter === "abandoned" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("abandoned")} className="border-destructive/30 text-destructive hover:bg-destructive/10">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Abandoned
+            </Button>
             <div className="h-6 w-px bg-border mx-1" />
             <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-1" />
