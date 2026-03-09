@@ -61,6 +61,7 @@ import { AddApplicantCardModal } from "@/components/admin/AddApplicantCardModal"
 import { MarkPaidDialog, ManualPaymentMethod } from "@/components/admin/MarkPaidDialog";
 import { PersonalizedLetterModal } from "@/components/admin/PersonalizedLetterModal";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { AbandonedApplicationsTab } from "@/components/admin/AbandonedApplicationsTab";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
