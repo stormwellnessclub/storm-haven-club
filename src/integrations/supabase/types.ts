@@ -3356,6 +3356,165 @@ export type Database = {
         }
         Relationships: []
       }
+      merch_inventory: {
+        Row: {
+          color: string
+          id: string
+          product_id: string
+          quantity: number | null
+          size: string
+        }
+        Insert: {
+          color: string
+          id?: string
+          product_id: string
+          quantity?: number | null
+          size: string
+        }
+        Update: {
+          color?: string
+          id?: string
+          product_id?: string
+          quantity?: number | null
+          size?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merch_inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "merch_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      merch_orders: {
+        Row: {
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          is_preorder: boolean | null
+          member_id: string | null
+          notes: string | null
+          order_items: Json
+          payment_method: string | null
+          status: string | null
+          stripe_payment_intent_id: string | null
+          total_amount: number
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          is_preorder?: boolean | null
+          member_id?: string | null
+          notes?: string | null
+          order_items?: Json
+          payment_method?: string | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+          total_amount?: number
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          is_preorder?: boolean | null
+          member_id?: string | null
+          notes?: string | null
+          order_items?: Json
+          payment_method?: string | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+          total_amount?: number
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merch_orders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merch_orders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merch_orders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      merch_products: {
+        Row: {
+          allow_preorder: boolean | null
+          category: string | null
+          colors: string[] | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          image_urls: string[] | null
+          is_active: boolean | null
+          name: string
+          price: number
+          sizes: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          allow_preorder?: boolean | null
+          category?: string | null
+          colors?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_urls?: string[] | null
+          is_active?: boolean | null
+          name: string
+          price: number
+          sizes?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          allow_preorder?: boolean | null
+          category?: string | null
+          colors?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_urls?: string[] | null
+          is_active?: boolean | null
+          name?: string
+          price?: number
+          sizes?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       non_member_profiles: {
         Row: {
           card_brand: string | null
