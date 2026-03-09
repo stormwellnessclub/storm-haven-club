@@ -1471,7 +1471,7 @@ export default function Applications() {
     const matchesSearch =
       app.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || app.status === statusFilter;
+    const matchesStatus = statusFilter === "all" ? app.status !== "pending_payment" : statusFilter === "abandoned" ? false : app.status === statusFilter;
     const matchesPlan = planFilter === "all" || app.membership_plan === planFilter;
     
     const appDate = new Date(app.created_at);

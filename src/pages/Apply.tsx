@@ -715,6 +715,7 @@ export default function Apply() {
         .ilike("email", emailToCheck)
         .neq("status", "rejected")
         .neq("status", "cancelled")
+        .neq("status", "pending_payment")
         .maybeSingle();
 
       if (appData) {
