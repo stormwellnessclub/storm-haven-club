@@ -2072,7 +2072,18 @@ export default function Applications() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Applications Table */}
+        {/* Abandoned Applications Tab */}
+        {statusFilter === "abandoned" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Abandoned Applications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AbandonedApplicationsTab />
+            </CardContent>
+          </Card>
+        ) : (
+        /* Applications Table */
         <Card>
           <CardHeader>
             <CardTitle>Applications ({filteredApplications.length})</CardTitle>
