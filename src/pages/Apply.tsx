@@ -308,6 +308,7 @@ export default function Apply() {
   const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
   const [currentStepId, setCurrentStepId] = useState("personal");
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [savedApplicationId, setSavedApplicationId] = useState<string | null>(null);
   
   // Section refs for scroll tracking
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
