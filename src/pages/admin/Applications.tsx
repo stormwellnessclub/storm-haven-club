@@ -2536,6 +2536,7 @@ export default function Applications() {
             </Table>
           </CardContent>
         </Card>
+        )}
 
         {/* Application Detail Dialog */}
         <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
