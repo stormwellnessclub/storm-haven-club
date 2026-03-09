@@ -597,6 +597,43 @@ export default function Apply() {
     console.log("[Apply] Saved draft before payment setup");
 
     try {
+      // Save application with pending_payment status BEFORE opening Stripe card form
+      // This ensures we never lose an applicant even if they abandon the card step
+      if (!savedApplicationId) {
+        console.log("[Apply] Saving application with pending_payment status...");
+        const { data: appData, error: appError } = await supabase.from("membership_applications").insert({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          full_name: `${formData.firstName} ${formData.lastName}`,
+          date_of_birth: formData.dateOfBirth || null,
+          gender: formData.gender || null,
+          address: formData.address || null,
+          city: formData.city || null,
+          state: formData.state || null,
+          zip_code: formData.zipCode || null,
+          country: formData.country || null,
+          email: formData.email,
+          phone: formData.phone || null,
+          membership_plan: formData.membershipPlan || null,
+          wellness_goals: formData.wellnessGoals.length > 0 ? formData.wellnessGoals : null,
+          services_interested: formData.servicesInterested.length > 0 ? formData.servicesInterested : null,
+          referred_by_member: formData.referredByMember || null,
+          founding_member: formData.foundingMember || null,
+          lifestyle_integration: formData.lifestyleIntegration || null,
+          holistic_wellness: formData.holisticWellness || null,
+          status: "pending_payment",
+          payment_info_provided: false,
+        }).select("id").single();
+
+        if (appError) {
+          console.error("[Apply] Failed to save pre-payment application:", appError);
+          // Don't block the card flow - just log it
+        } else if (appData?.id) {
+          setSavedApplicationId(appData.id);
+          console.log("[Apply] Application saved with id:", appData.id);
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke("stripe-payment", {
         body: {
           action: "create_application_setup",
