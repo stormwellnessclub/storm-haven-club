@@ -11,13 +11,21 @@ import {
 } from "@/components/ui/select";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 import { useAutopaySchedule } from "@/hooks/useAutopaySchedule";
-import { format } from "date-fns";
+import { format, startOfMonth, addMonths } from "date-fns";
 import { Calendar, DollarSign, CheckCircle, XCircle, Clock, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+function getDefaultDateRange(): DateRange {
+  const now = new Date();
+  return {
+    from: startOfMonth(now),
+    to: addMonths(startOfMonth(now), 3),
+  };
+}
+
 export function AutopayScheduleTab() {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange);
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -141,7 +149,7 @@ export function AutopayScheduleTab() {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6 space-y-3">
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : entries.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
@@ -154,9 +162,9 @@ export function AutopayScheduleTab() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Client</TableHead>
+                  <TableHead>Phone</TableHead>
                   <TableHead>Payment Type</TableHead>
-                  <TableHead>Tier</TableHead>
-                  <TableHead>Card</TableHead>
+                  <TableHead>Billing Info</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -169,12 +177,15 @@ export function AutopayScheduleTab() {
                     </TableCell>
                     <TableCell>
                       <button
-                        className="text-left hover:underline text-primary font-medium"
+                        className="text-left hover:underline text-primary font-medium text-sm"
                         onClick={() => entry.member_id && navigate(`/admin/members/${entry.member_id}`)}
                       >
                         {entry.member_name}
                       </button>
                       <div className="text-xs text-muted-foreground">{entry.member_email}</div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {entry.phone || "—"}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -188,7 +199,6 @@ export function AutopayScheduleTab() {
                         {entry.payment_type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="capitalize">{entry.tier}</TableCell>
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {entry.card_info || "—"}
                     </TableCell>
