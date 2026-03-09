@@ -61,7 +61,8 @@ export const PAGE_PERMISSIONS: Record<string, AppRole[]> = {
   '/admin/marketing': ['super_admin', 'admin'],
   '/admin/non-member-accounts': ['super_admin', 'admin', 'manager', 'front_desk'],
   '/admin/non-member-accounts/:userId': ['super_admin', 'admin', 'manager', 'front_desk'],
-  '/portal': ['super_admin', 'admin', 'manager', 'front_desk'],
+  '/admin/merch': ['super_admin', 'admin', 'manager'],
+  '/admin/portal': ['super_admin', 'admin', 'manager', 'front_desk'],
 };
 
 // Helper to check if a role can access a page
