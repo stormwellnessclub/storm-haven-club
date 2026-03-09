@@ -339,6 +339,9 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
   const [showCreateSubscriptionDialog, setShowCreateSubscriptionDialog] = useState(false);
 
+  // Change billing date state
+  const [showChangeBillingDate, setShowChangeBillingDate] = useState(false);
+
   // Retry / Deactivate hooks
   const retryInvoice = useRetryInvoice();
   const syncMemberStatus = useSyncMemberStatus();
