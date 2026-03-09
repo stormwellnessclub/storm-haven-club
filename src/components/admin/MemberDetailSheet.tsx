@@ -1497,6 +1497,21 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                           >
                             Cancel Subscription
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setShowChangeBillingDate(true)}
+                            disabled={!member.stripe_subscription_id}
+                          >
+                            <CalendarClock className="h-4 w-4 mr-1" />
+                            Change Billing Date
+                          </Button>
+                          <AddProcessingFeesButton
+                            subscriptionId={member.stripe_subscription_id || ""}
+                            annualFeeSubscriptionId={member.annual_fee_subscription_id}
+                            memberName={`${member.first_name} ${member.last_name}`}
+                          />
                         </div>
                       </div>
 
