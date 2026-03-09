@@ -281,6 +281,24 @@ serve(async (req) => {
         throw new Error("Missing required fields for application setup (email, name)");
       }
 
+      // Block check for application setup
+      const { data: blockedApp } = await supabase
+        .from('blocked_persons')
+        .select('id')
+        .ilike('email', applicantEmail.trim())
+        .maybeSingle();
+      if (blockedApp) {
+        logStep("BLOCKED person attempted application setup", { email: applicantEmail });
+        return new Response(
+          JSON.stringify({ error: "Access denied. You are not permitted to use our services." }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+
+      if (false) {
+        throw new Error("Missing required fields for application setup (email, name)");
+      }
+
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(applicantEmail)) {
