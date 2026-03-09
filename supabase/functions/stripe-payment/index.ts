@@ -177,7 +177,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'create_wellness_credit_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'create_wellness_credit_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card' | 'update_billing_anchor' | 'add_processing_fees_to_subscription';
   // For non-member recovery checkout
   serviceName?: string;
   embedded?: boolean; // For embedded checkout mode
@@ -6357,6 +6357,141 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ success: true, imported: importedCount }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'update_billing_anchor': {
+        // Shift the next billing date for a subscription (e.g., after a freeze)
+        // Uses trial_end to defer the next charge without creating an immediate invoice
+        const { subscriptionId, newBillingDate } = body;
+        if (!subscriptionId || !newBillingDate) {
+          throw new Error("Missing subscriptionId or newBillingDate");
+        }
+
+        // Verify admin role
+        const { data: anchorRoleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+
+        if (!anchorRoleData || anchorRoleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        const newDate = new Date(newBillingDate);
+        const now = new Date();
+        
+        if (newDate <= now) {
+          throw new Error("New billing date must be in the future");
+        }
+
+        const newAnchorTimestamp = Math.floor(newDate.getTime() / 1000);
+
+        logStep("Updating billing anchor", { subscriptionId, newBillingDate, newAnchorTimestamp });
+
+        // Get current subscription to log what's changing
+        const currentSub = await stripe.subscriptions.retrieve(subscriptionId);
+        const oldPeriodEnd = currentSub.current_period_end;
+
+        logStep("Current period end", { 
+          oldPeriodEnd: new Date(oldPeriodEnd * 1000).toISOString(),
+          newPeriodEnd: newDate.toISOString()
+        });
+
+        // Use trial_end to shift the next billing date without generating an immediate invoice
+        // This extends the current period to the new date without charging
+        const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+          trial_end: newAnchorTimestamp,
+          proration_behavior: 'none',
+        });
+
+        logStep("Billing anchor updated", { 
+          subscriptionId, 
+          newTrialEnd: updatedSubscription.trial_end,
+          status: updatedSubscription.status 
+        });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            subscription: {
+              id: updatedSubscription.id,
+              status: updatedSubscription.status,
+              trial_end: updatedSubscription.trial_end,
+              current_period_end: updatedSubscription.current_period_end,
+            },
+            old_period_end: new Date(oldPeriodEnd * 1000).toISOString(),
+            new_billing_date: newDate.toISOString(),
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'add_processing_fees_to_subscription': {
+        // Retroactively add processing fee line items to an existing subscription
+        const { subscriptionId } = body;
+        if (!subscriptionId) throw new Error("Missing subscriptionId");
+
+        // Verify admin role
+        const { data: feeRoleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin']);
+
+        if (!feeRoleData || feeRoleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        const existingSub = await stripe.subscriptions.retrieve(subscriptionId);
+        
+        // Check if processing fees already exist
+        const hasProcessingFee = existingSub.items.data.some(item => {
+          const productId = typeof item.price.product === 'string' ? item.price.product : (item.price.product as any)?.id;
+          return item.price.metadata?.type === 'processing_fee' || false;
+        });
+
+        if (hasProcessingFee) {
+          return new Response(
+            JSON.stringify({ success: true, message: "Processing fees already exist on this subscription", skipped: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        // Find the base price items (non-fee items)
+        const baseItems = existingSub.items.data.filter(item => {
+          return !item.price.metadata?.type || item.price.metadata.type !== 'processing_fee';
+        });
+
+        if (baseItems.length === 0) {
+          throw new Error("No base price items found on subscription");
+        }
+
+        // Add processing fee for each base item
+        const addedFees: string[] = [];
+        for (const baseItem of baseItems) {
+          const baseAmount = baseItem.price.unit_amount || 0;
+          const interval = (baseItem.price.recurring?.interval as 'month' | 'year') || 'month';
+          
+          const feePriceId = await getOrCreateRecurringProcessingFeePrice(stripe, baseAmount, interval);
+          if (feePriceId) {
+            await stripe.subscriptions.update(subscriptionId, {
+              items: [{ price: feePriceId, quantity: 1 }],
+              proration_behavior: 'none',
+            });
+            addedFees.push(feePriceId);
+            logStep("Added processing fee to subscription", { subscriptionId, feePriceId, baseAmount, interval });
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            fees_added: addedFees.length,
+            fee_price_ids: addedFees,
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }

@@ -8,6 +8,8 @@ import { AdminAddCardForm } from "./AdminAddCardForm";
 import { CreateSubscriptionDialog } from "./CreateSubscriptionDialog";
 import { ChargeItemSelector } from "./ChargeItemSelector";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "./AdminActionButton";
+import { ChangeBillingDateDialog } from "./ChangeBillingDateDialog";
+import { AddProcessingFeesButton } from "./AddProcessingFeesButton";
 import {
   Sheet,
   SheetContent,
@@ -49,7 +51,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye, RotateCcw, KeyRound } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye, RotateCcw, KeyRound, CalendarClock } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
@@ -336,6 +338,9 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   // Create subscription state
   const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
   const [showCreateSubscriptionDialog, setShowCreateSubscriptionDialog] = useState(false);
+
+  // Change billing date state
+  const [showChangeBillingDate, setShowChangeBillingDate] = useState(false);
 
   // Retry / Deactivate hooks
   const retryInvoice = useRetryInvoice();
@@ -1492,6 +1497,21 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                           >
                             Cancel Subscription
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setShowChangeBillingDate(true)}
+                            disabled={!member.stripe_subscription_id}
+                          >
+                            <CalendarClock className="h-4 w-4 mr-1" />
+                            Change Billing Date
+                          </Button>
+                          <AddProcessingFeesButton
+                            subscriptionId={member.stripe_subscription_id || ""}
+                            annualFeeSubscriptionId={member.annual_fee_subscription_id}
+                            memberName={`${member.first_name} ${member.last_name}`}
+                          />
                         </div>
                       </div>
 
@@ -1739,6 +1759,18 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change Billing Date Dialog */}
+      {member && (
+        <ChangeBillingDateDialog
+          open={showChangeBillingDate}
+          onOpenChange={setShowChangeBillingDate}
+          memberId={member.id}
+          memberName={`${member.first_name} ${member.last_name}`}
+          subscriptionId={member.stripe_subscription_id}
+          annualFeeSubscriptionId={member.annual_fee_subscription_id}
+        />
+      )}
     </>
   );
 }
