@@ -606,6 +606,8 @@ export type Database = {
           initiated_by: string | null
           member_id: string | null
           metadata: Json | null
+          reminder_count: number | null
+          reminder_sent_at: string | null
           source: string
           status: string
           stripe_customer_id: string
@@ -623,6 +625,8 @@ export type Database = {
           initiated_by?: string | null
           member_id?: string | null
           metadata?: Json | null
+          reminder_count?: number | null
+          reminder_sent_at?: string | null
           source: string
           status?: string
           stripe_customer_id: string
@@ -640,6 +644,8 @@ export type Database = {
           initiated_by?: string | null
           member_id?: string | null
           metadata?: Json | null
+          reminder_count?: number | null
+          reminder_sent_at?: string | null
           source?: string
           status?: string
           stripe_customer_id?: string

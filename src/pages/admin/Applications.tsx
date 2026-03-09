@@ -61,6 +61,7 @@ import { AddApplicantCardModal } from "@/components/admin/AddApplicantCardModal"
 import { MarkPaidDialog, ManualPaymentMethod } from "@/components/admin/MarkPaidDialog";
 import { PersonalizedLetterModal } from "@/components/admin/PersonalizedLetterModal";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { AbandonedApplicationsTab } from "@/components/admin/AbandonedApplicationsTab";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -1470,7 +1471,7 @@ export default function Applications() {
     const matchesSearch =
       app.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || app.status === statusFilter;
+    const matchesStatus = statusFilter === "all" ? app.status !== "pending_payment" : statusFilter === "abandoned" ? false : app.status === statusFilter;
     const matchesPlan = planFilter === "all" || app.membership_plan === planFilter;
     
     const appDate = new Date(app.created_at);
@@ -1842,6 +1843,10 @@ export default function Applications() {
             <Button variant={statusFilter === "approved" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("approved")}>Approved</Button>
             <Button variant={statusFilter === "rejected" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("rejected")}>Rejected</Button>
             <Button variant={statusFilter === "cancelled" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("cancelled")}>Cancelled</Button>
+            <Button variant={statusFilter === "abandoned" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("abandoned")} className="border-destructive/30 text-destructive hover:bg-destructive/10">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Abandoned
+            </Button>
             <div className="h-6 w-px bg-border mx-1" />
             <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-1" />
@@ -2067,7 +2072,18 @@ export default function Applications() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Applications Table */}
+        {/* Abandoned Applications Tab */}
+        {statusFilter === "abandoned" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Abandoned Applications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AbandonedApplicationsTab />
+            </CardContent>
+          </Card>
+        ) : (
+        /* Applications Table */
         <Card>
           <CardHeader>
             <CardTitle>Applications ({filteredApplications.length})</CardTitle>
@@ -2520,6 +2536,7 @@ export default function Applications() {
             </Table>
           </CardContent>
         </Card>
+        )}
 
         {/* Application Detail Dialog */}
         <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>

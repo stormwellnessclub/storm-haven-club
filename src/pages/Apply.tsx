@@ -308,6 +308,7 @@ export default function Apply() {
   const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
   const [currentStepId, setCurrentStepId] = useState("personal");
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [savedApplicationId, setSavedApplicationId] = useState<string | null>(null);
   
   // Section refs for scroll tracking
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -596,6 +597,43 @@ export default function Apply() {
     console.log("[Apply] Saved draft before payment setup");
 
     try {
+      // Save application with pending_payment status BEFORE opening Stripe card form
+      // This ensures we never lose an applicant even if they abandon the card step
+      if (!savedApplicationId) {
+        console.log("[Apply] Saving application with pending_payment status...");
+        const { data: appData, error: appError } = await supabase.from("membership_applications").insert({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          full_name: `${formData.firstName} ${formData.lastName}`,
+          date_of_birth: formData.dateOfBirth || null,
+          gender: formData.gender || null,
+          address: formData.address || null,
+          city: formData.city || null,
+          state: formData.state || null,
+          zip_code: formData.zipCode || null,
+          country: formData.country || null,
+          email: formData.email,
+          phone: formData.phone || null,
+          membership_plan: formData.membershipPlan || null,
+          wellness_goals: formData.wellnessGoals.length > 0 ? formData.wellnessGoals : null,
+          services_interested: formData.servicesInterested.length > 0 ? formData.servicesInterested : null,
+          referred_by_member: formData.referredByMember || null,
+          founding_member: formData.foundingMember || null,
+          lifestyle_integration: formData.lifestyleIntegration || null,
+          holistic_wellness: formData.holisticWellness || null,
+          status: "pending_payment",
+          payment_info_provided: false,
+        }).select("id").single();
+
+        if (appError) {
+          console.error("[Apply] Failed to save pre-payment application:", appError);
+          // Don't block the card flow - just log it
+        } else if (appData?.id) {
+          setSavedApplicationId(appData.id);
+          console.log("[Apply] Application saved with id:", appData.id);
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke("stripe-payment", {
         body: {
           action: "create_application_setup",
@@ -677,6 +715,7 @@ export default function Apply() {
         .ilike("email", emailToCheck)
         .neq("status", "rejected")
         .neq("status", "cancelled")
+        .neq("status", "pending_payment")
         .maybeSingle();
 
       if (appData) {
@@ -768,8 +807,7 @@ export default function Apply() {
     setIsSubmitting(true);
 
     try {
-      // Save application to database with stripe_customer_id
-      const { error } = await supabase.from("membership_applications").insert({
+      const applicationPayload = {
         first_name: formData.firstName,
         last_name: formData.lastName,
         full_name: `${formData.firstName} ${formData.lastName}`,
@@ -805,7 +843,23 @@ export default function Apply() {
         card_last4: savedCardDetails?.last4 || null,
         card_exp_month: savedCardDetails?.expMonth || null,
         card_exp_year: savedCardDetails?.expYear || null,
-      });
+        status: "pending",
+      };
+
+      // If we already saved a pending_payment application, update it instead of inserting
+      let error;
+      if (savedApplicationId) {
+        console.log("[Apply] Updating existing application:", savedApplicationId);
+        const result = await supabase
+          .from("membership_applications")
+          .update(applicationPayload)
+          .eq("id", savedApplicationId);
+        error = result.error;
+      } else {
+        console.log("[Apply] Inserting new application");
+        const result = await supabase.from("membership_applications").insert(applicationPayload);
+        error = result.error;
+      }
 
       if (error) {
         console.error("Error submitting application:", error);
