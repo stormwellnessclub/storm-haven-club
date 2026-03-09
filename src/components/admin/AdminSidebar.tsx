@@ -32,6 +32,7 @@ import {
   FileWarning,
   Sparkles,
   Megaphone,
+  ShoppingBag,
 } from "lucide-react";
 import {
   Sidebar,

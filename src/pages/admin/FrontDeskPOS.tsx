@@ -173,6 +173,23 @@ export default function FrontDeskPOS() {
             </div>
           </TabsContent>
 
+          <TabsContent value="merch">
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <MerchPOSTab onAddToCart={addToCart} />
+              </div>
+              <CafePOSCart
+                cart={cart}
+                updateQuantity={updateQuantity}
+                selectedCustomer={selectedCustomer}
+                onCustomerSelect={setSelectedCustomer}
+                onPlaceOrder={handlePlaceOrder}
+                onClearCart={clearCart}
+                isPlacing={isCharging || createOrder.isPending}
+              />
+            </div>
+          </TabsContent>
+
           <TabsContent value="orders" className="space-y-4">
             <div className="flex gap-2 flex-wrap">
               {[undefined, "pending", "preparing", "ready", "completed"].map((s) => (

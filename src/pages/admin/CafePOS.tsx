@@ -256,6 +256,23 @@ export default function CafePOS() {
               />
             </div>
           </TabsContent>
+
+          <TabsContent value="merch">
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <MerchPOSTab onAddToCart={addToCart} />
+              </div>
+              <CafePOSCart
+                cart={cart}
+                updateQuantity={updateQuantity}
+                selectedCustomer={selectedCustomer}
+                onCustomerSelect={setSelectedCustomer}
+                onPlaceOrder={handlePlaceOrder}
+                onClearCart={clearCart}
+                isPlacing={isCharging || createOrder.isPending}
+              />
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
