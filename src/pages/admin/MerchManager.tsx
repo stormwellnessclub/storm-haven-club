@@ -174,8 +174,8 @@ export default function MerchManager() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Merch Manager</h1>
-            <p className="text-muted-foreground">Manage branded apparel and merchandise</p>
+            <h1 className="text-2xl font-bold">Storm Shop Manager</h1>
+            <p className="text-muted-foreground">Manage products, apparel, wellness items & more</p>
           </div>
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4 mr-2" /> Add Product
