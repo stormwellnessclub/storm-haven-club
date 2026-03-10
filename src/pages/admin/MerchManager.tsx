@@ -60,6 +60,8 @@ export default function MerchManager() {
   const [uploading, setUploading] = useState(false);
   const [inventoryDialog, setInventoryDialog] = useState<MerchProduct | null>(null);
   const [inventoryValues, setInventoryValues] = useState<Record<string, number>>({});
+  const [customCategory, setCustomCategory] = useState("");
+  const [customColor, setCustomColor] = useState("");
 
   const openCreate = () => {
     setEditingProduct(null);
