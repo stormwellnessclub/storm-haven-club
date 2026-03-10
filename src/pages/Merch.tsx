@@ -271,7 +271,7 @@ export default function Merch() {
           <div className="text-center py-16 text-muted-foreground">
             <ShoppingBag className="h-16 w-16 mx-auto mb-4 opacity-50" />
             <p className="text-lg">Coming soon!</p>
-            <p>Check back for new merch drops.</p>
+            <p>Check back for new product drops.</p>
           </div>
         )}
 
