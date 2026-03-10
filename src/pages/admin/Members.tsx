@@ -1016,6 +1016,7 @@ export default function Members() {
                     <TableHead>Status</TableHead>
                     <TableHead>Issues</TableHead>
                     <TableHead>Email Sent</TableHead>
+                    <TableHead>Next Billing</TableHead>
                     <TableHead>Join Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
