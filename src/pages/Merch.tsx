@@ -263,8 +263,8 @@ export default function Merch() {
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold">Storm Haven Merch</h1>
-          <p className="text-muted-foreground mt-2">Branded apparel & accessories — preorder now</p>
+          <h1 className="text-4xl font-bold">Storm Shop</h1>
+          <p className="text-muted-foreground mt-2">Branded gear, wellness products & more — preorder now</p>
         </div>
 
         {categories.length === 0 && (
