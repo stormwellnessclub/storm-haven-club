@@ -305,7 +305,7 @@ export default function MerchManager() {
               </div>
 
               <div>
-                <Label>Colors</Label>
+                <Label>Colors <span className="text-xs text-muted-foreground">(optional)</span></Label>
                 <div className="flex gap-2 flex-wrap mt-1">
                   {DEFAULT_COLORS.map((c) => (
                     <Button
@@ -318,6 +318,47 @@ export default function MerchManager() {
                       {c}
                     </Button>
                   ))}
+                  {form.colors.filter((c) => !DEFAULT_COLORS.includes(c)).map((c) => (
+                    <Button
+                      key={c}
+                      type="button"
+                      size="sm"
+                      variant="default"
+                      onClick={() => toggleColor(c)}
+                    >
+                      {c} ×
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Add custom color"
+                    value={customColor}
+                    onChange={(e) => setCustomColor(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && customColor.trim()) {
+                        e.preventDefault();
+                        if (!form.colors.includes(customColor.trim())) {
+                          setForm((f) => ({ ...f, colors: [...f.colors, customColor.trim()] }));
+                        }
+                        setCustomColor("");
+                      }
+                    }}
+                    className="h-8"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (customColor.trim() && !form.colors.includes(customColor.trim())) {
+                        setForm((f) => ({ ...f, colors: [...f.colors, customColor.trim()] }));
+                      }
+                      setCustomColor("");
+                    }}
+                  >
+                    Add
+                  </Button>
                 </div>
               </div>
 
