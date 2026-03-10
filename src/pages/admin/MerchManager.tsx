@@ -253,18 +253,38 @@ export default function MerchManager() {
                   <Label>Price</Label>
                   <Input type="number" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
                 </div>
-                <div>
-                  <Label>Category</Label>
-                  <select
-                    className="flex h-11 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
-                    value={form.category}
-                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  >
-                    {DEFAULT_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
+                 <div>
+                   <Label>Category</Label>
+                   <select
+                     className="flex h-11 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
+                     value={DEFAULT_CATEGORIES.includes(form.category) ? form.category : "__custom__"}
+                     onChange={(e) => {
+                       if (e.target.value === "__custom__") {
+                         setCustomCategory(form.category && !DEFAULT_CATEGORIES.includes(form.category) ? form.category : "");
+                         setForm((f) => ({ ...f, category: "" }));
+                       } else {
+                         setCustomCategory("");
+                         setForm((f) => ({ ...f, category: e.target.value }));
+                       }
+                     }}
+                   >
+                     {DEFAULT_CATEGORIES.map((c) => (
+                       <option key={c} value={c}>{c}</option>
+                     ))}
+                     <option value="__custom__">Custom…</option>
+                   </select>
+                   {((!DEFAULT_CATEGORIES.includes(form.category) && form.category !== "") || customCategory !== "" || form.category === "") && (
+                     <Input
+                       className="mt-2"
+                       placeholder="Enter custom category"
+                       value={customCategory || (DEFAULT_CATEGORIES.includes(form.category) ? "" : form.category)}
+                       onChange={(e) => {
+                         setCustomCategory(e.target.value);
+                         setForm((f) => ({ ...f, category: e.target.value }));
+                       }}
+                     />
+                   )}
+                 </div>
               </div>
 
               <div>
