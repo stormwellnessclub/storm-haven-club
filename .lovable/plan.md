@@ -1,37 +1,56 @@
 
 
-# Auto-Realign Billing Date When Freeze Ends
+# Projections & Upcoming Auto-Pays System
 
-## The Problem
+## Current State
 
-Right now, when a freeze ends (either automatically via `process-freeze-expirations` or manually via "End Freeze Early"):
-1. The subscription is resumed (`pause_collection: null`)
-2. But the **billing anchor stays at the original date** -- so the member immediately gets charged on their old cycle date
+You already have several pieces in place:
 
-This means you have to manually go into Stripe and shift the billing date for every frozen member. That's what happened with Afifa — her subscription was paused but when it resumes, Stripe would charge on the old anniversary (March 9), not the freeze end date (March 31).
+1. **Upcoming Payments Tab** (`UpcomingPaymentsTab.tsx`) — shows members with upcoming billing dates, card risk levels, and expected amounts. However, it uses **hardcoded tier pricing** (`soul: 300, spirit: 450, aura: 750`) that doesn't match the centralized pricing in `membershipPricing.ts` (`silver/gold/platinum/diamond` with gender-based pricing).
 
-**About Afifa specifically**: Since you already shifted her next payment to March 31st using Stripe, future months WILL follow from March 31st. The `trial_end` approach resets the billing cycle anchor when it expires, so April will be ~April 30, May ~May 31, etc. She's fine going forward.
+2. **Revenue Analytics page** (`RevenueAnalytics.tsx`) — has a 12-month cash flow projection chart based on current applications/members.
 
-## The Fix
+3. **Reports** — `next-month-projection`, `cash-flow-projection`, and `class-revenue-projection` reports already exist in the report system.
 
-After resuming a subscription, automatically call `update_billing_anchor` to shift the next charge to the freeze end date. This applies to both:
+4. **Stripe Live tab** — shows open/uncollectible invoices from Stripe directly.
 
-1. **`useEndFreezeEarly` hook** (admin manually ends freeze) — shift billing to today
-2. **`process-freeze-expirations` edge function** (automatic expiry) — shift billing to the `actual_end_date`
+## What's Missing / Broken
 
-### Files to modify
+1. **Pricing mismatch**: The Upcoming Payments hook uses `soul/spirit/aura` tiers with flat prices, but your real pricing is `silver/gold/platinum/diamond` with gender-based rates. Expected amounts are likely wrong or $0 for most members.
 
-**`src/hooks/useAdminFreezeRequests.ts`** — in `useEndFreezeEarly`:
-- After calling `resume_subscription`, call `update_billing_anchor` with today's date for the membership subscription
-- Do the same for the annual fee subscription if it exists
+2. **No Stripe-based billing dates**: Next billing is calculated by looping `addMonths` from `membership_start_date`, but Stripe has the actual `current_period_end` — the real next charge date. These can drift apart.
 
-**`supabase/functions/process-freeze-expirations/index.ts`** — after each `resume_subscription` call:
-- Call `update_billing_anchor` with the freeze's `actual_end_date` for both membership and annual fee subscriptions
+3. **No projection summary dashboard**: The Upcoming Payments tab shows individual rows but lacks aggregated projection cards like "Expected collections this week / this month / next 3 months" with confidence levels.
 
-### What this changes
+4. **Founding members shown but have $0 auto-pays**: Founding members who paid annually don't have recurring Stripe charges, but they still appear in the upcoming payments list.
 
-- **Before**: Admin must manually shift billing dates in Stripe after every freeze ends
-- **After**: Billing date automatically realigns to the freeze end date; future monthly charges follow from there
+## Plan
 
-No database changes needed. Two files, adding ~20 lines each to chain the billing anchor update after resume.
+### 1. Fix pricing in Upcoming Payments hook
+Update `useUpcomingPayments` in `usePaymentTracking.ts` to use `extractTier()`, `normalizeGender()`, and `getMonthlyPrice()` from `membershipPricing.ts` instead of the hardcoded `soul/spirit/aura` map. Also exclude founding members (they have no monthly auto-pay) or show them with $0 clearly marked.
+
+### 2. Add a "Projections" summary section to the Upcoming Payments tab
+Add projection summary cards to `UpcomingPaymentsTab.tsx`:
+- **This week**: sum of expected payments in next 7 days
+- **This month**: sum in next 30 days
+- **At-risk amount**: sum of payments where card is expiring/expired
+- **Collection confidence**: percentage of payments with valid cards
+
+*(The 7-day and 30-day cards already exist but will now show correct amounts after the pricing fix.)*
+
+### 3. Create a new "Auto-Pay Projections" tab on the Payment Tracking page
+Add a new tab to `PaymentTracking.tsx` called "Projections" that shows:
+- **Monthly projection chart** (next 3-6 months): bar chart of expected auto-pay collections by month, using real member data and correct tier/gender pricing
+- **Breakdown by tier**: how much revenue is expected from each tier
+- **Risk breakdown**: how much is at risk due to card issues
+- **Founding member renewal dates**: when annual founding memberships are up for renewal
+
+This tab will use a new component `AutoPayProjectionsTab.tsx` that queries active members and projects forward.
+
+### Files
+
+- **Modify**: `src/hooks/usePaymentTracking.ts` — fix `useUpcomingPayments` to use centralized pricing, exclude/flag founding members
+- **Modify**: `src/components/admin/UpcomingPaymentsTab.tsx` — update summary cards with collection confidence metric
+- **Create**: `src/components/admin/AutoPayProjectionsTab.tsx` — new projections tab with monthly chart, tier breakdown, risk analysis
+- **Modify**: `src/pages/admin/PaymentTracking.tsx` — add Projections tab
 
