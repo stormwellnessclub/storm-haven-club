@@ -163,6 +163,12 @@ export function SubscriptionCard({
                     <CheckCircle2 className="h-4 w-4" />
                     <span className="font-medium">Active</span>
                   </div>
+                  {nextBillingDate && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CalendarClock className="h-3 w-3" />
+                      <span>Next billing: <span className="font-medium text-foreground">{format(new Date(nextBillingDate), "MMM d, yyyy")}</span></span>
+                    </div>
+                  )}
                   <a 
                     href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
                     target="_blank" 
