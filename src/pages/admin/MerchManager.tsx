@@ -21,8 +21,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const DEFAULT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
-const DEFAULT_COLORS = ["Black", "White", "Gray", "Navy"];
-const DEFAULT_CATEGORIES = ["Hoodies", "T-Shirts", "Hats", "Accessories", "Bottoms"];
+const DEFAULT_COLORS = ["Black", "White", "Gray", "Navy", "Red", "Blue", "Green", "Pink", "Purple", "Tan", "Brown", "Camo", "Olive"];
+const DEFAULT_CATEGORIES = ["Apparel", "Hoodies", "T-Shirts", "Hats", "Bottoms", "Skincare", "Hair Care", "Supplements", "Wellness", "Accessories", "Other"];
 
 interface ProductFormData {
   name: string;
@@ -39,9 +39,9 @@ const emptyForm: ProductFormData = {
   name: "",
   description: "",
   price: "",
-  category: "T-Shirts",
-  sizes: ["S", "M", "L", "XL"],
-  colors: ["Black"],
+  category: "Apparel",
+  sizes: [],
+  colors: [],
   allow_preorder: true,
   is_active: true,
 };
