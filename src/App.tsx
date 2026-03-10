@@ -137,6 +137,7 @@ const App = () => (
               <Route path="/guest-feedback" element={<GuestFeedback />} />
               <Route path="/design-system" element={<DesignSystem />} />
               <Route path="/merch" element={<Merch />} />
+              <Route path="/shop" element={<Merch />} />
               
               {/* Member Portal Routes - Protected */}
               <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />

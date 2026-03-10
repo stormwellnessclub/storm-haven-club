@@ -152,7 +152,7 @@ export default function CafePOS() {
           <TabsList>
             <TabsTrigger value="orders">Order Queue</TabsTrigger>
             <TabsTrigger value="pos">POS Terminal</TabsTrigger>
-            <TabsTrigger value="merch"><ShoppingBag className="h-4 w-4 mr-1" />Merch</TabsTrigger>
+            <TabsTrigger value="merch"><ShoppingBag className="h-4 w-4 mr-1" />Storm Shop</TabsTrigger>
           </TabsList>
 
           <TabsContent value="orders" className="space-y-4">

@@ -152,7 +152,7 @@ export default function FrontDeskPOS() {
         <Tabs defaultValue="pos" className="space-y-6">
           <TabsList>
             <TabsTrigger value="pos">POS Terminal</TabsTrigger>
-            <TabsTrigger value="merch"><ShoppingBag className="h-4 w-4 mr-1" />Merch</TabsTrigger>
+            <TabsTrigger value="merch"><ShoppingBag className="h-4 w-4 mr-1" />Storm Shop</TabsTrigger>
             <TabsTrigger value="orders">Order Queue</TabsTrigger>
           </TabsList>
 

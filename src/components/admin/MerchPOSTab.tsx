@@ -94,8 +94,8 @@ export function MerchPOSTab({ onAddToCart }: MerchPOSTabProps) {
       {(!products || products.length === 0) && (
         <div className="text-center py-12 text-muted-foreground">
           <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-50" />
-          <p>No merch products yet</p>
-          <p className="text-sm">Add products in the Merch Manager</p>
+          <p>No Storm Shop products yet</p>
+          <p className="text-sm">Add products in the Storm Shop Manager</p>
         </div>
       )}
 

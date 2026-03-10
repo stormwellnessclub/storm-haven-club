@@ -21,8 +21,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const DEFAULT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
-const DEFAULT_COLORS = ["Black", "White", "Gray", "Navy"];
-const DEFAULT_CATEGORIES = ["Hoodies", "T-Shirts", "Hats", "Accessories", "Bottoms"];
+const DEFAULT_COLORS = ["Black", "White", "Gray", "Navy", "Red", "Blue", "Green", "Pink", "Purple", "Tan", "Brown", "Camo", "Olive"];
+const DEFAULT_CATEGORIES = ["Apparel", "Hoodies", "T-Shirts", "Hats", "Bottoms", "Skincare", "Hair Care", "Supplements", "Wellness", "Accessories", "Other"];
 
 interface ProductFormData {
   name: string;
@@ -39,9 +39,9 @@ const emptyForm: ProductFormData = {
   name: "",
   description: "",
   price: "",
-  category: "T-Shirts",
-  sizes: ["S", "M", "L", "XL"],
-  colors: ["Black"],
+  category: "Apparel",
+  sizes: [],
+  colors: [],
   allow_preorder: true,
   is_active: true,
 };
@@ -60,6 +60,8 @@ export default function MerchManager() {
   const [uploading, setUploading] = useState(false);
   const [inventoryDialog, setInventoryDialog] = useState<MerchProduct | null>(null);
   const [inventoryValues, setInventoryValues] = useState<Record<string, number>>({});
+  const [customCategory, setCustomCategory] = useState("");
+  const [customColor, setCustomColor] = useState("");
 
   const openCreate = () => {
     setEditingProduct(null);
@@ -172,8 +174,8 @@ export default function MerchManager() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Merch Manager</h1>
-            <p className="text-muted-foreground">Manage branded apparel and merchandise</p>
+            <h1 className="text-2xl font-bold">Storm Shop Manager</h1>
+            <p className="text-muted-foreground">Manage products, apparel, wellness items & more</p>
           </div>
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4 mr-2" /> Add Product
@@ -251,22 +253,42 @@ export default function MerchManager() {
                   <Label>Price</Label>
                   <Input type="number" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
                 </div>
-                <div>
-                  <Label>Category</Label>
-                  <select
-                    className="flex h-11 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
-                    value={form.category}
-                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  >
-                    {DEFAULT_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
+                 <div>
+                   <Label>Category</Label>
+                   <select
+                     className="flex h-11 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
+                     value={DEFAULT_CATEGORIES.includes(form.category) ? form.category : "__custom__"}
+                     onChange={(e) => {
+                       if (e.target.value === "__custom__") {
+                         setCustomCategory(form.category && !DEFAULT_CATEGORIES.includes(form.category) ? form.category : "");
+                         setForm((f) => ({ ...f, category: "" }));
+                       } else {
+                         setCustomCategory("");
+                         setForm((f) => ({ ...f, category: e.target.value }));
+                       }
+                     }}
+                   >
+                     {DEFAULT_CATEGORIES.map((c) => (
+                       <option key={c} value={c}>{c}</option>
+                     ))}
+                     <option value="__custom__">Custom…</option>
+                   </select>
+                   {((!DEFAULT_CATEGORIES.includes(form.category) && form.category !== "") || customCategory !== "" || form.category === "") && (
+                     <Input
+                       className="mt-2"
+                       placeholder="Enter custom category"
+                       value={customCategory || (DEFAULT_CATEGORIES.includes(form.category) ? "" : form.category)}
+                       onChange={(e) => {
+                         setCustomCategory(e.target.value);
+                         setForm((f) => ({ ...f, category: e.target.value }));
+                       }}
+                     />
+                   )}
+                 </div>
               </div>
 
               <div>
-                <Label>Sizes</Label>
+                <Label>Sizes <span className="text-xs text-muted-foreground">(optional — skip for non-apparel)</span></Label>
                 <div className="flex gap-2 flex-wrap mt-1">
                   {DEFAULT_SIZES.map((s) => (
                     <Button
@@ -283,7 +305,7 @@ export default function MerchManager() {
               </div>
 
               <div>
-                <Label>Colors</Label>
+                <Label>Colors <span className="text-xs text-muted-foreground">(optional)</span></Label>
                 <div className="flex gap-2 flex-wrap mt-1">
                   {DEFAULT_COLORS.map((c) => (
                     <Button
@@ -296,6 +318,47 @@ export default function MerchManager() {
                       {c}
                     </Button>
                   ))}
+                  {form.colors.filter((c) => !DEFAULT_COLORS.includes(c)).map((c) => (
+                    <Button
+                      key={c}
+                      type="button"
+                      size="sm"
+                      variant="default"
+                      onClick={() => toggleColor(c)}
+                    >
+                      {c} ×
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Add custom color"
+                    value={customColor}
+                    onChange={(e) => setCustomColor(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && customColor.trim()) {
+                        e.preventDefault();
+                        if (!form.colors.includes(customColor.trim())) {
+                          setForm((f) => ({ ...f, colors: [...f.colors, customColor.trim()] }));
+                        }
+                        setCustomColor("");
+                      }
+                    }}
+                    className="h-8"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (customColor.trim() && !form.colors.includes(customColor.trim())) {
+                        setForm((f) => ({ ...f, colors: [...f.colors, customColor.trim()] }));
+                      }
+                      setCustomColor("");
+                    }}
+                  >
+                    Add
+                  </Button>
                 </div>
               </div>
 
