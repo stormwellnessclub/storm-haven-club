@@ -12,6 +12,7 @@ import {
   Wallet,
   Receipt,
   Zap,
+  ShoppingBag,
 } from "lucide-react";
 import {
   Sidebar,

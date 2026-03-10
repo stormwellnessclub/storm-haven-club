@@ -28,6 +28,7 @@ import {
   Zap,
   Gift,
   ChevronDown,
+  ShoppingBag,
 } from "lucide-react";
 import {
   Sidebar,

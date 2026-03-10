@@ -14,6 +14,7 @@ const navLinks = [
   { href: "/amenities", label: "Amenities" },
   { href: "/class-passes", label: "Class Passes" },
   { href: "/guest-pass", label: "Guest Pass" },
+  { href: "/shop", label: "Storm Shop" },
 ];
 
 export function Navigation() {
