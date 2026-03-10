@@ -1101,6 +1101,12 @@ export default function Members() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        {member.stripe_subscription_id && billingDates?.[member.stripe_subscription_id]
+                          ? <span className="text-xs">{format(new Date(billingDates[member.stripe_subscription_id]), "MMM d, yyyy")}</span>
+                          : <span className="text-xs text-muted-foreground">—</span>
+                        }
+                      </TableCell>
+                      <TableCell>
                         {member.membership_start_date
                           ? format(new Date(member.membership_start_date), "MMM d, yyyy")
                           : "—"}
