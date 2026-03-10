@@ -261,7 +261,7 @@ export function useEndFreezeEarly() {
 
       if (memberError) throw memberError;
 
-      // Resume membership subscription if it exists
+      // Resume membership subscription and realign billing anchor
       if (memberData?.stripe_subscription_id) {
         try {
           const { error: resumeError } = await supabase.functions.invoke("stripe-payment", {
@@ -273,13 +273,27 @@ export function useEndFreezeEarly() {
 
           if (resumeError) {
             console.error("Failed to resume membership subscription:", resumeError);
+          } else {
+            // Realign billing cycle to today (freeze end date)
+            const today = new Date();
+            today.setHours(23, 59, 59, 0);
+            const { error: anchorError } = await supabase.functions.invoke("stripe-payment", {
+              body: {
+                action: "update_billing_anchor",
+                subscriptionId: memberData.stripe_subscription_id,
+                newAnchorDate: today.toISOString(),
+              },
+            });
+            if (anchorError) {
+              console.error("Failed to realign membership billing anchor:", anchorError);
+            }
           }
         } catch (resumeErr) {
           console.error("Error resuming membership subscription:", resumeErr);
         }
       }
 
-      // Resume annual fee subscription if it exists
+      // Resume annual fee subscription and realign billing anchor
       if (memberData?.annual_fee_subscription_id) {
         try {
           const { error: resumeError } = await supabase.functions.invoke("stripe-payment", {
@@ -291,6 +305,20 @@ export function useEndFreezeEarly() {
 
           if (resumeError) {
             console.error("Failed to resume annual fee subscription:", resumeError);
+          } else {
+            // Realign billing cycle to today (freeze end date)
+            const today = new Date();
+            today.setHours(23, 59, 59, 0);
+            const { error: anchorError } = await supabase.functions.invoke("stripe-payment", {
+              body: {
+                action: "update_billing_anchor",
+                subscriptionId: memberData.annual_fee_subscription_id,
+                newAnchorDate: today.toISOString(),
+              },
+            });
+            if (anchorError) {
+              console.error("Failed to realign annual fee billing anchor:", anchorError);
+            }
           }
         } catch (resumeErr) {
           console.error("Error resuming annual fee subscription:", resumeErr);

@@ -92,7 +92,7 @@ serve(async (req) => {
           continue;
         }
 
-        // Resume membership subscription if it exists
+        // Resume membership subscription and realign billing anchor
         if (memberData?.stripe_subscription_id) {
           try {
             const { error: resumeError } = await supabase.functions.invoke('stripe-payment', {
@@ -107,23 +107,42 @@ serve(async (req) => {
                 memberId: freeze.member_id, 
                 error: resumeError 
               });
-              // Don't fail the process if resume fails, but log it
             } else {
               logStep("Membership subscription resumed", { 
                 memberId: freeze.member_id, 
                 subscriptionId: memberData.stripe_subscription_id 
               });
+
+              // Realign billing cycle to the freeze end date
+              const anchorDate = new Date(freeze.actual_end_date + 'T23:59:59Z');
+              const { error: anchorError } = await supabase.functions.invoke('stripe-payment', {
+                body: {
+                  action: 'update_billing_anchor',
+                  subscriptionId: memberData.stripe_subscription_id,
+                  newAnchorDate: anchorDate.toISOString(),
+                },
+              });
+              if (anchorError) {
+                logStep("Failed to realign membership billing anchor", {
+                  memberId: freeze.member_id,
+                  error: anchorError,
+                });
+              } else {
+                logStep("Membership billing anchor realigned", {
+                  memberId: freeze.member_id,
+                  newAnchorDate: anchorDate.toISOString(),
+                });
+              }
             }
           } catch (resumeErr) {
             logStep("Error resuming membership subscription", { 
               memberId: freeze.member_id, 
               error: resumeErr 
             });
-            // Don't fail the process if resume fails
           }
         }
 
-        // Resume annual fee subscription if it exists
+        // Resume annual fee subscription and realign billing anchor
         if (memberData?.annual_fee_subscription_id) {
           try {
             const { error: resumeError } = await supabase.functions.invoke('stripe-payment', {
@@ -138,19 +157,38 @@ serve(async (req) => {
                 memberId: freeze.member_id, 
                 error: resumeError 
               });
-              // Don't fail the process if resume fails, but log it
             } else {
               logStep("Annual fee subscription resumed", { 
                 memberId: freeze.member_id, 
                 subscriptionId: memberData.annual_fee_subscription_id 
               });
+
+              // Realign billing cycle to the freeze end date
+              const anchorDate = new Date(freeze.actual_end_date + 'T23:59:59Z');
+              const { error: anchorError } = await supabase.functions.invoke('stripe-payment', {
+                body: {
+                  action: 'update_billing_anchor',
+                  subscriptionId: memberData.annual_fee_subscription_id,
+                  newAnchorDate: anchorDate.toISOString(),
+                },
+              });
+              if (anchorError) {
+                logStep("Failed to realign annual fee billing anchor", {
+                  memberId: freeze.member_id,
+                  error: anchorError,
+                });
+              } else {
+                logStep("Annual fee billing anchor realigned", {
+                  memberId: freeze.member_id,
+                  newAnchorDate: anchorDate.toISOString(),
+                });
+              }
             }
           } catch (resumeErr) {
             logStep("Error resuming annual fee subscription", { 
               memberId: freeze.member_id, 
               error: resumeErr 
             });
-            // Don't fail the process if resume fails
           }
         }
 
