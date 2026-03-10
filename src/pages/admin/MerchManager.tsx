@@ -288,7 +288,7 @@ export default function MerchManager() {
               </div>
 
               <div>
-                <Label>Sizes</Label>
+                <Label>Sizes <span className="text-xs text-muted-foreground">(optional — skip for non-apparel)</span></Label>
                 <div className="flex gap-2 flex-wrap mt-1">
                   {DEFAULT_SIZES.map((s) => (
                     <Button
