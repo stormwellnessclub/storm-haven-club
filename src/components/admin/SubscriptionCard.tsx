@@ -51,6 +51,7 @@ export function SubscriptionCard({
   const [showClearDialog, setShowClearDialog] = useState(false);
   
   const subscriptionStatus = billingHealth?.duesSubscription?.status;
+  const nextBillingDate = billingHealth?.duesSubscription?.currentPeriodEnd;
   const isDeadSubscription = subscriptionStatus === 'incomplete' || 
                              subscriptionStatus === 'incomplete_expired' || 
                              subscriptionStatus === 'canceled';
