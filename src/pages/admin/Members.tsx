@@ -225,6 +225,28 @@ export default function Members() {
     },
   });
 
+  // Batch-fetch next billing dates from Stripe for all members with subscriptions
+  const subscriptionIds = useMemo(() => {
+    return members
+      .filter((m: any) => m.stripe_subscription_id)
+      .map((m: any) => m.stripe_subscription_id as string);
+  }, [members]);
+
+  const { data: billingDates } = useQuery<Record<string, string>>({
+    queryKey: ["admin-members-billing-dates", subscriptionIds],
+    queryFn: async () => {
+      if (subscriptionIds.length === 0) return {};
+      const { data, error } = await supabase.functions.invoke("get-autopay-dates", {
+        body: { subscription_ids: subscriptionIds },
+      });
+      if (error) throw error;
+      return (data as Record<string, string>) || {};
+    },
+    enabled: subscriptionIds.length > 0,
+    staleTime: 120000,
+    refetchOnWindowFocus: false,
+  });
+
   // Calculate filter counts
   const filterCounts = useMemo<{
     total: number;
@@ -994,6 +1016,7 @@ export default function Members() {
                     <TableHead>Status</TableHead>
                     <TableHead>Issues</TableHead>
                     <TableHead>Email Sent</TableHead>
+                    <TableHead>Next Billing</TableHead>
                     <TableHead>Join Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -1076,6 +1099,12 @@ export default function Members() {
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {member.stripe_subscription_id && billingDates?.[member.stripe_subscription_id]
+                          ? <span className="text-xs">{format(new Date(billingDates[member.stripe_subscription_id]), "MMM d, yyyy")}</span>
+                          : <span className="text-xs text-muted-foreground">—</span>
+                        }
                       </TableCell>
                       <TableCell>
                         {member.membership_start_date

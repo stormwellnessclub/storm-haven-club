@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
-import { AlertCircle, CheckCircle2, XCircle, Clock, ExternalLink, Trash2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle, Clock, ExternalLink, Trash2, Loader2, CalendarClock } from "lucide-react";
+import { format } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,7 @@ interface SubscriptionCardProps {
   billingHealth?: {
     duesSubscription?: {
       status: string;
+      currentPeriodEnd: string | null;
     };
   } | null;
   isCreatingSubscription: boolean;
@@ -49,6 +51,7 @@ export function SubscriptionCard({
   const [showClearDialog, setShowClearDialog] = useState(false);
   
   const subscriptionStatus = billingHealth?.duesSubscription?.status;
+  const nextBillingDate = billingHealth?.duesSubscription?.currentPeriodEnd;
   const isDeadSubscription = subscriptionStatus === 'incomplete' || 
                              subscriptionStatus === 'incomplete_expired' || 
                              subscriptionStatus === 'canceled';
@@ -160,6 +163,12 @@ export function SubscriptionCard({
                     <CheckCircle2 className="h-4 w-4" />
                     <span className="font-medium">Active</span>
                   </div>
+                  {nextBillingDate && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <CalendarClock className="h-3 w-3" />
+                      <span>Next billing: <span className="font-medium text-foreground">{format(new Date(nextBillingDate), "MMM d, yyyy")}</span></span>
+                    </div>
+                  )}
                   <a 
                     href={getStripeSubscriptionLink(member.stripe_subscription_id)} 
                     target="_blank" 

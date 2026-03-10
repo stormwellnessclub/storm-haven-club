@@ -1,28 +1,56 @@
 
 
-# Show Next Billing Dates in Admin Portal (No More Stripe Dashboard)
+# Projections & Upcoming Auto-Pays System
 
-## What's Already Working
+## Current State
 
-Good news: next billing dates **are already visible** on each member's detail page. When you go to a member's profile and click the **Billing & Payments** tab, the "Billing Health" card shows "Next billing" pulled live from Stripe. So you don't need to go to Stripe for individual members.
+You already have several pieces in place:
 
-The billing realignment after a freeze is also already wired up (we just added it). When a freeze ends — either manually or automatically — the system calls `update_billing_anchor` which uses Stripe's `trial_end` to shift the next charge date. This permanently resets the billing cycle anniversary, so all future months follow from the new date.
+1. **Upcoming Payments Tab** (`UpcomingPaymentsTab.tsx`) — shows members with upcoming billing dates, card risk levels, and expected amounts. However, it uses **hardcoded tier pricing** (`soul: 300, spirit: 450, aura: 750`) that doesn't match the centralized pricing in `membershipPricing.ts` (`silver/gold/platinum/diamond` with gender-based pricing).
 
-## What's Missing
+2. **Revenue Analytics page** (`RevenueAnalytics.tsx`) — has a 12-month cash flow projection chart based on current applications/members.
 
-There's no **at-a-glance view** showing all members' upcoming billing dates on the main admin pages. You have to click into each member individually. You also have the Autopay Schedule report under Payment Tracking, but it may not be obvious.
+3. **Reports** — `next-month-projection`, `cash-flow-projection`, and `class-revenue-projection` reports already exist in the report system.
 
-## Proposed Changes
+4. **Stripe Live tab** — shows open/uncollectible invoices from Stripe directly.
 
-### 1. Add "Next Billing Date" column to the main Members table
-In the admin Members list (`AdminMembersTable.tsx`), add a column showing each member's next billing date. This will batch-fetch dates from the existing `get-autopay-dates` edge function (which already retrieves `current_period_end` from Stripe in bulk) so you can see everyone's next charge date without clicking into each profile.
+## What's Missing / Broken
 
-### 2. Add next billing date to the SubscriptionCard on member detail
-The `SubscriptionCard` component (visible on the Overview tab) currently shows subscription status and a Stripe link but **not** the next billing date. Add the next billing date here using the `billingHealth.duesSubscription.currentPeriodEnd` data that's already being fetched, so you can see it without switching to the Billing tab.
+1. **Pricing mismatch**: The Upcoming Payments hook uses `soul/spirit/aura` tiers with flat prices, but your real pricing is `silver/gold/platinum/diamond` with gender-based rates. Expected amounts are likely wrong or $0 for most members.
 
-### Files to modify
-- `src/components/admin/AdminMembersTable.tsx` — add "Next Billing" column, batch-fetch dates via `get-autopay-dates`
-- `src/components/admin/SubscriptionCard.tsx` — display `currentPeriodEnd` from billingHealth prop (already available, just not rendered)
+2. **No Stripe-based billing dates**: Next billing is calculated by looping `addMonths` from `membership_start_date`, but Stripe has the actual `current_period_end` — the real next charge date. These can drift apart.
 
-No new edge functions or database changes needed. Both data sources already exist.
+3. **No projection summary dashboard**: The Upcoming Payments tab shows individual rows but lacks aggregated projection cards like "Expected collections this week / this month / next 3 months" with confidence levels.
+
+4. **Founding members shown but have $0 auto-pays**: Founding members who paid annually don't have recurring Stripe charges, but they still appear in the upcoming payments list.
+
+## Plan
+
+### 1. Fix pricing in Upcoming Payments hook
+Update `useUpcomingPayments` in `usePaymentTracking.ts` to use `extractTier()`, `normalizeGender()`, and `getMonthlyPrice()` from `membershipPricing.ts` instead of the hardcoded `soul/spirit/aura` map. Also exclude founding members (they have no monthly auto-pay) or show them with $0 clearly marked.
+
+### 2. Add a "Projections" summary section to the Upcoming Payments tab
+Add projection summary cards to `UpcomingPaymentsTab.tsx`:
+- **This week**: sum of expected payments in next 7 days
+- **This month**: sum in next 30 days
+- **At-risk amount**: sum of payments where card is expiring/expired
+- **Collection confidence**: percentage of payments with valid cards
+
+*(The 7-day and 30-day cards already exist but will now show correct amounts after the pricing fix.)*
+
+### 3. Create a new "Auto-Pay Projections" tab on the Payment Tracking page
+Add a new tab to `PaymentTracking.tsx` called "Projections" that shows:
+- **Monthly projection chart** (next 3-6 months): bar chart of expected auto-pay collections by month, using real member data and correct tier/gender pricing
+- **Breakdown by tier**: how much revenue is expected from each tier
+- **Risk breakdown**: how much is at risk due to card issues
+- **Founding member renewal dates**: when annual founding memberships are up for renewal
+
+This tab will use a new component `AutoPayProjectionsTab.tsx` that queries active members and projects forward.
+
+### Files
+
+- **Modify**: `src/hooks/usePaymentTracking.ts` — fix `useUpcomingPayments` to use centralized pricing, exclude/flag founding members
+- **Modify**: `src/components/admin/UpcomingPaymentsTab.tsx` — update summary cards with collection confidence metric
+- **Create**: `src/components/admin/AutoPayProjectionsTab.tsx` — new projections tab with monthly chart, tier breakdown, risk analysis
+- **Modify**: `src/pages/admin/PaymentTracking.tsx` — add Projections tab
 
