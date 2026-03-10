@@ -26,6 +26,7 @@ interface SubscriptionCardProps {
   billingHealth?: {
     duesSubscription?: {
       status: string;
+      currentPeriodEnd: string | null;
     };
   } | null;
   isCreatingSubscription: boolean;
