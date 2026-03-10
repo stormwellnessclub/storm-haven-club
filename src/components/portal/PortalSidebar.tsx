@@ -43,6 +43,7 @@ const portalMenuItems: MenuItem[] = [
   { title: "Book Classes", url: "/schedule", icon: CalendarPlus },
   { title: "Buy Passes", url: "/class-passes", icon: CreditCard },
   { title: "Recovery Booking", url: "/portal/wellness", icon: Zap },
+  { title: "Storm Shop", url: "/shop", icon: ShoppingBag },
   { title: "Payment Methods", url: "/portal/payment-methods", icon: Wallet },
   { title: "Payment History", url: "/portal/payment-history", icon: Receipt },
   { title: "Support", url: "/portal/support", icon: MessageCircle },

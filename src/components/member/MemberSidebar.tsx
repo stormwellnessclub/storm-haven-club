@@ -61,6 +61,7 @@ const mainItems: MenuItem[] = [
   { title: "Member Entry", url: "/member/entry", icon: ScanLine },
   { title: "Support", url: "/member/support", icon: MessageCircle },
   { title: "Book Classes", url: "/member/schedule", icon: CalendarPlus },
+  { title: "Storm Shop", url: "/shop", icon: ShoppingBag },
 ];
 
 interface SidebarGroupDef {
