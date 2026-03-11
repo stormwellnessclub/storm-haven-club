@@ -2569,94 +2569,228 @@ export default function Applications() {
               </SheetDescription>
             </SheetHeader>
             {selectedApplication && (
-              <ScrollArea className="max-h-[60vh]">
-                <div className="space-y-6 pr-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">First Name</p>
-                      <p className="font-medium">{selectedApplication.first_name || selectedApplication.full_name?.split(" ")[0] || "-"}</p>
+              <div className="space-y-6 mt-4">
+                  {/* Personal Info */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Personal Information</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">First Name</p>
+                        <p className="font-medium">{selectedApplication.first_name || selectedApplication.full_name?.split(" ")[0] || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Last Name</p>
+                        <p className="font-medium">{selectedApplication.last_name || selectedApplication.full_name?.split(" ").slice(1).join(" ") || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Date of Birth</p>
+                        <p className="font-medium">{selectedApplication.date_of_birth ? format(new Date(selectedApplication.date_of_birth), "MMMM d, yyyy") : "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Gender</p>
+                        <p className="font-medium">{selectedApplication.gender || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="font-medium">{selectedApplication.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Phone</p>
+                        <p className="font-medium">{selectedApplication.phone}</p>
+                      </div>
+                      <div className="col-span-2 md:col-span-3">
+                        <p className="text-sm text-muted-foreground">Address</p>
+                        <p className="font-medium">
+                          {selectedApplication.address}, {selectedApplication.city}, {selectedApplication.state} {selectedApplication.zip_code}
+                          {selectedApplication.country && selectedApplication.country !== "US" && `, ${selectedApplication.country}`}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Last Name</p>
-                      <p className="font-medium">{selectedApplication.last_name || selectedApplication.full_name?.split(" ").slice(1).join(" ") || "-"}</p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Membership Info */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Membership</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Membership Plan</p>
+                        <p className="font-medium">{selectedApplication.membership_plan}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Status</p>
+                        {getStatusBadge(selectedApplication.status)}
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Founding Member</p>
+                        {selectedApplication.founding_member?.toLowerCase() === "yes" ? (
+                          <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">Founding</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">No</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Previous Member</p>
+                        <p className="font-medium">{selectedApplication.previous_member || "No"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Referred By</p>
+                        <p className="font-medium">{selectedApplication.referred_by_member || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Annual Fee ($300)</p>
+                        {getAnnualFeeBadge(selectedApplication.annual_fee_status)}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <p className="font-medium">{selectedApplication.email}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Phone</p>
-                      <p className="font-medium">{selectedApplication.phone}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Gender</p>
-                      <p className="font-medium">{selectedApplication.gender || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Membership Plan</p>
-                      <p className="font-medium">{selectedApplication.membership_plan}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Founding Member</p>
-                      {selectedApplication.founding_member?.toLowerCase() === "yes" ? (
-                        <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">
-                          Founding
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">No</span>
+                  </div>
+
+                  <Separator />
+
+                  {/* Wellness Profile */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Wellness Profile</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">Wellness Goals</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedApplication.wellness_goals?.map((goal) => (
+                            <Badge key={goal} variant="outline">{goal}</Badge>
+                          ))}
+                          {(!selectedApplication.wellness_goals || selectedApplication.wellness_goals.length === 0) && (
+                            <span className="text-sm text-muted-foreground">None specified</span>
+                          )}
+                        </div>
+                        {selectedApplication.other_goals && (
+                          <p className="text-sm mt-2"><span className="text-muted-foreground">Other goals:</span> {selectedApplication.other_goals}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">Motivations</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedApplication.motivations?.map((motivation) => (
+                            <Badge key={motivation} variant="outline">{motivation}</Badge>
+                          ))}
+                          {(!selectedApplication.motivations || selectedApplication.motivations.length === 0) && (
+                            <span className="text-sm text-muted-foreground">None specified</span>
+                          )}
+                        </div>
+                        {selectedApplication.other_motivation && (
+                          <p className="text-sm mt-2"><span className="text-muted-foreground">Other motivation:</span> {selectedApplication.other_motivation}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">Services Interested</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedApplication.services_interested?.map((service) => (
+                            <Badge key={service} variant="outline">{service}</Badge>
+                          ))}
+                          {(!selectedApplication.services_interested || selectedApplication.services_interested.length === 0) && (
+                            <span className="text-sm text-muted-foreground">None specified</span>
+                          )}
+                        </div>
+                        {selectedApplication.other_services && (
+                          <p className="text-sm mt-2"><span className="text-muted-foreground">Other services:</span> {selectedApplication.other_services}</p>
+                        )}
+                      </div>
+
+                      {selectedApplication.holistic_wellness && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Holistic Wellness Goals</p>
+                          <p className="text-sm bg-muted/50 rounded-lg p-3">{selectedApplication.holistic_wellness}</p>
+                        </div>
+                      )}
+
+                      {selectedApplication.lifestyle_integration && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Lifestyle Integration</p>
+                          <p className="text-sm bg-muted/50 rounded-lg p-3">{selectedApplication.lifestyle_integration}</p>
+                        </div>
                       )}
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      {getStatusBadge(selectedApplication.status)}
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Annual Fee ($300)</p>
-                      {getAnnualFeeBadge(selectedApplication.annual_fee_status)}
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-sm text-muted-foreground">Address</p>
-                      <p className="font-medium">{selectedApplication.address}, {selectedApplication.city}, {selectedApplication.state} {selectedApplication.zip_code}</p>
-                    </div>
                   </div>
 
+                  <Separator />
+
+                  {/* Payment & Card Info */}
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Wellness Goals</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedApplication.wellness_goals?.map((goal) => (
-                        <Badge key={goal} variant="outline">{goal}</Badge>
-                      ))}
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Payment Information</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Stripe Customer</p>
+                        <p className="font-medium">{selectedApplication.stripe_customer_id ? "Connected" : "Not connected"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Card on File</p>
+                        {selectedApplication.card_last4 ? (
+                          <p className="font-medium flex items-center gap-1">
+                            <CreditCard className="h-4 w-4 text-muted-foreground" />
+                            <span className="capitalize">{selectedApplication.card_brand}</span> •••• {selectedApplication.card_last4}
+                            {selectedApplication.card_exp_month && selectedApplication.card_exp_year && (
+                              <span className="text-muted-foreground ml-1">({selectedApplication.card_exp_month}/{selectedApplication.card_exp_year})</span>
+                            )}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground">No card</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Payment Info Provided</p>
+                        <p className="font-medium">{selectedApplication.payment_info_provided ? "Yes" : "No"}</p>
+                      </div>
                     </div>
                   </div>
 
+                  <Separator />
+
+                  {/* Agreements */}
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Services Interested</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedApplication.services_interested?.map((service) => (
-                        <Badge key={service} variant="outline">{service}</Badge>
-                      ))}
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Agreements & Acknowledgments</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.membership_agreement_signed ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Membership Agreement Signed</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.one_year_commitment ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">One-Year Commitment Acknowledged</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.credit_card_auth ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Credit Card Authorization</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.auth_acknowledgment ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Auth Acknowledgment</span>
+                      </div>
                     </div>
                   </div>
 
-                  {selectedApplication.lifestyle_integration && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Lifestyle Integration</p>
-                      <p className="text-sm">{selectedApplication.lifestyle_integration}</p>
-                    </div>
-                  )}
-
-                  {selectedApplication.holistic_wellness && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Holistic Wellness Goals</p>
-                      <p className="text-sm">{selectedApplication.holistic_wellness}</p>
-                    </div>
-                  )}
+                  <Separator />
 
                   {/* Admin Notes */}
-                  <div className="pt-4 border-t">
+                  <div>
                     <div className="flex items-center gap-2 mb-3">
                       <StickyNote className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Admin Notes</p>
+                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Admin Notes</h3>
                     </div>
                     <Textarea
                       placeholder="Add your notes about this application..."
@@ -2725,7 +2859,7 @@ export default function Applications() {
                       </Button>
                     </div>
                     
-                    {/* Send Card Request Email - visible when initiation fee is paid and application is approved */}
+                    {/* Send Card Request Email */}
                     {selectedApplication.annual_fee_status === "paid" && selectedApplication.status === "approved" && (
                       <div className="mt-3 p-3 border rounded-lg bg-muted/50">
                         <p className="text-sm text-muted-foreground mb-2">
@@ -2794,7 +2928,6 @@ export default function Applications() {
                           variant="outline"
                           className="mt-3"
                           onClick={async () => {
-                            // Get member ID first
                             const { data: member } = await supabase
                               .from("members")
                               .select("id")
@@ -2866,10 +2999,9 @@ export default function Applications() {
                     </div>
                   </div>
                 </div>
-              </ScrollArea>
             )}
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
 
         {/* Enhanced Charge Card Dialog */}
         <Dialog open={showChargeDialog} onOpenChange={(open) => {
