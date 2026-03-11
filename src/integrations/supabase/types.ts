@@ -4417,6 +4417,36 @@ export type Database = {
           },
         ]
       }
+      staff_channels: {
+        Row: {
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          created_at: string
+          created_by: string
+          id: string
+          member_ids: string[] | null
+          name: string
+          visible_to_roles: Database["public"]["Enums"]["app_role"][] | null
+        }
+        Insert: {
+          channel_type?: Database["public"]["Enums"]["channel_type"]
+          created_at?: string
+          created_by: string
+          id?: string
+          member_ids?: string[] | null
+          name: string
+          visible_to_roles?: Database["public"]["Enums"]["app_role"][] | null
+        }
+        Update: {
+          channel_type?: Database["public"]["Enums"]["channel_type"]
+          created_at?: string
+          created_by?: string
+          id?: string
+          member_ids?: string[] | null
+          name?: string
+          visible_to_roles?: Database["public"]["Enums"]["app_role"][] | null
+        }
+        Relationships: []
+      }
       staff_invites: {
         Row: {
           claimed_at: string | null
@@ -4450,6 +4480,125 @@ export type Database = {
           last_name?: string | null
           roles?: Database["public"]["Enums"]["app_role"][]
           status?: string
+        }
+        Relationships: []
+      }
+      staff_messages: {
+        Row: {
+          channel_id: string
+          created_at: string
+          id: string
+          is_read_by: string[] | null
+          message_body: string
+          sender_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          id?: string
+          is_read_by?: string[] | null
+          message_body: string
+          sender_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          id?: string
+          is_read_by?: string[] | null
+          message_body?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "staff_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_notes: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          is_pinned: boolean
+          title: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["note_visibility"]
+          visible_to_roles: Database["public"]["Enums"]["app_role"][] | null
+          visible_to_users: string[] | null
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_pinned?: boolean
+          title: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["note_visibility"]
+          visible_to_roles?: Database["public"]["Enums"]["app_role"][] | null
+          visible_to_users?: string[] | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_pinned?: boolean
+          title?: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["note_visibility"]
+          visible_to_roles?: Database["public"]["Enums"]["app_role"][] | null
+          visible_to_users?: string[] | null
+        }
+        Relationships: []
+      }
+      staff_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: Database["public"]["Enums"]["task_priority"]
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+          visible_to_roles: Database["public"]["Enums"]["app_role"][] | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+          visible_to_roles?: Database["public"]["Enums"]["app_role"][] | null
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+          visible_to_roles?: Database["public"]["Enums"]["app_role"][] | null
         }
         Relationships: []
       }
@@ -5228,6 +5377,7 @@ export type Database = {
         | "cafe_staff"
         | "childcare_staff"
       booking_status: "confirmed" | "cancelled" | "no_show" | "completed"
+      channel_type: "general" | "department" | "direct"
       class_category:
         | "pilates_cycling"
         | "other"
@@ -5237,7 +5387,10 @@ export type Database = {
       conversation_status: "open" | "in_progress" | "resolved" | "closed"
       credit_type: "class" | "red_light" | "dry_cryo" | "guest_pass"
       message_sender_type: "member" | "staff"
+      note_visibility: "all_staff" | "specific_roles" | "specific_users"
       pass_status: "active" | "expired" | "exhausted"
+      task_priority: "low" | "medium" | "high" | "urgent"
+      task_status: "todo" | "in_progress" | "done"
       waitlist_status:
         | "waiting"
         | "notified"
@@ -5390,6 +5543,7 @@ export const Constants = {
         "childcare_staff",
       ],
       booking_status: ["confirmed", "cancelled", "no_show", "completed"],
+      channel_type: ["general", "department", "direct"],
       class_category: [
         "pilates_cycling",
         "other",
@@ -5400,7 +5554,10 @@ export const Constants = {
       conversation_status: ["open", "in_progress", "resolved", "closed"],
       credit_type: ["class", "red_light", "dry_cryo", "guest_pass"],
       message_sender_type: ["member", "staff"],
+      note_visibility: ["all_staff", "specific_roles", "specific_users"],
       pass_status: ["active", "expired", "exhausted"],
+      task_priority: ["low", "medium", "high", "urgent"],
+      task_status: ["todo", "in_progress", "done"],
       waitlist_status: [
         "waiting",
         "notified",
