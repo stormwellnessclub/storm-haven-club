@@ -36,6 +36,7 @@ import { ClassPassSalesReport } from "./reports/ClassPassSalesReport";
 import { MemberEngagementReport } from "./reports/MemberEngagementReport";
 import { GuestReturnsReport } from "./reports/GuestReturnsReport";
 import { ClassEngagementReport } from "./reports/ClassEngagementReport";
+import { DailySalesBreakdownReport } from "./reports/DailySalesBreakdownReport";
 interface ReportPreviewProps {
   report: ReportDefinition | null;
   dateRange: { start: Date; end: Date };
