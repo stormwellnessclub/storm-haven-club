@@ -1,131 +1,56 @@
 
 
-# Staff Communication Hub: Tasks, Notes, and Messaging
+# Projections & Upcoming Auto-Pays System
 
-## What We're Building
+## Current State
 
-A unified **Staff Hub** inside the admin portal with three modules:
+You already have several pieces in place:
 
-1. **Task Board** — Shared to-do lists with assignment, priority, due dates, and completion tracking
-2. **Notes Board** — Shared notes/announcements with visibility controls (all staff, specific roles, or specific people)
-3. **Staff Chat** — Real-time messaging between staff members (1:1 and channels), fully monitored by super admins
+1. **Upcoming Payments Tab** (`UpcomingPaymentsTab.tsx`) — shows members with upcoming billing dates, card risk levels, and expected amounts. However, it uses **hardcoded tier pricing** (`soul: 300, spirit: 450, aura: 750`) that doesn't match the centralized pricing in `membershipPricing.ts` (`silver/gold/platinum/diamond` with gender-based pricing).
 
-All three support **push-style notifications** via in-app real-time alerts (sound + badge + toast) using the existing notification infrastructure.
+2. **Revenue Analytics page** (`RevenueAnalytics.tsx`) — has a 12-month cash flow projection chart based on current applications/members.
 
----
+3. **Reports** — `next-month-projection`, `cash-flow-projection`, and `class-revenue-projection` reports already exist in the report system.
 
-## Database Schema (4 new tables)
+4. **Stripe Live tab** — shows open/uncollectible invoices from Stripe directly.
 
-### `staff_tasks`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| title | text | Task name |
-| description | text | Optional details |
-| priority | enum(low, medium, high, urgent) | |
-| status | enum(todo, in_progress, done) | |
-| created_by | uuid → auth.users | Who created it |
-| assigned_to | uuid → auth.users | Nullable — who it's for |
-| due_date | date | Nullable |
-| visible_to_roles | app_role[] | Which roles can see this task (empty = all staff) |
-| completed_at | timestamptz | |
-| created_at / updated_at | timestamptz | |
+## What's Missing / Broken
 
-### `staff_notes`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| title | text | |
-| content | text | Rich text / markdown |
-| created_by | uuid → auth.users | |
-| visibility | enum(all_staff, specific_roles, specific_users) | |
-| visible_to_roles | app_role[] | When visibility = specific_roles |
-| visible_to_users | uuid[] | When visibility = specific_users |
-| is_pinned | boolean | Super admin can pin |
-| created_at / updated_at | timestamptz | |
+1. **Pricing mismatch**: The Upcoming Payments hook uses `soul/spirit/aura` tiers with flat prices, but your real pricing is `silver/gold/platinum/diamond` with gender-based rates. Expected amounts are likely wrong or $0 for most members.
 
-### `staff_channels`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| name | text | e.g. "Front Desk", "General" |
-| channel_type | enum(general, department, direct) | |
-| visible_to_roles | app_role[] | Empty = all staff |
-| member_ids | uuid[] | For direct messages |
-| created_by | uuid | |
-| created_at | timestamptz | |
+2. **No Stripe-based billing dates**: Next billing is calculated by looping `addMonths` from `membership_start_date`, but Stripe has the actual `current_period_end` — the real next charge date. These can drift apart.
 
-### `staff_messages`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| channel_id | uuid → staff_channels | |
-| sender_id | uuid → auth.users | |
-| message_body | text | |
-| is_read_by | uuid[] | Track who's read it |
-| created_at | timestamptz | |
+3. **No projection summary dashboard**: The Upcoming Payments tab shows individual rows but lacks aggregated projection cards like "Expected collections this week / this month / next 3 months" with confidence levels.
 
-All tables get **realtime** enabled. RLS policies ensure:
-- Staff can only see tasks/notes/messages matching their roles or directed to them
-- Super admins can see everything (monitoring)
-- Only creators or admins can edit/delete
+4. **Founding members shown but have $0 auto-pays**: Founding members who paid annually don't have recurring Stripe charges, but they still appear in the upcoming payments list.
 
----
+## Plan
 
-## UI Structure
+### 1. Fix pricing in Upcoming Payments hook
+Update `useUpcomingPayments` in `usePaymentTracking.ts` to use `extractTier()`, `normalizeGender()`, and `getMonthlyPrice()` from `membershipPricing.ts` instead of the hardcoded `soul/spirit/aura` map. Also exclude founding members (they have no monthly auto-pay) or show them with $0 clearly marked.
 
-### New page: `/admin/staff-hub`
-Accessible to all staff roles. Three tabs:
+### 2. Add a "Projections" summary section to the Upcoming Payments tab
+Add projection summary cards to `UpcomingPaymentsTab.tsx`:
+- **This week**: sum of expected payments in next 7 days
+- **This month**: sum in next 30 days
+- **At-risk amount**: sum of payments where card is expiring/expired
+- **Collection confidence**: percentage of payments with valid cards
 
-**Tasks Tab**
-- Kanban-style columns (To Do → In Progress → Done) or simple list view
-- Create task with title, description, priority, assignee, due date, role visibility
-- Filter by: assigned to me, created by me, all visible
-- Drag or button to change status
+*(The 7-day and 30-day cards already exist but will now show correct amounts after the pricing fix.)*
 
-**Notes Tab**
-- Card grid of notes/announcements
-- Pinned notes appear at top
-- Create note with visibility selector (all staff / specific roles / specific people)
-- Super admin sees all; other staff see only what's visible to them
+### 3. Create a new "Auto-Pay Projections" tab on the Payment Tracking page
+Add a new tab to `PaymentTracking.tsx` called "Projections" that shows:
+- **Monthly projection chart** (next 3-6 months): bar chart of expected auto-pay collections by month, using real member data and correct tier/gender pricing
+- **Breakdown by tier**: how much revenue is expected from each tier
+- **Risk breakdown**: how much is at risk due to card issues
+- **Founding member renewal dates**: when annual founding memberships are up for renewal
 
-**Chat Tab**
-- Left sidebar: list of channels + direct messages
-- Auto-created department channels (Front Desk, Classes, Cafe, etc.)
-- Direct message any staff member
-- Real-time message stream using Supabase realtime
-- Super admin can view all channels (monitoring badge visible so staff know)
-- Unread count badges
+This tab will use a new component `AutoPayProjectionsTab.tsx` that queries active members and projects forward.
 
-### Notifications
-- Reuse the existing `playNotificationChime()` audio system from `CheckInSupportPanel`
-- Real-time subscription on `staff_messages` and `staff_tasks` for INSERT events
-- Toast notifications for new messages and task assignments
-- Badge count on the "Staff Hub" sidebar link showing unread messages + assigned tasks
+### Files
 
----
-
-## Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| Database migration | Create 4 tables + RLS + realtime |
-| `src/pages/admin/StaffHub.tsx` | New page with 3 tabs |
-| `src/components/staff-hub/TaskBoard.tsx` | Task list/kanban component |
-| `src/components/staff-hub/NotesBoard.tsx` | Notes grid component |
-| `src/components/staff-hub/StaffChat.tsx` | Chat interface component |
-| `src/components/staff-hub/CreateTaskDialog.tsx` | Task creation form |
-| `src/components/staff-hub/CreateNoteDialog.tsx` | Note creation form |
-| `src/components/staff-hub/ChatMessageInput.tsx` | Message composer |
-| `src/lib/permissions.ts` | Add `/admin/staff-hub` route for all staff |
-| `src/components/admin/AdminSidebar.tsx` | Add Staff Hub link under Operations |
-| `App.tsx` | Add route |
-
----
-
-## Key Design Decisions
-
-- **Monitoring transparency**: Chat shows a small "Monitored" indicator so staff are aware super admins can read all channels
-- **Department channels auto-created**: On first load, seed default channels (General, Front Desk, Classes, Cafe, Spa, Childcare) if they don't exist
-- **No external push notifications** (no Firebase/APNs setup needed) — uses in-app real-time toasts + sound, which works while the app is open. Browser push notifications can be added later if needed.
+- **Modify**: `src/hooks/usePaymentTracking.ts` — fix `useUpcomingPayments` to use centralized pricing, exclude/flag founding members
+- **Modify**: `src/components/admin/UpcomingPaymentsTab.tsx` — update summary cards with collection confidence metric
+- **Create**: `src/components/admin/AutoPayProjectionsTab.tsx` — new projections tab with monthly chart, tier breakdown, risk analysis
+- **Modify**: `src/pages/admin/PaymentTracking.tsx` — add Projections tab
 
