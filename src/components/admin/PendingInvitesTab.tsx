@@ -115,9 +115,9 @@ export function PendingInvitesTab() {
   const statusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge>;
+        return <Badge variant="outline">Pending</Badge>;
       case 'claimed':
-        return <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">Claimed</Badge>;
+        return <Badge variant="secondary">Claimed</Badge>;
       case 'revoked':
         return <Badge variant="destructive">Revoked</Badge>;
       default:
