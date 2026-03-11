@@ -464,10 +464,6 @@ export function ChargeItemSelector({
     return acc;
   }, {} as Record<string, ChargeItem[]>);
 
-  const showingForm = isAddingCafeItem || isAddingCategory || isAddingAddon;
-  const addonCategoryOptions = categories.filter((c) => c.has_addons);
-
-  const canAddToCart = selectedItemId && !showingForm && unitAmount >= 0.01;
 
   const [itemSearch, setItemSearch] = useState("");
 
