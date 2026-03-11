@@ -2559,15 +2559,15 @@ export default function Applications() {
         </Card>
         )}
 
-        {/* Application Detail Dialog */}
-        <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Application Details</DialogTitle>
-              <DialogDescription>
+        {/* Application Detail Sheet (Full-Width Side Panel) */}
+        <Sheet open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
+          <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Application Details</SheetTitle>
+              <SheetDescription>
                 Submitted on {selectedApplication && format(new Date(selectedApplication.created_at), "MMMM d, yyyy 'at' h:mm a")}
-              </DialogDescription>
-            </DialogHeader>
+              </SheetDescription>
+            </SheetHeader>
             {selectedApplication && (
               <ScrollArea className="max-h-[60vh]">
                 <div className="space-y-6 pr-4">
