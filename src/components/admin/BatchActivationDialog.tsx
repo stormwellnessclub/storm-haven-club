@@ -32,22 +32,36 @@ interface Application {
   stripe_customer_id: string | null;
   status: string;
   created_at: string;
+  updated_at: string;
   wellness_goals: string[];
   date_of_birth: string;
   address: string;
   city: string;
   state: string;
   zip_code: string;
+  country: string;
   lifestyle_integration: string | null;
   holistic_wellness: string | null;
   referred_by_member: string;
   services_interested: string[];
+  motivations: string[] | null;
+  other_goals: string | null;
+  other_motivation: string | null;
+  other_services: string | null;
+  previous_member: string | null;
+  membership_agreement_signed: boolean;
+  one_year_commitment: boolean;
+  credit_card_auth: boolean;
+  auth_acknowledgment: boolean;
+  submission_confirmation: boolean;
+  payment_info_provided: boolean;
   notes: string | null;
   card_brand: string | null;
   card_last4: string | null;
   card_exp_month: number | null;
   card_exp_year: number | null;
   payment_link_sent_at: string | null;
+  user_id: string | null;
 }
 
 interface BatchActivationDialogProps {

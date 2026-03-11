@@ -1,44 +1,56 @@
 
 
-# Expand Application Details View & Fix Layout Issues
+# Projections & Upcoming Auto-Pays System
 
-## Problems Identified
+## Current State
 
-1. **Application detail dialog is too small** (`max-w-2xl`) — forces horizontal scrolling and cramped content
-2. **Missing application fields** — the detail view skips several fields that applicants fill out:
-   - Date of birth
-   - Country
-   - Motivations (array)
-   - Other goals / Other motivation / Other services (free text)
-   - Previous member status
-   - Agreement acknowledgments (membership agreement, one-year commitment, credit card auth)
-3. **Personalized letter modal** (`max-w-4xl`) is also constrained as a dialog within a dialog
+You already have several pieces in place:
+
+1. **Upcoming Payments Tab** (`UpcomingPaymentsTab.tsx`) — shows members with upcoming billing dates, card risk levels, and expected amounts. However, it uses **hardcoded tier pricing** (`soul: 300, spirit: 450, aura: 750`) that doesn't match the centralized pricing in `membershipPricing.ts` (`silver/gold/platinum/diamond` with gender-based pricing).
+
+2. **Revenue Analytics page** (`RevenueAnalytics.tsx`) — has a 12-month cash flow projection chart based on current applications/members.
+
+3. **Reports** — `next-month-projection`, `cash-flow-projection`, and `class-revenue-projection` reports already exist in the report system.
+
+4. **Stripe Live tab** — shows open/uncollectible invoices from Stripe directly.
+
+## What's Missing / Broken
+
+1. **Pricing mismatch**: The Upcoming Payments hook uses `soul/spirit/aura` tiers with flat prices, but your real pricing is `silver/gold/platinum/diamond` with gender-based rates. Expected amounts are likely wrong or $0 for most members.
+
+2. **No Stripe-based billing dates**: Next billing is calculated by looping `addMonths` from `membership_start_date`, but Stripe has the actual `current_period_end` — the real next charge date. These can drift apart.
+
+3. **No projection summary dashboard**: The Upcoming Payments tab shows individual rows but lacks aggregated projection cards like "Expected collections this week / this month / next 3 months" with confidence levels.
+
+4. **Founding members shown but have $0 auto-pays**: Founding members who paid annually don't have recurring Stripe charges, but they still appear in the upcoming payments list.
 
 ## Plan
 
-### 1. Convert application detail from dialog to full-page view
-Instead of opening a small dialog, clicking an application will navigate to a dedicated detail page (`/admin/applications/:id`) or expand into a full-width slide-over panel. This eliminates the cramped box problem entirely.
+### 1. Fix pricing in Upcoming Payments hook
+Update `useUpcomingPayments` in `usePaymentTracking.ts` to use `extractTier()`, `normalizeGender()`, and `getMonthlyPrice()` from `membershipPricing.ts` instead of the hardcoded `soul/spirit/aura` map. Also exclude founding members (they have no monthly auto-pay) or show them with $0 clearly marked.
 
-**Approach**: Replace the `Dialog` with a full-width sheet/panel that slides in from the right, taking ~70% of the screen width. This keeps you on the Applications page (no route change needed) but gives ample room.
+### 2. Add a "Projections" summary section to the Upcoming Payments tab
+Add projection summary cards to `UpcomingPaymentsTab.tsx`:
+- **This week**: sum of expected payments in next 7 days
+- **This month**: sum in next 30 days
+- **At-risk amount**: sum of payments where card is expiring/expired
+- **Collection confidence**: percentage of payments with valid cards
 
-- Change from `<Dialog>` to a side panel using the existing `Sheet` component or a full-width layout
-- Set width to `max-w-4xl` minimum with full-height scrolling
-- Organize content into clear sections with headers
+*(The 7-day and 30-day cards already exist but will now show correct amounts after the pricing fix.)*
 
-### 2. Add all missing application fields to the detail view
-Update the `Application` type to include all database columns, then display them in organized sections:
+### 3. Create a new "Auto-Pay Projections" tab on the Payment Tracking page
+Add a new tab to `PaymentTracking.tsx` called "Projections" that shows:
+- **Monthly projection chart** (next 3-6 months): bar chart of expected auto-pay collections by month, using real member data and correct tier/gender pricing
+- **Breakdown by tier**: how much revenue is expected from each tier
+- **Risk breakdown**: how much is at risk due to card issues
+- **Founding member renewal dates**: when annual founding memberships are up for renewal
 
-- **Personal Info**: Name, DOB, gender, email, phone, address (full with country)
-- **Membership**: Plan/tier, founding member status, previous member, referred by
-- **Wellness Profile**: Goals, motivations, services interested, holistic wellness, lifestyle integration, other goals/services
-- **Payment & Status**: Annual fee status, Stripe customer, card on file, payment info
-- **Agreements**: Membership agreement signed, one-year commitment acknowledged, credit card authorization
-- **Admin**: Notes, status history, charge history, member link status, actions
+This tab will use a new component `AutoPayProjectionsTab.tsx` that queries active members and projects forward.
 
-### 3. Widen the personalized letter modal
-Increase the `PersonalizedLetterModal` to near-full-screen (`max-w-5xl` or `max-w-6xl`) so the letter editor has comfortable space.
+### Files
 
-### Files to modify
-- **`src/pages/admin/Applications.tsx`** — Replace detail `Dialog` with full-width side panel, update `Application` type to include all DB fields, add missing field sections to the detail view
-- **`src/components/admin/PersonalizedLetterModal.tsx`** — Widen the dialog
+- **Modify**: `src/hooks/usePaymentTracking.ts` — fix `useUpcomingPayments` to use centralized pricing, exclude/flag founding members
+- **Modify**: `src/components/admin/UpcomingPaymentsTab.tsx` — update summary cards with collection confidence metric
+- **Create**: `src/components/admin/AutoPayProjectionsTab.tsx` — new projections tab with monthly chart, tier breakdown, risk analysis
+- **Modify**: `src/pages/admin/PaymentTracking.tsx` — add Projections tab
 
