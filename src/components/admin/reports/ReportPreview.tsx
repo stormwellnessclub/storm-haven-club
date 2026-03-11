@@ -114,6 +114,7 @@ interface ReportContentProps {
 
 function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
   const reportComponents: Record<string, React.ComponentType<{ dateRange: { start: Date; end: Date }; filters: Record<string, string | boolean> }>> = {
+    'daily-sales-breakdown': DailySalesBreakdownReport,
     'revenue-summary': RevenueSummaryReport,
     'daily-revenue': DailyRevenueReport,
     'revenue-by-category': RevenueByCategoryReport,
