@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AppRole, ROLE_LABELS, ROLE_DESCRIPTIONS } from "@/lib/permissions";
@@ -41,6 +41,16 @@ export function InviteStaffDialog({ open, onOpenChange, onInviteSent }: InviteSt
     setSelectedRoles([]);
   };
 
+  const copyInviteLink = () => {
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/auth?staff_invite=true&redirect=/admin`;
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "Link Copied",
+      description: "Share this activation link directly with the staff member.",
+    });
+  };
+
   const handleSendInvite = async () => {
     if (!email || selectedRoles.length === 0) {
       toast({
@@ -53,10 +63,8 @@ export function InviteStaffDialog({ open, onOpenChange, onInviteSent }: InviteSt
 
     setSending(true);
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Insert the invite record
       const { error: insertError } = await supabase
         .from('staff_invites' as any)
         .insert({
@@ -70,28 +78,39 @@ export function InviteStaffDialog({ open, onOpenChange, onInviteSent }: InviteSt
 
       if (insertError) throw insertError;
 
-      // Build role labels for the email
       const roleLabels = selectedRoles.map(r => ROLE_LABELS[r]).join(', ');
 
-      // Send the invite email
-      const { error: emailError } = await supabase.functions.invoke('send-email', {
-        body: {
-          type: 'staff_invite',
-          to: email.trim(),
-          data: {
-            firstName: firstName.trim() || 'Team Member',
-            lastName: lastName.trim() || '',
-            roles: roleLabels,
+      // Try sending email but don't block on failure
+      let emailFailed = false;
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-email', {
+          body: {
+            type: 'staff_invite',
+            to: email.trim(),
+            data: {
+              firstName: firstName.trim() || 'Team Member',
+              lastName: lastName.trim() || '',
+              roles: roleLabels,
+            },
           },
-        },
-      });
+        });
+        if (emailError) {
+          console.error('Email send error:', emailError);
+          emailFailed = true;
+        }
+      } catch (e) {
+        console.error('Email send exception:', e);
+        emailFailed = true;
+      }
 
-      if (emailError) {
-        console.error('Email send error:', emailError);
-        // Invite was still created, just email failed
+      if (emailFailed) {
+        // Copy link automatically as fallback
+        const baseUrl = window.location.origin;
+        const link = `${baseUrl}/auth?staff_invite=true&redirect=/admin`;
+        await navigator.clipboard.writeText(link);
         toast({
-          title: "Invite Created",
-          description: "The invite was saved but the email could not be sent. The staff member can still create their account.",
+          title: "Invite Created — Email Failed",
+          description: "The activation link has been copied to your clipboard. Share it with the staff member directly.",
         });
       } else {
         toast({
@@ -166,12 +185,18 @@ export function InviteStaffDialog({ open, onOpenChange, onInviteSent }: InviteSt
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSendInvite} disabled={sending || !email || selectedRoles.length === 0}>
-            {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-            Send Invite
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" size="sm" onClick={copyInviteLink} className="gap-1.5">
+            <Copy className="h-3.5 w-3.5" />
+            Copy Invite Link
           </Button>
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button onClick={handleSendInvite} disabled={sending || !email || selectedRoles.length === 0}>
+              {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Send Invite
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
