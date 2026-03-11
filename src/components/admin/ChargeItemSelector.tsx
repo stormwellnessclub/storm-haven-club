@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DollarSign, Loader2, Banknote, Plus } from "lucide-react";
+import { DollarSign, Loader2, Banknote, Plus, X, ShoppingCart } from "lucide-react";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
   MEMBERSHIP_PRICING,
@@ -55,6 +55,18 @@ interface ChargeItem {
   description: string;
   chargeType: string;
   group: string;
+}
+
+interface CartEntry {
+  key: string;
+  label: string;
+  description: string;
+  chargeType: string;
+  unitAmount: number;
+  quantity: number;
+  isCafe: boolean;
+  addonNames: string[];
+  flavorStr: string;
 }
 
 function buildChargeItems(
@@ -126,6 +138,11 @@ export function ChargeItemSelector({
 }: ChargeItemSelectorProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Cart state
+  const [cartItems, setCartItems] = useState<CartEntry[]>([]);
+
+  // Current item selection state
   const [selectedItemId, setSelectedItemId] = useState("");
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeDescription, setChargeDescription] = useState("");
@@ -250,9 +267,6 @@ export function ChargeItemSelector({
 
   const isCafeItem = chargeType === "cafe" && selectedCafeItem;
   const unitAmount = isCafeItem ? getEffectiveAmount() : parseFloat(chargeAmount) || 0;
-  const effectiveAmount = unitAmount * quantity;
-  const cafeTax = isCafeItem ? calculateTax(effectiveAmount) : 0;
-  const totalWithTax = isCafeItem ? effectiveAmount + cafeTax : effectiveAmount;
 
   const handleSaveNewItem = async () => {
     const price = parseFloat(newItemFields.price);
@@ -289,38 +303,84 @@ export function ChargeItemSelector({
     setIsAddingAddon(false);
   };
 
+  // Add current selection to cart
+  const handleAddToCart = () => {
+    if (!selectedItemId && !chargeAmount) return;
+
+    const flavorStr = proteinFlavor === "other" ? customFlavor || "Custom" : proteinFlavor;
+    const addonNames = addons.filter((a) => selectedAddons.includes(a.id)).map((a) => a.name);
+
+    let label = chargeDescription;
+    if (isCafeItem && flavorStr) label += ` (${flavorStr})`;
+    if (addonNames.length > 0) label += ` + ${addonNames.join(", ")}`;
+
+    const entry: CartEntry = {
+      key: `${selectedItemId}-${Date.now()}`,
+      label,
+      description: chargeDescription,
+      chargeType,
+      unitAmount,
+      quantity,
+      isCafe: !!isCafeItem,
+      addonNames,
+      flavorStr,
+    };
+
+    setCartItems((prev) => [...prev, entry]);
+
+    // Reset selection
+    setSelectedItemId("");
+    setChargeAmount("");
+    setChargeDescription("");
+    setChargeType("other");
+    setSelectedAddons([]);
+    setProteinFlavor("");
+    setCustomFlavor("");
+    setQuantity(1);
+  };
+
+  const removeFromCart = (key: string) => {
+    setCartItems((prev) => prev.filter((item) => item.key !== key));
+  };
+
+  // Cart totals
+  const cartSubtotal = cartItems.reduce((sum, item) => sum + item.unitAmount * item.quantity, 0);
+  const cartCafeTax = cartItems
+    .filter((item) => item.isCafe)
+    .reduce((sum, item) => sum + calculateTax(item.unitAmount * item.quantity), 0);
+  const cartTotalBeforeFee = cartSubtotal + cartCafeTax;
+  const cartProcessingFee = !isManualPayment ? calculateProcessingFeeFromDollars(cartTotalBeforeFee) : 0;
+  const cartGrandTotal = cartTotalBeforeFee + cartProcessingFee;
+
   const handleCharge = async () => {
-    const finalAmount = isCafeItem ? totalWithTax : effectiveAmount;
-    const amountInCents = Math.round(finalAmount * 100);
+    if (cartItems.length === 0) {
+      toast.error("Add at least one item to the cart");
+      return;
+    }
+
+    const amountInCents = Math.round(cartTotalBeforeFee * 100);
     if (isNaN(amountInCents) || amountInCents < 50) {
       toast.error("Minimum charge amount is $0.50");
       return;
     }
 
-    let desc = chargeDescription.trim();
-    if (quantity > 1) desc = `${quantity}x ${desc}`;
-    if (isCafeItem) {
-      const flavorStr = proteinFlavor === "other" ? customFlavor || "Custom" : proteinFlavor;
-      if (flavorStr) desc += ` (${flavorStr})`;
-      if (selectedAddons.length > 0) {
-        const addonNames = addons.filter((a) => selectedAddons.includes(a.id)).map((a) => a.name);
-        desc += ` + ${addonNames.join(", ")}`;
-      }
-      desc += ` (incl. MI 6% tax)`;
-    }
+    // Build combined description
+    const descParts = cartItems.map((item) => {
+      let desc = item.quantity > 1 ? `${item.quantity}x ` : "";
+      desc += item.label;
+      return desc;
+    });
+    let desc = descParts.join(" | ");
 
-    if (!desc) {
-      toast.error("Please enter a description");
-      return;
-    }
+    const hasCafe = cartItems.some((item) => item.isCafe);
+    if (hasCafe) desc += " (incl. MI 6% tax)";
 
     setIsCharging(true);
     try {
       if (isManualPayment) {
-        // For non-members, use user_id; for members, use member_id
         const insertData: any = {
           amount: amountInCents,
-          description: `[${manualPaymentMethod.toUpperCase()}] ${desc} (${chargeType})`,
+          description: `[${manualPaymentMethod.toUpperCase()}] ${desc}`,
           status: "succeeded",
           charged_by: user?.id || "unknown",
           user_id: nonMember?.userId || user?.id || "unknown",
@@ -339,15 +399,14 @@ export function ChargeItemSelector({
           if (activateError) {
             toast.error("Payment recorded but failed to activate member");
           } else {
-            toast.success(`Manual payment of $${finalAmount.toFixed(2)} recorded & member activated`);
+            toast.success(`Manual payment of $${cartTotalBeforeFee.toFixed(2)} recorded & member activated`);
             onChargeSuccess?.();
             resetAndClose();
             return;
           }
         }
-        toast.success(`Manual payment of $${finalAmount.toFixed(2)} recorded`);
+        toast.success(`Manual payment of $${cartTotalBeforeFee.toFixed(2)} recorded`);
       } else {
-        // For non-members, pass stripeCustomerId directly; for members, pass memberId
         const chargeBody: any = {
           action: "charge_saved_card_with_3ds",
           amount: amountInCents,
@@ -368,7 +427,7 @@ export function ChargeItemSelector({
           return;
         }
         if (!data?.success) throw new Error(data?.error || "Charge failed");
-        toast.success(`Successfully charged $${finalAmount.toFixed(2)}`);
+        toast.success(`Successfully charged $${cartTotalBeforeFee.toFixed(2)}`);
       }
       onChargeSuccess?.();
       resetAndClose();
@@ -380,6 +439,7 @@ export function ChargeItemSelector({
   };
 
   const resetAndClose = () => {
+    setCartItems([]);
     setSelectedItemId("");
     setChargeAmount("");
     setChargeDescription("");
@@ -407,20 +467,53 @@ export function ChargeItemSelector({
   const showingForm = isAddingCafeItem || isAddingCategory || isAddingAddon;
   const addonCategoryOptions = categories.filter((c) => c.has_addons);
 
+  const canAddToCart = selectedItemId && !showingForm && unitAmount >= 0.01;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Charge / Record Payment</DialogTitle>
           <DialogDescription>
-            {member.first_name} {member.last_name} — Select an item or enter a custom charge
+            {member.first_name} {member.last_name} — Add items then charge
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Cart items */}
+          {cartItems.length > 0 && (
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <ShoppingCart className="h-4 w-4" />
+                Cart ({cartItems.length} {cartItems.length === 1 ? "item" : "items"})
+              </div>
+              <div className="space-y-1">
+                {cartItems.map((item) => (
+                  <div key={item.key} className="flex items-center justify-between text-sm gap-2">
+                    <span className="truncate flex-1">
+                      {item.quantity > 1 && <span className="font-medium">{item.quantity}× </span>}
+                      {item.label}
+                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-medium">${(item.unitAmount * item.quantity).toFixed(2)}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeFromCart(item.key)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Item selector */}
           <div>
-            <Label>Charge Item</Label>
+            <Label>Add Item</Label>
             <Select value={selectedItemId} onValueChange={handleItemSelect}>
               <SelectTrigger>
                 <SelectValue placeholder="Select an item..." />
@@ -614,8 +707,8 @@ export function ChargeItemSelector({
             </div>
           )}
 
-          {/* Amount & description */}
-          {!showingForm && (
+          {/* Custom amount fields */}
+          {selectedItemId === "custom" && !showingForm && (
             <>
               <div>
                 <Label>Amount ($)</Label>
@@ -626,44 +719,56 @@ export function ChargeItemSelector({
                     step="0.01"
                     min="0.50"
                     placeholder="0.00"
-                    value={isCafeItem ? effectiveAmount.toFixed(2) : chargeAmount}
-                    onChange={(e) => !isCafeItem && setChargeAmount(e.target.value)}
+                    value={chargeAmount}
+                    onChange={(e) => setChargeAmount(e.target.value)}
                     className="pl-9"
-                    readOnly={!!isCafeItem}
                   />
                 </div>
               </div>
-
-              {/* Tax line for cafe items */}
-              {/* Fee breakdown */}
-              {(isCafeItem || (!isManualPayment && effectiveAmount > 0)) && (
-                <div className="rounded-lg border p-3 space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>${effectiveAmount.toFixed(2)}</span>
-                  </div>
-                  {isCafeItem && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>MI Sales Tax (6%)</span>
-                      <span>${cafeTax.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {!isManualPayment && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Processing Fee</span>
-                      <span>+${calculateProcessingFeeFromDollars(isCafeItem ? totalWithTax : effectiveAmount).toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-semibold border-t pt-1">
-                    <span>Total</span>
-                    <span>${(isCafeItem ? totalWithTax : effectiveAmount + (!isManualPayment ? calculateProcessingFeeFromDollars(effectiveAmount) : 0)).toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
-
               <div>
                 <Label>Description</Label>
                 <Textarea value={chargeDescription} onChange={(e) => setChargeDescription(e.target.value)} placeholder="Charge description..." rows={2} />
+              </div>
+            </>
+          )}
+
+          {/* Add to Cart button */}
+          {selectedItemId && !showingForm && (
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={handleAddToCart}
+              disabled={!canAddToCart}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add to Cart — ${(unitAmount * quantity).toFixed(2)}
+            </Button>
+          )}
+
+          {/* Totals & payment options (only when cart has items) */}
+          {cartItems.length > 0 && (
+            <>
+              <div className="rounded-lg border p-3 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>${cartSubtotal.toFixed(2)}</span>
+                </div>
+                {cartCafeTax > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>MI Sales Tax (6%)</span>
+                    <span>${cartCafeTax.toFixed(2)}</span>
+                  </div>
+                )}
+                {!isManualPayment && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Processing Fee</span>
+                    <span>+${cartProcessingFee.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold border-t pt-1">
+                  <span>Total</span>
+                  <span>${cartGrandTotal.toFixed(2)}</span>
+                </div>
               </div>
 
               {/* Manual payment toggle */}
@@ -678,7 +783,7 @@ export function ChargeItemSelector({
                 <Switch checked={isManualPayment} onCheckedChange={setIsManualPayment} />
               </div>
 
-              {isManualPayment && isPendingActivation && (chargeType === "membership_dues" || chargeType === "initiation_fee") && (
+              {isManualPayment && isPendingActivation && cartItems.some((i) => i.chargeType === "membership_dues" || i.chargeType === "initiation_fee") && (
                 <div className="flex items-center justify-between rounded-lg border border-accent bg-accent/10 p-3">
                   <div>
                     <Label className="text-sm font-medium">Also activate this member</Label>
@@ -708,10 +813,10 @@ export function ChargeItemSelector({
 
         <DialogFooter>
           <Button variant="outline" onClick={resetAndClose} disabled={isCharging}>Cancel</Button>
-          {!showingForm && (
-            <Button onClick={handleCharge} disabled={isCharging || (isCafeItem ? totalWithTax < 0.5 : !chargeAmount)}>
+          {cartItems.length > 0 && !showingForm && (
+            <Button onClick={handleCharge} disabled={isCharging}>
               {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {isManualPayment ? "Record" : "Charge"} ${isCafeItem ? totalWithTax.toFixed(2) : chargeAmount || "0.00"}
+              {isManualPayment ? "Record" : "Charge"} ${cartTotalBeforeFee.toFixed(2)}
             </Button>
           )}
         </DialogFooter>
