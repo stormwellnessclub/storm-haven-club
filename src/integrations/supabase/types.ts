@@ -2394,6 +2394,163 @@ export type Database = {
           },
         ]
       }
+      marketing_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          linked_member_id: string | null
+          opted_in_email: boolean | null
+          opted_in_sms: boolean | null
+          phone: string | null
+          segment_tags: string[] | null
+          source: Database["public"]["Enums"]["marketing_source"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          linked_member_id?: string | null
+          opted_in_email?: boolean | null
+          opted_in_sms?: boolean | null
+          phone?: string | null
+          segment_tags?: string[] | null
+          source?: Database["public"]["Enums"]["marketing_source"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          linked_member_id?: string | null
+          opted_in_email?: boolean | null
+          opted_in_sms?: boolean | null
+          phone?: string | null
+          segment_tags?: string[] | null
+          source?: Database["public"]["Enums"]["marketing_source"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_contacts_linked_member_id_fkey"
+            columns: ["linked_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_contacts_linked_member_id_fkey"
+            columns: ["linked_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_contacts_linked_member_id_fkey"
+            columns: ["linked_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_sequence_enrollments: {
+        Row: {
+          completed_at: string | null
+          contact_id: string
+          created_at: string
+          current_step: number
+          enrolled_at: string
+          id: string
+          next_step_at: string | null
+          sequence_id: string
+          status: Database["public"]["Enums"]["enrollment_status"]
+        }
+        Insert: {
+          completed_at?: string | null
+          contact_id: string
+          created_at?: string
+          current_step?: number
+          enrolled_at?: string
+          id?: string
+          next_step_at?: string | null
+          sequence_id: string
+          status?: Database["public"]["Enums"]["enrollment_status"]
+        }
+        Update: {
+          completed_at?: string | null
+          contact_id?: string
+          created_at?: string
+          current_step?: number
+          enrolled_at?: string
+          id?: string
+          next_step_at?: string | null
+          sequence_id?: string
+          status?: Database["public"]["Enums"]["enrollment_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_sequence_enrollments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_sequence_enrollments_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_sequences: {
+        Row: {
+          channel: Database["public"]["Enums"]["sequence_channel"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          steps: Json
+          trigger_type: Database["public"]["Enums"]["sequence_trigger"]
+          updated_at: string
+        }
+        Insert: {
+          channel?: Database["public"]["Enums"]["sequence_channel"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          steps?: Json
+          trigger_type: Database["public"]["Enums"]["sequence_trigger"]
+          updated_at?: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["sequence_channel"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          steps?: Json
+          trigger_type?: Database["public"]["Enums"]["sequence_trigger"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       member_achievements: {
         Row: {
           achievement_name: string
@@ -4311,6 +4468,63 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_messages: {
+        Row: {
+          campaign_id: string | null
+          contact_id: string | null
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          message_body: string
+          phone: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["sms_status"]
+          twilio_sid: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          message_body: string
+          phone: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["sms_status"]
+          twilio_sid?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          message_body?: string
+          phone?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["sms_status"]
+          twilio_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_appointments: {
         Row: {
           amount_paid: number | null
@@ -5386,9 +5600,27 @@ export type Database = {
         | "aerobics"
       conversation_status: "open" | "in_progress" | "resolved" | "closed"
       credit_type: "class" | "red_light" | "dry_cryo" | "guest_pass"
+      enrollment_status: "active" | "completed" | "cancelled" | "paused"
+      marketing_source:
+        | "import"
+        | "guest_pass"
+        | "application"
+        | "member"
+        | "manual"
       message_sender_type: "member" | "staff"
       note_visibility: "all_staff" | "specific_roles" | "specific_users"
       pass_status: "active" | "expired" | "exhausted"
+      sequence_channel: "email" | "sms" | "both"
+      sequence_trigger:
+        | "guest_visit"
+        | "membership_activated"
+        | "dormant_14d"
+        | "dormant_30d"
+        | "membership_anniversary"
+        | "post_class"
+        | "churn_risk"
+        | "manual"
+      sms_status: "queued" | "sent" | "failed" | "delivered" | "undelivered"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "todo" | "in_progress" | "done"
       waitlist_status:
@@ -5553,9 +5785,29 @@ export const Constants = {
       ],
       conversation_status: ["open", "in_progress", "resolved", "closed"],
       credit_type: ["class", "red_light", "dry_cryo", "guest_pass"],
+      enrollment_status: ["active", "completed", "cancelled", "paused"],
+      marketing_source: [
+        "import",
+        "guest_pass",
+        "application",
+        "member",
+        "manual",
+      ],
       message_sender_type: ["member", "staff"],
       note_visibility: ["all_staff", "specific_roles", "specific_users"],
       pass_status: ["active", "expired", "exhausted"],
+      sequence_channel: ["email", "sms", "both"],
+      sequence_trigger: [
+        "guest_visit",
+        "membership_activated",
+        "dormant_14d",
+        "dormant_30d",
+        "membership_anniversary",
+        "post_class",
+        "churn_risk",
+        "manual",
+      ],
+      sms_status: ["queued", "sent", "failed", "delivered", "undelivered"],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["todo", "in_progress", "done"],
       waitlist_status: [
