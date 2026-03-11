@@ -98,6 +98,7 @@ type Application = {
   membership_plan: string;
   status: string;
   created_at: string;
+  updated_at: string;
   founding_member: string;
   wellness_goals: string[];
   date_of_birth: string;
@@ -105,10 +106,22 @@ type Application = {
   city: string;
   state: string;
   zip_code: string;
+  country: string;
   lifestyle_integration: string | null;
   holistic_wellness: string | null;
   referred_by_member: string;
   services_interested: string[];
+  motivations: string[] | null;
+  other_goals: string | null;
+  other_motivation: string | null;
+  other_services: string | null;
+  previous_member: string | null;
+  membership_agreement_signed: boolean;
+  one_year_commitment: boolean;
+  credit_card_auth: boolean;
+  auth_acknowledgment: boolean;
+  submission_confirmation: boolean;
+  payment_info_provided: boolean;
   annual_fee_status: string;
   notes: string | null;
   stripe_customer_id: string | null;
@@ -117,6 +130,7 @@ type Application = {
   card_exp_month: number | null;
   card_exp_year: number | null;
   payment_link_sent_at: string | null;
+  user_id: string | null;
 };
 
 const getStatusBadge = (status: string) => {
