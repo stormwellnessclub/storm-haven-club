@@ -34,6 +34,7 @@ import {
   Megaphone,
   ShoppingBag,
   ChevronDown,
+  MessagesSquare,
 } from "lucide-react";
 import {
   Sidebar,
