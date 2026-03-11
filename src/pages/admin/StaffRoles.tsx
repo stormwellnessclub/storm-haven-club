@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, Search, UserPlus, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AppRole, ROLE_LABELS } from "@/lib/permissions";
 import { InviteStaffDialog } from "@/components/admin/InviteStaffDialog";
+import { PendingInvitesTab } from "@/components/admin/PendingInvitesTab";
 import { format } from "date-fns";
 
 interface StaffMember {
@@ -92,7 +94,7 @@ export default function StaffRoles() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Staff Management</h1>
-            <p className="text-muted-foreground">Manage staff access, roles, and activity</p>
+            <p className="text-muted-foreground">Manage staff access, roles, and invitations</p>
           </div>
           <Button onClick={() => setInviteDialogOpen(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
@@ -100,79 +102,88 @@ export default function StaffRoles() {
           </Button>
         </div>
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="Search staff by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <Tabs defaultValue="active" className="w-full">
+          <TabsList>
+            <TabsTrigger value="active">Active Staff</TabsTrigger>
+            <TabsTrigger value="invites">Pending Invites</TabsTrigger>
+          </TabsList>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : filteredStaff.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Shield className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-muted-foreground">No staff members found</p>
-              <p className="text-sm text-muted-foreground">Add a staff member to get started</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Roles</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date Added</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStaff.map((staff) => (
-                  <TableRow
-                    key={staff.userId}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/admin/staff-roles/${staff.userId}`)}
-                  >
-                    <TableCell className="font-medium">
-                      {staff.firstName} {staff.lastName}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{staff.email}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {staff.roles.slice(0, 3).map((role) => (
-                          <Badge key={role} variant="secondary" className="text-xs">
-                            {ROLE_LABELS[role]}
-                          </Badge>
-                        ))}
-                        {staff.roles.length > 3 && (
-                          <Badge variant="outline" className="text-xs">+{staff.roles.length - 3}</Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {staff.roles.length > 0 ? (
-                        <Badge variant="secondary">Active</Badge>
-                      ) : (
-                        <Badge variant="destructive">Deactivated</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {staff.createdAt ? format(new Date(staff.createdAt), 'MMM d, yyyy') : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+          <TabsContent value="active" className="space-y-4">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Search staff by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredStaff.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Shield className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">No active staff members found</p>
+                  <p className="text-sm text-muted-foreground">Send an invite to add staff</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Roles</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date Added</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStaff.map((staff) => (
+                      <TableRow
+                        key={staff.userId}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/admin/staff-roles/${staff.userId}`)}
+                      >
+                        <TableCell className="font-medium">
+                          {staff.firstName} {staff.lastName}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{staff.email}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {staff.roles.slice(0, 3).map((role) => (
+                              <Badge key={role} variant="secondary" className="text-xs">
+                                {ROLE_LABELS[role]}
+                              </Badge>
+                            ))}
+                            {staff.roles.length > 3 && (
+                              <Badge variant="outline" className="text-xs">+{staff.roles.length - 3}</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">Active</Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {staff.createdAt ? format(new Date(staff.createdAt), 'MMM d, yyyy') : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="invites">
+            <PendingInvitesTab />
+          </TabsContent>
+        </Tabs>
 
         <InviteStaffDialog
           open={inviteDialogOpen}

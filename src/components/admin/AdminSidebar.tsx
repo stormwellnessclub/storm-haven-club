@@ -33,6 +33,7 @@ import {
   Sparkles,
   Megaphone,
   ShoppingBag,
+  ChevronDown,
 } from "lucide-react";
 import {
   Sidebar,
@@ -47,6 +48,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRoles } from "@/hooks/useUserRoles";
@@ -57,53 +59,93 @@ interface MenuItem {
   url: string;
   icon: React.ElementType;
   highlight?: boolean;
-  requiredRoles?: AppRole[];
 }
 
-const quickAccessItems: MenuItem[] = [
-  { title: "Dashboard", url: "/admin", icon: LayoutDashboard, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Soft Launch Classes", url: "/admin/classes?tab=soft-launch", icon: Calendar, highlight: true, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-  { title: "Check-In", url: "/admin/check-in", icon: QrCode, highlight: true, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-  { title: "Check-In History", url: "/admin/check-in-history", icon: ClipboardList, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-  { title: "Scanner", url: "/admin/scanner", icon: ScanLine, highlight: true, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-];
+interface DepartmentSection {
+  label: string;
+  roles: AppRole[];
+  items: MenuItem[];
+  defaultOpen?: boolean;
+}
 
-const managementItems: MenuItem[] = [
-  { title: "Directory", url: "/admin/people", icon: UsersRound, highlight: true, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-  { title: "Members", url: "/admin/members", icon: Users, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-  { title: "Member Credits", url: "/admin/member-credits", icon: CreditCard, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Freeze Requests", url: "/admin/freeze-requests", icon: Snowflake, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Applications", url: "/admin/applications", icon: FileText, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-  { title: "Appointments", url: "/admin/appointments", icon: Calendar, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk', 'spa_staff'] },
-  { title: "Payments", url: "/admin/payments", icon: CreditCard, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-  { title: "Payment Tracking", url: "/admin/payment-tracking", icon: FileWarning, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Payment Reports", url: "/admin/payment-reports", icon: BarChart3, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Revenue Analytics", url: "/admin/revenue-analytics", icon: TrendingUp, requiredRoles: ['super_admin'] },
-  { title: "Reports", url: "/admin/reports", icon: FileBarChart, requiredRoles: ['super_admin'] },
-  { title: "Guest Passes", url: "/admin/guest-passes", icon: Ticket, requiredRoles: ['super_admin', 'manager', 'front_desk'] },
-  { title: "Guest Accounts", url: "/admin/guests", icon: Users, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-  { title: "Marketing", url: "/admin/marketing", icon: Megaphone, requiredRoles: ['super_admin', 'admin'] },
-  { title: "Non-Member Accounts", url: "/admin/non-member-accounts", icon: UserPlus, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-];
-
-const servicesItems: MenuItem[] = [
-  { title: "Today's Classes", url: "/admin/classes", icon: Calendar, requiredRoles: ['super_admin', 'admin', 'class_instructor'] },
-  { title: "Class Management", url: "/admin/class-types", icon: Dumbbell, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Instructors", url: "/admin/instructors", icon: UserCog, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Cafe POS", url: "/admin/cafe", icon: Coffee, requiredRoles: ['super_admin', 'admin', 'cafe_staff'] },
-  { title: "Cafe Menu", url: "/admin/cafe-menu", icon: Coffee, requiredRoles: ['super_admin', 'admin', 'cafe_staff'] },
-  { title: "Front Desk POS", url: "/admin/front-desk", icon: Sparkles, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk', 'spa_staff'] },
-  { title: "Storm Shop Manager", url: "/admin/merch", icon: ShoppingBag, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Childcare", url: "/admin/childcare", icon: Baby, requiredRoles: ['super_admin', 'admin', 'childcare_staff'] },
-];
-
-const systemItems: MenuItem[] = [
-  { title: "Staff Management", url: "/admin/staff-roles", icon: Shield, requiredRoles: ['super_admin', 'admin'] },
-  { title: "Blocked Persons", url: "/admin/blocked", icon: ShieldX, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Equipment", url: "/admin/equipment", icon: Dumbbell, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Agreements", url: "/admin/agreements", icon: FileText, requiredRoles: ['super_admin', 'admin', 'manager'] },
-  { title: "Support", url: "/admin/emails", icon: MessageSquare, requiredRoles: ['super_admin', 'admin', 'manager', 'front_desk'] },
-  { title: "Settings", url: "/admin/settings", icon: Settings, requiredRoles: ['super_admin', 'admin'] },
+const departments: DepartmentSection[] = [
+  {
+    label: 'Operations',
+    roles: ['super_admin', 'admin', 'manager', 'front_desk'],
+    defaultOpen: true,
+    items: [
+      { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
+      { title: "Check-In", url: "/admin/check-in", icon: QrCode, highlight: true },
+      { title: "Check-In History", url: "/admin/check-in-history", icon: ClipboardList },
+      { title: "Scanner", url: "/admin/scanner", icon: ScanLine, highlight: true },
+      { title: "Directory", url: "/admin/people", icon: UsersRound, highlight: true },
+      { title: "Members", url: "/admin/members", icon: Users },
+      { title: "Applications", url: "/admin/applications", icon: FileText },
+      { title: "Guest Passes", url: "/admin/guest-passes", icon: Ticket },
+      { title: "Guest Accounts", url: "/admin/guests", icon: Users },
+      { title: "Non-Member Accounts", url: "/admin/non-member-accounts", icon: UserPlus },
+      { title: "Support", url: "/admin/emails", icon: MessageSquare },
+    ],
+  },
+  {
+    label: 'Classes',
+    roles: ['super_admin', 'admin', 'manager', 'class_instructor'],
+    defaultOpen: true,
+    items: [
+      { title: "Today's Classes", url: "/admin/classes", icon: Calendar },
+      { title: "Class Management", url: "/admin/class-types", icon: Dumbbell },
+      { title: "Instructors", url: "/admin/instructors", icon: UserCog },
+    ],
+  },
+  {
+    label: 'Wellness & Spa',
+    roles: ['super_admin', 'admin', 'manager', 'spa_staff', 'front_desk'],
+    items: [
+      { title: "Appointments", url: "/admin/appointments", icon: Calendar },
+      { title: "Front Desk POS", url: "/admin/front-desk", icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Cafe & Retail',
+    roles: ['super_admin', 'admin', 'manager', 'cafe_staff'],
+    items: [
+      { title: "Cafe POS", url: "/admin/cafe", icon: Coffee },
+      { title: "Cafe Menu", url: "/admin/cafe-menu", icon: Coffee },
+      { title: "Storm Shop", url: "/admin/merch", icon: ShoppingBag },
+    ],
+  },
+  {
+    label: 'Childcare',
+    roles: ['super_admin', 'admin', 'childcare_staff'],
+    items: [
+      { title: "Childcare", url: "/admin/childcare", icon: Baby },
+    ],
+  },
+  {
+    label: 'Finance',
+    roles: ['super_admin', 'admin', 'manager'],
+    items: [
+      { title: "Payments", url: "/admin/payments", icon: CreditCard },
+      { title: "Payment Tracking", url: "/admin/payment-tracking", icon: FileWarning },
+      { title: "Payment Reports", url: "/admin/payment-reports", icon: BarChart3 },
+      { title: "Revenue Analytics", url: "/admin/revenue-analytics", icon: TrendingUp },
+      { title: "Reports", url: "/admin/reports", icon: FileBarChart },
+      { title: "Member Credits", url: "/admin/member-credits", icon: CreditCard },
+      { title: "Freeze Requests", url: "/admin/freeze-requests", icon: Snowflake },
+    ],
+  },
+  {
+    label: 'Administration',
+    roles: ['super_admin', 'admin'],
+    items: [
+      { title: "Staff Management", url: "/admin/staff-roles", icon: Shield },
+      { title: "Blocked Persons", url: "/admin/blocked", icon: ShieldX },
+      { title: "Equipment", url: "/admin/equipment", icon: Dumbbell },
+      { title: "Agreements", url: "/admin/agreements", icon: FileText },
+      { title: "Marketing", url: "/admin/marketing", icon: Megaphone },
+      { title: "Settings", url: "/admin/settings", icon: Settings },
+    ],
+  },
 ];
 
 export function AdminSidebar() {
@@ -115,7 +157,6 @@ export function AdminSidebar() {
   const [todaysGuestCount, setTodaysGuestCount] = useState(0);
   const [hasMembership, setHasMembership] = useState(false);
 
-  // Check if staff member also has an active membership
   useEffect(() => {
     if (!user) return;
     supabase
@@ -129,7 +170,6 @@ export function AdminSidebar() {
       });
   }, [user]);
 
-  // Fetch today's guest count
   useEffect(() => {
     const todayStr = format(new Date(), "yyyy-MM-dd");
     supabase
@@ -149,17 +189,21 @@ export function AdminSidebar() {
     return location.pathname.startsWith(path);
   };
 
-  const filterMenuItems = (items: MenuItem[]) => {
-    return items.filter(item => {
-      if (!item.requiredRoles) return true;
-      return canAccessPage(roles, item.url);
-    });
+  // Check if user has any of the department's required roles
+  const canSeeDepartment = (dept: DepartmentSection) => {
+    if (roles.includes('super_admin')) return true;
+    return dept.roles.some(r => roles.includes(r));
   };
 
-  const filteredQuickAccess = filterMenuItems(quickAccessItems);
-  const filteredManagement = filterMenuItems(managementItems);
-  const filteredServices = filterMenuItems(servicesItems);
-  const filteredSystem = filterMenuItems(systemItems);
+  // Filter items within a department by page permission
+  const filterItems = (items: MenuItem[]) => {
+    return items.filter(item => canAccessPage(roles, item.url));
+  };
+
+  // Check if any item in department is currently active
+  const isDeptActive = (dept: DepartmentSection) => {
+    return dept.items.some(item => isActive(item.url));
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -177,126 +221,63 @@ export function AdminSidebar() {
           {!isCollapsed && (
             <div>
               <h2 className="font-semibold text-sm">Storm Wellness</h2>
-              <p className="text-xs text-muted-foreground">Admin Portal</p>
+              <p className="text-xs text-muted-foreground">Staff Portal</p>
             </div>
           )}
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-2">
-        {/* Quick Access */}
-        {filteredQuickAccess.length > 0 && (
-          <SidebarGroup className="pt-4">
-            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
-              Quick Access
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {filteredQuickAccess.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={item.title}
-                      className={item.highlight && !isActive(item.url) ? "bg-accent/20 hover:bg-accent/30" : ""}
-                    >
-                      <NavLink to={item.url} end={item.url === "/admin"}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {departments.map((dept) => {
+          if (!canSeeDepartment(dept)) return null;
+          const visibleItems = filterItems(dept.items);
+          if (visibleItems.length === 0) return null;
 
-        {/* Management */}
-        {filteredManagement.length > 0 && (
-          <SidebarGroup className="pt-4">
-            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
-              Management
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {filteredManagement.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={item.title}
-                    >
-                      <NavLink to={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                        {item.url === "/admin/guest-passes" && todaysGuestCount > 0 && !isCollapsed && (
-                          <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-accent text-accent-foreground text-xs font-medium">
-                            {todaysGuestCount}
-                          </span>
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* Services */}
-        {filteredServices.length > 0 && (
-          <SidebarGroup className="pt-4">
-            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
-              Services
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {filteredServices.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={item.title}
-                    >
-                      <NavLink to={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* System */}
-        {filteredSystem.length > 0 && (
-          <SidebarGroup className="pt-4">
-            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-2">
-              System
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {filteredSystem.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      tooltip={item.title}
-                    >
-                      <NavLink to={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+          return (
+            <Collapsible
+              key={dept.label}
+              defaultOpen={dept.defaultOpen || isDeptActive(dept)}
+              className="group/collapsible"
+            >
+              <SidebarGroup className="pt-3">
+                <CollapsibleTrigger className="w-full">
+                  <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 mb-1 flex items-center justify-between cursor-pointer hover:text-muted-foreground transition-colors">
+                    <span>{dept.label}</span>
+                    {!isCollapsed && (
+                      <ChevronDown className="h-3 w-3 transition-transform group-data-[state=closed]/collapsible:rotate-[-90deg]" />
+                    )}
+                  </SidebarGroupLabel>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {visibleItems.map((item) => (
+                        <SidebarMenuItem key={item.title}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={isActive(item.url)}
+                            tooltip={item.title}
+                            className={item.highlight && !isActive(item.url) ? "bg-accent/20 hover:bg-accent/30" : ""}
+                          >
+                            <NavLink to={item.url} end={item.url === "/admin"}>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                              {item.url === "/admin/guest-passes" && todaysGuestCount > 0 && !isCollapsed && (
+                                <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-accent text-accent-foreground text-xs font-medium">
+                                  {todaysGuestCount}
+                                </span>
+                              )}
+                            </NavLink>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+          );
+        })}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-border space-y-2">
