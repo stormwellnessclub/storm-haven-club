@@ -88,6 +88,7 @@ import NonMemberAccounts from "./pages/admin/NonMemberAccounts";
 import NonMemberDetail from "./pages/admin/NonMemberDetail";
 import People from "./pages/admin/People";
 import BlockedPersons from "./pages/admin/BlockedPersons";
+import StaffHub from "./pages/admin/StaffHub";
 import MerchManager from "./pages/admin/MerchManager";
 import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
