@@ -36,6 +36,7 @@ import { ClassPassSalesReport } from "./reports/ClassPassSalesReport";
 import { MemberEngagementReport } from "./reports/MemberEngagementReport";
 import { GuestReturnsReport } from "./reports/GuestReturnsReport";
 import { ClassEngagementReport } from "./reports/ClassEngagementReport";
+import { DailySalesBreakdownReport } from "./reports/DailySalesBreakdownReport";
 interface ReportPreviewProps {
   report: ReportDefinition | null;
   dateRange: { start: Date; end: Date };
@@ -113,6 +114,7 @@ interface ReportContentProps {
 
 function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
   const reportComponents: Record<string, React.ComponentType<{ dateRange: { start: Date; end: Date }; filters: Record<string, string | boolean> }>> = {
+    'daily-sales-breakdown': DailySalesBreakdownReport,
     'revenue-summary': RevenueSummaryReport,
     'daily-revenue': DailyRevenueReport,
     'revenue-by-category': RevenueByCategoryReport,

@@ -108,6 +108,15 @@ const CARD_SETUP_STATUS_OPTIONS = [
 export const REPORTS: ReportDefinition[] = [
   // Financial Reports
   {
+    id: 'daily-sales-breakdown',
+    name: 'Daily Sales Breakdown',
+    description: 'Item-level sales detail across Café, Merch, Classes, Guest Passes & Memberships',
+    category: 'financial',
+    icon: BarChart3,
+    filters: [],
+    defaultDateRange: 'today',
+  },
+  {
     id: 'daily-revenue',
     name: 'Daily Revenue Breakdown',
     description: 'Revenue per day broken down by area: Café, Spa, Classes, Guest Passes, Memberships',
