@@ -86,6 +86,7 @@ const departments: DepartmentSection[] = [
       { title: "Guest Accounts", url: "/admin/guests", icon: Users },
       { title: "Non-Member Accounts", url: "/admin/non-member-accounts", icon: UserPlus },
       { title: "Support", url: "/admin/emails", icon: MessageSquare },
+      { title: "Staff Hub", url: "/admin/staff-hub", icon: MessagesSquare, highlight: true },
     ],
   },
   {

@@ -164,12 +164,12 @@ export function StaffChat({ onUnreadChange }: Props) {
   const sendMessage = async () => {
     if (!newMessage.trim() || !user || !selectedChannel || sending) return;
     setSending(true);
-    const { error } = await supabase.from("staff_messages").insert({
+    const { error } = await supabase.from("staff_messages").insert([{
       channel_id: selectedChannel,
       sender_id: user.id,
       message_body: newMessage.trim(),
       is_read_by: [user.id],
-    });
+    }]);
     setSending(false);
     if (error) {
       toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
