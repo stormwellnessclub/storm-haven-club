@@ -53,14 +53,14 @@ export function CreateTaskDialog({ open, onOpenChange, onCreated }: Props) {
     if (!title.trim() || !user) return;
     setSaving(true);
 
-    const { error } = await supabase.from("staff_tasks").insert({
+    const { error } = await supabase.from("staff_tasks").insert([{
       title: title.trim(),
       description: description.trim() || null,
-      priority,
+      priority: priority as any,
       created_by: user.id,
       assigned_to: assignedTo === "unassigned" ? null : assignedTo,
       due_date: dueDate || null,
-    });
+    }]);
 
     setSaving(false);
     if (error) {

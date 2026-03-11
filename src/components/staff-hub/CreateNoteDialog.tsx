@@ -36,13 +36,13 @@ export function CreateNoteDialog({ open, onOpenChange, onCreated }: Props) {
     if (!title.trim() || !user) return;
     setSaving(true);
 
-    const { error } = await supabase.from("staff_notes").insert({
+    const { error } = await supabase.from("staff_notes").insert([{
       title: title.trim(),
       content: content.trim(),
       created_by: user.id,
-      visibility,
-      visible_to_roles: visibility === "specific_roles" ? selectedRoles : [],
-    });
+      visibility: visibility as any,
+      visible_to_roles: visibility === "specific_roles" ? selectedRoles as any : [],
+    }]);
 
     setSaving(false);
     if (error) {

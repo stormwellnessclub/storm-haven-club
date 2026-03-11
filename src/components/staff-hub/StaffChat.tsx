@@ -60,13 +60,13 @@ export function StaffChat({ onUnreadChange }: Props) {
       if (!existing || existing.length === 0) {
         // Seed defaults
         for (const ch of DEFAULT_CHANNELS) {
-          await supabase.from("staff_channels").insert({
+        await supabase.from("staff_channels").insert([{
             name: ch.name,
-            channel_type: ch.channel_type,
-            visible_to_roles: ch.visible_to_roles,
+            channel_type: ch.channel_type as any,
+            visible_to_roles: ch.visible_to_roles as any,
             member_ids: [],
             created_by: user.id,
-          });
+          }]);
         }
       }
       // Fetch channels
