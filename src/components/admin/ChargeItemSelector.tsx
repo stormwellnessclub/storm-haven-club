@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DollarSign, Loader2, Banknote, Plus, X, ShoppingCart } from "lucide-react";
+import { DollarSign, Loader2, Banknote, Plus, X, ShoppingCart, Search } from "lucide-react";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
   MEMBERSHIP_PRICING,
