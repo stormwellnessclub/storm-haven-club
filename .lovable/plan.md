@@ -1,56 +1,40 @@
 
 
-# Projections & Upcoming Auto-Pays System
+# Daily Sales Breakdown Report — Detailed, Item-Level
 
-## Current State
+## What We're Building
+A new **"Daily Sales Breakdown"** report that gives you a thorough, item-level view of every revenue stream for any selected date range. Each category (Cafe, Merch, Classes, Guest Passes, Memberships) gets its own clearly separated section with individual item/transaction detail — no overlapping text, no overcrowded layout.
 
-You already have several pieces in place:
+## Layout & UX Approach
+- **Top summary row**: 5 stat cards showing total revenue per category at a glance (Cafe, Merch, Classes, Guest Passes, Memberships) plus a grand total
+- **Tabbed sections below** (using the existing Tabs component): One tab per revenue area so nothing overlaps — the admin clicks "Cafe", "Merch", "Classes", etc. to drill into that area
+- Each tab contains:
+  - A summary card (total revenue, order count, avg order value)
+  - An **item-level table** showing every individual sale/transaction with date, item names, quantities, amounts
+  - For Cafe & Merch: items are extracted from the `order_items` JSON and aggregated into a "Top Items" ranking table (item name, qty sold, total revenue)
+  - For Classes: grouped by class type/category with pass counts and revenue
+  - For Guest Passes: individual pass sales with guest name, date, amount
+  - For Memberships: each charge with member name, description, amount
+- Clean spacing between sections, no side-by-side layouts that cause overlap on smaller screens — everything stacks vertically within each tab
+- Responsive: single-column layout throughout
 
-1. **Upcoming Payments Tab** (`UpcomingPaymentsTab.tsx`) — shows members with upcoming billing dates, card risk levels, and expected amounts. However, it uses **hardcoded tier pricing** (`soul: 300, spirit: 450, aura: 750`) that doesn't match the centralized pricing in `membershipPricing.ts` (`silver/gold/platinum/diamond` with gender-based pricing).
+## Data Sources (all existing)
+- `cafe_orders` → `order_items` JSON has item names, prices, quantities
+- `merch_orders` → `order_items` JSON has product names, sizes, colors, prices, quantities
+- `class_passes` → `category`, `pass_type`, `price_paid`, `purchased_at`
+- `guest_passes` → `guest_name`, `price_paid`, `purchased_at`, `status`
+- `manual_charges` → `amount`, `description`, `created_at` (membership dues, initiation, annual fees)
+- `members` → joined for member names on charges
 
-2. **Revenue Analytics page** (`RevenueAnalytics.tsx`) — has a 12-month cash flow projection chart based on current applications/members.
+## Files to Create/Modify
+1. **`src/components/admin/reports/reports/DailySalesBreakdownReport.tsx`** — New report component with tabbed layout and item-level queries
+2. **`src/lib/reportDefinitions.ts`** — Add the new report definition under 'financial' category
+3. **`src/components/admin/reports/ReportPreview.tsx`** — Register the new component in the report router
 
-3. **Reports** — `next-month-projection`, `cash-flow-projection`, and `class-revenue-projection` reports already exist in the report system.
-
-4. **Stripe Live tab** — shows open/uncollectible invoices from Stripe directly.
-
-## What's Missing / Broken
-
-1. **Pricing mismatch**: The Upcoming Payments hook uses `soul/spirit/aura` tiers with flat prices, but your real pricing is `silver/gold/platinum/diamond` with gender-based rates. Expected amounts are likely wrong or $0 for most members.
-
-2. **No Stripe-based billing dates**: Next billing is calculated by looping `addMonths` from `membership_start_date`, but Stripe has the actual `current_period_end` — the real next charge date. These can drift apart.
-
-3. **No projection summary dashboard**: The Upcoming Payments tab shows individual rows but lacks aggregated projection cards like "Expected collections this week / this month / next 3 months" with confidence levels.
-
-4. **Founding members shown but have $0 auto-pays**: Founding members who paid annually don't have recurring Stripe charges, but they still appear in the upcoming payments list.
-
-## Plan
-
-### 1. Fix pricing in Upcoming Payments hook
-Update `useUpcomingPayments` in `usePaymentTracking.ts` to use `extractTier()`, `normalizeGender()`, and `getMonthlyPrice()` from `membershipPricing.ts` instead of the hardcoded `soul/spirit/aura` map. Also exclude founding members (they have no monthly auto-pay) or show them with $0 clearly marked.
-
-### 2. Add a "Projections" summary section to the Upcoming Payments tab
-Add projection summary cards to `UpcomingPaymentsTab.tsx`:
-- **This week**: sum of expected payments in next 7 days
-- **This month**: sum in next 30 days
-- **At-risk amount**: sum of payments where card is expiring/expired
-- **Collection confidence**: percentage of payments with valid cards
-
-*(The 7-day and 30-day cards already exist but will now show correct amounts after the pricing fix.)*
-
-### 3. Create a new "Auto-Pay Projections" tab on the Payment Tracking page
-Add a new tab to `PaymentTracking.tsx` called "Projections" that shows:
-- **Monthly projection chart** (next 3-6 months): bar chart of expected auto-pay collections by month, using real member data and correct tier/gender pricing
-- **Breakdown by tier**: how much revenue is expected from each tier
-- **Risk breakdown**: how much is at risk due to card issues
-- **Founding member renewal dates**: when annual founding memberships are up for renewal
-
-This tab will use a new component `AutoPayProjectionsTab.tsx` that queries active members and projects forward.
-
-### Files
-
-- **Modify**: `src/hooks/usePaymentTracking.ts` — fix `useUpcomingPayments` to use centralized pricing, exclude/flag founding members
-- **Modify**: `src/components/admin/UpcomingPaymentsTab.tsx` — update summary cards with collection confidence metric
-- **Create**: `src/components/admin/AutoPayProjectionsTab.tsx` — new projections tab with monthly chart, tier breakdown, risk analysis
-- **Modify**: `src/pages/admin/PaymentTracking.tsx` — add Projections tab
+## Technical Details
+- Single `useQuery` per tab (lazy-loaded when tab is active) to avoid fetching all data at once
+- Item aggregation done client-side from the JSON `order_items` arrays
+- Currency formatting consistent with existing reports (`Intl.NumberFormat`)
+- Default date range: `today` (since it's a daily breakdown)
+- Tables use the existing shadcn `Table` components with proper column alignment
 
