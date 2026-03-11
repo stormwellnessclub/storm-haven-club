@@ -23,7 +23,7 @@ export function useEntryToken() {
   const [data, setData] = useState<EntryTokenData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchToken = useCallback(async () => {
     if (!session?.access_token) {
