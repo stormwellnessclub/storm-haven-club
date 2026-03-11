@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DollarSign, Loader2, Banknote, Plus, X, ShoppingCart } from "lucide-react";
+import { DollarSign, Loader2, Banknote, Plus, X, ShoppingCart, Search } from "lucide-react";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
   MEMBERSHIP_PRICING,
@@ -464,361 +464,381 @@ export function ChargeItemSelector({
     return acc;
   }, {} as Record<string, ChargeItem[]>);
 
+
+  const [itemSearch, setItemSearch] = useState("");
+
+  // Filter items by search
+  const filteredGroups = Object.entries(groups).reduce((acc, [group, items]) => {
+    if (!itemSearch.trim()) {
+      acc[group] = items;
+      return acc;
+    }
+    const q = itemSearch.toLowerCase();
+    const filtered = items.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) ||
+        item.group.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q)
+    );
+    if (filtered.length > 0) acc[group] = filtered;
+    return acc;
+  }, {} as Record<string, ChargeItem[]>);
+
   const showingForm = isAddingCafeItem || isAddingCategory || isAddingAddon;
   const addonCategoryOptions = categories.filter((c) => c.has_addons);
-
   const canAddToCart = selectedItemId && !showingForm && unitAmount >= 0.01;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Charge / Record Payment</DialogTitle>
           <DialogDescription>
-            {member.first_name} {member.last_name} — Add items then charge
+            {member.first_name} {member.last_name} — Browse items, add to cart, then charge
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Cart items */}
-          {cartItems.length > 0 && (
-            <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <ShoppingCart className="h-4 w-4" />
-                Cart ({cartItems.length} {cartItems.length === 1 ? "item" : "items"})
-              </div>
-              <div className="space-y-1">
-                {cartItems.map((item) => (
-                  <div key={item.key} className="flex items-center justify-between text-sm gap-2">
-                    <span className="truncate flex-1">
-                      {item.quantity > 1 && <span className="font-medium">{item.quantity}× </span>}
-                      {item.label}
-                    </span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-medium">${(item.unitAmount * item.quantity).toFixed(2)}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeFromCart(item.key)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-[1fr_320px] gap-4 min-h-0">
+          {/* LEFT: Item browser */}
+          <div className="flex flex-col min-h-0 overflow-hidden">
+            {/* Search */}
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                placeholder="Search items... (e.g. protein, guest pass, pilates)"
+                className="pl-9"
+              />
             </div>
-          )}
 
-          {/* Item selector */}
-          <div>
-            <Label>Add Item</Label>
-            <Select value={selectedItemId} onValueChange={handleItemSelect}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an item..." />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {Object.entries(groups).map(([group, items]) => (
-                  <SelectGroup key={group}>
-                    <SelectLabel>{group}</SelectLabel>
-                    {items.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.id.startsWith("cafe_add") ? (
-                          <span className="flex items-center gap-1 text-primary">
-                            <Plus className="h-3 w-3" /> {item.label.replace("+ ", "")}
-                          </span>
-                        ) : (
-                          item.label
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Item list */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-2">
+              {Object.entries(filteredGroups).map(([group, items]) => (
+                <div key={group}>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 sticky top-0 bg-background py-1 z-10">
+                    {group}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {items.map((item) => {
+                      const isSelected = selectedItemId === item.id;
+                      const isManagement = item.id.startsWith("cafe_add");
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleItemSelect(item.id)}
+                          className={`text-left px-3 py-2 rounded-md border text-sm transition-colors ${
+                            isSelected
+                              ? "border-primary bg-primary/10 ring-1 ring-primary"
+                              : "border-border hover:border-primary/50 hover:bg-muted/50"
+                          } ${isManagement ? "text-primary border-dashed" : ""}`}
+                        >
+                          {isManagement ? (
+                            <span className="flex items-center gap-1.5">
+                              <Plus className="h-3.5 w-3.5" /> {item.label.replace("+ ", "")}
+                            </span>
+                          ) : (
+                            <span className="line-clamp-2">{item.label}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              {Object.keys(filteredGroups).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">No items match "{itemSearch}"</p>
+              )}
+            </div>
           </div>
 
-          {/* Add New Category form */}
-          {isAddingCategory && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
-              <p className="text-sm font-medium">Add New Category</p>
-              <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="e.g. Kombucha" />
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveNewCategory} disabled={addCategory.isPending}>
-                  {addCategory.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Save
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsAddingCategory(false)}>Cancel</Button>
+          {/* RIGHT: Cart + customization + totals */}
+          <div className="flex flex-col min-h-0 overflow-y-auto border-l pl-4 space-y-3">
+            {/* Customization area for selected item */}
+            {/* Add New Category form */}
+            {isAddingCategory && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+                <p className="text-sm font-medium">Add New Category</p>
+                <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="e.g. Kombucha" />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveNewCategory} disabled={addCategory.isPending}>
+                    {addCategory.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsAddingCategory(false)}>Cancel</Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Add New Item form */}
-          {isAddingCafeItem && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
-              <p className="text-sm font-medium">Add New Cafe Item</p>
-              <div>
-                <Label className="text-xs">Category</Label>
-                <Select value={newItemFields.category_id} onValueChange={(v) => setNewItemFields((p) => ({ ...p, category_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Add New Item form */}
+            {isAddingCafeItem && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+                <p className="text-sm font-medium">Add New Cafe Item</p>
+                <div>
+                  <Label className="text-xs">Category</Label>
+                  <Select value={newItemFields.category_id} onValueChange={(v) => setNewItemFields((p) => ({ ...p, category_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Brand</Label>
+                    <Input value={newItemFields.brand_name} onChange={(e) => setNewItemFields((p) => ({ ...p, brand_name: e.target.value }))} placeholder="e.g. Fiji" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Flavor</Label>
+                    <Input value={newItemFields.flavor} onChange={(e) => setNewItemFields((p) => ({ ...p, flavor: e.target.value }))} placeholder="e.g. Greens 3" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Size</Label>
+                    <Input value={newItemFields.size} onChange={(e) => setNewItemFields((p) => ({ ...p, size: e.target.value }))} placeholder="e.g. 16oz" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Price ($)</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input type="number" step="0.01" min="0.01" value={newItemFields.price} onChange={(e) => setNewItemFields((p) => ({ ...p, price: e.target.value }))} className="pl-9" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveNewItem} disabled={addItem.isPending}>
+                    {addItem.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Save Item
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsAddingCafeItem(false)}>Cancel</Button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+            )}
+
+            {/* Add New Add-on form */}
+            {isAddingAddon && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+                <p className="text-sm font-medium">Add New Add-on</p>
                 <div>
-                  <Label className="text-xs">Brand</Label>
-                  <Input value={newItemFields.brand_name} onChange={(e) => setNewItemFields((p) => ({ ...p, brand_name: e.target.value }))} placeholder="e.g. Fiji" />
+                  <Label className="text-xs">Category (must have add-ons enabled)</Label>
+                  <Select value={newAddonFields.category_id} onValueChange={(v) => setNewAddonFields((p) => ({ ...p, category_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
+                    <SelectContent>
+                      {addonCategoryOptions.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div>
-                  <Label className="text-xs">Flavor</Label>
-                  <Input value={newItemFields.flavor} onChange={(e) => setNewItemFields((p) => ({ ...p, flavor: e.target.value }))} placeholder="e.g. Greens 3" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Name</Label>
+                    <Input value={newAddonFields.name} onChange={(e) => setNewAddonFields((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Collagen" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Price ($)</Label>
+                    <Input type="number" step="0.01" value={newAddonFields.price} onChange={(e) => setNewAddonFields((p) => ({ ...p, price: e.target.value }))} />
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-xs">Size</Label>
-                  <Input value={newItemFields.size} onChange={(e) => setNewItemFields((p) => ({ ...p, size: e.target.value }))} placeholder="e.g. 16oz" />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveNewAddon} disabled={addAddon.isPending}>
+                    {addAddon.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Save Add-on
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsAddingAddon(false)}>Cancel</Button>
                 </div>
+              </div>
+            )}
+
+            {/* Shake customization */}
+            {isCafeWithAddons && selectedCafeItem && (
+              <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+                <p className="text-sm font-medium">Shake Customization</p>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Label className="text-xs">Flavor</Label>
+                    <Select value={proteinFlavor} onValueChange={setProteinFlavor}>
+                      <SelectTrigger><SelectValue placeholder="Pick flavor..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="vanilla">Vanilla</SelectItem>
+                        <SelectItem value="chocolate">Chocolate</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {proteinFlavor === "other" && (
+                    <div className="flex-1">
+                      <Label className="text-xs">Specify</Label>
+                      <Input value={customFlavor} onChange={(e) => setCustomFlavor(e.target.value)} placeholder="Flavor name..." />
+                    </div>
+                  )}
+                </div>
+                {categoryAddons.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs">Add-ons</Label>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {categoryAddons.map((addon) => (
+                        <label key={addon.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox
+                            checked={selectedAddons.includes(addon.id)}
+                            onCheckedChange={(checked) =>
+                              setSelectedAddons((prev) =>
+                                checked ? [...prev, addon.id] : prev.filter((id) => id !== addon.id)
+                              )
+                            }
+                          />
+                          {addon.name} <Badge variant="secondary" className="text-xs">+${Number(addon.price).toFixed(2)}</Badge>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Quantity */}
+            {selectedItemId && !showingForm && selectedItemId !== "custom" && (
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <Label className="text-sm font-medium">Quantity</Label>
+                <div className="flex items-center gap-3">
+                  <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>−</Button>
+                  <span className="w-8 text-center font-semibold">{quantity}</span>
+                  <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setQuantity((q) => q + 1)}>+</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Custom amount */}
+            {selectedItemId === "custom" && !showingForm && (
+              <div className="space-y-2">
                 <div>
-                  <Label className="text-xs">Price ($)</Label>
+                  <Label>Amount ($)</Label>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="number" step="0.01" min="0.01" value={newItemFields.price} onChange={(e) => setNewItemFields((p) => ({ ...p, price: e.target.value }))} className="pl-9" />
+                    <Input type="number" step="0.01" min="0.50" placeholder="0.00" value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value)} className="pl-9" />
                   </div>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveNewItem} disabled={addItem.isPending}>
-                  {addItem.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Save Item
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsAddingCafeItem(false)}>Cancel</Button>
-              </div>
-            </div>
-          )}
-
-          {/* Add New Add-on form */}
-          {isAddingAddon && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
-              <p className="text-sm font-medium">Add New Add-on</p>
-              <div>
-                <Label className="text-xs">Category (must have add-ons enabled)</Label>
-                <Select value={newAddonFields.category_id} onValueChange={(v) => setNewAddonFields((p) => ({ ...p, category_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
-                  <SelectContent>
-                    {addonCategoryOptions.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="text-xs">Name</Label>
-                  <Input value={newAddonFields.name} onChange={(e) => setNewAddonFields((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Collagen" />
                 </div>
                 <div>
-                  <Label className="text-xs">Price ($)</Label>
-                  <Input type="number" step="0.01" value={newAddonFields.price} onChange={(e) => setNewAddonFields((p) => ({ ...p, price: e.target.value }))} />
+                  <Label>Description</Label>
+                  <Textarea value={chargeDescription} onChange={(e) => setChargeDescription(e.target.value)} placeholder="Charge description..." rows={2} />
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveNewAddon} disabled={addAddon.isPending}>
-                  {addAddon.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Save Add-on
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsAddingAddon(false)}>Cancel</Button>
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* Protein shake customization when a cafe item with addons is selected */}
-          {isCafeWithAddons && selectedCafeItem && (
-            <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
-              <p className="text-sm font-medium">Shake Customization</p>
-              <div className="flex gap-2 items-end">
-                <div className="flex-1">
-                  <Label className="text-xs">Flavor</Label>
-                  <Select value={proteinFlavor} onValueChange={setProteinFlavor}>
-                    <SelectTrigger><SelectValue placeholder="Pick flavor..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="vanilla">Vanilla</SelectItem>
-                      <SelectItem value="chocolate">Chocolate</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+            {/* Add to cart button */}
+            {selectedItemId && !showingForm && (
+              <Button variant="secondary" className="w-full" onClick={handleAddToCart} disabled={!canAddToCart}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add to Cart — ${(unitAmount * quantity).toFixed(2)}
+              </Button>
+            )}
+
+            {/* Cart */}
+            {cartItems.length > 0 && (
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <ShoppingCart className="h-4 w-4" />
+                  Cart ({cartItems.length} {cartItems.length === 1 ? "item" : "items"})
                 </div>
-                {proteinFlavor === "other" && (
-                  <div className="flex-1">
-                    <Label className="text-xs">Specify</Label>
-                    <Input value={customFlavor} onChange={(e) => setCustomFlavor(e.target.value)} placeholder="Flavor name..." />
+                <div className="space-y-1">
+                  {cartItems.map((item) => (
+                    <div key={item.key} className="flex items-center justify-between text-sm gap-2">
+                      <span className="truncate flex-1">
+                        {item.quantity > 1 && <span className="font-medium">{item.quantity}× </span>}
+                        {item.label}
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-medium">${(item.unitAmount * item.quantity).toFixed(2)}</span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.key)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Totals */}
+            {cartItems.length > 0 && (
+              <>
+                <div className="rounded-lg border p-3 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>${cartSubtotal.toFixed(2)}</span>
+                  </div>
+                  {cartCafeTax > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>MI Sales Tax (6%)</span>
+                      <span>${cartCafeTax.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {!isManualPayment && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Processing Fee</span>
+                      <span>+${cartProcessingFee.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-semibold border-t pt-1">
+                    <span>Total</span>
+                    <span>${cartGrandTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Manual payment toggle */}
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <Banknote className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <Label className="text-sm font-medium">Manual payment</Label>
+                      <p className="text-xs text-muted-foreground">Cash/check/external</p>
+                    </div>
+                  </div>
+                  <Switch checked={isManualPayment} onCheckedChange={setIsManualPayment} />
+                </div>
+
+                {isManualPayment && isPendingActivation && cartItems.some((i) => i.chargeType === "membership_dues" || i.chargeType === "initiation_fee") && (
+                  <div className="flex items-center justify-between rounded-lg border border-accent bg-accent/10 p-3">
+                    <div>
+                      <Label className="text-sm font-medium">Also activate member</Label>
+                      <p className="text-xs text-muted-foreground">Set status to active</p>
+                    </div>
+                    <Switch checked={alsoActivate} onCheckedChange={setAlsoActivate} />
                   </div>
                 )}
-              </div>
-              {categoryAddons.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-xs">Add-ons</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {categoryAddons.map((addon) => (
-                      <label key={addon.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox
-                          checked={selectedAddons.includes(addon.id)}
-                          onCheckedChange={(checked) =>
-                            setSelectedAddons((prev) =>
-                              checked ? [...prev, addon.id] : prev.filter((id) => id !== addon.id)
-                            )
-                          }
-                        />
-                        {addon.name} <Badge variant="secondary" className="text-xs">+${Number(addon.price).toFixed(2)}</Badge>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* Quantity selector */}
-          {selectedItemId && !showingForm && selectedItemId !== "custom" && (
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <Label className="text-sm font-medium">Quantity</Label>
-              <div className="flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={quantity <= 1}
-                >
-                  −
-                </Button>
-                <span className="w-8 text-center font-semibold">{quantity}</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setQuantity((q) => q + 1)}
-                >
-                  +
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Custom amount fields */}
-          {selectedItemId === "custom" && !showingForm && (
-            <>
-              <div>
-                <Label>Amount ($)</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.50"
-                    placeholder="0.00"
-                    value={chargeAmount}
-                    onChange={(e) => setChargeAmount(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label>Description</Label>
-                <Textarea value={chargeDescription} onChange={(e) => setChargeDescription(e.target.value)} placeholder="Charge description..." rows={2} />
-              </div>
-            </>
-          )}
-
-          {/* Add to Cart button */}
-          {selectedItemId && !showingForm && (
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={handleAddToCart}
-              disabled={!canAddToCart}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add to Cart — ${(unitAmount * quantity).toFixed(2)}
-            </Button>
-          )}
-
-          {/* Totals & payment options (only when cart has items) */}
-          {cartItems.length > 0 && (
-            <>
-              <div className="rounded-lg border p-3 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>${cartSubtotal.toFixed(2)}</span>
-                </div>
-                {cartCafeTax > 0 && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>MI Sales Tax (6%)</span>
-                    <span>${cartCafeTax.toFixed(2)}</span>
-                  </div>
-                )}
-                {!isManualPayment && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Processing Fee</span>
-                    <span>+${cartProcessingFee.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-semibold border-t pt-1">
-                  <span>Total</span>
-                  <span>${cartGrandTotal.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Manual payment toggle */}
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <div className="flex items-center gap-2">
-                  <Banknote className="h-4 w-4 text-muted-foreground" />
+                {isManualPayment && (
                   <div>
-                    <Label className="text-sm font-medium">Record as manual payment</Label>
-                    <p className="text-xs text-muted-foreground">Do not charge card — record cash/check/external payment</p>
+                    <Label>Payment Method</Label>
+                    <Select value={manualPaymentMethod} onValueChange={setManualPaymentMethod}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="check">Check</SelectItem>
+                        <SelectItem value="external">External (Venmo, Zelle, etc.)</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-                <Switch checked={isManualPayment} onCheckedChange={setIsManualPayment} />
+                )}
+
+                <Button className="w-full" onClick={handleCharge} disabled={isCharging}>
+                  {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  {isManualPayment ? "Record" : "Charge"} ${cartTotalBeforeFee.toFixed(2)}
+                </Button>
+              </>
+            )}
+
+            {cartItems.length === 0 && !selectedItemId && !showingForm && (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p>Select items from the left to build your cart</p>
               </div>
-
-              {isManualPayment && isPendingActivation && cartItems.some((i) => i.chargeType === "membership_dues" || i.chargeType === "initiation_fee") && (
-                <div className="flex items-center justify-between rounded-lg border border-accent bg-accent/10 p-3">
-                  <div>
-                    <Label className="text-sm font-medium">Also activate this member</Label>
-                    <p className="text-xs text-muted-foreground">Set member status to active after recording payment</p>
-                  </div>
-                  <Switch checked={alsoActivate} onCheckedChange={setAlsoActivate} />
-                </div>
-              )}
-
-              {isManualPayment && (
-                <div>
-                  <Label>Payment Method</Label>
-                  <Select value={manualPaymentMethod} onValueChange={setManualPaymentMethod}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="check">Check</SelectItem>
-                      <SelectItem value="external">External (Venmo, Zelle, etc.)</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </>
-          )}
+            )}
+          </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={resetAndClose} disabled={isCharging}>Cancel</Button>
-          {cartItems.length > 0 && !showingForm && (
-            <Button onClick={handleCharge} disabled={isCharging}>
-              {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {isManualPayment ? "Record" : "Charge"} ${cartTotalBeforeFee.toFixed(2)}
-            </Button>
-          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
