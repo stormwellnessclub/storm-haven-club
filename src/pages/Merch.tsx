@@ -56,7 +56,13 @@ export default function Merch() {
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
 
-  const categories = [...new Set(products?.filter((p) => p.allow_preorder).map((p) => p.category) || [])];
+  const categories = [...new Set(products?.map((p) => p.category) || [])];
+
+  // Stock helper: check if a product has any inventory
+  const getProductStock = (productId: string) => {
+    if (!inventory) return 0;
+    return inventory.filter((i) => i.product_id === productId).reduce((sum, i) => sum + i.quantity, 0);
+  };
   const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
   const cartSubtotal = cart.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
   const cartTax = cartSubtotal * MI_SALES_TAX_RATE;
