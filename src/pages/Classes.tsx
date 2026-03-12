@@ -453,6 +453,32 @@ export default function Classes() {
   const [typeFilter, setTypeFilter] = useState<ClassType>("all");
   const [heatFilter, setHeatFilter] = useState<HeatFilter>("all");
 
+  // Fetch ratings by class type name for display
+  const { data: ratingsByName = {} } = useQuery({
+    queryKey: ["class-ratings-by-name"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("class_reviews")
+        .select("class_type_id, rating, class_types!inner(name)")
+        .eq("is_visible", true);
+      if (error) throw error;
+      const map: Record<string, { total: number; count: number }> = {};
+      for (const row of data || []) {
+        const name = (row as any).class_types?.name;
+        if (!name) continue;
+        if (!map[name]) map[name] = { total: 0, count: 0 };
+        map[name].total += row.rating;
+        map[name].count += 1;
+      }
+      const result: Record<string, { average: number; count: number }> = {};
+      for (const [name, { total, count }] of Object.entries(map)) {
+        result[name] = { average: Math.round((total / count) * 10) / 10, count };
+      }
+      return result;
+    },
+    staleTime: 60_000,
+  });
+
   const filteredClasses = classes.filter((cls) => {
     const matchesType = typeFilter === "all" || cls.type === typeFilter;
     const matchesHeat =
