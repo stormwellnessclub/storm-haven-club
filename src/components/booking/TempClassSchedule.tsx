@@ -196,14 +196,14 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
   });
 
   // Helper to find enrollment for a specific class slot
-  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null } {
+  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null; classTypeId: string | null } {
     const dbTime = parseTimeToDb(time);
     const match = liveEnrollment.find((s: any) => {
       const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
       return s.session_date === dateStr && s.start_time === dbTime && typeName === className;
     });
-    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden, sessionId: match.id };
-    return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false, sessionId: null };
+    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden, sessionId: match.id, classTypeId: match.class_type_id };
+    return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false, sessionId: null, classTypeId: null };
   }
 
   // Collect all session IDs for waitlist status check
