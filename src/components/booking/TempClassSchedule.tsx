@@ -5,7 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays, Check, Loader2 } from "lucide-react";
+import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays, Check, Loader2, Star } from "lucide-react";
+import { useClassTypeRatings } from "@/hooks/useClassReviews";
+import { StarRating } from "@/components/reviews/StarRating";
 import { startOfWeek, addDays, addWeeks, format, isSameDay, isBefore, startOfDay } from "date-fns";
 import { useTempClassBooking } from "@/hooks/useTempClassBooking";
 import { useWaitlistStatus, useJoinWaitlist } from "@/hooks/useWaitlist";
@@ -32,9 +34,10 @@ interface TempClassCardProps {
   onGetPass: () => void;
   onSignIn: () => void;
   onJoinWaitlist: () => void;
+  ratingInfo?: { average_rating: number; review_count: number } | null;
 }
 
-function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, enrolled, maxCapacity, isFull, isOnWaitlist, isJoiningWaitlist, onBook, onGetPass, onSignIn, onJoinWaitlist }: TempClassCardProps) {
+function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, enrolled, maxCapacity, isFull, isOnWaitlist, isJoiningWaitlist, onBook, onGetPass, onSignIn, onJoinWaitlist, ratingInfo }: TempClassCardProps) {
   const renderButton = () => {
     if (readOnly) return null;
 
@@ -103,6 +106,11 @@ function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooki
               {entry.name}
             </h3>
             <Badge variant="secondary" className="text-xs mt-1">Pilates</Badge>
+            {ratingInfo && ratingInfo.review_count > 0 && (
+              <div className="mt-1">
+                <StarRating rating={ratingInfo.average_rating} size="sm" showValue count={ratingInfo.review_count} />
+              </div>
+            )}
           </div>
           <div className="text-right">
             <span className="text-lg font-bold text-primary">{entry.time}</span>
@@ -177,7 +185,7 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_sessions")
-        .select("id, session_date, start_time, current_enrollment, max_capacity, is_cancelled, is_hidden, class_types!inner(name)")
+        .select("id, session_date, start_time, current_enrollment, max_capacity, is_cancelled, is_hidden, class_type_id, class_types!inner(name)")
         .gte("session_date", weekStartStr)
         .lte("session_date", weekEndStr)
         .in("class_types.name", ["Signature Flow", "Reformer Flow", "Reformer Sculpt"]);
@@ -188,20 +196,21 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
   });
 
   // Helper to find enrollment for a specific class slot
-  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null } {
+  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null; classTypeId: string | null } {
     const dbTime = parseTimeToDb(time);
     const match = liveEnrollment.find((s: any) => {
       const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
       return s.session_date === dateStr && s.start_time === dbTime && typeName === className;
     });
-    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden, sessionId: match.id };
-    return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false, sessionId: null };
+    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden, sessionId: match.id, classTypeId: match.class_type_id };
+    return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false, sessionId: null, classTypeId: null };
   }
 
   // Collect all session IDs for waitlist status check
   const allSessionIds = liveEnrollment.map((s: any) => s.id).filter(Boolean);
   const { data: waitlistMap = {} } = useWaitlistStatus(allSessionIds);
   const joinWaitlistMutation = useJoinWaitlist();
+  const { data: ratingsMap = {} } = useClassTypeRatings();
 
   return (
     <div className="space-y-6">
@@ -255,7 +264,7 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                   <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
                 ) : (
                   day.classes.map((cls, i) => {
-                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId, classTypeId } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
                     const slotIsFull = enrolled >= maxCapacity;
                     // For customer view: completely hide cancelled or hidden classes
                     if (!showHistory && (isCancelled || isHidden)) return null;
@@ -304,6 +313,7 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                         onGetPass={() => navigate("/class-passes")}
                         onSignIn={() => navigate("/auth")}
                         onJoinWaitlist={() => sessionId && joinWaitlistMutation.mutate({ sessionId })}
+                        ratingInfo={classTypeId ? ratingsMap[classTypeId] : null}
                       />
                     );
                   })

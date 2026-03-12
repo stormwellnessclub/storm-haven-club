@@ -1046,6 +1046,74 @@ export type Database = {
         }
         Relationships: []
       }
+      class_reviews: {
+        Row: {
+          booking_id: string
+          class_type_id: string
+          created_at: string
+          id: string
+          is_visible: boolean
+          rating: number
+          review_text: string | null
+          session_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_id: string
+          class_type_id: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          rating: number
+          review_text?: string | null
+          session_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string
+          class_type_id?: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          rating?: number
+          review_text?: string | null
+          session_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "class_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_reviews_class_type_id_fkey"
+            columns: ["class_type_id"]
+            isOneToOne: false
+            referencedRelation: "class_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_reviews_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_schedules: {
         Row: {
           class_type_id: string
@@ -5440,6 +5508,21 @@ export type Database = {
         }[]
       }
       generate_referral_code: { Args: { _member_id: string }; Returns: string }
+      get_all_class_type_ratings: {
+        Args: never
+        Returns: {
+          average_rating: number
+          class_type_id: string
+          review_count: number
+        }[]
+      }
+      get_class_type_ratings: {
+        Args: { _class_type_id: string }
+        Returns: {
+          average_rating: number
+          review_count: number
+        }[]
+      }
       get_dunning_efficiency: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
