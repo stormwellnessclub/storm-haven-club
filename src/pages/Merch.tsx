@@ -56,7 +56,13 @@ export default function Merch() {
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
 
-  const categories = [...new Set(products?.filter((p) => p.allow_preorder).map((p) => p.category) || [])];
+  const categories = [...new Set(products?.map((p) => p.category) || [])];
+
+  // Stock helper: check if a product has any inventory
+  const getProductStock = (productId: string) => {
+    if (!inventory) return 0;
+    return inventory.filter((i) => i.product_id === productId).reduce((sum, i) => sum + i.quantity, 0);
+  };
   const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
   const cartSubtotal = cart.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
   const cartTax = cartSubtotal * MI_SALES_TAX_RATE;
@@ -353,18 +359,30 @@ export default function Merch() {
                 </div>
               </div>
 
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={addToCart}
-                disabled={
-                  (selectedProduct.sizes.length > 0 && !selectedSize) ||
-                  (selectedProduct.colors.length > 0 && !selectedColor)
-                }
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Add to Cart — ${(selectedProduct.price * quantity).toFixed(2)}
-              </Button>
+              {(() => {
+                const stock = getProductStock(selectedProduct.id);
+                const isOutOfStock = stock === 0 && !selectedProduct.allow_preorder;
+                const isPreorder = stock === 0 && selectedProduct.allow_preorder;
+                return (
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={addToCart}
+                    disabled={
+                      isOutOfStock ||
+                      (selectedProduct.sizes.length > 0 && !selectedSize) ||
+                      (selectedProduct.colors.length > 0 && !selectedColor)
+                    }
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    {isOutOfStock
+                      ? "Out of Stock"
+                      : isPreorder
+                        ? `Pre-order — $${(selectedProduct.price * quantity).toFixed(2)}`
+                        : `Add to Cart — $${(selectedProduct.price * quantity).toFixed(2)}`}
+                  </Button>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -527,8 +545,11 @@ export default function Merch() {
             <h2 className="text-2xl font-semibold mb-4">{cat}</h2>
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {products
-                ?.filter((p) => p.category === cat && p.allow_preorder)
-                .map((product) => (
+                ?.filter((p) => p.category === cat)
+                .map((product) => {
+                  const stock = getProductStock(product.id);
+                  const outOfStock = stock === 0 && !product.allow_preorder;
+                  return (
                   <Card
                     key={product.id}
                     className="cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
@@ -547,7 +568,11 @@ export default function Merch() {
                     )}
                     <CardContent className="p-4">
                       <h3 className="font-semibold">{product.name}</h3>
-                      <p className="text-primary font-bold mt-1">${product.price.toFixed(2)}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-primary font-bold">${product.price.toFixed(2)}</p>
+                        {outOfStock && <Badge variant="destructive" className="text-xs">Out of Stock</Badge>}
+                        {stock === 0 && product.allow_preorder && <Badge variant="secondary" className="text-xs">Pre-order</Badge>}
+                      </div>
                       <div className="flex gap-1 mt-2 flex-wrap">
                         {product.colors.map((c) => (
                           <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
@@ -555,7 +580,8 @@ export default function Merch() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
             </div>
           </div>
         ))}
