@@ -313,6 +313,7 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                         onGetPass={() => navigate("/class-passes")}
                         onSignIn={() => navigate("/auth")}
                         onJoinWaitlist={() => sessionId && joinWaitlistMutation.mutate({ sessionId })}
+                        ratingInfo={classTypeId ? ratingsMap[classTypeId] : null}
                       />
                     );
                   })
