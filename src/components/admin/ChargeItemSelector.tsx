@@ -390,8 +390,8 @@ export function ChargeItemSelector({
     });
     let desc = descParts.join(" | ");
 
-    const hasCafe = cartItems.some((item) => item.isCafe);
-    if (hasCafe) desc += " (incl. MI 6% tax)";
+    const hasTaxable = cartItems.some((item) => item.isTaxable);
+    if (hasTaxable) desc += " (incl. MI 6% tax)";
 
     setIsCharging(true);
     try {
