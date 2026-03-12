@@ -533,8 +533,11 @@ export default function Merch() {
             <h2 className="text-2xl font-semibold mb-4">{cat}</h2>
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {products
-                ?.filter((p) => p.category === cat && p.allow_preorder)
-                .map((product) => (
+                ?.filter((p) => p.category === cat)
+                .map((product) => {
+                  const stock = getProductStock(product.id);
+                  const outOfStock = stock === 0 && !product.allow_preorder;
+                  return (
                   <Card
                     key={product.id}
                     className="cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
