@@ -1,48 +1,53 @@
 
 
-## Plan: Skip Twilio Connector, Use Direct Twilio Integration
+## Plan: Class Review & Rating System
 
-The Twilio connector keeps rejecting your credentials. Instead of fighting it, we will add your Twilio credentials as manual secrets and call the Twilio API directly from backend functions. This is reliable and gives you full control.
+### Database Changes (1 migration)
 
----
+Create a `class_reviews` table:
+- `id` UUID PK
+- `user_id` UUID references auth.users (reviewer)
+- `booking_id` UUID references class_bookings (ensures they attended)
+- `class_type_id` UUID references class_types (for aggregate ratings)
+- `session_id` UUID references class_sessions (specific session reviewed)
+- `rating` INTEGER 1-5 (validated via trigger)
+- `review_text` TEXT (optional written review)
+- `is_visible` BOOLEAN default true (for moderation)
+- `created_at`, `updated_at` TIMESTAMPTZ
 
-### What changes
+Unique constraint on `booking_id` so each booking gets one review.
 
-**Step 1: Add 3 manual secrets**
-You will add these in **Settings → Cloud → Secrets**:
-- `TWILIO_ACCOUNT_SID` — your `AC...` value
-- `TWILIO_AUTH_TOKEN` — your main Auth Token (found on Twilio Console dashboard, not the SK key)
-- `TWILIO_PHONE_NUMBER` — your Twilio number in `+1XXXXXXXXXX` format
+Create a DB function `get_class_type_ratings(class_type_id)` that returns average rating and review count for display.
 
-For this approach you use the **Auth Token** (not the SK API key). The Auth Token is on the main Twilio Console page.
+RLS policies:
+- Anyone authenticated can read visible reviews
+- Users can insert reviews only for their own completed/confirmed bookings (past date)
+- Users can update their own reviews
+- Staff can manage all reviews (moderation)
 
-**Step 2: Create `send-sms` edge function**
-A new backend function that calls Twilio's REST API directly using HTTP Basic Auth (`AccountSid:AuthToken`). It will:
-- Accept `to`, `body`, and optional `contact_id` parameters
-- Send SMS via `https://api.twilio.com/2010-04-01/Accounts/{SID}/Messages.json`
-- Log the message to the `sms_messages` table
-- Return success/failure status
+### Frontend Changes
 
-**Step 3: Create `process-marketing-sequences` edge function**
-Processes automated drip campaigns by:
-- Querying active enrollments where `next_step_at` is due
-- Executing the current step (send email via `send-email`, send SMS via `send-sms`)
-- Advancing the enrollment to the next step or marking complete
+**1. Review submission on Past Bookings page (`src/pages/portal/Bookings.tsx`)**
+- Add a "Leave Review" button on each past booking card (only if no review exists yet)
+- Opens a dialog with star rating (1-5) and optional text field
+- Shows "Reviewed" badge if already reviewed, with option to edit
 
-**Step 4: Add SMS capability to Marketing Portal UI**
-Update the marketing tabs to include SMS send buttons alongside existing email functionality.
+**2. Display ratings on class schedule (`src/components/booking/TempClassSchedule.tsx`)**
+- Show average star rating and review count on each class card
+- Query aggregated ratings by class_type_id
 
----
+**3. Reviews display component**
+- New `ClassReviews` component showing reviews for a class type
+- Accessible from the class cards (expandable or linked)
+- Shows reviewer first name, star rating, date, and review text
 
-### Technical detail
+**4. Public Classes page (`src/pages/Classes.tsx`)**
+- Show average rating on each class card
 
-The `send-sms` function uses Twilio Basic Auth directly:
-```
-Authorization: Basic base64(AccountSid:AuthToken)
-POST https://api.twilio.com/2010-04-01/Accounts/{SID}/Messages.json
-Content-Type: application/x-www-form-urlencoded
-Body: To=+1...&From=+1...&Body=Hello
-```
+### Technical Details
 
-No connector gateway needed. This is the standard Twilio integration method.
+- Reviews are tied to `class_type_id` for aggregation (so "Reformer Sculpt" shows all reviews across sessions)
+- Only past, completed/confirmed bookings can be reviewed
+- Star rating component built with lucide Star icons
+- Aggregate query uses a Supabase RPC or direct query with `.avg()` pattern
 
