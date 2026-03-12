@@ -177,6 +177,9 @@ export function ChargeItemSelector({
   const addItem = useAddCafeMenuItem();
   const addAddon = useAddCafeAddon();
 
+  // Fetch merch/apparel products
+  const { data: merchProducts = [] } = useMerchProducts(true);
+
   const chargeItems = buildChargeItems(member.membership_type, member.gender, member.billing_type);
 
   // Build cafe charge items grouped by category
