@@ -338,6 +338,7 @@ export function ChargeItemSelector({
       unitAmount,
       quantity,
       isCafe: !!isCafeItem,
+      isTaxable: isTaxableItem,
       addonNames,
       flavorStr,
     };
