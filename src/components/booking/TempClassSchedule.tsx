@@ -185,7 +185,7 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_sessions")
-        .select("id, session_date, start_time, current_enrollment, max_capacity, is_cancelled, is_hidden, class_types!inner(name)")
+        .select("id, session_date, start_time, current_enrollment, max_capacity, is_cancelled, is_hidden, class_type_id, class_types!inner(name)")
         .gte("session_date", weekStartStr)
         .lte("session_date", weekEndStr)
         .in("class_types.name", ["Signature Flow", "Reformer Flow", "Reformer Sculpt"]);
