@@ -359,18 +359,30 @@ export default function Merch() {
                 </div>
               </div>
 
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={addToCart}
-                disabled={
-                  (selectedProduct.sizes.length > 0 && !selectedSize) ||
-                  (selectedProduct.colors.length > 0 && !selectedColor)
-                }
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Add to Cart — ${(selectedProduct.price * quantity).toFixed(2)}
-              </Button>
+              {(() => {
+                const stock = getProductStock(selectedProduct.id);
+                const isOutOfStock = stock === 0 && !selectedProduct.allow_preorder;
+                const isPreorder = stock === 0 && selectedProduct.allow_preorder;
+                return (
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={addToCart}
+                    disabled={
+                      isOutOfStock ||
+                      (selectedProduct.sizes.length > 0 && !selectedSize) ||
+                      (selectedProduct.colors.length > 0 && !selectedColor)
+                    }
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    {isOutOfStock
+                      ? "Out of Stock"
+                      : isPreorder
+                        ? `Pre-order — $${(selectedProduct.price * quantity).toFixed(2)}`
+                        : `Add to Cart — $${(selectedProduct.price * quantity).toFixed(2)}`}
+                  </Button>
+                );
+              })()}
             </div>
           </div>
         </div>
