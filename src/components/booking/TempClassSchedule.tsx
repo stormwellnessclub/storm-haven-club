@@ -37,7 +37,7 @@ interface TempClassCardProps {
   ratingInfo?: { average_rating: number; review_count: number } | null;
 }
 
-function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, enrolled, maxCapacity, isFull, isOnWaitlist, isJoiningWaitlist, onBook, onGetPass, onSignIn, onJoinWaitlist }: TempClassCardProps) {
+function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, enrolled, maxCapacity, isFull, isOnWaitlist, isJoiningWaitlist, onBook, onGetPass, onSignIn, onJoinWaitlist, ratingInfo }: TempClassCardProps) {
   const renderButton = () => {
     if (readOnly) return null;
 
