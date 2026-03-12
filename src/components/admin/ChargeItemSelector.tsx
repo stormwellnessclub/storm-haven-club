@@ -203,12 +203,22 @@ export function ChargeItemSelector({
     };
   });
 
+  // Build merch/apparel charge items grouped by category
+  const merchChargeItems: ChargeItem[] = merchProducts.map((product) => ({
+    id: `merch_${product.id}`,
+    label: `${product.name} ($${Number(product.price).toFixed(2)})`,
+    amount: Number(product.price),
+    description: `Apparel - ${product.name}`,
+    chargeType: "merch",
+    group: `Storm Shop — ${product.category}`,
+  }));
+
   // Add management actions
   const addNewCafeItem: ChargeItem = { id: "cafe_add_new", label: "+ Add New Item", amount: null, description: "", chargeType: "cafe", group: "Cafe Management" };
   const addNewCategory: ChargeItem = { id: "cafe_add_category", label: "+ Add New Category", amount: null, description: "", chargeType: "cafe", group: "Cafe Management" };
   const addNewAddon: ChargeItem = { id: "cafe_add_addon", label: "+ Add New Add-on", amount: null, description: "", chargeType: "cafe", group: "Cafe Management" };
 
-  const allChargeItems = [...chargeItems, ...cafeChargeItems, addNewCafeItem, addNewCategory, addNewAddon];
+  const allChargeItems = [...chargeItems, ...cafeChargeItems, ...merchChargeItems, addNewCafeItem, addNewCategory, addNewAddon];
 
   const selectedCafeItem = selectedItemId.startsWith("cafe_")
     ? cafeItems.find((i) => `cafe_${i.id}` === selectedItemId)
