@@ -264,7 +264,7 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                   <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
                 ) : (
                   day.classes.map((cls, i) => {
-                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId, classTypeId } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
                     const slotIsFull = enrolled >= maxCapacity;
                     // For customer view: completely hide cancelled or hidden classes
                     if (!showHistory && (isCancelled || isHidden)) return null;
