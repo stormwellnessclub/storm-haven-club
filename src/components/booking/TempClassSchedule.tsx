@@ -210,6 +210,7 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
   const allSessionIds = liveEnrollment.map((s: any) => s.id).filter(Boolean);
   const { data: waitlistMap = {} } = useWaitlistStatus(allSessionIds);
   const joinWaitlistMutation = useJoinWaitlist();
+  const { data: ratingsMap = {} } = useClassTypeRatings();
 
   return (
     <div className="space-y-6">
