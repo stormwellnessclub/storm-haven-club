@@ -47,6 +47,7 @@ import {
   MI_SALES_TAX_RATE,
   calculateTax,
 } from "@/hooks/useCafeMenu";
+import { useMerchProducts, type MerchProduct } from "@/hooks/useMerchProducts";
 
 interface ChargeItem {
   id: string;
