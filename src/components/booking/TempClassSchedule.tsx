@@ -34,6 +34,7 @@ interface TempClassCardProps {
   onGetPass: () => void;
   onSignIn: () => void;
   onJoinWaitlist: () => void;
+  ratingInfo?: { average_rating: number; review_count: number } | null;
 }
 
 function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, enrolled, maxCapacity, isFull, isOnWaitlist, isJoiningWaitlist, onBook, onGetPass, onSignIn, onJoinWaitlist }: TempClassCardProps) {
