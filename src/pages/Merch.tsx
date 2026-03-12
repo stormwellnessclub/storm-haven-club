@@ -568,7 +568,11 @@ export default function Merch() {
                     )}
                     <CardContent className="p-4">
                       <h3 className="font-semibold">{product.name}</h3>
-                      <p className="text-primary font-bold mt-1">${product.price.toFixed(2)}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-primary font-bold">${product.price.toFixed(2)}</p>
+                        {outOfStock && <Badge variant="destructive" className="text-xs">Out of Stock</Badge>}
+                        {stock === 0 && product.allow_preorder && <Badge variant="secondary" className="text-xs">Pre-order</Badge>}
+                      </div>
                       <div className="flex gap-1 mt-2 flex-wrap">
                         {product.colors.map((c) => (
                           <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
@@ -576,7 +580,8 @@ export default function Merch() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
             </div>
           </div>
         ))}
