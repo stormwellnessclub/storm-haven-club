@@ -280,6 +280,8 @@ export function ChargeItemSelector({
   };
 
   const isCafeItem = chargeType === "cafe" && selectedCafeItem;
+  const isMerchItem = chargeType === "merch";
+  const isTaxableItem = !!isCafeItem || isMerchItem;
   const unitAmount = isCafeItem ? getEffectiveAmount() : parseFloat(chargeAmount) || 0;
 
   const handleSaveNewItem = async () => {
