@@ -106,6 +106,11 @@ function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooki
               {entry.name}
             </h3>
             <Badge variant="secondary" className="text-xs mt-1">Pilates</Badge>
+            {ratingInfo && ratingInfo.review_count > 0 && (
+              <div className="mt-1">
+                <StarRating rating={ratingInfo.average_rating} size="sm" showValue count={ratingInfo.review_count} />
+              </div>
+            )}
           </div>
           <div className="text-right">
             <span className="text-lg font-bold text-primary">{entry.time}</span>
