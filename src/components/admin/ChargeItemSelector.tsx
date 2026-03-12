@@ -47,6 +47,7 @@ import {
   MI_SALES_TAX_RATE,
   calculateTax,
 } from "@/hooks/useCafeMenu";
+import { useMerchProducts, type MerchProduct } from "@/hooks/useMerchProducts";
 
 interface ChargeItem {
   id: string;
@@ -65,6 +66,7 @@ interface CartEntry {
   unitAmount: number;
   quantity: number;
   isCafe: boolean;
+  isTaxable: boolean;
   addonNames: string[];
   flavorStr: string;
 }
@@ -176,6 +178,9 @@ export function ChargeItemSelector({
   const addItem = useAddCafeMenuItem();
   const addAddon = useAddCafeAddon();
 
+  // Fetch merch/apparel products
+  const { data: merchProducts = [] } = useMerchProducts(true);
+
   const chargeItems = buildChargeItems(member.membership_type, member.gender, member.billing_type);
 
   // Build cafe charge items grouped by category
@@ -199,12 +204,22 @@ export function ChargeItemSelector({
     };
   });
 
+  // Build merch/apparel charge items grouped by category
+  const merchChargeItems: ChargeItem[] = merchProducts.map((product) => ({
+    id: `merch_${product.id}`,
+    label: `${product.name} ($${Number(product.price).toFixed(2)})`,
+    amount: Number(product.price),
+    description: `Apparel - ${product.name}`,
+    chargeType: "merch",
+    group: `Storm Shop — ${product.category}`,
+  }));
+
   // Add management actions
   const addNewCafeItem: ChargeItem = { id: "cafe_add_new", label: "+ Add New Item", amount: null, description: "", chargeType: "cafe", group: "Cafe Management" };
   const addNewCategory: ChargeItem = { id: "cafe_add_category", label: "+ Add New Category", amount: null, description: "", chargeType: "cafe", group: "Cafe Management" };
   const addNewAddon: ChargeItem = { id: "cafe_add_addon", label: "+ Add New Add-on", amount: null, description: "", chargeType: "cafe", group: "Cafe Management" };
 
-  const allChargeItems = [...chargeItems, ...cafeChargeItems, addNewCafeItem, addNewCategory, addNewAddon];
+  const allChargeItems = [...chargeItems, ...cafeChargeItems, ...merchChargeItems, addNewCafeItem, addNewCategory, addNewAddon];
 
   const selectedCafeItem = selectedItemId.startsWith("cafe_")
     ? cafeItems.find((i) => `cafe_${i.id}` === selectedItemId)
@@ -266,6 +281,8 @@ export function ChargeItemSelector({
   };
 
   const isCafeItem = chargeType === "cafe" && selectedCafeItem;
+  const isMerchItem = chargeType === "merch";
+  const isTaxableItem = !!isCafeItem || isMerchItem;
   const unitAmount = isCafeItem ? getEffectiveAmount() : parseFloat(chargeAmount) || 0;
 
   const handleSaveNewItem = async () => {
@@ -322,6 +339,7 @@ export function ChargeItemSelector({
       unitAmount,
       quantity,
       isCafe: !!isCafeItem,
+      isTaxable: isTaxableItem,
       addonNames,
       flavorStr,
     };
@@ -346,7 +364,7 @@ export function ChargeItemSelector({
   // Cart totals
   const cartSubtotal = cartItems.reduce((sum, item) => sum + item.unitAmount * item.quantity, 0);
   const cartCafeTax = cartItems
-    .filter((item) => item.isCafe)
+    .filter((item) => item.isTaxable)
     .reduce((sum, item) => sum + calculateTax(item.unitAmount * item.quantity), 0);
   const cartTotalBeforeFee = cartSubtotal + cartCafeTax;
   const cartProcessingFee = !isManualPayment ? calculateProcessingFeeFromDollars(cartTotalBeforeFee) : 0;
@@ -372,8 +390,8 @@ export function ChargeItemSelector({
     });
     let desc = descParts.join(" | ");
 
-    const hasCafe = cartItems.some((item) => item.isCafe);
-    if (hasCafe) desc += " (incl. MI 6% tax)";
+    const hasTaxable = cartItems.some((item) => item.isTaxable);
+    if (hasTaxable) desc += " (incl. MI 6% tax)";
 
     setIsCharging(true);
     try {
