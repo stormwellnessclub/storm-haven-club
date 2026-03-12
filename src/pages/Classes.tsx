@@ -630,6 +630,16 @@ export default function Classes() {
                       <div>
                         <h3 className="font-serif text-xl">{cls.name}</h3>
                         <p className="text-muted-foreground text-sm mt-1">{cls.description}</p>
+                        {ratingsByName[cls.name] && (
+                          <div className="mt-1">
+                            <StarRating
+                              rating={ratingsByName[cls.name].average}
+                              size="sm"
+                              showValue
+                              count={ratingsByName[cls.name].count}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                     
