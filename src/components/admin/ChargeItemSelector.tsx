@@ -364,7 +364,7 @@ export function ChargeItemSelector({
   // Cart totals
   const cartSubtotal = cartItems.reduce((sum, item) => sum + item.unitAmount * item.quantity, 0);
   const cartCafeTax = cartItems
-    .filter((item) => item.isCafe)
+    .filter((item) => item.isTaxable)
     .reduce((sum, item) => sum + calculateTax(item.unitAmount * item.quantity), 0);
   const cartTotalBeforeFee = cartSubtotal + cartCafeTax;
   const cartProcessingFee = !isManualPayment ? calculateProcessingFeeFromDollars(cartTotalBeforeFee) : 0;
