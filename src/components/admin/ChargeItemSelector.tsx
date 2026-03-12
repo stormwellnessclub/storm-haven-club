@@ -66,6 +66,7 @@ interface CartEntry {
   unitAmount: number;
   quantity: number;
   isCafe: boolean;
+  isTaxable: boolean;
   addonNames: string[];
   flavorStr: string;
 }
