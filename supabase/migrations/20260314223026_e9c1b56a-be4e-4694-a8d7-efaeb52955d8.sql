@@ -1,0 +1,1 @@
+ALTER TABLE public.email_campaigns ADD COLUMN IF NOT EXISTS goal_type TEXT, ADD COLUMN IF NOT EXISTS goal_metadata JSONB;

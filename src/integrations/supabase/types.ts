@@ -1538,6 +1538,8 @@ export type Database = {
           campaign_type: string
           created_at: string
           created_by: string | null
+          goal_metadata: Json | null
+          goal_type: string | null
           id: string
           sent_at: string | null
           sent_count: number | null
@@ -1551,6 +1553,8 @@ export type Database = {
           campaign_type: string
           created_at?: string
           created_by?: string | null
+          goal_metadata?: Json | null
+          goal_type?: string | null
           id?: string
           sent_at?: string | null
           sent_count?: number | null
@@ -1564,6 +1568,8 @@ export type Database = {
           campaign_type?: string
           created_at?: string
           created_by?: string | null
+          goal_metadata?: Json | null
+          goal_type?: string | null
           id?: string
           sent_at?: string | null
           sent_count?: number | null

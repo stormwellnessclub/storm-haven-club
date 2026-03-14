@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2, Send, Star, Mail, Search, MessageSquare, Users } from "lucide-react";
 import { ComposeEmailDialog } from "./ComposeEmailDialog";
+import { CampaignPlaybooks, type PlaybookConfig } from "./CampaignPlaybooks";
 
 interface GuestFeedback {
   id: string;
@@ -34,6 +35,8 @@ export function GuestMarketingTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<{ email: string; name: string } | null>(null);
+  const [activeGoalType, setActiveGoalType] = useState<string | undefined>();
+  const [activePlaybookName, setActivePlaybookName] = useState<string | undefined>();
 
   useEffect(() => {
     fetchData();
@@ -88,8 +91,17 @@ export function GuestMarketingTab() {
     setComposeOpen(true);
   };
 
+  const handleLaunchPlaybook = (playbook: PlaybookConfig) => {
+    setSelectedGuest(null);
+    setActiveGoalType(playbook.goalType);
+    setActivePlaybookName(playbook.name);
+    setComposeOpen(true);
+  };
+
   const handleBulkSend = () => {
     setSelectedGuest(null);
+    setActiveGoalType(undefined);
+    setActivePlaybookName(undefined);
     setComposeOpen(true);
   };
 
@@ -120,19 +132,28 @@ export function GuestMarketingTab() {
         </Card>
       </div>
 
-      {/* Actions */}
+      {/* Strategic Playbooks */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Guest Outreach</CardTitle>
-          <CardDescription>Send emails to past guests for re-engagement or feedback</CardDescription>
+          <CardTitle className="text-base">Guest Campaign Playbooks</CardTitle>
+          <CardDescription>Goal-driven campaigns with built-in conversion tracking</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CampaignPlaybooks
+            type="guest"
+            onLaunchPlaybook={handleLaunchPlaybook}
+            onCustomCampaign={handleBulkSend}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Guest List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Individual Outreach</CardTitle>
+          <CardDescription>Send a direct email to a specific guest</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Button onClick={handleBulkSend}>
-              <Send className="h-4 w-4 mr-2" />
-              Compose Campaign
-            </Button>
-          </div>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -228,6 +249,8 @@ export function GuestMarketingTab() {
         onOpenChange={setComposeOpen}
         recipientType="guest"
         prefilledRecipient={selectedGuest}
+        goalType={activeGoalType}
+        playbookName={activePlaybookName}
       />
     </div>
   );
