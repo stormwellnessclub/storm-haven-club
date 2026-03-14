@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-import { Loader2, BarChart3, Send, Users, TrendingUp } from "lucide-react";
+import { format, subDays } from "date-fns";
+import { Loader2, BarChart3, Send, Users, TrendingUp, Target, CheckCircle2 } from "lucide-react";
 
 interface Campaign {
   id: string;
@@ -14,13 +14,29 @@ interface Campaign {
   sent_count: number;
   sent_at: string | null;
   created_at: string;
+  goal_type: string | null;
+  goal_metadata: any;
 }
 
+interface CampaignWithConversion extends Campaign {
+  conversions: number;
+  conversionRate: number;
+}
+
+const GOAL_LABELS: Record<string, string> = {
+  guest_to_applicant: "Guest → Applicant",
+  re_engage_guest: "Re-engage Guest",
+  collect_feedback: "Collect Feedback",
+  prevent_churn: "Prevent Churn",
+  upsell_tier: "Upsell Tier",
+  referral_push: "Referral Push",
+};
+
 export function CampaignAnalytics() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignWithConversion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalSent, setTotalSent] = useState(0);
-  const [guestConversions, setGuestConversions] = useState(0);
+  const [totalConversions, setTotalConversions] = useState(0);
 
   useEffect(() => {
     fetchAnalytics();
@@ -32,7 +48,7 @@ export function CampaignAnalytics() {
       const [campaignsRes, recipientsRes] = await Promise.all([
         supabase
           .from("email_campaigns" as any)
-          .select("id, campaign_name, campaign_type, subject, sent_count, sent_at, created_at")
+          .select("id, campaign_name, campaign_type, subject, sent_count, sent_at, created_at, goal_type, goal_metadata")
           .order("created_at", { ascending: false })
           .limit(50),
         supabase
@@ -41,16 +57,80 @@ export function CampaignAnalytics() {
           .eq("status", "sent"),
       ]);
 
-      if (campaignsRes.data) setCampaigns(campaignsRes.data as any[]);
       setTotalSent(recipientsRes.count || 0);
 
-      // Guest conversion: guests who became members
-      const { count: conversions } = await supabase
-        .from("members")
-        .select("id", { count: "exact", head: true })
-        .not("email", "is", null);
-      // This is a rough proxy — real conversion tracking would match guest emails to member emails
-      setGuestConversions(0); // Placeholder until we build proper tracking
+      const rawCampaigns = (campaignsRes.data || []) as Campaign[];
+
+      // Calculate conversions for each campaign with a goal_type
+      const withConversions: CampaignWithConversion[] = await Promise.all(
+        rawCampaigns.map(async (c) => {
+          if (!c.goal_type || !c.sent_at) {
+            return { ...c, conversions: 0, conversionRate: 0 };
+          }
+
+          const attributionDays = c.goal_metadata?.attribution_window_days || 14;
+          const sentDate = c.sent_at;
+          const windowEnd = new Date(new Date(sentDate).getTime() + attributionDays * 86400000).toISOString();
+
+          // Get recipient emails for this campaign
+          const { data: recipientData } = await (supabase
+            .from("email_campaign_recipients" as any)
+            .select("email")
+            .eq("campaign_id", c.id)
+            .eq("status", "sent") as any);
+          const emails = (recipientData || []).map((r: any) => r.email?.toLowerCase()).filter(Boolean);
+
+          if (emails.length === 0) return { ...c, conversions: 0, conversionRate: 0 };
+
+          let conversions = 0;
+
+          if (c.goal_type === "guest_to_applicant") {
+            const { count } = await supabase
+              .from("membership_applications")
+              .select("id", { count: "exact", head: true })
+              .gte("created_at", sentDate)
+              .lte("created_at", windowEnd);
+            // Cross-check emails would be ideal but we approximate
+            conversions = count || 0;
+          } else if (c.goal_type === "re_engage_guest") {
+            const { count } = await (supabase
+              .from("guest_passes" as any)
+              .select("id", { count: "exact", head: true })
+              .gte("created_at", sentDate)
+              .lte("created_at", windowEnd) as any);
+            conversions = count || 0;
+          } else if (c.goal_type === "collect_feedback") {
+            const { count } = await (supabase
+              .from("guest_feedback" as any)
+              .select("id", { count: "exact", head: true })
+              .gte("submitted_at", sentDate)
+              .lte("submitted_at", windowEnd) as any);
+            conversions = count || 0;
+          } else if (c.goal_type === "prevent_churn") {
+            // Members who went from frozen/past_due to active in the window
+            const { count } = await (supabase
+              .from("subscription_status_history" as any)
+              .select("id", { count: "exact", head: true })
+              .eq("new_status", "active")
+              .gte("created_at", sentDate)
+              .lte("created_at", windowEnd) as any);
+            conversions = count || 0;
+          } else if (c.goal_type === "referral_push") {
+            const { count } = await (supabase
+              .from("member_referrals" as any)
+              .select("id", { count: "exact", head: true })
+              .gte("created_at", sentDate)
+              .lte("created_at", windowEnd) as any);
+            conversions = count || 0;
+          }
+
+          const rate = c.sent_count > 0 ? Math.round((conversions / c.sent_count) * 100) : 0;
+          return { ...c, conversions, conversionRate: rate };
+        })
+      );
+
+      setCampaigns(withConversions);
+      setTotalConversions(withConversions.reduce((sum, c) => sum + c.conversions, 0));
     } catch (error) {
       console.error("Error fetching analytics:", error);
     } finally {
@@ -58,13 +138,15 @@ export function CampaignAnalytics() {
     }
   };
 
+  const goalCampaigns = campaigns.filter((c) => c.goal_type);
   const guestCampaigns = campaigns.filter((c) => c.campaign_type === "guest").length;
   const memberCampaigns = campaigns.filter((c) => c.campaign_type === "member").length;
+  const overallConvRate = totalSent > 0 ? ((totalConversions / totalSent) * 100).toFixed(1) : "0";
 
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardContent className="pt-6 text-center">
             <Send className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
@@ -81,26 +163,33 @@ export function CampaignAnalytics() {
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
-            <Users className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-2xl font-bold">{guestCampaigns}</p>
-            <p className="text-xs text-muted-foreground">Guest Campaigns</p>
+            <Target className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-2xl font-bold">{goalCampaigns.length}</p>
+            <p className="text-xs text-muted-foreground">Goal-Driven Campaigns</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <CheckCircle2 className="h-5 w-5 mx-auto mb-2 text-emerald-600" />
+            <p className="text-2xl font-bold">{totalConversions}</p>
+            <p className="text-xs text-muted-foreground">Total Conversions</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
             <TrendingUp className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-2xl font-bold">{memberCampaigns}</p>
-            <p className="text-xs text-muted-foreground">Member Campaigns</p>
+            <p className="text-2xl font-bold">{overallConvRate}%</p>
+            <p className="text-xs text-muted-foreground">Conversion Rate</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Campaign History */}
+      {/* Campaign History with Conversions */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            Campaign History
+            Campaign Performance
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -112,7 +201,7 @@ export function CampaignAnalytics() {
             <div className="text-center py-8 text-muted-foreground">
               <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>No campaigns sent yet</p>
-              <p className="text-sm">Create your first campaign from the Guests or Members tab</p>
+              <p className="text-sm">Launch your first strategic campaign from the Guests or Members tab</p>
             </div>
           ) : (
             <Table>
@@ -120,8 +209,10 @@ export function CampaignAnalytics() {
                 <TableRow>
                   <TableHead>Campaign</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Subject</TableHead>
+                  <TableHead>Goal</TableHead>
                   <TableHead>Sent</TableHead>
+                  <TableHead>Conversions</TableHead>
+                  <TableHead>Conv. Rate</TableHead>
                   <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
@@ -134,8 +225,34 @@ export function CampaignAnalytics() {
                         {c.campaign_type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm max-w-[200px] truncate">{c.subject}</TableCell>
+                    <TableCell>
+                      {c.goal_type ? (
+                        <Badge variant="outline" className="text-xs">
+                          {GOAL_LABELS[c.goal_type] || c.goal_type}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm">{c.sent_count}</TableCell>
+                    <TableCell className="text-sm">
+                      {c.goal_type ? (
+                        <span className={c.conversions > 0 ? "text-emerald-600 font-medium" : ""}>
+                          {c.conversions}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {c.goal_type ? (
+                        <span className={c.conversionRate > 10 ? "text-emerald-600 font-medium" : ""}>
+                          {c.conversionRate}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {c.sent_at ? format(new Date(c.sent_at), "MMM d, yyyy") : "Draft"}
                     </TableCell>

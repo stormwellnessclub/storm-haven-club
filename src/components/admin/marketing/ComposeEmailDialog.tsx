@@ -4,16 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Send, Eye } from "lucide-react";
+import { Loader2, Send, Eye, Users, X } from "lucide-react";
+
+interface AudienceRecipient {
+  email: string;
+  name: string;
+}
 
 interface ComposeEmailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   recipientType: "guest" | "member";
   prefilledRecipient?: { email: string; name: string } | null;
+  goalType?: string;
+  playbookName?: string;
 }
 
 interface Template {
@@ -24,11 +32,23 @@ interface Template {
   merge_fields: string[];
 }
 
+// Map goal types to template name keywords for auto-matching
+const GOAL_TEMPLATE_MAP: Record<string, string> = {
+  guest_to_applicant: "re-engagement",
+  re_engage_guest: "re-engagement",
+  collect_feedback: "feedback",
+  prevent_churn: "announcement",
+  upsell_tier: "promo",
+  referral_push: "refer",
+};
+
 export function ComposeEmailDialog({
   open,
   onOpenChange,
   recipientType,
   prefilledRecipient,
+  goalType,
+  playbookName,
 }: ComposeEmailDialogProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -38,23 +58,151 @@ export function ComposeEmailDialog({
   const [isSending, setIsSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Smart audience
+  const [audience, setAudience] = useState<AudienceRecipient[]>([]);
+  const [audienceLoading, setAudienceLoading] = useState(false);
+  const [removedEmails, setRemovedEmails] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (open) {
       fetchTemplates();
-      setCampaignName("");
+      setCampaignName(playbookName ? `${playbookName} — ${new Date().toLocaleDateString()}` : "");
       setSubject("");
       setBodyHtml("");
       setSelectedTemplateId("");
       setShowPreview(false);
+      setAudience([]);
+      setRemovedEmails(new Set());
+
+      if (goalType) {
+        fetchSmartAudience(goalType);
+      }
     }
-  }, [open]);
+  }, [open, goalType]);
 
   const fetchTemplates = async () => {
     const { data } = await supabase
       .from("email_templates" as any)
       .select("id, name, subject, body_html, merge_fields")
       .order("name");
-    if (data) setTemplates(data as any[]);
+    if (data) {
+      const tpls = data as any[];
+      setTemplates(tpls);
+
+      // Auto-select matching template if goalType provided
+      if (goalType && GOAL_TEMPLATE_MAP[goalType]) {
+        const keyword = GOAL_TEMPLATE_MAP[goalType];
+        const match = tpls.find((t) => t.name.toLowerCase().includes(keyword));
+        if (match) {
+          setSelectedTemplateId(match.id);
+          setSubject(match.subject);
+          setBodyHtml(match.body_html);
+          setShowPreview(true);
+        }
+      }
+    }
+  };
+
+  const fetchSmartAudience = async (goal: string) => {
+    setAudienceLoading(true);
+    try {
+      let recipients: AudienceRecipient[] = [];
+
+      if (goal === "guest_to_applicant") {
+        const { data: guests } = await supabase
+          .from("guest_passes" as any)
+          .select("guest_email, guest_name")
+          .not("guest_email", "is", null);
+        const { data: apps } = await supabase
+          .from("membership_applications")
+          .select("email");
+        const appEmails = new Set((apps || []).map((a: any) => a.email?.toLowerCase()));
+        const seen = new Set<string>();
+        (guests || []).forEach((g: any) => {
+          const email = g.guest_email?.toLowerCase();
+          if (email && !appEmails.has(email) && !seen.has(email)) {
+            seen.add(email);
+            recipients.push({ email: g.guest_email, name: g.guest_name });
+          }
+        });
+      } else if (goal === "re_engage_guest") {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const { data } = await supabase
+          .from("guest_passes" as any)
+          .select("guest_email, guest_name, valid_date")
+          .not("guest_email", "is", null)
+          .lt("valid_date", thirtyDaysAgo.toISOString().split("T")[0]);
+        const seen = new Set<string>();
+        (data || []).forEach((g: any) => {
+          const email = g.guest_email?.toLowerCase();
+          if (email && !seen.has(email)) {
+            seen.add(email);
+            recipients.push({ email: g.guest_email, name: g.guest_name });
+          }
+        });
+      } else if (goal === "collect_feedback") {
+        const { data: guests } = await supabase
+          .from("guest_passes" as any)
+          .select("guest_email, guest_name")
+          .not("guest_email", "is", null);
+        const { data: fb } = await supabase
+          .from("guest_feedback" as any)
+          .select("guest_email");
+        const fbEmails = new Set((fb || []).map((f: any) => f.guest_email?.toLowerCase()));
+        const seen = new Set<string>();
+        (guests || []).forEach((g: any) => {
+          const email = g.guest_email?.toLowerCase();
+          if (email && !fbEmails.has(email) && !seen.has(email)) {
+            seen.add(email);
+            recipients.push({ email: g.guest_email, name: g.guest_name });
+          }
+        });
+      } else if (goal === "prevent_churn") {
+        const { data } = await supabase
+          .from("members")
+          .select("email, first_name, last_name")
+          .in("status", ["past_due", "frozen"])
+          .not("email", "is", null);
+        recipients = (data || []).map((m: any) => ({
+          email: m.email,
+          name: `${m.first_name || ""} ${m.last_name || ""}`.trim() || "Member",
+        }));
+      } else if (goal === "upsell_tier") {
+        const { data } = await supabase
+          .from("members")
+          .select("email, first_name, last_name")
+          .eq("status", "active")
+          .not("email", "is", null)
+          .limit(500);
+        recipients = (data || []).map((m: any) => ({
+          email: m.email,
+          name: `${m.first_name || ""} ${m.last_name || ""}`.trim() || "Member",
+        }));
+      } else if (goal === "referral_push") {
+        const { data: members } = await supabase
+          .from("members")
+          .select("id, email, first_name, last_name")
+          .eq("status", "active")
+          .not("email", "is", null)
+          .limit(1000);
+        const { data: referrals } = await supabase
+          .from("member_referrals" as any)
+          .select("referring_member_id");
+        const referrerIds = new Set((referrals || []).map((r: any) => r.referring_member_id));
+        recipients = (members || [])
+          .filter((m: any) => !referrerIds.has(m.id))
+          .map((m: any) => ({
+            email: m.email,
+            name: `${m.first_name || ""} ${m.last_name || ""}`.trim() || "Member",
+          }));
+      }
+
+      setAudience(recipients);
+    } catch (err) {
+      console.error("Error fetching audience:", err);
+    }
+    setAudienceLoading(false);
   };
 
   const handleTemplateSelect = (templateId: string) => {
@@ -65,6 +213,12 @@ export function ComposeEmailDialog({
       setBodyHtml(template.body_html);
     }
   };
+
+  const removeRecipient = (email: string) => {
+    setRemovedEmails((prev) => new Set([...prev, email.toLowerCase()]));
+  };
+
+  const activeAudience = audience.filter((a) => !removedEmails.has(a.email.toLowerCase()));
 
   const handleSend = async () => {
     if (!subject.trim() || !bodyHtml.trim()) {
@@ -83,7 +237,6 @@ export function ComposeEmailDialog({
         const resolvedSubject = subject.replace(/\{name\}/g, prefilledRecipient.name).replace(/\{clubName\}/g, "Storm Wellness Club");
         const resolvedBody = bodyHtml.replace(/\{name\}/g, prefilledRecipient.name).replace(/\{clubName\}/g, "Storm Wellness Club");
 
-        // Log campaign
         const { data: campaign, error: campError } = await (supabase
           .from("email_campaigns" as any)
           .insert({
@@ -94,13 +247,14 @@ export function ComposeEmailDialog({
             sent_count: 1,
             sent_at: new Date().toISOString(),
             template_id: selectedTemplateId || null,
+            goal_type: goalType || null,
+            goal_metadata: goalType ? { attribution_window_days: 14 } : null,
           })
           .select("id")
           .single() as any);
 
         if (campError) throw campError;
 
-        // Send via edge function
         const { error: sendError } = await supabase.functions.invoke("send-email", {
           body: {
             type: "staff_reply",
@@ -113,7 +267,6 @@ export function ComposeEmailDialog({
           },
         });
 
-        // Log recipient
         await (supabase.from("email_campaign_recipients" as any).insert({
           campaign_id: campaign.id,
           email: prefilledRecipient.email,
@@ -126,16 +279,17 @@ export function ComposeEmailDialog({
         if (sendError) throw sendError;
         toast.success(`Email sent to ${prefilledRecipient.name}`);
       } else {
-        // Bulk send — fetch recipients based on type
-        let recipients: { email: string; name: string }[] = [];
+        // Bulk send — use smart audience if available, else fallback
+        let recipients: AudienceRecipient[] = [];
 
-        if (recipientType === "guest") {
+        if (goalType && activeAudience.length > 0) {
+          recipients = activeAudience;
+        } else if (recipientType === "guest") {
           const { data } = await supabase
             .from("guest_passes" as any)
             .select("guest_email, guest_name")
             .not("guest_email", "is", null)
             .eq("status", "exhausted");
-          
           const uniqueEmails = new Set<string>();
           recipients = (data || [])
             .filter((g: any) => {
@@ -164,7 +318,6 @@ export function ComposeEmailDialog({
           return;
         }
 
-        // Create campaign
         const { data: campaign, error: campError } = await (supabase
           .from("email_campaigns" as any)
           .insert({
@@ -174,6 +327,8 @@ export function ComposeEmailDialog({
             body_html: bodyHtml,
             sent_count: 0,
             template_id: selectedTemplateId || null,
+            goal_type: goalType || null,
+            goal_metadata: goalType ? { attribution_window_days: 14 } : null,
           })
           .select("id")
           .single() as any);
@@ -215,7 +370,6 @@ export function ComposeEmailDialog({
           }
         }
 
-        // Update campaign sent count
         await (supabase
           .from("email_campaigns" as any)
           .update({ sent_count: sentCount, sent_at: new Date().toISOString() })
@@ -245,11 +399,50 @@ export function ComposeEmailDialog({
           <DialogTitle>
             {prefilledRecipient
               ? `Send Email to ${prefilledRecipient.name}`
-              : `Compose ${recipientType === "guest" ? "Guest" : "Member"} Campaign`}
+              : playbookName
+                ? `${playbookName} Campaign`
+                : `Compose ${recipientType === "guest" ? "Guest" : "Member"} Campaign`}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Smart Audience Preview */}
+          {goalType && !prefilledRecipient && (
+            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Target Audience</span>
+                </div>
+                {audienceLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <Badge variant="secondary">{activeAudience.length} recipients</Badge>
+                )}
+              </div>
+              {!audienceLoading && activeAudience.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  {activeAudience.slice(0, 20).map((r) => (
+                    <Badge key={r.email} variant="outline" className="text-xs gap-1 pr-1">
+                      {r.name}
+                      <button
+                        onClick={() => removeRecipient(r.email)}
+                        className="ml-0.5 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {activeAudience.length > 20 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{activeAudience.length - 20} more
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Campaign Name</Label>
             <Input
@@ -285,7 +478,17 @@ export function ComposeEmailDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Body (HTML)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Body (HTML)</Label>
+              <div className="flex gap-1">
+                {["{name}", "{clubName}"].map((field) => (
+                  <Badge key={field} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted"
+                    onClick={() => setBodyHtml((prev) => prev + field)}>
+                    {field}
+                  </Badge>
+                ))}
+              </div>
+            </div>
             <Textarea
               value={bodyHtml}
               onChange={(e) => setBodyHtml(e.target.value)}
@@ -312,7 +515,7 @@ export function ComposeEmailDialog({
               ) : (
                 <Send className="h-4 w-4 mr-2" />
               )}
-              {prefilledRecipient ? "Send Email" : "Send Campaign"}
+              {prefilledRecipient ? "Send Email" : `Send to ${goalType ? activeAudience.length : ""} ${recipientType}s`}
             </Button>
           </div>
         </div>
