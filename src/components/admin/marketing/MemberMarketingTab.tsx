@@ -218,6 +218,8 @@ export function MemberMarketingTab() {
         onOpenChange={setComposeOpen}
         recipientType="member"
         prefilledRecipient={selectedMember}
+        goalType={activeGoalType}
+        playbookName={activePlaybookName}
       />
     </div>
   );
