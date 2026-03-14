@@ -28,6 +28,8 @@ export function MemberMarketingTab() {
   const [tierFilter, setTierFilter] = useState("all");
   const [composeOpen, setComposeOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ email: string; name: string } | null>(null);
+  const [activeGoalType, setActiveGoalType] = useState<string | undefined>();
+  const [activePlaybookName, setActivePlaybookName] = useState<string | undefined>();
 
   useEffect(() => {
     fetchMembers();
