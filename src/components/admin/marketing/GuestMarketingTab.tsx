@@ -132,19 +132,28 @@ export function GuestMarketingTab() {
         </Card>
       </div>
 
-      {/* Actions */}
+      {/* Strategic Playbooks */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Guest Outreach</CardTitle>
-          <CardDescription>Send emails to past guests for re-engagement or feedback</CardDescription>
+          <CardTitle className="text-base">Guest Campaign Playbooks</CardTitle>
+          <CardDescription>Goal-driven campaigns with built-in conversion tracking</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CampaignPlaybooks
+            type="guest"
+            onLaunchPlaybook={handleLaunchPlaybook}
+            onCustomCampaign={handleBulkSend}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Guest List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Individual Outreach</CardTitle>
+          <CardDescription>Send a direct email to a specific guest</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Button onClick={handleBulkSend}>
-              <Send className="h-4 w-4 mr-2" />
-              Compose Campaign
-            </Button>
-          </div>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
