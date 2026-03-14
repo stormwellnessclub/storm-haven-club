@@ -59,7 +59,7 @@ export function CampaignAnalytics() {
 
       setTotalSent(recipientsRes.count || 0);
 
-      const rawCampaigns = (campaignsRes.data || []) as Campaign[];
+      const rawCampaigns = (campaignsRes.data || []) as unknown as Campaign[];
 
       // Calculate conversions for each campaign with a goal_type
       const withConversions: CampaignWithConversion[] = await Promise.all(
