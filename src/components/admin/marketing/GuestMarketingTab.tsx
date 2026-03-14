@@ -249,6 +249,8 @@ export function GuestMarketingTab() {
         onOpenChange={setComposeOpen}
         recipientType="guest"
         prefilledRecipient={selectedGuest}
+        goalType={activeGoalType}
+        playbookName={activePlaybookName}
       />
     </div>
   );
