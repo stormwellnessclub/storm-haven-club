@@ -1,17 +1,34 @@
 
-What’s happening (based on live checks):
-- Your URL is reachable: `https://stormwellnessclub.com` and `https://www.stormwellnessclub.com` both load correctly.
-- `robots.txt` allows all crawlers (`User-agent: * Allow: /`), so basic crawl blocking is not the issue.
-- `sitemap.xml` currently returns a 404 page, which can cause some automated “website audit” agents to fail or partially fail.
-- So this is most likely a limitation of the specific Claude audit flow (or its crawler path), not that your site is down.
+# Strategic Campaign System — IMPLEMENTED
 
-Plan to make link-based audits work reliably (no screenshots):
-1. Use the full canonical URL in prompts: `https://www.stormwellnessclub.com/` (include protocol + trailing slash).
-2. Add a real `sitemap.xml` and make sure it resolves at `/sitemap.xml`.
-3. Re-run the audit with a seed list in prompt (homepage + key URLs like `/memberships`, `/classes`, `/apply`) so the model doesn’t depend on sitemap discovery.
-4. If it still fails in Claude, run URL-based audit here instead (I can fetch and audit your pages directly without screenshots).
-5. Verify end-to-end by testing audit output on at least 3 internal pages and confirming the recommendations reference real page content.
+## What Was Built
 
-Expected outcome:
-- Auditors that rely on crawl/discovery will stop failing.
-- You can run repeatable audits by URL only, without uploading images.
+### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
+Goal-driven campaign cards replacing the generic "Compose Campaign" button:
+
+**Guest Playbooks:**
+- **Convert to Applicant** — targets past guests who haven't applied
+- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
+- **Collect Feedback** — recent guests without feedback
+
+**Member Playbooks:**
+- **Prevent Churn** — members with past_due or frozen status
+- **Upsell Tier** — active members on lower tiers
+- **Referral Push** — active members with 0 referrals
+
+Each card shows live audience count and a "Launch Campaign" button.
+
+### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
+- Auto-queries the right segment when launched from a playbook
+- Shows recipient count and name chips with ability to remove individuals
+- Auto-loads matching email template based on goal type
+- Merge field chips for quick personalization
+
+### 3. Conversion Tracking (CampaignAnalytics.tsx)
+- `goal_type` and `goal_metadata` columns added to email_campaigns
+- Per-campaign conversion rates with 14-day attribution window
+- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
+- Summary stats: total conversions, overall conversion rate
+
+### Database Changes
+- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
