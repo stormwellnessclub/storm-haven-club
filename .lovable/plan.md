@@ -1,39 +1,60 @@
 
 
-## Plan: Text (SMS) Automation System
+## Problem
 
-The database tables are already created (`sms_messages`, `marketing_sequences`, `marketing_sequence_enrollments`, `marketing_contacts`). The Twilio secrets (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`) are **not yet added** — you will need to enter them before SMS can actually send.
+The marketing portal is a glorified email blaster. "Compose Campaign" opens a blank form — there is no strategy, no conversion goals, no funnel tracking, no way to measure if a campaign actually did anything. The analytics tab just counts emails sent, with `guestConversions` hardcoded to `0`.
 
-### Step 1: Add Twilio secrets
-Request the 3 Twilio secrets via the secrets tool. Nothing works until these are in place.
+The database infrastructure is already robust: `email_campaigns`, `email_campaign_recipients`, `marketing_contacts` (with segment tags, opt-in flags), `marketing_sequences` (with steps JSONB, trigger types), and `marketing_sequence_enrollments`. But none of this is surfaced in the UI.
 
-### Step 2: Create `send-sms` edge function
-New file: `supabase/functions/send-sms/index.ts`
-- Accepts `{ to, body, contact_id? }` 
-- Calls Twilio REST API via HTTP Basic Auth (`AccountSid:AuthToken`)
-- Logs the message to `sms_messages` table with status tracking
-- Returns `{ success, twilio_sid }` or error
+## Solution: Strategic Campaign System
 
-### Step 3: Create `process-marketing-sequences` edge function
-New file: `supabase/functions/process-marketing-sequences/index.ts`
-- Queries `marketing_sequence_enrollments` where `status = 'active'` and `next_step_at <= now()`
-- For each due enrollment, reads the sequence's `steps` JSONB array at `current_step`
-- Executes the step: calls `send-email` for email steps, calls `send-sms` for SMS steps
-- Advances `current_step`, calculates `next_step_at` based on step delay, or marks `completed`
+### 1. Campaign Playbooks (replace "Compose Campaign" button)
 
-### Step 4: Add SMS buttons to Marketing Portal UI
-- **GuestMarketingTab**: Add an "SMS" button next to each guest's "Email" button (only if phone exists), plus a "Send SMS" bulk action
-- **MemberMarketingTab**: Same pattern — SMS button per member row
-- **New `ComposeSmsDialog` component**: Simple dialog with phone number, message body (160 char counter), and send button that invokes `send-sms`
+Replace the generic compose button with **goal-driven campaign cards**, each with a defined conversion metric:
 
-### Step 5: Add `config.toml` entries
-Register `send-sms` and `process-marketing-sequences` in the config.
+**Guest Playbooks:**
+- **Convert to Applicant** — targets past guests who haven't applied. Goal: application submitted. Tracked by matching guest email to `applications` table.
+- **Re-engage Lapsed Guests** — guests who visited 30+ days ago, no return. Goal: new guest pass booked.
+- **Collect Feedback** — recent guests without feedback. Goal: feedback submission.
+
+**Member Playbooks:**
+- **Prevent Churn** — members with status `past_due` or `frozen`. Goal: status returns to `active`.
+- **Upsell Tier** — active members on lower tiers. Goal: tier upgrade.
+- **Referral Push** — active members with 0 referrals. Goal: referral submitted.
+- **Custom Campaign** — blank compose for power users.
+
+Each card shows: name, description, audience count (auto-calculated), and a "Launch" button that opens the compose dialog pre-filled with the matching template and audience pre-segmented.
+
+### 2. Conversion Tracking on Analytics Tab
+
+Replace the placeholder analytics with real conversion attribution:
+
+- **Add `goal_type` and `goal_target_count` columns** to `email_campaigns` table (e.g., `goal_type = 'guest_to_applicant'`)
+- **Conversion query logic**: after a campaign is sent, check if recipients took the target action within 14 days (configurable attribution window)
+  - `guest_to_applicant`: recipient email appears in `applications` table after campaign sent date
+  - `re_engage_guest`: recipient has a new `guest_passes` entry after campaign
+  - `prevent_churn`: recipient member status changed from `past_due`/`frozen` to `active`
+  - `referral_push`: recipient has new entry in `member_referrals`
+- **Analytics dashboard** shows per-campaign: sent count, delivery rate, conversion count, conversion rate, and ROI indicator
+
+### 3. Smart Audience Builder
+
+Update `ComposeEmailDialog` to show a filtered audience preview when launched from a playbook:
+- Auto-query the right segment (e.g., guests with no application, members with `past_due` status)
+- Show recipient count and sample names before sending
+- Allow removing individual recipients
 
 ### Files
-- **Create**: `supabase/functions/send-sms/index.ts`
-- **Create**: `supabase/functions/process-marketing-sequences/index.ts`
-- **Create**: `src/components/admin/marketing/ComposeSmsDialog.tsx`
-- **Modify**: `src/components/admin/marketing/GuestMarketingTab.tsx` — add SMS buttons
-- **Modify**: `src/components/admin/marketing/MemberMarketingTab.tsx` — add SMS buttons
-- **Modify**: `supabase/config.toml` — register new functions
+
+**Database migration:**
+- Add `goal_type TEXT`, `goal_metadata JSONB` to `email_campaigns`
+
+**Create:**
+- `src/components/admin/marketing/CampaignPlaybooks.tsx` — the playbook card grid with audience counting logic
+
+**Modify:**
+- `src/components/admin/marketing/GuestMarketingTab.tsx` — replace "Compose Campaign" with guest playbook cards, keep individual email buttons
+- `src/components/admin/marketing/MemberMarketingTab.tsx` — replace "Compose Campaign" with member playbook cards
+- `src/components/admin/marketing/ComposeEmailDialog.tsx` — accept `goalType`, `audienceQuery` props; show audience preview with count; auto-load matching template
+- `src/components/admin/marketing/CampaignAnalytics.tsx` — add conversion tracking queries, per-campaign conversion rates, funnel visualization
 
