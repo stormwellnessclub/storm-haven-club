@@ -117,19 +117,28 @@ export function MemberMarketingTab() {
         </Card>
       </div>
 
-      {/* Actions */}
+      {/* Strategic Playbooks */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Member Outreach</CardTitle>
-          <CardDescription>Send announcements, promos, or wellness tips to members</CardDescription>
+          <CardTitle className="text-base">Member Campaign Playbooks</CardTitle>
+          <CardDescription>Goal-driven campaigns with conversion tracking</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CampaignPlaybooks
+            type="member"
+            onLaunchPlaybook={handleLaunchPlaybook}
+            onCustomCampaign={handleBulkSend}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Individual Outreach */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Individual Outreach</CardTitle>
+          <CardDescription>Send a direct email to a specific member</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Button onClick={handleBulkSend}>
-              <Send className="h-4 w-4 mr-2" />
-              Compose Campaign
-            </Button>
-          </div>
 
           {/* Filters */}
           <div className="flex flex-wrap gap-3">
