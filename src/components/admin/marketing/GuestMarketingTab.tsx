@@ -91,8 +91,17 @@ export function GuestMarketingTab() {
     setComposeOpen(true);
   };
 
+  const handleLaunchPlaybook = (playbook: PlaybookConfig) => {
+    setSelectedGuest(null);
+    setActiveGoalType(playbook.goalType);
+    setActivePlaybookName(playbook.name);
+    setComposeOpen(true);
+  };
+
   const handleBulkSend = () => {
     setSelectedGuest(null);
+    setActiveGoalType(undefined);
+    setActivePlaybookName(undefined);
     setComposeOpen(true);
   };
 
