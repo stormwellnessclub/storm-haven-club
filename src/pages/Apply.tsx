@@ -728,8 +728,13 @@ export default function Apply() {
             {/* Step 2 — Membership Selection */}
             <div ref={(el) => sectionRefs.current["membership"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
               <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">Membership Plan</h2>
-              <p className="text-sm text-muted-foreground mb-4 sm:mb-6">
-                Select the tier that aligns with your wellness goals. You'll have the opportunity to discuss your choice during your private walkthrough — nothing is finalized until you've experienced the club.
+              <p className="text-sm text-muted-foreground mb-2">
+                Select the tier that aligns with your wellness goals. You'll have the opportunity to discuss your choice during your private walkthrough — nothing is finalized until you've been approved and you visit the club.
+              </p>
+              <p className="text-xs mb-4 sm:mb-6">
+                <Link to="/memberships" className="text-muted-foreground hover:text-accent transition-colors underline underline-offset-2">
+                  Not sure which tier is right for you? View membership tiers →
+                </Link>
               </p>
               
               <div>
