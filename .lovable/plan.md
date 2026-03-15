@@ -1,34 +1,27 @@
 
-# Strategic Campaign System — IMPLEMENTED
 
-## What Was Built
+## Problem
 
-### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
-Goal-driven campaign cards replacing the generic "Compose Campaign" button:
+The `/site-audit` page is a React component -- it only renders in a browser that executes JavaScript. When Claude AI fetches the URL, it gets the empty SPA shell (`index.html`) and sees nothing useful. Claude needs raw HTML served directly from the server.
 
-**Guest Playbooks:**
-- **Convert to Applicant** — targets past guests who haven't applied
-- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
-- **Collect Feedback** — recent guests without feedback
+## Solution
 
-**Member Playbooks:**
-- **Prevent Churn** — members with past_due or frozen status
-- **Upsell Tier** — active members on lower tiers
-- **Referral Push** — active members with 0 referrals
+Add a `file=site-audit` option to the existing `serve-static` edge function that returns a full, self-contained HTML page with all the audit content baked in. No JavaScript required -- just static HTML that any tool (Claude, curl, crawlers) can read directly.
 
-Each card shows live audience count and a "Launch Campaign" button.
+Then update the React `SiteAudit.tsx` page to also link to this direct URL so you can share it with Claude.
 
-### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
-- Auto-queries the right segment when launched from a playbook
-- Shows recipient count and name chips with ability to remove individuals
-- Auto-loads matching email template based on goal type
-- Merge field chips for quick personalization
+## Changes
 
-### 3. Conversion Tracking (CampaignAnalytics.tsx)
-- `goal_type` and `goal_metadata` columns added to email_campaigns
-- Per-campaign conversion rates with 14-day attribution window
-- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
-- Summary stats: total conversions, overall conversion rate
+### 1. Update `supabase/functions/serve-static/index.ts`
+- Add a `file === "site-audit"` branch that returns a complete HTML document containing the full site audit (all pages, descriptions, features, business info)
+- Serve with `Content-Type: text/html; charset=utf-8`
 
-### Database Changes
-- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
+### 2. Update `src/pages/SiteAudit.tsx`
+- Add a "Copy Link for AI" button that copies the direct edge function URL (`https://cqzmrdzwgsujgbjqpoxh.supabase.co/functions/v1/serve-static?file=site-audit`)
+- This is the URL you paste into Claude -- it will fetch the raw HTML directly
+
+### 3. Update `src/components/StaticFileRedirect.tsx` (if needed)
+- Add a redirect for `/site-audit.html` to the edge function, similar to sitemap/robots
+
+This way, when you give Claude the direct URL, it fetches a fully rendered HTML page with all your site info -- no JS execution needed.
+
