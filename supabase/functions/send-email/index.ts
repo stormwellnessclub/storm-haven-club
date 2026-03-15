@@ -2145,8 +2145,13 @@ serve(async (req) => {
         throw new Error(`Unknown email type: ${type}`);
     }
 
+    // Use named sender for application emails
+    const senderAddress = type === 'application_submitted'
+      ? 'Storm Wellness Club <membership@stormwellnessclub.com>'
+      : 'Storm Wellness Club <admin@stormwellnessclub.com>';
+
     const emailResponse = await resend.emails.send({
-      from: 'Storm Wellness Club <admin@stormwellnessclub.com>',
+      from: senderAddress,
       to: [to],
       subject,
       html,
