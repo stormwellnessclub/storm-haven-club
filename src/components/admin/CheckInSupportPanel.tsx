@@ -136,11 +136,9 @@ function ConversationItem({
 export function CheckInSupportPanel() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [isMuted, setIsMuted] = useState(false);
   const [conciergeOpen, setConciergeOpen] = useState(true);
   const [classSupportOpen, setClassSupportOpen] = useState(true);
   const [supportOpen, setSupportOpen] = useState(true);
-  const prevCountRef = useRef<number | null>(null);
 
   // Fetch open conversations and join with profiles for member names
   const { data: conversations } = useQuery({
