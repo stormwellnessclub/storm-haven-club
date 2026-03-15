@@ -280,6 +280,16 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
         {weekDays.map((day) => {
           const hidePast = day.isPast && !showHistory;
+
+          // Pre-filter visible slots: remove finished/cancelled/hidden unless showHistory
+          const visibleClasses = day.classes.filter((cls) => {
+            if (hidePast) return false;
+            if (!showHistory && isSlotFinished(day.dateStr, cls.time)) return false;
+            const slot = getEnrollmentForSlot(day.dateStr, cls.time);
+            if (!showHistory && (slot.isCancelled || slot.isHidden)) return false;
+            return true;
+          });
+
           return (
             <div key={day.dateStr} ref={day.isToday ? todayRef : undefined} className={`space-y-3 ${day.outOfRange || hidePast ? "opacity-40" : ""}`}>
               <div className={`text-center p-2 rounded-lg ${day.isToday ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
@@ -290,14 +300,14 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
               <div className="space-y-2">
                 {hidePast ? (
                   <div className="text-center text-muted-foreground text-xs py-8">Past</div>
-                ) : day.classes.length === 0 ? (
+                ) : visibleClasses.length === 0 ? (
                   <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
                 ) : (
-                  day.classes.map((cls, i) => {
-                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId, classTypeId } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                  visibleClasses.map((cls, i) => {
+                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId, classTypeId } = getEnrollmentForSlot(day.dateStr, cls.time);
                     const slotIsFull = enrolled >= maxCapacity;
-                    // For customer view: completely hide cancelled or hidden classes
-                    if (!showHistory && (isCancelled || isHidden)) return null;
+
+                    // showHistory cancelled/hidden rendering
                     if (isCancelled) {
                       return (
                         <Card key={i} className="opacity-60 border-destructive/30">
@@ -324,12 +334,15 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                         </Card>
                       );
                     }
+
+                    const slotFinished = isSlotFinished(day.dateStr, cls.time);
+
                     return (
                       <TempClassCard
                         key={i}
                         entry={cls}
                         date={day.date}
-                        readOnly={readOnly || day.isPast}
+                        readOnly={readOnly || day.isPast || slotFinished}
                         isLoggedIn={isLoggedIn}
                         canBook={canBook}
                         isBooked={isBooked(day.date, cls.time)}
