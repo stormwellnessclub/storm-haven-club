@@ -28,6 +28,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
   return (
     <SidebarProvider>
+      <AdminSupportChime />
       <div className="min-h-screen flex flex-col md:flex-row w-full bg-background">
         <AdminSidebar />
         <SidebarInset className="flex-1 min-w-0">
