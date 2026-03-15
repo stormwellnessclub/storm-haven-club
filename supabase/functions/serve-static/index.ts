@@ -209,5 +209,15 @@ serve(async (req) => {
     });
   }
 
+  if (file === "full-site-content") {
+    return new Response(FULL_SITE_CONTENT_HTML, {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=3600",
+        ...corsHeaders,
+      },
+    });
+  }
+
   return new Response("Not found", { status: 404, headers: corsHeaders });
 });

@@ -113,12 +113,27 @@ Full URL: https://www.stormwellnessclub.com${p.path === "/" ? "" : p.path}
             </button>
           </div>
         </div>
-        <p className="text-muted-foreground mb-2 font-sans text-sm">
-          <strong>For Claude/AI tools:</strong> Click "Copy Link for AI" and paste the URL directly into Claude. It will fetch the static HTML version.
-        </p>
-        <p className="text-muted-foreground mb-4 font-sans text-xs break-all">
-          Direct URL: <a href={directUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">{directUrl}</a>
-        </p>
+        <div className="mb-6 p-4 bg-secondary/50 rounded-lg border border-border space-y-3">
+          <p className="font-sans text-sm font-medium">For Claude/AI tools — two links available:</p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={handleCopyFullContent}
+              className="px-4 py-2 bg-accent text-accent-foreground rounded font-sans font-medium hover:bg-accent/90 transition-colors text-sm"
+            >
+              {fullContentCopied ? "✓ Copied!" : "📋 Copy Full Content Link (recommended)"}
+            </button>
+            <button
+              onClick={handleCopyLink}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded font-sans font-medium hover:bg-primary/90 transition-colors text-sm"
+            >
+              {linkCopied ? "✓ Copied!" : "📋 Copy Summary Link"}
+            </button>
+          </div>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p><strong>Full Content:</strong> <a href={fullContentUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all">{fullContentUrl}</a></p>
+            <p><strong>Summary:</strong> <a href={directUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all">{directUrl}</a></p>
+          </div>
+        </div>
         <pre className="whitespace-pre-wrap text-sm text-green-400 bg-muted p-6 rounded-lg border border-border overflow-auto">
           {auditText}
         </pre>
