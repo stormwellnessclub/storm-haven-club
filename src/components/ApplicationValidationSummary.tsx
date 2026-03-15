@@ -120,7 +120,7 @@ export function ApplicationValidationSummary({
             "Submitting Application..."
           ) : isReadyToSubmit ? (
             <>
-              Submit Application
+              Submit My Application
               <ArrowRight className="ml-2 w-5 h-5" />
             </>
           ) : (

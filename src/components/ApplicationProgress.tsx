@@ -1,4 +1,4 @@
-import { Check, Lock, User, Target, History, Heart, Sparkles, CreditCard, FileText } from "lucide-react";
+import { Check, Lock, User, Target, History, Heart, Sparkles, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ApplicationStep {
