@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays, Check, Loader2, Star } from "lucide-react";
 import { useClassTypeRatings } from "@/hooks/useClassReviews";
 import { StarRating } from "@/components/reviews/StarRating";
-import { startOfWeek, addDays, addWeeks, format, isSameDay, isBefore, startOfDay } from "date-fns";
+import { startOfWeek, addDays, addWeeks, format, isSameDay, isBefore, startOfDay, parse, addMinutes } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTempClassBooking } from "@/hooks/useTempClassBooking";
 import { useWaitlistStatus, useJoinWaitlist } from "@/hooks/useWaitlist";
 import {
