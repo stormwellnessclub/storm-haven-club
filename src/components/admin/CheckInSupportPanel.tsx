@@ -270,25 +270,6 @@ export function CheckInSupportPanel() {
                   }`}
                 />
               </CollapsibleTrigger>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => {
-                  const ctx = getAudioContext();
-                  if (ctx && ctx.state === "suspended") {
-                    ctx.resume().catch(() => {});
-                  }
-                  warmUpAudio();
-                  setIsMuted(!isMuted);
-                }}
-                title={isMuted ? "Unmute notifications" : "Mute notifications"}
-              >
-                {isMuted ? (
-                  <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
-                ) : (
-                  <Bell className="h-3.5 w-3.5 text-amber-500" />
-                )}
-              </Button>
             </div>
           </CardHeader>
           <CollapsibleContent>
