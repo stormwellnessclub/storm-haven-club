@@ -1,22 +1,34 @@
 
+# Strategic Campaign System — IMPLEMENTED
 
-## Remove Abandoned Application Email
+## What Was Built
 
-Remove all automatic abandoned application email tracking and sending functionality.
+### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
+Goal-driven campaign cards replacing the generic "Compose Campaign" button:
 
-### 1. Remove client-side tracking from `src/pages/Apply.tsx`
+**Guest Playbooks:**
+- **Convert to Applicant** — targets past guests who haven't applied
+- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
+- **Collect Feedback** — recent guests without feedback
 
-Remove lines 26-27 (the `ABANDON_TRACK_KEY` constant), lines 301-315 (saving to localStorage when email/firstName entered), lines 320-345 (the `checkAbandonedApplication` function and its call), and line 551 (clearing the tracking key on submission).
+**Member Playbooks:**
+- **Prevent Churn** — members with past_due or frozen status
+- **Upsell Tier** — active members on lower tiers
+- **Referral Push** — active members with 0 referrals
 
-### 2. Delete the edge function
+Each card shows live audience count and a "Launch Campaign" button.
 
-Delete `supabase/functions/send-abandoned-application/index.ts` entirely. The function is not listed in `supabase/config.toml` so no config changes needed there.
+### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
+- Auto-queries the right segment when launched from a playbook
+- Shows recipient count and name chips with ability to remove individuals
+- Auto-loads matching email template based on goal type
+- Merge field chips for quick personalization
 
-### 3. Note on admin panel
+### 3. Conversion Tracking (CampaignAnalytics.tsx)
+- `goal_type` and `goal_metadata` columns added to email_campaigns
+- Per-campaign conversion rates with 14-day attribution window
+- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
+- Summary stats: total conversions, overall conversion rate
 
-The `AbandonedApplicationsTab` component in the admin panel provides a manual way to send reminders to people who started card setup but didn't complete. This is separate from the automatic abandoned application email and queries `card_setup_attempts` table. I'll leave this in place since it's a different feature — let me know if you want that removed too.
-
-### Files Modified
-- `src/pages/Apply.tsx` — Remove localStorage tracking and 2-hour timer logic
-- `supabase/functions/send-abandoned-application/index.ts` — Delete entire file
-
+### Database Changes
+- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table

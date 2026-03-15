@@ -23,9 +23,6 @@ import gymArea2 from "@/assets/gym-area-2.jpg";
 const DRAFT_STORAGE_KEY = "storm_apply_draft_v2";
 const DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// Abandoned application tracking
-const ABANDON_TRACK_KEY = "storm_apply_abandon_track";
-
 interface DraftData {
   formData: typeof initialFormData;
   savedAt: number;
@@ -296,57 +293,6 @@ export default function Apply() {
     isHydrated.current = true;
   }, []);
 
-  // Abandoned application tracking
-  useEffect(() => {
-    if (formData.email && formData.firstName) {
-      try {
-        const existing = localStorage.getItem(ABANDON_TRACK_KEY);
-        if (!existing) {
-          localStorage.setItem(ABANDON_TRACK_KEY, JSON.stringify({
-            email: formData.email,
-            firstName: formData.firstName,
-            timestamp: Date.now(),
-            sent: false,
-          }));
-        }
-      } catch (e) {
-        console.warn("[Abandon] Failed to save tracking:", e);
-      }
-    }
-  }, [formData.email, formData.firstName]);
-
-  // Check for abandoned application on mount
-  useEffect(() => {
-    const checkAbandonedApplication = async () => {
-      try {
-        const stored = localStorage.getItem(ABANDON_TRACK_KEY);
-        if (!stored) return;
-        
-        const track = JSON.parse(stored);
-        if (track.sent) return;
-        
-        const elapsed = Date.now() - track.timestamp;
-        const TWO_HOURS = 2 * 60 * 60 * 1000;
-        
-        if (elapsed >= TWO_HOURS) {
-          // Send abandoned application email
-          await supabase.functions.invoke('send-abandoned-application', {
-            body: {
-              email: track.email,
-              firstName: track.firstName,
-            },
-          });
-          
-          localStorage.setItem(ABANDON_TRACK_KEY, JSON.stringify({ ...track, sent: true }));
-          console.log("[Abandon] Recovery email triggered for:", track.email);
-        }
-      } catch (e) {
-        console.warn("[Abandon] Failed to check abandoned application:", e);
-      }
-    };
-    
-    checkAbandonedApplication();
-  }, []);
 
   // Autosave draft with debounce
   useEffect(() => {
@@ -546,9 +492,8 @@ export default function Apply() {
         }
       });
 
-      // Clear draft and abandon tracking on successful submission
+      // Clear draft on successful submission
       clearDraft();
-      try { localStorage.removeItem(ABANDON_TRACK_KEY); } catch (e) {}
       
       setIsSubmitted(true);
     } catch (error) {
