@@ -100,12 +100,21 @@ serve(async (req) => {
   const url = new URL(req.url);
   const file = url.searchParams.get("file");
 
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   if (file === "sitemap.xml") {
     return new Response(SITEMAP_XML, {
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
         "Cache-Control": "public, max-age=3600",
-        "Access-Control-Allow-Origin": "*",
+        ...corsHeaders,
       },
     });
   }
@@ -115,10 +124,10 @@ serve(async (req) => {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "public, max-age=3600",
-        "Access-Control-Allow-Origin": "*",
+        ...corsHeaders,
       },
     });
   }
 
-  return new Response("Not found", { status: 404 });
+  return new Response("Not found", { status: 404, headers: corsHeaders });
 });

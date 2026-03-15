@@ -92,6 +92,7 @@ import StaffHub from "./pages/admin/StaffHub";
 import MerchManager from "./pages/admin/MerchManager";
 import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
+import SiteAudit from "./pages/SiteAudit";
 import GuestFeedback from "./pages/GuestFeedback";
 import { SitemapRedirect, RobotsRedirect } from "@/components/StaticFileRedirect";
 import { ProtectedPortalRoute } from "@/components/portal/ProtectedPortalRoute";
@@ -142,6 +143,7 @@ const App = () => (
               <Route path="/guest-pass" element={<GuestPass />} />
               <Route path="/guest-feedback" element={<GuestFeedback />} />
               <Route path="/design-system" element={<DesignSystem />} />
+              <Route path="/site-audit" element={<SiteAudit />} />
               <Route path="/merch" element={<Merch />} />
               <Route path="/shop" element={<Merch />} />
               
