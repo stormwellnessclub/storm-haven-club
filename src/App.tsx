@@ -93,6 +93,7 @@ import MerchManager from "./pages/admin/MerchManager";
 import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
 import GuestFeedback from "./pages/GuestFeedback";
+import { SitemapRedirect, RobotsRedirect } from "@/components/StaticFileRedirect";
 import { ProtectedPortalRoute } from "@/components/portal/ProtectedPortalRoute";
 import PortalDashboard from "@/pages/portal/Dashboard";
 import PortalBookings from "@/pages/portal/Bookings";
@@ -116,6 +117,10 @@ const App = () => (
             <SessionMonitor />
             <ScrollToTop />
             <Routes>
+              {/* Static file redirects for crawlers */}
+              <Route path="/sitemap.xml" element={<SitemapRedirect />} />
+              <Route path="/robots.txt" element={<RobotsRedirect />} />
+              
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/classes" element={<Classes />} />

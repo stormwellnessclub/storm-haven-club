@@ -1,44 +1,34 @@
 
+# Strategic Campaign System — IMPLEMENTED
 
-## Problem
+## What Was Built
 
-The `sitemap.xml` file exists in `public/` and works in local development, but on production (`stormwellnessclub.com`) it returns a 404 page. This is because the hosting layer routes all requests through `index.html` (SPA catch-all), and React Router doesn't know about `sitemap.xml`, so it renders the 404 component.
+### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
+Goal-driven campaign cards replacing the generic "Compose Campaign" button:
 
-The same issue applies to `robots.txt` — it may or may not be affected depending on the hosting config.
+**Guest Playbooks:**
+- **Convert to Applicant** — targets past guests who haven't applied
+- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
+- **Collect Feedback** — recent guests without feedback
 
-## Root Cause
+**Member Playbooks:**
+- **Prevent Churn** — members with past_due or frozen status
+- **Upsell Tier** — active members on lower tiers
+- **Referral Push** — active members with 0 referrals
 
-Lovable's hosting serves all paths through the SPA. Static files in `public/` like `sitemap.xml` and `robots.txt` need to be served before the SPA catch-all takes over. This is a hosting-level behavior, not a code issue.
+Each card shows live audience count and a "Launch Campaign" button.
 
-## Solution
+### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
+- Auto-queries the right segment when launched from a playbook
+- Shows recipient count and name chips with ability to remove individuals
+- Auto-loads matching email template based on goal type
+- Merge field chips for quick personalization
 
-Since we can't change the hosting server config, we work around it by serving sitemap and robots content through the app itself:
+### 3. Conversion Tracking (CampaignAnalytics.tsx)
+- `goal_type` and `goal_metadata` columns added to email_campaigns
+- Per-campaign conversion rates with 14-day attribution window
+- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
+- Summary stats: total conversions, overall conversion rate
 
-### 1. Create an edge function to serve sitemap.xml
-- Create `supabase/functions/sitemap/index.ts`
-- Returns the XML content with `Content-Type: application/xml`
-- Contains all 15 URLs currently in `public/sitemap.xml`
-
-### 2. Create an edge function to serve robots.txt
-- Create `supabase/functions/robots/index.ts`  
-- Returns the robots.txt content with `Content-Type: text/plain`
-
-### 3. Add client-side route interception
-- In the React Router config, add routes for `/sitemap.xml` and `/robots.txt` that redirect to the edge function URLs
-- Alternatively, add a small component that fetches from the edge function and renders raw XML/text
-
-### Alternative approach (simpler)
-Rather than edge functions, we can handle this purely client-side:
-- Add a `/sitemap.xml` route in React Router that renders the XML directly with the correct content type via a meta refresh or by setting `document.location` to the edge function
-- Actually, the simplest fix: **Add a route in React Router for `/sitemap.xml`** that uses `useEffect` to replace the document content with raw XML
-
-**Recommended approach**: Create a single backend function that serves both files, and add React Router routes that redirect to them. This guarantees correct content types and works with all crawlers.
-
-### Files
-
-**Create:**
-- `supabase/functions/serve-static/index.ts` — serves sitemap.xml and robots.txt with correct content types based on query param
-
-**Modify:**
-- `src/App.tsx` (or wherever routes are defined) — add routes for `/sitemap.xml` and `/robots.txt` that redirect to the edge function
-
+### Database Changes
+- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
