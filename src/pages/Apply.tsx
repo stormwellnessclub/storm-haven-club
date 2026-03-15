@@ -9,12 +9,9 @@ import { toast } from "sonner";
 import { Check, ExternalLink, Loader2, AlertCircle, FileText, Download } from "lucide-react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { loadStripe } from "@stripe/stripe-js";
-// AgreementPDFViewer removed — now using download-only UI for all devices
 import { useAgreements } from "@/hooks/useAgreements";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApplicationProgress, getStepCompletion, APPLICATION_STEPS } from "@/components/ApplicationProgress";
-import { PaymentSectionEnhanced, CardDetails } from "@/components/PaymentSectionEnhanced";
 import { ApplicationValidationSummary } from "@/components/ApplicationValidationSummary";
 import { DraftSaveIndicator } from "@/components/DraftSaveIndicator";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -23,17 +20,16 @@ import { resolvePdfUrl } from "@/lib/pdfAssets";
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
 // Draft persistence for form data across redirects
-// Uses BOTH localStorage and sessionStorage for mobile redirect resilience
 const DRAFT_STORAGE_KEY = "storm_apply_draft_v2";
 const DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+// Abandoned application tracking
+const ABANDON_TRACK_KEY = "storm_apply_abandon_track";
+
 interface DraftData {
   formData: typeof initialFormData;
-  stripeCustomerId: string | null;
-  isCardConfirmed: boolean;
   savedAt: number;
   source?: "local" | "session";
-  cardDetails?: CardDetails | null;
 }
 
 const initialFormData = {
@@ -60,22 +56,13 @@ const initialFormData = {
   holisticWellness: "",
   referredByMember: "",
   foundingMember: "",
-  creditCardAuth: false,
-  paymentAcknowledged: false,
   membershipAgreementSigned: false,
   oneYearCommitment: false,
-  authAcknowledgment: false,
-  submissionConfirmation: false,
 };
 
 // Save to BOTH storages for maximum reliability on mobile
-const saveDraft = (
-  formData: typeof initialFormData, 
-  stripeCustomerId: string | null, 
-  isCardConfirmed: boolean = false,
-  cardDetails?: CardDetails | null
-) => {
-  const draft: DraftData = { formData, stripeCustomerId, isCardConfirmed, savedAt: Date.now(), cardDetails };
+const saveDraft = (formData: typeof initialFormData) => {
+  const draft: DraftData = { formData, savedAt: Date.now() };
   const json = JSON.stringify(draft);
   
   try {
@@ -96,7 +83,6 @@ const loadDraft = (): DraftData | null => {
   let draft: DraftData | null = null;
   let source: "session" | "local" | null = null;
 
-  // Try sessionStorage first
   try {
     const stored = sessionStorage.getItem(DRAFT_STORAGE_KEY);
     if (stored) {
@@ -107,7 +93,6 @@ const loadDraft = (): DraftData | null => {
     console.warn("[Draft] sessionStorage load failed:", e);
   }
 
-  // Fallback to localStorage if sessionStorage empty/failed
   if (!draft) {
     try {
       const stored = localStorage.getItem(DRAFT_STORAGE_KEY);
@@ -122,29 +107,18 @@ const loadDraft = (): DraftData | null => {
 
   if (!draft) return null;
 
-  // Expire drafts older than 24 hours
   if (Date.now() - draft.savedAt > DRAFT_EXPIRY_MS) {
     clearDraft();
     return null;
   }
 
   draft.source = source || undefined;
-  console.log(`[Draft] Loaded from ${source}Storage, saved ${Math.round((Date.now() - draft.savedAt) / 1000 / 60)} min ago`);
   return draft;
 };
 
-// Clear from BOTH storages
 const clearDraft = () => {
-  try {
-    sessionStorage.removeItem(DRAFT_STORAGE_KEY);
-  } catch (e) {
-    console.warn("[Draft] sessionStorage clear failed:", e);
-  }
-  try {
-    localStorage.removeItem(DRAFT_STORAGE_KEY);
-  } catch (e) {
-    console.warn("[Draft] localStorage clear failed:", e);
-  }
+  try { sessionStorage.removeItem(DRAFT_STORAGE_KEY); } catch (e) {}
+  try { localStorage.removeItem(DRAFT_STORAGE_KEY); } catch (e) {}
 };
 
 const membershipPlans = [
@@ -177,7 +151,6 @@ const motivations = [
   "Specific services (e.g., spa, personal training)",
 ];
 
-// Load draft ONCE at module init for synchronous hydration
 const getInitialDraft = (): DraftData | null => {
   try {
     return loadDraft();
@@ -263,7 +236,6 @@ function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAg
             })}
           </div>
         ) : (
-          /* No PDF available — show download fallback to the static file */
           <div className="flex flex-col items-center gap-3 p-5 rounded-lg border bg-muted/30">
             <FileText className="h-10 w-10 text-accent" />
             <p className="text-sm font-medium">Membership Agreement</p>
@@ -297,258 +269,99 @@ function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAg
   );
 }
 
-// ApplicationPaymentForm has been moved to PaymentSectionEnhanced component
-
 export default function Apply() {
-  const [searchParams] = useSearchParams();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSavingCard, setIsSavingCard] = useState(false);
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
   const [currentStepId, setCurrentStepId] = useState("personal");
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
-  const [savedApplicationId, setSavedApplicationId] = useState<string | null>(null);
   
-  // Section refs for scroll tracking
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
-  // Use lazy initializers to hydrate from draft BEFORE any effects run
   const [formData, setFormData] = useState(() => {
     const draft = getInitialDraft();
     if (draft?.formData) {
-      console.log("[Apply] Hydrated formData from draft");
       return draft.formData;
     }
     return initialFormData;
   });
   
-  // CRITICAL FIX: Always restore stripeCustomerId from draft, even if card isn't confirmed yet
-  // This is needed for 3DS redirect recovery - the customer was created before redirect
-  const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(() => {
-    const draft = getInitialDraft();
-    if (draft?.stripeCustomerId) {
-      console.log("[Apply] Hydrated stripeCustomerId from draft:", draft.stripeCustomerId, "isCardConfirmed:", draft.isCardConfirmed);
-      return draft.stripeCustomerId;
-    }
-    return null;
-  });
-  
-  // Track whether card was actually confirmed (not just customer created)
-  const [isCardConfirmed, setIsCardConfirmed] = useState<boolean>(() => {
-    const draft = getInitialDraft();
-    return draft?.isCardConfirmed === true;
-  });
-  
-  // Store card details for display and submission
-  const [savedCardDetails, setSavedCardDetails] = useState<CardDetails | null>(() => {
-    const draft = getInitialDraft();
-    return draft?.cardDetails || null;
-  });
-  
   const isHydrated = useRef(false);
   const formDataRef = useRef(formData);
   
-  // Keep ref in sync with state
   useEffect(() => {
     formDataRef.current = formData;
   }, [formData]);
   
-  // Mark as hydrated after first render
   useEffect(() => {
     isHydrated.current = true;
   }, []);
 
-  // Check for successful card setup on return from Stripe (legacy setup_success params)
-  // CRITICAL: Do NOT depend on formData - use ref to avoid overwriting with stale state
+  // Abandoned application tracking
   useEffect(() => {
-    const setupSuccess = searchParams.get("setup_success");
-    const customerId = searchParams.get("customer_id");
-    
-    if (setupSuccess === "true" && customerId) {
-      setStripeCustomerId(customerId);
-      setIsCardConfirmed(true);
-      // Use formDataRef to get current form state without adding formData as dependency
-      saveDraft(formDataRef.current, customerId, true);
-      toast.success("Payment method saved successfully!");
-      // Clear URL params without reload
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [searchParams]);
-
-  // CRITICAL: Handle 3DS redirect returns from Stripe
-  // When Stripe redirects back after 3DS authentication, we need to finalize the SetupIntent
-  const location = useLocation();
-  
-  useEffect(() => {
-    const handleStripeReturn = async () => {
-      const urlParams = new URLSearchParams(location.search);
-      const setupIntentClientSecret = urlParams.get("setup_intent_client_secret");
-      const setupIntentId = urlParams.get("setup_intent");
-      const redirectStatus = urlParams.get("redirect_status");
-      
-      // Only process if we have Stripe return params AND card is not already confirmed
-      if (!setupIntentClientSecret || isCardConfirmed) {
-        return;
-      }
-      
-      console.log("[Apply] Detected Stripe 3DS return:", { 
-        setupIntentId, 
-        redirectStatus,
-        hasClientSecret: !!setupIntentClientSecret,
-        existingCustomerId: stripeCustomerId 
-      });
-      
-      // Check redirect status first
-      if (redirectStatus === "failed") {
-        toast.error("Card authentication failed. Please try again.");
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return;
-      }
-      
+    if (formData.email && formData.firstName) {
       try {
-        // Get Stripe publishable key
-        let publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-        
-        if (!publishableKey || !publishableKey.startsWith("pk_")) {
-          console.log("[Apply] Fetching Stripe key from backend...");
-          const { data: configData, error: configError } = await supabase.functions.invoke("stripe-config");
-          if (configError || !configData?.publishableKey) {
-            throw new Error("Could not retrieve Stripe configuration");
-          }
-          publishableKey = configData.publishableKey;
+        const existing = localStorage.getItem(ABANDON_TRACK_KEY);
+        if (!existing) {
+          localStorage.setItem(ABANDON_TRACK_KEY, JSON.stringify({
+            email: formData.email,
+            firstName: formData.firstName,
+            timestamp: Date.now(),
+            sent: false,
+          }));
         }
+      } catch (e) {
+        console.warn("[Abandon] Failed to save tracking:", e);
+      }
+    }
+  }, [formData.email, formData.firstName]);
+
+  // Check for abandoned application on mount
+  useEffect(() => {
+    const checkAbandonedApplication = async () => {
+      try {
+        const stored = localStorage.getItem(ABANDON_TRACK_KEY);
+        if (!stored) return;
         
-        // Initialize Stripe and retrieve the SetupIntent
-        const stripe = await loadStripe(publishableKey);
-        if (!stripe) {
-          throw new Error("Failed to initialize Stripe");
-        }
+        const track = JSON.parse(stored);
+        if (track.sent) return;
         
-        console.log("[Apply] Retrieving SetupIntent...");
-        const { setupIntent, error: retrieveError } = await stripe.retrieveSetupIntent(setupIntentClientSecret);
+        const elapsed = Date.now() - track.timestamp;
+        const TWO_HOURS = 2 * 60 * 60 * 1000;
         
-        if (retrieveError) {
-          console.error("[Apply] Failed to retrieve SetupIntent:", retrieveError);
-          throw new Error(retrieveError.message || "Failed to verify card setup");
-        }
-        
-        if (!setupIntent) {
-          throw new Error("SetupIntent not found");
-        }
-        
-        console.log("[Apply] SetupIntent status:", setupIntent.status, setupIntent);
-        
-        if (setupIntent.status !== "succeeded") {
-          if (setupIntent.status === "processing") {
-            toast.info("Card setup is processing. Please wait...");
-          } else {
-            toast.error(`Card setup incomplete (${setupIntent.status}). Please try again.`);
-          }
-          window.history.replaceState({}, document.title, window.location.pathname);
-          return;
-        }
-        
-        // SetupIntent succeeded - determine customer ID
-        // Priority: 1) existing state, 2) draft, 3) setupIntent.customer (via type assertion)
-        let finalCustomerId = stripeCustomerId;
-        if (!finalCustomerId) {
-          const draft = loadDraft();
-          finalCustomerId = draft?.stripeCustomerId || null;
-        }
-        // Stripe's SetupIntent may include customer but TypeScript types don't always reflect it
-        const setupIntentAny = setupIntent as any;
-        if (!finalCustomerId && setupIntentAny.customer) {
-          finalCustomerId = typeof setupIntentAny.customer === "string" 
-            ? setupIntentAny.customer 
-            : setupIntentAny.customer?.id;
-        }
-        
-        if (!finalCustomerId) {
-          console.error("[Apply] Could not determine customer ID after 3DS return");
-          toast.error("Unable to verify payment setup. Please try again.");
-          window.history.replaceState({}, document.title, window.location.pathname);
-          return;
-        }
-        
-        console.log("[Apply] 3DS return successful, customer:", finalCustomerId);
-        
-        // Fetch card details with retry logic
-        let cardDetails: CardDetails | null = null;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          await new Promise(resolve => setTimeout(resolve, attempt === 1 ? 2000 : 1500));
+        if (elapsed >= TWO_HOURS) {
+          // Send abandoned application email
+          await supabase.functions.invoke('send-abandoned-application', {
+            body: {
+              email: track.email,
+              firstName: track.firstName,
+            },
+          });
           
-          try {
-            console.log(`[Apply] Fetching card details attempt ${attempt}/3...`);
-            const { data: pmData, error: pmError } = await supabase.functions.invoke("stripe-payment", {
-              body: {
-                action: "list_application_payment_methods",
-                stripeCustomerId: finalCustomerId,
-              },
-            });
-            
-            if (pmError) {
-              console.warn(`[Apply] Card fetch attempt ${attempt} error:`, pmError);
-              continue;
-            }
-            
-            if (pmData?.paymentMethods?.[0]) {
-              const card = pmData.paymentMethods[0];
-              cardDetails = {
-                brand: card.brand || null,
-                last4: card.last4 || null,
-                expMonth: card.expMonth || null,
-                expYear: card.expYear || null,
-              };
-              console.log("[Apply] Card details fetched:", cardDetails);
-              break;
-            }
-          } catch (err) {
-            console.warn(`[Apply] Card fetch attempt ${attempt} exception:`, err);
-          }
+          localStorage.setItem(ABANDON_TRACK_KEY, JSON.stringify({ ...track, sent: true }));
+          console.log("[Abandon] Recovery email triggered for:", track.email);
         }
-        
-        // Update state
-        setStripeCustomerId(finalCustomerId);
-        setIsCardConfirmed(true);
-        setSavedCardDetails(cardDetails);
-        setShowPaymentForm(false);
-        setPaymentClientSecret(null);
-        
-        // Save draft
-        saveDraft(formDataRef.current, finalCustomerId, true, cardDetails);
-        
-        toast.success("Payment method saved successfully!");
-        
-        // Clear URL params
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-      } catch (err) {
-        console.error("[Apply] Error handling 3DS return:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to verify card setup");
-        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (e) {
+        console.warn("[Abandon] Failed to check abandoned application:", e);
       }
     };
     
-    handleStripeReturn();
-  }, [location.search, isCardConfirmed, stripeCustomerId]);
+    checkAbandonedApplication();
+  }, []);
 
-  // Autosave draft with debounce (only after hydration)
+  // Autosave draft with debounce
   useEffect(() => {
     if (!isHydrated.current) return;
     
     const timeoutId = setTimeout(() => {
-      saveDraft(formData, stripeCustomerId, isCardConfirmed, savedCardDetails);
+      saveDraft(formData);
       setLastSavedAt(Date.now());
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [formData, stripeCustomerId, isCardConfirmed, savedCardDetails]);
+  }, [formData]);
 
-  // Calculate step completion for progress
-  const steps = getStepCompletion(formData, stripeCustomerId, isCardConfirmed);
+  const steps = getStepCompletion(formData);
 
-  // Scroll to section helper
   const scrollToSection = (stepId: string) => {
     const ref = sectionRefs.current[stepId];
     if (ref) {
@@ -575,126 +388,12 @@ export default function Apply() {
     }));
   };
 
-  const handleSavePaymentMethod = async () => {
-    // Validate required fields for card setup
-    if (!formData.firstName || !formData.lastName || !formData.email) {
-      toast.error("Please fill in your name and email first");
-      return;
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
-
-    setIsSavingCard(true);
-    setIsCardConfirmed(false); // Reset card confirmation when starting new setup
-
-    // Save draft immediately (mark card as NOT confirmed during setup)
-    saveDraft(formData, stripeCustomerId, false, null);
-    console.log("[Apply] Saved draft before payment setup");
-
-    try {
-      // Save application with pending_payment status BEFORE opening Stripe card form
-      // This ensures we never lose an applicant even if they abandon the card step
-      if (!savedApplicationId) {
-        console.log("[Apply] Saving application with pending_payment status...");
-        const { data: appData, error: appError } = await supabase.from("membership_applications").insert({
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          full_name: `${formData.firstName} ${formData.lastName}`,
-          date_of_birth: formData.dateOfBirth || null,
-          gender: formData.gender || null,
-          address: formData.address || null,
-          city: formData.city || null,
-          state: formData.state || null,
-          zip_code: formData.zipCode || null,
-          country: formData.country || null,
-          email: formData.email,
-          phone: formData.phone || null,
-          membership_plan: formData.membershipPlan || null,
-          wellness_goals: formData.wellnessGoals.length > 0 ? formData.wellnessGoals : null,
-          services_interested: formData.servicesInterested.length > 0 ? formData.servicesInterested : null,
-          referred_by_member: formData.referredByMember || null,
-          founding_member: formData.foundingMember || null,
-          lifestyle_integration: formData.lifestyleIntegration || null,
-          holistic_wellness: formData.holisticWellness || null,
-          status: "pending_payment",
-          payment_info_provided: false,
-        }).select("id").single();
-
-        if (appError) {
-          console.error("[Apply] Failed to save pre-payment application:", appError);
-          // Don't block the card flow - just log it
-        } else if (appData?.id) {
-          setSavedApplicationId(appData.id);
-          console.log("[Apply] Application saved with id:", appData.id);
-        }
-      }
-
-      const { data, error } = await supabase.functions.invoke("stripe-payment", {
-        body: {
-          action: "create_application_setup",
-          applicantEmail: formData.email,
-          applicantName: `${formData.firstName} ${formData.lastName}`,
-          successUrl: window.location.origin + window.location.pathname,
-          cancelUrl: window.location.origin + window.location.pathname,
-        },
-      });
-
-      if (error) {
-        console.error("Payment setup error:", error);
-        throw new Error(error.message || "Failed to create payment setup");
-      }
-
-      if (!data) {
-        throw new Error("No response data received");
-      }
-
-      if (data.error) {
-        throw new Error(data.error || "Payment setup failed");
-      }
-
-      console.log("[Apply] Payment setup response:", data);
-      
-      if (!data.clientSecret) {
-        console.error("No client secret in response data:", data);
-        throw new Error("No client secret returned from payment service");
-      }
-
-      // Store client secret and customer ID (customer is created at this point)
-      // NOTE: Customer ID is created when setup is created, but payment method isn't saved until user completes form
-      // We set stripeCustomerId immediately so it's available to the payment form, but isCardConfirmed stays FALSE
-      const customerIdFromResponse = data.customerId || null;
-      if (customerIdFromResponse) {
-        // Save to draft for persistence - BUT mark card as NOT confirmed yet
-        saveDraft(formData, customerIdFromResponse, false, null);
-        // Set in state so PaymentFormInner can use it immediately
-        setStripeCustomerId(customerIdFromResponse);
-      }
-      
-      console.log("[Apply] Setting up embedded payment form with client secret");
-      setPaymentClientSecret(data.clientSecret);
-      setShowPaymentForm(true);
-      setIsSavingCard(false);
-      console.log("[Apply] Payment form should now be visible with customerId:", customerIdFromResponse);
-    } catch (error) {
-      console.error("Error creating payment setup:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to open payment setup. Please try again.";
-      toast.error(errorMessage);
-      setIsSavingCard(false);
-    }
-  };
-
   // Check for duplicate application before submission
   const checkForDuplicateApplication = async (emailToCheck: string): Promise<{
     isDuplicate: boolean;
     message: string;
   }> => {
     try {
-      // Check for existing member (case-insensitive)
       const { data: memberData } = await supabase
         .from("members")
         .select("id, status, email")
@@ -708,7 +407,6 @@ export default function Apply() {
         };
       }
 
-      // Check for pending/approved application (case-insensitive)
       const { data: appData } = await supabase
         .from("membership_applications")
         .select("id, status, email")
@@ -736,51 +434,29 @@ export default function Apply() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate required fields
     if (!formData.firstName || !formData.lastName || !formData.dateOfBirth || !formData.gender ||
         !formData.address || !formData.city || !formData.state || !formData.zipCode || !formData.country ||
         !formData.email || !formData.phone || !formData.membershipPlan ||
         formData.wellnessGoals.length === 0 || formData.servicesInterested.length === 0 ||
         !formData.referredByMember || !formData.foundingMember ||
-        !formData.creditCardAuth || !formData.paymentAcknowledged || !formData.membershipAgreementSigned ||
-        !formData.oneYearCommitment || !formData.authAcknowledgment || !formData.submissionConfirmation) {
+        !formData.membershipAgreementSigned || !formData.oneYearCommitment) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    // Check for duplicate application before proceeding
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
       toast.error(dupeCheck.message);
       return;
     }
 
-    // Validate payment method is saved AND card is confirmed
-    if (!stripeCustomerId || !isCardConfirmed) {
-      toast.error("Please save your payment method before submitting");
-      return;
-    }
-
-    // Validate input lengths for security
+    // Validate input lengths
     const maxLengths: Record<string, number> = {
-      firstName: 50,
-      lastName: 50,
-      gender: 10,
-      address: 200,
-      city: 100,
-      state: 50,
-      zipCode: 20,
-      country: 100,
-      email: 255,
-      phone: 30,
-      otherGoals: 500,
-      otherServices: 500,
-      otherMotivation: 500,
-      lifestyleIntegration: 1000,
-      holisticWellness: 1000,
-      previousMember: 50,
-      referredByMember: 50,
-      foundingMember: 50,
+      firstName: 50, lastName: 50, gender: 10, address: 200, city: 100,
+      state: 50, zipCode: 20, country: 100, email: 255, phone: 30,
+      otherGoals: 500, otherServices: 500, otherMotivation: 500,
+      lifestyleIntegration: 1000, holisticWellness: 1000,
+      previousMember: 50, referredByMember: 50, foundingMember: 50,
     };
 
     for (const [field, maxLength] of Object.entries(maxLengths)) {
@@ -791,14 +467,12 @@ export default function Apply() {
       }
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       toast.error("Please enter a valid email address");
       return;
     }
 
-    // Validate array lengths
     if (formData.wellnessGoals.length > 10 || formData.servicesInterested.length > 10 || formData.motivations.length > 10) {
       toast.error("Too many selections");
       return;
@@ -807,13 +481,14 @@ export default function Apply() {
     setIsSubmitting(true);
 
     try {
-      // Block check before submission
+      // Block check
       const { data: isBlocked } = await supabase.rpc('is_email_blocked', { p_email: formData.email.trim().toLowerCase() });
       if (isBlocked) {
         toast.error("You are not permitted to apply for membership. If you believe this is an error, please contact us.");
         setIsSubmitting(false);
         return;
       }
+
       const applicationPayload = {
         first_name: formData.firstName,
         last_name: formData.lastName,
@@ -839,34 +514,13 @@ export default function Apply() {
         holistic_wellness: formData.holisticWellness || null,
         referred_by_member: formData.referredByMember,
         founding_member: formData.foundingMember,
-        payment_info_provided: true,
-        credit_card_auth: formData.creditCardAuth,
+        payment_info_provided: false,
         one_year_commitment: formData.oneYearCommitment,
-        auth_acknowledgment: formData.authAcknowledgment,
-        submission_confirmation: formData.submissionConfirmation,
         membership_agreement_signed: formData.membershipAgreementSigned,
-        stripe_customer_id: stripeCustomerId,
-        card_brand: savedCardDetails?.brand || null,
-        card_last4: savedCardDetails?.last4 || null,
-        card_exp_month: savedCardDetails?.expMonth || null,
-        card_exp_year: savedCardDetails?.expYear || null,
         status: "pending",
       };
 
-      // If we already saved a pending_payment application, update it instead of inserting
-      let error;
-      if (savedApplicationId) {
-        console.log("[Apply] Updating existing application:", savedApplicationId);
-        const result = await supabase
-          .from("membership_applications")
-          .update(applicationPayload)
-          .eq("id", savedApplicationId);
-        error = result.error;
-      } else {
-        console.log("[Apply] Inserting new application");
-        const result = await supabase.from("membership_applications").insert(applicationPayload);
-        error = result.error;
-      }
+      const { error } = await supabase.from("membership_applications").insert(applicationPayload);
 
       if (error) {
         console.error("Error submitting application:", error);
@@ -875,27 +529,27 @@ export default function Apply() {
         return;
       }
 
-      // Send confirmation email (fire and forget, don't block submission)
+      // Send confirmation email
       supabase.functions.invoke('send-email', {
         body: {
           type: 'application_submitted',
           to: formData.email,
           data: {
-            name: `${formData.firstName} ${formData.lastName}`,
+            name: formData.firstName,
+            firstName: formData.firstName,
             membershipPlan: formData.membershipPlan,
           },
         },
       }).then(({ error: emailError }) => {
         if (emailError) {
           console.error("Failed to send confirmation email:", emailError);
-        } else {
-          console.log("Application confirmation email sent");
         }
       });
 
-      // Clear draft on successful submission
+      // Clear draft and abandon tracking on successful submission
       clearDraft();
-      // Show success message
+      try { localStorage.removeItem(ABANDON_TRACK_KEY); } catch (e) {}
+      
       setIsSubmitted(true);
     } catch (error) {
       console.error("Error submitting application:", error);
@@ -907,7 +561,6 @@ export default function Apply() {
   if (isSubmitted) {
     return (
       <Layout>
-        {/* Hero */}
         <section className="relative pt-20 min-h-[40vh] flex items-center">
           <div className="absolute inset-0">
             <img src={gymArea2} alt="Gym" className="w-full h-full object-cover" />
@@ -928,12 +581,12 @@ export default function Apply() {
               <div className="w-20 h-20 mx-auto mb-8 rounded-full bg-accent/10 flex items-center justify-center">
                 <Check className="w-10 h-10 text-accent" />
               </div>
-              <h2 className="font-serif text-3xl mb-4">Thank You for Your Interest</h2>
+              <h2 className="font-serif text-3xl mb-4">Application Received</h2>
               <p className="text-lg text-muted-foreground mb-6">
-                Your membership invitation request has been submitted successfully.
+                Your application has been received. We review every submission personally and will be in touch within 24–48 hours.
               </p>
               <p className="text-muted-foreground mb-8">
-                Our membership team will review your application and you will hear back from us soon.
+                We look forward to reading yours.
               </p>
               <Link to="/">
                 <Button variant="gold" size="lg">
@@ -961,12 +614,10 @@ export default function Apply() {
               Application
             </p>
             <h1 className="heading-display text-primary-foreground mb-6">
-              Membership Application
+              Membership is by application.
             </h1>
             <p className="text-primary-foreground/80 text-lg leading-relaxed mb-6">
-              Complete the form below to apply for membership. Please ensure all required 
-              fields are filled out accurately to help us process your application quickly. 
-              If you have any questions, contact us at admin@stormwellnessclub.com.
+              We review every application personally and respond within 24–48 hours. If your application is approved, we'll invite you for a private walkthrough of Storm Wellness Club — so you can experience everything before your membership begins.
             </p>
             <Link to="/memberships">
               <Button variant="gold" size="lg">
@@ -991,204 +642,122 @@ export default function Apply() {
       {/* Application Form */}
       <section className="py-4 sm:py-8 bg-background">
         <div className="container mx-auto px-3 sm:px-6 max-w-3xl">
+          {/* Supporting line above the form */}
+          <p className="text-sm text-muted-foreground text-center mb-6 max-w-2xl mx-auto">
+            Membership spots are limited. We're selective about who joins our community — not to be exclusive for its own sake, but because the right environment depends on the right people.
+          </p>
+          
           <form onSubmit={handleSubmit}>
-            {/* Personal Information */}
+            {/* Step 1 — Personal Information */}
             <div ref={(el) => sectionRefs.current["personal"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
-              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Personal Information</h2>
+              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">Personal Information</h2>
+              <p className="text-sm text-muted-foreground mb-4 sm:mb-6">
+                Tell us a little about yourself. All information is kept private and used only to review your application.
+              </p>
               
               <div className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name *</Label>
-                    <Input
-                      id="firstName"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      placeholder="First Name"
-                      className="mt-1"
-                      required
-                    />
+                    <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder="First Name" className="mt-1" required />
                   </div>
                   <div>
                     <Label htmlFor="lastName">Last Name *</Label>
-                    <Input
-                      id="lastName"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      placeholder="Last Name"
-                      className="mt-1"
-                      required
-                    />
+                    <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleInputChange} placeholder="Last Name" className="mt-1" required />
                   </div>
                 </div>
 
                 <div>
                   <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-                  <Input
-                    id="dateOfBirth"
-                    name="dateOfBirth"
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                    required
-                  />
+                  <Input id="dateOfBirth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={handleInputChange} className="mt-1" required />
                 </div>
 
                 <div>
                   <Label className="mb-3 block">Gender *</Label>
                   <div className="flex gap-6">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        id="gender-women"
-                        name="gender"
-                        value="Women"
-                        checked={formData.gender === "Women"}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 accent-accent"
-                      />
-                      <Label htmlFor="gender-women" className="font-normal cursor-pointer">
-                        Women
-                      </Label>
+                      <input type="radio" id="gender-women" name="gender" value="Women" checked={formData.gender === "Women"} onChange={handleInputChange} className="h-4 w-4 accent-accent" />
+                      <Label htmlFor="gender-women" className="font-normal cursor-pointer">Women</Label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        id="gender-men"
-                        name="gender"
-                        value="Men"
-                        checked={formData.gender === "Men"}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 accent-accent"
-                      />
-                      <Label htmlFor="gender-men" className="font-normal cursor-pointer">
-                        Men
-                      </Label>
+                      <input type="radio" id="gender-men" name="gender" value="Men" checked={formData.gender === "Men"} onChange={handleInputChange} className="h-4 w-4 accent-accent" />
+                      <Label htmlFor="gender-men" className="font-normal cursor-pointer">Men</Label>
                     </div>
                   </div>
                 </div>
 
                 <div>
                   <Label htmlFor="address">Address *</Label>
-                  <Input
-                    id="address"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    placeholder="Street Address"
-                    className="mt-1"
-                    required
-                  />
+                  <Input id="address" name="address" value={formData.address} onChange={handleInputChange} placeholder="Street Address" className="mt-1" required />
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="city">City *</Label>
-                    <Input
-                      id="city"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                      placeholder="City"
-                      className="mt-1"
-                      required
-                    />
+                    <Input id="city" name="city" value={formData.city} onChange={handleInputChange} placeholder="City" className="mt-1" required />
                   </div>
                   <div>
                     <Label htmlFor="state">State/Province *</Label>
-                    <Input
-                      id="state"
-                      name="state"
-                      value={formData.state}
-                      onChange={handleInputChange}
-                      placeholder="State"
-                      className="mt-1"
-                      required
-                    />
+                    <Input id="state" name="state" value={formData.state} onChange={handleInputChange} placeholder="State" className="mt-1" required />
                   </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="zipCode">ZIP / Postal Code *</Label>
-                    <Input
-                      id="zipCode"
-                      name="zipCode"
-                      value={formData.zipCode}
-                      onChange={handleInputChange}
-                      placeholder="ZIP Code"
-                      className="mt-1"
-                      required
-                    />
+                    <Input id="zipCode" name="zipCode" value={formData.zipCode} onChange={handleInputChange} placeholder="ZIP Code" className="mt-1" required />
                   </div>
                   <div>
                     <Label htmlFor="country">Country *</Label>
-                    <Input
-                      id="country"
-                      name="country"
-                      value={formData.country}
-                      onChange={handleInputChange}
-                      className="mt-1"
-                      required
-                    />
+                    <Input id="country" name="country" value={formData.country} onChange={handleInputChange} className="mt-1" required />
                   </div>
                 </div>
 
                 <div>
                   <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="your@email.com"
-                    className="mt-1"
-                    required
-                  />
+                  <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="your@email.com" className="mt-1" required />
                 </div>
 
                 <div>
                   <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="(123) 456-7890"
-                    className="mt-1"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="membershipPlan">Which Membership Plan You Are Interested In? *</Label>
-                  <select
-                    id="membershipPlan"
-                    name="membershipPlan"
-                    value={formData.membershipPlan}
-                    onChange={handleInputChange}
-                    className="mt-1 w-full h-11 px-3 rounded-sm border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    required
-                  >
-                    <option value="">Please Choose</option>
-                    {membershipPlans.map((plan) => (
-                      <option key={plan.value} value={plan.value}>
-                        {plan.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} placeholder="(123) 456-7890" className="mt-1" required />
                 </div>
               </div>
             </div>
 
-            {/* Wellness Goals and Interests */}
+            {/* Step 2 — Membership Selection */}
+            <div ref={(el) => sectionRefs.current["membership"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">Membership Plan</h2>
+              <p className="text-sm text-muted-foreground mb-4 sm:mb-6">
+                Select the tier that aligns with your wellness goals. You'll have the opportunity to discuss your choice during your private walkthrough — nothing is finalized until you've experienced the club.
+              </p>
+              
+              <div>
+                <Label htmlFor="membershipPlan">Which Membership Plan You Are Interested In? *</Label>
+                <select
+                  id="membershipPlan"
+                  name="membershipPlan"
+                  value={formData.membershipPlan}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full h-11 px-3 rounded-sm border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  required
+                >
+                  <option value="">Please Choose</option>
+                  {membershipPlans.map((plan) => (
+                    <option key={plan.value} value={plan.value}>
+                      {plan.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Step 3 — Wellness Goals and Interests */}
             <div ref={(el) => sectionRefs.current["goals"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
-              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Wellness Goals and Interests</h2>
+              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">Wellness Goals and Interests</h2>
+              <p className="text-sm text-muted-foreground mb-4 sm:mb-6">
+                This is the part we look forward to most. We read every response personally — your goals and motivations help us understand whether Storm Wellness Club is the right fit for you, and how we can best support your journey if you join.
+              </p>
               
               <div className="space-y-6">
                 <div>
@@ -1196,34 +765,16 @@ export default function Apply() {
                   <div className="space-y-2">
                     {wellnessGoals.map((goal) => (
                       <div key={goal} className="flex items-center gap-3">
-                        <Checkbox
-                          id={`goal-${goal}`}
-                          checked={formData.wellnessGoals.includes(goal)}
-                          onCheckedChange={() => handleMultiSelect("wellnessGoals", goal)}
-                        />
-                        <Label htmlFor={`goal-${goal}`} className="font-normal cursor-pointer">
-                          {goal}
-                        </Label>
+                        <Checkbox id={`goal-${goal}`} checked={formData.wellnessGoals.includes(goal)} onCheckedChange={() => handleMultiSelect("wellnessGoals", goal)} />
+                        <Label htmlFor={`goal-${goal}`} className="font-normal cursor-pointer">{goal}</Label>
                       </div>
                     ))}
                     <div className="flex items-center gap-3">
-                      <Checkbox
-                        id="goal-other"
-                        checked={formData.wellnessGoals.includes("Other")}
-                        onCheckedChange={() => handleMultiSelect("wellnessGoals", "Other")}
-                      />
-                      <Label htmlFor="goal-other" className="font-normal cursor-pointer">
-                        Other (Please specify below)
-                      </Label>
+                      <Checkbox id="goal-other" checked={formData.wellnessGoals.includes("Other")} onCheckedChange={() => handleMultiSelect("wellnessGoals", "Other")} />
+                      <Label htmlFor="goal-other" className="font-normal cursor-pointer">Other (Please specify below)</Label>
                     </div>
                     {formData.wellnessGoals.includes("Other") && (
-                      <Input
-                        name="otherGoals"
-                        value={formData.otherGoals}
-                        onChange={handleInputChange}
-                        placeholder="Please specify..."
-                        className="mt-2"
-                      />
+                      <Input name="otherGoals" value={formData.otherGoals} onChange={handleInputChange} placeholder="Please specify..." className="mt-2" />
                     )}
                   </div>
                 </div>
@@ -1233,77 +784,43 @@ export default function Apply() {
                   <div className="space-y-2">
                     {servicesInterested.map((service) => (
                       <div key={service} className="flex items-center gap-3">
-                        <Checkbox
-                          id={`service-${service}`}
-                          checked={formData.servicesInterested.includes(service)}
-                          onCheckedChange={() => handleMultiSelect("servicesInterested", service)}
-                        />
-                        <Label htmlFor={`service-${service}`} className="font-normal cursor-pointer">
-                          {service}
-                        </Label>
+                        <Checkbox id={`service-${service}`} checked={formData.servicesInterested.includes(service)} onCheckedChange={() => handleMultiSelect("servicesInterested", service)} />
+                        <Label htmlFor={`service-${service}`} className="font-normal cursor-pointer">{service}</Label>
                       </div>
                     ))}
                     <div className="flex items-center gap-3">
-                      <Checkbox
-                        id="service-other"
-                        checked={formData.servicesInterested.includes("Other")}
-                        onCheckedChange={() => handleMultiSelect("servicesInterested", "Other")}
-                      />
-                      <Label htmlFor="service-other" className="font-normal cursor-pointer">
-                        Other (Please specify below)
-                      </Label>
+                      <Checkbox id="service-other" checked={formData.servicesInterested.includes("Other")} onCheckedChange={() => handleMultiSelect("servicesInterested", "Other")} />
+                      <Label htmlFor="service-other" className="font-normal cursor-pointer">Other (Please specify below)</Label>
                     </div>
                     {formData.servicesInterested.includes("Other") && (
-                      <Input
-                        name="otherServices"
-                        value={formData.otherServices}
-                        onChange={handleInputChange}
-                        placeholder="Please specify..."
-                        className="mt-2"
-                      />
+                      <Input name="otherServices" value={formData.otherServices} onChange={handleInputChange} placeholder="Please specify..." className="mt-2" />
                     )}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Wellness Background */}
-            <div className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+            {/* Step 4 — Wellness Background */}
+            <div ref={(el) => sectionRefs.current["background"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
               <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Wellness Background</h2>
               
               <div>
                 <Label className="mb-3 block">Have you previously been a member of a fitness center, or wellness club?</Label>
                 <div className="flex gap-4">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      id="previousMember-yes"
-                      name="previousMember"
-                      value="yes"
-                      checked={formData.previousMember === "yes"}
-                      onChange={handleInputChange}
-                      className="w-4 h-4"
-                    />
+                    <input type="radio" id="previousMember-yes" name="previousMember" value="yes" checked={formData.previousMember === "yes"} onChange={handleInputChange} className="w-4 h-4" />
                     <Label htmlFor="previousMember-yes" className="font-normal cursor-pointer">Yes</Label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      id="previousMember-no"
-                      name="previousMember"
-                      value="no"
-                      checked={formData.previousMember === "no"}
-                      onChange={handleInputChange}
-                      className="w-4 h-4"
-                    />
+                    <input type="radio" id="previousMember-no" name="previousMember" value="no" checked={formData.previousMember === "no"} onChange={handleInputChange} className="w-4 h-4" />
                     <Label htmlFor="previousMember-no" className="font-normal cursor-pointer">No</Label>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Motivation for Joining */}
-            <div className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+            {/* Step 5 — Motivation for Joining */}
+            <div ref={(el) => sectionRefs.current["motivation"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
               <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Motivation for Joining</h2>
               
               <div>
@@ -1311,41 +828,23 @@ export default function Apply() {
                 <div className="space-y-2">
                   {motivations.map((motivation) => (
                     <div key={motivation} className="flex items-center gap-3">
-                      <Checkbox
-                        id={`motivation-${motivation}`}
-                        checked={formData.motivations.includes(motivation)}
-                        onCheckedChange={() => handleMultiSelect("motivations", motivation)}
-                      />
-                      <Label htmlFor={`motivation-${motivation}`} className="font-normal cursor-pointer">
-                        {motivation}
-                      </Label>
+                      <Checkbox id={`motivation-${motivation}`} checked={formData.motivations.includes(motivation)} onCheckedChange={() => handleMultiSelect("motivations", motivation)} />
+                      <Label htmlFor={`motivation-${motivation}`} className="font-normal cursor-pointer">{motivation}</Label>
                     </div>
                   ))}
                   <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="motivation-other"
-                      checked={formData.motivations.includes("Other")}
-                      onCheckedChange={() => handleMultiSelect("motivations", "Other")}
-                    />
-                    <Label htmlFor="motivation-other" className="font-normal cursor-pointer">
-                      Other (Please share)
-                    </Label>
+                    <Checkbox id="motivation-other" checked={formData.motivations.includes("Other")} onCheckedChange={() => handleMultiSelect("motivations", "Other")} />
+                    <Label htmlFor="motivation-other" className="font-normal cursor-pointer">Other (Please share)</Label>
                   </div>
                   {formData.motivations.includes("Other") && (
-                    <Input
-                      name="otherMotivation"
-                      value={formData.otherMotivation}
-                      onChange={handleInputChange}
-                      placeholder="Please share..."
-                      className="mt-2"
-                    />
+                    <Input name="otherMotivation" value={formData.otherMotivation} onChange={handleInputChange} placeholder="Please share..." className="mt-2" />
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Getting to Know You Better */}
-            <div className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+            {/* Step 6 — Getting to Know You Better / Lifestyle */}
+            <div ref={(el) => sectionRefs.current["lifestyle"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
               <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Getting to Know You Better</h2>
               
               <div className="space-y-4">
@@ -1353,55 +852,25 @@ export default function Apply() {
                   <Label htmlFor="lifestyleIntegration">
                     Please share a little about your lifestyle and how you envision integrating the wellness center into your daily routine.
                   </Label>
-                  <Textarea
-                    id="lifestyleIntegration"
-                    name="lifestyleIntegration"
-                    value={formData.lifestyleIntegration}
-                    onChange={handleInputChange}
-                    className="mt-1 min-h-[100px]"
-                  />
+                  <Textarea id="lifestyleIntegration" name="lifestyleIntegration" value={formData.lifestyleIntegration} onChange={handleInputChange} className="mt-1 min-h-[100px]" />
                 </div>
 
                 <div>
                   <Label htmlFor="holisticWellness">
                     What does holistic wellness mean to you, and how do you hope to achieve it with us?
                   </Label>
-                  <Textarea
-                    id="holisticWellness"
-                    name="holisticWellness"
-                    value={formData.holisticWellness}
-                    onChange={handleInputChange}
-                    className="mt-1 min-h-[100px]"
-                  />
+                  <Textarea id="holisticWellness" name="holisticWellness" value={formData.holisticWellness} onChange={handleInputChange} className="mt-1 min-h-[100px]" />
                 </div>
 
                 <div>
                   <Label className="mb-3 block">Were you referred by a current member? *</Label>
                   <div className="flex gap-4">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        id="referredByMember-yes"
-                        name="referredByMember"
-                        value="yes"
-                        checked={formData.referredByMember === "yes"}
-                        onChange={handleInputChange}
-                        className="w-4 h-4"
-                        required
-                      />
+                      <input type="radio" id="referredByMember-yes" name="referredByMember" value="yes" checked={formData.referredByMember === "yes"} onChange={handleInputChange} className="w-4 h-4" required />
                       <Label htmlFor="referredByMember-yes" className="font-normal cursor-pointer">Yes</Label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        id="referredByMember-no"
-                        name="referredByMember"
-                        value="no"
-                        checked={formData.referredByMember === "no"}
-                        onChange={handleInputChange}
-                        className="w-4 h-4"
-                        required
-                      />
+                      <input type="radio" id="referredByMember-no" name="referredByMember" value="no" checked={formData.referredByMember === "no"} onChange={handleInputChange} className="w-4 h-4" required />
                       <Label htmlFor="referredByMember-no" className="font-normal cursor-pointer">No</Label>
                     </div>
                   </div>
@@ -1416,37 +885,15 @@ export default function Apply() {
               <div>
                 <Label className="mb-3 block">Would you like to become a founding member? *</Label>
                 <p className="text-sm text-muted-foreground mb-4">
-                  We are limiting our Founding Members to a total of 100. You can become a Founding Member 
-                  by <strong className="text-foreground">paying your full annual membership dues upfront</strong>. This status grants you a special founding 
-                  member card, exclusive branded apparel, a premium gym bag, and priority access to all 
-                  private events. You'll also receive behind-the-scenes information and play a pivotal role 
-                  in shaping our transformative community.
+                  Founding members pay their membership annually in advance. If approved, you'll complete this during your walkthrough. This status grants you a special founding member card, exclusive branded apparel, a premium gym bag, and priority access to all private events.
                 </p>
                 <div className="flex gap-4">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      id="foundingMember-yes"
-                      name="foundingMember"
-                      value="yes"
-                      checked={formData.foundingMember === "yes"}
-                      onChange={handleInputChange}
-                      className="w-4 h-4"
-                      required
-                    />
+                    <input type="radio" id="foundingMember-yes" name="foundingMember" value="yes" checked={formData.foundingMember === "yes"} onChange={handleInputChange} className="w-4 h-4" required />
                     <Label htmlFor="foundingMember-yes" className="font-normal cursor-pointer">Yes</Label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      id="foundingMember-no"
-                      name="foundingMember"
-                      value="no"
-                      checked={formData.foundingMember === "no"}
-                      onChange={handleInputChange}
-                      className="w-4 h-4"
-                      required
-                    />
+                    <input type="radio" id="foundingMember-no" name="foundingMember" value="no" checked={formData.foundingMember === "no"} onChange={handleInputChange} className="w-4 h-4" required />
                     <Label htmlFor="foundingMember-no" className="font-normal cursor-pointer">No</Label>
                   </div>
                 </div>
@@ -1484,63 +931,20 @@ export default function Apply() {
                          </tbody>
                       </table>
                     </div>
-                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">
-                      This full annual amount is due upon membership activation, <strong>in addition to</strong> the non-refundable initiation fee ($300).
+                    <p className="text-xs text-muted-foreground mt-3">
+                      If approved, payment details will be finalized during your private walkthrough.
                     </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Payment Information - Enhanced */}
-            <div ref={(el) => sectionRefs.current["payment"] = el} id="payment-section">
-              <PaymentSectionEnhanced
-                stripeCustomerId={stripeCustomerId}
-                isCardConfirmed={isCardConfirmed}
-                showPaymentForm={showPaymentForm}
-                paymentClientSecret={paymentClientSecret}
-                isSavingCard={isSavingCard}
-                creditCardAuth={formData.creditCardAuth}
-                paymentAcknowledged={formData.paymentAcknowledged}
-                canStartPayment={!!(formData.firstName && formData.lastName && formData.email)}
-                savedCardDetails={savedCardDetails}
-                onSavePaymentMethod={handleSavePaymentMethod}
-                onPaymentSuccess={(customerId, cardDetails) => {
-                  setStripeCustomerId(customerId);
-                  setIsCardConfirmed(true);
-                  setShowPaymentForm(false);
-                  setPaymentClientSecret(null);
-                  setSavedCardDetails(cardDetails || null);
-                  
-                  const cardDisplay = cardDetails?.brand && cardDetails?.last4 
-                    ? `${cardDetails.brand.toUpperCase()} •••• ${cardDetails.last4}` 
-                    : "Payment method";
-                  toast.success(`${cardDisplay} saved successfully!`);
-                  saveDraft(formData, customerId, true, cardDetails);
-                  setLastSavedAt(Date.now());
-                }}
-                onPaymentCancel={() => {
-                  setShowPaymentForm(false);
-                  setPaymentClientSecret(null);
-                  setIsSavingCard(false);
-                  // Do NOT reset isCardConfirmed - keep for retry if already confirmed
-                }}
-                onCheckboxChange={handleCheckboxChange}
-              />
-            </div>
-            <div className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
-              <h2 className="font-serif text-xl sm:text-2xl mb-4 sm:mb-6 text-gold">Agreements</h2>
-              
-              {/* STOP Warning Card */}
-              <div className="mb-6 p-5 bg-destructive/10 border-2 border-destructive/40 rounded-lg">
-                <p className="text-base font-bold text-destructive mb-2">🛑 STOP — Read Before Applying</p>
-                <ul className="text-sm text-destructive space-y-1.5 list-disc list-inside">
-                  <li>The <strong>initiation fee ($300) is non-refundable</strong> and will be charged upon membership approval.</li>
-                  <li>This is a <strong>minimum 1-year membership commitment</strong>.</li>
-                  <li>Founding members pay their <strong>full annual dues upfront</strong> (see pricing above).</li>
-                  <li><strong>Do not apply if you are not ready to commit.</strong></li>
-                </ul>
-              </div>
+            {/* Step 7 — Agreements */}
+            <div ref={(el) => sectionRefs.current["agreements"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">Agreements</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                A few things to acknowledge before you submit. Full membership terms, commitment details, and payment setup will be completed after your application is approved.
+              </p>
 
               <div className="space-y-6">
                 {/* Membership Agreement */}
@@ -1566,52 +970,7 @@ export default function Apply() {
                       required
                     />
                     <Label htmlFor="oneYearCommitment" className="font-normal cursor-pointer text-sm">
-                      I understand this is a minimum 1-year commitment. The initiation fee ($300) is <strong>non-refundable</strong> and will be charged upon approval. I will not dispute these authorized charges. *
-                    </Label>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    <strong className="text-foreground">Authorization and Acknowledgment of Initiation Fee and Membership Commitment</strong>
-                    <br /><br />
-                    By submitting this application, I understand and agree that, upon approval of my membership at 
-                    Storm Wellness Club, the initiation fee as outlined in the membership details will 
-                    be charged to the credit card provided in this application. I hereby authorize Storm Wellness 
-                    Club to process this charge upon the confirmation of my membership acceptance. Additionally, 
-                    I acknowledge that all memberships require a one-year commitment, starting from the opening of the 
-                    new facility.
-                  </p>
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id="authAcknowledgment"
-                      checked={formData.authAcknowledgment}
-                      onCheckedChange={(checked) => handleCheckboxChange("authAcknowledgment", checked as boolean)}
-                      required
-                    />
-                    <Label htmlFor="authAcknowledgment" className="font-normal cursor-pointer text-sm">
-                      I authorize the <strong>non-refundable</strong> initiation fee to be charged upon approval. I understand founding members pay full annual dues upfront. I accept that all described charges are final and <strong>non-refundable</strong>. *
-                    </Label>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    <strong className="text-foreground">Submission Instructions</strong>
-                    <br /><br />
-                    Review your application to ensure all information is accurate and complete. Submitting this form 
-                    is the first step toward becoming part of a community that values holistic wellness and personal 
-                    growth. We're excited to learn more about you and explore how we can support your wellness journey together.
-                  </p>
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id="submissionConfirmation"
-                      checked={formData.submissionConfirmation}
-                      onCheckedChange={(checked) => handleCheckboxChange("submissionConfirmation", checked as boolean)}
-                      required
-                    />
-                    <Label htmlFor="submissionConfirmation" className="font-normal cursor-pointer text-sm">
-                      I have reviewed my application and confirm that all information is accurate to the best of my knowledge. *
+                      I understand this is a minimum 1-year membership commitment. *
                     </Label>
                   </div>
                 </div>

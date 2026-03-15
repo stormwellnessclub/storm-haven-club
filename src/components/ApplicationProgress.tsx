@@ -1,4 +1,4 @@
-import { Check, Lock, User, Target, History, Heart, Sparkles, CreditCard, FileText } from "lucide-react";
+import { Check, Lock, User, Target, History, Heart, Sparkles, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ApplicationStep {
@@ -23,7 +23,6 @@ export const APPLICATION_STEPS = [
   { id: "background", label: "Background", shortLabel: "Background", icon: History },
   { id: "motivation", label: "Motivation", shortLabel: "Motivation", icon: Heart },
   { id: "lifestyle", label: "Lifestyle", shortLabel: "Lifestyle", icon: Sparkles },
-  { id: "payment", label: "Payment", shortLabel: "Payment", icon: CreditCard, isRequired: true },
   { id: "agreements", label: "Agreements", shortLabel: "Agree", icon: FileText, isRequired: true },
 ];
 
@@ -161,15 +160,11 @@ export function getStepCompletion(
     holisticWellness: string;
     referredByMember: string;
     foundingMember: string;
-    creditCardAuth: boolean;
-    paymentAcknowledged: boolean;
     membershipAgreementSigned: boolean;
     oneYearCommitment: boolean;
-    authAcknowledgment: boolean;
-    submissionConfirmation: boolean;
   },
-  stripeCustomerId: string | null,
-  isCardConfirmed: boolean = false
+  stripeCustomerId?: string | null,
+  isCardConfirmed?: boolean
 ): ApplicationStep[] {
   return APPLICATION_STEPS.map(step => {
     let isComplete = false;
@@ -204,15 +199,10 @@ export function getStepCompletion(
       case "lifestyle":
         isComplete = !!formData.foundingMember;
         break;
-      case "payment":
-        isComplete = !!(stripeCustomerId && isCardConfirmed && formData.creditCardAuth && formData.paymentAcknowledged);
-        break;
       case "agreements":
         isComplete = !!(
           formData.membershipAgreementSigned &&
-          formData.oneYearCommitment &&
-          formData.authAcknowledgment &&
-          formData.submissionConfirmation
+          formData.oneYearCommitment
         );
         break;
     }
