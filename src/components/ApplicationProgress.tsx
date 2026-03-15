@@ -160,15 +160,11 @@ export function getStepCompletion(
     holisticWellness: string;
     referredByMember: string;
     foundingMember: string;
-    creditCardAuth: boolean;
-    paymentAcknowledged: boolean;
     membershipAgreementSigned: boolean;
     oneYearCommitment: boolean;
-    authAcknowledgment: boolean;
-    submissionConfirmation: boolean;
   },
-  stripeCustomerId: string | null,
-  isCardConfirmed: boolean = false
+  stripeCustomerId?: string | null,
+  isCardConfirmed?: boolean
 ): ApplicationStep[] {
   return APPLICATION_STEPS.map(step => {
     let isComplete = false;
@@ -203,15 +199,10 @@ export function getStepCompletion(
       case "lifestyle":
         isComplete = !!formData.foundingMember;
         break;
-      case "payment":
-        isComplete = !!(stripeCustomerId && isCardConfirmed && formData.creditCardAuth && formData.paymentAcknowledged);
-        break;
       case "agreements":
         isComplete = !!(
           formData.membershipAgreementSigned &&
-          formData.oneYearCommitment &&
-          formData.authAcknowledgment &&
-          formData.submissionConfirmation
+          formData.oneYearCommitment
         );
         break;
     }
