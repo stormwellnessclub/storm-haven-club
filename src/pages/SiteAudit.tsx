@@ -24,6 +24,15 @@ const SiteAudit = () => {
   const [linkCopied, setLinkCopied] = useState(false);
 
   const directUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/serve-static?file=site-audit`;
+  const fullContentUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/serve-static?file=full-site-content`;
+  const [fullContentCopied, setFullContentCopied] = useState(false);
+
+  const handleCopyFullContent = () => {
+    navigator.clipboard.writeText(fullContentUrl).then(() => {
+      setFullContentCopied(true);
+      setTimeout(() => setFullContentCopied(false), 2000);
+    });
+  };
 
   const auditText = `
 === STORM WELLNESS CLUB — SITE AUDIT DOCUMENT ===
