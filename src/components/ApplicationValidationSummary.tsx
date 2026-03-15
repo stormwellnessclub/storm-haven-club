@@ -19,8 +19,6 @@ export function ApplicationValidationSummary({
   const isReadyToSubmit = incompleteSteps.length === 0;
   const hasRequiredMissing = requiredIncomplete.length > 0;
 
-  // Show payment warning prominently
-  const paymentStep = steps.find(s => s.id === "payment");
   const agreementsStep = steps.find(s => s.id === "agreements");
 
   return (
