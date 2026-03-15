@@ -67,31 +67,6 @@ export function ApplicationValidationSummary({
             </div>
           </div>
 
-          {/* Critical: Payment warning */}
-          {paymentStep && !paymentStep.isComplete && (
-            <div 
-              className="p-4 bg-amber-500/20 border border-amber-500/40 rounded-lg cursor-pointer hover:bg-amber-500/30 transition-colors"
-              onClick={() => onStepClick("payment")}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center animate-pulse">
-                    <AlertCircle className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-amber-700 dark:text-amber-300">
-                      Payment Method Required
-                    </p>
-                    <p className="text-sm text-amber-600/80 dark:text-amber-400/80">
-                      You must save a payment method to submit your application
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight className="w-5 h-5 text-amber-600" />
-              </div>
-            </div>
-          )}
-
           {/* Agreements warning */}
           {agreementsStep && !agreementsStep.isComplete && (
             <div 
