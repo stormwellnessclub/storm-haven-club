@@ -40,6 +40,15 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               )}
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="touch-target"
+                onClick={toggleMute}
+                title={muted ? "Unmute notifications" : "Mute notifications"}
+              >
+                {muted ? <BellOff className="h-5 w-5 text-muted-foreground" /> : <Bell className="h-5 w-5" />}
+              </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
