@@ -94,21 +94,34 @@ serve(async (req) => {
 
     switch (type) {
       case 'application_submitted':
-        subject = 'Application Received - Storm Wellness Club';
+        subject = 'We received your application — Storm Wellness Club';
         html = `
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="${emailStyles.heading}">Thank you for applying, ${data.name}!</h2>
-              <p>We have received your membership application for the <strong>${data.membershipPlan}</strong> plan.</p>
-              <p>Our team will review your application and get back to you within 2-3 business days.</p>
-              <p>In the meantime, feel free to explore our facilities and class offerings:</p>
+              <h2 style="${emailStyles.heading}">Hi ${data.firstName || data.name},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thank you for applying to Storm Wellness Club. We personally review every application — yours is in our hands now.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                You'll hear from us within 24–48 hours. If your application is approved, we'll reach out to schedule a private walkthrough so you can experience the club before your membership begins.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                In the meantime, feel free to explore what awaits you:
+              </p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${BASE_URL}/classes" style="${emailStyles.button}">View Classes</a>
-                <a href="${BASE_URL}/amenities" style="${emailStyles.buttonSecondary}">Explore Amenities</a>
+                <a href="${BASE_URL}/amenities" style="${emailStyles.button}">Our Amenities</a>
+                <a href="${BASE_URL}/spa" style="${emailStyles.buttonSecondary}">Aella Spa</a>
+                <a href="${BASE_URL}/classes" style="${emailStyles.buttonSecondary}">Class Schedule</a>
               </div>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 5px;">
+                Talk soon,
+              </p>
+              <p style="font-size: 16px; font-weight: 600; color: #1C170F; margin-bottom: 0;">
+                The Storm Wellness Club Team
+              </p>
             </div>
-            ${getEmailFooter()}
+            ${getReceiptFooter()}
           </div>
         `;
         break;
