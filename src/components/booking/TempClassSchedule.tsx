@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays, Check, Loader2, Star } from "lucide-react";
 import { useClassTypeRatings } from "@/hooks/useClassReviews";
 import { StarRating } from "@/components/reviews/StarRating";
-import { startOfWeek, addDays, addWeeks, format, isSameDay, isBefore, startOfDay } from "date-fns";
+import { startOfWeek, addDays, addWeeks, format, isSameDay, isBefore, startOfDay, parse, addMinutes } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTempClassBooking } from "@/hooks/useTempClassBooking";
 import { useWaitlistStatus, useJoinWaitlist } from "@/hooks/useWaitlist";
 import {
@@ -195,16 +196,45 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
     refetchInterval: 30000, // refresh every 30s
   });
 
-  // Helper to find enrollment for a specific class slot
-  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null; classTypeId: string | null } {
+  // Build a lookup map keyed by "date|start_time" for robust matching
+  const enrollmentMap = new Map<string, any>();
+  liveEnrollment.forEach((s: any) => {
+    const key = `${s.session_date}|${s.start_time}`;
+    // If multiple sessions match same slot, prefer the one that's not cancelled
+    const existing = enrollmentMap.get(key);
+    if (!existing || (existing.is_cancelled && !s.is_cancelled)) {
+      enrollmentMap.set(key, s);
+    }
+  });
+
+  // Helper to find enrollment for a specific class slot — matches by date+time (ignores name)
+  function getEnrollmentForSlot(dateStr: string, time: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null; classTypeId: string | null } {
     const dbTime = parseTimeToDb(time);
-    const match = liveEnrollment.find((s: any) => {
-      const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
-      return s.session_date === dateStr && s.start_time === dbTime && typeName === className;
-    });
+    const key = `${dateStr}|${dbTime}`;
+    const match = enrollmentMap.get(key);
     if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden, sessionId: match.id, classTypeId: match.class_type_id };
     return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false, sessionId: null, classTypeId: null };
   }
+
+  // Helper: check if a slot has ended (start_time + 50 min is in the past)
+  function isSlotFinished(dateStr: string, time: string): boolean {
+    const dbTime = parseTimeToDb(time);
+    const slotStart = parse(`${dateStr} ${dbTime}`, "yyyy-MM-dd HH:mm:ss", new Date());
+    const slotEnd = addMinutes(slotStart, 50);
+    return isBefore(slotEnd, new Date());
+  }
+
+  // Realtime subscription to invalidate enrollment query on DB changes
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const channel = supabase
+      .channel("temp-schedule-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "class_sessions" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["temp-schedule-enrollment"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   // Collect all session IDs for waitlist status check
   const allSessionIds = liveEnrollment.map((s: any) => s.id).filter(Boolean);
@@ -250,6 +280,16 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
         {weekDays.map((day) => {
           const hidePast = day.isPast && !showHistory;
+
+          // Pre-filter visible slots: remove finished/cancelled/hidden unless showHistory
+          const visibleClasses = day.classes.filter((cls) => {
+            if (hidePast) return false;
+            if (!showHistory && isSlotFinished(day.dateStr, cls.time)) return false;
+            const slot = getEnrollmentForSlot(day.dateStr, cls.time);
+            if (!showHistory && (slot.isCancelled || slot.isHidden)) return false;
+            return true;
+          });
+
           return (
             <div key={day.dateStr} ref={day.isToday ? todayRef : undefined} className={`space-y-3 ${day.outOfRange || hidePast ? "opacity-40" : ""}`}>
               <div className={`text-center p-2 rounded-lg ${day.isToday ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
@@ -260,14 +300,14 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
               <div className="space-y-2">
                 {hidePast ? (
                   <div className="text-center text-muted-foreground text-xs py-8">Past</div>
-                ) : day.classes.length === 0 ? (
+                ) : visibleClasses.length === 0 ? (
                   <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
                 ) : (
-                  day.classes.map((cls, i) => {
-                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId, classTypeId } = getEnrollmentForSlot(day.dateStr, cls.time, cls.name);
+                  visibleClasses.map((cls, i) => {
+                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId, classTypeId } = getEnrollmentForSlot(day.dateStr, cls.time);
                     const slotIsFull = enrolled >= maxCapacity;
-                    // For customer view: completely hide cancelled or hidden classes
-                    if (!showHistory && (isCancelled || isHidden)) return null;
+
+                    // showHistory cancelled/hidden rendering
                     if (isCancelled) {
                       return (
                         <Card key={i} className="opacity-60 border-destructive/30">
@@ -294,12 +334,15 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
                         </Card>
                       );
                     }
+
+                    const slotFinished = isSlotFinished(day.dateStr, cls.time);
+
                     return (
                       <TempClassCard
                         key={i}
                         entry={cls}
                         date={day.date}
-                        readOnly={readOnly || day.isPast}
+                        readOnly={readOnly || day.isPast || slotFinished}
                         isLoggedIn={isLoggedIn}
                         canBook={canBook}
                         isBooked={isBooked(day.date, cls.time)}

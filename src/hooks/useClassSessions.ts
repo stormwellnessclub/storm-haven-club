@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfWeek, endOfWeek, addWeeks, format } from "date-fns";
+import { startOfWeek, endOfWeek, addWeeks, format, parse, addMinutes, isBefore } from "date-fns";
 
 export interface ClassSession {
   id: string;
@@ -90,6 +90,7 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
 
       if (error) throw error;
 
+      const now = new Date();
       return (data || []).map((session) => ({
         ...session,
         class_type: Array.isArray(session.class_type)
@@ -98,7 +99,16 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
         instructor: Array.isArray(session.instructor)
           ? session.instructor[0]
           : session.instructor,
-      })) as ClassSession[];
+      })).filter((session) => {
+        // Hide classes that have already finished today
+        const sessionDate = format(now, "yyyy-MM-dd");
+        if (session.session_date === sessionDate) {
+          const slotStart = parse(`${session.session_date} ${session.start_time}`, "yyyy-MM-dd HH:mm:ss", new Date());
+          const slotEnd = addMinutes(slotStart, session.class_type?.duration_minutes || 50);
+          if (isBefore(slotEnd, now)) return false;
+        }
+        return true;
+      }) as ClassSession[];
     },
   });
 }
@@ -144,6 +154,7 @@ export function useUpcomingSessions(limit = 10) {
 
       if (error) throw error;
 
+      const now = new Date();
       return (data || []).map((session) => ({
         ...session,
         class_type: Array.isArray(session.class_type)
@@ -152,7 +163,16 @@ export function useUpcomingSessions(limit = 10) {
         instructor: Array.isArray(session.instructor)
           ? session.instructor[0]
           : session.instructor,
-      })) as ClassSession[];
+      })).filter((session) => {
+        // Hide classes that have already finished today
+        const sessionDate = format(now, "yyyy-MM-dd");
+        if (session.session_date === sessionDate) {
+          const slotStart = parse(`${session.session_date} ${session.start_time}`, "yyyy-MM-dd HH:mm:ss", new Date());
+          const slotEnd = addMinutes(slotStart, session.class_type?.duration_minutes || 50);
+          if (isBefore(slotEnd, now)) return false;
+        }
+        return true;
+      }) as ClassSession[];
     },
   });
 }
