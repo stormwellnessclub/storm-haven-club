@@ -92,6 +92,7 @@ import StaffHub from "./pages/admin/StaffHub";
 import MerchManager from "./pages/admin/MerchManager";
 import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
+import SiteAudit from "./pages/SiteAudit";
 import GuestFeedback from "./pages/GuestFeedback";
 import { SitemapRedirect, RobotsRedirect } from "@/components/StaticFileRedirect";
 import { ProtectedPortalRoute } from "@/components/portal/ProtectedPortalRoute";
