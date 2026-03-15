@@ -16,8 +16,15 @@ interface AdminLayoutProps {
 export function AdminLayout({ children, title }: AdminLayoutProps) {
   const navigate = useNavigate();
   const { data: notifications } = useAdminSupportNotifications();
+  const [muted, setMuted] = useState(getIsMuted);
   
   const notificationCount = notifications?.openCount || 0;
+
+  const toggleMute = () => {
+    const next = !muted;
+    setIsMuted(next);
+    setMuted(next);
+  };
 
   return (
     <SidebarProvider>
