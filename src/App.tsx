@@ -117,6 +117,10 @@ const App = () => (
             <SessionMonitor />
             <ScrollToTop />
             <Routes>
+              {/* Static file redirects for crawlers */}
+              <Route path="/sitemap.xml" element={<SitemapRedirect />} />
+              <Route path="/robots.txt" element={<RobotsRedirect />} />
+              
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/classes" element={<Classes />} />
