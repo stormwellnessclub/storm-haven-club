@@ -143,6 +143,7 @@ const App = () => (
               <Route path="/guest-pass" element={<GuestPass />} />
               <Route path="/guest-feedback" element={<GuestFeedback />} />
               <Route path="/design-system" element={<DesignSystem />} />
+              <Route path="/site-audit" element={<SiteAudit />} />
               <Route path="/merch" element={<Merch />} />
               <Route path="/shop" element={<Merch />} />
               
