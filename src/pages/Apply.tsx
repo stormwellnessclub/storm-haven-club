@@ -492,9 +492,8 @@ export default function Apply() {
         }
       });
 
-      // Clear draft and abandon tracking on successful submission
+      // Clear draft on successful submission
       clearDraft();
-      try { localStorage.removeItem(ABANDON_TRACK_KEY); } catch (e) {}
       
       setIsSubmitted(true);
     } catch (error) {
