@@ -21,6 +21,9 @@ const SITE_PAGES = [
 
 const SiteAudit = () => {
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const directUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/serve-static?file=site-audit`;
 
   const auditText = `
 === STORM WELLNESS CLUB — SITE AUDIT DOCUMENT ===
@@ -74,22 +77,40 @@ Full URL: https://www.stormwellnessclub.com${p.path === "/" ? "" : p.path}
     });
   };
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(directUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white p-6 font-mono">
+    <div className="min-h-screen bg-background text-foreground p-6 font-mono">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Site Audit Document</h1>
-          <button
-            onClick={handleCopy}
-            className="px-4 py-2 bg-white text-black rounded font-sans font-medium hover:bg-gray-200 transition-colors"
-          >
-            {copied ? "✓ Copied!" : "Copy All"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCopyLink}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded font-sans font-medium hover:bg-primary/90 transition-colors"
+            >
+              {linkCopied ? "✓ Link Copied!" : "Copy Link for AI"}
+            </button>
+            <button
+              onClick={handleCopy}
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded font-sans font-medium hover:bg-secondary/80 transition-colors"
+            >
+              {copied ? "✓ Copied!" : "Copy All Text"}
+            </button>
+          </div>
         </div>
-        <p className="text-gray-400 mb-4 font-sans text-sm">
-          Copy this entire document and paste it into Claude or any AI tool to give it full context about your website.
+        <p className="text-muted-foreground mb-2 font-sans text-sm">
+          <strong>For Claude/AI tools:</strong> Click "Copy Link for AI" and paste the URL directly into Claude. It will fetch the static HTML version.
         </p>
-        <pre className="whitespace-pre-wrap text-sm text-green-400 bg-gray-950 p-6 rounded-lg border border-gray-800 overflow-auto">
+        <p className="text-muted-foreground mb-4 font-sans text-xs break-all">
+          Direct URL: <a href={directUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">{directUrl}</a>
+        </p>
+        <pre className="whitespace-pre-wrap text-sm text-green-400 bg-muted p-6 rounded-lg border border-border overflow-auto">
           {auditText}
         </pre>
       </div>
