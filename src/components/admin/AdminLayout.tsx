@@ -4,6 +4,9 @@ import { Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
+import { AdminSupportChime, getIsMuted, setIsMuted } from "./AdminSupportChime";
+import { useState } from "react";
+import { BellOff } from "lucide-react";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
