@@ -198,67 +198,10 @@ export function CheckInSupportPanel() {
     refetchInterval: 15000,
   });
 
-  // Realtime subscription for instant notifications
-  useEffect(() => {
-    const channel = supabase
-      .channel("support-notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "email_conversations",
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
-          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
-          if (!isMuted) {
-            playNotificationChime();
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "email_messages",
-          filter: "sender_type=eq.member",
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
-          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
-          if (!isMuted) {
-            playNotificationChime();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isMuted, queryClient]);
-
-  // Warm up AudioContext on any click while on this page
-  useEffect(() => {
-    const handler = () => warmUpAudio();
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
-
   const conciergeItems = conversations?.filter((c) => c.category === "concierge") || [];
   const classSupportItems = conversations?.filter((c) => c.category === "class_support") || [];
   const supportItems = conversations?.filter((c) => c.category !== "concierge" && c.category !== "class_support") || [];
   const totalCount = (conversations?.length || 0);
-
-  // Sound notification when new items appear via polling
-  useEffect(() => {
-    if (prevCountRef.current !== null && totalCount > prevCountRef.current && !isMuted) {
-      playNotificationChime();
-    }
-    prevCountRef.current = totalCount;
-  }, [totalCount, isMuted]);
 
   const handleReply = useCallback(
     async (conversationId: string, message: string) => {
