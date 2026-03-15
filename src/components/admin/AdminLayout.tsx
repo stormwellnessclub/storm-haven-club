@@ -4,6 +4,9 @@ import { Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
+import { AdminSupportChime, getIsMuted, setIsMuted } from "./AdminSupportChime";
+import { useState } from "react";
+import { BellOff } from "lucide-react";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -13,11 +16,19 @@ interface AdminLayoutProps {
 export function AdminLayout({ children, title }: AdminLayoutProps) {
   const navigate = useNavigate();
   const { data: notifications } = useAdminSupportNotifications();
+  const [muted, setMuted] = useState(getIsMuted);
   
   const notificationCount = notifications?.openCount || 0;
 
+  const toggleMute = () => {
+    const next = !muted;
+    setIsMuted(next);
+    setMuted(next);
+  };
+
   return (
     <SidebarProvider>
+      <AdminSupportChime />
       <div className="min-h-screen flex flex-col md:flex-row w-full bg-background">
         <AdminSidebar />
         <SidebarInset className="flex-1 min-w-0">
@@ -29,6 +40,15 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               )}
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="touch-target"
+                onClick={toggleMute}
+                title={muted ? "Unmute notifications" : "Mute notifications"}
+              >
+                {muted ? <BellOff className="h-5 w-5 text-muted-foreground" /> : <Bell className="h-5 w-5" />}
+              </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 

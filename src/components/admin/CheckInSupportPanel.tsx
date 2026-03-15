@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,8 +12,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Bell,
-  BellOff,
   ChevronDown,
   CheckCircle2,
   ExternalLink,
@@ -38,83 +36,6 @@ interface ConversationWithProfile {
   latest_message?: string;
 }
 
-// Persistent AudioContext singleton - survives re-renders
-let sharedAudioCtx: AudioContext | null = null;
-let audioCtxWarmedUp = false;
-
-function getAudioContext(): AudioContext | null {
-  try {
-    if (!sharedAudioCtx) {
-      sharedAudioCtx = new AudioContext();
-    }
-    return sharedAudioCtx;
-  } catch {
-    return null;
-  }
-}
-
-// Warm up AudioContext on first user interaction (required by browsers)
-function warmUpAudio() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  if (ctx.state === "suspended") {
-    ctx.resume().catch(() => {});
-  }
-  if (ctx.state === "running") {
-    audioCtxWarmedUp = true;
-  }
-}
-
-// Persistent warm-up listener — keeps firing until AudioContext is running
-if (typeof window !== "undefined") {
-  const warmUpHandler = () => {
-    warmUpAudio();
-    if (audioCtxWarmedUp) {
-      document.removeEventListener("click", warmUpHandler);
-      document.removeEventListener("keydown", warmUpHandler);
-    }
-  };
-  document.addEventListener("click", warmUpHandler);
-  document.addEventListener("keydown", warmUpHandler);
-}
-
-async function playNotificationChime() {
-  try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-
-    if (ctx.state === "suspended") {
-      await ctx.resume();
-    }
-
-    const playSequence = (startTime: number, volume: number) => {
-      const tones = [
-        { freq: 660, delay: 0, duration: 0.3 },
-        { freq: 880, delay: 0.32, duration: 0.3 },
-        { freq: 1047, delay: 0.64, duration: 0.4 },
-      ];
-      for (const tone of tones) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = tone.freq;
-        osc.type = "triangle";
-        const t = startTime + tone.delay;
-        gain.gain.setValueAtTime(volume, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + tone.duration);
-        osc.start(t);
-        osc.stop(t + tone.duration);
-      }
-    };
-
-    const now = ctx.currentTime;
-    playSequence(now, 0.4);
-    playSequence(now + 1.1, 0.25);
-  } catch {
-    // AudioContext may not be available
-  }
-}
 
 function ConversationItem({
   conversation,
@@ -215,11 +136,9 @@ function ConversationItem({
 export function CheckInSupportPanel() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [isMuted, setIsMuted] = useState(false);
   const [conciergeOpen, setConciergeOpen] = useState(true);
   const [classSupportOpen, setClassSupportOpen] = useState(true);
   const [supportOpen, setSupportOpen] = useState(true);
-  const prevCountRef = useRef<number | null>(null);
 
   // Fetch open conversations and join with profiles for member names
   const { data: conversations } = useQuery({
@@ -279,67 +198,10 @@ export function CheckInSupportPanel() {
     refetchInterval: 15000,
   });
 
-  // Realtime subscription for instant notifications
-  useEffect(() => {
-    const channel = supabase
-      .channel("support-notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "email_conversations",
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
-          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
-          if (!isMuted) {
-            playNotificationChime();
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "email_messages",
-          filter: "sender_type=eq.member",
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
-          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
-          if (!isMuted) {
-            playNotificationChime();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isMuted, queryClient]);
-
-  // Warm up AudioContext on any click while on this page
-  useEffect(() => {
-    const handler = () => warmUpAudio();
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
-
   const conciergeItems = conversations?.filter((c) => c.category === "concierge") || [];
   const classSupportItems = conversations?.filter((c) => c.category === "class_support") || [];
   const supportItems = conversations?.filter((c) => c.category !== "concierge" && c.category !== "class_support") || [];
   const totalCount = (conversations?.length || 0);
-
-  // Sound notification when new items appear via polling
-  useEffect(() => {
-    if (prevCountRef.current !== null && totalCount > prevCountRef.current && !isMuted) {
-      playNotificationChime();
-    }
-    prevCountRef.current = totalCount;
-  }, [totalCount, isMuted]);
 
   const handleReply = useCallback(
     async (conversationId: string, message: string) => {
@@ -408,25 +270,6 @@ export function CheckInSupportPanel() {
                   }`}
                 />
               </CollapsibleTrigger>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => {
-                  const ctx = getAudioContext();
-                  if (ctx && ctx.state === "suspended") {
-                    ctx.resume().catch(() => {});
-                  }
-                  warmUpAudio();
-                  setIsMuted(!isMuted);
-                }}
-                title={isMuted ? "Unmute notifications" : "Mute notifications"}
-              >
-                {isMuted ? (
-                  <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
-                ) : (
-                  <Bell className="h-3.5 w-3.5 text-amber-500" />
-                )}
-              </Button>
             </div>
           </CardHeader>
           <CollapsibleContent>
