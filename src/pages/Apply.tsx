@@ -23,9 +23,6 @@ import gymArea2 from "@/assets/gym-area-2.jpg";
 const DRAFT_STORAGE_KEY = "storm_apply_draft_v2";
 const DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// Abandoned application tracking
-const ABANDON_TRACK_KEY = "storm_apply_abandon_track";
-
 interface DraftData {
   formData: typeof initialFormData;
   savedAt: number;
