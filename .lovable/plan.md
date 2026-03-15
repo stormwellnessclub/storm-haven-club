@@ -1,34 +1,22 @@
 
-# Strategic Campaign System — IMPLEMENTED
 
-## What Was Built
+## Small Copy Updates on Apply Page
 
-### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
-Goal-driven campaign cards replacing the generic "Compose Campaign" button:
+Two quick changes to `src/pages/Apply.tsx`:
 
-**Guest Playbooks:**
-- **Convert to Applicant** — targets past guests who haven't applied
-- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
-- **Collect Feedback** — recent guests without feedback
+### 1. Update Membership Selection intro text (line 732)
+Change the current text to:
+> "Select the tier that aligns with your wellness goals. You'll have the opportunity to discuss your choice during your private walkthrough — nothing is finalized until you've been approved and you visit the club."
 
-**Member Playbooks:**
-- **Prevent Churn** — members with past_due or frozen status
-- **Upsell Tier** — active members on lower tiers
-- **Referral Push** — active members with 0 referrals
+### 2. Add a link to view membership tiers
+Below the intro text (after line 733), add a small link like:
+```
+Not sure which tier is right for you? View membership tiers →
+```
+Linking to `/memberships`, styled as a small muted link with an accent hover.
 
-Each card shows live audience count and a "Launch Campaign" button.
+### Files Modified
+- `src/pages/Apply.tsx` — lines 731-733 area only
 
-### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
-- Auto-queries the right segment when launched from a playbook
-- Shows recipient count and name chips with ability to remove individuals
-- Auto-loads matching email template based on goal type
-- Merge field chips for quick personalization
+Everything else from the original plan is already implemented (hero copy, payment removal, step intros, agreements rewrite, founding member copy, submit button text, confirmation message, abandonment tracking, confirmation email).
 
-### 3. Conversion Tracking (CampaignAnalytics.tsx)
-- `goal_type` and `goal_metadata` columns added to email_campaigns
-- Per-campaign conversion rates with 14-day attribution window
-- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
-- Summary stats: total conversions, overall conversion rate
-
-### Database Changes
-- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
