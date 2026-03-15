@@ -21,6 +21,9 @@ const SITE_PAGES = [
 
 const SiteAudit = () => {
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const directUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/serve-static?file=site-audit`;
 
   const auditText = `
 === STORM WELLNESS CLUB — SITE AUDIT DOCUMENT ===
