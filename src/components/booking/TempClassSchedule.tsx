@@ -196,16 +196,45 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
     refetchInterval: 30000, // refresh every 30s
   });
 
-  // Helper to find enrollment for a specific class slot
-  function getEnrollmentForSlot(dateStr: string, time: string, className: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null; classTypeId: string | null } {
+  // Build a lookup map keyed by "date|start_time" for robust matching
+  const enrollmentMap = new Map<string, any>();
+  liveEnrollment.forEach((s: any) => {
+    const key = `${s.session_date}|${s.start_time}`;
+    // If multiple sessions match same slot, prefer the one that's not cancelled
+    const existing = enrollmentMap.get(key);
+    if (!existing || (existing.is_cancelled && !s.is_cancelled)) {
+      enrollmentMap.set(key, s);
+    }
+  });
+
+  // Helper to find enrollment for a specific class slot — matches by date+time (ignores name)
+  function getEnrollmentForSlot(dateStr: string, time: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null; classTypeId: string | null } {
     const dbTime = parseTimeToDb(time);
-    const match = liveEnrollment.find((s: any) => {
-      const typeName = Array.isArray(s.class_types) ? s.class_types[0]?.name : s.class_types?.name;
-      return s.session_date === dateStr && s.start_time === dbTime && typeName === className;
-    });
+    const key = `${dateStr}|${dbTime}`;
+    const match = enrollmentMap.get(key);
     if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden, sessionId: match.id, classTypeId: match.class_type_id };
     return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false, sessionId: null, classTypeId: null };
   }
+
+  // Helper: check if a slot has ended (start_time + 50 min is in the past)
+  function isSlotFinished(dateStr: string, time: string): boolean {
+    const dbTime = parseTimeToDb(time);
+    const slotStart = parse(`${dateStr} ${dbTime}`, "yyyy-MM-dd HH:mm:ss", new Date());
+    const slotEnd = addMinutes(slotStart, 50);
+    return isBefore(slotEnd, new Date());
+  }
+
+  // Realtime subscription to invalidate enrollment query on DB changes
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const channel = supabase
+      .channel("temp-schedule-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "class_sessions" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["temp-schedule-enrollment"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   // Collect all session IDs for waitlist status check
   const allSessionIds = liveEnrollment.map((s: any) => s.id).filter(Boolean);
