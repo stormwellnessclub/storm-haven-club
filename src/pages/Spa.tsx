@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { SEOHead } from "@/components/SEOHead";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
 import { Clock, Star, Users, Info } from "lucide-react";

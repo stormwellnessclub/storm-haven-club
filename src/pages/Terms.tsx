@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { SEOHead } from "@/components/SEOHead";
 import { ArrowLeft, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/Footer";

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";

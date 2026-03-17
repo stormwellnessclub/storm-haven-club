@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { SEOHead } from "@/components/SEOHead";
 import {
   Accordion,
   AccordionContent,

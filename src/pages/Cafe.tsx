@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Plus, Minus, ShoppingBag, Loader2, CreditCard, User } from "lucide-react";

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { Link, useNavigate } from "react-router-dom";
 import { useClassSessions, ClassSession } from "@/hooks/useClassSessions";
 import { useMyBookings } from "@/hooks/useBooking";

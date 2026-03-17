@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";

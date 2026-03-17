@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { useMerchProducts, useMerchInventory, useCreateMerchOrder } from "@/hooks/useMerchProducts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
