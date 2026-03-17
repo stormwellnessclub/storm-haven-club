@@ -64,8 +64,8 @@ export function SoftLaunchClassManagement() {
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-  const canGoPrev = !isBefore(subDays(selectedDate, 1), SOFT_LAUNCH_START);
-  const canGoNext = !isAfter(addDays(selectedDate, 1), SOFT_LAUNCH_END);
+  const canGoPrev = !isBefore(startOfDay(subDays(selectedDate, 1)), SOFT_LAUNCH_START);
+  const canGoNext = !isAfter(startOfDay(addDays(selectedDate, 1)), SOFT_LAUNCH_END);
 
   // Get the hardcoded classes for the selected date (source of truth)
   const hardcodedClasses = getClassesForDate(selectedDate);
