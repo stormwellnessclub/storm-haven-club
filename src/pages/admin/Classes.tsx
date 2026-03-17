@@ -197,13 +197,10 @@ export default function Classes() {
   const cancelSessionMutation = useMutation({
     mutationFn: async () => {
       if (!selectedSession) return;
-      const { error } = await supabase
-        .from('class_sessions')
-        .update({ 
-          is_cancelled: true,
-          cancellation_reason: cancellationReason || null
-        })
-        .eq('id', selectedSession.id);
+      const { error } = await supabase.rpc('admin_cancel_class_session', {
+        _session_id: selectedSession.id,
+        _reason: cancellationReason || 'Class cancelled by admin',
+      });
       
       if (error) throw error;
     },
