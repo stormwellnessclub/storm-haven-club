@@ -1,0 +1,300 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const SITE_URL = "https://www.stormwellnessclub.com";
+const SITE_NAME = "Storm Wellness Club";
+const OG_IMAGE = `${SITE_URL}/pwa-512x512.png`;
+
+const CRAWLER_USER_AGENTS = [
+  'googlebot', 'bingbot', 'slurp', 'duckduckbot', 'baiduspider',
+  'yandexbot', 'sogou', 'facebookexternalhit', 'twitterbot',
+  'rogerbot', 'linkedinbot', 'embedly', 'quora link preview',
+  'showyoubot', 'outbrain', 'pinterest', 'applebot', 'semrushbot',
+  'ahrefsbot', 'mj12bot', 'petalbot'
+];
+
+interface PageMeta {
+  title: string;
+  description: string;
+  h1: string;
+  bodyContent: string;
+}
+
+const PAGE_META: Record<string, PageMeta> = {
+  '/': {
+    title: `${SITE_NAME} | Premium Fitness & Wellness in Dearborn, MI`,
+    description: 'Storm Wellness Club — luxury fitness and wellness destination in Dearborn, Michigan. Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care. Apply for membership today.',
+    h1: 'Storm Wellness Club',
+    bodyContent: `
+      <h2>Premium Wellness Destination in Dearborn, Michigan</h2>
+      <p>Storm Wellness Club is a luxury fitness and wellness club located in Dearborn, Michigan. We offer a comprehensive wellness experience including Reformer Pilates (heated and non-heated), Indoor Cycling, Yoga, HIIT, Barre, Mat Pilates, and more.</p>
+      <h2>Our Studios</h2>
+      <ul>
+        <li><strong>Reformer Pilates Studio</strong> — A mixture of reformer classes, both heated and non-heated options</li>
+        <li><strong>Cycling Studio</strong> — High-energy rides with immersive lighting and cinematic sound</li>
+        <li><strong>Aerobics Room</strong> — Bootcamp, Sculpt, Yoga, HIIT and more in our versatile studio</li>
+      </ul>
+      <h2>Recovery & Wellness</h2>
+      <p>Our Recovery Spa features sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments.</p>
+      <h2>Café</h2>
+      <p>Fuel your wellness journey with smoothies, protein shakes, acai bowls, cold-pressed juices, and healthy snacks from our in-house café.</p>
+      <h2>Kids Care</h2>
+      <p>Supervised childcare for members while they work out in a safe, engaging environment.</p>
+      <p><a href="${SITE_URL}/apply">Apply for Membership</a> | <a href="${SITE_URL}/classes">View Classes</a> | <a href="${SITE_URL}/schedule">Class Schedule</a></p>
+    `
+  },
+  '/classes': {
+    title: `Classes | ${SITE_NAME}`,
+    description: 'Explore class offerings at Storm Wellness Club: Reformer Pilates (heated & non-heated), Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, and more in Dearborn, MI.',
+    h1: 'Classes at Storm Wellness Club',
+    bodyContent: `
+      <h2>Class Categories</h2>
+      <ul>
+        <li><strong>Reformer Pilates</strong> — Heated and non-heated reformer Pilates classes for all levels</li>
+        <li><strong>Indoor Cycling</strong> — High-energy rides with immersive lighting and sound</li>
+        <li><strong>Yoga</strong> — Flow, restorative, and power yoga sessions</li>
+        <li><strong>Mat Pilates</strong> — Core-focused mat work for strength and flexibility</li>
+        <li><strong>HIIT</strong> — High-intensity interval training for maximum results</li>
+        <li><strong>Barre</strong> — Ballet-inspired workout combining strength, balance, and flexibility</li>
+        <li><strong>Bootcamp</strong> — Full-body functional training</li>
+        <li><strong>Sculpt</strong> — Targeted strength training with light weights</li>
+      </ul>
+      <p><a href="${SITE_URL}/schedule">View Class Schedule</a> | <a href="${SITE_URL}/class-passes">Purchase Class Passes</a></p>
+    `
+  },
+  '/schedule': {
+    title: `Class Schedule | ${SITE_NAME}`,
+    description: 'View and book upcoming class sessions at Storm Wellness Club. Real-time availability, waitlist support, and easy online booking in Dearborn, MI.',
+    h1: 'Class Schedule',
+    bodyContent: `<p>View our weekly class schedule and book your spot. Real-time availability and waitlist support for all classes including Reformer Pilates, Cycling, Yoga, HIIT, Barre, and more.</p>`
+  },
+  '/memberships': {
+    title: `Memberships | ${SITE_NAME}`,
+    description: 'Membership tiers and pricing at Storm Wellness Club. Standard, Premium, and Executive options with wellness credits, guest passes, and spa access.',
+    h1: 'Membership Plans',
+    bodyContent: `
+      <h2>Membership Tiers</h2>
+      <ul>
+        <li><strong>Standard Membership</strong> — Access to all classes, gym floor, and basic amenities</li>
+        <li><strong>Premium Membership</strong> — Everything in Standard plus wellness credits for spa services and guest passes</li>
+        <li><strong>Executive Membership</strong> — The complete experience with enhanced credits, priority booking, and exclusive perks</li>
+      </ul>
+      <p>All memberships include unlimited access to classes, the fitness floor, locker rooms, and towel service.</p>
+      <p><a href="${SITE_URL}/apply">Apply for Membership</a></p>
+    `
+  },
+  '/apply': {
+    title: `Apply for Membership | ${SITE_NAME}`,
+    description: 'Submit your membership application to Storm Wellness Club. Choose your plan, provide your details, and join our premium fitness community in Dearborn, MI.',
+    h1: 'Apply for Membership',
+    bodyContent: `<p>Ready to join Storm Wellness Club? Submit your membership application online. Choose your preferred membership tier, provide your details, and start your wellness journey.</p>`
+  },
+  '/spa': {
+    title: `Recovery Spa | ${SITE_NAME}`,
+    description: 'Spa and recovery services including sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments in Dearborn, MI.',
+    h1: 'Recovery Spa',
+    bodyContent: `
+      <h2>Spa & Recovery Services</h2>
+      <ul>
+        <li><strong>Sauna</strong> — Traditional dry heat sauna for relaxation and detox</li>
+        <li><strong>Steam Room</strong> — Moist heat therapy for respiratory and skin benefits</li>
+        <li><strong>Cold Plunge</strong> — Cold water immersion for recovery and inflammation reduction</li>
+        <li><strong>Infrared Therapy</strong> — Deep-penetrating infrared heat for muscle recovery</li>
+        <li><strong>Therapeutic Massage</strong> — Professional massage therapy services</li>
+        <li><strong>Body Treatments</strong> — Specialized body treatment services</li>
+      </ul>
+      <p>Spa services are available to members with wellness credits or by appointment.</p>
+    `
+  },
+  '/cafe': {
+    title: `Café | ${SITE_NAME}`,
+    description: 'In-house café with smoothies, protein shakes, acai bowls, cold-pressed juices, coffee, and healthy snacks at Storm Wellness Club in Dearborn, MI.',
+    h1: 'Storm Wellness Café',
+    bodyContent: `<p>Fuel your workout with our in-house café featuring smoothies, protein shakes, acai bowls, cold-pressed juices, premium coffee, and healthy snacks. Available to members and guests.</p>`
+  },
+  '/amenities': {
+    title: `Amenities | ${SITE_NAME}`,
+    description: 'Club amenities: sauna, steam room, cold plunge, infrared sauna, outdoor terrace, premium locker rooms, and towel service at Storm Wellness Club.',
+    h1: 'Club Amenities',
+    bodyContent: `
+      <h2>Facility Amenities</h2>
+      <ul>
+        <li>Sauna</li><li>Steam Room</li><li>Cold Plunge</li><li>Infrared Sauna</li>
+        <li>Outdoor Terrace</li><li>Premium Locker Rooms</li><li>Towel Service</li>
+        <li>Parking</li><li>Café</li><li>Kids Care</li>
+      </ul>
+    `
+  },
+  '/kids-care': {
+    title: `Kids Care | ${SITE_NAME}`,
+    description: 'Supervised childcare while you work out at Storm Wellness Club. Safe, engaging environment for children of members in Dearborn, MI.',
+    h1: 'Kids Care',
+    bodyContent: `<p>Our Kids Care program provides supervised childcare for members during workouts. A safe, fun, and engaging environment for your children while you focus on your fitness.</p>`
+  },
+  '/class-passes': {
+    title: `Class Passes | ${SITE_NAME}`,
+    description: 'Purchase class passes for non-members at Storm Wellness Club. Single class, 5-pack, and 10-pack options for Pilates, Cycling, Yoga, and more.',
+    h1: 'Class Passes',
+    bodyContent: `
+      <p>Don't have a membership? Purchase class passes to attend individual classes at Storm Wellness Club. Available in single class, 5-pack, and 10-pack options.</p>
+      <p>Class categories: Reformer Pilates, Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, and more.</p>
+    `
+  },
+  '/guest-pass': {
+    title: `Guest Pass | ${SITE_NAME}`,
+    description: 'Purchase a day guest pass to experience Storm Wellness Club in Dearborn, MI. Full facility access for one day.',
+    h1: 'Guest Day Pass',
+    bodyContent: `<p>Experience Storm Wellness Club with a day guest pass. Enjoy full facility access including the fitness floor, classes (subject to availability), locker rooms, and amenities for one day.</p>`
+  },
+  '/merch': {
+    title: `Shop | ${SITE_NAME}`,
+    description: 'Storm Wellness Club branded merchandise and wellness products. Shop apparel, accessories, and more.',
+    h1: 'Storm Wellness Shop',
+    bodyContent: `<p>Shop Storm Wellness Club branded merchandise including apparel, accessories, and wellness products.</p>`
+  },
+  '/faq': {
+    title: `FAQ | ${SITE_NAME}`,
+    description: 'Frequently asked questions about memberships, classes, spa services, café, kids care, and facility policies at Storm Wellness Club.',
+    h1: 'Frequently Asked Questions',
+    bodyContent: `<p>Find answers to common questions about Storm Wellness Club memberships, classes, spa services, café, kids care, guest passes, and facility policies.</p>`
+  },
+  '/terms': {
+    title: `Terms of Service | ${SITE_NAME}`,
+    description: 'Terms and conditions for Storm Wellness Club membership and services.',
+    h1: 'Terms of Service',
+    bodyContent: `<p>Terms and conditions governing membership and use of Storm Wellness Club facilities and services.</p>`
+  },
+  '/privacy': {
+    title: `Privacy Policy | ${SITE_NAME}`,
+    description: 'Privacy policy and data handling practices for Storm Wellness Club.',
+    h1: 'Privacy Policy',
+    bodyContent: `<p>Learn about how Storm Wellness Club collects, uses, and protects your personal information.</p>`
+  },
+};
+
+const JSON_LD_LOCAL_BUSINESS = {
+  "@context": "https://schema.org",
+  "@type": "HealthClub",
+  "name": "Storm Wellness Club",
+  "description": "Premium fitness and wellness club in Dearborn, Michigan offering Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care.",
+  "url": SITE_URL,
+  "logo": OG_IMAGE,
+  "image": OG_IMAGE,
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Dearborn",
+    "addressRegion": "MI",
+    "addressCountry": "US"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 42.3223,
+    "longitude": -83.1763
+  }
+};
+
+const JSON_LD_WEBSITE = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Storm Wellness Club",
+  "url": SITE_URL
+};
+
+function isCrawler(userAgent: string): boolean {
+  const ua = userAgent.toLowerCase();
+  return CRAWLER_USER_AGENTS.some(bot => ua.includes(bot));
+}
+
+function renderPage(path: string): string {
+  const meta = PAGE_META[path] || PAGE_META['/'];
+  const canonicalUrl = `${SITE_URL}${path === '/' ? '' : path}`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${meta.title}</title>
+  <meta name="description" content="${meta.description}">
+  <link rel="canonical" href="${canonicalUrl}">
+  <meta name="geo.region" content="US-MI">
+  <meta name="geo.placename" content="Dearborn, Michigan">
+
+  <meta property="og:title" content="${meta.title}">
+  <meta property="og:description" content="${meta.description}">
+  <meta property="og:url" content="${canonicalUrl}">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="${OG_IMAGE}">
+  <meta property="og:site_name" content="${SITE_NAME}">
+  <meta property="og:locale" content="en_US">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${meta.title}">
+  <meta name="twitter:description" content="${meta.description}">
+  <meta name="twitter:image" content="${OG_IMAGE}">
+
+  <script type="application/ld+json">${JSON.stringify(JSON_LD_LOCAL_BUSINESS)}</script>
+  <script type="application/ld+json">${JSON.stringify(JSON_LD_WEBSITE)}</script>
+</head>
+<body>
+  <h1>${meta.h1}</h1>
+  ${meta.bodyContent}
+  <nav>
+    <ul>
+      <li><a href="${SITE_URL}/">Home</a></li>
+      <li><a href="${SITE_URL}/classes">Classes</a></li>
+      <li><a href="${SITE_URL}/schedule">Schedule</a></li>
+      <li><a href="${SITE_URL}/memberships">Memberships</a></li>
+      <li><a href="${SITE_URL}/apply">Apply</a></li>
+      <li><a href="${SITE_URL}/spa">Recovery Spa</a></li>
+      <li><a href="${SITE_URL}/cafe">Café</a></li>
+      <li><a href="${SITE_URL}/amenities">Amenities</a></li>
+      <li><a href="${SITE_URL}/kids-care">Kids Care</a></li>
+      <li><a href="${SITE_URL}/class-passes">Class Passes</a></li>
+      <li><a href="${SITE_URL}/guest-pass">Guest Pass</a></li>
+      <li><a href="${SITE_URL}/merch">Shop</a></li>
+      <li><a href="${SITE_URL}/faq">FAQ</a></li>
+    </ul>
+  </nav>
+  <footer>
+    <p>&copy; ${new Date().getFullYear()} Storm Wellness Club. Dearborn, Michigan.</p>
+    <a href="${SITE_URL}/terms">Terms of Service</a> | <a href="${SITE_URL}/privacy">Privacy Policy</a>
+  </footer>
+</body>
+</html>`;
+}
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const url = new URL(req.url);
+  const path = url.searchParams.get('path') || '/';
+  const userAgent = req.headers.get('user-agent') || '';
+
+  // If not a crawler, redirect to the actual site
+  if (!isCrawler(userAgent)) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        'Location': `${SITE_URL}${path}`,
+        ...corsHeaders,
+      },
+    });
+  }
+
+  // Serve pre-rendered HTML for crawlers
+  const html = renderPage(path);
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+      ...corsHeaders,
+    },
+  });
+});

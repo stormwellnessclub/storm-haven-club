@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -547,6 +548,7 @@ export default function Apply() {
 
   return (
     <Layout>
+      <SEOHead title="Apply for Membership" description="Submit your membership application to Storm Wellness Club. Choose your plan, provide your details, and join our premium fitness community in Dearborn, MI." path="/apply" />
       {/* Hero */}
       <section className="relative pt-20 min-h-[40vh] flex items-center">
         <div className="absolute inset-0">

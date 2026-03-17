@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
@@ -490,6 +491,7 @@ export default function Classes() {
 
   return (
     <Layout>
+      <SEOHead title="Classes" description="Explore our class offerings: Reformer Pilates, Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, and more at Storm Wellness Club in Dearborn, MI." path="/classes" />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
         <div className="container mx-auto px-6">

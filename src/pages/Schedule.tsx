@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { Link, useNavigate } from "react-router-dom";
 import { useClassSessions, ClassSession } from "@/hooks/useClassSessions";
 import { useMyBookings } from "@/hooks/useBooking";
@@ -88,6 +89,7 @@ export default function Schedule() {
 
   return (
     <Layout>
+      <SEOHead title="Class Schedule" description="View and book upcoming class sessions at Storm Wellness Club. Real-time availability, waitlist support, and easy online booking." path="/schedule" />
       {/* Hero */}
       <section className="pt-32 pb-6 bg-secondary/30">
         <div className="container mx-auto px-6">

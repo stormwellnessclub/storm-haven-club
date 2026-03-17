@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { Link, useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -637,6 +638,7 @@ export default function GuestPass() {
   // Logged in - show inline agreements then form
   return (
     <Layout>
+      <SEOHead title="Guest Pass" description="Purchase a day guest pass to experience Storm Wellness Club in Dearborn, MI. Full facility access for one day." path="/guest-pass" />
       <div className="min-h-screen bg-background pt-32 pb-20">
         <div className="container mx-auto px-6">
           {/* Header */}

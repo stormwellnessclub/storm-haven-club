@@ -5,76 +5,91 @@ const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://www.stormwellnessclub.com/</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/classes</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/schedule</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/memberships</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/apply</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/spa</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/cafe</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/amenities</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/kids-care</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/class-passes</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/guest-pass</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/merch</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/faq</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/terms</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.stormwellnessclub.com/privacy</loc>
+    <lastmod>2026-03-17</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

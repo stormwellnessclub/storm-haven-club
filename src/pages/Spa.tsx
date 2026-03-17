@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { SEOHead } from "@/components/SEOHead";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
 import { Clock, Star, Users, Info } from "lucide-react";
@@ -474,6 +475,7 @@ export default function Spa() {
 
   return (
     <Layout>
+      <SEOHead title="Recovery Spa" description="Spa and recovery services including sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments in Dearborn, MI." path="/spa" />
       {/* Hero */}
       <section className="relative pt-20 min-h-[70vh] flex items-center">
         <div className="absolute inset-0">

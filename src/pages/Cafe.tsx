@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Plus, Minus, ShoppingBag, Loader2, CreditCard, User } from "lucide-react";
@@ -203,6 +204,7 @@ export default function Cafe() {
 
   return (
     <Layout>
+      <SEOHead title="Café" description="In-house café with smoothies, protein shakes, acai bowls, cold-pressed juices, coffee, and healthy snacks at Storm Wellness Club." path="/cafe" />
       {/* Hero */}
       <section className="relative pt-32 pb-16 min-h-[50vh] flex items-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-charcoal to-charcoal/90" />

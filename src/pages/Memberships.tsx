@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
@@ -129,6 +130,7 @@ const luxuriousSpaAmenities = [
 export default function Memberships() {
   return (
     <Layout>
+      <SEOHead title="Memberships" description="Membership tiers and pricing. Standard, Premium, and Executive options with wellness credits, guest passes, and spa access at Storm Wellness Club." path="/memberships" />
       {/* Hero Section */}
       <section className="relative min-h-[70vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">

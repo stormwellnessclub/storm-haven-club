@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { SEOHead } from "@/components/SEOHead";
 import {
   Accordion,
   AccordionContent,
@@ -73,6 +74,7 @@ const scrollToTop = () => {
 export default function FAQ() {
   return (
     <Layout>
+      <SEOHead title="FAQ" description="Frequently asked questions about memberships, classes, spa services, café, kids care, and facility policies at Storm Wellness Club." path="/faq" />
       {/* Header */}
       <section className="bg-primary text-primary-foreground pt-32 pb-16">
         <div className="container mx-auto px-6 text-center">

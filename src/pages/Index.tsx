@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
@@ -91,6 +92,7 @@ export default function Index() {
   const { isIOS, isStandalone, showIOSModal, handleInstall, closeIOSModal } = usePWAInstall();
 
   return <Layout>
+      <SEOHead title="Premium Fitness & Wellness" description="Storm Wellness Club — luxury fitness and wellness destination in Dearborn, Michigan. Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care." path="/" />
       {/* Hero Section */}
       <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
         <div className="absolute inset-0">

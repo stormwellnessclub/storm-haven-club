@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
@@ -478,6 +479,7 @@ export default function ClassPasses() {
 
   return (
     <Layout>
+      <SEOHead title="Class Passes" description="Purchase class passes for non-members. Single class, 5-pack, and 10-pack options for Pilates, Cycling, Yoga, and more at Storm Wellness Club." path="/class-passes" />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
         <div className="container mx-auto px-6">

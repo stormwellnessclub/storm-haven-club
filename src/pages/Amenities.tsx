@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { SEOHead } from "@/components/SEOHead";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -224,6 +225,7 @@ const membershipTiers = [
 export default function Amenities() {
   return (
     <Layout>
+      <SEOHead title="Amenities" description="Club amenities: sauna, steam room, cold plunge, infrared sauna, outdoor terrace, premium locker rooms, and towel service at Storm Wellness Club." path="/amenities" />
       {/* Hero - Full bleed */}
       <section className="relative min-h-[70vh] flex items-center">
         <div className="absolute inset-0">

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { SEOHead } from "@/components/SEOHead";
 import { ArrowLeft, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/Footer";
@@ -10,6 +11,7 @@ export default function Terms() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Terms of Service" description="Terms and conditions for Storm Wellness Club membership and services." path="/terms" />
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-16">
         <div className="container mx-auto px-6">
