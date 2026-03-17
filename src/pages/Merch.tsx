@@ -516,6 +516,7 @@ export default function Merch() {
   // Store grid
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Shop" description="Storm Wellness Club branded merchandise and wellness products. Shop apparel, accessories, and more." path="/merch" />
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-10">
           <div className="text-center flex-1">

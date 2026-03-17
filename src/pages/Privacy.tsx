@@ -11,6 +11,7 @@ export default function Privacy() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead title="Privacy Policy" description="Privacy policy and data handling practices for Storm Wellness Club." path="/privacy" />
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-16">
         <div className="container mx-auto px-6">
