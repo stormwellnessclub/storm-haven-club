@@ -1,34 +1,28 @@
 
-# Strategic Campaign System — IMPLEMENTED
 
-## What Was Built
+## Backfill Missing March Credits for All Affected Members
 
-### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
-Goal-driven campaign cards replacing the generic "Compose Campaign" button:
+### The Problem
+**28+ active non-Silver members** are missing their March credit renewal. This affects members across multiple start dates — not just Feb 9th:
 
-**Guest Playbooks:**
-- **Convert to Applicant** — targets past guests who haven't applied
-- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
-- **Collect Feedback** — recent guests without feedback
+- **Jan 31 start**: 2 members (Zeinab Baydoun, Nada Shatila)
+- **Feb 9 start**: ~20 members (the largest group)
+- **Feb 10-28 start**: Several more members (Nancy Msheik, Zahna Abdallah, Fatme Beydoun, Alyssa Maley, etc.)
 
-**Member Playbooks:**
-- **Prevent Churn** — members with past_due or frozen status
-- **Upsell Tier** — active members on lower tiers
-- **Referral Push** — active members with 0 referrals
+Only 8 members currently have March credits (via webhook or recent activation).
 
-Each card shows live audience count and a "Launch Campaign" button.
+### The Fix — Automated One-Time Backfill
+No manual work needed. I will run a SQL INSERT that:
 
-### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
-- Auto-queries the right segment when launched from a playbook
-- Shows recipient count and name chips with ability to remove individuals
-- Auto-loads matching email template based on goal type
-- Merge field chips for quick personalization
+1. Finds every active non-Silver member who is **missing March credits** (no `member_credits` row with `cycle_start` in March matching their billing anniversary)
+2. Calculates correct cycle dates per member based on their `membership_start_date` day-of-month
+3. Inserts the correct tier-based credits:
+   - **Gold**: 4 red_light + 2 dry_cryo
+   - **Platinum**: 6 red_light + 4 dry_cryo
+   - **Diamond**: 10 class + 10 red_light + 6 dry_cryo
+4. Sets `expires_at` to end of cycle (one month from cycle start minus one day)
+5. Skips anyone who already has March credits (safe to re-run)
 
-### 3. Conversion Tracking (CampaignAnalytics.tsx)
-- `goal_type` and `goal_metadata` columns added to email_campaigns
-- Per-campaign conversion rates with 14-day attribution window
-- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
-- Summary stats: total conversions, overall conversion rate
+### No Code Changes
+This is a data-only operation using the insert tool. The daily cron job will handle all future renewals automatically going forward.
 
-### Database Changes
-- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
