@@ -1,27 +1,34 @@
 
+# Strategic Campaign System — IMPLEMENTED
 
-## Fix: Credits/Passes Not Restored on Class Cancellation
+## What Was Built
 
-### Root Cause
+### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
+Goal-driven campaign cards replacing the generic "Compose Campaign" button:
 
-The admin "Cancel Class" flow in `Classes.tsx` directly sets `is_cancelled: true` on the session record but **never cancels the individual bookings or restores credits/passes**. There is already an `admin_cancel_class_session` database function that handles this correctly (cancels each booking, refunds credits, refunds passes), but it's not being called.
+**Guest Playbooks:**
+- **Convert to Applicant** — targets past guests who haven't applied
+- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
+- **Collect Feedback** — recent guests without feedback
 
-### Fix
+**Member Playbooks:**
+- **Prevent Churn** — members with past_due or frozen status
+- **Upsell Tier** — active members on lower tiers
+- **Referral Push** — active members with 0 referrals
 
-**1. Update `src/pages/admin/Classes.tsx` — use the RPC instead of direct update**
+Each card shows live audience count and a "Launch Campaign" button.
 
-Replace the `cancelSessionMutation` to call `admin_cancel_class_session` RPC instead of directly updating the session. The RPC already:
-- Loops through all confirmed bookings on the session
-- Restores `member_credits` (class credits)
-- Restores `class_passes` (pass credits)
-- Marks each booking as cancelled with reason "Class cancelled by admin"
-- Sets `is_cancelled: true` on the session
+### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
+- Auto-queries the right segment when launched from a playbook
+- Shows recipient count and name chips with ability to remove individuals
+- Auto-loads matching email template based on goal type
+- Merge field chips for quick personalization
 
-This is a ~5 line change in the mutation function.
+### 3. Conversion Tracking (CampaignAnalytics.tsx)
+- `goal_type` and `goal_metadata` columns added to email_campaigns
+- Per-campaign conversion rates with 14-day attribution window
+- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
+- Summary stats: total conversions, overall conversion rate
 
-**2. No database changes needed** — the `admin_cancel_class_session` function already exists and is correct.
-
-### What This Fixes
-- Admin cancels a class from the schedule → all booked members get their class credits or passes restored automatically
-- Members see "Class cancelled by admin" as the cancellation reason on their booking history
-
+### Database Changes
+- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
