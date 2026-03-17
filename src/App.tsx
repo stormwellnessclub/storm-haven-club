@@ -109,6 +109,7 @@ import PortalRecovery from "@/pages/portal/Recovery";
 const queryClient = new QueryClient();
 
 const App = () => (
+  <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
