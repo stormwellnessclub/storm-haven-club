@@ -64,6 +64,23 @@ export default function PortalDashboard() {
     enabled: !!user,
   });
 
+  // Get active guest passes for this user
+  const { data: guestPasses = [], isLoading: guestPassesLoading } = useQuery({
+    queryKey: ["portal-guest-passes", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("guest_passes")
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
   const hasCard = profile?.card_last4;
   const firstName = profile?.first_name || user?.user_metadata?.first_name || "there";
 

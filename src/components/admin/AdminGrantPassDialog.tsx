@@ -251,7 +251,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
             disabled={grantMutation.isPending || (grantType === "guest_pass" && !guestName.trim())}
           >
             {grantMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Gift className="h-4 w-4 mr-1" />}
-            Grant {typeLabel[grantType]}
+            Grant {grantType === "guest_pass" && guestPassQuantity > 1 ? `${guestPassQuantity} Guest Passes` : typeLabel[grantType]}
           </Button>
         </DialogFooter>
       </DialogContent>
