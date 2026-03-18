@@ -115,7 +115,7 @@ export default function KidsCareServiceForm() {
     );
   }
 
-  const hasChildren = children && children.length > 0;
+  const childrenRegistered = children && children.length > 0;
 
   return (
     <MemberLayout title="Kids Care - Child Profiles">
