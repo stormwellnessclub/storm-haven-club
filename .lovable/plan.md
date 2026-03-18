@@ -1,34 +1,34 @@
 
-# Strategic Campaign System — IMPLEMENTED
 
-## What Was Built
+## Fix: Nada's Missing Non-Member Profile + Admin Access to All Accounts
 
-### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
-Goal-driven campaign cards replacing the generic "Compose Campaign" button:
+### Problems Found
 
-**Guest Playbooks:**
-- **Convert to Applicant** — targets past guests who haven't applied
-- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
-- **Collect Feedback** — recent guests without feedback
+1. **Nada Almadhagi (nadaalma1125@gmail.com, user_id: b6b61e33-...)** has no row in `non_member_profiles`. She has an active class pass (1 class, expires Mar 21) but is invisible in admin Non-Member Accounts and may have issues in the portal.
 
-**Member Playbooks:**
-- **Prevent Churn** — members with past_due or frozen status
-- **Upsell Tier** — active members on lower tiers
-- **Referral Push** — active members with 0 referrals
+2. **Her `profiles` row has `last_name: "Alma"`** instead of "Almadhagi" — likely truncated during signup.
 
-Each card shows live audience count and a "Launch Campaign" button.
+3. **Admin Non-Member Accounts page only shows users who have a `non_member_profiles` row.** Anyone who purchased a pass but whose auto-create failed won't appear.
 
-### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
-- Auto-queries the right segment when launched from a playbook
-- Shows recipient count and name chips with ability to remove individuals
-- Auto-loads matching email template based on goal type
-- Merge field chips for quick personalization
+### Plan
 
-### 3. Conversion Tracking (CampaignAnalytics.tsx)
-- `goal_type` and `goal_metadata` columns added to email_campaigns
-- Per-campaign conversion rates with 14-day attribution window
-- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
-- Summary stats: total conversions, overall conversion rate
+#### A. Data fix (SQL migration)
+- Insert a `non_member_profiles` row for Nada, pulling data from her `profiles` row
+- Update her last name to "Almadhagi" in both `profiles` and the new `non_member_profiles` row
 
-### Database Changes
-- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
+```sql
+INSERT INTO non_member_profiles (user_id, email, first_name, last_name, phone)
+VALUES ('b6b61e33-02b4-4aa4-a579-c5a9dcab6069', 'nadaalma1125@gmail.com', 'Nada', 'Almadhagi', null)
+ON CONFLICT (user_id) DO UPDATE SET first_name = 'Nada', last_name = 'Almadhagi';
+
+UPDATE profiles SET last_name = 'Almadhagi' WHERE user_id = 'b6b61e33-02b4-4aa4-a579-c5a9dcab6069';
+```
+
+#### B. Safety net: auto-create missing non_member_profiles for any user with class passes
+- Add a second query in the admin Non-Member Accounts page that finds users who have `class_passes` but no `non_member_profiles` row, and auto-creates the missing rows
+- OR: modify the admin query to also include users from `class_passes` who lack a `non_member_profiles` entry, joining with `profiles` for name/email
+
+#### C. File changes
+- **`src/pages/admin/NonMemberAccounts.tsx`** — Update the query to also discover users who have class passes but no `non_member_profiles` row (join `class_passes` → `profiles` to fill in names)
+- **New SQL migration** — Insert Nada's missing row and fix her last name
+
