@@ -338,7 +338,47 @@ export function CheckInSupportPanel() {
         </Card>
       </Collapsible>
 
-      {/* Support Tickets */}
+      {/* Kids Care */}
+      <Collapsible open={kidsCareOpen} onOpenChange={setKidsCareOpen}>
+        <Card className="border-pink-200/50 dark:border-pink-800/50">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CollapsibleTrigger className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <Baby className="h-4 w-4 text-pink-500" />
+              <CardTitle className="text-sm font-semibold">Kids Care</CardTitle>
+              {kidsCareItems.length > 0 && (
+                <Badge className="bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300 text-xs">
+                  {kidsCareItems.length}
+                </Badge>
+              )}
+              <ChevronDown
+                className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                  kidsCareOpen ? "rotate-180" : ""
+                }`}
+              />
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-2 px-4 pb-4 space-y-2">
+              {kidsCareItems.length > 0 ? (
+                kidsCareItems.map((item) => (
+                  <ConversationItem
+                    key={item.id}
+                    conversation={item}
+                    variant="support"
+                    onReply={handleReply}
+                    onMarkDone={handleMarkDone}
+                  />
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  No Kids Care messages
+                </p>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
       <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>
         <Card className="border-blue-200/50 dark:border-blue-800/50">
           <CardHeader className="pb-2 pt-4 px-4">
