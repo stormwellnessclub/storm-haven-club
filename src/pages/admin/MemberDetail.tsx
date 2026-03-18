@@ -2430,8 +2430,8 @@ export default function MemberDetail() {
                   } else {
                     // Book wellness session
                     if (!adminBookDate || !adminBookTime) return;
-                    const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
-                    if (!credit || credit.credits_remaining <= 0) throw new Error("No credits available");
+                    const credit = memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0 && c.expires_at > new Date().toISOString());
+                    if (!credit) throw new Error("No credits available");
                     const serviceName = adminBookServiceType === "red_light" ? "Red Light Therapy" : "Dry Cryotherapy";
                     const durationMinutes = adminBookServiceType === "red_light" ? 20 : 3;
                     const { error: creditError } = await supabase.from("member_credits").update({ credits_remaining: credit.credits_remaining - 1, updated_at: new Date().toISOString() }).eq("id", credit.id);
