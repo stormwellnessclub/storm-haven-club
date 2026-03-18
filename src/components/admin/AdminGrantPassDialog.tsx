@@ -174,6 +174,10 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
                 <Label className="text-xs text-muted-foreground">Guest Email</Label>
                 <Input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Optional" type="email" />
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Quantity</Label>
+                <Input type="number" min={1} max={20} value={guestPassQuantity} onChange={(e) => setGuestPassQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+              </div>
             </>
           )}
 
