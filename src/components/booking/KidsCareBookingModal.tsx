@@ -63,6 +63,13 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
   const [selectedPassId, setSelectedPassId] = useState<string>("");
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [parentNotes, setParentNotes] = useState("");
+  const [confirmedBooking, setConfirmedBooking] = useState<{
+    childName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    room: string;
+  } | null>(null);
 
   // Fetch hours for the selected date
   const { data: dayHours, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
