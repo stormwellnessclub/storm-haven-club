@@ -131,8 +131,8 @@ type Application = {
   card_exp_year: number | null;
   payment_link_sent_at: string | null;
   user_id: string | null;
-  skip_tour_activate_immediately: boolean;
-  liability_waiver_signed: boolean;
+  skip_tour_activate_immediately?: boolean;
+  liability_waiver_signed?: boolean;
 };
 
 const getStatusBadge = (status: string) => {

@@ -269,6 +269,77 @@ function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAg
   );
 }
 
+function LiabilityWaiverSection({ isSigned, onCheckboxChange }: { isSigned: boolean; onCheckboxChange: (checked: boolean) => void }) {
+  const { data: waiverAgreements, isLoading } = useAgreements("liability_waiver");
+  const isMobile = useIsMobile();
+
+  const pdfUrls = waiverAgreements?.map((a) => a.pdf_url).filter(Boolean) || [];
+
+  const downloadPdf = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 100);
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-semibold text-foreground">Liability Waiver</p>
+      {isLoading ? (
+        <div className="flex items-center gap-2 py-4">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading waiver...</span>
+        </div>
+      ) : pdfUrls.length > 0 ? (
+        <div className="space-y-2">
+          {pdfUrls.map((url, index) => {
+            const resolvedUrl = resolvePdfUrl(url);
+            const filename = typeof url === 'string' ? (url.split('/').pop() || 'liability-waiver.pdf') : `waiver-${index + 1}.pdf`;
+            return (
+              <div key={index} className="flex flex-col items-center gap-2 p-4 rounded-lg border bg-muted/30">
+                <FileText className="h-8 w-8 text-accent" />
+                <p className="text-sm font-medium">Liability Waiver</p>
+                <div className={`flex gap-2 w-full ${isMobile ? 'flex-col' : 'flex-row justify-center'}`}>
+                  <Button size="sm" className="gap-2" onClick={() => downloadPdf(resolvedUrl, filename)}>
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2" asChild>
+                    <a href={resolvedUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      Open
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+      <div className="flex items-start gap-3 p-3 rounded-lg border bg-secondary/30">
+        <Checkbox
+          id="liabilityWaiver"
+          checked={isSigned}
+          onCheckedChange={onCheckboxChange}
+          required
+        />
+        <Label htmlFor="liabilityWaiver" className="font-normal cursor-pointer text-sm leading-relaxed">
+          I have read, understand, and agree to the Liability Waiver. I acknowledge and accept all risks associated with using the facilities. *
+        </Label>
+      </div>
+    </div>
+  );
+}
+
 export default function Apply() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
