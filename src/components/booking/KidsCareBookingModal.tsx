@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useBookKidsCare, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useKidsCareHoursForDate } from "@/hooks/useKidsCareHours";
 import {
   Dialog,
   DialogContent,
@@ -34,11 +35,13 @@ interface KidsCareBookingModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const TIME_SLOTS = [
+// All possible half-hour slots
+const ALL_TIME_SLOTS = [
   "06:00", "06:30", "07:00", "07:30", "08:00", "08:30",
   "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "12:00", "12:30", "13:00", "16:00", "16:30", "17:00",
-  "17:30", "18:00", "18:30", "19:00", "19:30", "20:00",
+  "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
+  "15:00", "15:30", "16:00", "16:30", "17:00", "17:30",
+  "18:00", "18:30", "19:00", "19:30", "20:00",
 ];
 
 const MAX_DURATION_HOURS = 2;
