@@ -180,6 +180,9 @@ export function useBookKidsCare() {
       // Check age group capacity (basic check - could be enhanced with real-time capacity)
       // For now, we'll allow booking and let staff manage capacity at check-in
 
+      // Determine room from age group
+      const room = ["Infants", "Toddlers"].includes(ageGroup) ? "Little Stars" : "Big Stars";
+
       // Create booking
       const { data, error } = await (supabase
         .from("kids_care_bookings" as any)
@@ -195,6 +198,7 @@ export function useBookKidsCare() {
           status: "confirmed",
           pass_id: params.passId,
           age_group: ageGroup,
+          room: room,
           special_instructions: params.specialInstructions || null,
           parent_notes: params.parentNotes || null,
         } as any)
