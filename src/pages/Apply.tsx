@@ -344,11 +344,124 @@ function LiabilityWaiverSection({ isSigned, onCheckboxChange }: { isSigned: bool
   );
 }
 
+// Inner form component for inline Stripe card setup
+function InlinePaymentFormInner({ 
+  onSuccess, 
+  onCancel,
+}: { 
+  onSuccess: (cardBrand: string | null, cardLast4: string | null, cardExpMonth: number | null, cardExpYear: number | null, customerId: string | null) => void; 
+  onCancel: () => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const { error, setupIntent } = await stripe.confirmSetup({
+        elements,
+        confirmParams: {
+          return_url: window.location.href,
+        },
+        redirect: "if_required",
+      });
+
+      if (error) {
+        toast.error(formatSetupError(error));
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (setupIntent?.status === "succeeded" && setupIntent.payment_method) {
+        // Fetch card details via the payment method
+        const pmId = typeof setupIntent.payment_method === 'string' ? setupIntent.payment_method : setupIntent.payment_method.id;
+        
+        // We need to get the card details - use Stripe to retrieve payment method info
+        // The customer ID is on the setup intent
+        const customerId = typeof setupIntent.customer === 'string' ? setupIntent.customer : setupIntent.customer?.id || null;
+        
+        // Try to get card details from the payment method object if available
+        let cardBrand: string | null = null;
+        let cardLast4: string | null = null;
+        let cardExpMonth: number | null = null;
+        let cardExpYear: number | null = null;
+
+        if (typeof setupIntent.payment_method !== 'string' && setupIntent.payment_method?.card) {
+          const card = setupIntent.payment_method.card;
+          cardBrand = card.brand;
+          cardLast4 = card.last4;
+          cardExpMonth = card.exp_month;
+          cardExpYear = card.exp_year;
+        }
+
+        toast.success("Payment method saved successfully!");
+        onSuccess(cardBrand, cardLast4, cardExpMonth, cardExpYear, customerId);
+      }
+    } catch (err) {
+      console.error("Error saving card:", err);
+      toast.error("Failed to save payment method");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement 
+        onReady={() => setIsReady(true)}
+        options={{ layout: "tabs" }}
+      />
+      <div className="flex gap-3 pt-2">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="flex-1"
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          disabled={!stripe || !elements || isSubmitting || !isReady}
+          className="flex-1"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Save Payment Method"
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export default function Apply() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStepId, setCurrentStepId] = useState("personal");
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  
+  // Card-on-file state
+  const [cardClientSecret, setCardClientSecret] = useState<string | null>(null);
+  const [cardCustomerId, setCardCustomerId] = useState<string | null>(null);
+  const [cardSetupComplete, setCardSetupComplete] = useState(false);
+  const [cardBrand, setCardBrand] = useState<string | null>(null);
+  const [cardLast4, setCardLast4] = useState<string | null>(null);
+  const [cardExpMonth, setCardExpMonth] = useState<number | null>(null);
+  const [cardExpYear, setCardExpYear] = useState<number | null>(null);
+  const [isLoadingCardSetup, setIsLoadingCardSetup] = useState(false);
+  const [showCardForm, setShowCardForm] = useState(false);
   
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
