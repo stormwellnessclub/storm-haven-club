@@ -174,10 +174,13 @@ const STRIPE_PRODUCTS = {
     classPilatesCycling: 'price_1T2XzALyZrsSqLhs1N07i160', // $30 - Non-member Pilates/Cycling
     classOther: 'price_1SlABFLyZrsSqLhsGOpvWGFE',          // $30 - Non-member Other Classes
   },
+  kidsCare: {
+    member: 'price_1TCEyxLyZrsSqLhsHLRDNixO', // $75/mo - Kids Care Pass (Member), 4 sessions, 2hr max, auto-renew
+  },
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'create_wellness_credit_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card' | 'update_billing_anchor' | 'add_processing_fees_to_subscription';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'create_wellness_credit_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card' | 'update_billing_anchor' | 'add_processing_fees_to_subscription' | 'create_kids_care_checkout';
   // For non-member recovery checkout
   serviceName?: string;
   embedded?: boolean; // For embedded checkout mode
@@ -647,6 +650,67 @@ serve(async (req) => {
         });
 
         logStep("Class pass checkout created", { sessionId: session.id, url: session.url });
+
+        return new Response(
+          JSON.stringify({ sessionId: session.id, url: session.url }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'create_kids_care_checkout': {
+        const { successUrl, cancelUrl } = body;
+
+        if (!successUrl || !cancelUrl) {
+          throw new Error("Missing required fields for kids care checkout");
+        }
+
+        // Server-side membership verification
+        const { data: memberData } = await supabase
+          .from('members')
+          .select('id, status')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        if (!memberData) {
+          throw new Error("Active membership required to purchase Kids Care Pass");
+        }
+
+        logStep("Membership verified for Kids Care", { userId: user.id, memberId: memberData.id });
+
+        const kidsCarePrice = STRIPE_PRODUCTS.kidsCare.member;
+        const customerId = await getOrCreateCustomer();
+
+        // Save stripe_customer_id to member record
+        await supabase
+          .from('members')
+          .update({ stripe_customer_id: customerId })
+          .eq('user_id', user.id);
+
+        // Add recurring processing fee
+        const subscriptionItems = await addRecurringProcessingFeeItems(stripe, [{ price: kidsCarePrice }]);
+
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: subscriptionItems,
+          mode: 'subscription',
+          subscription_data: {
+            metadata: {
+              type: 'kids_care_pass',
+              user_id: user.id,
+              member_id: memberData.id,
+            },
+          },
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: cancelUrl,
+          metadata: {
+            type: 'kids_care_pass',
+            user_id: user.id,
+            member_id: memberData.id,
+          },
+        });
+
+        logStep("Kids Care checkout created", { sessionId: session.id, url: session.url });
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),

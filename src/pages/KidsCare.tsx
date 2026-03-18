@@ -17,12 +17,17 @@ import {
   Lock,
   Moon,
   CheckCircle2,
-  Loader2
+  Loader2,
+  CreditCard,
+  Sparkles
 } from "lucide-react";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJoinKidsCareInterest } from "@/hooks/useKidsCareInterest";
 import { useKidsCareHoursForWeek } from "@/hooks/useKidsCareHours";
+import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { formatTime12h } from "@/lib/timeFormat";
 
 // Soft launch mode - now disabled, hours are dynamic
@@ -82,7 +87,41 @@ export default function KidsCare() {
   const [submitted, setSubmitted] = useState(false);
   const { data: weeklyHours, isLoading: hoursLoading } = useKidsCareHoursForWeek(new Date());
 
+  const { data: availablePasses, isLoading: passesLoading } = useKidsCarePasses();
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+
   const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  const hasActivePass = availablePasses && availablePasses.length > 0;
+
+  const handlePurchasePass = async () => {
+    if (!user) {
+      window.location.href = "/auth";
+      return;
+    }
+
+    setPurchaseLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_kids_care_checkout",
+          successUrl: `${window.location.origin}/kids-care?success=true`,
+          cancelUrl: `${window.location.origin}/kids-care`,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to start checkout");
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
   
   // Interest form state
   const [formData, setFormData] = useState({
@@ -145,18 +184,33 @@ export default function KidsCare() {
               Focus on your wellness while your little ones enjoy supervised activities 
               in our dedicated kids care space. Available exclusively to members with a Kids Care Pass.
             </p>
-            <div className="flex items-center gap-4 p-4 bg-background border border-border rounded-sm">
-              <Lock className="w-5 h-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Kids Care Pass Required</p>
-                <p className="text-xs text-muted-foreground">
-                  Each pass covers one child only. Purchase in Class Passes.
-                </p>
+            {hasActivePass ? (
+              <div className="flex items-center gap-4 p-4 bg-accent/10 border border-accent/30 rounded-sm">
+                <CheckCircle2 className="w-5 h-5 text-accent" />
+                <div>
+                  <p className="text-sm font-medium text-accent">Kids Care Pass Active</p>
+                  <p className="text-xs text-muted-foreground">
+                    {availablePasses[0].classes_remaining} session{availablePasses[0].classes_remaining !== 1 ? "s" : ""} remaining
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="ml-auto" onClick={() => setShowBookingModal(true)}>
+                  Book Now
+                </Button>
               </div>
-              <Link to="/class-passes" className="ml-auto">
-                <Button variant="outline" size="sm">Get Pass</Button>
-              </Link>
-            </div>
+            ) : (
+              <div className="flex items-center gap-4 p-4 bg-background border border-border rounded-sm">
+                <Lock className="w-5 h-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Kids Care Pass Required</p>
+                  <p className="text-xs text-muted-foreground">
+                    $75/month per child — 4 sessions, 2hr max each, auto-renews.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="ml-auto" onClick={handlePurchasePass} disabled={purchaseLoading}>
+                  {purchaseLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Get Pass"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -245,6 +299,77 @@ export default function KidsCare() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-6">
+          <div className="max-w-lg mx-auto">
+            <SectionHeading
+              title="Kids Care Pass"
+              subtitle="Monthly subscription for members — one pass per child."
+            />
+            <div className="card-luxury p-8 text-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-bl-lg">
+                MEMBER
+              </div>
+              <Sparkles className="w-10 h-10 mx-auto mb-4 text-accent" />
+              <div className="mb-2">
+                <span className="text-4xl font-serif font-bold text-foreground">$75</span>
+                <span className="text-muted-foreground">/month</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">per child • auto-renews • cancel anytime</p>
+              <ul className="text-sm text-left space-y-3 mb-8">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                  <span>4 sessions per month (2-hour max each)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                  <span>30-day validity — sessions reset each cycle</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                  <span>Cancel anytime — no proration, no penalties</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                  <span>Add-on hours available at $15/hr per child</span>
+                </li>
+              </ul>
+              {hasActivePass ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-accent font-medium">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Pass Active — {availablePasses[0].classes_remaining} sessions left
+                  </div>
+                  <Button size="lg" className="w-full" onClick={() => setShowBookingModal(true)}>
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Book a Session
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="lg"
+                  className="w-full"
+                  onClick={handlePurchasePass}
+                  disabled={purchaseLoading || !user}
+                >
+                  {purchaseLoading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
+                  ) : (
+                    <><CreditCard className="w-4 h-4 mr-2" /> Subscribe — $75/mo</>
+                  )}
+                </Button>
+              )}
+              {!user && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  <a href="/auth" className="text-accent underline">Sign in</a> to purchase
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -397,11 +522,9 @@ export default function KidsCare() {
                       Login to Book
                     </Button>
                   )}
-                  <Link to="/class-passes">
-                    <Button variant="outline" size="lg">
-                      Purchase Kids Care Pass
-                    </Button>
-                  </Link>
+                  <Button variant="outline" size="lg" onClick={handlePurchasePass} disabled={purchaseLoading}>
+                    {purchaseLoading ? "Processing..." : "Purchase Kids Care Pass"}
+                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-4">
                   Must have active Kids Care Pass to make reservations. Each pass covers one child only.
