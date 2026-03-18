@@ -1,94 +1,121 @@
 
-# Strategic Campaign System — IMPLEMENTED
 
-## What Was Built
+## Plan: Kids Care Pass Purchase Flow + Per-Child Profiles
 
-### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
-Goal-driven campaign cards replacing the generic "Compose Campaign" button:
-
-**Guest Playbooks:**
-- **Convert to Applicant** — targets past guests who haven't applied
-- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
-- **Collect Feedback** — recent guests without feedback
-
-**Member Playbooks:**
-- **Prevent Churn** — members with past_due or frozen status
-- **Upsell Tier** — active members on lower tiers
-- **Referral Push** — active members with 0 referrals
-
-Each card shows live audience count and a "Launch Campaign" button.
-
-### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
-- Auto-queries the right segment when launched from a playbook
-- Shows recipient count and name chips with ability to remove individuals
-- Auto-loads matching email template based on goal type
-- Merge field chips for quick personalization
-
-### 3. Conversion Tracking (CampaignAnalytics.tsx)
-- `goal_type` and `goal_metadata` columns added to email_campaigns
-- Per-campaign conversion rates with 14-day attribution window
-- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
-- Summary stats: total conversions, overall conversion rate
-
-### Database Changes
-- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
+### Summary
+Two features:
+1. **Kids Care Pass subscription** — members purchase a $75/month auto-renewing pass via Stripe Checkout (4 days access, 2hr max per session, 30-day validity)
+2. **Per-child profiles** — parents register each child separately with medical/emergency info stored in the database, then select a saved child when booking
 
 ---
 
-# Kids Care System — Admin Hours + Dual Checkout + Capacity Tracking — IMPLEMENTED
+### 1. Stripe Product & Price
 
-## What Was Built
+Create a Stripe product and recurring price:
+- **Product**: "Kids Care Pass (Member)" 
+- **Price**: $75/month recurring
+- Add the price ID to `src/lib/stripeProducts.ts` under a new `kidsCare` section
 
-### 1. Database: `kids_care_hours` Table
-- `week_start`, `day_of_week`, `open_time`, `close_time`, `is_closed`, `notes`
-- Unique constraint on (week_start, day_of_week)
-- RLS: staff CRUD, authenticated read
+---
 
-### 2. New Columns on `kids_care_bookings`
-- `parent_confirmed_pickup` (boolean) — parent confirms pickup
-- `parent_confirmed_at` (timestamptz) — when confirmed
-- `room` (text) — "Little Stars" or "Big Stars"
+### 2. Database Changes
 
-### 3. Admin Hours Tab (`/admin/childcare` → Hours tab)
-- Week-by-week hour editor with forward/back navigation
-- Toggle open/closed per day, set open/close times
-- "Copy Previous Week" button
-- Save upserts to `kids_care_hours`
+**New table: `kids_care_children`**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| user_id | uuid | FK auth.users, the parent |
+| full_name | text | Child's full name |
+| date_of_birth | date | |
+| age_group | text | Auto-calculated from DOB |
+| allergies | text | |
+| medical_conditions | text | |
+| medications | text | |
+| special_instructions | text | |
+| emergency_contact_name | text | |
+| emergency_contact_phone | text | |
+| relationship_to_child | text | |
+| authorized_pickup_persons | text | |
+| photo_release | boolean | default false |
+| is_active | boolean | default true |
+| created_at / updated_at | timestamptz | |
 
-### 4. Room Capacity Dashboard (Admin Bookings tab)
-- Per-room breakdown in 2-hour time blocks
-- Color-coded: green (available), yellow (near full), red (full)
-- Shows Little Stars (cap 8) and Big Stars (cap 6)
+RLS: users can CRUD their own children; staff can read all.
 
-### 5. Dual Checkout Flow
-- Staff marks checkout via existing button
-- Admin cards show "Awaiting parent pickup confirmation" after staff checkout
-- Parents see "Confirm Pickup" button at `/member/kids-care-bookings`
-- Both timestamps visible on admin cards
+---
 
-### 6. Dynamic Public Hours (`/kids-care`)
-- Fetches current week hours from `kids_care_hours` table
-- Shows "Hours not yet published" when no hours set
-- Soft launch banner updated to reflect dynamic hours
+### 3. Edge Function Updates (`stripe-payment/index.ts`)
 
-### 7. Booking Modal Slot Filtering
-- Fetches hours for selected date
-- Shows closed/no-hours warning if day unavailable
-- Filters time slots to only show within published open/close window
-- Auto-assigns room based on age group
+Add a new action `create_kids_care_checkout`:
+- Server-side membership verification (same pattern as `create_class_pass_checkout`)
+- Creates a Stripe Checkout session in `mode: 'subscription'` with the Kids Care price ID
+- Adds recurring processing fee line item
+- Metadata: `type: 'kids_care_pass'`, `user_id`
 
-### 8. Member Portal (`/member/kids-care-bookings`)
-- View active and past Kids Care bookings
-- Confirm Pickup button for checked-out bookings
-- Cancel booking with reason dialog
+---
 
-### Files Created/Updated
-- `src/hooks/useKidsCareHours.ts` (new)
-- `src/components/admin/KidsCareHoursEditor.tsx` (new)
-- `src/components/admin/KidsCareCapacityDashboard.tsx` (new)
-- `src/pages/member/KidsCareBookings.tsx` (new)
-- `src/pages/admin/Childcare.tsx` (updated — 3 tabs)
-- `src/pages/KidsCare.tsx` (updated — dynamic hours, soft launch disabled)
-- `src/components/booking/KidsCareBookingModal.tsx` (updated — slot filtering)
-- `src/hooks/useKidsCareBooking.ts` (updated — room field, new types)
-- `src/App.tsx` (updated — new route)
+### 4. Webhook Updates (`stripe-webhook/index.ts`)
+
+Handle `kids_care_pass` metadata type on `checkout.session.completed`:
+- Insert a record into `class_passes` with `pass_type: 'kids_care'`, `category: 'other'`, `classes_total: 4`, `classes_remaining: 4`, `expires_at: now + 30 days`
+- Store the Stripe subscription ID for cancellation support
+
+Handle `invoice.payment_succeeded` for renewals:
+- Detect Kids Care subscription by price ID
+- Reset pass: `classes_remaining = 4`, extend `expires_at` by 30 days, set `status = 'active'`
+
+---
+
+### 5. Frontend: Kids Care Pass Purchase
+
+**Update `src/pages/KidsCare.tsx`**:
+- Add a "Purchase Kids Care Pass" section with pricing card ($75/mo, 4 sessions, 2hr max)
+- Purchase button calls `supabase.functions.invoke("stripe-payment", { body: { action: "create_kids_care_checkout", ... } })`
+- Show active pass status if user already has one
+
+**Update `src/pages/ClassPasses.tsx`** (optional):
+- Add a Kids Care section or link to the Kids Care page for pass purchase
+
+---
+
+### 6. Frontend: Per-Child Profiles
+
+**Create `src/hooks/useKidsCareChildren.ts`**:
+- `useKidsCareChildren()` — fetch all children for the logged-in user
+- `useAddChild()` — mutation to add a child profile
+- `useUpdateChild()` — mutation to update
+- `useDeleteChild()` — soft delete (set `is_active = false`)
+
+**Update `src/pages/member/KidsCareServiceForm.tsx`**:
+- Transform from a one-time boolean form into a child profile manager
+- Show list of registered children with edit/delete
+- "Add Child" form with all the medical/emergency fields
+- Each child saved to `kids_care_children` table
+- Still track `kids_care_service_form_completed` on profile (set to true when at least one child is registered)
+
+**Update `src/components/booking/KidsCareBookingModal.tsx`**:
+- Replace manual child name/age entry with a dropdown of registered children from `kids_care_children`
+- Auto-fill age group and room assignment from the selected child's DOB
+- "Add a new child" link if no children registered
+
+---
+
+### 7. Subscription Management
+
+- Members can cancel their Kids Care subscription via the existing Stripe Customer Portal flow
+- Add a "Manage Kids Care Pass" button on the Kids Care page that links to portal or shows cancel option
+- No proration on cancellation — access continues until the current period ends
+
+---
+
+### Files to Create/Update
+
+- **Migration**: `kids_care_children` table + RLS policies
+- **Create**: `src/hooks/useKidsCareChildren.ts`
+- **Update**: `src/lib/stripeProducts.ts` — add Kids Care price IDs
+- **Update**: `supabase/functions/stripe-payment/index.ts` — add `create_kids_care_checkout` action
+- **Update**: `supabase/functions/stripe-webhook/index.ts` — handle Kids Care pass fulfillment + renewal
+- **Update**: `src/pages/KidsCare.tsx` — add purchase section
+- **Update**: `src/pages/member/KidsCareServiceForm.tsx` — convert to per-child profile manager
+- **Update**: `src/components/booking/KidsCareBookingModal.tsx` — child selector from saved profiles
+
