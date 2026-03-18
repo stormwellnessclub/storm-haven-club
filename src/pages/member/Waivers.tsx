@@ -426,6 +426,8 @@ export default function MemberWaivers() {
                 onSign={agreement.onSign}
                 isSigning={agreement.isSigning}
                 required={false}
+                nextStepUrl={agreement.nextStepUrl}
+                nextStepLabel={agreement.nextStepLabel}
               />
             ))}
           </div>
