@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useKidsCareChildren, useAddChild, useUpdateChild, useDeleteChild, type AddChildData, type KidsCareChild } from "@/hooks/useKidsCareChildren";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2, Baby, Check } from "lucide-react";
 import {
