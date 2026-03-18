@@ -936,6 +936,50 @@ export default function Apply() {
                   </div>
                 </div>
               </div>
+
+              {/* Skip Tour / Activate Immediately Option */}
+              <div className="mt-6 pt-6 border-t border-border">
+                <div className="flex items-start gap-3 mb-3">
+                  <Checkbox
+                    id="skipTourActivateImmediately"
+                    checked={formData.skipTourActivateImmediately}
+                    onCheckedChange={(checked) => handleCheckboxChange("skipTourActivateImmediately", checked as boolean)}
+                  />
+                  <Label htmlFor="skipTourActivateImmediately" className="font-medium cursor-pointer text-sm">
+                    I do not need a tour scheduled and would like my membership activated upon approval.
+                  </Label>
+                </div>
+
+                {formData.skipTourActivateImmediately && (
+                  <Card className="ml-6 border-accent/30 bg-accent/5">
+                    <CardContent className="pt-4 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        By selecting this option, you are confirming that you are ready to begin your membership immediately upon approval without a private walkthrough. This means:
+                      </p>
+                      <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5">
+                        <li>Your <strong className="text-foreground">initiation fee</strong> will be charged upon activation (non-refundable).</li>
+                        <li>Your <strong className="text-foreground">monthly dues</strong> will begin immediately based on your selected membership tier.</li>
+                        <li>You acknowledge the <strong className="text-foreground">minimum one-year commitment</strong> and understand that early cancellation is subject to the terms outlined in the Membership Agreement.</li>
+                        <li>You agree to the <strong className="text-foreground">Membership Agreement</strong> and <strong className="text-foreground">Liability Waiver</strong> terms as provided.</li>
+                      </ul>
+
+                      {/* Liability Waiver Acknowledgment */}
+                      <div className="pt-2 border-t border-border">
+                        <LiabilityWaiverSection
+                          isSigned={formData.liabilityWaiverSigned}
+                          onCheckboxChange={(checked) => handleCheckboxChange("liabilityWaiverSigned", checked as boolean)}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {!formData.skipTourActivateImmediately && (
+                  <p className="text-xs text-muted-foreground ml-6 italic">
+                    If you prefer a tour first, simply leave this unchecked — we'll reach out to schedule one after approval.
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Validation Summary with Submit */}
