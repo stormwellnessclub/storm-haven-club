@@ -95,6 +95,10 @@ export default function Support() {
               <Sparkles className="h-4 w-4" />
               Club Concierge
             </TabsTrigger>
+            <TabsTrigger value="kids-care" className="gap-2">
+              <Baby className="h-4 w-4" />
+              Kids Care
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="support">
