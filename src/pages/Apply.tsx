@@ -708,6 +708,11 @@ export default function Apply() {
       return;
     }
 
+    if (formData.skipTourActivateImmediately && !cardSetupComplete) {
+      toast.error("A payment method is required for immediate activation. Please add a card on file.");
+      return;
+    }
+
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
       toast.error(dupeCheck.message);
