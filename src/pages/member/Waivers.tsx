@@ -135,6 +135,8 @@ interface AgreementConfig {
   isSigning: boolean;
   requiredForMembers: boolean;
   requiredForNonMembers: boolean;
+  nextStepUrl?: string;
+  nextStepLabel?: string;
 }
 
 export default function MemberWaivers() {
