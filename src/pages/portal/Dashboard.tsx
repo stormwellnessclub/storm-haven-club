@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CalendarPlus, Ticket, Zap, CreditCard, Calendar } from "lucide-react";
+import { CalendarPlus, Ticket, Zap, CreditCard, Calendar, Gift } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, parseISO, differenceInDays } from "date-fns";
@@ -57,6 +57,23 @@ export default function PortalDashboard() {
         .eq("user_id", user!.id)
         .eq("status", "active")
         .gt("classes_remaining", 0)
+        .order("expires_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  // Get active guest passes for this user
+  const { data: guestPasses = [], isLoading: guestPassesLoading } = useQuery({
+    queryKey: ["portal-guest-passes", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("guest_passes")
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
         .order("expires_at", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -193,7 +210,37 @@ export default function PortalDashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Guest Passes */}
+        {!guestPassesLoading && guestPasses.length > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Guest Passes</CardTitle>
+              <Badge variant="secondary">{guestPasses.length} active</Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {guestPasses.map((pass: any) => {
+                  const daysLeft = differenceInDays(parseISO(pass.expires_at), new Date());
+                  return (
+                    <div key={pass.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                      <div className="flex items-center gap-3">
+                        <Gift className="h-5 w-5 text-accent shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm">Guest Pass</p>
+                          <p className={`text-xs ${daysLeft <= 7 ? "text-destructive" : "text-muted-foreground"}`}>
+                            Expires {format(parseISO(pass.expires_at), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge>Active</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div>
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

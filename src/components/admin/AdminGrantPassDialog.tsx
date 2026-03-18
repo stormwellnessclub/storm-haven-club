@@ -36,6 +36,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   const [guestName, setGuestName] = useState(prefill?.name || "");
   const [guestEmail, setGuestEmail] = useState(prefill?.email || "");
   const [quantity, setQuantity] = useState(1);
+  const [guestPassQuantity, setGuestPassQuantity] = useState(1);
   const [expiresAt, setExpiresAt] = useState<Date>(addDays(new Date(), 30));
   const [notes, setNotes] = useState("");
   // Class pass specific
@@ -46,19 +47,20 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
     mutationFn: async () => {
       if (grantType === "guest_pass") {
         if (!guestName.trim()) throw new Error("Guest name is required");
+        const passesToInsert = Array.from({ length: guestPassQuantity }, () => ({
+          guest_name: guestName.trim(),
+          guest_email: guestEmail.trim() || null,
+          price_paid: 0,
+          status: "active",
+          purchased_at: new Date().toISOString(),
+          expires_at: expiresAt.toISOString(),
+          valid_date: null,
+          member_referral: notes.trim() || "Admin Granted",
+          user_id: prefill?.userId || null,
+        }));
         const { error } = await (supabase
           .from("guest_passes" as any)
-          .insert({
-            guest_name: guestName.trim(),
-            guest_email: guestEmail.trim() || null,
-            price_paid: 0,
-            status: "active",
-            purchased_at: new Date().toISOString(),
-            expires_at: expiresAt.toISOString(),
-            valid_date: null,
-            member_referral: notes.trim() || "Admin Granted",
-            user_id: prefill?.userId || null,
-          }) as any);
+          .insert(passesToInsert) as any);
         if (error) throw error;
       } else if (grantType === "class_pass") {
         if (!prefill?.userId) throw new Error("User ID required for class passes");
@@ -101,6 +103,8 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
       queryClient.invalidateQueries({ queryKey: ["member-class-passes-admin"] });
       queryClient.invalidateQueries({ queryKey: ["admin-nonmember-passes"] });
       queryClient.invalidateQueries({ queryKey: ["admin-nonmember-wellness-credits"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-guest-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["portal-guest-passes"] });
       onSuccess?.();
       onOpenChange(false);
       resetForm();
@@ -113,6 +117,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
     setGuestName(prefill?.name || "");
     setGuestEmail(prefill?.email || "");
     setQuantity(1);
+    setGuestPassQuantity(1);
     setExpiresAt(addDays(new Date(), 30));
     setNotes("");
     setClassCategory("pilates_cycling");
@@ -168,6 +173,10 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Guest Email</Label>
                 <Input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Optional" type="email" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Quantity</Label>
+                <Input type="number" min={1} max={20} value={guestPassQuantity} onChange={(e) => setGuestPassQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
               </div>
             </>
           )}
@@ -242,7 +251,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
             disabled={grantMutation.isPending || (grantType === "guest_pass" && !guestName.trim())}
           >
             {grantMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Gift className="h-4 w-4 mr-1" />}
-            Grant {typeLabel[grantType]}
+            Grant {grantType === "guest_pass" && guestPassQuantity > 1 ? `${guestPassQuantity} Guest Passes` : typeLabel[grantType]}
           </Button>
         </DialogFooter>
       </DialogContent>
