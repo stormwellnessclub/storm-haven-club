@@ -89,12 +89,14 @@ export function useUserCredits() {
 
       if (isMember && memberId) {
         // Use member_id instead of user_id for credits query
+        // Order by expires_at DESC so newest/current-cycle credits are picked first
         const { data: credits, error: creditsError } = await supabase
           .from("member_credits")
           .select("*")
           .eq("member_id", memberId)
           .gt("expires_at", now)
-          .order("expires_at", { ascending: true });
+          .gt("credits_remaining", 0)
+          .order("cycle_start", { ascending: false });
 
         if (creditsError) {
           console.error("[useUserCredits] Error fetching credits:", creditsError);
