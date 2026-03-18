@@ -113,8 +113,8 @@ serve(async (req) => {
         continue;
       }
 
-      // Calculate new cycle dates
-      const cycleStart = today;
+      // Use the member's actual billing anniversary date as cycle start
+      const cycleStart = new Date(today.getFullYear(), today.getMonth(), effectiveStartDay);
       const nextCycleStart = addMonths(cycleStart, 1);
       const cycleEnd = subDays(nextCycleStart, 1);
       const expiresAt = endOfDay(cycleEnd);
