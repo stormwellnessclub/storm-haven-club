@@ -1604,6 +1604,74 @@ serve(async (req) => {
             break;
           }
 
+          // Check if this is a Kids Care Pass renewal
+          const kidsCarePassPriceId = 'price_1TCEyxLyZrsSqLhsHLRDNixO';
+          const isKidsCareInvoice = invoice.lines?.data?.some((line: Stripe.InvoiceLineItem) =>
+            line.price && line.price.id === kidsCarePassPriceId
+          ) || false;
+
+          if (isKidsCareInvoice) {
+            logStep("Kids Care Pass renewal detected", { subscriptionId: invoice.subscription });
+
+            // Find the subscription to get user_id from metadata
+            try {
+              const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+              const subUserId = subscription.metadata?.user_id;
+              const subMemberId = subscription.metadata?.member_id;
+
+              if (subUserId) {
+                // Reset or create kids care pass: 4 sessions, 30-day expiry
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + 30);
+
+                // Try to find existing active kids_care pass and reset it
+                const { data: existingPass } = await supabase
+                  .from('class_passes')
+                  .select('id')
+                  .eq('user_id', subUserId)
+                  .eq('pass_type', 'kids_care')
+                  .eq('status', 'active')
+                  .order('created_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+
+                if (existingPass) {
+                  // Reset existing pass
+                  await supabase
+                    .from('class_passes')
+                    .update({
+                      classes_remaining: 4,
+                      classes_total: 4,
+                      expires_at: expiresAt.toISOString(),
+                      status: 'active',
+                    })
+                    .eq('id', existingPass.id);
+                  logStep("Kids Care Pass renewed (reset existing)", { passId: existingPass.id });
+                } else {
+                  // Create new pass
+                  await supabase
+                    .from('class_passes')
+                    .insert({
+                      user_id: subUserId,
+                      member_id: subMemberId || null,
+                      category: 'other',
+                      pass_type: 'kids_care',
+                      classes_total: 4,
+                      classes_remaining: 4,
+                      price_paid: 75,
+                      is_member_price: true,
+                      expires_at: expiresAt.toISOString(),
+                      status: 'active',
+                    });
+                  logStep("Kids Care Pass renewed (created new)", { userId: subUserId });
+                }
+              }
+            } catch (renewError) {
+              logError(renewError, "KIDS_CARE_RENEWAL");
+            }
+            // Don't break — continue to process payment attempt logging below
+          }
+
           // Check if this is an annual fee subscription or membership subscription
           // Annual fee subscriptions: price_1SlA2BLyZrsSqLhs8VX17F0C (women), price_1SlA2RLyZrsSqLhsK3XQuANN (men)
           const annualFeePriceIds = ['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN'];
