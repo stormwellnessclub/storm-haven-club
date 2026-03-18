@@ -166,7 +166,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
     }
 
     try {
-      await bookKidsCare.mutateAsync({
+      const booking = await bookKidsCare.mutateAsync({
         childName: resolvedChildName,
         childAge: ageNum,
         childDob: selectedChild?.date_of_birth ? new Date(selectedChild.date_of_birth) : undefined,
@@ -176,6 +176,15 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
         specialInstructions: specialInstructions || selectedChild?.special_instructions || undefined,
         parentNotes: parentNotes || undefined,
         passId: selectedPassId,
+      });
+
+      // Show confirmation
+      setConfirmedBooking({
+        childName: resolvedChildName,
+        date: format(selectedDate, "EEEE, MMMM d, yyyy"),
+        startTime: selectedStartTime,
+        endTime: selectedEndTime,
+        room: booking?.room || (["Infants", "Toddlers"].includes(booking?.age_group || "") ? "Little Stars" : "Big Stars"),
       });
 
       // Reset form
@@ -188,7 +197,6 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
       setSelectedPassId("");
       setSpecialInstructions("");
       setParentNotes("");
-      onOpenChange(false);
     } catch (error: any) {
       console.error("Booking error:", error);
       // Error toast is handled by the hook
