@@ -271,63 +271,77 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
               </Select>
             </div>
 
-            {/* Child Information */}
+            {/* Child Selection */}
             <div className="space-y-4">
-              <h4 className="font-semibold">Child Information</h4>
+              <h4 className="font-semibold">Select Child</h4>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Child's Name *</Label>
-                  <Input
-                    placeholder="Child's full name"
-                    value={childName}
-                    onChange={(e) => setChildName(e.target.value)}
-                  />
+              {childrenLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading saved profiles...
                 </div>
-
+              ) : savedChildren && savedChildren.length > 0 ? (
                 <div className="space-y-2">
-                  <Label>Age (in years) *</Label>
-                  <Input
-                    type="number"
-                    step="0.25"
-                    min="0.25"
-                    max="10"
-                    placeholder="e.g., 2.5"
-                    value={childAge}
-                    onChange={(e) => setChildAge(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Age: 3 months (0.25) to 10 years
-                  </p>
+                  <Label>Registered Child *</Label>
+                  <Select value={selectedChildId} onValueChange={(value) => {
+                    setSelectedChildId(value);
+                    const child = savedChildren.find(c => c.id === value);
+                    if (child) {
+                      setChildName(child.full_name);
+                      if (child.date_of_birth) {
+                        const dob = new Date(child.date_of_birth);
+                        const ageDiff = Date.now() - dob.getTime();
+                        const ageYears = (ageDiff / (1000 * 60 * 60 * 24 * 365.25)).toFixed(1);
+                        setChildAge(ageYears);
+                      }
+                    }
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a child" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {savedChildren.map((child) => {
+                        let ageLabel = "";
+                        if (child.date_of_birth) {
+                          const dob = new Date(child.date_of_birth);
+                          const ageYears = (Date.now() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+                          ageLabel = ageYears < 1 
+                            ? ` — ${Math.round(ageYears * 12)} months` 
+                            : ` — ${ageYears.toFixed(1)} years`;
+                        }
+                        return (
+                          <SelectItem key={child.id} value={child.id}>
+                            {child.full_name}{ageLabel}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => { navigate("/member/kids-care-service-form"); onOpenChange(false); }}
+                  >
+                    + Add a new child profile
+                  </Button>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Date of Birth (Optional)</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
+              ) : (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    No children registered yet.{" "}
                     <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !childDob && "text-muted-foreground"
-                      )}
+                      variant="link"
+                      className="h-auto p-0 underline font-semibold"
+                      onClick={() => { navigate("/member/kids-care-service-form"); onOpenChange(false); }}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {childDob ? format(childDob, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={childDob}
-                      onSelect={setChildDob}
-                      disabled={(date) => date > new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+                      Add a child profile
+                    </Button>{" "}
+                    to continue.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
 
             {/* Booking Details */}
