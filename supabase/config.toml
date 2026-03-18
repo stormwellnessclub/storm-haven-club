@@ -83,3 +83,7 @@ verify_jwt = false
 [functions.get-autopay-dates]
 enabled = true
 verify_jwt = false
+
+[functions.send-push-notification]
+enabled = true
+verify_jwt = false
