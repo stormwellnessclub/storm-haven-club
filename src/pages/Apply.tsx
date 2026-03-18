@@ -20,15 +20,6 @@ import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { formatSetupError } from "@/lib/stripeErrors";
-import { Link, useSearchParams, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAgreements } from "@/hooks/useAgreements";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ApplicationProgress, getStepCompletion, APPLICATION_STEPS } from "@/components/ApplicationProgress";
-import { ApplicationValidationSummary } from "@/components/ApplicationValidationSummary";
-import { DraftSaveIndicator } from "@/components/DraftSaveIndicator";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { resolvePdfUrl } from "@/lib/pdfAssets";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
