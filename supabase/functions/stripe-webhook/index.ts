@@ -552,6 +552,60 @@ serve(async (req) => {
               return errorResponse(passError, "CLASS_PASS_CREATION");
             }
 
+          } else if (metadata.type === 'kids_care_pass') {
+            // Handle Kids Care Pass subscription purchase
+            const userId = metadata.user_id;
+            const memberId = metadata.member_id;
+
+            if (!userId) {
+              logError("Missing user_id in kids_care_pass metadata", "KIDS_CARE_PASS");
+              return errorResponse(new Error("Missing user_id"), "KIDS_CARE_PASS");
+            }
+
+            try {
+              // Calculate expiry: 30 days from now
+              const expiresAt = new Date();
+              expiresAt.setDate(expiresAt.getDate() + 30);
+
+              // Create a kids_care pass in class_passes
+              const { error: passError } = await supabase
+                .from('class_passes')
+                .insert({
+                  user_id: userId,
+                  member_id: memberId || null,
+                  category: 'other',
+                  pass_type: 'kids_care',
+                  classes_total: 4,
+                  classes_remaining: 4,
+                  price_paid: session.amount_total ? session.amount_total / 100 : 75,
+                  is_member_price: true,
+                  expires_at: expiresAt.toISOString(),
+                  status: 'active',
+                });
+
+              if (passError) {
+                logError(passError, "KIDS_CARE_PASS_CREATION");
+                return errorResponse(passError, "KIDS_CARE_PASS_CREATION");
+              }
+
+              // Mark service form as completed if not already
+              if (userId) {
+                try {
+                  await supabase
+                    .from('profiles')
+                    .update({ kids_care_service_form_completed: true })
+                    .eq('user_id', userId);
+                } catch (profileErr) {
+                  logStep("Warning: Could not update profile kids_care flag", { error: String(profileErr) });
+                }
+              }
+
+              logStep("Kids Care Pass created", { userId, memberId, expiresAt: expiresAt.toISOString() });
+            } catch (passError) {
+              logError(passError, "KIDS_CARE_PASS_CREATION");
+              return errorResponse(passError, "KIDS_CARE_PASS_CREATION");
+            }
+
           } else if (metadata.type === 'guest_pass') {
             // Handle guest pass purchase
             const userId = metadata.user_id; // Admin user who sold the pass
