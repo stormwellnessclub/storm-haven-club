@@ -2273,7 +2273,8 @@ export default function MemberDetail() {
                 <div className="space-y-2">
                   <Label>Payment Method</Label>
                   {(() => {
-                    const classCredit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0);
+                    const now = new Date().toISOString();
+                    const classCredit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0 && c.expires_at > now);
                     const activePasses = memberClassPasses.filter((p: any) => p.status === 'active' && p.classes_remaining > 0 && new Date(p.expires_at) > new Date());
                     const hasCredits = !!classCredit;
                     const hasPasses = activePasses.length > 0;
