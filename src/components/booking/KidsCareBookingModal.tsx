@@ -123,16 +123,27 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
       return;
     }
 
-    // Validation
-    if (!childName.trim()) {
-      toast.error("Please enter child's name");
+    // Resolve child info from saved profile
+    const selectedChild = savedChildren?.find(c => c.id === selectedChildId);
+    const resolvedChildName = selectedChild?.full_name || childName.trim();
+    
+    if (!resolvedChildName) {
+      toast.error("Please select a child");
       return;
     }
 
-    const ageNum = parseFloat(childAge);
-    if (!childAge || isNaN(ageNum) || ageNum < 0.25 || ageNum > 10) {
-      toast.error("Please enter a valid age (3 months to 10 years)");
-      return;
+    // Calculate age from DOB
+    let ageNum = 0;
+    if (selectedChild?.date_of_birth) {
+      const dob = new Date(selectedChild.date_of_birth);
+      const ageDiff = Date.now() - dob.getTime();
+      ageNum = ageDiff / (1000 * 60 * 60 * 24 * 365.25);
+    } else {
+      ageNum = parseFloat(childAge);
+      if (!childAge || isNaN(ageNum) || ageNum < 0.25 || ageNum > 10) {
+        toast.error("Please enter a valid age (3 months to 10 years)");
+        return;
+      }
     }
 
     if (!selectedDate) {
