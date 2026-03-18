@@ -3471,6 +3471,7 @@ export type Database = {
           holistic_wellness: string | null
           id: string
           last_name: string
+          liability_waiver_signed: boolean | null
           lifestyle_integration: string | null
           membership_agreement_signed: boolean
           membership_plan: string
@@ -3486,6 +3487,7 @@ export type Database = {
           previous_member: string | null
           referred_by_member: string
           services_interested: string[]
+          skip_tour_activate_immediately: boolean | null
           state: string
           status: string
           stripe_customer_id: string | null
@@ -3516,6 +3518,7 @@ export type Database = {
           holistic_wellness?: string | null
           id?: string
           last_name: string
+          liability_waiver_signed?: boolean | null
           lifestyle_integration?: string | null
           membership_agreement_signed?: boolean
           membership_plan: string
@@ -3531,6 +3534,7 @@ export type Database = {
           previous_member?: string | null
           referred_by_member: string
           services_interested?: string[]
+          skip_tour_activate_immediately?: boolean | null
           state: string
           status?: string
           stripe_customer_id?: string | null
@@ -3561,6 +3565,7 @@ export type Database = {
           holistic_wellness?: string | null
           id?: string
           last_name?: string
+          liability_waiver_signed?: boolean | null
           lifestyle_integration?: string | null
           membership_agreement_signed?: boolean
           membership_plan?: string
@@ -3576,6 +3581,7 @@ export type Database = {
           previous_member?: string | null
           referred_by_member?: string
           services_interested?: string[]
+          skip_tour_activate_immediately?: boolean | null
           state?: string
           status?: string
           stripe_customer_id?: string | null
