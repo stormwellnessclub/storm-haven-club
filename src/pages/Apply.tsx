@@ -344,78 +344,199 @@ function LiabilityWaiverSection({ isSigned, onCheckboxChange }: { isSigned: bool
   );
 }
 
-// Inner form component for inline Stripe card setup
-function InlinePaymentFormInner({ 
+// Hardened payment form for applicant card capture (no nested <form>, robust error/loading handling)
+const CARD_LOADING_MESSAGES = [
+  "Preparing secure checkout...",
+  "Setting up encryption...",
+  "Loading payment form...",
+  "Almost ready...",
+];
+
+function ApplicantPaymentFormInner({ 
   onSuccess, 
   onCancel,
+  customerId,
+  clientSecret,
 }: { 
   onSuccess: (cardBrand: string | null, cardLast4: string | null, cardExpMonth: number | null, cardExpYear: number | null, customerId: string | null) => void; 
   onCancel: () => void;
+  customerId: string | null;
+  clientSecret: string;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
+  // Cycle loading messages while form loads
+  useEffect(() => {
+    if (!isReady) {
+      const interval = setInterval(() => {
+        setLoadingMsgIdx(prev => (prev + 1) % CARD_LOADING_MESSAGES.length);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isReady]);
+
+  const handleSave = async () => {
+    setError(null);
+    if (!stripe || !elements) {
+      setError("Payment form not ready. Please wait...");
+      return;
+    }
 
     setIsSubmitting(true);
 
     try {
-      const { error, setupIntent } = await stripe.confirmSetup({
-        elements,
-        confirmParams: {
-          return_url: window.location.href,
-        },
-        redirect: "if_required",
-      });
-
-      if (error) {
-        toast.error(formatSetupError(error));
+      // Validate form first
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setError(submitError.message || "Please complete the payment form");
         setIsSubmitting(false);
         return;
       }
 
-      if (setupIntent?.status === "succeeded" && setupIntent.payment_method) {
-        // Fetch card details via the payment method
-        const pmId = typeof setupIntent.payment_method === 'string' ? setupIntent.payment_method : setupIntent.payment_method.id;
-        
-        // We need to get the card details - use Stripe to retrieve payment method info
-        // Customer ID is tracked by the parent component when the setup intent was created
-        
-        // Try to get card details from the payment method object if available
-        let cardBrand: string | null = null;
-        let cardLast4: string | null = null;
-        let cardExpMonth: number | null = null;
-        let cardExpYear: number | null = null;
+      const { error: confirmError, setupIntent } = await stripe.confirmSetup({
+        elements,
+        clientSecret,
+        redirect: "if_required",
+        confirmParams: {
+          return_url: window.location.href,
+        },
+      });
 
-        if (typeof setupIntent.payment_method !== 'string' && setupIntent.payment_method?.card) {
-          const card = setupIntent.payment_method.card;
-          cardBrand = card.brand;
-          cardLast4 = card.last4;
-          cardExpMonth = card.exp_month;
-          cardExpYear = card.exp_year;
-        }
-
-        toast.success("Payment method saved successfully!");
-        onSuccess(cardBrand, cardLast4, cardExpMonth, cardExpYear, null);
+      if (confirmError) {
+        setError(formatSetupError(confirmError));
+        setIsSubmitting(false);
+        return;
       }
+
+      if (!setupIntent) {
+        setError("Setup failed - no response. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (setupIntent.status !== "succeeded") {
+        setError(`Payment setup incomplete (status: ${setupIntent.status}). Please try again.`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const paymentMethodId = typeof setupIntent.payment_method === "string" 
+        ? setupIntent.payment_method 
+        : (setupIntent.payment_method as any)?.id;
+
+      if (!paymentMethodId) {
+        setError("Card setup completed but payment method was not saved. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Fetch card details with retry logic (Stripe eventual consistency)
+      let cardBrand: string | null = null;
+      let cardLast4: string | null = null;
+      let cardExpMonth: number | null = null;
+      let cardExpYear: number | null = null;
+
+      const maxAttempts = 4;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const delay = attempt === 1 ? 2000 : attempt === 2 ? 2000 : attempt === 3 ? 2500 : 3000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        try {
+          console.log(`[ApplicantPayment] Attempt ${attempt}/${maxAttempts} - Fetching card details`);
+          const { data: pmData, error: pmError } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "list_application_payment_methods",
+              stripeCustomerId: customerId,
+            },
+          });
+
+          if (pmError) {
+            console.error(`[ApplicantPayment] Attempt ${attempt} - Error:`, pmError);
+            continue;
+          }
+
+          if (pmData?.paymentMethods?.[0]) {
+            const card = pmData.paymentMethods[0];
+            cardBrand = card.brand || null;
+            cardLast4 = card.last4 || null;
+            cardExpMonth = card.expMonth || null;
+            cardExpYear = card.expYear || null;
+            console.log("[ApplicantPayment] Got card details:", { cardBrand, cardLast4 });
+            break;
+          }
+        } catch (err) {
+          console.error(`[ApplicantPayment] Attempt ${attempt} - Exception:`, err);
+        }
+      }
+
+      // If we still don't have card details, try from the payment method object
+      if (!cardBrand && typeof setupIntent.payment_method !== 'string' && setupIntent.payment_method?.card) {
+        const card = setupIntent.payment_method.card;
+        cardBrand = card.brand;
+        cardLast4 = card.last4;
+        cardExpMonth = card.exp_month;
+        cardExpYear = card.exp_year;
+      }
+
+      toast.success("Payment method saved successfully!");
+      onSuccess(cardBrand, cardLast4, cardExpMonth, cardExpYear, customerId);
     } catch (err) {
       console.error("Error saving card:", err);
-      toast.error("Failed to save payment method");
+      setError("Failed to save payment method. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement 
-        onReady={() => setIsReady(true)}
-        options={{ layout: "tabs" }}
-      />
+    <div className="space-y-4">
+      <div className="min-h-[300px] relative">
+        {/* Loading overlay */}
+        {!isReady && !error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+            <div className="text-center space-y-4">
+              <div className="relative">
+                <div className="w-16 h-16 mx-auto rounded-full border-4 border-accent/20 border-t-accent animate-spin" />
+                <CreditCard className="w-6 h-6 text-accent absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <p className="text-sm text-muted-foreground animate-pulse">
+                {CARD_LOADING_MESSAGES[loadingMsgIdx]}
+              </p>
+            </div>
+          </div>
+        )}
+        {/* Error overlay */}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
+            <div className="text-center p-4">
+              <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
+              <p className="text-sm text-destructive mb-2">{error}</p>
+              <Button type="button" variant="outline" onClick={() => {
+                setError(null);
+                setIsReady(false);
+              }}>
+                Try Again
+              </Button>
+            </div>
+          </div>
+        )}
+        <div tabIndex={-1}>
+          <PaymentElement 
+            onReady={() => setIsReady(true)}
+            onLoadError={(loadError) => {
+              const msg = loadError.error?.message || "Unknown error";
+              setError(`Failed to load payment form: ${msg}`);
+              setIsReady(false);
+            }}
+            options={{ layout: "tabs" }}
+          />
+        </div>
+      </div>
       <div className="flex gap-3 pt-2">
         <Button 
           type="button" 
@@ -427,7 +548,8 @@ function InlinePaymentFormInner({
           Cancel
         </Button>
         <Button 
-          type="submit" 
+          type="button"
+          onClick={handleSave}
           disabled={!stripe || !elements || isSubmitting || !isReady}
           className="flex-1"
         >
@@ -441,7 +563,7 @@ function InlinePaymentFormInner({
           )}
         </Button>
       </div>
-    </form>
+    </div>
   );
 }
 
