@@ -56,6 +56,8 @@ const initialFormData = {
   foundingMember: "",
   membershipAgreementSigned: false,
   oneYearCommitment: false,
+  skipTourActivateImmediately: false,
+  liabilityWaiverSigned: false,
 };
 
 // Save to BOTH storages for maximum reliability on mobile
@@ -267,6 +269,77 @@ function MembershipAgreementSection({ isSigned, onCheckboxChange }: MembershipAg
   );
 }
 
+function LiabilityWaiverSection({ isSigned, onCheckboxChange }: { isSigned: boolean; onCheckboxChange: (checked: boolean) => void }) {
+  const { data: waiverAgreements, isLoading } = useAgreements("liability_waiver");
+  const isMobile = useIsMobile();
+
+  const pdfUrls = waiverAgreements?.map((a) => a.pdf_url).filter(Boolean) || [];
+
+  const downloadPdf = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 100);
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-semibold text-foreground">Liability Waiver</p>
+      {isLoading ? (
+        <div className="flex items-center gap-2 py-4">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading waiver...</span>
+        </div>
+      ) : pdfUrls.length > 0 ? (
+        <div className="space-y-2">
+          {pdfUrls.map((url, index) => {
+            const resolvedUrl = resolvePdfUrl(url);
+            const filename = typeof url === 'string' ? (url.split('/').pop() || 'liability-waiver.pdf') : `waiver-${index + 1}.pdf`;
+            return (
+              <div key={index} className="flex flex-col items-center gap-2 p-4 rounded-lg border bg-muted/30">
+                <FileText className="h-8 w-8 text-accent" />
+                <p className="text-sm font-medium">Liability Waiver</p>
+                <div className={`flex gap-2 w-full ${isMobile ? 'flex-col' : 'flex-row justify-center'}`}>
+                  <Button size="sm" className="gap-2" onClick={() => downloadPdf(resolvedUrl, filename)}>
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2" asChild>
+                    <a href={resolvedUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      Open
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+      <div className="flex items-start gap-3 p-3 rounded-lg border bg-secondary/30">
+        <Checkbox
+          id="liabilityWaiver"
+          checked={isSigned}
+          onCheckedChange={onCheckboxChange}
+          required
+        />
+        <Label htmlFor="liabilityWaiver" className="font-normal cursor-pointer text-sm leading-relaxed">
+          I have read, understand, and agree to the Liability Waiver. I acknowledge and accept all risks associated with using the facilities. *
+        </Label>
+      </div>
+    </div>
+  );
+}
+
 export default function Apply() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -391,6 +464,11 @@ export default function Apply() {
       return;
     }
 
+    if (formData.skipTourActivateImmediately && !formData.liabilityWaiverSigned) {
+      toast.error("Please sign the liability waiver to proceed with immediate activation.");
+      return;
+    }
+
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
       toast.error(dupeCheck.message);
@@ -464,6 +542,8 @@ export default function Apply() {
         payment_info_provided: false,
         one_year_commitment: formData.oneYearCommitment,
         membership_agreement_signed: formData.membershipAgreementSigned,
+        skip_tour_activate_immediately: formData.skipTourActivateImmediately,
+        liability_waiver_signed: formData.liabilityWaiverSigned,
         status: "pending",
       };
 
@@ -926,6 +1006,50 @@ export default function Apply() {
                     </Label>
                   </div>
                 </div>
+              </div>
+
+              {/* Skip Tour / Activate Immediately Option */}
+              <div className="mt-6 pt-6 border-t border-border">
+                <div className="flex items-start gap-3 mb-3">
+                  <Checkbox
+                    id="skipTourActivateImmediately"
+                    checked={formData.skipTourActivateImmediately}
+                    onCheckedChange={(checked) => handleCheckboxChange("skipTourActivateImmediately", checked as boolean)}
+                  />
+                  <Label htmlFor="skipTourActivateImmediately" className="font-medium cursor-pointer text-sm">
+                    I do not need a tour scheduled and would like my membership activated upon approval.
+                  </Label>
+                </div>
+
+                {formData.skipTourActivateImmediately && (
+                  <Card className="ml-6 border-accent/30 bg-accent/5">
+                    <CardContent className="pt-4 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        By selecting this option, you are confirming that you are ready to begin your membership immediately upon approval without a private walkthrough. This means:
+                      </p>
+                      <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5">
+                        <li>Your <strong className="text-foreground">initiation fee</strong> will be charged upon activation (non-refundable).</li>
+                        <li>Your <strong className="text-foreground">monthly dues</strong> will begin immediately based on your selected membership tier.</li>
+                        <li>You acknowledge the <strong className="text-foreground">minimum one-year commitment</strong> and understand that early cancellation is subject to the terms outlined in the Membership Agreement.</li>
+                        <li>You agree to the <strong className="text-foreground">Membership Agreement</strong> and <strong className="text-foreground">Liability Waiver</strong> terms as provided.</li>
+                      </ul>
+
+                      {/* Liability Waiver Acknowledgment */}
+                      <div className="pt-2 border-t border-border">
+                        <LiabilityWaiverSection
+                          isSigned={formData.liabilityWaiverSigned}
+                          onCheckboxChange={(checked) => handleCheckboxChange("liabilityWaiverSigned", checked as boolean)}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {!formData.skipTourActivateImmediately && (
+                  <p className="text-xs text-muted-foreground ml-6 italic">
+                    If you prefer a tour first, simply leave this unchecked — we'll reach out to schedule one after approval.
+                  </p>
+                )}
               </div>
             </div>
 

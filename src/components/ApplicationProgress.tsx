@@ -162,6 +162,8 @@ export function getStepCompletion(
     foundingMember: string;
     membershipAgreementSigned: boolean;
     oneYearCommitment: boolean;
+    skipTourActivateImmediately: boolean;
+    liabilityWaiverSigned: boolean;
   },
   stripeCustomerId?: string | null,
   isCardConfirmed?: boolean
@@ -202,7 +204,8 @@ export function getStepCompletion(
       case "agreements":
         isComplete = !!(
           formData.membershipAgreementSigned &&
-          formData.oneYearCommitment
+          formData.oneYearCommitment &&
+          (!formData.skipTourActivateImmediately || formData.liabilityWaiverSigned)
         );
         break;
     }

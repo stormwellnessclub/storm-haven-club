@@ -1,38 +1,34 @@
 
+# Strategic Campaign System — IMPLEMENTED
 
-## Plan: Add "Skip Tour / Activate Upon Approval" Option to Application
+## What Was Built
 
-### What Changes
+### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
+Goal-driven campaign cards replacing the generic "Compose Campaign" button:
 
-In the **Agreements** section (Step 7) of `Apply.tsx`, add a new checkbox option below the one-year commitment:
+**Guest Playbooks:**
+- **Convert to Applicant** — targets past guests who haven't applied
+- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
+- **Collect Feedback** — recent guests without feedback
 
-**New checkbox and verbiage:**
+**Member Playbooks:**
+- **Prevent Churn** — members with past_due or frozen status
+- **Upsell Tier** — active members on lower tiers
+- **Referral Push** — active members with 0 referrals
 
-> **☐ I do not need a tour scheduled and would like my membership activated upon approval.**
->
-> By selecting this option, you are confirming that you are ready to begin your membership immediately upon approval without a private walkthrough. This means:
->
-> - Your **initiation fee** will be charged upon activation (non-refundable).
-> - Your **monthly dues** will begin immediately based on your selected membership tier.
-> - You acknowledge the **minimum one-year commitment** and understand that early cancellation is subject to the terms outlined in the Membership Agreement.
-> - You agree to the **Membership Agreement** and **Liability Waiver** terms as provided.
->
-> *If you prefer a tour first, simply leave this unchecked — we'll reach out to schedule one after approval.*
+Each card shows live audience count and a "Launch Campaign" button.
 
-When this checkbox is checked, the existing **Membership Agreement** and **One-Year Commitment** sections (which are already in the form) remain visible and required — they serve as the binding agreements. Additionally, a **Liability Waiver** acknowledgment checkbox will appear (reusing the existing waiver agreement pattern).
+### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
+- Auto-queries the right segment when launched from a playbook
+- Shows recipient count and name chips with ability to remove individuals
+- Auto-loads matching email template based on goal type
+- Merge field chips for quick personalization
 
-### Technical Changes
+### 3. Conversion Tracking (CampaignAnalytics.tsx)
+- `goal_type` and `goal_metadata` columns added to email_campaigns
+- Per-campaign conversion rates with 14-day attribution window
+- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
+- Summary stats: total conversions, overall conversion rate
 
-1. **`src/pages/Apply.tsx`**:
-   - Add `skipTourActivateImmediately: false` and `liabilityWaiverSigned: false` to `initialFormData`
-   - Add the new checkbox + explanatory card in the Agreements section, after the one-year commitment
-   - When checked, show the liability waiver section (similar to `MembershipAgreementSection` but for liability waiver)
-   - Include `skip_tour_activate_immediately` and `liability_waiver_signed` in the submission payload
-   - Update validation: if `skipTourActivateImmediately` is true, require `liabilityWaiverSigned` to also be true
-
-2. **`src/components/ApplicationProgress.tsx`** (if needed): Update step completion logic to account for the new fields
-
-3. **Database migration**: Add `skip_tour_activate_immediately boolean default false` and `liability_waiver_signed boolean default false` columns to `membership_applications` table
-
-4. **Admin visibility**: The admin application review page will show whether the applicant opted to skip the tour, so admins know they can activate immediately upon approval
-
+### Database Changes
+- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table

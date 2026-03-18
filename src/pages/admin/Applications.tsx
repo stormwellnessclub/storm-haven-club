@@ -131,6 +131,8 @@ type Application = {
   card_exp_year: number | null;
   payment_link_sent_at: string | null;
   user_id: string | null;
+  skip_tour_activate_immediately?: boolean;
+  liability_waiver_signed?: boolean;
 };
 
 const getStatusBadge = (status: string) => {
@@ -2149,11 +2151,19 @@ export default function Applications() {
                       <Badge variant="outline">{formatTierDisplay(app.membership_plan)}</Badge>
                     </TableCell>
                     <TableCell>
-                      {app.founding_member?.toLowerCase() === "yes" && (
-                        <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">
-                          Founding
-                        </Badge>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {app.founding_member?.toLowerCase() === "yes" && (
+                          <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">
+                            Founding
+                          </Badge>
+                        )}
+                        {app.skip_tour_activate_immediately && (
+                          <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
+                            <Rocket className="h-3 w-3 mr-1" />
+                            Immediate
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -2630,6 +2640,26 @@ export default function Applications() {
                           <span className="text-muted-foreground">No</span>
                         )}
                       </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Tour Preference</p>
+                        {selectedApplication.skip_tour_activate_immediately ? (
+                          <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
+                            <Rocket className="h-3 w-3 mr-1" />
+                            Activate Immediately
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">Wants Tour</span>
+                        )}
+                      </div>
+                      {selectedApplication.skip_tour_activate_immediately && selectedApplication.liability_waiver_signed && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Liability Waiver</p>
+                          <Badge variant="outline" className="text-green-600 border-green-500/30">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Signed
+                          </Badge>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-muted-foreground">Previous Member</p>
                         <p className="font-medium">{selectedApplication.previous_member || "No"}</p>
