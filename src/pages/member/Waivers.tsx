@@ -81,6 +81,16 @@ function AgreementSection({
               </p>
             )}
           </div>
+          {nextStepUrl && nextStepLabel && (
+            <Button 
+              className="mt-3 w-full" 
+              variant="outline" 
+              onClick={() => navigate(nextStepUrl)}
+            >
+              {nextStepLabel}
+              <ArrowLeft className="ml-2 h-4 w-4 rotate-180" />
+            </Button>
+          )}
         ) : documents.length > 0 ? (
           <SimpleAgreementCard
             title={title}
