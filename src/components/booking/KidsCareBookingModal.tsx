@@ -25,7 +25,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, addHours, parse, parseISO } from "date-fns";
-import { CalendarIcon, Clock, Loader2, AlertCircle, Info } from "lucide-react";
+import { CalendarIcon, Clock, Loader2, AlertCircle, Info, CheckCircle2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
