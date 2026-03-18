@@ -1261,19 +1261,23 @@ export default function Apply() {
                           Your card will be saved securely for future billing. No charges will be made until your membership is activated.
                         </p>
                       </div>
-                      <StripeProvider clientSecret={cardClientSecret}>
-                        <InlinePaymentFormInner
-                          onSuccess={(brand, last4, expMonth, expYear, _custId) => {
+                      <StripeProvider key={`stripe-applicant-${stripeRemountKey}`} clientSecret={cardClientSecret}>
+                        <ApplicantPaymentFormInner
+                          clientSecret={cardClientSecret}
+                          customerId={cardCustomerId}
+                          onSuccess={(brand, last4, expMonth, expYear, custId) => {
                             setCardBrand(brand);
                             setCardLast4(last4);
                             setCardExpMonth(expMonth);
                             setCardExpYear(expYear);
+                            if (custId) setCardCustomerId(custId);
                             setCardSetupComplete(true);
                             setShowCardForm(false);
                           }}
                           onCancel={() => {
                             setShowCardForm(false);
                             setCardClientSecret(null);
+                            setStripeRemountKey(prev => prev + 1);
                           }}
                         />
                       </StripeProvider>
