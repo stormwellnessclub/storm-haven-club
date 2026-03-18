@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Plus, Send, Clock, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { MessageCircle, Plus, Send, Clock, CheckCircle2, AlertCircle, Loader2, Sparkles, Baby } from "lucide-react";
 import { format } from "date-fns";
 import { useEmailConversations, useEmailMessages, useCreateConversation, useSendMessage, useMarkMessagesAsRead, EmailConversation } from "@/hooks/useEmailConversations";
 import { useToast } from "@/hooks/use-toast";
