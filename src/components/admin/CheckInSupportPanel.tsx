@@ -140,6 +140,7 @@ export function CheckInSupportPanel() {
   const [conciergeOpen, setConciergeOpen] = useState(true);
   const [classSupportOpen, setClassSupportOpen] = useState(true);
   const [supportOpen, setSupportOpen] = useState(true);
+  const [kidsCareOpen, setKidsCareOpen] = useState(true);
 
   // Fetch open conversations and join with profiles for member names
   const { data: conversations } = useQuery({
