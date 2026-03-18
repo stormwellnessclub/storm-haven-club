@@ -19,6 +19,7 @@ import {
   Flame,
   MessageCircle,
   GraduationCap,
+  Baby,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -139,6 +140,7 @@ export function CheckInSupportPanel() {
   const [conciergeOpen, setConciergeOpen] = useState(true);
   const [classSupportOpen, setClassSupportOpen] = useState(true);
   const [supportOpen, setSupportOpen] = useState(true);
+  const [kidsCareOpen, setKidsCareOpen] = useState(true);
 
   // Fetch open conversations and join with profiles for member names
   const { data: conversations } = useQuery({
@@ -200,7 +202,8 @@ export function CheckInSupportPanel() {
 
   const conciergeItems = conversations?.filter((c) => c.category === "concierge") || [];
   const classSupportItems = conversations?.filter((c) => c.category === "class_support") || [];
-  const supportItems = conversations?.filter((c) => c.category !== "concierge" && c.category !== "class_support") || [];
+  const kidsCareItems = conversations?.filter((c) => c.category === "kids_care") || [];
+  const supportItems = conversations?.filter((c) => c.category !== "concierge" && c.category !== "class_support" && c.category !== "kids_care") || [];
   const totalCount = (conversations?.length || 0);
 
   const handleReply = useCallback(
@@ -250,7 +253,7 @@ export function CheckInSupportPanel() {
   if (!conversations || totalCount === 0) return null;
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-4">
       {/* In-Club Requests (Concierge) */}
       <Collapsible open={conciergeOpen} onOpenChange={setConciergeOpen}>
         <Card className="border-amber-200/50 dark:border-amber-800/50">
@@ -335,7 +338,47 @@ export function CheckInSupportPanel() {
         </Card>
       </Collapsible>
 
-      {/* Support Tickets */}
+      {/* Kids Care */}
+      <Collapsible open={kidsCareOpen} onOpenChange={setKidsCareOpen}>
+        <Card className="border-pink-200/50 dark:border-pink-800/50">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CollapsibleTrigger className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <Baby className="h-4 w-4 text-pink-500" />
+              <CardTitle className="text-sm font-semibold">Kids Care</CardTitle>
+              {kidsCareItems.length > 0 && (
+                <Badge className="bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300 text-xs">
+                  {kidsCareItems.length}
+                </Badge>
+              )}
+              <ChevronDown
+                className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                  kidsCareOpen ? "rotate-180" : ""
+                }`}
+              />
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-2 px-4 pb-4 space-y-2">
+              {kidsCareItems.length > 0 ? (
+                kidsCareItems.map((item) => (
+                  <ConversationItem
+                    key={item.id}
+                    conversation={item}
+                    variant="support"
+                    onReply={handleReply}
+                    onMarkDone={handleMarkDone}
+                  />
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  No Kids Care messages
+                </p>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
       <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>
         <Card className="border-blue-200/50 dark:border-blue-800/50">
           <CardHeader className="pb-2 pt-4 px-4">

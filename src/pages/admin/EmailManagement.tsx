@@ -345,6 +345,7 @@ export default function EmailManagement() {
                 <SelectItem value="support">Support</SelectItem>
                 <SelectItem value="concierge">Concierge</SelectItem>
                 <SelectItem value="class_support">Class Support</SelectItem>
+                <SelectItem value="kids_care">Kids Care</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>

@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   Loader2,
   CreditCard,
-  Sparkles
+  Sparkles,
+  MessageCircle
 } from "lucide-react";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -525,6 +526,14 @@ export default function KidsCare() {
                   <Button variant="outline" size="lg" onClick={handlePurchasePass} disabled={purchaseLoading}>
                     {purchaseLoading ? "Processing..." : "Purchase Kids Care Pass"}
                   </Button>
+                  {user && (
+                    <Button variant="ghost" size="lg" asChild>
+                      <Link to="/member/support?tab=kids-care">
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Kids Care Support
+                      </Link>
+                    </Button>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-4">
                   Must have active Kids Care Pass to make reservations. Each pass covers one child only.

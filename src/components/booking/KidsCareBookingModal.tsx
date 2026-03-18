@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -25,7 +26,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, addHours, parse, parseISO } from "date-fns";
-import { CalendarIcon, Clock, Loader2, AlertCircle, Info } from "lucide-react";
+import { CalendarIcon, Clock, Loader2, AlertCircle, Info, CheckCircle2, MapPin, Baby } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -63,6 +64,13 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
   const [selectedPassId, setSelectedPassId] = useState<string>("");
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [parentNotes, setParentNotes] = useState("");
+  const [confirmedBooking, setConfirmedBooking] = useState<{
+    childName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    room: string;
+  } | null>(null);
 
   // Fetch hours for the selected date
   const { data: dayHours, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
@@ -166,7 +174,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
     }
 
     try {
-      await bookKidsCare.mutateAsync({
+      const booking = await bookKidsCare.mutateAsync({
         childName: resolvedChildName,
         childAge: ageNum,
         childDob: selectedChild?.date_of_birth ? new Date(selectedChild.date_of_birth) : undefined,
@@ -176,6 +184,15 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
         specialInstructions: specialInstructions || selectedChild?.special_instructions || undefined,
         parentNotes: parentNotes || undefined,
         passId: selectedPassId,
+      });
+
+      // Show confirmation
+      setConfirmedBooking({
+        childName: resolvedChildName,
+        date: format(selectedDate, "EEEE, MMMM d, yyyy"),
+        startTime: selectedStartTime,
+        endTime: selectedEndTime,
+        room: booking?.room || (["Infants", "Toddlers"].includes(booking?.age_group || "") ? "Little Stars" : "Big Stars"),
       });
 
       // Reset form
@@ -188,7 +205,6 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
       setSelectedPassId("");
       setSpecialInstructions("");
       setParentNotes("");
-      onOpenChange(false);
     } catch (error: any) {
       console.error("Booking error:", error);
       // Error toast is handled by the hook
@@ -204,8 +220,52 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
     : 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => {
+      if (!o) setConfirmedBooking(null);
+      onOpenChange(o);
+    }}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        {confirmedBooking ? (
+          // ✅ Booking Confirmation Screen
+          <div className="text-center py-6 space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-success" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Booking Confirmed!</h2>
+              <p className="text-sm text-muted-foreground mt-1">Your Kids Care session has been reserved</p>
+            </div>
+            <Card className="text-left">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Baby className="h-4 w-4 text-accent" />
+                  <span className="font-medium">{confirmedBooking.childName}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CalendarIcon className="h-4 w-4 text-accent" />
+                  <span>{confirmedBooking.date}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-accent" />
+                  <span>{confirmedBooking.startTime} – {confirmedBooking.endTime}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-accent" />
+                  <span>{confirmedBooking.room}</span>
+                </div>
+              </CardContent>
+            </Card>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => { setConfirmedBooking(null); onOpenChange(false); navigate("/member/kids-care-bookings"); }}>
+                View My Bookings
+              </Button>
+              <Button variant="outline" onClick={() => { setConfirmedBooking(null); onOpenChange(false); }}>
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : (
+        <>
         <DialogHeader>
           <DialogTitle>Book Kids Care Session</DialogTitle>
           <DialogDescription>
@@ -508,6 +568,8 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
             </Button>
           )}
         </div>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );

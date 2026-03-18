@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,11 +11,12 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Plus, Send, Clock, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { MessageCircle, Plus, Send, Clock, CheckCircle2, AlertCircle, Loader2, Sparkles, Baby } from "lucide-react";
 import { format } from "date-fns";
 import { useEmailConversations, useEmailMessages, useCreateConversation, useSendMessage, useMarkMessagesAsRead, EmailConversation } from "@/hooks/useEmailConversations";
 import { useToast } from "@/hooks/use-toast";
 import { ClubConciergeTab } from "@/components/member/ClubConciergeTab";
+import { KidsCareSupport } from "@/components/member/KidsCareSupport";
 
 const statusConfig: Record<EmailConversation['status'], { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: React.ReactNode }> = {
   open: { label: 'Open', variant: 'default', icon: <AlertCircle className="h-3 w-3" /> },
@@ -25,6 +27,8 @@ const statusConfig: Record<EmailConversation['status'], { label: string; variant
 
 export default function Support() {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") || "support";
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
@@ -85,7 +89,7 @@ export default function Support() {
           </p>
         </div>
 
-        <Tabs defaultValue="support" className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="support" className="gap-2">
               <MessageCircle className="h-4 w-4" />
@@ -94,6 +98,10 @@ export default function Support() {
             <TabsTrigger value="concierge" className="gap-2">
               <Sparkles className="h-4 w-4" />
               Club Concierge
+            </TabsTrigger>
+            <TabsTrigger value="kids-care" className="gap-2">
+              <Baby className="h-4 w-4" />
+              Kids Care
             </TabsTrigger>
           </TabsList>
 
@@ -210,6 +218,10 @@ export default function Support() {
 
           <TabsContent value="concierge">
             <ClubConciergeTab />
+          </TabsContent>
+
+          <TabsContent value="kids-care">
+            <KidsCareSupport />
           </TabsContent>
         </Tabs>
       </div>
