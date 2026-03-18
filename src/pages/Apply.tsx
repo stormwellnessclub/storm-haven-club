@@ -471,6 +471,8 @@ export default function Apply() {
         payment_info_provided: false,
         one_year_commitment: formData.oneYearCommitment,
         membership_agreement_signed: formData.membershipAgreementSigned,
+        skip_tour_activate_immediately: formData.skipTourActivateImmediately,
+        liability_waiver_signed: formData.liabilityWaiverSigned,
         status: "pending",
       };
 
