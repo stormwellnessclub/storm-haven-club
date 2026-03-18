@@ -92,7 +92,7 @@ export default function Index() {
   const { isIOS, isStandalone, showIOSModal, handleInstall, closeIOSModal } = usePWAInstall();
 
   return <Layout>
-      <SEOHead title="Premium Fitness & Wellness" description="Storm Wellness Club — luxury fitness and wellness destination in Dearborn, Michigan. Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care." path="/" />
+      <SEOHead title="Premium Fitness & Wellness" description="Storm Wellness Club — luxury fitness and wellness destination in Livonia, Michigan. Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care. Serving Livonia, Detroit, Dearborn, Farmington Hills, and surrounding areas." path="/" />
       {/* Hero Section */}
       <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
         <div className="absolute inset-0">

@@ -21,12 +21,12 @@ interface PageMeta {
 
 const PAGE_META: Record<string, PageMeta> = {
   '/': {
-    title: `${SITE_NAME} | Premium Fitness & Wellness in Dearborn, MI`,
-    description: 'Storm Wellness Club — luxury fitness and wellness destination in Dearborn, Michigan. Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care. Apply for membership today.',
+    title: `${SITE_NAME} | Premium Fitness & Wellness in Livonia, MI`,
+    description: 'Storm Wellness Club — luxury fitness and wellness destination in Livonia, Michigan. Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care. Serving Livonia, Detroit, Dearborn, Farmington Hills, and surrounding areas. Apply for membership today.',
     h1: 'Storm Wellness Club',
     bodyContent: `
-      <h2>Premium Wellness Destination in Dearborn, Michigan</h2>
-      <p>Storm Wellness Club is a luxury fitness and wellness club located in Dearborn, Michigan. We offer a comprehensive wellness experience including Reformer Pilates (heated and non-heated), Indoor Cycling, Yoga, HIIT, Barre, Mat Pilates, and more.</p>
+      <h2>Premium Wellness Destination in Livonia, Michigan</h2>
+      <p>Storm Wellness Club is a luxury fitness and wellness club located at 18340 Middlebelt Rd, Livonia, MI 48152. We offer a comprehensive wellness experience including Reformer Pilates (heated and non-heated), Indoor Cycling, Yoga, HIIT, Barre, Mat Pilates, and more. Serving Livonia, Detroit, Dearborn, Farmington Hills, Redford, Garden City, Westland, Plymouth, Canton, Northville, Novi, and Southfield.</p>
       <h2>Our Studios</h2>
       <ul>
         <li><strong>Reformer Pilates Studio</strong> — A mixture of reformer classes, both heated and non-heated options</li>
@@ -44,7 +44,7 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   '/classes': {
     title: `Classes | ${SITE_NAME}`,
-    description: 'Explore class offerings at Storm Wellness Club: Reformer Pilates (heated & non-heated), Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, and more in Dearborn, MI.',
+    description: 'Explore class offerings at Storm Wellness Club: Reformer Pilates (heated & non-heated), Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, and more in Livonia, MI.',
     h1: 'Classes at Storm Wellness Club',
     bodyContent: `
       <h2>Class Categories</h2>
@@ -63,7 +63,7 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   '/schedule': {
     title: `Class Schedule | ${SITE_NAME}`,
-    description: 'View and book upcoming class sessions at Storm Wellness Club. Real-time availability, waitlist support, and easy online booking in Dearborn, MI.',
+    description: 'View and book upcoming class sessions at Storm Wellness Club. Real-time availability, waitlist support, and easy online booking in Livonia, MI.',
     h1: 'Class Schedule',
     bodyContent: `<p>View our weekly class schedule and book your spot. Real-time availability and waitlist support for all classes including Reformer Pilates, Cycling, Yoga, HIIT, Barre, and more.</p>`
   },
@@ -84,13 +84,13 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   '/apply': {
     title: `Apply for Membership | ${SITE_NAME}`,
-    description: 'Submit your membership application to Storm Wellness Club. Choose your plan, provide your details, and join our premium fitness community in Dearborn, MI.',
+    description: 'Submit your membership application to Storm Wellness Club. Choose your plan, provide your details, and join our premium fitness community in Livonia, MI.',
     h1: 'Apply for Membership',
     bodyContent: `<p>Ready to join Storm Wellness Club? Submit your membership application online. Choose your preferred membership tier, provide your details, and start your wellness journey.</p>`
   },
   '/spa': {
     title: `Recovery Spa | ${SITE_NAME}`,
-    description: 'Spa and recovery services including sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments in Dearborn, MI.',
+    description: 'Spa and recovery services including sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments in Livonia, MI.',
     h1: 'Recovery Spa',
     bodyContent: `
       <h2>Spa & Recovery Services</h2>
@@ -107,7 +107,7 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   '/cafe': {
     title: `Café | ${SITE_NAME}`,
-    description: 'In-house café with smoothies, protein shakes, acai bowls, cold-pressed juices, coffee, and healthy snacks at Storm Wellness Club in Dearborn, MI.',
+    description: 'In-house café with smoothies, protein shakes, acai bowls, cold-pressed juices, coffee, and healthy snacks at Storm Wellness Club in Livonia, MI.',
     h1: 'Storm Wellness Café',
     bodyContent: `<p>Fuel your workout with our in-house café featuring smoothies, protein shakes, acai bowls, cold-pressed juices, premium coffee, and healthy snacks. Available to members and guests.</p>`
   },
@@ -126,7 +126,7 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   '/kids-care': {
     title: `Kids Care | ${SITE_NAME}`,
-    description: 'Supervised childcare while you work out at Storm Wellness Club. Safe, engaging environment for children of members in Dearborn, MI.',
+    description: 'Supervised childcare while you work out at Storm Wellness Club. Safe, engaging environment for children of members in Livonia, MI.',
     h1: 'Kids Care',
     bodyContent: `<p>Our Kids Care program provides supervised childcare for members during workouts. A safe, fun, and engaging environment for your children while you focus on your fitness.</p>`
   },
@@ -141,7 +141,7 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   '/guest-pass': {
     title: `Guest Pass | ${SITE_NAME}`,
-    description: 'Purchase a day guest pass to experience Storm Wellness Club in Dearborn, MI. Full facility access for one day.',
+    description: 'Purchase a day guest pass to experience Storm Wellness Club in Livonia, MI. Full facility access for one day.',
     h1: 'Guest Day Pass',
     bodyContent: `<p>Experience Storm Wellness Club with a day guest pass. Enjoy full facility access including the fitness floor, classes (subject to availability), locker rooms, and amenities for one day.</p>`
   },
@@ -175,21 +175,37 @@ const JSON_LD_LOCAL_BUSINESS = {
   "@context": "https://schema.org",
   "@type": "HealthClub",
   "name": "Storm Wellness Club",
-  "description": "Premium fitness and wellness club in Dearborn, Michigan offering Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care.",
+  "description": "Premium fitness and wellness club in Livonia, Michigan offering Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care.",
   "url": SITE_URL,
   "logo": OG_IMAGE,
   "image": OG_IMAGE,
   "address": {
     "@type": "PostalAddress",
-    "addressLocality": "Dearborn",
+    "streetAddress": "18340 Middlebelt Rd",
+    "addressLocality": "Livonia",
     "addressRegion": "MI",
+    "postalCode": "48152",
     "addressCountry": "US"
   },
   "geo": {
     "@type": "GeoCoordinates",
-    "latitude": 42.3223,
-    "longitude": -83.1763
-  }
+    "latitude": 42.4034,
+    "longitude": -83.3497
+  },
+  "areaServed": [
+    { "@type": "City", "name": "Livonia, MI" },
+    { "@type": "City", "name": "Detroit, MI" },
+    { "@type": "City", "name": "Dearborn, MI" },
+    { "@type": "City", "name": "Farmington Hills, MI" },
+    { "@type": "City", "name": "Redford, MI" },
+    { "@type": "City", "name": "Garden City, MI" },
+    { "@type": "City", "name": "Westland, MI" },
+    { "@type": "City", "name": "Plymouth, MI" },
+    { "@type": "City", "name": "Canton, MI" },
+    { "@type": "City", "name": "Northville, MI" },
+    { "@type": "City", "name": "Novi, MI" },
+    { "@type": "City", "name": "Southfield, MI" }
+  ]
 };
 
 const JSON_LD_WEBSITE = {
@@ -217,7 +233,7 @@ function renderPage(path: string): string {
   <meta name="description" content="${meta.description}">
   <link rel="canonical" href="${canonicalUrl}">
   <meta name="geo.region" content="US-MI">
-  <meta name="geo.placename" content="Dearborn, Michigan">
+  <meta name="geo.placename" content="Livonia, Michigan">
 
   <meta property="og:title" content="${meta.title}">
   <meta property="og:description" content="${meta.description}">
@@ -256,7 +272,7 @@ function renderPage(path: string): string {
     </ul>
   </nav>
   <footer>
-    <p>&copy; ${new Date().getFullYear()} Storm Wellness Club. Dearborn, Michigan.</p>
+    <p>&copy; ${new Date().getFullYear()} Storm Wellness Club. 18340 Middlebelt Rd, Livonia, MI 48152.</p>
     <a href="${SITE_URL}/terms">Terms of Service</a> | <a href="${SITE_URL}/privacy">Privacy Policy</a>
   </footer>
 </body>

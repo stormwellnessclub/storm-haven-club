@@ -74,7 +74,7 @@ Full URL: https://www.stormwellnessclub.com${p.path === "/" ? "" : p.path}
 
 === BUSINESS INFO ===
 - Name: Storm Wellness Club
-- Location: Dearborn, Michigan
+- Location: 18340 Middlebelt Rd, Livonia, MI 48152
 - Type: Premium wellness & fitness club
 - Website: https://www.stormwellnessclub.com
 `.trim();
