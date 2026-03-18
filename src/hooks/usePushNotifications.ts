@@ -3,8 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-const VAPID_PUBLIC_KEY = "BOD9WQsahq_8PlM2OsfKT8QMBp8l_NiujA3trRmh2DXoVOxqohMlcg-8jZ6qbgMQ1SXpmmg3dY2bw7TXna3l0sI";
-
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -14,6 +12,19 @@ function urlBase64ToUint8Array(base64String: string) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
+}
+
+async function fetchVapidPublicKey(): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke("send-push-notification", {
+      body: { action: "get-vapid-public-key" },
+    });
+    if (error) throw error;
+    return data?.publicKey || null;
+  } catch (err) {
+    console.error("Failed to fetch VAPID public key:", err);
+    return null;
+  }
 }
 
 export function usePushNotifications() {
@@ -54,13 +65,20 @@ export function usePushNotifications() {
         return;
       }
 
+      // Fetch VAPID public key from backend (auto-generated)
+      const vapidPublicKey = await fetchVapidPublicKey();
+      if (!vapidPublicKey) {
+        toast.error("Failed to initialize push notifications. Please try again.");
+        return;
+      }
+
       // Register push service worker
       await navigator.serviceWorker.register("/sw-push.js", { scope: "/" });
       const registration = await navigator.serviceWorker.ready;
 
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
 
       const subJson = subscription.toJSON();
