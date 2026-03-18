@@ -567,6 +567,8 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
             </Button>
           )}
         </div>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
