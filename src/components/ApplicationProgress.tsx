@@ -23,6 +23,7 @@ export const APPLICATION_STEPS = [
   { id: "background", label: "Background", shortLabel: "Background", icon: History },
   { id: "motivation", label: "Motivation", shortLabel: "Motivation", icon: Heart },
   { id: "lifestyle", label: "Lifestyle", shortLabel: "Lifestyle", icon: Sparkles },
+  { id: "payment", label: "Payment Method", shortLabel: "Payment", icon: Lock },
   { id: "agreements", label: "Agreements", shortLabel: "Agree", icon: FileText, isRequired: true },
 ];
 
