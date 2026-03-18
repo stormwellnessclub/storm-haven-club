@@ -362,16 +362,16 @@ export default function KidsCareServiceForm() {
         )}
 
         {/* Completion Status */}
-        {hasChildren && (
-          <Card className="bg-green-50 border-green-200">
+        {childrenRegistered && (
+          <Card className="bg-accent/10 border-accent/30">
             <CardContent className="p-6">
-              <div className="flex items-center gap-3 text-green-700">
+              <div className="flex items-center gap-3 text-accent">
                 <Check className="h-6 w-6" />
                 <div>
                   <p className="font-semibold">
                     {children.length} child{children.length !== 1 ? "ren" : ""} registered
                   </p>
-                  <p className="text-sm text-green-600">
+                  <p className="text-sm text-muted-foreground">
                     You can now book Kids Care sessions for your registered children.
                   </p>
                 </div>
