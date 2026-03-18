@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { useEmailConversations, useEmailMessages, useCreateConversation, useSendMessage, useMarkMessagesAsRead, EmailConversation } from "@/hooks/useEmailConversations";
 import { useToast } from "@/hooks/use-toast";
 import { ClubConciergeTab } from "@/components/member/ClubConciergeTab";
+import { KidsCareSupport } from "@/components/member/KidsCareSupport";
 
 const statusConfig: Record<EmailConversation['status'], { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: React.ReactNode }> = {
   open: { label: 'Open', variant: 'default', icon: <AlertCircle className="h-3 w-3" /> },
