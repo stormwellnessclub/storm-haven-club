@@ -393,6 +393,11 @@ export default function Apply() {
       return;
     }
 
+    if (formData.skipTourActivateImmediately && !formData.liabilityWaiverSigned) {
+      toast.error("Please sign the liability waiver to proceed with immediate activation.");
+      return;
+    }
+
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
       toast.error(dupeCheck.message);
