@@ -1384,7 +1384,13 @@ export default function Apply() {
                   <Checkbox
                     id="skipTourActivateImmediately"
                     checked={formData.skipTourActivateImmediately}
-                    onCheckedChange={(checked) => handleCheckboxChange("skipTourActivateImmediately", checked as boolean)}
+                    onCheckedChange={(checked) => {
+                      handleCheckboxChange("skipTourActivateImmediately", checked as boolean);
+                      // Auto-enable addCardOnFile when immediate activation is selected
+                      if (checked) {
+                        handleCheckboxChange("addCardOnFile", true);
+                      }
+                    }}
                   />
                   <Label htmlFor="skipTourActivateImmediately" className="font-medium cursor-pointer text-sm">
                     I do not need a tour scheduled and would like my membership activated upon approval.
