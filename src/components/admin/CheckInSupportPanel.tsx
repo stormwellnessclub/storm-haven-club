@@ -202,7 +202,8 @@ export function CheckInSupportPanel() {
 
   const conciergeItems = conversations?.filter((c) => c.category === "concierge") || [];
   const classSupportItems = conversations?.filter((c) => c.category === "class_support") || [];
-  const supportItems = conversations?.filter((c) => c.category !== "concierge" && c.category !== "class_support") || [];
+  const kidsCareItems = conversations?.filter((c) => c.category === "kids_care") || [];
+  const supportItems = conversations?.filter((c) => c.category !== "concierge" && c.category !== "class_support" && c.category !== "kids_care") || [];
   const totalCount = (conversations?.length || 0);
 
   const handleReply = useCallback(
