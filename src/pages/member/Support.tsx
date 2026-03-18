@@ -89,7 +89,7 @@ export default function Support() {
           </p>
         </div>
 
-        <Tabs defaultValue="support" className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="support" className="gap-2">
               <MessageCircle className="h-4 w-4" />
