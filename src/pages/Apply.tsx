@@ -496,7 +496,7 @@ export default function Apply() {
     return () => clearTimeout(timeoutId);
   }, [formData]);
 
-  const steps = getStepCompletion(formData);
+  const steps = getStepCompletion(formData, cardCustomerId, cardSetupComplete);
 
   const scrollToSection = (stepId: string) => {
     const ref = sectionRefs.current[stepId];
