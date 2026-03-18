@@ -400,7 +400,7 @@ function InlinePaymentFormInner({
         }
 
         toast.success("Payment method saved successfully!");
-        onSuccess(cardBrand, cardLast4, cardExpMonth, cardExpYear, customerId);
+        onSuccess(cardBrand, cardLast4, cardExpMonth, cardExpYear, null);
       }
     } catch (err) {
       console.error("Error saving card:", err);
