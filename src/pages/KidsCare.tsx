@@ -17,12 +17,17 @@ import {
   Lock,
   Moon,
   CheckCircle2,
-  Loader2
+  Loader2,
+  CreditCard,
+  Sparkles
 } from "lucide-react";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJoinKidsCareInterest } from "@/hooks/useKidsCareInterest";
 import { useKidsCareHoursForWeek } from "@/hooks/useKidsCareHours";
+import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { formatTime12h } from "@/lib/timeFormat";
 
 // Soft launch mode - now disabled, hours are dynamic
