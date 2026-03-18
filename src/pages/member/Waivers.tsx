@@ -273,6 +273,8 @@ export default function MemberWaivers() {
       isSigning: isSigningKidsCareAgreement,
       requiredForMembers: false,
       requiredForNonMembers: false,
+      nextStepUrl: "/member/kids-care-service-form",
+      nextStepLabel: "Next: Register Your Children",
     },
     {
       key: "private_event",

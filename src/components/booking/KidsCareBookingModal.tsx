@@ -491,8 +491,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
               onClick={handleBook}
               disabled={
                 bookKidsCare.isPending ||
-                !childName ||
-                !childAge ||
+                !selectedChildId ||
                 !selectedDate ||
                 !selectedStartTime ||
                 !selectedEndTime ||
