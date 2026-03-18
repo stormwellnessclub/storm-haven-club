@@ -200,10 +200,10 @@ export default function KidsCareServiceForm() {
               setShowForm(true);
             }}
             className="w-full"
-            variant={hasChildren ? "outline" : "default"}
+            variant={childrenRegistered ? "outline" : "default"}
           >
             <Plus className="mr-2 h-4 w-4" />
-            {hasChildren ? "Add Another Child" : "Add Your First Child"}
+            {childrenRegistered ? "Add Another Child" : "Add Your First Child"}
           </Button>
         )}
 
