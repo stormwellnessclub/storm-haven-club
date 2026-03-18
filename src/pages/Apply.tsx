@@ -383,8 +383,7 @@ function InlinePaymentFormInner({
         const pmId = typeof setupIntent.payment_method === 'string' ? setupIntent.payment_method : setupIntent.payment_method.id;
         
         // We need to get the card details - use Stripe to retrieve payment method info
-        // The customer ID will be fetched from edge function
-        const customerId = cardCustomerId;
+        // Customer ID is tracked by the parent component when the setup intent was created
         
         // Try to get card details from the payment method object if available
         let cardBrand: string | null = null;
