@@ -2412,7 +2412,7 @@ export default function MemberDetail() {
                       queryClient.invalidateQueries({ queryKey: ["member-class-passes-admin", id, member.user_id] });
                     } else {
                       // Book using class credits
-                      const credit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0);
+                      const credit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0 && c.expires_at > new Date().toISOString());
                       if (!credit) throw new Error("No class credits available");
                       const { data, error } = await supabase.rpc("create_atomic_class_booking" as any, {
                         _session_id: adminBookClassSessionId,
