@@ -57,7 +57,41 @@ export default function NonMemberAccounts() {
         .order("created_at", { ascending: false });
       if (profilesError) throw profilesError;
 
-      const userIds = (profiles || []).map((p: any) => p.user_id).filter(Boolean);
+      // Also find users with class_passes but no non_member_profiles row
+      const { data: orphanedPassUsers } = await supabase
+        .from("class_passes")
+        .select("user_id")
+        .not("user_id", "in", `(${(profiles || []).map((p: any) => p.user_id).join(",") || "00000000-0000-0000-0000-000000000000"})`);
+
+      const orphanedUserIds = [...new Set((orphanedPassUsers || []).map((p: any) => p.user_id).filter(Boolean))];
+
+      // Fetch profile data for orphaned users
+      let orphanedProfiles: any[] = [];
+      if (orphanedUserIds.length > 0) {
+        const { data: opData } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, phone, email")
+          .in("user_id", orphanedUserIds);
+        orphanedProfiles = opData || [];
+      }
+
+      const allProfiles = [
+        ...(profiles || []),
+        ...orphanedProfiles.map((op: any) => ({
+          user_id: op.user_id,
+          email: op.email,
+          first_name: op.first_name,
+          last_name: op.last_name,
+          phone: op.phone,
+          card_brand: null,
+          card_last4: null,
+          waiver_signed: null,
+          stripe_customer_id: null,
+          created_at: new Date().toISOString(),
+        })),
+      ];
+
+      const userIds = allProfiles.map((p: any) => p.user_id).filter(Boolean);
       let passesData: any[] = [];
       if (userIds.length > 0) {
         const { data: passes } = await supabase
@@ -67,7 +101,7 @@ export default function NonMemberAccounts() {
         passesData = passes || [];
       }
 
-      return (profiles || []).map((p: any) => {
+      return allProfiles.map((p: any) => {
         const userPasses = passesData.filter((pass: any) => pass.user_id === p.user_id);
         return {
           user_id: p.user_id,
