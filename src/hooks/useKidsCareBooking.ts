@@ -17,12 +17,15 @@ export interface KidsCareBooking {
   status: "confirmed" | "checked_in" | "checked_out" | "cancelled" | "no_show";
   pass_id: string | null;
   age_group: string | null;
+  room: string | null;
   special_instructions: string | null;
   parent_notes: string | null;
   checked_in_at: string | null;
   checked_out_at: string | null;
   checked_in_by: string | null;
   checked_out_by: string | null;
+  parent_confirmed_pickup: boolean;
+  parent_confirmed_at: string | null;
   created_at: string;
   updated_at: string;
   cancelled_at: string | null;
