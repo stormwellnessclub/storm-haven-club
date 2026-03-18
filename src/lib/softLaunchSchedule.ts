@@ -2,7 +2,7 @@
 // Single source of truth for both public schedule and admin management
 
 export const SOFT_LAUNCH_START = new Date(2026, 1, 20); // Feb 20
-export const SOFT_LAUNCH_END = new Date(2026, 2, 18);   // Mar 18
+export const SOFT_LAUNCH_END = new Date(2026, 2, 19);   // Mar 19
 const MORNING_START = new Date(2026, 1, 23);
 const SUNDAY_MORNING_START = new Date(2026, 2, 1);
 
