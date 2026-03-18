@@ -441,7 +441,7 @@ export const FULL_SITE_CONTENT_HTML = `<!DOCTYPE html>
 <ul>
 <li><strong>Name:</strong> Storm Wellness Club</li>
 <li><strong>Spa Brand:</strong> Aella by Storm Wellness Club</li>
-<li><strong>Location:</strong> Dearborn, Michigan</li>
+<li><strong>Location:</strong> 18340 Middlebelt Rd, Livonia, MI 48152</li>
 <li><strong>Type:</strong> Premium wellness &amp; fitness club</li>
 <li><strong>Website:</strong> https://www.stormwellnessclub.com</li>
 <li><strong>Membership Model:</strong> Application-based, tiered (Silver/Gold/Platinum/Diamond)</li>
