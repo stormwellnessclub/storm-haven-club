@@ -1220,27 +1220,47 @@ export default function Apply() {
               </div>
             </div>
 
-            {/* Step 7 — Payment Method (Optional) */}
+            {/* Step 7 — Payment Method */}
             <div ref={(el) => sectionRefs.current["payment"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
-              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">Payment Method (Optional)</h2>
+              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">
+                Payment Method {formData.skipTourActivateImmediately ? "(Required)" : "(Optional)"}
+              </h2>
               <p className="text-sm text-muted-foreground mb-6">
-                Adding a payment method now helps expedite your activation if approved. No charges will be made until your membership is activated.
+                {formData.skipTourActivateImmediately 
+                  ? "A payment method is required for immediate activation. Your card will be charged upon approval."
+                  : "Adding a payment method now helps expedite your activation if approved. No charges will be made until your membership is activated."
+                }
               </p>
+
+              {formData.skipTourActivateImmediately && !cardSetupComplete && (
+                <div className="flex items-start gap-3 p-3 mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                    You selected immediate activation — a payment method must be saved before you can submit.
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-start gap-3 mb-4">
                 <Checkbox
                   id="addCardOnFile"
                   checked={formData.addCardOnFile}
+                  disabled={formData.skipTourActivateImmediately}
                   onCheckedChange={(checked) => {
+                    if (formData.skipTourActivateImmediately && !checked) return;
                     handleCheckboxChange("addCardOnFile", checked as boolean);
                     if (!checked) {
                       setShowCardForm(false);
                       setCardClientSecret(null);
+                      setStripeRemountKey(prev => prev + 1);
                     }
                   }}
                 />
                 <Label htmlFor="addCardOnFile" className="font-medium cursor-pointer text-sm">
-                  I'd like to add a payment method now to expedite activation if approved.
+                  {formData.skipTourActivateImmediately
+                    ? "Payment method required for immediate activation."
+                    : "I'd like to add a payment method now to expedite activation if approved."
+                  }
                 </Label>
               </div>
 
