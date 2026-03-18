@@ -215,6 +215,10 @@ export default function Support() {
           <TabsContent value="concierge">
             <ClubConciergeTab />
           </TabsContent>
+
+          <TabsContent value="kids-care">
+            <KidsCareSupport />
+          </TabsContent>
         </Tabs>
       </div>
     </MemberLayout>
