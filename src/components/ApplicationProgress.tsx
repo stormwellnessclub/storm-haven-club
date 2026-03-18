@@ -23,6 +23,7 @@ export const APPLICATION_STEPS = [
   { id: "background", label: "Background", shortLabel: "Background", icon: History },
   { id: "motivation", label: "Motivation", shortLabel: "Motivation", icon: Heart },
   { id: "lifestyle", label: "Lifestyle", shortLabel: "Lifestyle", icon: Sparkles },
+  { id: "payment", label: "Payment Method", shortLabel: "Payment", icon: Lock },
   { id: "agreements", label: "Agreements", shortLabel: "Agree", icon: FileText, isRequired: true },
 ];
 
@@ -164,6 +165,7 @@ export function getStepCompletion(
     oneYearCommitment: boolean;
     skipTourActivateImmediately: boolean;
     liabilityWaiverSigned: boolean;
+    addCardOnFile?: boolean;
   },
   stripeCustomerId?: string | null,
   isCardConfirmed?: boolean
@@ -200,6 +202,10 @@ export function getStepCompletion(
         break;
       case "lifestyle":
         isComplete = !!formData.foundingMember;
+        break;
+      case "payment":
+        // Optional step: complete if they opted in and card confirmed, OR if they didn't opt in
+        isComplete = !formData.addCardOnFile || !!isCardConfirmed;
         break;
       case "agreements":
         isComplete = !!(
