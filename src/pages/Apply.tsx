@@ -1324,6 +1324,7 @@ export default function Apply() {
                           if (data?.clientSecret) {
                             setCardClientSecret(data.clientSecret);
                             setCardCustomerId(data.customerId || null);
+                            setStripeRemountKey(prev => prev + 1);
                             setShowCardForm(true);
                           } else {
                             throw new Error("No client secret returned");
