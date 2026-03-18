@@ -188,7 +188,7 @@ export default function KidsCare() {
                 <Clock className="w-6 h-6 text-accent" />
                 Hours of Operation
               </h3>
-              <div className="space-y-4">
+              
               {hoursLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
