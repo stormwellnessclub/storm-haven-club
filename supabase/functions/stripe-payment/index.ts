@@ -657,6 +657,67 @@ serve(async (req) => {
         );
       }
 
+      case 'create_kids_care_checkout': {
+        const { successUrl, cancelUrl } = body;
+
+        if (!successUrl || !cancelUrl) {
+          throw new Error("Missing required fields for kids care checkout");
+        }
+
+        // Server-side membership verification
+        const { data: memberData } = await supabase
+          .from('members')
+          .select('id, status')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        if (!memberData) {
+          throw new Error("Active membership required to purchase Kids Care Pass");
+        }
+
+        logStep("Membership verified for Kids Care", { userId: user.id, memberId: memberData.id });
+
+        const kidsCarePrice = STRIPE_PRODUCTS.kidsCare.member;
+        const customerId = await getOrCreateCustomer();
+
+        // Save stripe_customer_id to member record
+        await supabase
+          .from('members')
+          .update({ stripe_customer_id: customerId })
+          .eq('user_id', user.id);
+
+        // Add recurring processing fee
+        const subscriptionItems = await addRecurringProcessingFeeItems(stripe, [{ price: kidsCarePrice }]);
+
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: subscriptionItems,
+          mode: 'subscription',
+          subscription_data: {
+            metadata: {
+              type: 'kids_care_pass',
+              user_id: user.id,
+              member_id: memberData.id,
+            },
+          },
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: cancelUrl,
+          metadata: {
+            type: 'kids_care_pass',
+            user_id: user.id,
+            member_id: memberData.id,
+          },
+        });
+
+        logStep("Kids Care checkout created", { sessionId: session.id, url: session.url });
+
+        return new Response(
+          JSON.stringify({ sessionId: session.id, url: session.url }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
       case 'create_guest_pass_checkout': {
         const { guestName, guestEmail, successUrl, cancelUrl } = body;
 
