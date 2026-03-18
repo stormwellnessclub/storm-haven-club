@@ -2337,7 +2337,8 @@ export default function MemberDetail() {
               <>
                 {/* Wellness credit info */}
                 {(() => {
-                  const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
+                  const nowStr = new Date().toISOString();
+                  const credit = memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0 && c.expires_at > nowStr);
                   return credit ? (
                     <p className="text-xs text-muted-foreground">{credit.credits_remaining} of {credit.credits_total} credits remaining</p>
                   ) : (
