@@ -2384,10 +2384,10 @@ export default function MemberDetail() {
                 (adminBookServiceType === "class"
                   ? !adminBookClassSessionId || (
                       adminBookPaymentMethod === "credit"
-                        ? !memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0)
+                        ? !memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0 && c.expires_at > new Date().toISOString())
                         : !adminBookPassId
                     )
-                  : !adminBookDate || !adminBookTime || !memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0))
+                  : !adminBookDate || !adminBookTime || !memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0 && c.expires_at > new Date().toISOString()))
               }
               onClick={async () => {
                 if (!member) return;
