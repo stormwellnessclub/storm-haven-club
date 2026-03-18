@@ -38,7 +38,10 @@ function AgreementSection({
   isSigning,
   required = true,
   highlighted = false,
+  nextStepUrl,
+  nextStepLabel,
 }: AgreementSectionProps) {
+  const navigate = useNavigate();
   return (
     <Card className={highlighted && !isSigned ? "ring-2 ring-accent" : ""}>
       <CardHeader>
