@@ -253,7 +253,7 @@ export function CheckInSupportPanel() {
   if (!conversations || totalCount === 0) return null;
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-4">
       {/* In-Club Requests (Concierge) */}
       <Collapsible open={conciergeOpen} onOpenChange={setConciergeOpen}>
         <Card className="border-amber-200/50 dark:border-amber-800/50">
