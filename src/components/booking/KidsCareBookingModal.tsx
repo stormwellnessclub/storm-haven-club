@@ -219,8 +219,52 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
     : 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => {
+      if (!o) setConfirmedBooking(null);
+      onOpenChange(o);
+    }}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        {confirmedBooking ? (
+          // ✅ Booking Confirmation Screen
+          <div className="text-center py-6 space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-success" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Booking Confirmed!</h2>
+              <p className="text-sm text-muted-foreground mt-1">Your Kids Care session has been reserved</p>
+            </div>
+            <Card className="text-left">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Baby className="h-4 w-4 text-accent" />
+                  <span className="font-medium">{confirmedBooking.childName}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CalendarIcon className="h-4 w-4 text-accent" />
+                  <span>{confirmedBooking.date}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-accent" />
+                  <span>{confirmedBooking.startTime} – {confirmedBooking.endTime}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-accent" />
+                  <span>{confirmedBooking.room}</span>
+                </div>
+              </CardContent>
+            </Card>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => { setConfirmedBooking(null); onOpenChange(false); navigate("/member/kids-care-bookings"); }}>
+                View My Bookings
+              </Button>
+              <Button variant="outline" onClick={() => { setConfirmedBooking(null); onOpenChange(false); }}>
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : (
+        <>
         <DialogHeader>
           <DialogTitle>Book Kids Care Session</DialogTitle>
           <DialogDescription>
