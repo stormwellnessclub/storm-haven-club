@@ -351,6 +351,19 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                 </p>
               </div>
 
+              {/* Day closed / no hours warning */}
+              {selectedDate && dayIsClosed && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {noHoursPublished
+                      ? "Hours haven't been published for this day yet. Please try another date."
+                      : "Kids Care is closed on this day. Please select a different date."}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {selectedDate && !dayIsClosed && filteredTimeSlots.length > 0 && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Time *</Label>
@@ -362,7 +375,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                       <SelectValue placeholder="Select start time" />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIME_SLOTS.map((time) => (
+                      {filteredTimeSlots.map((time) => (
                         <SelectItem key={time} value={time}>
                           {time}
                         </SelectItem>
