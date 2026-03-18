@@ -124,14 +124,14 @@ const SITE_AUDIT_HTML = `<!DOCTYPE html>
 <h1>Storm Wellness Club — Site Audit Document</h1>
 <p><strong>Live URL:</strong> <a href="https://www.stormwellnessclub.com">https://www.stormwellnessclub.com</a></p>
 <p><strong>Tech Stack:</strong> React (Vite), Tailwind CSS, TypeScript, Lovable Cloud (Supabase)</p>
-<p><strong>Location:</strong> Dearborn, Michigan</p>
+<p><strong>Location:</strong> 18340 Middlebelt Rd, Livonia, MI 48152</p>
 <p><strong>Type:</strong> Premium wellness &amp; fitness club</p>
 
 <h2>Public Pages (15)</h2>
 <table border="1" cellpadding="8" cellspacing="0">
 <thead><tr><th>Path</th><th>Title</th><th>Meta Description</th></tr></thead>
 <tbody>
-<tr><td>/</td><td>Home — Storm Wellness Club</td><td>Premium wellness and fitness club in Dearborn, MI. Reformer Pilates, Cycling, Yoga, Recovery Spa, Café, Kids Care. Apply for membership today.</td></tr>
+<tr><td>/</td><td>Home — Storm Wellness Club</td><td>Premium wellness and fitness club in Livonia, MI. Reformer Pilates, Cycling, Yoga, Recovery Spa, Café, Kids Care. Apply for membership today.</td></tr>
 <tr><td>/classes</td><td>Classes — Storm Wellness Club</td><td>Explore our class offerings: Reformer Pilates (heated &amp; non-heated), Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, and more.</td></tr>
 <tr><td>/schedule</td><td>Class Schedule — Storm Wellness Club</td><td>View and book upcoming class sessions. Real-time availability and waitlist support.</td></tr>
 <tr><td>/memberships</td><td>Memberships — Storm Wellness Club</td><td>Membership tiers and pricing. Standard, Premium, and Executive options with wellness credits, guest passes, and spa access.</td></tr>

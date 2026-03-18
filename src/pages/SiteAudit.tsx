@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 const SITE_PAGES = [
-  { path: "/", title: "Home — Storm Wellness Club", description: "Premium wellness and fitness club in Dearborn, MI. Reformer Pilates, Cycling, Yoga, Recovery Spa, Café, Kids Care. Apply for membership today." },
+  { path: "/", title: "Home — Storm Wellness Club", description: "Premium wellness and fitness club in Livonia, MI. Reformer Pilates, Cycling, Yoga, Recovery Spa, Café, Kids Care. Apply for membership today." },
   { path: "/classes", title: "Classes — Storm Wellness Club", description: "Explore our class offerings: Reformer Pilates (heated & non-heated), Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, and more." },
   { path: "/schedule", title: "Class Schedule — Storm Wellness Club", description: "View and book upcoming class sessions. Real-time availability and waitlist support." },
   { path: "/memberships", title: "Memberships — Storm Wellness Club", description: "Membership tiers and pricing. Standard, Premium, and Executive options with wellness credits, guest passes, and spa access." },
@@ -74,7 +74,7 @@ Full URL: https://www.stormwellnessclub.com${p.path === "/" ? "" : p.path}
 
 === BUSINESS INFO ===
 - Name: Storm Wellness Club
-- Location: Dearborn, Michigan
+- Location: 18340 Middlebelt Rd, Livonia, MI 48152
 - Type: Premium wellness & fitness club
 - Website: https://www.stormwellnessclub.com
 `.trim();

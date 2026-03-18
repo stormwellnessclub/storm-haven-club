@@ -10,7 +10,7 @@ export const FULL_SITE_CONTENT_HTML = `<!DOCTYPE html>
 <body>
 <h1>Storm Wellness Club — Full Site Content</h1>
 <p><strong>Live URL:</strong> <a href="https://www.stormwellnessclub.com">https://www.stormwellnessclub.com</a></p>
-<p><strong>Location:</strong> Dearborn, Michigan</p>
+<p><strong>Location:</strong> 18340 Middlebelt Rd, Livonia, MI 48152</p>
 <p><strong>Type:</strong> Premium wellness &amp; fitness club (women-focused, men welcome)</p>
 <p><strong>Tech Stack:</strong> React (Vite), Tailwind CSS, TypeScript, Supabase, Stripe</p>
 <p><em>For the metadata summary (sitemap, SEO notes), see <a href="?file=site-audit">?file=site-audit</a></em></p>
@@ -441,7 +441,7 @@ export const FULL_SITE_CONTENT_HTML = `<!DOCTYPE html>
 <ul>
 <li><strong>Name:</strong> Storm Wellness Club</li>
 <li><strong>Spa Brand:</strong> Aella by Storm Wellness Club</li>
-<li><strong>Location:</strong> Dearborn, Michigan</li>
+<li><strong>Location:</strong> 18340 Middlebelt Rd, Livonia, MI 48152</li>
 <li><strong>Type:</strong> Premium wellness &amp; fitness club</li>
 <li><strong>Website:</strong> https://www.stormwellnessclub.com</li>
 <li><strong>Membership Model:</strong> Application-based, tiered (Silver/Gold/Platinum/Diamond)</li>

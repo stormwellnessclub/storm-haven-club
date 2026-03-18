@@ -475,7 +475,7 @@ export default function Spa() {
 
   return (
     <Layout>
-      <SEOHead title="Recovery Spa" description="Spa and recovery services including sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments in Dearborn, MI." path="/spa" />
+      <SEOHead title="Recovery Spa" description="Spa and recovery services including sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments in Livonia, MI." path="/spa" />
       {/* Hero */}
       <section className="relative pt-20 min-h-[70vh] flex items-center">
         <div className="absolute inset-0">
