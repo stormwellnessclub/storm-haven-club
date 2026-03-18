@@ -307,13 +307,12 @@ export default function MemberDetail() {
     queryKey: ["member-credits", id],
     queryFn: async () => {
       if (!id) return [];
-      // Fetch all non-expired credits, plus any with remaining > 0 (even if technically expired)
+      // Fetch ALL credits (including expired) for admin view, ordered newest first
       const { data, error } = await supabase
         .from("member_credits")
         .select("*")
         .eq("member_id", id)
-        .or(`expires_at.gt."${new Date().toISOString()}",credits_remaining.gt.0`)
-        .order("credit_type", { ascending: true });
+        .order("cycle_start", { ascending: false });
       if (error) throw error;
       return data || [];
     },
