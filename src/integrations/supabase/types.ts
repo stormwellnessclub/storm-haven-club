@@ -2349,6 +2349,63 @@ export type Database = {
           },
         ]
       }
+      kids_care_children: {
+        Row: {
+          allergies: string | null
+          authorized_pickup_persons: string | null
+          created_at: string
+          date_of_birth: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          medical_conditions: string | null
+          medications: string | null
+          photo_release: boolean
+          relationship_to_child: string | null
+          special_instructions: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allergies?: string | null
+          authorized_pickup_persons?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          medical_conditions?: string | null
+          medications?: string | null
+          photo_release?: boolean
+          relationship_to_child?: string | null
+          special_instructions?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allergies?: string | null
+          authorized_pickup_persons?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          medical_conditions?: string | null
+          medications?: string | null
+          photo_release?: boolean
+          relationship_to_child?: string | null
+          special_instructions?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kids_care_hours: {
         Row: {
           close_time: string
