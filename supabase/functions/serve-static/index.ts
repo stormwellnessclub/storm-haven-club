@@ -124,7 +124,7 @@ const SITE_AUDIT_HTML = `<!DOCTYPE html>
 <h1>Storm Wellness Club — Site Audit Document</h1>
 <p><strong>Live URL:</strong> <a href="https://www.stormwellnessclub.com">https://www.stormwellnessclub.com</a></p>
 <p><strong>Tech Stack:</strong> React (Vite), Tailwind CSS, TypeScript, Lovable Cloud (Supabase)</p>
-<p><strong>Location:</strong> Dearborn, Michigan</p>
+<p><strong>Location:</strong> 18340 Middlebelt Rd, Livonia, MI 48152</p>
 <p><strong>Type:</strong> Premium wellness &amp; fitness club</p>
 
 <h2>Public Pages (15)</h2>
