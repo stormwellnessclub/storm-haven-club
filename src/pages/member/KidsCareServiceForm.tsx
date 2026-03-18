@@ -38,9 +38,18 @@ const EMPTY_FORM: AddChildData = {
 
 export default function KidsCareServiceForm() {
   const { data: children, isLoading } = useKidsCareChildren();
+  const { profile, completeKidsCareServiceForm } = useUserProfile();
   const addChild = useAddChild();
   const updateChild = useUpdateChild();
   const deleteChild = useDeleteChild();
+
+  // Mark service form as completed when at least one child is registered
+  const hasChildren = children && children.length > 0;
+  useEffect(() => {
+    if (hasChildren && profile && !profile.kids_care_service_form_completed) {
+      completeKidsCareServiceForm();
+    }
+  }, [hasChildren, profile?.kids_care_service_form_completed]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingChild, setEditingChild] = useState<KidsCareChild | null>(null);
