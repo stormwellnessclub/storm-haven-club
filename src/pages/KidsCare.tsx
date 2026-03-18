@@ -184,18 +184,33 @@ export default function KidsCare() {
               Focus on your wellness while your little ones enjoy supervised activities 
               in our dedicated kids care space. Available exclusively to members with a Kids Care Pass.
             </p>
-            <div className="flex items-center gap-4 p-4 bg-background border border-border rounded-sm">
-              <Lock className="w-5 h-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Kids Care Pass Required</p>
-                <p className="text-xs text-muted-foreground">
-                  Each pass covers one child only. Purchase in Class Passes.
-                </p>
+            {hasActivePass ? (
+              <div className="flex items-center gap-4 p-4 bg-accent/10 border border-accent/30 rounded-sm">
+                <CheckCircle2 className="w-5 h-5 text-accent" />
+                <div>
+                  <p className="text-sm font-medium text-accent">Kids Care Pass Active</p>
+                  <p className="text-xs text-muted-foreground">
+                    {availablePasses[0].classes_remaining} session{availablePasses[0].classes_remaining !== 1 ? "s" : ""} remaining
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="ml-auto" onClick={() => setShowBookingModal(true)}>
+                  Book Now
+                </Button>
               </div>
-              <Link to="/class-passes" className="ml-auto">
-                <Button variant="outline" size="sm">Get Pass</Button>
-              </Link>
-            </div>
+            ) : (
+              <div className="flex items-center gap-4 p-4 bg-background border border-border rounded-sm">
+                <Lock className="w-5 h-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Kids Care Pass Required</p>
+                  <p className="text-xs text-muted-foreground">
+                    $75/month per child — 4 sessions, 2hr max each, auto-renews.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="ml-auto" onClick={handlePurchasePass} disabled={purchaseLoading}>
+                  {purchaseLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Get Pass"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </section>
