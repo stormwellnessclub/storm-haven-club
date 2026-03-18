@@ -1355,7 +1355,7 @@ export default function Apply() {
                 </div>
               )}
 
-              {!formData.addCardOnFile && (
+              {!formData.addCardOnFile && !formData.skipTourActivateImmediately && (
                 <p className="text-xs text-muted-foreground ml-6 italic">
                   You can always add a payment method later after your application is submitted.
                 </p>
