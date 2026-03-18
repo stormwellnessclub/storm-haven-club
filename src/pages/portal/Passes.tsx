@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Ticket, Calendar } from "lucide-react";
+import { Ticket, Calendar, Gift } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { getCategoryDisplayName } from "@/lib/classCategories";
@@ -29,8 +29,25 @@ export default function PortalPasses() {
     enabled: !!user,
   });
 
+  const { data: guestPasses = [], isLoading: guestPassesLoading } = useQuery({
+    queryKey: ["portal-guest-passes", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("guest_passes")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("purchased_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
   const activePasses = passes.filter((p) => p.status === "active" && p.classes_remaining > 0);
   const otherPasses = passes.filter((p) => p.status !== "active" || p.classes_remaining <= 0);
+
+  const activeGuestPasses = guestPasses.filter((p: any) => p.status === "active" && new Date(p.expires_at) > new Date());
+  const usedGuestPasses = guestPasses.filter((p: any) => p.status !== "active" || new Date(p.expires_at) <= new Date());
 
   return (
     <PortalLayout title="My Passes">
@@ -44,7 +61,39 @@ export default function PortalPasses() {
           </Button>
         </div>
 
-        {/* Active Passes */}
+        {/* Active Guest Passes */}
+        {!guestPassesLoading && activeGuestPasses.length > 0 && (
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+              Guest Passes
+            </h3>
+            <div className="space-y-3">
+              {activeGuestPasses.map((pass: any) => {
+                const daysLeft = differenceInDays(parseISO(pass.expires_at), new Date());
+                return (
+                  <Card key={pass.id}>
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Gift className="h-5 w-5 text-accent" />
+                          <div>
+                            <p className="font-medium">Guest Pass</p>
+                            <p className={`text-sm ${daysLeft <= 7 ? "text-destructive" : "text-muted-foreground"}`}>
+                              Expires {format(parseISO(pass.expires_at), "MMM d, yyyy")}{daysLeft <= 7 ? ` (${daysLeft} days left)` : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge>Active</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Active Class Passes */}
         <div>
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Active Passes
@@ -96,12 +145,28 @@ export default function PortalPasses() {
         </div>
 
         {/* Past Passes */}
-        {otherPasses.length > 0 && (
+        {(otherPasses.length > 0 || usedGuestPasses.length > 0) && (
           <div>
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
               Past Passes
             </h3>
             <div className="space-y-3">
+              {usedGuestPasses.map((pass: any) => (
+                <Card key={pass.id} className="opacity-60">
+                  <CardContent className="py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Gift className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Guest Pass</p>
+                        <p className="text-sm text-muted-foreground">
+                          {pass.status === "used" ? "Used" : "Expired"} {pass.used_at ? format(parseISO(pass.used_at), "MMM d, yyyy") : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="capitalize">{pass.status}</Badge>
+                  </CardContent>
+                </Card>
+              ))}
               {otherPasses.map((pass) => (
                 <Card key={pass.id} className="opacity-60">
                   <CardContent className="py-4 flex items-center justify-between">
