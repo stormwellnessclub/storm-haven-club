@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useKidsCareChildren, useAddChild, useUpdateChild, useDeleteChild, type AddChildData, type KidsCareChild } from "@/hooks/useKidsCareChildren";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2, Baby, Check } from "lucide-react";
 import {
@@ -37,9 +38,18 @@ const EMPTY_FORM: AddChildData = {
 
 export default function KidsCareServiceForm() {
   const { data: children, isLoading } = useKidsCareChildren();
+  const { profile, completeKidsCareServiceForm } = useUserProfile();
   const addChild = useAddChild();
   const updateChild = useUpdateChild();
   const deleteChild = useDeleteChild();
+
+  // Mark service form as completed when at least one child is registered
+  const hasChildren = children && children.length > 0;
+  useEffect(() => {
+    if (hasChildren && profile && !profile.kids_care_service_form_completed) {
+      completeKidsCareServiceForm();
+    }
+  }, [hasChildren, profile?.kids_care_service_form_completed]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingChild, setEditingChild] = useState<KidsCareChild | null>(null);
@@ -105,7 +115,7 @@ export default function KidsCareServiceForm() {
     );
   }
 
-  const hasChildren = children && children.length > 0;
+  const childrenRegistered = children && children.length > 0;
 
   return (
     <MemberLayout title="Kids Care - Child Profiles">
@@ -118,7 +128,7 @@ export default function KidsCareServiceForm() {
         </div>
 
         {/* Registered Children List */}
-        {hasChildren && (
+        {childrenRegistered && (
           <div className="space-y-4">
             <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
               <Baby className="h-5 w-5 text-accent" />
@@ -190,10 +200,10 @@ export default function KidsCareServiceForm() {
               setShowForm(true);
             }}
             className="w-full"
-            variant={hasChildren ? "outline" : "default"}
+            variant={childrenRegistered ? "outline" : "default"}
           >
             <Plus className="mr-2 h-4 w-4" />
-            {hasChildren ? "Add Another Child" : "Add Your First Child"}
+            {childrenRegistered ? "Add Another Child" : "Add Your First Child"}
           </Button>
         )}
 
@@ -352,16 +362,16 @@ export default function KidsCareServiceForm() {
         )}
 
         {/* Completion Status */}
-        {hasChildren && (
-          <Card className="bg-green-50 border-green-200">
+        {childrenRegistered && (
+          <Card className="bg-accent/10 border-accent/30">
             <CardContent className="p-6">
-              <div className="flex items-center gap-3 text-green-700">
+              <div className="flex items-center gap-3 text-accent">
                 <Check className="h-6 w-6" />
                 <div>
                   <p className="font-semibold">
                     {children.length} child{children.length !== 1 ? "ren" : ""} registered
                   </p>
-                  <p className="text-sm text-green-600">
+                  <p className="text-sm text-muted-foreground">
                     You can now book Kids Care sessions for your registered children.
                   </p>
                 </div>

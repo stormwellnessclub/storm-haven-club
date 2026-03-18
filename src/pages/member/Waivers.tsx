@@ -24,6 +24,8 @@ interface AgreementSectionProps {
   isSigning: boolean;
   required?: boolean;
   highlighted?: boolean;
+  nextStepUrl?: string;
+  nextStepLabel?: string;
 }
 
 function AgreementSection({
@@ -36,7 +38,10 @@ function AgreementSection({
   isSigning,
   required = true,
   highlighted = false,
+  nextStepUrl,
+  nextStepLabel,
 }: AgreementSectionProps) {
+  const navigate = useNavigate();
   return (
     <Card className={highlighted && !isSigned ? "ring-2 ring-accent" : ""}>
       <CardHeader>
@@ -65,17 +70,29 @@ function AgreementSection({
       </CardHeader>
       <CardContent className="space-y-4">
         {isSigned ? (
-          <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Check className="h-5 w-5" />
-              <span className="font-medium">Agreement Signed</span>
+          <>
+            <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Check className="h-5 w-5" />
+                <span className="font-medium">Agreement Signed</span>
+              </div>
+              {signedAt && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Signed on {format(parseISO(signedAt), "MMMM d, yyyy 'at' h:mm a")}
+                </p>
+              )}
             </div>
-            {signedAt && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Signed on {format(parseISO(signedAt), "MMMM d, yyyy 'at' h:mm a")}
-              </p>
+            {nextStepUrl && nextStepLabel && (
+              <Button 
+                className="w-full" 
+                variant="outline" 
+                onClick={() => navigate(nextStepUrl)}
+              >
+                {nextStepLabel}
+                <ArrowLeft className="ml-2 h-4 w-4 rotate-180" />
+              </Button>
             )}
-          </div>
+          </>
         ) : documents.length > 0 ? (
           <SimpleAgreementCard
             title={title}
@@ -135,6 +152,8 @@ interface AgreementConfig {
   isSigning: boolean;
   requiredForMembers: boolean;
   requiredForNonMembers: boolean;
+  nextStepUrl?: string;
+  nextStepLabel?: string;
 }
 
 export default function MemberWaivers() {
@@ -273,6 +292,8 @@ export default function MemberWaivers() {
       isSigning: isSigningKidsCareAgreement,
       requiredForMembers: false,
       requiredForNonMembers: false,
+      nextStepUrl: "/member/kids-care-service-form",
+      nextStepLabel: "Next: Register Your Children",
     },
     {
       key: "private_event",
@@ -405,6 +426,8 @@ export default function MemberWaivers() {
                 onSign={agreement.onSign}
                 isSigning={agreement.isSigning}
                 required={false}
+                nextStepUrl={agreement.nextStepUrl}
+                nextStepLabel={agreement.nextStepLabel}
               />
             ))}
           </div>
