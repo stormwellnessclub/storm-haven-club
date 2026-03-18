@@ -16,14 +16,17 @@ import {
   Calendar,
   Lock,
   Moon,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJoinKidsCareInterest } from "@/hooks/useKidsCareInterest";
+import { useKidsCareHoursForWeek } from "@/hooks/useKidsCareHours";
+import { formatTime12h } from "@/lib/timeFormat";
 
-// Soft launch mode flag
-const isSoftLaunch = true;
+// Soft launch mode - now disabled, hours are dynamic
+const isSoftLaunch = false;
 
 const features = [
   {
