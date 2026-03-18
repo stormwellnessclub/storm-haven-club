@@ -36,6 +36,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   const [guestName, setGuestName] = useState(prefill?.name || "");
   const [guestEmail, setGuestEmail] = useState(prefill?.email || "");
   const [quantity, setQuantity] = useState(1);
+  const [guestPassQuantity, setGuestPassQuantity] = useState(1);
   const [expiresAt, setExpiresAt] = useState<Date>(addDays(new Date(), 30));
   const [notes, setNotes] = useState("");
   // Class pass specific
