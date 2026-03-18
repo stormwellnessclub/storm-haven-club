@@ -180,9 +180,9 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
       });
 
       // Reset form
+      setSelectedChildId("");
       setChildName("");
       setChildAge("");
-      setChildDob(undefined);
       setSelectedDate(undefined);
       setSelectedStartTime("");
       setSelectedEndTime("");
