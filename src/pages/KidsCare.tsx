@@ -522,11 +522,9 @@ export default function KidsCare() {
                       Login to Book
                     </Button>
                   )}
-                  <Link to="/class-passes">
-                    <Button variant="outline" size="lg">
-                      Purchase Kids Care Pass
-                    </Button>
-                  </Link>
+                  <Button variant="outline" size="lg" onClick={handlePurchasePass} disabled={purchaseLoading}>
+                    {purchaseLoading ? "Processing..." : "Purchase Kids Care Pass"}
+                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-4">
                   Must have active Kids Care Pass to make reservations. Each pass covers one child only.
