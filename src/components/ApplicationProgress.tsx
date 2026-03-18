@@ -162,6 +162,8 @@ export function getStepCompletion(
     foundingMember: string;
     membershipAgreementSigned: boolean;
     oneYearCommitment: boolean;
+    skipTourActivateImmediately: boolean;
+    liabilityWaiverSigned: boolean;
   },
   stripeCustomerId?: string | null,
   isCardConfirmed?: boolean
