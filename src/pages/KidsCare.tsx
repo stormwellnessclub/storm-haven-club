@@ -52,10 +52,7 @@ const features = [
 ];
 
 // Updated hours for regular operation
-const hours = [
-  { day: "Monday - Thursday", time: "8:00 AM - 8:00 PM" },
-  { day: "Friday - Sunday", time: "8:00 AM - 5:00 PM" },
-];
+// Hours are now fetched dynamically from the database
 
 // Two-room structure
 const rooms = [
