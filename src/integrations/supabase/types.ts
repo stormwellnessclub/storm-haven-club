@@ -3956,6 +3956,7 @@ export type Database = {
           expiration_days: number
           first_name: string | null
           fulfilled_at: string | null
+          fulfilled_user_id: string | null
           id: string
           last_name: string | null
           pass_category: Database["public"]["Enums"]["class_category"]
@@ -3972,6 +3973,7 @@ export type Database = {
           expiration_days?: number
           first_name?: string | null
           fulfilled_at?: string | null
+          fulfilled_user_id?: string | null
           id?: string
           last_name?: string | null
           pass_category?: Database["public"]["Enums"]["class_category"]
@@ -3988,6 +3990,7 @@ export type Database = {
           expiration_days?: number
           first_name?: string | null
           fulfilled_at?: string | null
+          fulfilled_user_id?: string | null
           id?: string
           last_name?: string | null
           pass_category?: Database["public"]["Enums"]["class_category"]
