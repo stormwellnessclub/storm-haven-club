@@ -418,6 +418,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                   )}
                 </div>
               </div>
+              )}
             </div>
 
             {/* Notes */}
