@@ -2151,11 +2151,19 @@ export default function Applications() {
                       <Badge variant="outline">{formatTierDisplay(app.membership_plan)}</Badge>
                     </TableCell>
                     <TableCell>
-                      {app.founding_member?.toLowerCase() === "yes" && (
-                        <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">
-                          Founding
-                        </Badge>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {app.founding_member?.toLowerCase() === "yes" && (
+                          <Badge className="bg-accent/20 text-accent-foreground dark:bg-accent/30 dark:text-accent">
+                            Founding
+                          </Badge>
+                        )}
+                        {app.skip_tour_activate_immediately && (
+                          <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
+                            <Rocket className="h-3 w-3 mr-1" />
+                            Immediate
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
