@@ -128,7 +128,7 @@ export default function KidsCareServiceForm() {
         </div>
 
         {/* Registered Children List */}
-        {hasChildren && (
+        {childrenRegistered && (
           <div className="space-y-4">
             <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
               <Baby className="h-5 w-5 text-accent" />
