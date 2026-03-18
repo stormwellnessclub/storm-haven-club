@@ -17,6 +17,7 @@ import MemberMembership from "@/pages/member/Membership";
 import MemberBookings from "@/pages/member/Bookings";
 import MemberWaivers from "@/pages/member/Waivers";
 import KidsCareServiceForm from "@/pages/member/KidsCareServiceForm";
+import KidsCareBookings from "@/pages/member/KidsCareBookings";
 import MemberSupport from "@/pages/member/Support";
 import MemberFreezeRequest from "@/pages/member/FreezeRequest";
 import MemberPaymentMethods from "@/pages/member/PaymentMethods";
