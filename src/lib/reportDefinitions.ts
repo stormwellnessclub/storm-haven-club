@@ -1,4 +1,5 @@
-import { 
+import {
+  Receipt,
   DollarSign, 
   Users, 
   Clock, 
