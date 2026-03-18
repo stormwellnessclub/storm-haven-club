@@ -203,6 +203,10 @@ export function getStepCompletion(
       case "lifestyle":
         isComplete = !!formData.foundingMember;
         break;
+      case "payment":
+        // Optional step: complete if they opted in and card confirmed, OR if they didn't opt in
+        isComplete = !formData.addCardOnFile || !!isCardConfirmed;
+        break;
       case "agreements":
         isComplete = !!(
           formData.membershipAgreementSigned &&
