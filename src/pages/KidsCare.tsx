@@ -80,6 +80,9 @@ export default function KidsCare() {
   const { user } = useAuth();
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const { data: weeklyHours, isLoading: hoursLoading } = useKidsCareHoursForWeek(new Date());
+
+  const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   
   // Interest form state
   const [formData, setFormData] = useState({
