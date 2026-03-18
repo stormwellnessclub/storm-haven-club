@@ -6,82 +6,96 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useUserProfile } from "@/hooks/useUserProfile";
-import { useForms } from "@/hooks/useAgreements";
-import { AgreementPDFViewer } from "@/components/AgreementPDFViewer";
+import { useKidsCareChildren, useAddChild, useUpdateChild, useDeleteChild, type AddChildData, type KidsCareChild } from "@/hooks/useKidsCareChildren";
 import { toast } from "sonner";
-import { Loader2, FileText, Check } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Baby, Check } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-interface FormData {
-  childFullName: string;
-  childDateOfBirth: string;
-  emergencyContactName: string;
-  emergencyContactPhone: string;
-  relationshipToChild: string;
-  allergies: string;
-  medicalConditions: string;
-  medications: string;
-  specialInstructions: string;
-  authorizedPickupPersons: string;
-  photoRelease: boolean;
-  termsAcknowledged: boolean;
-}
+const EMPTY_FORM: AddChildData = {
+  full_name: "",
+  date_of_birth: "",
+  allergies: "",
+  medical_conditions: "",
+  medications: "",
+  special_instructions: "",
+  emergency_contact_name: "",
+  emergency_contact_phone: "",
+  relationship_to_child: "",
+  authorized_pickup_persons: "",
+  photo_release: false,
+};
 
 export default function KidsCareServiceForm() {
-  const {
-    profile,
-    isLoading: profileLoading,
-    completeKidsCareServiceForm,
-    isCompletingKidsCareServiceForm,
-  } = useUserProfile();
+  const { data: children, isLoading } = useKidsCareChildren();
+  const addChild = useAddChild();
+  const updateChild = useUpdateChild();
+  const deleteChild = useDeleteChild();
 
-  const { data: forms, isLoading: formsLoading } = useForms("kids_care_service");
+  const [showForm, setShowForm] = useState(false);
+  const [editingChild, setEditingChild] = useState<KidsCareChild | null>(null);
+  const [formData, setFormData] = useState<AddChildData>(EMPTY_FORM);
 
-  const [formData, setFormData] = useState<FormData>({
-    childFullName: "",
-    childDateOfBirth: "",
-    emergencyContactName: "",
-    emergencyContactPhone: "",
-    relationshipToChild: "",
-    allergies: "",
-    medicalConditions: "",
-    medications: "",
-    specialInstructions: "",
-    authorizedPickupPersons: "",
-    photoRelease: false,
-    termsAcknowledged: false,
-  });
-
-  const handleInputChange = (field: keyof FormData, value: string | boolean) => {
+  const handleInputChange = (field: keyof AddChildData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const resetForm = () => {
+    setFormData(EMPTY_FORM);
+    setEditingChild(null);
+    setShowForm(false);
+  };
+
+  const handleEditChild = (child: KidsCareChild) => {
+    setEditingChild(child);
+    setFormData({
+      full_name: child.full_name,
+      date_of_birth: child.date_of_birth || "",
+      allergies: child.allergies || "",
+      medical_conditions: child.medical_conditions || "",
+      medications: child.medications || "",
+      special_instructions: child.special_instructions || "",
+      emergency_contact_name: child.emergency_contact_name || "",
+      emergency_contact_phone: child.emergency_contact_phone || "",
+      relationship_to_child: child.relationship_to_child || "",
+      authorized_pickup_persons: child.authorized_pickup_persons || "",
+      photo_release: child.photo_release,
+    });
+    setShowForm(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.termsAcknowledged) {
-      toast.error("Please acknowledge the terms and conditions");
-      return;
-    }
-
-    if (!formData.childFullName || !formData.childDateOfBirth || !formData.emergencyContactName || !formData.emergencyContactPhone) {
-      toast.error("Please fill in all required fields");
+    if (!formData.full_name) {
+      toast.error("Please enter the child's full name");
       return;
     }
 
     try {
-      // Store form data and mark as completed
-      // In a real implementation, you might want to store the form data in member_forms table
-      completeKidsCareServiceForm();
-      toast.success("Service form submitted successfully!");
-    } catch (error: any) {
-      toast.error("Failed to submit form: " + error.message);
+      if (editingChild) {
+        await updateChild.mutateAsync({ id: editingChild.id, ...formData });
+      } else {
+        await addChild.mutateAsync(formData);
+      }
+      resetForm();
+    } catch {
+      // Error handled in hook
     }
   };
 
-  if (profileLoading || formsLoading) {
+  if (isLoading) {
     return (
-      <MemberLayout title="Kids Care Service Form">
+      <MemberLayout title="Kids Care - Child Profiles">
         <Card>
           <CardContent className="p-8">
             <Loader2 className="h-8 w-8 animate-spin mx-auto" />
@@ -91,240 +105,271 @@ export default function KidsCareServiceForm() {
     );
   }
 
-  const isCompleted = profile?.kids_care_service_form_completed || false;
-  const formPdfUrl = forms && forms.length > 0 ? forms[0].pdf_url : null;
+  const hasChildren = children && children.length > 0;
 
   return (
-    <MemberLayout title="Kids Care Service Form">
+    <MemberLayout title="Kids Care - Child Profiles">
       <div className="space-y-6 max-w-3xl">
         <div className="mb-6">
           <p className="text-muted-foreground">
-            Please complete the Kids Care Service Set-Up Form before booking Kids Care services. 
-            This form helps us ensure the safety and well-being of your child.
+            Register each child's profile with their medical and emergency contact information.
+            This information helps our staff ensure the safety and well-being of your children.
           </p>
         </div>
 
-        {isCompleted && (
+        {/* Registered Children List */}
+        {hasChildren && (
+          <div className="space-y-4">
+            <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
+              <Baby className="h-5 w-5 text-accent" />
+              Registered Children
+            </h3>
+            {children.map((child) => (
+              <Card key={child.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <p className="font-medium text-foreground">{child.full_name}</p>
+                      {child.date_of_birth && (
+                        <p className="text-sm text-muted-foreground">
+                          DOB: {new Date(child.date_of_birth).toLocaleDateString()}
+                        </p>
+                      )}
+                      {child.emergency_contact_name && (
+                        <p className="text-sm text-muted-foreground">
+                          Emergency: {child.emergency_contact_name} — {child.emergency_contact_phone}
+                        </p>
+                      )}
+                      {child.allergies && (
+                        <p className="text-sm text-destructive">Allergies: {child.allergies}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditChild(child)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove {child.full_name}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will remove the child's profile. You can add them back later.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteChild.mutate(child.id)}>
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Add Child Button */}
+        {!showForm && (
+          <Button
+            onClick={() => {
+              setEditingChild(null);
+              setFormData(EMPTY_FORM);
+              setShowForm(true);
+            }}
+            className="w-full"
+            variant={hasChildren ? "outline" : "default"}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {hasChildren ? "Add Another Child" : "Add Your First Child"}
+          </Button>
+        )}
+
+        {/* Add/Edit Form */}
+        {showForm && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{editingChild ? "Edit Child Profile" : "Add Child Profile"}</CardTitle>
+              <CardDescription>
+                Fields marked with * are required.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <Label htmlFor="fullName">
+                      Child's Full Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="fullName"
+                      value={formData.full_name}
+                      onChange={(e) => handleInputChange("full_name", e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Input
+                      id="dateOfBirth"
+                      type="date"
+                      value={formData.date_of_birth || ""}
+                      onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="emergencyContactName">Emergency Contact Name</Label>
+                    <Input
+                      id="emergencyContactName"
+                      value={formData.emergency_contact_name || ""}
+                      onChange={(e) => handleInputChange("emergency_contact_name", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="emergencyContactPhone">Emergency Contact Phone</Label>
+                    <Input
+                      id="emergencyContactPhone"
+                      type="tel"
+                      value={formData.emergency_contact_phone || ""}
+                      onChange={(e) => handleInputChange("emergency_contact_phone", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="relationshipToChild">Relationship to Child</Label>
+                    <Input
+                      id="relationshipToChild"
+                      value={formData.relationship_to_child || ""}
+                      onChange={(e) => handleInputChange("relationship_to_child", e.target.value)}
+                      placeholder="e.g., Parent, Guardian"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="allergies">Allergies</Label>
+                    <Textarea
+                      id="allergies"
+                      value={formData.allergies || ""}
+                      onChange={(e) => handleInputChange("allergies", e.target.value)}
+                      placeholder="List any allergies"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="medicalConditions">Medical Conditions</Label>
+                    <Textarea
+                      id="medicalConditions"
+                      value={formData.medical_conditions || ""}
+                      onChange={(e) => handleInputChange("medical_conditions", e.target.value)}
+                      placeholder="List any medical conditions"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="medications">Current Medications</Label>
+                    <Textarea
+                      id="medications"
+                      value={formData.medications || ""}
+                      onChange={(e) => handleInputChange("medications", e.target.value)}
+                      placeholder="List any medications"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="specialInstructions">Special Instructions</Label>
+                    <Textarea
+                      id="specialInstructions"
+                      value={formData.special_instructions || ""}
+                      onChange={(e) => handleInputChange("special_instructions", e.target.value)}
+                      placeholder="Any special instructions for staff"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="authorizedPickupPersons">Authorized Pick-Up Persons</Label>
+                    <Textarea
+                      id="authorizedPickupPersons"
+                      value={formData.authorized_pickup_persons || ""}
+                      onChange={(e) => handleInputChange("authorized_pickup_persons", e.target.value)}
+                      placeholder="Full names of persons authorized to pick up your child"
+                      rows={2}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="photoRelease"
+                      checked={formData.photo_release || false}
+                      onCheckedChange={(checked) => handleInputChange("photo_release", checked as boolean)}
+                    />
+                    <Label htmlFor="photoRelease" className="font-normal cursor-pointer">
+                      I authorize Storm Wellness Club to photograph my child for promotional purposes (optional)
+                    </Label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={addChild.isPending || updateChild.isPending}>
+                    {(addChild.isPending || updateChild.isPending) ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : editingChild ? (
+                      "Update Child Profile"
+                    ) : (
+                      "Save Child Profile"
+                    )}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Completion Status */}
+        {hasChildren && (
           <Card className="bg-green-50 border-green-200">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 text-green-700">
                 <Check className="h-6 w-6" />
                 <div>
-                  <p className="font-semibold">Service Form Completed</p>
+                  <p className="font-semibold">
+                    {children.length} child{children.length !== 1 ? "ren" : ""} registered
+                  </p>
                   <p className="text-sm text-green-600">
-                    Your Kids Care service form has been completed. You can now book Kids Care services.
+                    You can now book Kids Care sessions for your registered children.
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
-
-        {/* PDF Form View */}
-        {formPdfUrl && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-accent" />
-                <CardTitle>Service Set-Up Form</CardTitle>
-              </div>
-              <CardDescription>
-                Please review the form below and complete the fields on this page.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AgreementPDFViewer
-                pdfUrl={formPdfUrl}
-                title="Kids Care Service Set-Up Form"
-                height="600px"
-                showControls={true}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Online Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Complete Service Form</CardTitle>
-            <CardDescription>
-              Please provide the following information about your child. All fields marked with * are required.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <Label htmlFor="childFullName">
-                    Child's Full Name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="childFullName"
-                    value={formData.childFullName}
-                    onChange={(e) => handleInputChange("childFullName", e.target.value)}
-                    required
-                    disabled={isCompleted}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="childDateOfBirth">
-                    Date of Birth <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="childDateOfBirth"
-                    type="date"
-                    value={formData.childDateOfBirth}
-                    onChange={(e) => handleInputChange("childDateOfBirth", e.target.value)}
-                    required
-                    disabled={isCompleted}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="emergencyContactName">
-                    Emergency Contact Name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="emergencyContactName"
-                    value={formData.emergencyContactName}
-                    onChange={(e) => handleInputChange("emergencyContactName", e.target.value)}
-                    required
-                    disabled={isCompleted}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="emergencyContactPhone">
-                    Emergency Contact Phone <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="emergencyContactPhone"
-                    type="tel"
-                    value={formData.emergencyContactPhone}
-                    onChange={(e) => handleInputChange("emergencyContactPhone", e.target.value)}
-                    required
-                    disabled={isCompleted}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="relationshipToChild">Relationship to Child</Label>
-                  <Input
-                    id="relationshipToChild"
-                    value={formData.relationshipToChild}
-                    onChange={(e) => handleInputChange("relationshipToChild", e.target.value)}
-                    placeholder="e.g., Parent, Guardian, Grandparent"
-                    disabled={isCompleted}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="allergies">Allergies</Label>
-                  <Textarea
-                    id="allergies"
-                    value={formData.allergies}
-                    onChange={(e) => handleInputChange("allergies", e.target.value)}
-                    placeholder="List any allergies (food, medication, environmental, etc.)"
-                    rows={3}
-                    disabled={isCompleted}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="medicalConditions">Medical Conditions</Label>
-                  <Textarea
-                    id="medicalConditions"
-                    value={formData.medicalConditions}
-                    onChange={(e) => handleInputChange("medicalConditions", e.target.value)}
-                    placeholder="List any medical conditions we should be aware of"
-                    rows={3}
-                    disabled={isCompleted}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="medications">Current Medications</Label>
-                  <Textarea
-                    id="medications"
-                    value={formData.medications}
-                    onChange={(e) => handleInputChange("medications", e.target.value)}
-                    placeholder="List any medications your child is currently taking"
-                    rows={3}
-                    disabled={isCompleted}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="specialInstructions">Special Instructions</Label>
-                  <Textarea
-                    id="specialInstructions"
-                    value={formData.specialInstructions}
-                    onChange={(e) => handleInputChange("specialInstructions", e.target.value)}
-                    placeholder="Any special instructions or notes for our staff"
-                    rows={3}
-                    disabled={isCompleted}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="authorizedPickupPersons">Authorized Pick-Up Persons</Label>
-                  <Textarea
-                    id="authorizedPickupPersons"
-                    value={formData.authorizedPickupPersons}
-                    onChange={(e) => handleInputChange("authorizedPickupPersons", e.target.value)}
-                    placeholder="List full names of persons authorized to pick up your child"
-                    rows={3}
-                    disabled={isCompleted}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-4 border-t">
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="photoRelease"
-                    checked={formData.photoRelease}
-                    onCheckedChange={(checked) => handleInputChange("photoRelease", checked as boolean)}
-                    disabled={isCompleted}
-                  />
-                  <Label htmlFor="photoRelease" className="font-normal cursor-pointer">
-                    I authorize Storm Wellness Club to photograph my child for promotional purposes (optional)
-                  </Label>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id="termsAcknowledged"
-                    checked={formData.termsAcknowledged}
-                    onCheckedChange={(checked) => handleInputChange("termsAcknowledged", checked as boolean)}
-                    required
-                    disabled={isCompleted}
-                  />
-                  <Label htmlFor="termsAcknowledged" className="font-normal cursor-pointer">
-                    I acknowledge that I have reviewed the service form and provided accurate information. 
-                    I understand that my child must be signed in and out by an authorized adult. *
-                  </Label>
-                </div>
-              </div>
-
-              {!isCompleted && (
-                <Button type="submit" className="w-full" disabled={isCompletingKidsCareServiceForm}>
-                  {isCompletingKidsCareServiceForm ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "Submit Service Form"
-                  )}
-                </Button>
-              )}
-            </form>
-          </CardContent>
-        </Card>
       </div>
     </MemberLayout>
   );
 }
-
