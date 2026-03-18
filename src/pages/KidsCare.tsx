@@ -304,6 +304,77 @@ export default function KidsCare() {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-6">
+          <div className="max-w-lg mx-auto">
+            <SectionHeading
+              title="Kids Care Pass"
+              subtitle="Monthly subscription for members — one pass per child."
+            />
+            <div className="card-luxury p-8 text-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-bl-lg">
+                MEMBER
+              </div>
+              <Sparkles className="w-10 h-10 mx-auto mb-4 text-accent" />
+              <div className="mb-2">
+                <span className="text-4xl font-serif font-bold text-foreground">$75</span>
+                <span className="text-muted-foreground">/month</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">per child • auto-renews • cancel anytime</p>
+              <ul className="text-sm text-left space-y-3 mb-8">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                  <span>4 sessions per month (2-hour max each)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                  <span>30-day validity — sessions reset each cycle</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                  <span>Cancel anytime — no proration, no penalties</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                  <span>Add-on hours available at $15/hr per child</span>
+                </li>
+              </ul>
+              {hasActivePass ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-accent font-medium">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Pass Active — {availablePasses[0].classes_remaining} sessions left
+                  </div>
+                  <Button size="lg" className="w-full" onClick={() => setShowBookingModal(true)}>
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Book a Session
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="lg"
+                  className="w-full"
+                  onClick={handlePurchasePass}
+                  disabled={purchaseLoading || !user}
+                >
+                  {purchaseLoading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
+                  ) : (
+                    <><CreditCard className="w-4 h-4 mr-2" /> Subscribe — $75/mo</>
+                  )}
+                </Button>
+              )}
+              {!user && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  <a href="/auth" className="text-accent underline">Sign in</a> to purchase
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Booking / Interest Waitlist Section */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-6">
