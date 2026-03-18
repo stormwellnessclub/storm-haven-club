@@ -27,6 +27,8 @@ const statusConfig: Record<EmailConversation['status'], { label: string; variant
 
 export default function Support() {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") || "support";
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
