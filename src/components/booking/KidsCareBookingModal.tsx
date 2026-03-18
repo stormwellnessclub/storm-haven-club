@@ -58,9 +58,9 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedStartTime, setSelectedStartTime] = useState<string>("");
   const [selectedEndTime, setSelectedEndTime] = useState<string>("");
+  const [selectedChildId, setSelectedChildId] = useState<string>("");
   const [childName, setChildName] = useState("");
   const [childAge, setChildAge] = useState<string>("");
-  const [childDob, setChildDob] = useState<Date | undefined>(undefined);
   const [selectedPassId, setSelectedPassId] = useState<string>("");
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [parentNotes, setParentNotes] = useState("");
