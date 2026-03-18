@@ -70,27 +70,29 @@ function AgreementSection({
       </CardHeader>
       <CardContent className="space-y-4">
         {isSigned ? (
-          <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Check className="h-5 w-5" />
-              <span className="font-medium">Agreement Signed</span>
+          <>
+            <div className="p-4 rounded-lg bg-muted/20 border border-muted/30">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Check className="h-5 w-5" />
+                <span className="font-medium">Agreement Signed</span>
+              </div>
+              {signedAt && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Signed on {format(parseISO(signedAt), "MMMM d, yyyy 'at' h:mm a")}
+                </p>
+              )}
             </div>
-            {signedAt && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Signed on {format(parseISO(signedAt), "MMMM d, yyyy 'at' h:mm a")}
-              </p>
+            {nextStepUrl && nextStepLabel && (
+              <Button 
+                className="w-full" 
+                variant="outline" 
+                onClick={() => navigate(nextStepUrl)}
+              >
+                {nextStepLabel}
+                <ArrowLeft className="ml-2 h-4 w-4 rotate-180" />
+              </Button>
             )}
-          </div>
-          {nextStepUrl && nextStepLabel && (
-            <Button 
-              className="mt-3 w-full" 
-              variant="outline" 
-              onClick={() => navigate(nextStepUrl)}
-            >
-              {nextStepLabel}
-              <ArrowLeft className="ml-2 h-4 w-4 rotate-180" />
-            </Button>
-          )}
+          </>
         ) : documents.length > 0 ? (
           <SimpleAgreementCard
             title={title}
