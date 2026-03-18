@@ -87,7 +87,41 @@ export default function KidsCare() {
   const [submitted, setSubmitted] = useState(false);
   const { data: weeklyHours, isLoading: hoursLoading } = useKidsCareHoursForWeek(new Date());
 
+  const { data: availablePasses, isLoading: passesLoading } = useKidsCarePasses();
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+
   const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  const hasActivePass = availablePasses && availablePasses.length > 0;
+
+  const handlePurchasePass = async () => {
+    if (!user) {
+      window.location.href = "/auth";
+      return;
+    }
+
+    setPurchaseLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_kids_care_checkout",
+          successUrl: `${window.location.origin}/kids-care?success=true`,
+          cancelUrl: `${window.location.origin}/kids-care`,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to start checkout");
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
   
   // Interest form state
   const [formData, setFormData] = useState({
