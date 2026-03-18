@@ -47,19 +47,20 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
     mutationFn: async () => {
       if (grantType === "guest_pass") {
         if (!guestName.trim()) throw new Error("Guest name is required");
+        const passesToInsert = Array.from({ length: guestPassQuantity }, () => ({
+          guest_name: guestName.trim(),
+          guest_email: guestEmail.trim() || null,
+          price_paid: 0,
+          status: "active",
+          purchased_at: new Date().toISOString(),
+          expires_at: expiresAt.toISOString(),
+          valid_date: null,
+          member_referral: notes.trim() || "Admin Granted",
+          user_id: prefill?.userId || null,
+        }));
         const { error } = await (supabase
           .from("guest_passes" as any)
-          .insert({
-            guest_name: guestName.trim(),
-            guest_email: guestEmail.trim() || null,
-            price_paid: 0,
-            status: "active",
-            purchased_at: new Date().toISOString(),
-            expires_at: expiresAt.toISOString(),
-            valid_date: null,
-            member_referral: notes.trim() || "Admin Granted",
-            user_id: prefill?.userId || null,
-          }) as any);
+          .insert(passesToInsert) as any);
         if (error) throw error;
       } else if (grantType === "class_pass") {
         if (!prefill?.userId) throw new Error("User ID required for class passes");
