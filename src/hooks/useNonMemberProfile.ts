@@ -41,11 +41,21 @@ export function useNonMemberProfile() {
 
       // Auto-create profile if it doesn't exist
       if (!data) {
+        // Fetch name/phone from profiles table to pre-populate
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, phone")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
         const { data: newProfile, error: insertError } = await supabase
           .from("non_member_profiles")
           .insert({
             user_id: user.id,
             email: user.email || null,
+            first_name: existingProfile?.first_name || null,
+            last_name: existingProfile?.last_name || null,
+            phone: existingProfile?.phone || null,
           })
           .select()
           .single();
