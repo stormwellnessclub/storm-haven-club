@@ -61,6 +61,7 @@ const initialFormData = {
   oneYearCommitment: false,
   skipTourActivateImmediately: false,
   liabilityWaiverSigned: false,
+  addCardOnFile: false,
 };
 
 // Save to BOTH storages for maximum reliability on mobile
