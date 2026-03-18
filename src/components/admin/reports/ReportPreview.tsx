@@ -37,6 +37,7 @@ import { MemberEngagementReport } from "./reports/MemberEngagementReport";
 import { GuestReturnsReport } from "./reports/GuestReturnsReport";
 import { ClassEngagementReport } from "./reports/ClassEngagementReport";
 import { DailySalesBreakdownReport } from "./reports/DailySalesBreakdownReport";
+import { SalesTaxReport } from "./reports/SalesTaxReport";
 interface ReportPreviewProps {
   report: ReportDefinition | null;
   dateRange: { start: Date; end: Date };
@@ -146,6 +147,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'member-engagement': MemberEngagementReport,
     'guest-returns': GuestReturnsReport,
     'class-engagement': ClassEngagementReport,
+    'sales-tax-collected': SalesTaxReport,
   };
 
   const ReportComponent = reportComponents[reportId];
