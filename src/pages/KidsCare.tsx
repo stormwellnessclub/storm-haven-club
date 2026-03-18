@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   Loader2,
   CreditCard,
-  Sparkles
+  Sparkles,
+  MessageCircle
 } from "lucide-react";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useAuth } from "@/contexts/AuthContext";
