@@ -204,8 +204,12 @@ export function getStepCompletion(
         isComplete = !!formData.foundingMember;
         break;
       case "payment":
-        // Optional step: complete if they opted in and card confirmed, OR if they didn't opt in
-        isComplete = !formData.addCardOnFile || !!isCardConfirmed;
+        // Required when immediate activation is selected OR when addCardOnFile is checked
+        if (formData.skipTourActivateImmediately) {
+          isComplete = !!isCardConfirmed;
+        } else {
+          isComplete = !formData.addCardOnFile || !!isCardConfirmed;
+        }
         break;
       case "agreements":
         isComplete = !!(

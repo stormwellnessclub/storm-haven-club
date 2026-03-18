@@ -344,78 +344,199 @@ function LiabilityWaiverSection({ isSigned, onCheckboxChange }: { isSigned: bool
   );
 }
 
-// Inner form component for inline Stripe card setup
-function InlinePaymentFormInner({ 
+// Hardened payment form for applicant card capture (no nested <form>, robust error/loading handling)
+const CARD_LOADING_MESSAGES = [
+  "Preparing secure checkout...",
+  "Setting up encryption...",
+  "Loading payment form...",
+  "Almost ready...",
+];
+
+function ApplicantPaymentFormInner({ 
   onSuccess, 
   onCancel,
+  customerId,
+  clientSecret,
 }: { 
   onSuccess: (cardBrand: string | null, cardLast4: string | null, cardExpMonth: number | null, cardExpYear: number | null, customerId: string | null) => void; 
   onCancel: () => void;
+  customerId: string | null;
+  clientSecret: string;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
+  // Cycle loading messages while form loads
+  useEffect(() => {
+    if (!isReady) {
+      const interval = setInterval(() => {
+        setLoadingMsgIdx(prev => (prev + 1) % CARD_LOADING_MESSAGES.length);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isReady]);
+
+  const handleSave = async () => {
+    setError(null);
+    if (!stripe || !elements) {
+      setError("Payment form not ready. Please wait...");
+      return;
+    }
 
     setIsSubmitting(true);
 
     try {
-      const { error, setupIntent } = await stripe.confirmSetup({
-        elements,
-        confirmParams: {
-          return_url: window.location.href,
-        },
-        redirect: "if_required",
-      });
-
-      if (error) {
-        toast.error(formatSetupError(error));
+      // Validate form first
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setError(submitError.message || "Please complete the payment form");
         setIsSubmitting(false);
         return;
       }
 
-      if (setupIntent?.status === "succeeded" && setupIntent.payment_method) {
-        // Fetch card details via the payment method
-        const pmId = typeof setupIntent.payment_method === 'string' ? setupIntent.payment_method : setupIntent.payment_method.id;
-        
-        // We need to get the card details - use Stripe to retrieve payment method info
-        // Customer ID is tracked by the parent component when the setup intent was created
-        
-        // Try to get card details from the payment method object if available
-        let cardBrand: string | null = null;
-        let cardLast4: string | null = null;
-        let cardExpMonth: number | null = null;
-        let cardExpYear: number | null = null;
+      const { error: confirmError, setupIntent } = await stripe.confirmSetup({
+        elements,
+        clientSecret,
+        redirect: "if_required",
+        confirmParams: {
+          return_url: window.location.href,
+        },
+      });
 
-        if (typeof setupIntent.payment_method !== 'string' && setupIntent.payment_method?.card) {
-          const card = setupIntent.payment_method.card;
-          cardBrand = card.brand;
-          cardLast4 = card.last4;
-          cardExpMonth = card.exp_month;
-          cardExpYear = card.exp_year;
-        }
-
-        toast.success("Payment method saved successfully!");
-        onSuccess(cardBrand, cardLast4, cardExpMonth, cardExpYear, null);
+      if (confirmError) {
+        setError(formatSetupError(confirmError));
+        setIsSubmitting(false);
+        return;
       }
+
+      if (!setupIntent) {
+        setError("Setup failed - no response. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (setupIntent.status !== "succeeded") {
+        setError(`Payment setup incomplete (status: ${setupIntent.status}). Please try again.`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const paymentMethodId = typeof setupIntent.payment_method === "string" 
+        ? setupIntent.payment_method 
+        : (setupIntent.payment_method as any)?.id;
+
+      if (!paymentMethodId) {
+        setError("Card setup completed but payment method was not saved. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Fetch card details with retry logic (Stripe eventual consistency)
+      let cardBrand: string | null = null;
+      let cardLast4: string | null = null;
+      let cardExpMonth: number | null = null;
+      let cardExpYear: number | null = null;
+
+      const maxAttempts = 4;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const delay = attempt === 1 ? 2000 : attempt === 2 ? 2000 : attempt === 3 ? 2500 : 3000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        try {
+          console.log(`[ApplicantPayment] Attempt ${attempt}/${maxAttempts} - Fetching card details`);
+          const { data: pmData, error: pmError } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "list_application_payment_methods",
+              stripeCustomerId: customerId,
+            },
+          });
+
+          if (pmError) {
+            console.error(`[ApplicantPayment] Attempt ${attempt} - Error:`, pmError);
+            continue;
+          }
+
+          if (pmData?.paymentMethods?.[0]) {
+            const card = pmData.paymentMethods[0];
+            cardBrand = card.brand || null;
+            cardLast4 = card.last4 || null;
+            cardExpMonth = card.expMonth || null;
+            cardExpYear = card.expYear || null;
+            console.log("[ApplicantPayment] Got card details:", { cardBrand, cardLast4 });
+            break;
+          }
+        } catch (err) {
+          console.error(`[ApplicantPayment] Attempt ${attempt} - Exception:`, err);
+        }
+      }
+
+      // If we still don't have card details, try from the payment method object
+      if (!cardBrand && typeof setupIntent.payment_method !== 'string' && setupIntent.payment_method?.card) {
+        const card = setupIntent.payment_method.card;
+        cardBrand = card.brand;
+        cardLast4 = card.last4;
+        cardExpMonth = card.exp_month;
+        cardExpYear = card.exp_year;
+      }
+
+      toast.success("Payment method saved successfully!");
+      onSuccess(cardBrand, cardLast4, cardExpMonth, cardExpYear, customerId);
     } catch (err) {
       console.error("Error saving card:", err);
-      toast.error("Failed to save payment method");
+      setError("Failed to save payment method. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement 
-        onReady={() => setIsReady(true)}
-        options={{ layout: "tabs" }}
-      />
+    <div className="space-y-4">
+      <div className="min-h-[300px] relative">
+        {/* Loading overlay */}
+        {!isReady && !error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+            <div className="text-center space-y-4">
+              <div className="relative">
+                <div className="w-16 h-16 mx-auto rounded-full border-4 border-accent/20 border-t-accent animate-spin" />
+                <CreditCard className="w-6 h-6 text-accent absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <p className="text-sm text-muted-foreground animate-pulse">
+                {CARD_LOADING_MESSAGES[loadingMsgIdx]}
+              </p>
+            </div>
+          </div>
+        )}
+        {/* Error overlay */}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
+            <div className="text-center p-4">
+              <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
+              <p className="text-sm text-destructive mb-2">{error}</p>
+              <Button type="button" variant="outline" onClick={() => {
+                setError(null);
+                setIsReady(false);
+              }}>
+                Try Again
+              </Button>
+            </div>
+          </div>
+        )}
+        <div tabIndex={-1}>
+          <PaymentElement 
+            onReady={() => setIsReady(true)}
+            onLoadError={(loadError) => {
+              const msg = loadError.error?.message || "Unknown error";
+              setError(`Failed to load payment form: ${msg}`);
+              setIsReady(false);
+            }}
+            options={{ layout: "tabs" }}
+          />
+        </div>
+      </div>
       <div className="flex gap-3 pt-2">
         <Button 
           type="button" 
@@ -427,7 +548,8 @@ function InlinePaymentFormInner({
           Cancel
         </Button>
         <Button 
-          type="submit" 
+          type="button"
+          onClick={handleSave}
           disabled={!stripe || !elements || isSubmitting || !isReady}
           className="flex-1"
         >
@@ -441,7 +563,7 @@ function InlinePaymentFormInner({
           )}
         </Button>
       </div>
-    </form>
+    </div>
   );
 }
 
@@ -461,6 +583,7 @@ export default function Apply() {
   const [cardExpYear, setCardExpYear] = useState<number | null>(null);
   const [isLoadingCardSetup, setIsLoadingCardSetup] = useState(false);
   const [showCardForm, setShowCardForm] = useState(false);
+  const [stripeRemountKey, setStripeRemountKey] = useState(0);
   
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
@@ -582,6 +705,11 @@ export default function Apply() {
 
     if (formData.skipTourActivateImmediately && !formData.liabilityWaiverSigned) {
       toast.error("Please sign the liability waiver to proceed with immediate activation.");
+      return;
+    }
+
+    if (formData.skipTourActivateImmediately && !cardSetupComplete) {
+      toast.error("A payment method is required for immediate activation. Please add a card on file.");
       return;
     }
 
@@ -1092,27 +1220,47 @@ export default function Apply() {
               </div>
             </div>
 
-            {/* Step 7 — Payment Method (Optional) */}
+            {/* Step 7 — Payment Method */}
             <div ref={(el) => sectionRefs.current["payment"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
-              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">Payment Method (Optional)</h2>
+              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">
+                Payment Method {formData.skipTourActivateImmediately ? "(Required)" : "(Optional)"}
+              </h2>
               <p className="text-sm text-muted-foreground mb-6">
-                Adding a payment method now helps expedite your activation if approved. No charges will be made until your membership is activated.
+                {formData.skipTourActivateImmediately 
+                  ? "A payment method is required for immediate activation. Your card will be charged upon approval."
+                  : "Adding a payment method now helps expedite your activation if approved. No charges will be made until your membership is activated."
+                }
               </p>
+
+              {formData.skipTourActivateImmediately && !cardSetupComplete && (
+                <div className="flex items-start gap-3 p-3 mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                    You selected immediate activation — a payment method must be saved before you can submit.
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-start gap-3 mb-4">
                 <Checkbox
                   id="addCardOnFile"
                   checked={formData.addCardOnFile}
+                  disabled={formData.skipTourActivateImmediately}
                   onCheckedChange={(checked) => {
+                    if (formData.skipTourActivateImmediately && !checked) return;
                     handleCheckboxChange("addCardOnFile", checked as boolean);
                     if (!checked) {
                       setShowCardForm(false);
                       setCardClientSecret(null);
+                      setStripeRemountKey(prev => prev + 1);
                     }
                   }}
                 />
                 <Label htmlFor="addCardOnFile" className="font-medium cursor-pointer text-sm">
-                  I'd like to add a payment method now to expedite activation if approved.
+                  {formData.skipTourActivateImmediately
+                    ? "Payment method required for immediate activation."
+                    : "I'd like to add a payment method now to expedite activation if approved."
+                  }
                 </Label>
               </div>
 
@@ -1138,19 +1286,23 @@ export default function Apply() {
                           Your card will be saved securely for future billing. No charges will be made until your membership is activated.
                         </p>
                       </div>
-                      <StripeProvider clientSecret={cardClientSecret}>
-                        <InlinePaymentFormInner
-                          onSuccess={(brand, last4, expMonth, expYear, _custId) => {
+                      <StripeProvider key={`stripe-applicant-${stripeRemountKey}`} clientSecret={cardClientSecret}>
+                        <ApplicantPaymentFormInner
+                          clientSecret={cardClientSecret}
+                          customerId={cardCustomerId}
+                          onSuccess={(brand, last4, expMonth, expYear, custId) => {
                             setCardBrand(brand);
                             setCardLast4(last4);
                             setCardExpMonth(expMonth);
                             setCardExpYear(expYear);
+                            if (custId) setCardCustomerId(custId);
                             setCardSetupComplete(true);
                             setShowCardForm(false);
                           }}
                           onCancel={() => {
                             setShowCardForm(false);
                             setCardClientSecret(null);
+                            setStripeRemountKey(prev => prev + 1);
                           }}
                         />
                       </StripeProvider>
@@ -1172,6 +1324,7 @@ export default function Apply() {
                           if (data?.clientSecret) {
                             setCardClientSecret(data.clientSecret);
                             setCardCustomerId(data.customerId || null);
+                            setStripeRemountKey(prev => prev + 1);
                             setShowCardForm(true);
                           } else {
                             throw new Error("No client secret returned");
@@ -1202,7 +1355,7 @@ export default function Apply() {
                 </div>
               )}
 
-              {!formData.addCardOnFile && (
+              {!formData.addCardOnFile && !formData.skipTourActivateImmediately && (
                 <p className="text-xs text-muted-foreground ml-6 italic">
                   You can always add a payment method later after your application is submitted.
                 </p>
@@ -1252,7 +1405,13 @@ export default function Apply() {
                   <Checkbox
                     id="skipTourActivateImmediately"
                     checked={formData.skipTourActivateImmediately}
-                    onCheckedChange={(checked) => handleCheckboxChange("skipTourActivateImmediately", checked as boolean)}
+                    onCheckedChange={(checked) => {
+                      handleCheckboxChange("skipTourActivateImmediately", checked as boolean);
+                      // Auto-enable addCardOnFile when immediate activation is selected
+                      if (checked) {
+                        handleCheckboxChange("addCardOnFile", true);
+                      }
+                    }}
                   />
                   <Label htmlFor="skipTourActivateImmediately" className="font-medium cursor-pointer text-sm">
                     I do not need a tour scheduled and would like my membership activated upon approval.
