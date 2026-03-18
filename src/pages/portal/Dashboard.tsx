@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CalendarPlus, Ticket, Zap, CreditCard, Calendar } from "lucide-react";
+import { CalendarPlus, Ticket, Zap, CreditCard, Calendar, Gift } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, parseISO, differenceInDays } from "date-fns";
