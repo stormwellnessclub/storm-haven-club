@@ -103,6 +103,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 // Helper functions
 const getStatusColor = (status: string) => {
@@ -307,13 +308,12 @@ export default function MemberDetail() {
     queryKey: ["member-credits", id],
     queryFn: async () => {
       if (!id) return [];
-      // Fetch all non-expired credits, plus any with remaining > 0 (even if technically expired)
+      // Fetch ALL credits (including expired) for admin view, ordered newest first
       const { data, error } = await supabase
         .from("member_credits")
         .select("*")
         .eq("member_id", id)
-        .or(`expires_at.gt."${new Date().toISOString()}",credits_remaining.gt.0`)
-        .order("credit_type", { ascending: true });
+        .order("cycle_start", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -1857,43 +1857,91 @@ export default function MemberDetail() {
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {(['class', 'red_light', 'dry_cryo', 'guest_pass'] as CreditType[]).map((type) => {
-                        const credit = memberCredits.find((c) => c.credit_type === type);
-                        return (
-                          <div key={type} className={`p-4 border rounded-lg ${credit && credit.credits_remaining > 0 ? 'border-primary/30 bg-primary/5' : ''}`}>
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-sm text-muted-foreground">{CREDIT_TYPE_LABELS[type]}</p>
-                              {credit && isSuperAdmin() && (
-                                <Button variant="ghost" size="icon-sm" onClick={() => setEditingCredit(credit)}>
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
+                    <>
+                      {/* Current Monthly Credits - latest non-expired per type */}
+                      <h4 className="text-sm font-semibold mb-3 text-foreground">Current Monthly Credits</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {(['class', 'red_light', 'dry_cryo', 'guest_pass'] as CreditType[]).map((type) => {
+                          const now = new Date().toISOString();
+                          // Pick latest non-expired credit for this type (already sorted by cycle_start DESC)
+                          const credit = memberCredits.find((c) => c.credit_type === type && c.expires_at > now);
+                          return (
+                            <div key={type} className={`p-4 border rounded-lg ${credit && credit.credits_remaining > 0 ? 'border-primary/30 bg-primary/5' : ''}`}>
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-sm text-muted-foreground">{CREDIT_TYPE_LABELS[type]}</p>
+                                {credit && isSuperAdmin() && (
+                                  <Button variant="ghost" size="icon-sm" onClick={() => setEditingCredit(credit)}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                              {credit ? (
+                                <>
+                                  <p className="text-2xl font-bold">
+                                    {credit.credits_remaining}
+                                    <span className="text-sm font-normal text-muted-foreground">/{credit.credits_total}</span>
+                                  </p>
+                                  <Progress
+                                    value={(credit.credits_remaining / credit.credits_total) * 100}
+                                    className="h-1.5 mt-2 mb-1"
+                                  />
+                                  <p className="text-xs text-muted-foreground">
+                                    Cycle: {credit.cycle_start ? format(new Date(credit.cycle_start), 'MMM d') : '—'} – {credit.cycle_end ? format(new Date(credit.cycle_end), 'MMM d') : '—'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Expires {format(new Date(credit.expires_at), 'MMM d, yyyy')}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-2xl font-bold text-muted-foreground">0</p>
+                                  <p className="text-xs text-muted-foreground mt-1">No active credits</p>
+                                </>
                               )}
                             </div>
-                            {credit ? (
-                              <>
-                                <p className="text-2xl font-bold">
-                                  {credit.credits_remaining}
-                                  <span className="text-sm font-normal text-muted-foreground">/{credit.credits_total}</span>
-                                </p>
-                                <Progress
-                                  value={(credit.credits_remaining / credit.credits_total) * 100}
-                                  className="h-1.5 mt-2 mb-1"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                  Expires {format(new Date(credit.expires_at), 'MMM d, yyyy')}
-                                </p>
-                              </>
-                            ) : (
-                              <>
-                                <p className="text-2xl font-bold text-muted-foreground">0</p>
-                                <p className="text-xs text-muted-foreground mt-1">No active credits</p>
-                              </>
-                            )}
-                          </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Expired/Historical Credits - only visible to super admins */}
+                      {isSuperAdmin() && (() => {
+                        const now = new Date().toISOString();
+                        const expiredCredits = memberCredits.filter((c) => c.expires_at <= now);
+                        if (expiredCredits.length === 0) return null;
+                        return (
+                          <Collapsible className="mt-6">
+                            <CollapsibleTrigger asChild>
+                              <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
+                                <Clock className="h-4 w-4" />
+                                Expired/Historical Credits ({expiredCredits.length})
+                              </Button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="mt-3 space-y-2">
+                                {expiredCredits.map((credit) => (
+                                  <div key={credit.id} className="flex items-center justify-between p-3 border rounded-lg opacity-70">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-sm font-medium">{CREDIT_TYPE_LABELS[credit.credit_type as CreditType] || credit.credit_type}</p>
+                                        <Badge variant="secondary" className="text-xs">Expired</Badge>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        {credit.credits_remaining}/{credit.credits_total} remaining · 
+                                        Cycle: {credit.cycle_start ? format(new Date(credit.cycle_start), 'MMM d') : '—'} – {credit.cycle_end ? format(new Date(credit.cycle_end), 'MMM d, yyyy') : '—'} ·
+                                        Expired {format(new Date(credit.expires_at), 'MMM d, yyyy')}
+                                      </p>
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={() => setEditingCredit(credit)}>
+                                      <Pencil className="h-3.5 w-3.5 mr-1" />Extend
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
                         );
-                      })}
-                    </div>
+                      })()}
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -2225,7 +2273,8 @@ export default function MemberDetail() {
                 <div className="space-y-2">
                   <Label>Payment Method</Label>
                   {(() => {
-                    const classCredit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0);
+                    const now = new Date().toISOString();
+                    const classCredit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0 && c.expires_at > now);
                     const activePasses = memberClassPasses.filter((p: any) => p.status === 'active' && p.classes_remaining > 0 && new Date(p.expires_at) > new Date());
                     const hasCredits = !!classCredit;
                     const hasPasses = activePasses.length > 0;
@@ -2288,7 +2337,8 @@ export default function MemberDetail() {
               <>
                 {/* Wellness credit info */}
                 {(() => {
-                  const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
+                  const nowStr = new Date().toISOString();
+                  const credit = memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0 && c.expires_at > nowStr);
                   return credit ? (
                     <p className="text-xs text-muted-foreground">{credit.credits_remaining} of {credit.credits_total} credits remaining</p>
                   ) : (
@@ -2334,10 +2384,10 @@ export default function MemberDetail() {
                 (adminBookServiceType === "class"
                   ? !adminBookClassSessionId || (
                       adminBookPaymentMethod === "credit"
-                        ? !memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0)
+                        ? !memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0 && c.expires_at > new Date().toISOString())
                         : !adminBookPassId
                     )
-                  : !adminBookDate || !adminBookTime || !memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0))
+                  : !adminBookDate || !adminBookTime || !memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0 && c.expires_at > new Date().toISOString()))
               }
               onClick={async () => {
                 if (!member) return;
@@ -2362,7 +2412,7 @@ export default function MemberDetail() {
                       queryClient.invalidateQueries({ queryKey: ["member-class-passes-admin", id, member.user_id] });
                     } else {
                       // Book using class credits
-                      const credit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0);
+                      const credit = memberCredits.find(c => c.credit_type === "class" && c.credits_remaining > 0 && c.expires_at > new Date().toISOString());
                       if (!credit) throw new Error("No class credits available");
                       const { data, error } = await supabase.rpc("create_atomic_class_booking" as any, {
                         _session_id: adminBookClassSessionId,
@@ -2380,8 +2430,8 @@ export default function MemberDetail() {
                   } else {
                     // Book wellness session
                     if (!adminBookDate || !adminBookTime) return;
-                    const credit = memberCredits.find(c => c.credit_type === adminBookServiceType);
-                    if (!credit || credit.credits_remaining <= 0) throw new Error("No credits available");
+                    const credit = memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0 && c.expires_at > new Date().toISOString());
+                    if (!credit) throw new Error("No credits available");
                     const serviceName = adminBookServiceType === "red_light" ? "Red Light Therapy" : "Dry Cryotherapy";
                     const durationMinutes = adminBookServiceType === "red_light" ? 20 : 3;
                     const { error: creditError } = await supabase.from("member_credits").update({ credits_remaining: credit.credits_remaining - 1, updated_at: new Date().toISOString() }).eq("id", credit.id);
