@@ -150,8 +150,8 @@ export function SalesTaxReport({ dateRange }: SalesTaxReportProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/10">
-                <Coffee className="h-5 w-5 text-orange-500" />
+              <div className="p-2 rounded-lg bg-secondary">
+                <Coffee className="h-5 w-5 text-secondary-foreground" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Café / POS Tax</p>
@@ -164,8 +164,8 @@ export function SalesTaxReport({ dateRange }: SalesTaxReportProps) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Store className="h-5 w-5 text-blue-500" />
+              <div className="p-2 rounded-lg bg-accent">
+                <Store className="h-5 w-5 text-accent-foreground" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Storm Shop Tax</p>
