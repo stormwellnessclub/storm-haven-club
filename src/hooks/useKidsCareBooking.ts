@@ -17,12 +17,15 @@ export interface KidsCareBooking {
   status: "confirmed" | "checked_in" | "checked_out" | "cancelled" | "no_show";
   pass_id: string | null;
   age_group: string | null;
+  room: string | null;
   special_instructions: string | null;
   parent_notes: string | null;
   checked_in_at: string | null;
   checked_out_at: string | null;
   checked_in_by: string | null;
   checked_out_by: string | null;
+  parent_confirmed_pickup: boolean;
+  parent_confirmed_at: string | null;
   created_at: string;
   updated_at: string;
   cancelled_at: string | null;
@@ -177,6 +180,9 @@ export function useBookKidsCare() {
       // Check age group capacity (basic check - could be enhanced with real-time capacity)
       // For now, we'll allow booking and let staff manage capacity at check-in
 
+      // Determine room from age group
+      const room = ["Infants", "Toddlers"].includes(ageGroup) ? "Little Stars" : "Big Stars";
+
       // Create booking
       const { data, error } = await (supabase
         .from("kids_care_bookings" as any)
@@ -192,6 +198,7 @@ export function useBookKidsCare() {
           status: "confirmed",
           pass_id: params.passId,
           age_group: ageGroup,
+          room: room,
           special_instructions: params.specialInstructions || null,
           parent_notes: params.parentNotes || null,
         } as any)

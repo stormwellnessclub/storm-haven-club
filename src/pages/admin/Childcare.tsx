@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone } from "lucide-react";
+import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus } from "@/hooks/useAdminKidsCareBookings";
 import { useKidsCareInterestList, useUpdateKidsCareInterestStatus } from "@/hooks/useKidsCareInterest";
@@ -24,6 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { KidsCareHoursEditor } from "@/components/admin/KidsCareHoursEditor";
+import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDashboard";
 
 export default function Childcare() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,17 +71,6 @@ export default function Childcare() {
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'contacted':
-        return 'default';
-      case 'converted':
-        return 'secondary';
-      default:
-        return 'outline';
-    }
-  };
-
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -87,7 +78,7 @@ export default function Childcare() {
           <div>
             <h1 className="text-2xl font-bold">Childcare</h1>
             <p className="text-muted-foreground">
-              Manage children check-in, roster, and interest waitlist
+              Manage children check-in, roster, hours, and interest waitlist
             </p>
           </div>
           {activeTab === "bookings" && (
@@ -117,6 +108,10 @@ export default function Childcare() {
             <TabsTrigger value="bookings" className="flex items-center gap-2">
               <Baby className="h-4 w-4" />
               Bookings
+            </TabsTrigger>
+            <TabsTrigger value="hours" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Hours
             </TabsTrigger>
             <TabsTrigger value="interest" className="flex items-center gap-2">
               <ListPlus className="h-4 w-4" />
@@ -173,6 +168,11 @@ export default function Childcare() {
               <span>{format(selectedDate, "EEEE, MMMM d, yyyy")}</span>
             </div>
 
+            {/* Capacity Dashboard */}
+            {!isLoading && todayBookings.length > 0 && (
+              <KidsCareCapacityDashboard bookings={todayBookings} selectedDate={selectedDate} />
+            )}
+
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -185,9 +185,13 @@ export default function Childcare() {
                     const isCheckedOut = booking.status === 'checked_out';
                     const canCheckIn = booking.status === 'confirmed';
                     const canCheckOut = booking.status === 'checked_in';
+                    const awaitingParentConfirm = isCheckedOut && !booking.parent_confirmed_pickup;
+                    const roomName = booking.room || (
+                      ["Infants", "Toddlers"].includes(booking.age_group || "") ? "Little Stars" : "Big Stars"
+                    );
 
                     return (
-                      <Card key={booking.id} className={isCheckedIn ? 'border-success/50' : ''}>
+                      <Card key={booking.id} className={isCheckedIn ? 'border-success/50' : awaitingParentConfirm ? 'border-warning/50' : ''}>
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
@@ -196,7 +200,7 @@ export default function Childcare() {
                               </div>
                               <div>
                                 <CardTitle className="text-base">{booking.child_name}</CardTitle>
-                                <CardDescription>Age {booking.child_age} • {booking.age_group}</CardDescription>
+                                <CardDescription>Age {booking.child_age} • {booking.age_group} • {roomName}</CardDescription>
                               </div>
                             </div>
                             <Badge 
@@ -242,7 +246,23 @@ export default function Childcare() {
                           {booking.checked_out_at && (
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
                               <UserX className="h-3 w-3" />
-                              Checked out at {format(new Date(booking.checked_out_at), "h:mm a")}
+                              Staff checkout at {format(new Date(booking.checked_out_at), "h:mm a")}
+                            </div>
+                          )}
+                          {/* Dual checkout status */}
+                          {isCheckedOut && (
+                            <div className="text-xs">
+                              {booking.parent_confirmed_pickup ? (
+                                <div className="flex items-center gap-1 text-success">
+                                  <UserCheck className="h-3 w-3" />
+                                  Parent confirmed pickup at {format(new Date(booking.parent_confirmed_at!), "h:mm a")}
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1 text-warning">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Awaiting parent pickup confirmation
+                                </div>
+                              )}
                             </div>
                           )}
                           <div className="flex gap-2">
@@ -282,6 +302,10 @@ export default function Childcare() {
                 )}
               </>
             )}
+          </TabsContent>
+
+          <TabsContent value="hours" className="space-y-6">
+            <KidsCareHoursEditor />
           </TabsContent>
 
           <TabsContent value="interest" className="space-y-6">

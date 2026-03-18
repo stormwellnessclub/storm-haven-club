@@ -16,14 +16,17 @@ import {
   Calendar,
   Lock,
   Moon,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJoinKidsCareInterest } from "@/hooks/useKidsCareInterest";
+import { useKidsCareHoursForWeek } from "@/hooks/useKidsCareHours";
+import { formatTime12h } from "@/lib/timeFormat";
 
-// Soft launch mode flag
-const isSoftLaunch = true;
+// Soft launch mode - now disabled, hours are dynamic
+const isSoftLaunch = false;
 
 const features = [
   {
@@ -49,10 +52,7 @@ const features = [
 ];
 
 // Updated hours for regular operation
-const hours = [
-  { day: "Monday - Thursday", time: "8:00 AM - 8:00 PM" },
-  { day: "Friday - Sunday", time: "8:00 AM - 5:00 PM" },
-];
+// Hours are now fetched dynamically from the database
 
 // Two-room structure
 const rooms = [
@@ -80,6 +80,9 @@ export default function KidsCare() {
   const { user } = useAuth();
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const { data: weeklyHours, isLoading: hoursLoading } = useKidsCareHoursForWeek(new Date());
+
+  const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   
   // Interest form state
   const [formData, setFormData] = useState({
@@ -185,20 +188,34 @@ export default function KidsCare() {
                 <Clock className="w-6 h-6 text-accent" />
                 Hours of Operation
               </h3>
-              <div className="space-y-4">
-                {hours.map((schedule, index) => (
-                  <div key={index} className="flex justify-between items-center py-3 border-b border-border last:border-0">
-                    <span className="font-medium">{schedule.day}</span>
-                    <span className="text-muted-foreground text-sm">{schedule.time}</span>
-                  </div>
-                ))}
-              </div>
-              {isSoftLaunch && (
-                <p className="text-xs text-accent mt-6 flex items-center gap-2">
-                  <Moon className="w-4 h-4" />
-                  Soft launch hours may vary. Check back for updates.
+              
+              {hoursLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : weeklyHours && weeklyHours.length > 0 ? (
+                <div className="space-y-4">
+                  {weeklyHours.filter(h => !h.is_closed).map((entry) => (
+                    <div key={entry.day_of_week} className="flex justify-between items-center py-3 border-b border-border last:border-0">
+                      <span className="font-medium">{DAY_NAMES[entry.day_of_week]}</span>
+                      <span className="text-muted-foreground text-sm">
+                        {formatTime12h(entry.open_time)} - {formatTime12h(entry.close_time)}
+                      </span>
+                    </div>
+                  ))}
+                  {weeklyHours.filter(h => !h.is_closed).length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Closed this week</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Hours for this week haven't been published yet. Check back soon!
                 </p>
               )}
+              <p className="text-xs text-accent mt-6 flex items-center gap-2">
+                <Moon className="w-4 h-4" />
+                Soft launch — hours may change weekly as we expand.
+              </p>
             </div>
 
             {/* Two Rooms */}

@@ -1,110 +1,94 @@
 
+# Strategic Campaign System — IMPLEMENTED
 
-## Plan: Admin-Managed Weekly Hours + Dual Checkout + Room Capacity Tracking
+## What Was Built
 
-### Summary
-Three additions to the Kids Care system:
-1. **Admin weekly hours editor** — you set hours per day, per week, and can expand as demand grows
-2. **Dual checkout confirmation** — staff marks checkout AND parent confirms pickup in their portal
-3. **Room capacity tracking per 2-hour slot** — track and enforce how many kids are in each room per time block
+### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
+Goal-driven campaign cards replacing the generic "Compose Campaign" button:
+
+**Guest Playbooks:**
+- **Convert to Applicant** — targets past guests who haven't applied
+- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
+- **Collect Feedback** — recent guests without feedback
+
+**Member Playbooks:**
+- **Prevent Churn** — members with past_due or frozen status
+- **Upsell Tier** — active members on lower tiers
+- **Referral Push** — active members with 0 referrals
+
+Each card shows live audience count and a "Launch Campaign" button.
+
+### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
+- Auto-queries the right segment when launched from a playbook
+- Shows recipient count and name chips with ability to remove individuals
+- Auto-loads matching email template based on goal type
+- Merge field chips for quick personalization
+
+### 3. Conversion Tracking (CampaignAnalytics.tsx)
+- `goal_type` and `goal_metadata` columns added to email_campaigns
+- Per-campaign conversion rates with 14-day attribution window
+- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
+- Summary stats: total conversions, overall conversion rate
+
+### Database Changes
+- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
 
 ---
 
-### 1. Database Changes
+# Kids Care System — Admin Hours + Dual Checkout + Capacity Tracking — IMPLEMENTED
 
-**New table: `kids_care_hours`**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| week_start | date | Monday of the week |
-| day_of_week | integer | 0=Sun through 6=Sat |
-| open_time | time | |
-| close_time | time | |
-| is_closed | boolean | default false |
-| notes | text | internal notes |
-| created_by | uuid | FK auth.users |
-| created_at / updated_at | timestamptz | |
+## What Was Built
 
-Unique constraint on (week_start, day_of_week). RLS: staff can CRUD, authenticated can read.
+### 1. Database: `kids_care_hours` Table
+- `week_start`, `day_of_week`, `open_time`, `close_time`, `is_closed`, `notes`
+- Unique constraint on (week_start, day_of_week)
+- RLS: staff CRUD, authenticated read
 
-**Add columns to `kids_care_bookings`**
-- `parent_confirmed_pickup` (boolean, default false) — parent confirms they picked up the child
-- `parent_confirmed_at` (timestamptz, nullable) — when parent confirmed
-- `room` (text, nullable) — "Little Stars" or "Big Stars", auto-assigned from age_group
+### 2. New Columns on `kids_care_bookings`
+- `parent_confirmed_pickup` (boolean) — parent confirms pickup
+- `parent_confirmed_at` (timestamptz) — when confirmed
+- `room` (text) — "Little Stars" or "Big Stars"
 
----
-
-### 2. Admin Hours Tab (`src/pages/admin/Childcare.tsx`)
-
-Add a third tab **"Hours"** to the existing Bookings / Interest Waitlist tabs:
-- Week picker (defaults to current week, forward/back navigation)
-- For each day: open time, close time, or mark as closed
-- "Copy Previous Week" button to quickly replicate
+### 3. Admin Hours Tab (`/admin/childcare` → Hours tab)
+- Week-by-week hour editor with forward/back navigation
+- Toggle open/closed per day, set open/close times
+- "Copy Previous Week" button
 - Save upserts to `kids_care_hours`
-- Visual indicator when a week has no hours set
 
----
-
-### 3. Room Capacity Dashboard (Admin Bookings Tab)
-
-Add a capacity summary card above the booking cards showing:
-- Per-room breakdown for the selected date
-- Split into 2-hour time blocks (e.g., 9-11am, 11am-1pm)
-- Shows current count vs capacity (Little Stars: X/8, Big Stars: X/6)
+### 4. Room Capacity Dashboard (Admin Bookings tab)
+- Per-room breakdown in 2-hour time blocks
 - Color-coded: green (available), yellow (near full), red (full)
+- Shows Little Stars (cap 8) and Big Stars (cap 6)
 
-Query: group bookings by room + overlapping 2-hour blocks for the selected date.
+### 5. Dual Checkout Flow
+- Staff marks checkout via existing button
+- Admin cards show "Awaiting parent pickup confirmation" after staff checkout
+- Parents see "Confirm Pickup" button at `/member/kids-care-bookings`
+- Both timestamps visible on admin cards
 
----
+### 6. Dynamic Public Hours (`/kids-care`)
+- Fetches current week hours from `kids_care_hours` table
+- Shows "Hours not yet published" when no hours set
+- Soft launch banner updated to reflect dynamic hours
 
-### 4. Dual Checkout Flow
+### 7. Booking Modal Slot Filtering
+- Fetches hours for selected date
+- Shows closed/no-hours warning if day unavailable
+- Filters time slots to only show within published open/close window
+- Auto-assigns room based on age group
 
-**Staff side** (admin Childcare page):
-- Current "Check Out" button remains for staff to mark `checked_out` status
-- After staff checkout, card shows "Awaiting parent pickup confirmation"
+### 8. Member Portal (`/member/kids-care-bookings`)
+- View active and past Kids Care bookings
+- Confirm Pickup button for checked-out bookings
+- Cancel booking with reason dialog
 
-**Parent side** (member portal — new section or existing bookings view):
-- After staff checks out, parent sees a "Confirm Pickup" button on their active/today booking
-- Tapping it sets `parent_confirmed_pickup = true` and `parent_confirmed_at = now()`
-- Until both are done, booking shows as "Pending Pickup Confirmation"
-
-**Admin visibility:**
-- Booking cards show both timestamps: staff checkout time + parent confirmation time
-- Filter/highlight bookings where staff checked out but parent hasn't confirmed yet
-
----
-
-### 5. Public Page + Booking Modal Updates
-
-**`src/pages/KidsCare.tsx`:**
-- Replace hardcoded `hours` array with dynamic fetch from `kids_care_hours` for current week
-- Set `isSoftLaunch = false` to enable booking
-- Show "Hours not yet published" if no hours exist for the current week
-
-**`src/components/booking/KidsCareBookingModal.tsx`:**
-- On date selection, fetch hours for that day from `kids_care_hours`
-- If day is closed or no hours set, show message and block booking
-- Filter `TIME_SLOTS` to only show times within the published open/close window
-- Auto-assign `room` based on child's age group (Infants/Toddlers → Little Stars, Preschool/School Age → Big Stars)
-- Check room capacity for the selected 2-hour block before confirming
-
----
-
-### 6. New Hook: `src/hooks/useKidsCareHours.ts`
-- `useKidsCareHoursForWeek(weekStart)` — admin: all 7 days
-- `useKidsCareHoursForDate(date)` — member: single day lookup
-- `useSaveKidsCareHours()` — admin mutation (upsert)
-- `useConfirmPickup(bookingId)` — parent mutation
-
----
-
-### Files to Create/Update
-- **Migration**: `kids_care_hours` table + new columns on `kids_care_bookings`
-- **Create**: `src/hooks/useKidsCareHours.ts`
-- **Update**: `src/pages/admin/Childcare.tsx` — hours tab + capacity dashboard
-- **Update**: `src/pages/KidsCare.tsx` — dynamic hours, disable soft launch
-- **Update**: `src/components/booking/KidsCareBookingModal.tsx` — slot filtering, room assignment, capacity check
-- **Update**: `src/hooks/useKidsCareBooking.ts` — add room field to booking insert
-- **Update**: `src/hooks/useAdminKidsCareBookings.ts` — include room + parent confirmation fields
-- **Create/Update**: Member portal bookings view — add "Confirm Pickup" button
-
+### Files Created/Updated
+- `src/hooks/useKidsCareHours.ts` (new)
+- `src/components/admin/KidsCareHoursEditor.tsx` (new)
+- `src/components/admin/KidsCareCapacityDashboard.tsx` (new)
+- `src/pages/member/KidsCareBookings.tsx` (new)
+- `src/pages/admin/Childcare.tsx` (updated — 3 tabs)
+- `src/pages/KidsCare.tsx` (updated — dynamic hours, soft launch disabled)
+- `src/components/booking/KidsCareBookingModal.tsx` (updated — slot filtering)
+- `src/hooks/useKidsCareBooking.ts` (updated — room field, new types)
+- `src/App.tsx` (updated — new route)

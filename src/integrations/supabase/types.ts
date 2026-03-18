@@ -2253,8 +2253,11 @@ export type Database = {
           end_time: string
           id: string
           member_id: string
+          parent_confirmed_at: string | null
+          parent_confirmed_pickup: boolean
           parent_notes: string | null
           pass_id: string | null
+          room: string | null
           special_instructions: string | null
           start_time: string
           status: string
@@ -2277,8 +2280,11 @@ export type Database = {
           end_time: string
           id?: string
           member_id: string
+          parent_confirmed_at?: string | null
+          parent_confirmed_pickup?: boolean
           parent_notes?: string | null
           pass_id?: string | null
+          room?: string | null
           special_instructions?: string | null
           start_time: string
           status?: string
@@ -2301,8 +2307,11 @@ export type Database = {
           end_time?: string
           id?: string
           member_id?: string
+          parent_confirmed_at?: string | null
+          parent_confirmed_pickup?: boolean
           parent_notes?: string | null
           pass_id?: string | null
+          room?: string | null
           special_instructions?: string | null
           start_time?: string
           status?: string
@@ -2339,6 +2348,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      kids_care_hours: {
+        Row: {
+          close_time: string
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          id: string
+          is_closed: boolean
+          notes: string | null
+          open_time: string
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          close_time: string
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          id?: string
+          is_closed?: boolean
+          notes?: string | null
+          open_time: string
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          close_time?: string
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          id?: string
+          is_closed?: boolean
+          notes?: string | null
+          open_time?: string
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: []
       }
       kids_care_interest_waitlist: {
         Row: {

@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useBookKidsCare, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useKidsCareHoursForDate } from "@/hooks/useKidsCareHours";
 import {
   Dialog,
   DialogContent,
@@ -34,11 +35,13 @@ interface KidsCareBookingModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const TIME_SLOTS = [
+// All possible half-hour slots
+const ALL_TIME_SLOTS = [
   "06:00", "06:30", "07:00", "07:30", "08:00", "08:30",
   "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "12:00", "12:30", "13:00", "16:00", "16:30", "17:00",
-  "17:30", "18:00", "18:30", "19:00", "19:30", "20:00",
+  "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
+  "15:00", "15:30", "16:00", "16:30", "17:00", "17:30",
+  "18:00", "18:30", "19:00", "19:30", "20:00",
 ];
 
 const MAX_DURATION_HOURS = 2;
@@ -59,6 +62,21 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
   const [selectedPassId, setSelectedPassId] = useState<string>("");
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [parentNotes, setParentNotes] = useState("");
+
+  // Fetch hours for the selected date
+  const { data: dayHours, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
+
+  // Filter time slots based on published hours for the day
+  const getFilteredTimeSlots = (): string[] => {
+    if (!dayHours || dayHours.is_closed) return [];
+    const openTime = dayHours.open_time.slice(0, 5);
+    const closeTime = dayHours.close_time.slice(0, 5);
+    return ALL_TIME_SLOTS.filter((t) => t >= openTime && t < closeTime);
+  };
+
+  const filteredTimeSlots = getFilteredTimeSlots();
+  const dayIsClosed = !hoursLoading && (!dayHours || dayHours.is_closed);
+  const noHoursPublished = !hoursLoading && !dayHours;
 
   // Calculate available end times based on start time and max duration
   const getAvailableEndTimes = (startTime: string): string[] => {
@@ -333,6 +351,19 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                 </p>
               </div>
 
+              {/* Day closed / no hours warning */}
+              {selectedDate && dayIsClosed && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {noHoursPublished
+                      ? "Hours haven't been published for this day yet. Please try another date."
+                      : "Kids Care is closed on this day. Please select a different date."}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {selectedDate && !dayIsClosed && filteredTimeSlots.length > 0 && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Time *</Label>
@@ -344,7 +375,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                       <SelectValue placeholder="Select start time" />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIME_SLOTS.map((time) => (
+                      {filteredTimeSlots.map((time) => (
                         <SelectItem key={time} value={time}>
                           {time}
                         </SelectItem>
@@ -387,6 +418,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                   )}
                 </div>
               </div>
+              )}
             </div>
 
             {/* Notes */}

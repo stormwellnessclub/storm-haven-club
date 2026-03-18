@@ -17,6 +17,7 @@ import MemberMembership from "@/pages/member/Membership";
 import MemberBookings from "@/pages/member/Bookings";
 import MemberWaivers from "@/pages/member/Waivers";
 import KidsCareServiceForm from "@/pages/member/KidsCareServiceForm";
+import KidsCareBookings from "@/pages/member/KidsCareBookings";
 import MemberSupport from "@/pages/member/Support";
 import MemberFreezeRequest from "@/pages/member/FreezeRequest";
 import MemberPaymentMethods from "@/pages/member/PaymentMethods";
@@ -160,6 +161,7 @@ const App = () => (
               <Route path="/member/bookings" element={<ProtectedMemberRoute><MemberBookings /></ProtectedMemberRoute>} />
               <Route path="/member/waivers" element={<ProtectedMemberRoute><MemberWaivers /></ProtectedMemberRoute>} />
               <Route path="/member/kids-care-service-form" element={<ProtectedMemberRoute><KidsCareServiceForm /></ProtectedMemberRoute>} />
+              <Route path="/member/kids-care-bookings" element={<ProtectedMemberRoute><KidsCareBookings /></ProtectedMemberRoute>} />
               <Route path="/member/support" element={<ProtectedMemberRoute><MemberSupport /></ProtectedMemberRoute>} />
               <Route path="/member/freeze" element={<ProtectedMemberRoute><MemberFreezeRequest /></ProtectedMemberRoute>} />
               <Route path="/member/health-score" element={<ProtectedMemberRoute><HealthScore /></ProtectedMemberRoute>} />
