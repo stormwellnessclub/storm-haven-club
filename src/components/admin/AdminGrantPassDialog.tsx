@@ -117,6 +117,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
     setGuestName(prefill?.name || "");
     setGuestEmail(prefill?.email || "");
     setQuantity(1);
+    setGuestPassQuantity(1);
     setExpiresAt(addDays(new Date(), 30));
     setNotes("");
     setClassCategory("pilates_cycling");
