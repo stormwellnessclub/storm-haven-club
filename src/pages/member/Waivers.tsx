@@ -24,6 +24,8 @@ interface AgreementSectionProps {
   isSigning: boolean;
   required?: boolean;
   highlighted?: boolean;
+  nextStepUrl?: string;
+  nextStepLabel?: string;
 }
 
 function AgreementSection({
