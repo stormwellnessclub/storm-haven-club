@@ -83,6 +83,9 @@ export const STRIPE_PRODUCTS = {
     rlt20: 'price_1Sy3y3LyZrsSqLhsN3WxRig0',    // $28 - Full Body Red Light Therapy 20 min
     cryo: 'price_1Sy3ytLyZrsSqLhsziHR3pw1',     // $45 - ZeroBody Cryo Session
   },
+  kidsCare: {
+    member: 'price_1TCEyxLyZrsSqLhsHLRDNixO', // $75/mo - Kids Care Pass (Member), 4 sessions, 2hr max, auto-renew
+  },
 } as const;
 
 // Pricing data (in dollars)
