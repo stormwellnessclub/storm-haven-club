@@ -63,6 +63,21 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [parentNotes, setParentNotes] = useState("");
 
+  // Fetch hours for the selected date
+  const { data: dayHours, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
+
+  // Filter time slots based on published hours for the day
+  const getFilteredTimeSlots = (): string[] => {
+    if (!dayHours || dayHours.is_closed) return [];
+    const openTime = dayHours.open_time.slice(0, 5);
+    const closeTime = dayHours.close_time.slice(0, 5);
+    return ALL_TIME_SLOTS.filter((t) => t >= openTime && t < closeTime);
+  };
+
+  const filteredTimeSlots = getFilteredTimeSlots();
+  const dayIsClosed = !hoursLoading && (!dayHours || dayHours.is_closed);
+  const noHoursPublished = !hoursLoading && !dayHours;
+
   // Calculate available end times based on start time and max duration
   const getAvailableEndTimes = (startTime: string): string[] => {
     if (!startTime) return [];
