@@ -3571,8 +3571,9 @@ serve(async (req) => {
               const cycleStart = new Date();
               const cycleEnd = new Date(cycleStart);
               cycleEnd.setMonth(cycleEnd.getMonth() + 1);
+              cycleEnd.setDate(cycleEnd.getDate() - 1); // End day before next billing
               const expiresAt = new Date(cycleEnd);
-              expiresAt.setDate(expiresAt.getDate() + 7);
+              expiresAt.setHours(23, 59, 59, 999);
 
               await supabase.from('member_credits').insert({
                 member_id: memberId,
