@@ -208,8 +208,16 @@ export const REPORTS: ReportDefinition[] = [
     filters: [],
     defaultDateRange: 'thisMonth',
   },
+  {
+    id: 'sales-tax-collected',
+    name: 'Sales Tax Collected',
+    description: 'MI 6% sales tax collected from Café, Storm Shop, and POS transactions',
+    category: 'financial',
+    icon: Receipt,
+    filters: [],
+    defaultDateRange: 'thisMonth',
+  },
   
-  // Membership Reports
   {
     id: 'member-status-distribution',
     name: 'Member Status Distribution',

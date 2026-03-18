@@ -147,6 +147,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'member-engagement': MemberEngagementReport,
     'guest-returns': GuestReturnsReport,
     'class-engagement': ClassEngagementReport,
+    'sales-tax-collected': SalesTaxReport,
   };
 
   const ReportComponent = reportComponents[reportId];

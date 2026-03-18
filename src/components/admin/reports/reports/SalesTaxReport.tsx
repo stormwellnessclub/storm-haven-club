@@ -86,7 +86,7 @@ export function SalesTaxReport({ dateRange }: SalesTaxReportProps) {
 
   // Extract tax from merch orders
   const merchTaxItems: TaxLineItem[] = (merchOrders || []).flatMap((order) => {
-    const items = Array.isArray(order.order_items) ? order.order_items : [];
+    const items = Array.isArray(order.order_items) ? (order.order_items as any[]) : [];
     const taxItems = items.filter(
       (item: any) =>
         typeof item?.name === "string" &&
@@ -94,7 +94,7 @@ export function SalesTaxReport({ dateRange }: SalesTaxReportProps) {
     );
     if (taxItems.length === 0) return [];
 
-    const taxAmount = taxItems.reduce(
+    const taxAmount: number = taxItems.reduce(
       (sum: number, item: any) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1),
       0
     );
