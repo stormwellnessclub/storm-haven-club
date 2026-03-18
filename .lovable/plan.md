@@ -32,3 +32,63 @@ Each card shows live audience count and a "Launch Campaign" button.
 
 ### Database Changes
 - Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
+
+---
+
+# Kids Care System — Admin Hours + Dual Checkout + Capacity Tracking — IMPLEMENTED
+
+## What Was Built
+
+### 1. Database: `kids_care_hours` Table
+- `week_start`, `day_of_week`, `open_time`, `close_time`, `is_closed`, `notes`
+- Unique constraint on (week_start, day_of_week)
+- RLS: staff CRUD, authenticated read
+
+### 2. New Columns on `kids_care_bookings`
+- `parent_confirmed_pickup` (boolean) — parent confirms pickup
+- `parent_confirmed_at` (timestamptz) — when confirmed
+- `room` (text) — "Little Stars" or "Big Stars"
+
+### 3. Admin Hours Tab (`/admin/childcare` → Hours tab)
+- Week-by-week hour editor with forward/back navigation
+- Toggle open/closed per day, set open/close times
+- "Copy Previous Week" button
+- Save upserts to `kids_care_hours`
+
+### 4. Room Capacity Dashboard (Admin Bookings tab)
+- Per-room breakdown in 2-hour time blocks
+- Color-coded: green (available), yellow (near full), red (full)
+- Shows Little Stars (cap 8) and Big Stars (cap 6)
+
+### 5. Dual Checkout Flow
+- Staff marks checkout via existing button
+- Admin cards show "Awaiting parent pickup confirmation" after staff checkout
+- Parents see "Confirm Pickup" button at `/member/kids-care-bookings`
+- Both timestamps visible on admin cards
+
+### 6. Dynamic Public Hours (`/kids-care`)
+- Fetches current week hours from `kids_care_hours` table
+- Shows "Hours not yet published" when no hours set
+- Soft launch banner updated to reflect dynamic hours
+
+### 7. Booking Modal Slot Filtering
+- Fetches hours for selected date
+- Shows closed/no-hours warning if day unavailable
+- Filters time slots to only show within published open/close window
+- Auto-assigns room based on age group
+
+### 8. Member Portal (`/member/kids-care-bookings`)
+- View active and past Kids Care bookings
+- Confirm Pickup button for checked-out bookings
+- Cancel booking with reason dialog
+
+### Files Created/Updated
+- `src/hooks/useKidsCareHours.ts` (new)
+- `src/components/admin/KidsCareHoursEditor.tsx` (new)
+- `src/components/admin/KidsCareCapacityDashboard.tsx` (new)
+- `src/pages/member/KidsCareBookings.tsx` (new)
+- `src/pages/admin/Childcare.tsx` (updated — 3 tabs)
+- `src/pages/KidsCare.tsx` (updated — dynamic hours, soft launch disabled)
+- `src/components/booking/KidsCareBookingModal.tsx` (updated — slot filtering)
+- `src/hooks/useKidsCareBooking.ts` (updated — room field, new types)
+- `src/App.tsx` (updated — new route)
