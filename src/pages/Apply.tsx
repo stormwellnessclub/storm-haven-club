@@ -583,6 +583,7 @@ export default function Apply() {
   const [cardExpYear, setCardExpYear] = useState<number | null>(null);
   const [isLoadingCardSetup, setIsLoadingCardSetup] = useState(false);
   const [showCardForm, setShowCardForm] = useState(false);
+  const [stripeRemountKey, setStripeRemountKey] = useState(0);
   
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
