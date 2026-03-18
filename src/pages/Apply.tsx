@@ -56,6 +56,8 @@ const initialFormData = {
   foundingMember: "",
   membershipAgreementSigned: false,
   oneYearCommitment: false,
+  skipTourActivateImmediately: false,
+  liabilityWaiverSigned: false,
 };
 
 // Save to BOTH storages for maximum reliability on mobile
