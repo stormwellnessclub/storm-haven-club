@@ -168,13 +168,13 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
 
     try {
       await bookKidsCare.mutateAsync({
-        childName: childName.trim(),
+        childName: resolvedChildName,
         childAge: ageNum,
-        childDob: childDob,
+        childDob: selectedChild?.date_of_birth ? new Date(selectedChild.date_of_birth) : undefined,
         bookingDate: selectedDate,
         startTime: selectedStartTime,
         endTime: selectedEndTime,
-        specialInstructions: specialInstructions || undefined,
+        specialInstructions: specialInstructions || selectedChild?.special_instructions || undefined,
         parentNotes: parentNotes || undefined,
         passId: selectedPassId,
       });
