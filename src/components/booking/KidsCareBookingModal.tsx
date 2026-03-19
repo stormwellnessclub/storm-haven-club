@@ -49,7 +49,7 @@ const ALL_TIME_SLOTS = [
 
 const MAX_DURATION_HOURS = 2;
 
-export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModalProps) {
+export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCareBookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const bookKidsCare = useBookKidsCare();
