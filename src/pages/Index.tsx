@@ -78,11 +78,11 @@ const quickLinks = [{
 }];
 
 const recoverySuiteAmenities = [
-  { icon: Flame, label: "Infrared Sauna" },
-  { icon: Wind, label: "Steam Room" },
-  { icon: Droplets, label: "Cold Plunge Pool" },
-  { icon: Sun, label: "Red Light Therapy" },
-  { icon: Snowflake, label: "Starpool ZeroBody Cryo" },
+  { icon: Flame, label: "Infrared Sauna", description: "" },
+  { icon: Wind, label: "Steam Room", description: "" },
+  { icon: Droplets, label: "Cold Plunge Pool", description: "" },
+  { icon: Sun, label: "Red Light Therapy", description: "Precision wavelengths that reduce inflammation, accelerate recovery, and restore skin at the cellular level." },
+  { icon: Snowflake, label: "Starpool ZeroBody Cryo", description: "Dry floatation in complete weightlessness. The nervous system resets. The mind follows." },
 ];
 
 const lifestyleAmenities = [
