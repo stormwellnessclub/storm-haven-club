@@ -137,8 +137,9 @@ export function useBookKidsCare() {
       if (hoursUntilBooking < 0) {
         throw new Error("Cannot book in the past");
       }
-      if (hoursUntilBooking > 48) {
-        throw new Error("Kids care bookings can only be made up to 48 hours in advance");
+      const sevenDaysInHours = 7 * 24;
+      if (hoursUntilBooking > sevenDaysInHours) {
+        throw new Error("Kids care bookings can only be made up to 7 days in advance");
       }
 
       // Validate session duration (max 2 hours per child per day)

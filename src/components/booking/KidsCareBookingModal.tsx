@@ -56,7 +56,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
   const { profile } = useUserProfile();
   const { data: savedChildren, isLoading: childrenLoading } = useKidsCareChildren();
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedStartTime, setSelectedStartTime] = useState<string>("");
   const [selectedEndTime, setSelectedEndTime] = useState<string>("");
   const [selectedChildId, setSelectedChildId] = useState<string>("");
@@ -88,7 +88,16 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
         if (t >= openTime && t < closeTime) allowed.add(t);
       }
     }
-    return ALL_TIME_SLOTS.filter((t) => allowed.has(t));
+    // If booking for today, filter out time slots that have already passed
+    const now = new Date();
+    const isToday = selectedDate && 
+      selectedDate.getFullYear() === now.getFullYear() &&
+      selectedDate.getMonth() === now.getMonth() &&
+      selectedDate.getDate() === now.getDate();
+    
+    const currentTimeStr = isToday ? format(now, "HH:mm") : "00:00";
+    
+    return ALL_TIME_SLOTS.filter((t) => allowed.has(t) && t >= currentTimeStr);
   };
 
   const filteredTimeSlots = getFilteredTimeSlots();
@@ -226,8 +235,10 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
     }
   };
 
-  const minDate = addDays(new Date(), 1);
-  const maxDate = addDays(new Date(), 2); // 48 hours in advance
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const minDate = today;
+  const maxDate = addDays(new Date(), 7);
 
   // Calculate duration
   const durationHours = selectedStartTime && selectedEndTime
@@ -448,7 +459,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                   </PopoverContent>
                 </Popover>
                 <p className="text-xs text-muted-foreground">
-                  Bookings can be made up to 48 hours in advance
+                  Bookings can be made up to 7 days in advance
                 </p>
               </div>
 

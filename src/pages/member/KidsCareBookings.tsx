@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar } from "lucide-react";
+import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar, Info } from "lucide-react";
 import { HourRequestForm } from "@/components/kids-care/HourRequestForm";
 import { useMyKidsCareBookings, useCancelKidsCareBooking } from "@/hooks/useKidsCareBooking";
 import { useConfirmPickup, useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
@@ -80,6 +80,18 @@ export default function KidsCareBookings() {
   return (
     <MemberLayout title="Kids Care Bookings">
       <div className="space-y-8 max-w-3xl">
+
+        {/* Registration Reminder */}
+        <Alert className="border-accent/30 bg-accent/5">
+          <Info className="h-4 w-4 text-accent" />
+          <AlertDescription className="text-sm">
+            <strong>Tip:</strong> Please register your child before booking.{" "}
+            <a href="/member/kids-care-service-form" className="text-accent underline font-semibold">
+              Add a child profile
+            </a>{" "}
+            from the Kids Care Service Form, then select them when booking a session.
+          </AlertDescription>
+        </Alert>
 
         {/* Upcoming Schedule */}
         <div>
