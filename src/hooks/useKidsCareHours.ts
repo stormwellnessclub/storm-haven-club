@@ -126,6 +126,7 @@ export function useCopyKidsCareHourSlots() {
           close_time: s.close_time,
           label: s.label,
           notes: s.notes,
+          staff_name: s.staff_name,
           created_by: user.id,
         }));
         const { error } = await (supabase.from as any)("kids_care_hour_slots").insert(rows);
