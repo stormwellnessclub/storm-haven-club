@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { SimpleAgreementCard } from "@/components/SimpleAgreementCard";
+import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
@@ -37,6 +38,9 @@ export default function MemberKidsCare() {
   const [checkoutClientSecret, setCheckoutClientSecret] = useState<string | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
 
+  // Fetch active kids care passes
+  const { data: availablePasses, isLoading: passLoading } = useKidsCarePasses();
+
   // Check for successful return from embedded checkout
   const sessionId = searchParams.get("session_id");
   const [showSuccess, setShowSuccess] = useState(false);
@@ -44,28 +48,10 @@ export default function MemberKidsCare() {
   useEffect(() => {
     if (sessionId) {
       setShowSuccess(true);
-      queryClient.invalidateQueries({ queryKey: ["kids-care-pass-status"] });
-      // Clean up URL
+      queryClient.invalidateQueries({ queryKey: ["kids-care-passes"] });
       window.history.replaceState({}, "", "/member/kids-care");
     }
   }, [sessionId]);
-
-  // Fetch active kids care pass
-  const { data: passData, isLoading: passLoading } = useQuery({
-    queryKey: ["kids-care-pass-status", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      // Check for active kids care subscription via members table
-      const { data: member } = await supabase
-        .from("members")
-        .select("id, kids_care_subscription_id, kids_care_sessions_remaining, kids_care_pass_expires_at")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .maybeSingle();
-      return member;
-    },
-    enabled: !!user,
-  });
 
   // Fetch kids care agreements
   const { data: agreements } = useQuery({
@@ -124,7 +110,8 @@ export default function MemberKidsCare() {
 
   const agreementSigned = profile?.kids_care_agreement_signed ?? false;
   const serviceFormCompleted = profile?.kids_care_service_form_completed ?? false;
-  const hasActivePass = !!(passData?.kids_care_subscription_id && passData?.kids_care_sessions_remaining > 0);
+  const hasActivePass = availablePasses && availablePasses.length > 0;
+  const activePass = hasActivePass ? availablePasses[0] : null;
   const isLoading = profileLoading || passLoading;
 
   // Embedded checkout view
@@ -158,9 +145,9 @@ export default function MemberKidsCare() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Success Message */}
         {showSuccess && (
-          <Card className="border-green-500/30 bg-green-500/5">
+          <Card className="border-primary/30 bg-primary/5">
             <CardContent className="p-4 flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
               <div>
                 <p className="font-medium text-sm">Kids Care Pass purchased successfully!</p>
                 <p className="text-xs text-muted-foreground">Your pass is now active. Register your children and book sessions below.</p>
@@ -184,7 +171,7 @@ export default function MemberKidsCare() {
                     Kids Care Agreement
                   </CardTitle>
                   {agreementSigned && (
-                    <Badge variant="outline" className="text-green-600 border-green-600/30">
+                    <Badge variant="outline" className="text-primary border-primary/30">
                       <CheckCircle2 className="h-3 w-3 mr-1" /> Signed
                     </Badge>
                   )}
@@ -223,20 +210,18 @@ export default function MemberKidsCare() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {hasActivePass ? (
+                  {hasActivePass && activePass ? (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
                         <span className="text-sm font-medium">Sessions Remaining</span>
-                        <Badge variant="default">{passData?.kids_care_sessions_remaining ?? 0} / 4</Badge>
+                        <Badge variant="default">{activePass.classes_remaining} / {activePass.classes_total}</Badge>
                       </div>
-                      {passData?.kids_care_pass_expires_at && (
-                        <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                          <span className="text-sm font-medium">Renews</span>
-                          <span className="text-sm text-muted-foreground">
-                            {new Date(passData.kids_care_pass_expires_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                        <span className="text-sm font-medium">Expires</span>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(activePass.expires_at).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
                   ) : (
                     <Button
@@ -267,7 +252,7 @@ export default function MemberKidsCare() {
                       </p>
                     </div>
                     {serviceFormCompleted && (
-                      <CheckCircle2 className="h-4 w-4 text-green-500 ml-auto shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-primary ml-auto shrink-0" />
                     )}
                   </CardContent>
                 </Card>
