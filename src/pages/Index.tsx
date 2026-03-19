@@ -19,6 +19,9 @@ import stormLogoDark from "@/assets/storm-logo-dark.png";
 import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
 import bodyTreatments from "@/assets/body-treatments.jpg";
 import sauna from "@/assets/sauna.jpg";
+import saunaBlue from "@/assets/sauna-blue.jpeg";
+import saltRoom from "@/assets/salt-room.jpeg";
+import zerobodyFloat from "@/assets/zerobody-float.jpeg";
 // Brand imagery
 import mainLobby from "@/assets/main-lobby.jpeg";
 import avocadoToast from "@/assets/food/avocado-toast.jpg";
@@ -75,11 +78,11 @@ const quickLinks = [{
 }];
 
 const recoverySuiteAmenities = [
-  { icon: Flame, label: "Infrared Sauna" },
-  { icon: Wind, label: "Steam Room" },
-  { icon: Droplets, label: "Cold Plunge Pool" },
-  { icon: Sun, label: "Red Light Therapy" },
-  { icon: Snowflake, label: "Starpool ZeroBody Cryo" },
+  { icon: Flame, label: "Infrared Sauna", description: "" },
+  { icon: Wind, label: "Steam Room", description: "" },
+  { icon: Droplets, label: "Cold Plunge Pool", description: "" },
+  { icon: Sun, label: "Red Light Therapy", description: "Precision wavelengths that reduce inflammation, accelerate recovery, and restore skin at the cellular level." },
+  { icon: Snowflake, label: "Starpool ZeroBody Cryo", description: "Dry floatation in complete weightlessness. The nervous system resets. The mind follows." },
 ];
 
 const lifestyleAmenities = [
@@ -213,36 +216,38 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Membership Benefits */}
+      {/* Membership Benefits / Recovery */}
       <section className="relative py-24 bg-primary text-primary-foreground overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <AnimatedSection animation="fade-right">
-              <img src={sauna} alt="Infrared Sauna" className="rounded-sm shadow-2xl" loading="lazy" />
+              <img src={saunaBlue} alt="Dry heat sauna with blue star-point ceiling lighting" className="rounded-sm shadow-2xl" loading="lazy" />
             </AnimatedSection>
             <AnimatedSection animation="fade-left" delay={150}>
-              <p className="text-accent text-sm uppercase tracking-widest mb-4">Member Benefits</p>
+              <p className="text-accent text-sm uppercase tracking-widest mb-4">Members Only</p>
               <h2 className="heading-section text-primary-foreground mb-6">
-                A Comprehensive
-                <br />
-                Approach to Wellness
+                Recovery is not optional here. It's built in.
               </h2>
               <p className="text-primary-foreground/80 mb-8 leading-relaxed">
-                We believe that true fitness transcends physical boundaries. Our exclusive center 
-                is designed to address all facets of wellness—body, mind, and spirit.
+                Every membership includes full access to our recovery suite — no booking required, no extra cost. The Himalayan salt room, dry heat sauna, steam room, and cold plunge are yours every time you walk in. This is where the real work happens.
               </p>
               
               {/* Recovery Suite */}
               <div className="mb-6">
                 <p className="text-accent text-xs uppercase tracking-widest mb-3 font-medium">Recovery Suite</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {recoverySuiteAmenities.map((amenity, index) => (
+                <div className="space-y-3">
+                  {recoverySuiteAmenities.map((amenity) => (
                     <div 
                       key={amenity.label} 
-                      className="flex items-center gap-2 text-sm text-primary-foreground/90 transition-all duration-300 hover:text-primary-foreground hover:translate-x-1"
+                      className="transition-all duration-300 hover:translate-x-1"
                     >
-                      <amenity.icon className="w-4 h-4 text-accent" />
-                      <span>{amenity.label}</span>
+                      <div className="flex items-center gap-2 text-sm text-primary-foreground/90 hover:text-primary-foreground">
+                        <amenity.icon className="w-4 h-4 text-accent" />
+                        <span>{amenity.label}</span>
+                      </div>
+                      {amenity.description && (
+                        <p className="text-primary-foreground/60 text-xs ml-6 mt-0.5 leading-relaxed">{amenity.description}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -252,7 +257,7 @@ export default function Index() {
               <div className="mb-10">
                 <p className="text-accent text-xs uppercase tracking-widest mb-3 font-medium">Lifestyle & Comfort</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {lifestyleAmenities.map((amenity, index) => (
+                  {lifestyleAmenities.map((amenity) => (
                     <div 
                       key={amenity.label} 
                       className="flex items-center gap-2 text-sm text-primary-foreground/90 transition-all duration-300 hover:text-primary-foreground hover:translate-x-1"
@@ -263,21 +268,41 @@ export default function Index() {
                   ))}
                 </div>
               </div>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/apply">
-                  <Button variant="gold" size="lg" className="group">
-                    Apply Now
-                  </Button>
-                </Link>
-                <Link to="/amenities">
-                  <Button variant="hero-outline" size="lg" className="group">
-                    View All Amenities <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-                  </Button>
-                </Link>
-              </div>
             </AnimatedSection>
           </div>
+
+          {/* Himalayan Salt Room Banner */}
+          <AnimatedSection className="mt-16" animation="fade-up">
+            <div className="relative w-full rounded-sm overflow-hidden" style={{ height: '500px' }}>
+              <img src={saltRoom} alt="Himalayan Salt Room" className="w-full h-full object-cover" loading="lazy" />
+              <div className="absolute inset-0 bg-charcoal/40" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                <p className="text-primary-foreground/90 text-xs uppercase tracking-[0.25em] mb-4">Himalayan Salt Room</p>
+                <h3 className="font-serif text-2xl md:text-3xl text-primary-foreground">Step inside. Everything outside stays there.</h3>
+              </div>
+            </div>
+          </AnimatedSection>
+
+          {/* Buttons */}
+          <AnimatedSection className="mt-12 flex flex-col sm:flex-row gap-4 justify-center" delay={200}>
+            <Link to="/apply">
+              <Button variant="gold" size="lg" className="group">
+                Apply for Membership
+              </Button>
+            </Link>
+            <Link to="/amenities">
+              <Button variant="hero-outline" size="lg" className="group">
+                View All Amenities <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Button>
+            </Link>
+          </AnimatedSection>
+
+          {/* ZeroBody Float Image */}
+          <AnimatedSection className="mt-16" animation="fade-up" delay={100}>
+            <div className="relative w-full rounded-sm overflow-hidden" style={{ height: '600px' }}>
+              <img src={zerobodyFloat} alt="ZeroBody dry floatation experience" className="w-full h-full object-cover" loading="lazy" />
+            </div>
+          </AnimatedSection>
         </div>
       </section>
 
