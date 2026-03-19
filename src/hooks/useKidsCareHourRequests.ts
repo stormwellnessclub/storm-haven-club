@@ -67,19 +67,36 @@ export function useSubmitHourRequest() {
   });
 }
 
+export interface AdminHourRequest extends HourRequest {
+  profiles: { first_name: string; last_name: string; email: string } | null;
+}
+
 export function useAdminHourRequests() {
   return useQuery({
     queryKey: ["kids-care-hour-requests", "admin"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("kids_care_hour_requests")
-        .select("*, profiles:user_id(first_name, last_name, email)")
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as (HourRequest & {
-        profiles: { first_name: string; last_name: string; email: string } | null;
-      })[];
+
+      // Fetch profile info for each unique user_id
+      const userIds = [...new Set((data as HourRequest[]).map((r) => r.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, email")
+        .in("user_id", userIds);
+
+      const profileMap = new Map(
+        (profiles || []).map((p) => [p.user_id, p])
+      );
+
+      return (data as HourRequest[]).map((r) => ({
+        ...r,
+        profiles: profileMap.get(r.user_id) || null,
+      })) as AdminHourRequest[];
     },
   });
 }
