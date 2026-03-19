@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { KidsCareBooking } from "./useKidsCareBooking";
 
 export interface AdminKidsCareBooking extends KidsCareBooking {
@@ -60,15 +61,15 @@ export function useAdminKidsCareBookings(filters?: AdminKidsCareBookingsFilters)
         }
 
         if (filters?.bookingDate) {
-          query = query.eq("booking_date", filters.bookingDate.toISOString().split("T")[0]);
+          query = query.eq("booking_date", format(filters.bookingDate, "yyyy-MM-dd"));
         }
 
         if (filters?.dateFrom) {
-          query = query.gte("booking_date", filters.dateFrom.toISOString().split("T")[0]);
+          query = query.gte("booking_date", format(filters.dateFrom, "yyyy-MM-dd"));
         }
 
         if (filters?.dateTo) {
-          query = query.lte("booking_date", filters.dateTo.toISOString().split("T")[0]);
+          query = query.lte("booking_date", format(filters.dateTo, "yyyy-MM-dd"));
         }
 
         if (filters?.ageGroup) {
