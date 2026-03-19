@@ -19,6 +19,9 @@ import stormLogoDark from "@/assets/storm-logo-dark.png";
 import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
 import bodyTreatments from "@/assets/body-treatments.jpg";
 import sauna from "@/assets/sauna.jpg";
+import saunaBlue from "@/assets/sauna-blue.jpeg";
+import saltRoom from "@/assets/salt-room.jpeg";
+import zerobodyFloat from "@/assets/zerobody-float.jpeg";
 // Brand imagery
 import mainLobby from "@/assets/main-lobby.jpeg";
 import avocadoToast from "@/assets/food/avocado-toast.jpg";
