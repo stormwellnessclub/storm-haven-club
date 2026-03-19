@@ -459,7 +459,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                   </PopoverContent>
                 </Popover>
                 <p className="text-xs text-muted-foreground">
-                  Bookings can be made up to 48 hours in advance
+                  Bookings can be made up to 7 days in advance
                 </p>
               </div>
 

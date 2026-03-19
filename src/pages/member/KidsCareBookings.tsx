@@ -81,6 +81,18 @@ export default function KidsCareBookings() {
     <MemberLayout title="Kids Care Bookings">
       <div className="space-y-8 max-w-3xl">
 
+        {/* Registration Reminder */}
+        <Alert className="border-accent/30 bg-accent/5">
+          <Info className="h-4 w-4 text-accent" />
+          <AlertDescription className="text-sm">
+            <strong>Tip:</strong> Please register your child before booking.{" "}
+            <a href="/member/kids-care-service-form" className="text-accent underline font-semibold">
+              Add a child profile
+            </a>{" "}
+            from the Kids Care Service Form, then select them when booking a session.
+          </AlertDescription>
+        </Alert>
+
         {/* Upcoming Schedule */}
         <div>
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
