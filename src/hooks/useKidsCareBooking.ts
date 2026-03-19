@@ -145,9 +145,9 @@ export function useBookKidsCare() {
       // Validate session duration (max 2 hours per child per day)
       const startTimeObj = parse(params.startTime, "HH:mm", new Date());
       const endTimeObj = parse(params.endTime, "HH:mm", new Date());
-      const durationHours = differenceInHours(endTimeObj, startTimeObj);
+      const durationMinutes = differenceInMinutes(endTimeObj, startTimeObj);
 
-      if (durationHours <= 0 || durationHours > 2) {
+      if (durationMinutes <= 0 || durationMinutes > 120) {
         throw new Error("Kids care sessions must be between 1 minute and 2 hours");
       }
 
