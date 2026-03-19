@@ -88,7 +88,16 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
         if (t >= openTime && t < closeTime) allowed.add(t);
       }
     }
-    return ALL_TIME_SLOTS.filter((t) => allowed.has(t));
+    // If booking for today, filter out time slots that have already passed
+    const now = new Date();
+    const isToday = selectedDate && 
+      selectedDate.getFullYear() === now.getFullYear() &&
+      selectedDate.getMonth() === now.getMonth() &&
+      selectedDate.getDate() === now.getDate();
+    
+    const currentTimeStr = isToday ? format(now, "HH:mm") : "00:00";
+    
+    return ALL_TIME_SLOTS.filter((t) => allowed.has(t) && t >= currentTimeStr);
   };
 
   const filteredTimeSlots = getFilteredTimeSlots();
