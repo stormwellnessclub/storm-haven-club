@@ -506,7 +506,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                         const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
                         return (
                           <SelectItem key={time} value={time}>
-                            {time} ({durationText})
+                            {formatTime12h(time)} ({durationText})
                           </SelectItem>
                         );
                       })}
