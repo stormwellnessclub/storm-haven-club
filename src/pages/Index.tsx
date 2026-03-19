@@ -24,59 +24,6 @@ import mainLobby from "@/assets/main-lobby.jpeg";
 import avocadoToast from "@/assets/food/avocado-toast.jpg";
 import cafeHeroImage from "@/assets/food/matcha-latte.jpg";
 
-      {/* Aella Spa Section */}
-      <section className="relative py-24 bg-secondary/30 overflow-hidden">
-        <div className="container mx-auto px-6">
-          <AnimatedSection className="text-center mb-12">
-            {/* Aella logo removed */}
-            <h2 className="heading-section mb-4">
-              A Sanctuary for Renewal & Restoration
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Open to all—no membership required. Our holistic approach encompasses a wide range of 
-              treatments designed to support every step of your wellness journey.
-            </p>
-          </AnimatedSection>
-
-          {/* Services with Images */}
-          <StaggerContainer className="grid md:grid-cols-3 gap-6 mb-12" staggerDelay={150}>
-            <Link to="/spa?category=Facials" className="group relative rounded-sm overflow-hidden h-72 block hover-lift">
-              <img src={treatmentRoom} alt="Signature Facials" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent group-hover:from-charcoal/70 transition-all duration-500" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between transform group-hover:translate-y-0 transition-transform duration-300">
-                <h3 className="font-serif text-xl text-primary-foreground">Signature Facials</h3>
-                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/20 transition-all duration-300">Explore</span>
-              </div>
-            </Link>
-            <Link to="/spa?category=Massage" className="group relative rounded-sm overflow-hidden h-72 block hover-lift">
-              <img src={therapeuticMassage} alt="Therapeutic Massage" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent group-hover:from-charcoal/70 transition-all duration-500" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
-                <h3 className="font-serif text-xl text-primary-foreground">Therapeutic Massage</h3>
-                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/20 transition-all duration-300">Explore</span>
-              </div>
-            </Link>
-            <Link to="/spa?category=Body Wraps" className="group relative rounded-sm overflow-hidden h-72 block hover-lift">
-              <img src={bodyTreatments} alt="Body Treatments" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent group-hover:from-charcoal/70 transition-all duration-500" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
-                <h3 className="font-serif text-xl text-primary-foreground">Body Treatments</h3>
-                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/20 transition-all duration-300">Explore</span>
-              </div>
-            </Link>
-          </StaggerContainer>
-
-          <AnimatedSection className="text-center" delay={300}>
-            <Link to="/spa">
-              <Button variant="gold" size="lg" className="group">
-                Explore Aella <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Button>
-            </Link>
-          </AnimatedSection>
-        </div>
-      </section>
-
-
 const classStudios = [{
   icon: CircleDot,
   title: "Reformer Pilates",
