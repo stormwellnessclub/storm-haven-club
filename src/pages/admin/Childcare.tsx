@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { KidsCareHoursEditor } from "@/components/admin/KidsCareHoursEditor";
 import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDashboard";
+import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
 
 export default function Childcare() {
   const [searchQuery, setSearchQuery] = useState('');
