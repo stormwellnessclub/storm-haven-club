@@ -57,6 +57,27 @@ export function useKidsCareHourSlotsForDate(date: Date | undefined) {
   });
 }
 
+// Fetch all slots for a month (for calendar indicators)
+export function useKidsCareHourSlotsForMonth(year: number, month: number) {
+  return useQuery({
+    queryKey: ["kids-care-hour-slots-month", year, month],
+    queryFn: async (): Promise<{ slot_date: string }[]> => {
+      const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+      const endMonth = month === 12 ? 1 : month + 1;
+      const endYear = month === 12 ? year + 1 : year;
+      const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+
+      const { data, error } = await (supabase.from as any)("kids_care_hour_slots")
+        .select("slot_date")
+        .gte("slot_date", startDate)
+        .lt("slot_date", endDate);
+
+      if (error) throw error;
+      return (data || []) as { slot_date: string }[];
+    },
+  });
+}
+
 // Save slots for a date: delete existing, insert new
 export function useSaveKidsCareHourSlots() {
   const queryClient = useQueryClient();
