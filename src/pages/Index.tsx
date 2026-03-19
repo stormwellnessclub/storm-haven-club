@@ -153,7 +153,7 @@ export default function Index() {
       {/* Class Studios Section */}
       <section className="py-24 bg-background">
         <div className="container mx-auto px-6">
-          <SectionHeading title="Three Distinct Studios" subtitle="A harmonious blend of mental clarity, emotional resilience, and physical strength—designed to address all facets of wellness." />
+          <SectionHeading title="Where you train matters as much as how you train." subtitle="Three purpose-built studios. Each one designed to feel as intentional as the rest of this space." />
           
           <StaggerContainer className="grid md:grid-cols-3 gap-8 [grid-auto-rows:1fr]" staggerDelay={150}>
             {classStudios.map((studio, index) => (
