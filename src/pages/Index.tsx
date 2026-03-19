@@ -10,9 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import gymArea1 from "@/assets/gym-area-1.jpg";
 import lobbyHero from "@/assets/lobby-hero.jpeg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
-import reformerPilates from "@/assets/reformer-pilates.jpg";
-import cycling from "@/assets/cycling.jpg";
-import aerobicsStudio from "@/assets/aerobics-studio.jpg";
+import reformerPilates from "@/assets/reformer-pilates-hero.jpg";
+import cycling from "@/assets/cycling-studio-hero.jpg";
+import aerobicsStudio from "@/assets/aerobics-studio-hero.jpg";
+import communityBanner from "@/assets/community-banner.png";
 import stormLogoDark from "@/assets/storm-logo-dark.png";
 
 import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
@@ -27,7 +28,7 @@ import cafeHeroImage from "@/assets/food/matcha-latte.jpg";
 const classStudios = [{
   icon: CircleDot,
   title: "Reformer Pilates",
-  description: "A mixture of reformer classes, both heated and non-heated options",
+  description: "Precision movement on state-of-the-art reformers. Heated and non-heated sessions for all levels. Small class sizes — 8 members maximum.",
   image: reformerPilates,
   isHeated: false,
   color: "text-foreground",
@@ -35,7 +36,7 @@ const classStudios = [{
 }, {
   icon: Bike,
   title: "Cycling Studio",
-  description: "High-energy rides with immersive lighting and cinematic sound",
+  description: "Immersive rides in a studio built for energy. Dynamic lighting, Technogym bikes, instructor-driven intensity. 10 riders maximum per session.",
   image: cycling,
   isHeated: true,
   badgeText: "Cycling",
@@ -44,7 +45,7 @@ const classStudios = [{
 }, {
   icon: Activity,
   title: "Aerobics Room",
-  description: "Bootcamp, Sculpt, Yoga, HIIT and more in our versatile studio",
+  description: "Yoga, HIIT, Barre, Bootcamp, Sculpt and more — in a mixed heated and non-heated studio built for variety. Whatever you need that day, there's a class designed around it.",
   image: aerobicsStudio,
   isHeated: true,
   badgeText: "AEROBICS",
@@ -152,7 +153,7 @@ export default function Index() {
       {/* Class Studios Section */}
       <section className="py-24 bg-background">
         <div className="container mx-auto px-6">
-          <SectionHeading title="Three Distinct Studios" subtitle="A harmonious blend of mental clarity, emotional resilience, and physical strength—designed to address all facets of wellness." />
+          <SectionHeading title="Where you train matters as much as how you train." subtitle="Three purpose-built studios. Each one designed to feel as intentional as the rest of this space." />
           
           <StaggerContainer className="grid md:grid-cols-3 gap-8 [grid-auto-rows:1fr]" staggerDelay={150}>
             {classStudios.map((studio, index) => (
@@ -193,6 +194,15 @@ export default function Index() {
               </div>
             ))}
           </StaggerContainer>
+
+          <AnimatedSection className="mt-16" delay={300}>
+            <img 
+              src={communityBanner} 
+              alt="Community" 
+              className="w-full rounded-sm" 
+              loading="lazy"
+            />
+          </AnimatedSection>
 
           <AnimatedSection className="text-center mt-12" delay={400}>
             <Link to="/classes">
