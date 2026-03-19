@@ -35,6 +35,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 interface KidsCareBookingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultDate?: Date;
 }
 
 // All possible half-hour slots
@@ -48,7 +49,7 @@ const ALL_TIME_SLOTS = [
 
 const MAX_DURATION_HOURS = 2;
 
-export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModalProps) {
+export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCareBookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const bookKidsCare = useBookKidsCare();
@@ -56,7 +57,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
   const { profile } = useUserProfile();
   const { data: savedChildren, isLoading: childrenLoading } = useKidsCareChildren();
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate || new Date());
   const [selectedStartTime, setSelectedStartTime] = useState<string>("");
   const [selectedEndTime, setSelectedEndTime] = useState<string>("");
   const [selectedChildId, setSelectedChildId] = useState<string>("");
