@@ -81,6 +81,7 @@ const recoverySuiteAmenities = [
   { icon: Flame, label: "Infrared Sauna", description: "" },
   { icon: Wind, label: "Steam Room", description: "" },
   { icon: Droplets, label: "Cold Plunge Pool", description: "" },
+  { icon: Sparkles, label: "Himalayan Salt Room", description: "Floor-to-ceiling Himalayan salt walls with an active halogenerator dispersing pharmaceutical-grade salt microparticles into the air. Used clinically for respiratory health, skin conditions, and immune support. No appointment needed — included in every membership." },
   { icon: Sun, label: "Red Light Therapy", description: "Precision wavelengths that reduce inflammation, accelerate recovery, and restore skin at the cellular level." },
   { icon: Snowflake, label: "Starpool ZeroBody Cryo", description: "Dry floatation in complete weightlessness. The nervous system resets. The mind follows." },
 ];
@@ -277,7 +278,7 @@ export default function Index() {
               <img src={saltRoom} alt="Himalayan Salt Room" className="w-full h-full object-cover" loading="lazy" />
               <div className="absolute inset-0 bg-charcoal/40" />
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
-                <p className="text-primary-foreground/90 text-xs uppercase tracking-[0.25em] mb-4">Himalayan Salt Room</p>
+                <p className="text-primary-foreground/90 text-xs uppercase tracking-[0.25em] mb-4">Himalayan Salt Room · Active Halotherapy</p>
                 <h3 className="font-serif text-2xl md:text-3xl text-primary-foreground">Step inside. Everything outside stays there.</h3>
               </div>
             </div>
