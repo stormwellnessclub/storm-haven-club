@@ -57,7 +57,7 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
   const { profile } = useUserProfile();
   const { data: savedChildren, isLoading: childrenLoading } = useKidsCareChildren();
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate || new Date());
   const [selectedStartTime, setSelectedStartTime] = useState<string>("");
   const [selectedEndTime, setSelectedEndTime] = useState<string>("");
   const [selectedChildId, setSelectedChildId] = useState<string>("");
