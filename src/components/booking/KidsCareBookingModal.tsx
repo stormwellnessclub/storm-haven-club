@@ -72,20 +72,27 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
     room: string;
   } | null>(null);
 
-  // Fetch hours for the selected date
-  const { data: dayHours, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
+  // Fetch hour slots for the selected date (now returns array of slots)
+  const { data: daySlots, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
 
-  // Filter time slots based on published hours for the day
+  // Filter time slots based on published hour slots for the day
   const getFilteredTimeSlots = (): string[] => {
-    if (!dayHours || dayHours.is_closed) return [];
-    const openTime = dayHours.open_time.slice(0, 5);
-    const closeTime = dayHours.close_time.slice(0, 5);
-    return ALL_TIME_SLOTS.filter((t) => t >= openTime && t < closeTime);
+    if (!daySlots || daySlots.length === 0) return [];
+    // Union all slot ranges
+    const allowed = new Set<string>();
+    for (const slot of daySlots) {
+      const openTime = slot.open_time.slice(0, 5);
+      const closeTime = slot.close_time.slice(0, 5);
+      for (const t of ALL_TIME_SLOTS) {
+        if (t >= openTime && t < closeTime) allowed.add(t);
+      }
+    }
+    return ALL_TIME_SLOTS.filter((t) => allowed.has(t));
   };
 
   const filteredTimeSlots = getFilteredTimeSlots();
-  const dayIsClosed = !hoursLoading && (!dayHours || dayHours.is_closed);
-  const noHoursPublished = !hoursLoading && !dayHours;
+  const dayIsClosed = !hoursLoading && (!daySlots || daySlots.length === 0);
+  const noHoursPublished = !hoursLoading && (!daySlots || daySlots.length === 0);
 
   // Calculate available end times based on start time and max duration
   const getAvailableEndTimes = (startTime: string): string[] => {
