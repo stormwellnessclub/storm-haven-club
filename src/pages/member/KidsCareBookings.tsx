@@ -8,7 +8,7 @@ import { HourRequestForm } from "@/components/kids-care/HourRequestForm";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useMyKidsCareBookings, useCancelKidsCareBooking } from "@/hooks/useKidsCareBooking";
 import { useConfirmPickup, useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
-import { format, isToday, isFuture, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { useState } from "react";
 import {
