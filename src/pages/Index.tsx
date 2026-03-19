@@ -22,6 +22,7 @@ import sauna from "@/assets/sauna.jpg";
 import saunaBlue from "@/assets/sauna-blue.jpeg";
 import saltRoom from "@/assets/salt-room.jpg";
 import zerobodyFloat from "@/assets/zerobody-float.jpeg";
+import zerobodyRoom from "@/assets/zerobody-room.jpg";
 // Brand imagery
 import mainLobby from "@/assets/main-lobby.jpeg";
 import avocadoToast from "@/assets/food/avocado-toast.jpg";
@@ -307,20 +308,29 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Wellness Philosophy - Science & Soul */}
-      <section className="relative py-32 bg-primary text-primary-foreground overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-charcoal/95 to-charcoal" />
+      {/* Philosophy - Built With Intention */}
+      <section className="relative py-32 text-white overflow-hidden">
+        <div className="absolute inset-0">
+          <img src={zerobodyRoom} alt="ZeroBody cryo room with pods and marble interior" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-black/50" />
+        </div>
         <AnimatedSection className="relative z-10 container mx-auto px-6 text-center" animation="scale-in">
           <div className="max-w-4xl mx-auto">
-            <p className="text-accent text-sm uppercase tracking-widest mb-6">Our Philosophy</p>
-            <h2 className="heading-section text-primary-foreground mb-8">
-              A Blend of Science & Soul
+            <p className="text-accent text-sm uppercase tracking-widest mb-6">Built With Intention</p>
+            <h2 className="heading-section text-white mb-8">
+              Every detail here was designed to work on you — before you even notice it.
             </h2>
-            <p className="text-primary-foreground/80 text-lg leading-relaxed max-w-2xl mx-auto">
-              At Storm Wellness Club, we believe in the harmonious integration of evidence-based wellness 
-              practices with the deeper, intuitive understanding of the human spirit. Our approach combines 
-              cutting-edge science with mindful, soulful practices to create transformative experiences.
-            </p>
+            <div className="text-white/80 text-lg leading-relaxed max-w-2xl mx-auto space-y-6">
+              <p>
+                Storm Wellness Club was founded by a sport psychologist with a PhD and over a decade of research into how environments shape human behavior, motivation, and nervous system regulation.
+              </p>
+              <p>
+                The building is circular — chosen because it feels endless. The scent of Santal moves through every level because smell has direct access to the brain systems that govern emotion, stress, and memory. Each space transitions intentionally into the next — the energy shifting as you move from training to recovery to restoration.
+              </p>
+              <p>
+                Nothing here is accidental. Every finish, every frequency, every fragrance, every fixture was chosen for how it would make you feel. That is the standard this space was built to.
+              </p>
+            </div>
           </div>
         </AnimatedSection>
       </section>
