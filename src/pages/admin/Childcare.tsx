@@ -123,6 +123,10 @@ export default function Childcare() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="hour-requests" className="flex items-center gap-2">
+              <MessageSquarePlus className="h-4 w-4" />
+              Hour Requests
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings" className="space-y-6">
