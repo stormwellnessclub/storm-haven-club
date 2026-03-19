@@ -81,6 +81,7 @@ const recoverySuiteAmenities = [
   { icon: Flame, label: "Infrared Sauna", description: "" },
   { icon: Wind, label: "Steam Room", description: "" },
   { icon: Droplets, label: "Cold Plunge Pool", description: "" },
+  { icon: Sparkles, label: "Himalayan Salt Room", description: "Floor-to-ceiling Himalayan salt walls with an active halogenerator dispersing pharmaceutical-grade salt microparticles into the air. Used clinically for respiratory health, skin conditions, and immune support. No appointment needed — included in every membership." },
   { icon: Sun, label: "Red Light Therapy", description: "Precision wavelengths that reduce inflammation, accelerate recovery, and restore skin at the cellular level." },
   { icon: Snowflake, label: "Starpool ZeroBody Cryo", description: "Dry floatation in complete weightlessness. The nervous system resets. The mind follows." },
 ];
