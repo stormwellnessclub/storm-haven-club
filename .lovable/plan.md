@@ -1,94 +1,29 @@
 
-# Strategic Campaign System — IMPLEMENTED
 
-## What Was Built
+## Fix Kids Care Booking Submission Error
 
-### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
-Goal-driven campaign cards replacing the generic "Compose Campaign" button:
+### Root Cause
+The duration validation in `src/hooks/useKidsCareBooking.ts` (line 148) uses `differenceInHours()` from date-fns, which returns **whole hours only** (truncates). So:
+- A 30-minute session → returns `0` → fails the `durationHours <= 0` check → throws error
+- A 90-minute session → returns `1` → passes, but is incorrect
 
-**Guest Playbooks:**
-- **Convert to Applicant** — targets past guests who haven't applied
-- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
-- **Collect Feedback** — recent guests without feedback
+This means most booking attempts (especially 30-min or 1.5-hour sessions) silently fail with the generic "Kids care sessions must be between 1 minute and 2 hours" error.
 
-**Member Playbooks:**
-- **Prevent Churn** — members with past_due or frozen status
-- **Upsell Tier** — active members on lower tiers
-- **Referral Push** — active members with 0 referrals
+Additionally, `child_age` is an `integer` column in the database, but the code passes a float (e.g., `2.7`), which could cause a type mismatch error on insert.
 
-Each card shows live audience count and a "Launch Campaign" button.
+### Fix
 
-### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
-- Auto-queries the right segment when launched from a playbook
-- Shows recipient count and name chips with ability to remove individuals
-- Auto-loads matching email template based on goal type
-- Merge field chips for quick personalization
+**File: `src/hooks/useKidsCareBooking.ts`**
 
-### 3. Conversion Tracking (CampaignAnalytics.tsx)
-- `goal_type` and `goal_metadata` columns added to email_campaigns
-- Per-campaign conversion rates with 14-day attribution window
-- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
-- Summary stats: total conversions, overall conversion rate
+1. **Replace `differenceInHours` with minute-based math** for duration validation:
+   - Calculate duration in minutes using `differenceInMinutes(endTimeObj, startTimeObj)`
+   - Validate: `durationMinutes > 0 && durationMinutes <= 120`
 
-### Database Changes
-- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
+2. **Round `child_age` to integer** before inserting:
+   - `child_age: Math.round(params.childAge)` to match the `integer` column type
 
----
+These are two small changes — no structural or UI modifications needed.
 
-# Kids Care System — Admin Hours + Dual Checkout + Capacity Tracking — IMPLEMENTED
+### Expected Result
+Booking submissions with any valid duration (30 min, 1 hour, 1.5 hours, 2 hours) will succeed without error.
 
-## What Was Built
-
-### 1. Database: `kids_care_hours` Table
-- `week_start`, `day_of_week`, `open_time`, `close_time`, `is_closed`, `notes`
-- Unique constraint on (week_start, day_of_week)
-- RLS: staff CRUD, authenticated read
-
-### 2. New Columns on `kids_care_bookings`
-- `parent_confirmed_pickup` (boolean) — parent confirms pickup
-- `parent_confirmed_at` (timestamptz) — when confirmed
-- `room` (text) — "Little Stars" or "Big Stars"
-
-### 3. Admin Hours Tab (`/admin/childcare` → Hours tab)
-- Week-by-week hour editor with forward/back navigation
-- Toggle open/closed per day, set open/close times
-- "Copy Previous Week" button
-- Save upserts to `kids_care_hours`
-
-### 4. Room Capacity Dashboard (Admin Bookings tab)
-- Per-room breakdown in 2-hour time blocks
-- Color-coded: green (available), yellow (near full), red (full)
-- Shows Little Stars (cap 8) and Big Stars (cap 6)
-
-### 5. Dual Checkout Flow
-- Staff marks checkout via existing button
-- Admin cards show "Awaiting parent pickup confirmation" after staff checkout
-- Parents see "Confirm Pickup" button at `/member/kids-care-bookings`
-- Both timestamps visible on admin cards
-
-### 6. Dynamic Public Hours (`/kids-care`)
-- Fetches current week hours from `kids_care_hours` table
-- Shows "Hours not yet published" when no hours set
-- Soft launch banner updated to reflect dynamic hours
-
-### 7. Booking Modal Slot Filtering
-- Fetches hours for selected date
-- Shows closed/no-hours warning if day unavailable
-- Filters time slots to only show within published open/close window
-- Auto-assigns room based on age group
-
-### 8. Member Portal (`/member/kids-care-bookings`)
-- View active and past Kids Care bookings
-- Confirm Pickup button for checked-out bookings
-- Cancel booking with reason dialog
-
-### Files Created/Updated
-- `src/hooks/useKidsCareHours.ts` (new)
-- `src/components/admin/KidsCareHoursEditor.tsx` (new)
-- `src/components/admin/KidsCareCapacityDashboard.tsx` (new)
-- `src/pages/member/KidsCareBookings.tsx` (new)
-- `src/pages/admin/Childcare.tsx` (updated — 3 tabs)
-- `src/pages/KidsCare.tsx` (updated — dynamic hours, soft launch disabled)
-- `src/components/booking/KidsCareBookingModal.tsx` (updated — slot filtering)
-- `src/hooks/useKidsCareBooking.ts` (updated — room field, new types)
-- `src/App.tsx` (updated — new route)
