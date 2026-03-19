@@ -43,9 +43,10 @@ export default function KidsCareBookings() {
     setBookingModalOpen(true);
   };
 
+  const todayStr = format(new Date(), "yyyy-MM-dd");
   const activeBookings = bookings?.filter((b) =>
     ["confirmed", "checked_in", "checked_out"].includes(b.status) &&
-    (isToday(parseISO(b.booking_date)) || isFuture(parseISO(b.booking_date)))
+    (b.booking_date >= todayStr)
   ) || [];
 
   const pastBookings = bookings?.filter((b) =>
