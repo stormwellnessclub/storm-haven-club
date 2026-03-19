@@ -72,35 +72,49 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
     room: string;
   } | null>(null);
 
-  // Fetch hours for the selected date
-  const { data: dayHours, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
+  // Fetch hour slots for the selected date (now returns array of slots)
+  const { data: daySlots, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
 
-  // Filter time slots based on published hours for the day
+  // Filter time slots based on published hour slots for the day
   const getFilteredTimeSlots = (): string[] => {
-    if (!dayHours || dayHours.is_closed) return [];
-    const openTime = dayHours.open_time.slice(0, 5);
-    const closeTime = dayHours.close_time.slice(0, 5);
-    return ALL_TIME_SLOTS.filter((t) => t >= openTime && t < closeTime);
+    if (!daySlots || daySlots.length === 0) return [];
+    // Union all slot ranges
+    const allowed = new Set<string>();
+    for (const slot of daySlots) {
+      const openTime = slot.open_time.slice(0, 5);
+      const closeTime = slot.close_time.slice(0, 5);
+      for (const t of ALL_TIME_SLOTS) {
+        if (t >= openTime && t < closeTime) allowed.add(t);
+      }
+    }
+    return ALL_TIME_SLOTS.filter((t) => allowed.has(t));
   };
 
   const filteredTimeSlots = getFilteredTimeSlots();
-  const dayIsClosed = !hoursLoading && (!dayHours || dayHours.is_closed);
-  const noHoursPublished = !hoursLoading && !dayHours;
+  const dayIsClosed = !hoursLoading && (!daySlots || daySlots.length === 0);
+  const noHoursPublished = !hoursLoading && (!daySlots || daySlots.length === 0);
 
-  // Calculate available end times based on start time and max duration
+  // Calculate available end times based on start time, max duration, and slot boundaries
   const getAvailableEndTimes = (startTime: string): string[] => {
-    if (!startTime) return [];
+    if (!startTime || !daySlots || daySlots.length === 0) return [];
+
+    // Find which slot this start time falls within
+    const slot = daySlots.find((s) => {
+      const open = s.open_time.slice(0, 5);
+      const close = s.close_time.slice(0, 5);
+      return startTime >= open && startTime < close;
+    });
+
+    const slotClose = slot ? slot.close_time.slice(0, 5) : "20:30";
 
     const startTimeObj = parse(startTime, "HH:mm", new Date());
     const endTimes: string[] = [];
 
-    // Generate end times in 30-minute increments up to 2 hours
     for (let hours = 0.5; hours <= MAX_DURATION_HOURS; hours += 0.5) {
       const endTime = addHours(startTimeObj, hours);
       const endTimeStr = format(endTime, "HH:mm");
-
-      // Make sure end time is within valid hours (before 20:30)
-      if (endTimeStr <= "20:30") {
+      // End time must be within the slot's close time
+      if (endTimeStr <= slotClose) {
         endTimes.push(endTimeStr);
       }
     }

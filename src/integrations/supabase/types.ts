@@ -2406,6 +2406,42 @@ export type Database = {
         }
         Relationships: []
       }
+      kids_care_hour_slots: {
+        Row: {
+          close_time: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          label: string | null
+          notes: string | null
+          open_time: string
+          slot_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          close_time: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          notes?: string | null
+          open_time: string
+          slot_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          close_time?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          notes?: string | null
+          open_time?: string
+          slot_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       kids_care_hours: {
         Row: {
           close_time: string

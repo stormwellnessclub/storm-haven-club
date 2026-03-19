@@ -1,56 +1,94 @@
 
+# Strategic Campaign System — IMPLEMENTED
 
-## Plan: Upgrade Kids Care Hours to Date-Based with Multiple Time Ranges
+## What Was Built
 
-### Problem
-The current `kids_care_hours` table uses `week_start` + `day_of_week` as its unique key, which means:
-1. You can only set hours by day-of-week, not by specific date
-2. Each day only supports a single open/close time range (no split shifts like 9am-12pm and 4pm-7pm)
+### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
+Goal-driven campaign cards replacing the generic "Compose Campaign" button:
 
-### Solution
+**Guest Playbooks:**
+- **Convert to Applicant** — targets past guests who haven't applied
+- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
+- **Collect Feedback** — recent guests without feedback
 
-#### 1. New Database Table: `kids_care_hour_slots`
-Replace the single-range-per-day model with a date-based, multi-slot table:
+**Member Playbooks:**
+- **Prevent Churn** — members with past_due or frozen status
+- **Upsell Tier** — active members on lower tiers
+- **Referral Push** — active members with 0 referrals
 
-```sql
-CREATE TABLE public.kids_care_hour_slots (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slot_date DATE NOT NULL,
-  open_time TIME NOT NULL,
-  close_time TIME NOT NULL,
-  label TEXT,              -- e.g. "Morning", "Evening"
-  notes TEXT,
-  created_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-```
-- Keyed by **specific date**, not week+day
-- Multiple rows per date = multiple time ranges
-- RLS: staff can manage, members can read
+Each card shows live audience count and a "Launch Campaign" button.
 
-#### 2. Updated Admin Editor (`KidsCareHoursEditor`)
-- Switch from week navigator to a **date picker** (pick a specific date)
-- Show that date's time slots as a list
-- **"Add Time Slot"** button to add another open/close range for that date
-- Remove/edit individual slots
-- **"Copy to dates"** button: copy the current date's slots to other selected dates (for quickly setting up a week)
-- Each slot row: open time, close time, optional label, optional notes, delete button
+### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
+- Auto-queries the right segment when launched from a playbook
+- Shows recipient count and name chips with ability to remove individuals
+- Auto-loads matching email template based on goal type
+- Merge field chips for quick personalization
 
-#### 3. Updated Hook (`useKidsCareHours`)
-- `useKidsCareHourSlotsForDate(date)` — fetch all slots for a specific date
-- `useSaveKidsCareHourSlots(date, slots[])` — delete existing slots for that date and insert new ones
-- `useKidsCareHoursForDate` (member-facing) — updated to query new table, returns array of slots instead of single range
+### 3. Conversion Tracking (CampaignAnalytics.tsx)
+- `goal_type` and `goal_metadata` columns added to email_campaigns
+- Per-campaign conversion rates with 14-day attribution window
+- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
+- Summary stats: total conversions, overall conversion rate
 
-#### 4. Updated Booking Modal
-- The `KidsCareBookingModal` currently uses `useKidsCareHoursForDate` to filter available time slots. Update it to work with multiple slot ranges per date instead of a single open/close window.
+### Database Changes
+- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
 
-#### 5. Keep Old Table
-The existing `kids_care_hours` table stays untouched (no data loss). New code reads from the new `kids_care_hour_slots` table. If no slots exist for a date, Kids Care is closed that day.
+---
 
-### Files Changed
-- **New migration**: Create `kids_care_hour_slots` table with RLS
-- **`src/hooks/useKidsCareHours.ts`**: Add new hooks for slot-based queries, update member-facing hook
-- **`src/components/admin/KidsCareHoursEditor.tsx`**: Rewrite to date-picker + multi-slot UI
-- **`src/components/booking/KidsCareBookingModal.tsx`**: Update to handle multiple time ranges
+# Kids Care System — Admin Hours + Dual Checkout + Capacity Tracking — IMPLEMENTED
 
+## What Was Built
+
+### 1. Database: `kids_care_hours` Table
+- `week_start`, `day_of_week`, `open_time`, `close_time`, `is_closed`, `notes`
+- Unique constraint on (week_start, day_of_week)
+- RLS: staff CRUD, authenticated read
+
+### 2. New Columns on `kids_care_bookings`
+- `parent_confirmed_pickup` (boolean) — parent confirms pickup
+- `parent_confirmed_at` (timestamptz) — when confirmed
+- `room` (text) — "Little Stars" or "Big Stars"
+
+### 3. Admin Hours Tab (`/admin/childcare` → Hours tab)
+- Week-by-week hour editor with forward/back navigation
+- Toggle open/closed per day, set open/close times
+- "Copy Previous Week" button
+- Save upserts to `kids_care_hours`
+
+### 4. Room Capacity Dashboard (Admin Bookings tab)
+- Per-room breakdown in 2-hour time blocks
+- Color-coded: green (available), yellow (near full), red (full)
+- Shows Little Stars (cap 8) and Big Stars (cap 6)
+
+### 5. Dual Checkout Flow
+- Staff marks checkout via existing button
+- Admin cards show "Awaiting parent pickup confirmation" after staff checkout
+- Parents see "Confirm Pickup" button at `/member/kids-care-bookings`
+- Both timestamps visible on admin cards
+
+### 6. Dynamic Public Hours (`/kids-care`)
+- Fetches current week hours from `kids_care_hours` table
+- Shows "Hours not yet published" when no hours set
+- Soft launch banner updated to reflect dynamic hours
+
+### 7. Booking Modal Slot Filtering
+- Fetches hours for selected date
+- Shows closed/no-hours warning if day unavailable
+- Filters time slots to only show within published open/close window
+- Auto-assigns room based on age group
+
+### 8. Member Portal (`/member/kids-care-bookings`)
+- View active and past Kids Care bookings
+- Confirm Pickup button for checked-out bookings
+- Cancel booking with reason dialog
+
+### Files Created/Updated
+- `src/hooks/useKidsCareHours.ts` (new)
+- `src/components/admin/KidsCareHoursEditor.tsx` (new)
+- `src/components/admin/KidsCareCapacityDashboard.tsx` (new)
+- `src/pages/member/KidsCareBookings.tsx` (new)
+- `src/pages/admin/Childcare.tsx` (updated — 3 tabs)
+- `src/pages/KidsCare.tsx` (updated — dynamic hours, soft launch disabled)
+- `src/components/booking/KidsCareBookingModal.tsx` (updated — slot filtering)
+- `src/hooks/useKidsCareBooking.ts` (updated — room field, new types)
+- `src/App.tsx` (updated — new route)

@@ -1,113 +1,138 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ChevronLeft, ChevronRight, Copy, Save } from "lucide-react";
-import { format, addWeeks, subWeeks, startOfWeek } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Loader2, Plus, Trash2, Save, CalendarIcon, Copy } from "lucide-react";
+import { format, addDays } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
-  useKidsCareHoursForWeek,
-  useSaveKidsCareHours,
-  KidsCareHourEntry,
-  getMonday,
+  useKidsCareHourSlotsForDate,
+  useSaveKidsCareHourSlots,
+  useCopyKidsCareHourSlots,
+  KidsCareHourSlot,
 } from "@/hooks/useKidsCareHours";
+import { formatTime12h } from "@/lib/timeFormat";
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-const DEFAULT_OPEN = "08:00";
-const DEFAULT_CLOSE = "17:00";
-
-function buildEmptyWeek(weekStart: string): KidsCareHourEntry[] {
-  return Array.from({ length: 7 }, (_, i) => ({
-    week_start: weekStart,
-    day_of_week: i,
-    open_time: DEFAULT_OPEN,
-    close_time: DEFAULT_CLOSE,
-    is_closed: true,
-    notes: null,
-  }));
+interface LocalSlot {
+  open_time: string;
+  close_time: string;
+  label: string;
+  notes: string;
 }
 
+const DEFAULT_SLOT: LocalSlot = { open_time: "09:00", close_time: "12:00", label: "", notes: "" };
+
 export function KidsCareHoursEditor() {
-  const [currentWeekDate, setCurrentWeekDate] = useState(new Date());
-  const mondayStr = getMonday(currentWeekDate);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-  const { data: savedHours, isLoading } = useKidsCareHoursForWeek(currentWeekDate);
-  const saveHours = useSaveKidsCareHours();
+  const { data: savedSlots, isLoading } = useKidsCareHourSlotsForDate(selectedDate);
+  const saveSlots = useSaveKidsCareHourSlots();
+  const copySlots = useCopyKidsCareHourSlots();
 
-  const prevWeekDate = subWeeks(currentWeekDate, 1);
-  const { data: prevWeekHours } = useKidsCareHoursForWeek(prevWeekDate);
+  // Local editing state — sync from saved
+  const [localSlots, setLocalSlots] = useState<LocalSlot[]>([]);
+  const [initialized, setInitialized] = useState<string>("");
 
-  const [localHours, setLocalHours] = useState<KidsCareHourEntry[]>(() => buildEmptyWeek(mondayStr));
-
-  // Sync from saved data
-  useEffect(() => {
-    if (savedHours && savedHours.length > 0) {
-      const merged = buildEmptyWeek(mondayStr).map((empty) => {
-        const saved = savedHours.find((s) => s.day_of_week === empty.day_of_week);
-        return saved ? { ...empty, ...saved, week_start: mondayStr } : empty;
-      });
-      setLocalHours(merged);
+  // Sync when saved data loads or date changes
+  if (!isLoading && initialized !== dateStr) {
+    if (savedSlots && savedSlots.length > 0) {
+      setLocalSlots(
+        savedSlots.map((s) => ({
+          open_time: s.open_time.slice(0, 5),
+          close_time: s.close_time.slice(0, 5),
+          label: s.label || "",
+          notes: s.notes || "",
+        }))
+      );
     } else {
-      setLocalHours(buildEmptyWeek(mondayStr));
+      setLocalSlots([]);
     }
-  }, [savedHours, mondayStr]);
+    setInitialized(dateStr);
+  }
 
-  const updateDay = (dayIndex: number, updates: Partial<KidsCareHourEntry>) => {
-    setLocalHours((prev) =>
-      prev.map((h) => (h.day_of_week === dayIndex ? { ...h, ...updates } : h))
+  const addSlot = () => setLocalSlots((prev) => [...prev, { ...DEFAULT_SLOT }]);
+
+  const removeSlot = (index: number) =>
+    setLocalSlots((prev) => prev.filter((_, i) => i !== index));
+
+  const updateSlot = (index: number, updates: Partial<LocalSlot>) =>
+    setLocalSlots((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, ...updates } : s))
+    );
+
+  const handleSave = () => {
+    saveSlots.mutate({
+      date: dateStr,
+      slots: localSlots.map((s) => ({
+        slot_date: dateStr,
+        open_time: s.open_time + ":00",
+        close_time: s.close_time + ":00",
+        label: s.label || null,
+        notes: s.notes || null,
+      })),
+    });
+  };
+
+  // Copy to dates state
+  const [showCopy, setShowCopy] = useState(false);
+  const [copyDates, setCopyDates] = useState<Date[]>([]);
+
+  const handleCopyToSelectedDates = () => {
+    if (copyDates.length === 0) return;
+    copySlots.mutate(
+      {
+        sourceDate: dateStr,
+        targetDates: copyDates.map((d) => format(d, "yyyy-MM-dd")),
+      },
+      { onSuccess: () => { setShowCopy(false); setCopyDates([]); } }
     );
   };
 
-  const handleSave = () => {
-    saveHours.mutate(localHours);
-  };
-
-  const handleCopyPrevious = () => {
-    if (!prevWeekHours || prevWeekHours.length === 0) return;
-    const copied = buildEmptyWeek(mondayStr).map((empty) => {
-      const prev = prevWeekHours.find((p) => p.day_of_week === empty.day_of_week);
-      return prev
-        ? { ...empty, open_time: prev.open_time, close_time: prev.close_time, is_closed: prev.is_closed, notes: prev.notes }
-        : empty;
-    });
-    setLocalHours(copied);
-  };
-
-  const weekLabel = format(startOfWeek(currentWeekDate, { weekStartsOn: 1 }), "MMM d, yyyy");
-  const hasHoursSet = savedHours && savedHours.length > 0;
-  const hasPrevWeek = prevWeekHours && prevWeekHours.length > 0;
+  const hasSlots = savedSlots && savedSlots.length > 0;
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Weekly Hours</CardTitle>
-            <CardDescription>Set Kids Care operating hours for each week</CardDescription>
+            <CardTitle>Kids Care Hours</CardTitle>
+            <CardDescription>Set operating hours for specific dates with multiple time ranges</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            {!hasHoursSet && (
-              <Badge variant="outline" className="text-xs">No hours set</Badge>
-            )}
-            {hasHoursSet && (
+            {hasSlots ? (
               <Badge className="bg-success/10 text-success border-success/30 text-xs">Published</Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs">No hours set</Badge>
             )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Week Navigator */}
-        <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={() => setCurrentWeekDate(subWeeks(currentWeekDate, 1))}>
-            <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-          </Button>
-          <span className="font-medium text-sm">Week of {weekLabel}</span>
-          <Button variant="outline" size="sm" onClick={() => setCurrentWeekDate(addWeeks(currentWeekDate, 1))}>
-            Next <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
+        {/* Date Picker */}
+        <div className="space-y-2">
+          <Label>Select Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-full sm:w-64 justify-start text-left font-normal")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(selectedDate, "EEEE, MMMM d, yyyy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => d && setSelectedDate(d)}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         {isLoading ? (
@@ -116,68 +141,134 @@ export function KidsCareHoursEditor() {
           </div>
         ) : (
           <>
-            {/* Day Rows */}
-            <div className="space-y-3">
-              {localHours.map((entry) => (
-                <div
-                  key={entry.day_of_week}
-                  className={`flex items-center gap-4 p-3 rounded-sm border ${
-                    entry.is_closed ? "bg-muted/50 border-border" : "bg-background border-accent/20"
-                  }`}
-                >
-                  <div className="w-28 font-medium text-sm">{DAY_NAMES[entry.day_of_week]}</div>
-
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={!entry.is_closed}
-                      onCheckedChange={(open) => updateDay(entry.day_of_week, { is_closed: !open })}
-                    />
-                    <span className="text-xs text-muted-foreground">{entry.is_closed ? "Closed" : "Open"}</span>
-                  </div>
-
-                  {!entry.is_closed && (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs sr-only">Open</Label>
-                        <Input
-                          type="time"
-                          className="w-32 h-8 text-sm"
-                          value={entry.open_time?.slice(0, 5) || DEFAULT_OPEN}
-                          onChange={(e) => updateDay(entry.day_of_week, { open_time: e.target.value + ":00" })}
-                        />
-                        <span className="text-muted-foreground text-xs">to</span>
-                        <Input
-                          type="time"
-                          className="w-32 h-8 text-sm"
-                          value={entry.close_time?.slice(0, 5) || DEFAULT_CLOSE}
-                          onChange={(e) => updateDay(entry.day_of_week, { close_time: e.target.value + ":00" })}
-                        />
-                      </div>
+            {/* Slot Rows */}
+            {localSlots.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-sm">
+                No time slots set — Kids Care will be <strong>closed</strong> on this date.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {localSlots.map((slot, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-wrap items-end gap-3 p-3 rounded-sm border bg-background"
+                  >
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Open</Label>
                       <Input
-                        className="flex-1 h-8 text-xs"
-                        placeholder="Notes (optional)"
-                        value={entry.notes || ""}
-                        onChange={(e) => updateDay(entry.day_of_week, { notes: e.target.value || null })}
+                        type="time"
+                        className="w-32 h-8 text-sm"
+                        value={slot.open_time}
+                        onChange={(e) => updateSlot(index, { open_time: e.target.value })}
                       />
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Close</Label>
+                      <Input
+                        type="time"
+                        className="w-32 h-8 text-sm"
+                        value={slot.close_time}
+                        onChange={(e) => updateSlot(index, { close_time: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1 flex-1 min-w-[120px]">
+                      <Label className="text-xs text-muted-foreground">Label</Label>
+                      <Input
+                        className="h-8 text-sm"
+                        placeholder="e.g. Morning, Evening"
+                        value={slot.label}
+                        onChange={(e) => updateSlot(index, { label: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1 flex-1 min-w-[120px]">
+                      <Label className="text-xs text-muted-foreground">Notes</Label>
+                      <Input
+                        className="h-8 text-xs"
+                        placeholder="Optional notes"
+                        value={slot.notes}
+                        onChange={(e) => updateSlot(index, { notes: e.target.value })}
+                      />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => removeSlot(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Actions */}
-            <div className="flex items-center gap-3">
-              <Button onClick={handleSave} disabled={saveHours.isPending}>
-                {saveHours.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="outline" size="sm" onClick={addSlot}>
+                <Plus className="h-4 w-4 mr-1" /> Add Time Slot
+              </Button>
+              <Button onClick={handleSave} disabled={saveSlots.isPending} size="sm">
+                {saveSlots.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 Save Hours
               </Button>
-              {hasPrevWeek && (
-                <Button variant="outline" onClick={handleCopyPrevious}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Previous Week
+              {hasSlots && (
+                <Button variant="outline" size="sm" onClick={() => setShowCopy(!showCopy)}>
+                  <Copy className="h-4 w-4 mr-1" /> Copy to Dates
                 </Button>
               )}
             </div>
+
+            {/* Copy to dates panel */}
+            {showCopy && (
+              <div className="border rounded-sm p-4 space-y-3 bg-muted/30">
+                <p className="text-sm font-medium">
+                  Copy <strong>{format(selectedDate, "MMM d")}</strong>'s slots to:
+                </p>
+                <Calendar
+                  mode="multiple"
+                  selected={copyDates}
+                  onSelect={(dates) => setCopyDates(dates || [])}
+                  disabled={(d) => format(d, "yyyy-MM-dd") === dateStr}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+                {copyDates.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {copyDates.map((d) => (
+                      <Badge key={d.toISOString()} variant="secondary" className="text-xs">
+                        {format(d, "MMM d")}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    disabled={copyDates.length === 0 || copySlots.isPending}
+                    onClick={handleCopyToSelectedDates}
+                  >
+                    {copySlots.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+                    Copy to {copyDates.length} date{copyDates.length !== 1 ? "s" : ""}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setShowCopy(false); setCopyDates([]); }}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Preview of saved slots */}
+            {hasSlots && (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p className="font-medium">Published hours for {format(selectedDate, "MMM d")}:</p>
+                {savedSlots!.map((s, i) => (
+                  <p key={i}>
+                    {s.label ? `${s.label}: ` : ""}
+                    {formatTime12h(s.open_time)} – {formatTime12h(s.close_time)}
+                    {s.notes ? ` (${s.notes})` : ""}
+                  </p>
+                ))}
+              </div>
+            )}
           </>
         )}
       </CardContent>
