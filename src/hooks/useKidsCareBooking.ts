@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, differenceInHours, parse, addHours } from "date-fns";
+import { format, differenceInHours, differenceInMinutes, parse, addHours } from "date-fns";
 
 export interface KidsCareBooking {
   id: string;
