@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar, Info } from "lucide-react";
+import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar, Info, Plus } from "lucide-react";
 import { HourRequestForm } from "@/components/kids-care/HourRequestForm";
+import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useMyKidsCareBookings, useCancelKidsCareBooking } from "@/hooks/useKidsCareBooking";
 import { useConfirmPickup, useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
 import { format, isToday, isFuture, parseISO } from "date-fns";
@@ -26,6 +27,8 @@ export default function KidsCareBookings() {
   const { data: upcomingSlots, isLoading: slotsLoading } = useUpcomingKidsCareSlots(7);
   const [cancelDialogId, setCancelDialogId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [bookingDefaultDate, setBookingDefaultDate] = useState<Date | undefined>(undefined);
 
   const handleCancel = () => {
     if (!cancelDialogId) return;
@@ -33,6 +36,11 @@ export default function KidsCareBookings() {
       { bookingId: cancelDialogId, reason: cancelReason },
       { onSuccess: () => { setCancelDialogId(null); setCancelReason(""); } }
     );
+  };
+
+  const openBookingForDate = (date?: Date) => {
+    setBookingDefaultDate(date);
+    setBookingModalOpen(true);
   };
 
   const activeBookings = bookings?.filter((b) =>
@@ -81,6 +89,18 @@ export default function KidsCareBookings() {
     <MemberLayout title="Kids Care Bookings">
       <div className="space-y-8 max-w-3xl">
 
+        {/* Book a Session CTA */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Kids Care</h2>
+            <p className="text-sm text-muted-foreground">Book a supervised session for your child during your workout.</p>
+          </div>
+          <Button onClick={() => openBookingForDate()} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Book a Session
+          </Button>
+        </div>
+
         {/* Registration Reminder */}
         <Alert className="border-accent/30 bg-accent/5">
           <Info className="h-4 w-4 text-accent" />
@@ -112,11 +132,16 @@ export default function KidsCareBookings() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {Object.entries(slotsByDate).map(([date, slots]) => (
-                <Card key={date}>
+                <Card key={date} className="cursor-pointer hover:border-accent/50 transition-colors" onClick={() => openBookingForDate(parseISO(date))}>
                   <CardContent className="py-4">
-                    <p className="text-sm font-semibold mb-1">
-                      {isToday(parseISO(date)) ? "Today" : format(parseISO(date), "EEEE, MMM d")}
-                    </p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold">
+                        {isToday(parseISO(date)) ? "Today" : format(parseISO(date), "EEEE, MMM d")}
+                      </p>
+                      <Button variant="ghost" size="sm" className="text-xs text-accent h-auto py-1 px-2">
+                        Book →
+                      </Button>
+                    </div>
                     <div className="space-y-1">
                       {slots!.map((slot, i) => (
                         <div key={i} className="text-sm text-muted-foreground flex items-center gap-1">
@@ -149,6 +174,9 @@ export default function KidsCareBookings() {
               <CardContent className="py-8 text-center text-muted-foreground">
                 <Baby className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p>No active bookings</p>
+                <Button variant="link" className="mt-2" onClick={() => openBookingForDate()}>
+                  Book your first session
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -279,6 +307,13 @@ export default function KidsCareBookings() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Booking Modal */}
+      <KidsCareBookingModal
+        open={bookingModalOpen}
+        onOpenChange={setBookingModalOpen}
+        defaultDate={bookingDefaultDate}
+      />
     </MemberLayout>
   );
 }
