@@ -111,7 +111,7 @@ export function useCopyKidsCareHourSlots() {
 
       // Fetch source slots
       const { data: sourceSlots, error: fetchError } = await (supabase.from as any)("kids_care_hour_slots")
-        .select("open_time, close_time, label, notes")
+        .select("open_time, close_time, label, notes, staff_name")
         .eq("slot_date", sourceDate);
       if (fetchError) throw fetchError;
       if (!sourceSlots || sourceSlots.length === 0) throw new Error("No slots to copy from source date");
