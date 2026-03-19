@@ -195,6 +195,15 @@ export default function Index() {
             ))}
           </StaggerContainer>
 
+          <AnimatedSection className="mt-16" delay={300}>
+            <img 
+              src={communityBanner} 
+              alt="Community" 
+              className="w-full rounded-sm" 
+              loading="lazy"
+            />
+          </AnimatedSection>
+
           <AnimatedSection className="text-center mt-12" delay={400}>
             <Link to="/classes">
               <Button variant="outline" size="lg" className="group">
