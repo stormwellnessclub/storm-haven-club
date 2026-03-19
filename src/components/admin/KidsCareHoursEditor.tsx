@@ -5,15 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Plus, Trash2, Save, CalendarIcon, Copy } from "lucide-react";
-import { format, addDays } from "date-fns";
+import { Loader2, Plus, Trash2, Save, Copy, UserRound } from "lucide-react";
+import { format, getMonth, getYear } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   useKidsCareHourSlotsForDate,
+  useKidsCareHourSlotsForMonth,
   useSaveKidsCareHourSlots,
   useCopyKidsCareHourSlots,
-  KidsCareHourSlot,
 } from "@/hooks/useKidsCareHours";
 import { formatTime12h } from "@/lib/timeFormat";
 
@@ -22,23 +21,33 @@ interface LocalSlot {
   close_time: string;
   label: string;
   notes: string;
+  staff_name: string;
 }
 
-const DEFAULT_SLOT: LocalSlot = { open_time: "09:00", close_time: "12:00", label: "", notes: "" };
+const DEFAULT_SLOT: LocalSlot = { open_time: "09:00", close_time: "12:00", label: "", notes: "", staff_name: "" };
 
 export function KidsCareHoursEditor() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
   const { data: savedSlots, isLoading } = useKidsCareHourSlotsForDate(selectedDate);
+  const { data: monthSlots } = useKidsCareHourSlotsForMonth(
+    getYear(calendarMonth),
+    getMonth(calendarMonth) + 1
+  );
   const saveSlots = useSaveKidsCareHourSlots();
   const copySlots = useCopyKidsCareHourSlots();
 
-  // Local editing state — sync from saved
+  // Build set of dates with configured slots for dot indicators
+  const datesWithSlots = new Set(
+    (monthSlots || []).map((s) => s.slot_date)
+  );
+
+  // Local editing state
   const [localSlots, setLocalSlots] = useState<LocalSlot[]>([]);
   const [initialized, setInitialized] = useState<string>("");
 
-  // Sync when saved data loads or date changes
   if (!isLoading && initialized !== dateStr) {
     if (savedSlots && savedSlots.length > 0) {
       setLocalSlots(
@@ -47,6 +56,7 @@ export function KidsCareHoursEditor() {
           close_time: s.close_time.slice(0, 5),
           label: s.label || "",
           notes: s.notes || "",
+          staff_name: s.staff_name || "",
         }))
       );
     } else {
@@ -56,14 +66,9 @@ export function KidsCareHoursEditor() {
   }
 
   const addSlot = () => setLocalSlots((prev) => [...prev, { ...DEFAULT_SLOT }]);
-
-  const removeSlot = (index: number) =>
-    setLocalSlots((prev) => prev.filter((_, i) => i !== index));
-
+  const removeSlot = (index: number) => setLocalSlots((prev) => prev.filter((_, i) => i !== index));
   const updateSlot = (index: number, updates: Partial<LocalSlot>) =>
-    setLocalSlots((prev) =>
-      prev.map((s, i) => (i === index ? { ...s, ...updates } : s))
-    );
+    setLocalSlots((prev) => prev.map((s, i) => (i === index ? { ...s, ...updates } : s)));
 
   const handleSave = () => {
     saveSlots.mutate({
@@ -74,6 +79,7 @@ export function KidsCareHoursEditor() {
         close_time: s.close_time + ":00",
         label: s.label || null,
         notes: s.notes || null,
+        staff_name: s.staff_name || null,
       })),
     });
   };
@@ -101,7 +107,7 @@ export function KidsCareHoursEditor() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Kids Care Hours</CardTitle>
-            <CardDescription>Set operating hours for specific dates with multiple time ranges</CardDescription>
+            <CardDescription>Set operating hours for specific dates. Dates with hours show a dot indicator.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {hasSlots ? (
@@ -113,26 +119,26 @@ export function KidsCareHoursEditor() {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Date Picker */}
+        {/* Calendar Overview */}
         <div className="space-y-2">
           <Label>Select Date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("w-full sm:w-64 justify-start text-left font-normal")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {format(selectedDate, "EEEE, MMMM d, yyyy")}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => d && setSelectedDate(d)}
-                initialFocus
-                className={cn("p-3 pointer-events-auto")}
-              />
-            </PopoverContent>
-          </Popover>
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(d) => d && setSelectedDate(d)}
+            month={calendarMonth}
+            onMonthChange={setCalendarMonth}
+            className={cn("p-3 pointer-events-auto rounded-sm border")}
+            modifiers={{
+              hasSlots: (date) => datesWithSlots.has(format(date, "yyyy-MM-dd")),
+            }}
+            modifiersClassNames={{
+              hasSlots: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-primary",
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Selected: <strong>{format(selectedDate, "EEEE, MMMM d, yyyy")}</strong>
+          </p>
         </div>
 
         {isLoading ? (
@@ -149,10 +155,7 @@ export function KidsCareHoursEditor() {
             ) : (
               <div className="space-y-3">
                 {localSlots.map((slot, index) => (
-                  <div
-                    key={index}
-                    className="flex flex-wrap items-end gap-3 p-3 rounded-sm border bg-background"
-                  >
+                  <div key={index} className="flex flex-wrap items-end gap-3 p-3 rounded-sm border bg-background">
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Open</Label>
                       <Input
@@ -178,6 +181,17 @@ export function KidsCareHoursEditor() {
                         placeholder="e.g. Morning, Evening"
                         value={slot.label}
                         onChange={(e) => updateSlot(index, { label: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1 flex-1 min-w-[120px]">
+                      <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                        <UserRound className="h-3 w-3" /> Staff
+                      </Label>
+                      <Input
+                        className="h-8 text-sm"
+                        placeholder="Staff name (admin only)"
+                        value={slot.staff_name}
+                        onChange={(e) => updateSlot(index, { staff_name: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1 flex-1 min-w-[120px]">
@@ -264,6 +278,7 @@ export function KidsCareHoursEditor() {
                   <p key={i}>
                     {s.label ? `${s.label}: ` : ""}
                     {formatTime12h(s.open_time)} – {formatTime12h(s.close_time)}
+                    {s.staff_name ? ` — Staff: ${s.staff_name}` : ""}
                     {s.notes ? ` (${s.notes})` : ""}
                   </p>
                 ))}

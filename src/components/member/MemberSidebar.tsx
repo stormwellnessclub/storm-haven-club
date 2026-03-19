@@ -29,6 +29,7 @@ import {
   Gift,
   ChevronDown,
   ShoppingBag,
+  Baby,
 } from "lucide-react";
 import {
   Sidebar,
@@ -85,6 +86,7 @@ const collapsibleGroups: SidebarGroupDef[] = [
     items: [
       { title: "My Bookings", url: "/member/bookings", icon: Calendar },
       { title: "Visit History", url: "/member/check-in-history", icon: Activity },
+      { title: "Kids Care", url: "/member/kids-care-bookings", icon: Baby },
       { title: "Wellness Booking", url: "/member/wellness", icon: Zap },
     ],
   },

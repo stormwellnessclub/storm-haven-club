@@ -31,6 +31,7 @@ export interface KidsCareHourSlot {
   close_time: string;
   label: string | null;
   notes: string | null;
+  staff_name: string | null;
   created_by?: string;
   created_at?: string;
   updated_at?: string;
@@ -53,6 +54,27 @@ export function useKidsCareHourSlotsForDate(date: Date | undefined) {
       return (data || []) as KidsCareHourSlot[];
     },
     enabled: !!date,
+  });
+}
+
+// Fetch all slots for a month (for calendar indicators)
+export function useKidsCareHourSlotsForMonth(year: number, month: number) {
+  return useQuery({
+    queryKey: ["kids-care-hour-slots-month", year, month],
+    queryFn: async (): Promise<{ slot_date: string }[]> => {
+      const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+      const endMonth = month === 12 ? 1 : month + 1;
+      const endYear = month === 12 ? year + 1 : year;
+      const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+
+      const { data, error } = await (supabase.from as any)("kids_care_hour_slots")
+        .select("slot_date")
+        .gte("slot_date", startDate)
+        .lt("slot_date", endDate);
+
+      if (error) throw error;
+      return (data || []) as { slot_date: string }[];
+    },
   });
 }
 
@@ -79,6 +101,7 @@ export function useSaveKidsCareHourSlots() {
           close_time: s.close_time,
           label: s.label || null,
           notes: s.notes || null,
+          staff_name: s.staff_name || null,
           created_by: user.id,
           updated_at: new Date().toISOString(),
         }));
@@ -109,7 +132,7 @@ export function useCopyKidsCareHourSlots() {
 
       // Fetch source slots
       const { data: sourceSlots, error: fetchError } = await (supabase.from as any)("kids_care_hour_slots")
-        .select("open_time, close_time, label, notes")
+        .select("open_time, close_time, label, notes, staff_name")
         .eq("slot_date", sourceDate);
       if (fetchError) throw fetchError;
       if (!sourceSlots || sourceSlots.length === 0) throw new Error("No slots to copy from source date");
@@ -124,6 +147,7 @@ export function useCopyKidsCareHourSlots() {
           close_time: s.close_time,
           label: s.label,
           notes: s.notes,
+          staff_name: s.staff_name,
           created_by: user.id,
         }));
         const { error } = await (supabase.from as any)("kids_care_hour_slots").insert(rows);
