@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle } from "lucide-react";
+import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus } from "lucide-react";
 import { useState } from "react";
 import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus } from "@/hooks/useAdminKidsCareBookings";
 import { useKidsCareInterestList, useUpdateKidsCareInterestStatus } from "@/hooks/useKidsCareInterest";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { KidsCareHoursEditor } from "@/components/admin/KidsCareHoursEditor";
 import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDashboard";
+import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
 
 export default function Childcare() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,6 +122,10 @@ export default function Childcare() {
                   {interestList.filter(i => i.status === 'waiting').length}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="hour-requests" className="flex items-center gap-2">
+              <MessageSquarePlus className="h-4 w-4" />
+              Hour Requests
             </TabsTrigger>
           </TabsList>
 
@@ -410,6 +415,10 @@ export default function Childcare() {
                 </p>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="hour-requests" className="space-y-6">
+            <KidsCareHourRequests />
           </TabsContent>
         </Tabs>
       </div>
