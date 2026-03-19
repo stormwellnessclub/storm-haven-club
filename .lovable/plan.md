@@ -1,58 +1,94 @@
 
+# Strategic Campaign System — IMPLEMENTED
 
-## Plan: Kids Care Pass Purchase Flow in Member Portal
+## What Was Built
 
-### Current State
-- Kids Care pass purchase only exists on the public `/kids-care` page
-- It opens Stripe Checkout in a **new browser tab** — takes users out of the portal
-- The member sidebar has "Kids Care" linking to bookings, but no way to buy a pass from within the portal
-- Agreement signing already works in-portal via `/member/waivers`
+### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
+Goal-driven campaign cards replacing the generic "Compose Campaign" button:
 
-### What We'll Build
+**Guest Playbooks:**
+- **Convert to Applicant** — targets past guests who haven't applied
+- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
+- **Collect Feedback** — recent guests without feedback
 
-#### 1. New Member Page: `/member/kids-care`
-A dedicated Kids Care hub in the member portal that combines:
-- **Pass status**: Shows active pass with sessions remaining, or prompts to purchase
-- **Purchase flow**: Inline Stripe Embedded Checkout (no redirect, no new tab)
-- **Agreement check**: If Kids Care agreement isn't signed, shows the agreement inline with a sign button before allowing purchase
-- **Child registration link**: After signing, links to `/member/kids-care-service-form`
-- **Book session button**: Links to the booking modal or bookings page
-- Mobile-friendly layout using existing card components
+**Member Playbooks:**
+- **Prevent Churn** — members with past_due or frozen status
+- **Upsell Tier** — active members on lower tiers
+- **Referral Push** — active members with 0 referrals
 
-#### 2. Inline Stripe Embedded Checkout
-Instead of `window.open(data.url, "_blank")`, use Stripe's `EmbeddedCheckoutProvider` + `EmbeddedCheckout` (same pattern as the non-member Recovery page). Steps:
-- Call `stripe-payment` with `create_kids_care_checkout` but request an **embedded** client secret (add `mode: "embedded"` to the request body)
-- Update the `stripe-payment` edge function to support `ui_mode: "embedded"` for kids care checkout, returning a `clientSecret` instead of a `url`
-- Render `EmbeddedCheckout` inline in the portal page
-- On completion, show success state and refresh pass data
+Each card shows live audience count and a "Launch Campaign" button.
 
-#### 3. Update Edge Function (`stripe-payment`)
-Add embedded mode support to the `create_kids_care_checkout` action:
-- When `mode === "embedded"`, create the Checkout Session with `ui_mode: "embedded"` and `return_url` instead of `success_url`/`cancel_url`
-- Return `{ clientSecret }` instead of `{ url }`
+### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
+- Auto-queries the right segment when launched from a playbook
+- Shows recipient count and name chips with ability to remove individuals
+- Auto-loads matching email template based on goal type
+- Merge field chips for quick personalization
 
-#### 4. Update Member Sidebar
-- Change "Kids Care" link from `/member/kids-care-bookings` to `/member/kids-care` (the new hub)
-- Add a sub-link or keep bookings accessible from the hub page
+### 3. Conversion Tracking (CampaignAnalytics.tsx)
+- `goal_type` and `goal_metadata` columns added to email_campaigns
+- Per-campaign conversion rates with 14-day attribution window
+- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
+- Summary stats: total conversions, overall conversion rate
 
-#### 5. Agreement Flow (Inline)
-Before showing purchase, check `profile.kids_care_agreement_signed`:
-- If not signed, show the agreement document with a "Sign Agreement" button (reuse existing `SimpleAgreementCard`)
-- After signing, reveal the purchase section
-- After purchase, show "Register Your Children" and "Book a Session" CTAs
+### Database Changes
+- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
 
-### Files Changed
+---
 
-| File | Change |
-|------|--------|
-| **New**: `src/pages/member/KidsCare.tsx` | Kids Care hub with agreement check, inline Stripe checkout, pass status |
-| `supabase/functions/stripe-payment/index.ts` | Add `ui_mode: "embedded"` support to `create_kids_care_checkout` |
-| `src/components/member/MemberSidebar.tsx` | Update Kids Care link to `/member/kids-care` |
-| `src/App.tsx` (or router) | Add route for `/member/kids-care` |
+# Kids Care System — Admin Hours + Dual Checkout + Capacity Tracking — IMPLEMENTED
 
-### Mobile-Friendly
-- All components use existing responsive card/layout patterns
-- Embedded Checkout is fully responsive by default
-- Agreement cards already work on mobile
-- Single-column layout for the entire flow
+## What Was Built
 
+### 1. Database: `kids_care_hours` Table
+- `week_start`, `day_of_week`, `open_time`, `close_time`, `is_closed`, `notes`
+- Unique constraint on (week_start, day_of_week)
+- RLS: staff CRUD, authenticated read
+
+### 2. New Columns on `kids_care_bookings`
+- `parent_confirmed_pickup` (boolean) — parent confirms pickup
+- `parent_confirmed_at` (timestamptz) — when confirmed
+- `room` (text) — "Little Stars" or "Big Stars"
+
+### 3. Admin Hours Tab (`/admin/childcare` → Hours tab)
+- Week-by-week hour editor with forward/back navigation
+- Toggle open/closed per day, set open/close times
+- "Copy Previous Week" button
+- Save upserts to `kids_care_hours`
+
+### 4. Room Capacity Dashboard (Admin Bookings tab)
+- Per-room breakdown in 2-hour time blocks
+- Color-coded: green (available), yellow (near full), red (full)
+- Shows Little Stars (cap 8) and Big Stars (cap 6)
+
+### 5. Dual Checkout Flow
+- Staff marks checkout via existing button
+- Admin cards show "Awaiting parent pickup confirmation" after staff checkout
+- Parents see "Confirm Pickup" button at `/member/kids-care-bookings`
+- Both timestamps visible on admin cards
+
+### 6. Dynamic Public Hours (`/kids-care`)
+- Fetches current week hours from `kids_care_hours` table
+- Shows "Hours not yet published" when no hours set
+- Soft launch banner updated to reflect dynamic hours
+
+### 7. Booking Modal Slot Filtering
+- Fetches hours for selected date
+- Shows closed/no-hours warning if day unavailable
+- Filters time slots to only show within published open/close window
+- Auto-assigns room based on age group
+
+### 8. Member Portal (`/member/kids-care-bookings`)
+- View active and past Kids Care bookings
+- Confirm Pickup button for checked-out bookings
+- Cancel booking with reason dialog
+
+### Files Created/Updated
+- `src/hooks/useKidsCareHours.ts` (new)
+- `src/components/admin/KidsCareHoursEditor.tsx` (new)
+- `src/components/admin/KidsCareCapacityDashboard.tsx` (new)
+- `src/pages/member/KidsCareBookings.tsx` (new)
+- `src/pages/admin/Childcare.tsx` (updated — 3 tabs)
+- `src/pages/KidsCare.tsx` (updated — dynamic hours, soft launch disabled)
+- `src/components/booking/KidsCareBookingModal.tsx` (updated — slot filtering)
+- `src/hooks/useKidsCareBooking.ts` (updated — room field, new types)
+- `src/App.tsx` (updated — new route)
