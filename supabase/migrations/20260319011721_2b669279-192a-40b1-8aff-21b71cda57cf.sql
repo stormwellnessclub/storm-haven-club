@@ -1,0 +1,1 @@
+ALTER TABLE public.kids_care_hour_slots ADD COLUMN IF NOT EXISTS staff_name TEXT;

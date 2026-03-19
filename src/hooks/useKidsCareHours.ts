@@ -31,6 +31,7 @@ export interface KidsCareHourSlot {
   close_time: string;
   label: string | null;
   notes: string | null;
+  staff_name: string | null;
   created_by?: string;
   created_at?: string;
   updated_at?: string;
