@@ -80,6 +80,7 @@ export function useSaveKidsCareHourSlots() {
           close_time: s.close_time,
           label: s.label || null,
           notes: s.notes || null,
+          staff_name: s.staff_name || null,
           created_by: user.id,
           updated_at: new Date().toISOString(),
         }));
