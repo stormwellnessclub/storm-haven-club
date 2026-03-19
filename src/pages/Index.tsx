@@ -8,7 +8,7 @@ import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, 
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import gymArea1 from "@/assets/gym-area-1.jpg";
-import gymArea2 from "@/assets/gym-area-2.jpg";
+import lobbyHero from "@/assets/lobby-hero.jpeg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
 import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
@@ -97,50 +97,30 @@ export default function Index() {
       <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
         <div className="absolute inset-0">
           <img 
-            src={gymArea2} 
-            alt="Storm Wellness Club Gym" 
-            className="w-full h-full object-cover object-center opacity-50 sm:opacity-40" 
+            src={lobbyHero} 
+            alt="Storm Wellness Club Lobby" 
+            className="w-full h-full object-cover object-center opacity-60" 
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/30 via-charcoal/40 to-charcoal/60 sm:from-charcoal/40 sm:via-charcoal/50 sm:to-charcoal/70" />
+          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/20 via-charcoal/35 to-charcoal/55" />
         </div>
         
         <div className="relative z-10 container mx-auto px-4 sm:px-6 text-center py-20 sm:py-0">
           
           <h1 className="heading-display text-primary-foreground mb-4 sm:mb-6 animate-fade-up opacity-0 stagger-2 text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
-            The Wellness Solution
+            This is what it feels like
             <br />
-            <span className="text-accent">You Have Been Seeking</span>
+            <span>to finally </span><span className="text-accent">arrive.</span>
           </h1>
           <p className="text-primary-foreground/80 text-base sm:text-lg max-w-xl mx-auto mb-8 sm:mb-10 animate-fade-up opacity-0 stagger-3 px-4 sm:px-0">
-            Where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
+            A private wellness club designed for people who take every detail of their life seriously.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-up opacity-0 stagger-4 px-4 sm:px-0">
-            <Link to="/apply" className="w-full sm:w-auto">
-              <Button variant="hero" size="lg" className="w-full sm:w-auto">
-                Apply for Membership
-              </Button>
-            </Link>
             <Link to="/memberships" className="w-full sm:w-auto">
-              <Button variant="hero-outline" size="lg" className="w-full sm:w-auto">
+              <Button variant="hero" size="lg" className="w-full sm:w-auto">
                 Explore Memberships
               </Button>
             </Link>
           </div>
-          
-          {/* Download App Button */}
-          {!isStandalone && (
-            <div className="animate-fade-up opacity-0 stagger-5 mt-6">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleInstall}
-                className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10 gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Download App
-              </Button>
-            </div>
-          )}
         </div>
 
         <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden sm:block">
