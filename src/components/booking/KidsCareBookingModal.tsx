@@ -235,8 +235,10 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
     }
   };
 
-  const minDate = addDays(new Date(), 1);
-  const maxDate = addDays(new Date(), 2); // 48 hours in advance
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const minDate = today;
+  const maxDate = addDays(new Date(), 7);
 
   // Calculate duration
   const durationHours = selectedStartTime && selectedEndTime
