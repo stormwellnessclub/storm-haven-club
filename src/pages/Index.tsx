@@ -8,7 +8,7 @@ import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, 
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import gymArea1 from "@/assets/gym-area-1.jpg";
-import gymArea2 from "@/assets/gym-area-2.jpg";
+import lobbyHero from "@/assets/lobby-hero.jpeg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
 import reformerPilates from "@/assets/reformer-pilates.jpg";
 import cycling from "@/assets/cycling.jpg";
