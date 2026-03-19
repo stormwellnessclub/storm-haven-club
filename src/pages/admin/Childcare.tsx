@@ -416,6 +416,10 @@ export default function Childcare() {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="hour-requests" className="space-y-6">
+            <KidsCareHourRequests />
+          </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
