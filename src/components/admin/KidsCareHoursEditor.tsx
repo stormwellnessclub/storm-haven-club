@@ -71,17 +71,20 @@ export function KidsCareHoursEditor() {
     setLocalSlots((prev) => prev.map((s, i) => (i === index ? { ...s, ...updates } : s)));
 
   const handleSave = () => {
-    saveSlots.mutate({
-      date: dateStr,
-      slots: localSlots.map((s) => ({
-        slot_date: dateStr,
-        open_time: s.open_time + ":00",
-        close_time: s.close_time + ":00",
-        label: s.label || null,
-        notes: s.notes || null,
-        staff_name: s.staff_name || null,
-      })),
-    });
+    saveSlots.mutate(
+      {
+        date: dateStr,
+        slots: localSlots.map((s) => ({
+          slot_date: dateStr,
+          open_time: s.open_time + ":00",
+          close_time: s.close_time + ":00",
+          label: s.label || null,
+          notes: s.notes || null,
+          staff_name: s.staff_name || null,
+        })),
+      },
+      { onSuccess: () => setInitialized("") }
+    );
   };
 
   // Copy to dates state
