@@ -658,9 +658,9 @@ serve(async (req) => {
       }
 
       case 'create_kids_care_checkout': {
-        const { successUrl, cancelUrl } = body;
+        const { successUrl, cancelUrl, embedded } = body;
 
-        if (!successUrl || !cancelUrl) {
+        if (!embedded && (!successUrl || !cancelUrl)) {
           throw new Error("Missing required fields for kids care checkout");
         }
 
@@ -690,24 +690,40 @@ serve(async (req) => {
         // Add recurring processing fee
         const subscriptionItems = await addRecurringProcessingFeeItems(stripe, [{ price: kidsCarePrice }]);
 
+        const kidsCareMetadata = {
+          type: 'kids_care_pass',
+          user_id: user.id,
+          member_id: memberData.id,
+        };
+
+        if (embedded) {
+          // Embedded checkout mode — stays in-portal
+          const embeddedSession = await stripe.checkout.sessions.create({
+            customer: customerId,
+            line_items: subscriptionItems,
+            mode: 'subscription',
+            ui_mode: 'embedded',
+            subscription_data: { metadata: kidsCareMetadata },
+            return_url: `${req.headers.get('origin') || ''}/member/kids-care?session_id={CHECKOUT_SESSION_ID}`,
+            metadata: kidsCareMetadata,
+          });
+
+          logStep("Embedded Kids Care checkout created", { sessionId: embeddedSession.id });
+
+          return new Response(
+            JSON.stringify({ clientSecret: embeddedSession.client_secret }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           line_items: subscriptionItems,
           mode: 'subscription',
-          subscription_data: {
-            metadata: {
-              type: 'kids_care_pass',
-              user_id: user.id,
-              member_id: memberData.id,
-            },
-          },
+          subscription_data: { metadata: kidsCareMetadata },
           success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: cancelUrl,
-          metadata: {
-            type: 'kids_care_pass',
-            user_id: user.id,
-            member_id: memberData.id,
-          },
+          metadata: kidsCareMetadata,
         });
 
         logStep("Kids Care checkout created", { sessionId: session.id, url: session.url });
