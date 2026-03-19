@@ -29,6 +29,7 @@ import {
   Gift,
   ChevronDown,
   ShoppingBag,
+  Baby,
 } from "lucide-react";
 import {
   Sidebar,
