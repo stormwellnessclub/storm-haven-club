@@ -1,94 +1,45 @@
 
-# Strategic Campaign System — IMPLEMENTED
 
-## What Was Built
+## Plan: Add "Request Hours" Feature for Kids Care
 
-### 1. Campaign Playbooks (CampaignPlaybooks.tsx)
-Goal-driven campaign cards replacing the generic "Compose Campaign" button:
+### What We're Building
+A section on the Kids Care bookings page where parents can submit the days and times they need for Kids Care, plus a note explaining we're actively expanding hours based on demand. Admin gets a new tab to view all submitted requests.
 
-**Guest Playbooks:**
-- **Convert to Applicant** — targets past guests who haven't applied
-- **Re-engage Lapsed Guests** — guests who visited 30+ days ago
-- **Collect Feedback** — recent guests without feedback
+### Database
+Create a new `kids_care_hour_requests` table:
+- `id` (uuid, PK)
+- `user_id` (uuid, references auth.users, not null)
+- `preferred_days` (text[], e.g. `['Monday', 'Wednesday', 'Friday']`)
+- `preferred_start_time` (time)
+- `preferred_end_time` (time)
+- `notes` (text, optional)
+- `created_at` (timestamptz)
+- `status` (text, default 'pending' — pending/reviewed/accommodated)
 
-**Member Playbooks:**
-- **Prevent Churn** — members with past_due or frozen status
-- **Upsell Tier** — active members on lower tiers
-- **Referral Push** — active members with 0 referrals
+RLS: authenticated users can insert their own rows and read their own; admin roles can read all.
 
-Each card shows live audience count and a "Launch Campaign" button.
+### Member Portal (`src/pages/member/KidsCareBookings.tsx`)
+Add a new section after the "Upcoming Open Hours" block:
+- Explanatory note: "We're expanding Kids Care hours based on parent demand. Let us know the days and times that work best for your family, and we'll do our best to accommodate as we grow."
+- Simple form: multi-select checkboxes for days of the week, start/end time selects, optional notes textarea, submit button
+- Show the user's previous requests below the form
 
-### 2. Smart Audience Builder (ComposeEmailDialog.tsx)
-- Auto-queries the right segment when launched from a playbook
-- Shows recipient count and name chips with ability to remove individuals
-- Auto-loads matching email template based on goal type
-- Merge field chips for quick personalization
+### Admin Portal (`src/pages/admin/Childcare.tsx`)
+Add a new "Hour Requests" tab showing a table of all parent requests with:
+- Parent name/email, preferred days, preferred times, notes, submitted date, status dropdown (pending/reviewed/accommodated)
 
-### 3. Conversion Tracking (CampaignAnalytics.tsx)
-- `goal_type` and `goal_metadata` columns added to email_campaigns
-- Per-campaign conversion rates with 14-day attribution window
-- Real conversion queries: guest→applicant, re-engagement, feedback, churn prevention, referrals
-- Summary stats: total conversions, overall conversion rate
+### New Hook
+Create `src/hooks/useKidsCareHourRequests.ts` with:
+- `useMyHourRequests()` — member's own requests
+- `useSubmitHourRequest()` — mutation to insert
+- `useAdminHourRequests()` — all requests (admin)
+- `useUpdateHourRequestStatus()` — admin status update
 
-### Database Changes
-- Added `goal_type TEXT` and `goal_metadata JSONB` to `email_campaigns` table
+### Files Changed
+| File | Change |
+|------|--------|
+| Migration | Create `kids_care_hour_requests` table + RLS |
+| `src/hooks/useKidsCareHourRequests.ts` | New hook file |
+| `src/pages/member/KidsCareBookings.tsx` | Add request form + explanatory banner |
+| `src/pages/admin/Childcare.tsx` | Add "Hour Requests" tab |
 
----
-
-# Kids Care System — Admin Hours + Dual Checkout + Capacity Tracking — IMPLEMENTED
-
-## What Was Built
-
-### 1. Database: `kids_care_hours` Table
-- `week_start`, `day_of_week`, `open_time`, `close_time`, `is_closed`, `notes`
-- Unique constraint on (week_start, day_of_week)
-- RLS: staff CRUD, authenticated read
-
-### 2. New Columns on `kids_care_bookings`
-- `parent_confirmed_pickup` (boolean) — parent confirms pickup
-- `parent_confirmed_at` (timestamptz) — when confirmed
-- `room` (text) — "Little Stars" or "Big Stars"
-
-### 3. Admin Hours Tab (`/admin/childcare` → Hours tab)
-- Week-by-week hour editor with forward/back navigation
-- Toggle open/closed per day, set open/close times
-- "Copy Previous Week" button
-- Save upserts to `kids_care_hours`
-
-### 4. Room Capacity Dashboard (Admin Bookings tab)
-- Per-room breakdown in 2-hour time blocks
-- Color-coded: green (available), yellow (near full), red (full)
-- Shows Little Stars (cap 8) and Big Stars (cap 6)
-
-### 5. Dual Checkout Flow
-- Staff marks checkout via existing button
-- Admin cards show "Awaiting parent pickup confirmation" after staff checkout
-- Parents see "Confirm Pickup" button at `/member/kids-care-bookings`
-- Both timestamps visible on admin cards
-
-### 6. Dynamic Public Hours (`/kids-care`)
-- Fetches current week hours from `kids_care_hours` table
-- Shows "Hours not yet published" when no hours set
-- Soft launch banner updated to reflect dynamic hours
-
-### 7. Booking Modal Slot Filtering
-- Fetches hours for selected date
-- Shows closed/no-hours warning if day unavailable
-- Filters time slots to only show within published open/close window
-- Auto-assigns room based on age group
-
-### 8. Member Portal (`/member/kids-care-bookings`)
-- View active and past Kids Care bookings
-- Confirm Pickup button for checked-out bookings
-- Cancel booking with reason dialog
-
-### Files Created/Updated
-- `src/hooks/useKidsCareHours.ts` (new)
-- `src/components/admin/KidsCareHoursEditor.tsx` (new)
-- `src/components/admin/KidsCareCapacityDashboard.tsx` (new)
-- `src/pages/member/KidsCareBookings.tsx` (new)
-- `src/pages/admin/Childcare.tsx` (updated — 3 tabs)
-- `src/pages/KidsCare.tsx` (updated — dynamic hours, soft launch disabled)
-- `src/components/booking/KidsCareBookingModal.tsx` (updated — slot filtering)
-- `src/hooks/useKidsCareBooking.ts` (updated — room field, new types)
-- `src/App.tsx` (updated — new route)
