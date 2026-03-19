@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, differenceInHours, parse, addHours } from "date-fns";
+import { format, differenceInHours, differenceInMinutes, parse, addHours } from "date-fns";
 
 export interface KidsCareBooking {
   id: string;
@@ -145,9 +145,9 @@ export function useBookKidsCare() {
       // Validate session duration (max 2 hours per child per day)
       const startTimeObj = parse(params.startTime, "HH:mm", new Date());
       const endTimeObj = parse(params.endTime, "HH:mm", new Date());
-      const durationHours = differenceInHours(endTimeObj, startTimeObj);
+      const durationMinutes = differenceInMinutes(endTimeObj, startTimeObj);
 
-      if (durationHours <= 0 || durationHours > 2) {
+      if (durationMinutes <= 0 || durationMinutes > 120) {
         throw new Error("Kids care sessions must be between 1 minute and 2 hours");
       }
 
@@ -191,7 +191,7 @@ export function useBookKidsCare() {
           member_id: memberData.id,
           user_id: user.id,
           child_name: params.childName,
-          child_age: params.childAge,
+          child_age: Math.round(params.childAge),
           child_dob: params.childDob ? format(params.childDob, "yyyy-MM-dd") : null,
           booking_date: format(params.bookingDate, "yyyy-MM-dd"),
           start_time: format(parse(params.startTime, "HH:mm", new Date()), "HH:mm:ss"),
