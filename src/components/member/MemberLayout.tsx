@@ -81,7 +81,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         
         {/* Info banners */}
         <SoftLaunchHoursBanner />
-        <ClassScheduleBanner />
+        
         <WifiBanner />
         
         {/* Waiver reminder (keeps its own logic) */}
