@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar } from "lucide-react";
+import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar, Info } from "lucide-react";
 import { HourRequestForm } from "@/components/kids-care/HourRequestForm";
 import { useMyKidsCareBookings, useCancelKidsCareBooking } from "@/hooks/useKidsCareBooking";
 import { useConfirmPickup, useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
