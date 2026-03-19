@@ -308,27 +308,41 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Philosophy - Built With Intention */}
-      <section className="relative py-32 text-white overflow-hidden">
-        <div className="absolute inset-0">
-          <img src={zerobodyRoom} alt="ZeroBody cryo room with pods and marble interior" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-black/50" />
-        </div>
-        <AnimatedSection className="relative z-10 container mx-auto px-6 text-center" animation="scale-in">
-          <div className="max-w-4xl mx-auto">
-            <p className="text-accent text-sm uppercase tracking-widest mb-6">Built With Intention</p>
-            <h2 className="heading-section text-white mb-8">
-              Every detail here was designed to work on you — before you even notice it.
+      {/* Philosophy - Why We Exist */}
+      <section className="relative py-32 bg-background text-foreground overflow-hidden">
+        <AnimatedSection className="container mx-auto px-6 text-center" animation="scale-in">
+          <div className="max-w-3xl mx-auto">
+            <p className="text-accent text-sm uppercase tracking-widest mb-6">Why We Exist</p>
+            <h2 className="heading-section mb-12">
+              We built the thing that didn't exist.
             </h2>
-            <div className="text-white/80 text-lg leading-relaxed max-w-2xl mx-auto space-y-6">
+            <div className="text-muted-foreground text-lg leading-relaxed space-y-6">
               <p>
-                Storm Wellness Club was founded by a sport psychologist with a PhD and over a decade of research into how environments shape human behavior, motivation, and nervous system regulation.
+                Wellness became a word that lost its meaning. A trend. A product. An aesthetic.
               </p>
               <p>
-                The building is circular — chosen because it feels endless. The scent of Santal moves through every level because smell has direct access to the brain systems that govern emotion, stress, and memory. Each space transitions intentionally into the next — the energy shifting as you move from training to recovery to restoration.
+                Storm Wellness Club exists because of what wellness actually is — and what it has always deserved to be.
+              </p>
+              <p className="my-10 text-foreground font-serif text-xl italic">
+                A ritual. A right.
               </p>
               <p>
-                Nothing here is accidental. Every finish, every frequency, every fragrance, every fixture was chosen for how it would make you feel. That is the standard this space was built to.
+                Not a reward for the disciplined few, but a daily practice available to anyone willing to show up for themselves.
+              </p>
+              <p>
+                This space was built by someone who lived through both extremes. Who understood from the inside what it means to neglect yourself — and what it means to finally stop. Who saw that the offerings that truly support human wellbeing were scarce, fragmented, or made to feel inaccessible.
+              </p>
+              <p className="my-10 text-foreground font-serif text-xl italic">
+                So we built the thing that didn't exist.
+              </p>
+              <p>
+                A place where training and recovery and restoration live together — not as separate expenses or separate trips or separate disciplines, but as one seamless ritual you return to because it genuinely makes you feel like yourself again.
+              </p>
+              <p>
+                You are allowed to take care of yourself. Fully. Intentionally. Without apology.
+              </p>
+              <p>
+                That is what Storm Wellness Club was built to say. Every corner of it. Every day.
               </p>
             </div>
           </div>
