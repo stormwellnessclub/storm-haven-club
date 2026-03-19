@@ -9,7 +9,7 @@ import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
 import { SoftLaunchHoursBanner } from "./SoftLaunchHoursBanner";
-import { ClassScheduleBanner } from "@/components/ClassScheduleBanner";
+
 import { WifiBanner } from "./WifiBanner";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
 import { User, MessageCircle } from "lucide-react";
