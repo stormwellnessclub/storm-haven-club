@@ -28,7 +28,7 @@ import cafeHeroImage from "@/assets/food/matcha-latte.jpg";
 const classStudios = [{
   icon: CircleDot,
   title: "Reformer Pilates",
-  description: "A mixture of reformer classes, both heated and non-heated options",
+  description: "Precision movement on state-of-the-art reformers. Heated and non-heated sessions for all levels. Small class sizes — 8 members maximum.",
   image: reformerPilates,
   isHeated: false,
   color: "text-foreground",
@@ -36,7 +36,7 @@ const classStudios = [{
 }, {
   icon: Bike,
   title: "Cycling Studio",
-  description: "High-energy rides with immersive lighting and cinematic sound",
+  description: "Immersive rides in a studio built for energy. Dynamic lighting, Technogym bikes, instructor-driven intensity. 10 riders maximum per session.",
   image: cycling,
   isHeated: true,
   badgeText: "Cycling",
@@ -45,7 +45,7 @@ const classStudios = [{
 }, {
   icon: Activity,
   title: "Aerobics Room",
-  description: "Bootcamp, Sculpt, Yoga, HIIT and more in our versatile studio",
+  description: "Yoga, HIIT, Barre, Bootcamp, Sculpt and more — in a mixed heated and non-heated studio built for variety. Whatever you need that day, there's a class designed around it.",
   image: aerobicsStudio,
   isHeated: true,
   badgeText: "AEROBICS",
