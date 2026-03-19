@@ -10,9 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import gymArea1 from "@/assets/gym-area-1.jpg";
 import lobbyHero from "@/assets/lobby-hero.jpeg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
-import reformerPilates from "@/assets/reformer-pilates.jpg";
-import cycling from "@/assets/cycling.jpg";
-import aerobicsStudio from "@/assets/aerobics-studio.jpg";
+import reformerPilates from "@/assets/reformer-pilates-hero.jpg";
+import cycling from "@/assets/cycling-studio-hero.jpg";
+import aerobicsStudio from "@/assets/aerobics-studio-hero.jpg";
+import communityBanner from "@/assets/community-banner.png";
 import stormLogoDark from "@/assets/storm-logo-dark.png";
 
 import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
