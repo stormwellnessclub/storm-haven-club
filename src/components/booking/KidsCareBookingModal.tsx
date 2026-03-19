@@ -35,6 +35,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 interface KidsCareBookingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultDate?: Date;
 }
 
 // All possible half-hour slots
