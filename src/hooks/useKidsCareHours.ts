@@ -78,6 +78,27 @@ export function useKidsCareHourSlotsForMonth(year: number, month: number) {
   });
 }
 
+// Fetch upcoming slots for next N days (member-facing schedule)
+export function useUpcomingKidsCareSlots(days = 7) {
+  const today = format(new Date(), "yyyy-MM-dd");
+  const endDate = format(new Date(Date.now() + days * 86400000), "yyyy-MM-dd");
+
+  return useQuery({
+    queryKey: ["kids-care-hour-slots-upcoming", today, days],
+    queryFn: async (): Promise<KidsCareHourSlot[]> => {
+      const { data, error } = await (supabase.from as any)("kids_care_hour_slots")
+        .select("*")
+        .gte("slot_date", today)
+        .lt("slot_date", endDate)
+        .order("slot_date", { ascending: true })
+        .order("open_time", { ascending: true });
+
+      if (error) throw error;
+      return (data || []) as KidsCareHourSlot[];
+    },
+  });
+}
+
 // Save slots for a date: delete existing, insert new
 export function useSaveKidsCareHourSlots() {
   const queryClient = useQueryClient();

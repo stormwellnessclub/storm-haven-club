@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar } from "lucide-react";
 import { useMyKidsCareBookings, useCancelKidsCareBooking } from "@/hooks/useKidsCareBooking";
-import { useConfirmPickup } from "@/hooks/useKidsCareHours";
+import { useConfirmPickup, useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
 import { format, isToday, isFuture, parseISO } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { useState } from "react";
@@ -22,6 +22,7 @@ export default function KidsCareBookings() {
   const { data: bookings, isLoading } = useMyKidsCareBookings();
   const cancelBooking = useCancelKidsCareBooking();
   const confirmPickup = useConfirmPickup();
+  const { data: upcomingSlots, isLoading: slotsLoading } = useUpcomingKidsCareSlots(7);
   const [cancelDialogId, setCancelDialogId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
@@ -58,6 +59,13 @@ export default function KidsCareBookings() {
     }
   };
 
+  // Group upcoming slots by date
+  const slotsByDate = (upcomingSlots || []).reduce<Record<string, typeof upcomingSlots>>((acc, slot) => {
+    if (!acc[slot.slot_date]) acc[slot.slot_date] = [];
+    acc[slot.slot_date]!.push(slot);
+    return acc;
+  }, {});
+
   if (isLoading) {
     return (
       <MemberLayout title="Kids Care Bookings">
@@ -71,6 +79,49 @@ export default function KidsCareBookings() {
   return (
     <MemberLayout title="Kids Care Bookings">
       <div className="space-y-8 max-w-3xl">
+
+        {/* Upcoming Schedule */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            Upcoming Open Hours
+          </h2>
+          {slotsLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : Object.keys(slotsByDate).length === 0 ? (
+            <Card>
+              <CardContent className="py-6 text-center text-muted-foreground">
+                <p>No Kids Care hours scheduled for the next 7 days.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {Object.entries(slotsByDate).map(([date, slots]) => (
+                <Card key={date}>
+                  <CardContent className="py-4">
+                    <p className="text-sm font-semibold mb-1">
+                      {isToday(parseISO(date)) ? "Today" : format(parseISO(date), "EEEE, MMM d")}
+                    </p>
+                    <div className="space-y-1">
+                      {slots!.map((slot, i) => (
+                        <div key={i} className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatTime12h(slot.open_time)} – {formatTime12h(slot.close_time)}
+                          {slot.label && (
+                            <Badge variant="outline" className="ml-1 text-xs">{slot.label}</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Active / Upcoming */}
         <div>
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -117,7 +168,6 @@ export default function KidsCareBookings() {
                         </p>
                       )}
 
-                      {/* Pickup confirmation section */}
                       {needsPickupConfirm && (
                         <Alert className="border-warning/30 bg-warning/5">
                           <AlertTriangle className="h-4 w-4 text-warning" />
