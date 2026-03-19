@@ -22,6 +22,7 @@ import sauna from "@/assets/sauna.jpg";
 import saunaBlue from "@/assets/sauna-blue.jpeg";
 import saltRoom from "@/assets/salt-room.jpg";
 import zerobodyFloat from "@/assets/zerobody-float.jpeg";
+import zerobodyRoom from "@/assets/zerobody-room.jpg";
 // Brand imagery
 import mainLobby from "@/assets/main-lobby.jpeg";
 import avocadoToast from "@/assets/food/avocado-toast.jpg";
