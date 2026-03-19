@@ -191,7 +191,7 @@ export function useBookKidsCare() {
           member_id: memberData.id,
           user_id: user.id,
           child_name: params.childName,
-          child_age: params.childAge,
+          child_age: Math.round(params.childAge),
           child_dob: params.childDob ? format(params.childDob, "yyyy-MM-dd") : null,
           booking_date: format(params.bookingDate, "yyyy-MM-dd"),
           start_time: format(parse(params.startTime, "HH:mm", new Date()), "HH:mm:ss"),
