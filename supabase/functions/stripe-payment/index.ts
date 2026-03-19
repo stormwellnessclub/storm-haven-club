@@ -688,7 +688,7 @@ serve(async (req) => {
           .eq('user_id', user.id);
 
         // Add recurring processing fee
-        const subscriptionItems = await addRecurringProcessingFeeItems(stripe, [{ price: kidsCarePrice }]);
+        const subscriptionItems = await addRecurringProcessingFeeItems(stripe, [{ price: kidsCarePrice, quantity: 1 }]);
 
         const kidsCareMetadata = {
           type: 'kids_care_pass',
