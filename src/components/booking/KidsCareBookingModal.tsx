@@ -478,7 +478,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                     <SelectContent>
                       {filteredTimeSlots.map((time) => (
                         <SelectItem key={time} value={time}>
-                          {time}
+                          {formatTime12h(time)}
                         </SelectItem>
                       ))}
                     </SelectContent>
