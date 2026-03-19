@@ -26,6 +26,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, addHours, parse, parseISO } from "date-fns";
+import { formatTime12h } from "@/lib/timeFormat";
 import { CalendarIcon, Clock, Loader2, AlertCircle, Info, CheckCircle2, MapPin, Baby } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -477,7 +478,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                     <SelectContent>
                       {filteredTimeSlots.map((time) => (
                         <SelectItem key={time} value={time}>
-                          {time}
+                          {formatTime12h(time)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -505,7 +506,7 @@ export function KidsCareBookingModal({ open, onOpenChange }: KidsCareBookingModa
                         const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
                         return (
                           <SelectItem key={time} value={time}>
-                            {time} ({durationText})
+                            {formatTime12h(time)} ({durationText})
                           </SelectItem>
                         );
                       })}
