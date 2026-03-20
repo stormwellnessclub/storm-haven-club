@@ -12,9 +12,10 @@ interface ClassCardProps {
   isBooked?: boolean;
   isOnWaitlist?: boolean;
   bookingDisabled?: boolean;
+  imageUrl?: string | null;
 }
 
-export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false }: ClassCardProps) {
+export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false, imageUrl }: ClassCardProps) {
   const spotsRemaining = session.max_capacity - session.current_enrollment;
   const isFull = spotsRemaining <= 0;
   const isLowSpots = spotsRemaining > 0 && spotsRemaining <= 3;
@@ -35,6 +36,11 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
 
   return (
     <Card className="group hover:shadow-md transition-shadow">
+      {imageUrl && (
+        <div className="h-24 overflow-hidden rounded-t-lg">
+          <img src={imageUrl} alt={session.class_type.name} className="w-full h-full object-cover" />
+        </div>
+      )}
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
