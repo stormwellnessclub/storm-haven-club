@@ -51,7 +51,7 @@ export function HourRequestForm() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending": return <Badge variant="outline" className="text-warning border-warning/30">Pending</Badge>;
+      case "pending": return <Badge variant="outline" className="text-primary border-primary/30">Request Sent</Badge>;
       case "reviewed": return <Badge variant="outline" className="text-primary border-primary/30">Reviewed</Badge>;
       case "accommodated": return <Badge variant="outline" className="text-success border-success/30">Accommodated</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;

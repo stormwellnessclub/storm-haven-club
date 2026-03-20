@@ -222,6 +222,7 @@ export default function MemberKidsCare() {
                           {new Date(activePass.expires_at).toLocaleDateString()}
                         </span>
                       </div>
+                      <p className="text-xs text-muted-foreground">Auto-renews monthly — cancel anytime. Contact us to manage your subscription.</p>
                     </div>
                   ) : (
                     <Button
