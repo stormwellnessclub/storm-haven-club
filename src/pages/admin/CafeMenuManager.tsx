@@ -9,9 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem as SelectOption,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   Plus, Edit2, Upload, Save, X, Loader2, ImageIcon, Leaf, Snowflake, Package,
+  ArrowUp, ArrowDown,
 } from "lucide-react";
 import {
   useAllCafeMenuCategories,
