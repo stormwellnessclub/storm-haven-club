@@ -4,7 +4,7 @@ import {
   User,
   CreditCard,
   Calendar,
-  CalendarPlus,
+  
   Ticket,
   MessageCircle,
   LogOut,
