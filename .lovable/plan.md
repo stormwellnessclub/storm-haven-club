@@ -1,39 +1,55 @@
 
 
-## Schedule Conflict Detector
+## Fix: Block Schedule Saves That Create Conflicts + Calendar View
 
 ### Problem
-When managing class schedules, you have to manually check each class type to spot instructor overlaps, room double-bookings, or time conflicts. There's no cross-class-type conflict view.
-
-### Solution
-Add a "Conflicts" alert panel to the Class Schedules page that automatically scans all active schedules and surfaces three types of conflicts:
-
-1. **Instructor overlap** — Same instructor assigned to two classes at overlapping times on the same day
-2. **Room/studio double-booking** — Same room assigned to two classes at overlapping times on the same day
-3. **Identical slot** — Two different class types scheduled at the exact same day/time/room
+The conflict detector runs **after** saving — it shows conflicts in a panel but doesn't **prevent** you from saving a conflicting schedule. You can create overlapping classes without any warning.
 
 ### Changes
 
-#### 1. Add conflict detection logic to `src/pages/admin/ClassSchedules.tsx`
-- After fetching all schedules, run a client-side conflict scan (no new DB query needed — all data is already loaded)
-- Compare every pair of active schedules on the same `day_of_week` for time overlaps
-- Flag conflicts by type: `instructor_overlap`, `room_conflict`, `time_conflict`
-- Display a collapsible alert card at the top of the page showing all detected conflicts with details (which classes, which day, which times, which instructor/room)
-- Each conflict links to the relevant schedules for quick editing
+#### 1. Pre-save conflict validation in `ClassSchedules.tsx`
+Before the mutation runs, check the proposed schedule against all existing active schedules:
+- Build a temporary schedule object from the form values
+- Run it through the same overlap logic (`timesOverlap`) against all other active schedules (excluding the one being edited)
+- If conflicts found: show a toast error listing each conflict (e.g., "Instructor X is already teaching Y at that time") and **block the save**
+- Add a new utility function `checkNewScheduleConflicts(proposed, existingSchedules)` to `scheduleConflicts.ts`
 
-#### 2. Conflict detection function (pure TypeScript utility)
-- `detectScheduleConflicts(schedules)` returns an array of conflict objects
-- Time overlap check: two slots overlap if `startA < endB && startB < endA`
-- Only checks `is_active` schedules
-- Groups conflicts by severity: instructor overlaps first, then room conflicts
+#### 2. Visual warning in the save dialog
+- When the user selects a day/time/room/instructor combination that conflicts, show an inline red warning below the form fields in real-time (before they even click Save)
+- Use the same conflict check logic, triggered on form field changes
 
-#### 3. UI presentation
-- If no conflicts: green "No conflicts detected" badge
-- If conflicts exist: amber/red alert card with count badge, expandable list
-- Each conflict row shows: day, times, class names, instructor/room involved, and an "Edit" button to jump to the schedule entry
+#### 3. Add weekly calendar view (as previously planned)
+- New `WeeklyCalendarView.tsx` component: 7-column CSS grid (Mon–Sun), time axis 5 AM–9 PM
+- Classes rendered as positioned colored blocks showing name, instructor, time, room
+- Conflicting blocks highlighted with red border
+- Click block to edit
+- Toggle between Table and Calendar views on the page
 
 ### Technical Details
-- Pure client-side — no DB migration needed, no new queries
-- Uses the existing `schedules` query that already joins `class_types` and `instructors`
-- Conflict check runs on every data fetch (lightweight — typically <50 schedules)
+
+**New function in `scheduleConflicts.ts`:**
+```typescript
+export function checkNewScheduleConflicts(
+  proposed: { day_of_week: number; start_time: string; end_time: string; 
+              instructor_id: string | null; room: string | null; id?: string },
+  existingSchedules: ScheduleForConflict[]
+): string[]  // returns array of conflict description strings
+```
+
+**Pre-save check in mutation:**
+```typescript
+const warnings = checkNewScheduleConflicts(
+  { ...scheduleData, id: editingSchedule?.id },
+  schedules
+);
+if (warnings.length > 0) {
+  toast.error(warnings[0]);
+  return; // block save
+}
+```
+
+**Files to create/modify:**
+- `src/lib/scheduleConflicts.ts` — add `checkNewScheduleConflicts`
+- `src/pages/admin/ClassSchedules.tsx` — add pre-save validation + inline warnings + calendar toggle
+- `src/components/admin/WeeklyCalendarView.tsx` — new calendar grid component
 
