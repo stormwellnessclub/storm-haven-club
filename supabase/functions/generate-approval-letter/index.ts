@@ -56,7 +56,7 @@ Guidelines:
 2. Reference something specific from their application that resonated with our philosophy
 3. Connect their stated goals to what Storm Wellness Club offers
 4. Confirm their membership tier
-5. Mention they'll receive setup instructions soon (don't include any links or buttons)
+5. Mention they'll receive their account activation details shortly, and their member portal will guide them through any remaining steps (don't include any links or buttons)
 6. Close warmly signed by "The Storm Wellness Club Team"
 
 Keep the tone elegant, personal, and concise (under 200 words for the body).
