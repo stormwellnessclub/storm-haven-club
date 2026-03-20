@@ -270,6 +270,13 @@ export default function ClassSchedules() {
 
   const activeScheduleCount = schedules.filter(s => s.is_active).length;
 
+  const conflicts = useMemo(() => detectScheduleConflicts(schedules), [schedules]);
+
+  function handleConflictEdit(scheduleId: string) {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (schedule) openEditDialog(schedule);
+  }
+
   return (
     <AdminLayout>
       <div className="space-y-6">
