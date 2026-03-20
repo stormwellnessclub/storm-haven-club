@@ -473,6 +473,9 @@ export default function ClassSchedules() {
           </Card>
         </div>
 
+        {/* Conflict Detector */}
+        <ScheduleConflictPanel conflicts={conflicts} onEditSchedule={handleConflictEdit} />
+
         {/* Info Banner */}
         {activeScheduleCount > 0 && upcomingSessionCount === 0 && (
           <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
