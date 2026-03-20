@@ -711,16 +711,16 @@ function CategoryEditDialog({
   onClose: () => void;
   onSave: (updates: Partial<CafeMenuCategory>) => Promise<void>;
 }) {
-  const [form, setForm] = useState({ name: "", description: "", has_addons: false });
+  const [form, setForm] = useState({ name: "", description: "", has_addons: false, section: "cafe" as CafeMenuSection });
   const [saving, setSaving] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={(v) => {
       if (!v) onClose();
-      else if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons });
+      else if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons, section: category.section || 'cafe' });
     }}>
       <DialogContent className="max-w-md" onOpenAutoFocus={() => {
-        if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons });
+        if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons, section: category.section || 'cafe' });
       }}>
         <DialogHeader>
           <DialogTitle>Edit Category</DialogTitle>
@@ -729,6 +729,19 @@ function CategoryEditDialog({
           <div>
             <Label>Name</Label>
             <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Section</Label>
+            <Select value={form.section} onValueChange={(v) => setForm((f) => ({ ...f, section: v as CafeMenuSection }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectOption value="cafe">Café</SelectOption>
+                <SelectOption value="spa">Spa</SelectOption>
+                <SelectOption value="shop">Storm Shop</SelectOption>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label>Description</Label>
