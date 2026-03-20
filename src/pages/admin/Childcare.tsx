@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus } from "lucide-react";
+import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus } from "@/hooks/useAdminKidsCareBookings";
 import { useKidsCareInterestList, useUpdateKidsCareInterestStatus } from "@/hooks/useKidsCareInterest";
@@ -27,6 +27,7 @@ import {
 import { KidsCareHoursEditor } from "@/components/admin/KidsCareHoursEditor";
 import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDashboard";
 import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
+import { KidsCareAdminChat, useKidsCareUnreadCount } from "@/components/admin/KidsCareAdminChat";
 
 export default function Childcare() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,6 +42,7 @@ export default function Childcare() {
   // Interest waitlist
   const { data: interestList, isLoading: isLoadingInterest } = useKidsCareInterestList();
   const updateInterestStatus = useUpdateKidsCareInterestStatus();
+  const { data: kidsCareUnread } = useKidsCareUnreadCount();
 
   const todayBookings = bookings?.filter(booking => {
     const bookingDate = new Date(booking.booking_date);
@@ -126,6 +128,15 @@ export default function Childcare() {
             <TabsTrigger value="hour-requests" className="flex items-center gap-2">
               <MessageSquarePlus className="h-4 w-4" />
               Hour Requests
+            </TabsTrigger>
+            <TabsTrigger value="parent-chat" className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              Parent Chat
+              {(kidsCareUnread ?? 0) > 0 && (
+                <Badge className="bg-pink-500 text-white ml-1 text-xs">
+                  {kidsCareUnread}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -419,6 +430,10 @@ export default function Childcare() {
 
           <TabsContent value="hour-requests" className="space-y-6">
             <KidsCareHourRequests />
+          </TabsContent>
+
+          <TabsContent value="parent-chat" className="space-y-6">
+            <KidsCareAdminChat />
           </TabsContent>
         </Tabs>
       </div>
