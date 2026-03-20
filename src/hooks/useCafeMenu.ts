@@ -148,7 +148,7 @@ export function useAddCafeCategory() {
 export function useUpdateCafeCategory() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; is_active?: boolean; description?: string; image_url?: string; display_order?: number; has_addons?: boolean }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; is_active?: boolean; description?: string; image_url?: string; display_order?: number; has_addons?: boolean; section?: CafeMenuSection }) => {
       const { error } = await (supabase.from as any)("cafe_menu_categories")
         .update(updates)
         .eq("id", id);
