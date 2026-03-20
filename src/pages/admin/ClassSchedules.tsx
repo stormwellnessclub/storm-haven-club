@@ -208,6 +208,15 @@ export default function ClassSchedules() {
         is_active: isActive,
       };
 
+      // Pre-save conflict check
+      const warnings = checkNewScheduleConflicts(
+        { ...scheduleData, id: editingSchedule?.id },
+        schedules
+      );
+      if (warnings.length > 0) {
+        throw new Error(warnings.join(". "));
+      }
+
       if (editingSchedule) {
         const { error } = await supabase
           .from("class_schedules")
