@@ -174,7 +174,7 @@ const App = () => (
               <Route path="/member/fitness-profile" element={<ProtectedMemberRoute><FitnessProfile /></ProtectedMemberRoute>} />
               <Route path="/member/wellness" element={<ProtectedMemberRoute><MemberWellness /></ProtectedMemberRoute>} />
               <Route path="/member/check-in-history" element={<ProtectedMemberRoute><CheckInHistory /></ProtectedMemberRoute>} />
-              <Route path="/member/schedule" element={<ProtectedMemberRoute><MemberSchedule /></ProtectedMemberRoute>} />
+              
               <Route path="/member/referrals" element={<ProtectedMemberRoute><MemberReferrals /></ProtectedMemberRoute>} />
               
               {/* Portal Routes - Non-Member Class Portal */}

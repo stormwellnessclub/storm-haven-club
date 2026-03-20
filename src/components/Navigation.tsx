@@ -8,7 +8,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 const navLinks = [
   { href: "/memberships", label: "Memberships" },
   { href: "/classes", label: "Classes" },
-  { href: "/schedule", label: "Class Schedule" },
   { href: "/spa", label: "Spa" },
   { href: "/cafe", label: "Café" },
   { href: "/amenities", label: "Amenities" },
