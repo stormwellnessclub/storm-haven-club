@@ -36,6 +36,11 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
 
   return (
     <Card className="group hover:shadow-md transition-shadow">
+      {imageUrl && (
+        <div className="h-24 overflow-hidden rounded-t-lg">
+          <img src={imageUrl} alt={session.class_type.name} className="w-full h-full object-cover" />
+        </div>
+      )}
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
