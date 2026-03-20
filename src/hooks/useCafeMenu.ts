@@ -121,6 +121,20 @@ export function useCafeMenuAddons() {
   });
 }
 
+// ALL addons including inactive (for admin)
+export function useAllCafeMenuAddons() {
+  return useQuery({
+    queryKey: ["cafe_menu_addons", "all"],
+    queryFn: async (): Promise<CafeMenuAddon[]> => {
+      const { data, error } = await (supabase.from as any)("cafe_menu_addons")
+        .select("*")
+        .order("display_order");
+      if (error) throw error;
+      return (data || []) as CafeMenuAddon[];
+    },
+  });
+}
+
 export function useAddCafeCategory() {
   const queryClient = useQueryClient();
   return useMutation({

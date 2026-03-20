@@ -29,6 +29,7 @@ import {
   useUpdateCafeMenuItem,
   useUpdateCafeCategory,
   useCafeMenuAddons,
+  useAllCafeMenuAddons,
   useAddCafeAddon,
   useUpdateCafeAddon,
   uploadCafeMenuImage,
