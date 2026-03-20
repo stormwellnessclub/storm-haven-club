@@ -440,6 +440,18 @@ export default function ClassSchedules() {
                       onCheckedChange={setIsActive}
                     />
                   </div>
+                  {/* Inline conflict warnings */}
+                  {formWarnings.length > 0 && (
+                    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 space-y-1">
+                      <div className="flex items-center gap-2 text-destructive text-sm font-medium">
+                        <AlertTriangle className="h-4 w-4" />
+                        Conflict{formWarnings.length > 1 ? "s" : ""} detected
+                      </div>
+                      {formWarnings.map((w, i) => (
+                        <p key={i} className="text-xs text-destructive/80 pl-6">• {w}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
