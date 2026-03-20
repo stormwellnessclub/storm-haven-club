@@ -575,8 +575,8 @@ serve(async (req) => {
                   member_id: memberId || null,
                   category: 'other',
                   pass_type: 'kids_care',
-                  classes_total: 4,
-                  classes_remaining: 4,
+                  classes_total: 16,
+                  classes_remaining: 16,
                   price_paid: session.amount_total ? session.amount_total / 100 : 75,
                   is_member_price: true,
                   expires_at: expiresAt.toISOString(),
@@ -1640,8 +1640,8 @@ serve(async (req) => {
                   await supabase
                     .from('class_passes')
                     .update({
-                      classes_remaining: 4,
-                      classes_total: 4,
+                      classes_remaining: 16,
+                      classes_total: 16,
                       expires_at: expiresAt.toISOString(),
                       status: 'active',
                     })
@@ -1656,8 +1656,8 @@ serve(async (req) => {
                       member_id: subMemberId || null,
                       category: 'other',
                       pass_type: 'kids_care',
-                      classes_total: 4,
-                      classes_remaining: 4,
+                      classes_total: 16,
+                      classes_remaining: 16,
                       price_paid: 75,
                       is_member_price: true,
                       expires_at: expiresAt.toISOString(),

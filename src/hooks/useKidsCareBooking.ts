@@ -208,8 +208,20 @@ export function useBookKidsCare() {
 
       if (error) throw error;
 
-      // Note: We don't deduct from pass here - that happens at check-in or could be done separately
-      // The pass validation ensures they have a valid pass, but actual deduction is at check-in time
+      // Deduct one visit from the pass
+      const newRemaining = passes.classes_remaining - 1;
+      const { error: deductError } = await supabase
+        .from("class_passes")
+        .update({
+          classes_remaining: newRemaining,
+          status: newRemaining <= 0 ? "exhausted" as any : "active" as any,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", params.passId);
+
+      if (deductError) {
+        console.error("Failed to deduct pass visit:", deductError);
+      }
 
       return data as KidsCareBooking;
     },
@@ -268,7 +280,7 @@ export function useCancelKidsCareBooking() {
       // Check cancellation policy (2 hours before start time)
       try {
         const { data: booking, error: fetchError } = await (supabase.from as any)("kids_care_bookings")
-          .select("booking_date, start_time")
+          .select("booking_date, start_time, pass_id")
           .eq("id", bookingId)
           .single();
 
@@ -302,6 +314,30 @@ export function useCancelKidsCareBooking() {
             throw new Error("Kids care booking is not yet available. Please check back later.");
           }
           throw error;
+        }
+
+        // Restore the visit back to the pass
+        if (booking.pass_id) {
+          try {
+            const { data: pass } = await supabase
+              .from("class_passes")
+              .select("classes_remaining")
+              .eq("id", booking.pass_id)
+              .single();
+
+            if (pass) {
+              await supabase
+                .from("class_passes")
+                .update({
+                  classes_remaining: pass.classes_remaining + 1,
+                  status: "active" as any,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", booking.pass_id);
+            }
+          } catch (restoreErr) {
+            console.error("Failed to restore pass visit:", restoreErr);
+          }
         }
 
         return data as KidsCareBooking;
