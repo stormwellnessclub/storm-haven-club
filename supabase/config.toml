@@ -87,3 +87,7 @@ verify_jwt = false
 [functions.send-push-notification]
 enabled = true
 verify_jwt = false
+
+[functions.stripe-sales-tax]
+enabled = true
+verify_jwt = false
