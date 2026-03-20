@@ -42,6 +42,7 @@ export default function Childcare() {
   // Interest waitlist
   const { data: interestList, isLoading: isLoadingInterest } = useKidsCareInterestList();
   const updateInterestStatus = useUpdateKidsCareInterestStatus();
+  const { data: kidsCareUnread } = useKidsCareUnreadCount();
 
   const todayBookings = bookings?.filter(booking => {
     const bookingDate = new Date(booking.booking_date);
