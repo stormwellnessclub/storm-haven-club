@@ -97,3 +97,59 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
   // Sort: high severity first
   return conflicts.sort((a, b) => (a.severity === "high" ? -1 : 1) - (b.severity === "high" ? -1 : 1));
 }
+
+/**
+ * Check a proposed (new or edited) schedule against existing schedules for conflicts.
+ * Returns an array of human-readable conflict description strings.
+ * If the array is empty, the schedule is safe to save.
+ */
+export function checkNewScheduleConflicts(
+  proposed: {
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    instructor_id: string | null;
+    room: string | null;
+    id?: string;
+    is_active?: boolean;
+  },
+  existingSchedules: ScheduleForConflict[]
+): string[] {
+  // Only check if the proposed schedule is active (default true)
+  if (proposed.is_active === false) return [];
+
+  const warnings: string[] = [];
+  const active = existingSchedules.filter(
+    (s) => s.is_active && s.id !== proposed.id
+  );
+
+  for (const existing of active) {
+    if (existing.day_of_week !== proposed.day_of_week) continue;
+    if (!timesOverlap(proposed.start_time, proposed.end_time, existing.start_time, existing.end_time)) continue;
+
+    const className = existing.class_types?.name || "another class";
+
+    // Instructor overlap
+    if (
+      proposed.instructor_id &&
+      existing.instructor_id &&
+      proposed.instructor_id === existing.instructor_id
+    ) {
+      const name = existing.instructors
+        ? `${existing.instructors.first_name} ${existing.instructors.last_name}`
+        : "The selected instructor";
+      warnings.push(`${name} is already teaching ${className} at that time`);
+    }
+
+    // Room conflict
+    if (
+      proposed.room &&
+      existing.room &&
+      proposed.room.trim().toLowerCase() === existing.room.trim().toLowerCase()
+    ) {
+      warnings.push(`${proposed.room} is already booked for ${className} at that time`);
+    }
+  }
+
+  return warnings;
+}

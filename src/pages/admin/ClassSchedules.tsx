@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -41,12 +41,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info } from "lucide-react";
+import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info, Table2, LayoutGrid, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addWeeks } from "date-fns";
-import { detectScheduleConflicts } from "@/lib/scheduleConflicts";
+import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
+import { WeeklyCalendarView } from "@/components/admin/WeeklyCalendarView";
 
 interface ClassType {
   id: string;
@@ -90,6 +91,7 @@ export default function ClassSchedules() {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
   const [weeksToGenerate, setWeeksToGenerate] = useState(4);
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("calendar");
   
   // Form state
   const [classTypeId, setClassTypeId] = useState("");
@@ -206,6 +208,15 @@ export default function ClassSchedules() {
         is_active: isActive,
       };
 
+      // Pre-save conflict check
+      const warnings = checkNewScheduleConflicts(
+        { ...scheduleData, id: editingSchedule?.id },
+        schedules
+      );
+      if (warnings.length > 0) {
+        throw new Error(warnings.join(". "));
+      }
+
       if (editingSchedule) {
         const { error } = await supabase
           .from("class_schedules")
@@ -271,6 +282,23 @@ export default function ClassSchedules() {
   const activeScheduleCount = schedules.filter(s => s.is_active).length;
 
   const conflicts = useMemo(() => detectScheduleConflicts(schedules), [schedules]);
+
+  // Real-time inline warnings for the form
+  const formWarnings = useMemo(() => {
+    if (!classTypeId || !startTime || !endTime) return [];
+    return checkNewScheduleConflicts(
+      {
+        day_of_week: dayOfWeek,
+        start_time: startTime,
+        end_time: endTime,
+        instructor_id: instructorId || null,
+        room: room.trim() || null,
+        is_active: isActive,
+        id: editingSchedule?.id,
+      },
+      schedules
+    );
+  }, [classTypeId, instructorId, dayOfWeek, startTime, endTime, room, isActive, editingSchedule, schedules]);
 
   function handleConflictEdit(scheduleId: string) {
     const schedule = schedules.find(s => s.id === scheduleId);
@@ -412,6 +440,18 @@ export default function ClassSchedules() {
                       onCheckedChange={setIsActive}
                     />
                   </div>
+                  {/* Inline conflict warnings */}
+                  {formWarnings.length > 0 && (
+                    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 space-y-1">
+                      <div className="flex items-center gap-2 text-destructive text-sm font-medium">
+                        <AlertTriangle className="h-4 w-4" />
+                        Conflict{formWarnings.length > 1 ? "s" : ""} detected
+                      </div>
+                      {formWarnings.map((w, i) => (
+                        <p key={i} className="text-xs text-destructive/80 pl-6">• {w}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -494,13 +534,33 @@ export default function ClassSchedules() {
           </Card>
         )}
 
-        {/* Schedules Table */}
+        {/* Schedules View */}
         <Card>
-          <CardHeader>
-            <CardTitle>Weekly Schedule</CardTitle>
-            <CardDescription>
-              These recurring schedules define when classes happen each week
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle>Weekly Schedule</CardTitle>
+              <CardDescription>
+                These recurring schedules define when classes happen each week
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-1 border rounded-lg p-1">
+              <Button
+                variant={viewMode === "calendar" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("calendar")}
+              >
+                <LayoutGrid className="h-4 w-4 mr-1" />
+                Calendar
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("table")}
+              >
+                <Table2 className="h-4 w-4 mr-1" />
+                Table
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {schedulesLoading ? (
@@ -513,6 +573,12 @@ export default function ClassSchedules() {
                 <p className="font-medium">No schedules found</p>
                 <p className="text-sm mt-1">Add your first schedule to get started.</p>
               </div>
+            ) : viewMode === "calendar" ? (
+              <WeeklyCalendarView
+                schedules={schedules}
+                conflicts={conflicts}
+                onEditSchedule={openEditDialog}
+              />
             ) : (
               <Table>
                 <TableHeader>
