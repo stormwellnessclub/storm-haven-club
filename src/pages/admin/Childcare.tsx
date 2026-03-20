@@ -129,6 +129,15 @@ export default function Childcare() {
               <MessageSquarePlus className="h-4 w-4" />
               Hour Requests
             </TabsTrigger>
+            <TabsTrigger value="parent-chat" className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              Parent Chat
+              {(kidsCareUnread ?? 0) > 0 && (
+                <Badge className="bg-pink-500 text-white ml-1 text-xs">
+                  {kidsCareUnread}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings" className="space-y-6">
