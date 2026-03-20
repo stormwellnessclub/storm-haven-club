@@ -1,11 +1,10 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, CalendarPlus, ScanLine, CreditCard, Menu } from "lucide-react";
+import { Home, ScanLine, CreditCard, Menu } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { label: "Home", icon: Home, path: "/member", exact: true },
-  { label: "Book", icon: CalendarPlus, path: "/member/schedule" },
   { label: "Entry", icon: ScanLine, path: "/member/entry" },
   { label: "Credits", icon: CreditCard, path: "/member/credits" },
 ];

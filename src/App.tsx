@@ -32,7 +32,7 @@ import Goals from "@/pages/member/Goals";
 import FitnessProfile from "@/pages/member/FitnessProfile";
 import MemberWellness from "@/pages/member/Wellness";
 import CheckInHistory from "@/pages/member/CheckInHistory";
-import MemberSchedule from "@/pages/member/Schedule";
+
 import MemberReferrals from "@/pages/member/Referrals";
 import Index from "./pages/Index";
 import Classes from "./pages/Classes";
@@ -46,7 +46,7 @@ import Apply from "./pages/Apply";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import UpdatePassword from "./pages/UpdatePassword";
-import Schedule from "./pages/Schedule";
+
 import MyBookings from "./pages/MyBookings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -139,7 +139,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/update-password" element={<UpdatePassword />} />
-              <Route path="/schedule" element={<Schedule />} />
+              
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
@@ -174,7 +174,7 @@ const App = () => (
               <Route path="/member/fitness-profile" element={<ProtectedMemberRoute><FitnessProfile /></ProtectedMemberRoute>} />
               <Route path="/member/wellness" element={<ProtectedMemberRoute><MemberWellness /></ProtectedMemberRoute>} />
               <Route path="/member/check-in-history" element={<ProtectedMemberRoute><CheckInHistory /></ProtectedMemberRoute>} />
-              <Route path="/member/schedule" element={<ProtectedMemberRoute><MemberSchedule /></ProtectedMemberRoute>} />
+              
               <Route path="/member/referrals" element={<ProtectedMemberRoute><MemberReferrals /></ProtectedMemberRoute>} />
               
               {/* Portal Routes - Non-Member Class Portal */}

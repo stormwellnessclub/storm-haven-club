@@ -4,7 +4,7 @@ import {
   User,
   CreditCard,
   Calendar,
-  CalendarPlus,
+  
   Ticket,
   MessageCircle,
   LogOut,
@@ -40,7 +40,7 @@ const portalMenuItems: MenuItem[] = [
   { title: "Dashboard", url: "/portal", icon: LayoutDashboard },
   { title: "My Bookings", url: "/portal/bookings", icon: Calendar },
   { title: "My Passes", url: "/portal/passes", icon: Ticket },
-  { title: "Book Classes", url: "/schedule", icon: CalendarPlus },
+  
   { title: "Buy Passes", url: "/class-passes", icon: CreditCard },
   { title: "Recovery Booking", url: "/portal/wellness", icon: Zap },
   { title: "Storm Shop", url: "/shop", icon: ShoppingBag },
