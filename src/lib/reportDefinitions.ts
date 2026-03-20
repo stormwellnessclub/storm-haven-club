@@ -215,7 +215,7 @@ export const REPORTS: ReportDefinition[] = [
     category: 'financial',
     icon: Receipt,
     filters: [],
-    defaultDateRange: 'thisMonth',
+    defaultDateRange: 'last30days',
   },
   
   {
