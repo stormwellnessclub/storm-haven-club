@@ -1,43 +1,35 @@
 
 
-## Sales Tax Report — Pull from Stripe
-
-### Problem
-The current Sales Tax report queries local `cafe_orders` and `merch_orders` tables for tax line items. These tables are empty or don't contain tax data, resulting in "zero sales tax collected." The actual sales data with tax lives in Stripe.
-
-### Solution
-Create an edge function that queries Stripe's API for charges/invoices with tax data, and update the frontend report to call it.
+## Remove Temp Class Schedule from Website & Member Portal
 
 ### Changes
 
-#### 1. New Edge Function: `supabase/functions/stripe-sales-tax/index.ts`
-- Accepts `start_date` and `end_date` query params
-- Uses `STRIPE_SECRET_KEY` (already configured) to call Stripe
-- Lists all **charges** (successful) in the date range via `stripe.charges.list()` with `created` date filters
-- For each charge, retrieves the associated **invoice** (if any) to get line items with tax
-- Also lists **Checkout Sessions** with `payment_status: 'paid'` for one-off purchases (café, merch, class passes)
-- Returns an array of items: `{ date, description, subtotal, tax_amount, total, stripe_charge_id }`
-- Tax is extracted from Stripe's `invoice.tax` field, or from line items named "Sales Tax" / "MI Sales Tax"
-- Falls back to checking `charge.metadata` or calculating 6% if tax is embedded in the total
+#### 1. Website Navigation (`src/components/Navigation.tsx`)
+- Remove `{ href: "/schedule", label: "Class Schedule" }` from `navLinks` array (line 11)
 
-#### 2. Update `SalesTaxReport.tsx`
-- Replace the local DB queries with a single call to the new edge function via `supabase.functions.invoke('stripe-sales-tax', { body: { start_date, end_date } })`
-- Display individual line items from Stripe with item descriptions, amounts, and tax
-- Keep the existing summary cards (Total Tax, Café/POS Tax, Shop Tax) — populate from Stripe data using metadata/description to categorize
-- The date range picker already works in the Report Builder toolbar — the report receives `dateRange` props and will re-fetch when dates change
-- Default date range changed to `'last30days'` in reportDefinitions so it shows recent data by default
+#### 2. Website Router (`src/App.tsx`)
+- Remove the `/schedule` route (line 142) and its import
 
-#### 3. Update `src/lib/reportDefinitions.ts`
-- Change `defaultDateRange` for `sales-tax-collected` from `'thisMonth'` to `'last30days'`
+#### 3. Member Portal Sidebar (`src/components/member/MemberSidebar.tsx`)
+- Remove `{ title: "Book Classes", url: "/member/schedule", icon: CalendarPlus }` from `mainItems` (line 64)
 
-### How Stripe data maps
-- **Café/POS charges**: Created via `stripe-payment` edge function with metadata like `type: 'cafe_order'` or `type: 'pos_order'`
-- **Merch/Shop charges**: Created with metadata `type: 'merch_order'`
-- **Class passes**: Created with metadata `type: 'class_pass_purchase'`
-- Tax line items are included in Stripe invoices/charges as separate line items named "MI Sales Tax (6%)"
+#### 4. Member Bottom Nav (`src/components/member/MemberBottomNav.tsx`)
+- Remove `{ label: "Book", icon: CalendarPlus, path: "/member/schedule" }` from `tabs` (line 8)
 
-### Security
-- Edge function validates auth (admin/manager role required)
-- No raw SQL — only Stripe SDK calls
-- CORS headers included
+#### 5. Portal (Non-Member) Sidebar (`src/components/portal/PortalSidebar.tsx`)
+- Remove `{ title: "Book Classes", url: "/schedule", icon: CalendarPlus }` from `portalMenuItems` (line 43)
+
+#### 6. Schedule Banner (`src/components/ClassScheduleBanner.tsx`)
+- Delete this file — it links to `/schedule` and is no longer needed
+
+#### 7. Member Schedule Page (`src/pages/member/Schedule.tsx`)
+- Delete this file and remove its route from the member routes
+
+#### 8. Public Schedule Page (`src/pages/Schedule.tsx`)
+- Delete this file
+
+### Not Touched
+- Admin soft-launch management (still uses TempClassSchedule internally for admin)
+- The `TempClassSchedule` component itself stays (used by admin)
+- Email templates and SEO prerender links to `/schedule` — these can be updated separately if needed
 
