@@ -70,6 +70,32 @@ export default function CafeMenuManager() {
     toast.success(cat.is_active ? "Category disabled" : "Category enabled");
   };
 
+  const handleReorderCategory = async (cat: CafeMenuCategory, direction: 'up' | 'down') => {
+    const sorted = [...categories].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+    const idx = sorted.findIndex(c => c.id === cat.id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const other = sorted[swapIdx];
+    await Promise.all([
+      updateCategory.mutateAsync({ id: cat.id, display_order: other.display_order }),
+      updateCategory.mutateAsync({ id: other.id, display_order: cat.display_order }),
+    ]);
+  };
+
+  const handleReorderItem = async (item: CafeMenuItem, direction: 'up' | 'down') => {
+    const sorted = [...categoryItems].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+    const idx = sorted.findIndex(i => i.id === item.id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const other = sorted[swapIdx];
+    await Promise.all([
+      updateItem.mutateAsync({ id: item.id, display_order: other.display_order }),
+      updateItem.mutateAsync({ id: other.id, display_order: item.display_order }),
+    ]);
+  };
+
+  const sectionLabel = (s: string) => s === 'cafe' ? 'Café' : s === 'spa' ? 'Spa' : 'Shop';
+
   return (
     <AdminLayout>
       <div className="p-6 space-y-6">
