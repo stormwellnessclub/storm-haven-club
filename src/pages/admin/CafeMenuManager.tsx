@@ -46,7 +46,7 @@ export default function CafeMenuManager() {
   const addItem = useAddCafeMenuItem();
   const updateItem = useUpdateCafeMenuItem();
   const updateCategory = useUpdateCafeCategory();
-  const { data: allAddons = [] } = useCafeMenuAddons();
+  const { data: allAddons = [] } = useAllCafeMenuAddons();
   const addAddon = useAddCafeAddon();
   const updateAddon = useUpdateCafeAddon();
 
