@@ -28,9 +28,13 @@ import {
   useAddCafeMenuItem,
   useUpdateCafeMenuItem,
   useUpdateCafeCategory,
+  useCafeMenuAddons,
+  useAddCafeAddon,
+  useUpdateCafeAddon,
   uploadCafeMenuImage,
   type CafeMenuCategory,
   type CafeMenuItem,
+  type CafeMenuAddon,
   type CafeMenuSection,
 } from "@/hooks/useCafeMenu";
 
