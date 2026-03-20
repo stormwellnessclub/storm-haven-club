@@ -230,6 +230,7 @@ export default function CafeMenuManager() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-16">Order</TableHead>
                       <TableHead className="w-12">Img</TableHead>
                       <TableHead>Name / Brand</TableHead>
                       <TableHead>Flavor / Size</TableHead>
