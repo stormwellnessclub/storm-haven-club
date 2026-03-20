@@ -206,7 +206,7 @@ export default function MemberKidsCare() {
                   <CardDescription>
                     {hasActivePass
                       ? "Your pass is active. Book sessions for your children below."
-                      : "$75/month — 4 sessions per month, 2 hours max per session. Auto-renews monthly."}
+                      : "$75/month — 16 sessions per month, 2 hours max per session. Auto-renews monthly — cancel anytime."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
