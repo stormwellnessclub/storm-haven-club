@@ -1,15 +1,13 @@
-import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Users, CheckCircle, Dumbbell, XCircle, UserCheck, Eye, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, parseISO, isAfter, isBefore, addMinutes } from "date-fns";
+import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -23,7 +21,6 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SoftLaunchClassManagement } from "@/components/admin/SoftLaunchClassManagement";
 
 interface ClassSession {
   id: string;
@@ -111,21 +108,12 @@ function formatTime(time: string) {
 }
 
 export default function Classes() {
-  const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get('tab') || 'soft-launch';
-  const [activeTab, setActiveTab] = useState(defaultTab);
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab) setActiveTab(tab);
-  }, [searchParams]);
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
 
-  // Fetch today's class sessions with real data
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['admin-class-sessions-today'],
     queryFn: async () => {
@@ -134,10 +122,11 @@ export default function Classes() {
         .from('class_sessions')
         .select(`
           *,
-          class_types (id, name, category),
+          class_types!inner (id, name, category),
           instructors (id, first_name, last_name)
         `)
         .eq('session_date', today)
+        .eq('class_types.is_active', true)
         .order('start_time');
       
       if (error) throw error;
@@ -145,7 +134,6 @@ export default function Classes() {
     },
   });
 
-  // Fetch bookings for the selected session roster
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
     queryKey: ['session-bookings', selectedSession?.id],
     queryFn: async () => {
@@ -153,15 +141,11 @@ export default function Classes() {
       const { data, error } = await supabase
         .from('class_bookings')
         .select(`
-          id,
-          user_id,
-          member_id,
-          status,
-          checked_in_at,
+          id, user_id, member_id, status, checked_in_at,
           members (id, first_name, last_name, photo_url)
         `)
         .eq('session_id', selectedSession.id)
-        .in('status', ['confirmed', 'completed']); // 'completed' = checked in
+        .in('status', ['confirmed', 'completed']);
       
       if (error) throw error;
       return data as ClassBooking[];
@@ -169,31 +153,21 @@ export default function Classes() {
     enabled: !!selectedSession?.id && rosterDialogOpen,
   });
 
-  // Check in a member for a class
   const checkInMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      // Update to 'completed' status with check-in timestamp
       const { error } = await supabase
         .from('class_bookings')
-        .update({ 
-          status: 'completed' as const,
-          checked_in_at: new Date().toISOString()
-        })
+        .update({ status: 'completed' as const, checked_in_at: new Date().toISOString() })
         .eq('id', bookingId);
-      
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['session-bookings', selectedSession?.id] });
       toast.success("Member checked in");
     },
-    onError: (error) => {
-      console.error('Check-in error:', error);
-      toast.error("Failed to check in member");
-    },
+    onError: () => toast.error("Failed to check in member"),
   });
 
-  // Cancel a class session
   const cancelSessionMutation = useMutation({
     mutationFn: async () => {
       if (!selectedSession) return;
@@ -201,7 +175,6 @@ export default function Classes() {
         _session_id: selectedSession.id,
         _reason: cancellationReason || 'Class cancelled by admin',
       });
-      
       if (error) throw error;
     },
     onSuccess: () => {
@@ -211,23 +184,15 @@ export default function Classes() {
       setSelectedSession(null);
       toast.success("Class cancelled");
     },
-    onError: (error) => {
-      console.error('Cancel error:', error);
-      toast.error("Failed to cancel class");
-    },
+    onError: () => toast.error("Failed to cancel class"),
   });
-
-  const attendedCount = (sessionId: string) => {
-    // This would need a separate query or be included in the main query
-    return 0; // Placeholder - will show from bookings when roster is loaded
-  };
 
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Class Schedule</h1>
+            <h1 className="text-2xl font-bold">Today's Classes</h1>
             <p className="text-muted-foreground">
               View today's classes and manage attendance
             </p>
@@ -238,26 +203,71 @@ export default function Classes() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="soft-launch">Soft Launch Schedule</TabsTrigger>
-            <TabsTrigger value="full-schedule">Full Schedule</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="soft-launch">
-            <SoftLaunchClassManagement />
-          </TabsContent>
-
-          <TabsContent value="full-schedule">
-            <div className="text-center py-12 text-muted-foreground">
-              <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-lg font-semibold">Coming Soon</p>
-              <p className="text-sm mt-2">
-                The full class schedule will be available after the soft launch period ends on March 18, 2026.
-              </p>
-            </div>
-          </TabsContent>
-        </Tabs>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p className="text-lg font-semibold">No Classes Today</p>
+            <p className="text-sm mt-2">There are no active classes scheduled for today.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {sessions.map((session) => {
+              const status = getSessionStatus(session);
+              return (
+                <Card key={session.id} className={session.is_cancelled ? "opacity-60" : ""}>
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{session.class_types?.name}</span>
+                          <Badge className={getStatusColor(status)}>{getStatusLabel(status)}</Badge>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5" />
+                            {formatTime(session.start_time)} – {formatTime(session.end_time)}
+                          </span>
+                          {session.instructors && (
+                            <span>{session.instructors.first_name} {session.instructors.last_name}</span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3.5 w-3.5" />
+                            {session.current_enrollment}/{session.max_capacity}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {!session.is_cancelled && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { setSelectedSession(session); setRosterDialogOpen(true); }}
+                        >
+                          <Eye className="h-4 w-4 mr-1" /> Roster
+                        </Button>
+                        {status === 'upcoming' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                            onClick={() => { setSelectedSession(session); setCancelDialogOpen(true); }}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" /> Cancel
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Roster/Attendance Dialog */}
@@ -298,16 +308,13 @@ export default function Classes() {
                         <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
                           {booking.members?.first_name?.[0]}{booking.members?.last_name?.[0]}
                         </div>
-                        <span>
-                          {booking.members?.first_name} {booking.members?.last_name}
-                        </span>
+                        <span>{booking.members?.first_name} {booking.members?.last_name}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       {booking.status === 'completed' || booking.checked_in_at ? (
                         <Badge variant="default" className="bg-green-500">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Checked In
+                          <CheckCircle className="h-3 w-3 mr-1" /> Checked In
                         </Badge>
                       ) : (
                         <Badge variant="secondary">Registered</Badge>
@@ -315,14 +322,8 @@ export default function Classes() {
                     </TableCell>
                     <TableCell className="text-right">
                       {booking.status === 'confirmed' && !booking.checked_in_at && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => checkInMutation.mutate(booking.id)}
-                          disabled={checkInMutation.isPending}
-                        >
-                          <UserCheck className="h-4 w-4 mr-1" />
-                          Check In
+                        <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(booking.id)} disabled={checkInMutation.isPending}>
+                          <UserCheck className="h-4 w-4 mr-1" /> Check In
                         </Button>
                       )}
                     </TableCell>
@@ -340,35 +341,17 @@ export default function Classes() {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Class</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to cancel {selectedSession?.class_types?.name} at {selectedSession && formatTime(selectedSession.start_time)}? 
-              Members who have booked will be notified.
+              Are you sure you want to cancel {selectedSession?.class_types?.name} at {selectedSession && formatTime(selectedSession.start_time)}? Members who have booked will be notified.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
             <Label htmlFor="reason">Cancellation Reason (optional)</Label>
-            <Input
-              id="reason"
-              value={cancellationReason}
-              onChange={(e) => setCancellationReason(e.target.value)}
-              placeholder="e.g., Instructor unavailable"
-              className="mt-2"
-            />
+            <Input id="reason" value={cancellationReason} onChange={(e) => setCancellationReason(e.target.value)} placeholder="e.g., Instructor unavailable" className="mt-2" />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setCancellationReason("");
-              setSelectedSession(null);
-            }}>
-              Keep Class
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => cancelSessionMutation.mutate()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={cancelSessionMutation.isPending}
-            >
-              {cancelSessionMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
+            <AlertDialogCancel onClick={() => { setCancellationReason(""); setSelectedSession(null); }}>Keep Class</AlertDialogCancel>
+            <AlertDialogAction onClick={() => cancelSessionMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={cancelSessionMutation.isPending}>
+              {cancelSessionMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Cancel Class
             </AlertDialogAction>
           </AlertDialogFooter>

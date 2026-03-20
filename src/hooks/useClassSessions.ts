@@ -149,6 +149,7 @@ export function useUpcomingSessions(limit = 10) {
         `)
         .gte("session_date", today)
         .eq("is_cancelled", false)
+        .eq("class_types.is_active", true)
         .order("session_date")
         .order("start_time")
         .limit(limit);
