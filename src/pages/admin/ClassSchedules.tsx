@@ -283,6 +283,23 @@ export default function ClassSchedules() {
 
   const conflicts = useMemo(() => detectScheduleConflicts(schedules), [schedules]);
 
+  // Real-time inline warnings for the form
+  const formWarnings = useMemo(() => {
+    if (!classTypeId || !startTime || !endTime) return [];
+    return checkNewScheduleConflicts(
+      {
+        day_of_week: dayOfWeek,
+        start_time: startTime,
+        end_time: endTime,
+        instructor_id: instructorId || null,
+        room: room.trim() || null,
+        is_active: isActive,
+        id: editingSchedule?.id,
+      },
+      schedules
+    );
+  }, [classTypeId, instructorId, dayOfWeek, startTime, endTime, room, isActive, editingSchedule, schedules]);
+
   function handleConflictEdit(scheduleId: string) {
     const schedule = schedules.find(s => s.id === scheduleId);
     if (schedule) openEditDialog(schedule);
