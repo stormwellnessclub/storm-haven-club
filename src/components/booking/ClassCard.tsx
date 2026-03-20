@@ -12,6 +12,7 @@ interface ClassCardProps {
   isBooked?: boolean;
   isOnWaitlist?: boolean;
   bookingDisabled?: boolean;
+  imageUrl?: string | null;
 }
 
 export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false }: ClassCardProps) {

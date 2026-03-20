@@ -5,30 +5,45 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays, Check, Loader2, Star } from "lucide-react";
+import { Clock, MapPin, User, Users, ChevronLeft, ChevronRight, CalendarDays, Check, Loader2 } from "lucide-react";
 import { useClassTypeRatings } from "@/hooks/useClassReviews";
 import { StarRating } from "@/components/reviews/StarRating";
 import { startOfWeek, addDays, addWeeks, format, isSameDay, isBefore, startOfDay, parse, addMinutes } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTempClassBooking } from "@/hooks/useTempClassBooking";
 import { useWaitlistStatus, useJoinWaitlist } from "@/hooks/useWaitlist";
-import {
-  SOFT_LAUNCH_START, SOFT_LAUNCH_END,
-  getClassesForDate, parseTimeToDb,
-  type ClassEntry,
-} from "@/lib/softLaunchSchedule";
+
+interface LiveSession {
+  id: string;
+  session_date: string;
+  start_time: string;
+  end_time: string;
+  current_enrollment: number;
+  max_capacity: number;
+  is_cancelled: boolean;
+  is_hidden: boolean;
+  room: string | null;
+  class_type_id: string;
+  instructor_id: string | null;
+  class_types: {
+    name: string;
+    category: string;
+    duration_minutes: number;
+    image_url: string | null;
+  };
+  instructors: {
+    first_name: string;
+    last_name: string;
+  } | null;
+}
 
 interface TempClassCardProps {
-  entry: ClassEntry;
-  date: Date;
+  session: LiveSession;
   readOnly?: boolean;
   isLoggedIn: boolean;
   canBook: boolean;
   isBooked: boolean;
   isBooking: boolean;
-  enrolled: number;
-  maxCapacity: number;
-  isFull: boolean;
   isOnWaitlist: boolean;
   isJoiningWaitlist: boolean;
   onBook: () => void;
@@ -38,7 +53,18 @@ interface TempClassCardProps {
   ratingInfo?: { average_rating: number; review_count: number } | null;
 }
 
-function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooking, enrolled, maxCapacity, isFull, isOnWaitlist, isJoiningWaitlist, onBook, onGetPass, onSignIn, onJoinWaitlist, ratingInfo }: TempClassCardProps) {
+function formatTime(dbTime: string): string {
+  const d = parse(dbTime, "HH:mm:ss", new Date());
+  return format(d, "h:mm a");
+}
+
+function TempClassCard({ session, readOnly, isLoggedIn, canBook, isBooked, isBooking, isOnWaitlist, isJoiningWaitlist, onBook, onGetPass, onSignIn, onJoinWaitlist, ratingInfo }: TempClassCardProps) {
+  const isFull = session.current_enrollment >= session.max_capacity;
+  const spotsLeft = session.max_capacity - session.current_enrollment;
+  const instructorName = session.instructors
+    ? `${session.instructors.first_name} ${session.instructors.last_name}`
+    : null;
+
   const renderButton = () => {
     if (readOnly) return null;
 
@@ -100,13 +126,28 @@ function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooki
 
   return (
     <Card className={`group hover:shadow-md transition-shadow ${isBooked ? "border-primary/50 bg-primary/5" : ""}`}>
+      {session.class_types.image_url && (
+        <div className="h-24 overflow-hidden rounded-t-lg">
+          <img
+            src={session.class_types.image_url}
+            alt={session.class_types.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
             <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-              {entry.name}
+              {session.class_types.name}
             </h3>
-            <Badge variant="secondary" className="text-xs mt-1">Pilates</Badge>
+            <Badge variant="secondary" className="text-xs mt-1">
+              {session.class_types.category === "reformer" || session.class_types.category === "pilates_cycling"
+                ? "Pilates"
+                : session.class_types.category === "cycling"
+                ? "Cycling"
+                : "Aerobics"}
+            </Badge>
             {ratingInfo && ratingInfo.review_count > 0 && (
               <div className="mt-1">
                 <StarRating rating={ratingInfo.average_rating} size="sm" showValue count={ratingInfo.review_count} />
@@ -114,17 +155,21 @@ function TempClassCard({ entry, readOnly, isLoggedIn, canBook, isBooked, isBooki
             )}
           </div>
           <div className="text-right">
-            <span className="text-lg font-bold text-primary">{entry.time}</span>
+            <span className="text-lg font-bold text-primary">{formatTime(session.start_time)}</span>
           </div>
         </div>
         <div className="space-y-1 text-sm text-muted-foreground mb-3">
-          <div className="flex items-center gap-2"><Clock className="h-4 w-4" /><span>50 min</span></div>
-          <div className="flex items-center gap-2"><User className="h-4 w-4" /><span>Duha</span></div>
-          <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /><span>Reformer Studio</span></div>
+          <div className="flex items-center gap-2"><Clock className="h-4 w-4" /><span>{session.class_types.duration_minutes} min</span></div>
+          {instructorName && (
+            <div className="flex items-center gap-2"><User className="h-4 w-4" /><span>{instructorName}</span></div>
+          )}
+          {session.room && (
+            <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /><span>{session.room}</span></div>
+          )}
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className={isFull ? "text-destructive font-medium" : ""}>
-              {isFull ? "Class Full" : `${maxCapacity - enrolled} of ${maxCapacity} spots left`}
+              {isFull ? "Class Full" : `${spotsLeft} of ${session.max_capacity} spots left`}
             </span>
           </div>
         </div>
@@ -138,122 +183,102 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
   const navigate = useNavigate();
   const { isLoggedIn, canBook, isBooked, bookClass, isBooking } = useTempClassBooking();
 
-  const baseWeekStart = startOfWeek(SOFT_LAUNCH_START, { weekStartsOn: 0 });
   const today = startOfDay(new Date());
+  const currentWeekStart = startOfWeek(today, { weekStartsOn: 0 });
 
-  // Minimum week offset: the current week (unless showHistory allows going back)
-  const currentWeekOffset = Math.max(0, Math.round(
-    (startOfWeek(new Date(), { weekStartsOn: 0 }).getTime() - baseWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)
-  ));
-  const minWeekOffset = showHistory ? 0 : currentWeekOffset;
-
-  function getInitialWeekOffset() {
-    return Math.max(minWeekOffset, currentWeekOffset);
-  }
-
-  const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset);
+  const [weekOffset, setWeekOffset] = useState(0);
   const todayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     todayRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
   }, []);
 
-  const weekStart = addWeeks(baseWeekStart, weekOffset);
-  const maxWeekStart = startOfWeek(SOFT_LAUNCH_END, { weekStartsOn: 0 });
-  const totalWeeks = Math.round((maxWeekStart.getTime() - baseWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000));
+  const weekStart = addWeeks(currentWeekStart, weekOffset);
+  const weekStartStr = format(weekStart, "yyyy-MM-dd");
+  const weekEndStr = format(addDays(weekStart, 6), "yyyy-MM-dd");
+
+  // Query live sessions from DB for the current week
+  const { data: liveSessions = [] } = useQuery({
+    queryKey: ["live-schedule-sessions", weekStartStr, weekEndStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("class_sessions")
+        .select("id, session_date, start_time, end_time, current_enrollment, max_capacity, is_cancelled, is_hidden, room, class_type_id, instructor_id, class_types!inner(name, category, duration_minutes, image_url), instructors(first_name, last_name)")
+        .gte("session_date", weekStartStr)
+        .lte("session_date", weekEndStr)
+        .eq("is_cancelled", false)
+        .eq("is_hidden", false)
+        .order("start_time");
+      if (error) throw error;
+      return (data || []) as unknown as LiveSession[];
+    },
+    refetchInterval: 30000,
+  });
+
+  // Group sessions by date
+  const sessionsByDate = new Map<string, LiveSession[]>();
+  liveSessions.forEach((s) => {
+    const existing = sessionsByDate.get(s.session_date) || [];
+    existing.push(s);
+    sessionsByDate.set(s.session_date, existing);
+  });
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(weekStart, i);
+    const dateStr = format(date, "yyyy-MM-dd");
     return {
       date,
-      dateStr: format(date, "yyyy-MM-dd"),
+      dateStr,
       dayName: format(date, "EEE"),
       dayNum: format(date, "d"),
       month: format(date, "MMM"),
-      classes: getClassesForDate(date),
+      sessions: sessionsByDate.get(dateStr) || [],
       isToday: isSameDay(date, new Date()),
-      outOfRange: getClassesForDate(date).length === 0,
       isPast: isBefore(date, today),
     };
   });
 
-  // Query live enrollment for sessions in the current week
-  const weekStartStr = format(weekStart, "yyyy-MM-dd");
-  const weekEndStr = format(addDays(weekStart, 6), "yyyy-MM-dd");
-  
-  const { data: liveEnrollment = [] } = useQuery({
-    queryKey: ["temp-schedule-enrollment", weekStartStr, weekEndStr],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("class_sessions")
-        .select("id, session_date, start_time, current_enrollment, max_capacity, is_cancelled, is_hidden, class_type_id, class_types!inner(name)")
-        .gte("session_date", weekStartStr)
-        .lte("session_date", weekEndStr)
-        .in("class_types.name", ["Signature Flow", "Reformer Flow", "Reformer Sculpt"]);
-      if (error) throw error;
-      return data || [];
-    },
-    refetchInterval: 30000, // refresh every 30s
-  });
-
-  // Build a lookup map keyed by "date|start_time" for robust matching
-  const enrollmentMap = new Map<string, any>();
-  liveEnrollment.forEach((s: any) => {
-    const key = `${s.session_date}|${s.start_time}`;
-    // If multiple sessions match same slot, prefer the one that's not cancelled
-    const existing = enrollmentMap.get(key);
-    if (!existing || (existing.is_cancelled && !s.is_cancelled)) {
-      enrollmentMap.set(key, s);
-    }
-  });
-
-  // Helper to find enrollment for a specific class slot — matches by date+time (ignores name)
-  function getEnrollmentForSlot(dateStr: string, time: string): { enrolled: number; maxCapacity: number; isCancelled: boolean; isHidden: boolean; sessionId: string | null; classTypeId: string | null } {
-    const dbTime = parseTimeToDb(time);
-    const key = `${dateStr}|${dbTime}`;
-    const match = enrollmentMap.get(key);
-    if (match) return { enrolled: match.current_enrollment, maxCapacity: match.max_capacity, isCancelled: match.is_cancelled, isHidden: match.is_hidden, sessionId: match.id, classTypeId: match.class_type_id };
-    return { enrolled: 0, maxCapacity: 8, isCancelled: false, isHidden: false, sessionId: null, classTypeId: null };
-  }
-
-  // Helper: check if a slot has ended (start_time + 50 min is in the past)
-  function isSlotFinished(dateStr: string, time: string): boolean {
-    const dbTime = parseTimeToDb(time);
-    const slotStart = parse(`${dateStr} ${dbTime}`, "yyyy-MM-dd HH:mm:ss", new Date());
-    const slotEnd = addMinutes(slotStart, 50);
+  // Helper: check if a slot has ended
+  function isSlotFinished(dateStr: string, startTime: string, durationMin: number): boolean {
+    const slotStart = parse(`${dateStr} ${startTime}`, "yyyy-MM-dd HH:mm:ss", new Date());
+    const slotEnd = addMinutes(slotStart, durationMin);
     return isBefore(slotEnd, new Date());
   }
 
-  // Realtime subscription to invalidate enrollment query on DB changes
+  // Realtime subscription
   const queryClient = useQueryClient();
   useEffect(() => {
     const channel = supabase
-      .channel("temp-schedule-realtime")
+      .channel("live-schedule-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "class_sessions" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["temp-schedule-enrollment"] });
+        queryClient.invalidateQueries({ queryKey: ["live-schedule-sessions"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
   // Collect all session IDs for waitlist status check
-  const allSessionIds = liveEnrollment.map((s: any) => s.id).filter(Boolean);
+  const allSessionIds = liveSessions.map((s) => s.id);
   const { data: waitlistMap = {} } = useWaitlistStatus(allSessionIds);
   const joinWaitlistMutation = useJoinWaitlist();
   const { data: ratingsMap = {} } = useClassTypeRatings();
 
+  // Max weeks to navigate (12 weeks ahead)
+  const maxWeekOffset = 12;
+  const minWeekOffset = showHistory ? -12 : 0;
+
   return (
     <div className="space-y-6">
-      {/* Soft Launch banner */}
+      {/* Banner */}
       <div className="bg-primary/10 border-2 border-primary/40 rounded-xl py-5 px-6">
         <div className="flex items-start gap-4">
           <CalendarDays className="h-7 w-7 text-primary flex-shrink-0 mt-0.5" />
           <div>
             <h3 className="text-lg font-bold text-foreground">
-              🎉 Booking is Now Live — Reformer Pilates Soft Launch
+              📅 Book Your Classes
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              February 20 – March 18, 2026
+              Browse available classes and reserve your spot.
             </p>
             <Link to="/class-passes" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-2">
               Don't have a class pass? View class pass pricing
@@ -271,7 +296,7 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
         <span className="text-sm font-medium min-w-[180px] text-center">
           Week of {format(weekStart, "MMM d, yyyy")}
         </span>
-        <Button variant="outline" size="icon" onClick={() => setWeekOffset((p) => Math.min(p + 1, totalWeeks))} disabled={weekOffset >= totalWeeks}>
+        <Button variant="outline" size="icon" onClick={() => setWeekOffset((p) => Math.min(p + 1, maxWeekOffset))} disabled={weekOffset >= maxWeekOffset}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -281,17 +306,15 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
         {weekDays.map((day) => {
           const hidePast = day.isPast && !showHistory;
 
-          // Pre-filter visible slots: remove finished/cancelled/hidden unless showHistory
-          const visibleClasses = day.classes.filter((cls) => {
+          // Filter visible sessions
+          const visibleSessions = day.sessions.filter((s) => {
             if (hidePast) return false;
-            if (!showHistory && isSlotFinished(day.dateStr, cls.time)) return false;
-            const slot = getEnrollmentForSlot(day.dateStr, cls.time);
-            if (!showHistory && (slot.isCancelled || slot.isHidden)) return false;
+            if (!showHistory && isSlotFinished(day.dateStr, s.start_time, s.class_types.duration_minutes)) return false;
             return true;
           });
 
           return (
-            <div key={day.dateStr} ref={day.isToday ? todayRef : undefined} className={`space-y-3 ${day.outOfRange || hidePast ? "opacity-40" : ""}`}>
+            <div key={day.dateStr} ref={day.isToday ? todayRef : undefined} className={`space-y-3 ${hidePast ? "opacity-40" : ""}`}>
               <div className={`text-center p-2 rounded-lg ${day.isToday ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                 <div className="text-xs font-medium uppercase">{day.dayName}</div>
                 <div className="text-lg font-bold">{day.dayNum}</div>
@@ -300,63 +323,29 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
               <div className="space-y-2">
                 {hidePast ? (
                   <div className="text-center text-muted-foreground text-xs py-8">Past</div>
-                ) : visibleClasses.length === 0 ? (
+                ) : visibleSessions.length === 0 ? (
                   <div className="text-center text-muted-foreground text-sm py-8">No classes</div>
                 ) : (
-                  visibleClasses.map((cls, i) => {
-                    const { enrolled, maxCapacity, isCancelled, isHidden, sessionId, classTypeId } = getEnrollmentForSlot(day.dateStr, cls.time);
-                    const slotIsFull = enrolled >= maxCapacity;
-
-                    // showHistory cancelled/hidden rendering
-                    if (isCancelled) {
-                      return (
-                        <Card key={i} className="opacity-60 border-destructive/30">
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <h3 className="font-semibold text-foreground line-through">{cls.name}</h3>
-                              <span className="text-lg font-bold text-muted-foreground">{cls.time}</span>
-                            </div>
-                            <Badge variant="destructive" className="text-xs">Cancelled</Badge>
-                          </CardContent>
-                        </Card>
-                      );
-                    }
-                    if (isHidden) {
-                      return (
-                        <Card key={i} className="opacity-50 border-muted">
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <h3 className="font-semibold text-muted-foreground line-through">{cls.name}</h3>
-                              <span className="text-lg font-bold text-muted-foreground">{cls.time}</span>
-                            </div>
-                            <Badge variant="outline" className="text-xs">Removed</Badge>
-                          </CardContent>
-                        </Card>
-                      );
-                    }
-
-                    const slotFinished = isSlotFinished(day.dateStr, cls.time);
+                  visibleSessions.map((session) => {
+                    const slotFinished = isSlotFinished(day.dateStr, session.start_time, session.class_types.duration_minutes);
+                    const timeFormatted = formatTime(session.start_time);
 
                     return (
                       <TempClassCard
-                        key={i}
-                        entry={cls}
-                        date={day.date}
+                        key={session.id}
+                        session={session}
                         readOnly={readOnly || day.isPast || slotFinished}
                         isLoggedIn={isLoggedIn}
                         canBook={canBook}
-                        isBooked={isBooked(day.date, cls.time)}
+                        isBooked={isBooked(day.date, timeFormatted)}
                         isBooking={isBooking}
-                        enrolled={enrolled}
-                        maxCapacity={maxCapacity}
-                        isFull={slotIsFull}
-                        isOnWaitlist={sessionId ? !!waitlistMap[sessionId] : false}
+                        isOnWaitlist={!!waitlistMap[session.id]}
                         isJoiningWaitlist={joinWaitlistMutation.isPending}
-                        onBook={() => bookClass({ className: cls.name, date: day.date, time: cls.time })}
+                        onBook={() => bookClass({ className: session.class_types.name, date: day.date, time: timeFormatted })}
                         onGetPass={() => navigate("/class-passes")}
                         onSignIn={() => navigate("/auth")}
-                        onJoinWaitlist={() => sessionId && joinWaitlistMutation.mutate({ sessionId })}
-                        ratingInfo={classTypeId ? ratingsMap[classTypeId] : null}
+                        onJoinWaitlist={() => joinWaitlistMutation.mutate({ sessionId: session.id })}
+                        ratingInfo={ratingsMap[session.class_type_id] || null}
                       />
                     );
                   })
@@ -368,7 +357,7 @@ export function TempClassSchedule({ readOnly = false, showHistory = false }: { r
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        Soft launch schedule: Feb 20 – Mar 18, 2026. {!readOnly && 'Click "Book Class" to reserve your spot.'}
+        {!readOnly && 'Click "Book Class" to reserve your spot.'}
       </p>
     </div>
   );
