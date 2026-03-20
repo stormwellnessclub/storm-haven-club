@@ -212,8 +212,7 @@ serve(async (req) => {
               
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
-                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
-                <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">The Storm Wellness Club Team</p>
               </div>
             </div>
             <div style="${emailStyles.footer}">
