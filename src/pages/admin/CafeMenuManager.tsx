@@ -334,6 +334,83 @@ export default function CafeMenuManager() {
               )}
             </CardContent>
           </Card>
+
+          {/* Add-ons Panel - shown when category has_addons */}
+          {selectedCategory?.has_addons && (
+            <Card className="lg:col-span-4">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">
+                    Add-ons for "{selectedCategory.name}"
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 mb-4">
+                  <Input
+                    value={newAddonName}
+                    onChange={(e) => setNewAddonName(e.target.value)}
+                    placeholder="Add-on name (e.g. Extra Shot)"
+                    className="max-w-xs"
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={newAddonPrice}
+                    onChange={(e) => setNewAddonPrice(e.target.value)}
+                    placeholder="Price"
+                    className="max-w-[120px]"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      const price = parseFloat(newAddonPrice);
+                      if (!newAddonName.trim() || isNaN(price) || price <= 0) {
+                        toast.error("Name and valid price required");
+                        return;
+                      }
+                      await addAddon.mutateAsync({ name: newAddonName.trim(), price, category_id: selectedCategory.id });
+                      setNewAddonName("");
+                      setNewAddonPrice("");
+                    }}
+                    disabled={addAddon.isPending}
+                  >
+                    {addAddon.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Add Add-on</>}
+                  </Button>
+                </div>
+                {categoryAddons.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No add-ons yet. Add one above.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="text-right">Price</TableHead>
+                        <TableHead className="text-center">Active</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categoryAddons.map((addon) => (
+                        <TableRow key={addon.id} className={!addon.is_active ? "opacity-50" : ""}>
+                          <TableCell className="font-medium">{addon.name}</TableCell>
+                          <TableCell className="text-right font-mono">${addon.price.toFixed(2)}</TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={addon.is_active}
+                              onCheckedChange={async () => {
+                                await updateAddon.mutateAsync({ id: addon.id, is_active: !addon.is_active });
+                                toast.success(addon.is_active ? "Add-on disabled" : "Add-on enabled");
+                              }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
