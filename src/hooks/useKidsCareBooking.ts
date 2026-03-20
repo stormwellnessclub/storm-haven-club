@@ -208,8 +208,20 @@ export function useBookKidsCare() {
 
       if (error) throw error;
 
-      // Note: We don't deduct from pass here - that happens at check-in or could be done separately
-      // The pass validation ensures they have a valid pass, but actual deduction is at check-in time
+      // Deduct one visit from the pass
+      const newRemaining = passes.classes_remaining - 1;
+      const { error: deductError } = await supabase
+        .from("class_passes")
+        .update({
+          classes_remaining: newRemaining,
+          status: newRemaining <= 0 ? "exhausted" as any : "active" as any,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", params.passId);
+
+      if (deductError) {
+        console.error("Failed to deduct pass visit:", deductError);
+      }
 
       return data as KidsCareBooking;
     },
