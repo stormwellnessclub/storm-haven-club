@@ -197,7 +197,7 @@ serve(async (req) => {
               </p>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
-                We are currently finalizing the last details before our opening. Please keep an eye out in the coming days for more emails from us with instructions on how to create your account and complete your membership setup.
+                You will receive your member account activation details shortly. Once your account is set up, your personalized member portal will guide you through any remaining steps.
               </p>
               
               <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 20px 0;">
