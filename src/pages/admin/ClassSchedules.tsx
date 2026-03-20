@@ -91,6 +91,7 @@ export default function ClassSchedules() {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
   const [weeksToGenerate, setWeeksToGenerate] = useState(4);
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("calendar");
   
   // Form state
   const [classTypeId, setClassTypeId] = useState("");
