@@ -138,7 +138,7 @@ export default function CafeMenuManager() {
               {catLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
               ) : (
-                categories.map((cat) => (
+                categories.map((cat, idx) => (
                   <div
                     key={cat.id}
                     className={`flex items-center justify-between rounded-md px-3 py-2 cursor-pointer transition-colors text-sm ${
@@ -150,8 +150,31 @@ export default function CafeMenuManager() {
                     }`}
                     onClick={() => setSelectedCategoryId(cat.id)}
                   >
-                    <span className="truncate">{cat.name}</span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="truncate">{cat.name}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{sectionLabel(cat.section)}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <div className="flex flex-col">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5"
+                          disabled={idx === 0}
+                          onClick={(e) => { e.stopPropagation(); handleReorderCategory(cat, 'up'); }}
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5"
+                          disabled={idx === categories.length - 1}
+                          onClick={(e) => { e.stopPropagation(); handleReorderCategory(cat, 'down'); }}
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </Button>
+                      </div>
                       <Badge variant="secondary" className="text-xs">
                         {allItems.filter((i) => i.category_id === cat.id).length}
                       </Badge>
