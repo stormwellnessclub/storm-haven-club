@@ -15,7 +15,7 @@ interface ClassCardProps {
   imageUrl?: string | null;
 }
 
-export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false }: ClassCardProps) {
+export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false, imageUrl }: ClassCardProps) {
   const spotsRemaining = session.max_capacity - session.current_enrollment;
   const isFull = spotsRemaining <= 0;
   const isLowSpots = spotsRemaining > 0 && spotsRemaining <= 3;
