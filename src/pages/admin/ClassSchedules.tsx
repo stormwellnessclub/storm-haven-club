@@ -41,12 +41,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info } from "lucide-react";
+import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info, Table2, LayoutGrid, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addWeeks } from "date-fns";
-import { detectScheduleConflicts } from "@/lib/scheduleConflicts";
+import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
+import { WeeklyCalendarView } from "@/components/admin/WeeklyCalendarView";
 
 interface ClassType {
   id: string;
