@@ -1640,8 +1640,8 @@ serve(async (req) => {
                   await supabase
                     .from('class_passes')
                     .update({
-                      classes_remaining: 4,
-                      classes_total: 4,
+                      classes_remaining: 16,
+                      classes_total: 16,
                       expires_at: expiresAt.toISOString(),
                       status: 'active',
                     })
