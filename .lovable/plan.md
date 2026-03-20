@@ -1,38 +1,62 @@
 
 
-## Fix: Make Public Schedule Reflect Admin Changes + Add Class Images
+## Fix Cafe Menu: Mobile Loading, Category Segmentation, and Item Reordering
 
-### Problem 1: Old class times still showing
-The public-facing class schedule (`/classes` page and `TempClassSchedule`) uses **hardcoded class data** — static arrays defined directly in code. When you edit schedules in the admin panel, those changes only affect the `class_schedules` and `class_sessions` database tables, which the public UI never reads. That's why paused/edited classes still appear with old times.
+### Problems Found
 
-### Problem 2: Missing images on reformer cards
-The booking cards (`TempClassCard`) don't render any image. The `class_types` table has an `image_url` field, but the card component ignores it.
+1. **Mobile not loading**: The `cafe_menu_categories` and `cafe_menu_items` tables have RLS policies that only allow **staff roles** to SELECT. Public/non-staff users get empty results. This is why the cafe menu loads when you're logged in on desktop (as admin) but not on your phone (likely not logged in or not staff).
+
+2. **All items showing under cafe tab**: Categories like "Spa", "Apparel", "Supplements", "Grip Socks", and "KITSCH" are all stored in the same `cafe_menu_categories` table alongside actual cafe items. The `/cafe` page shows ALL active categories with no way to filter out non-cafe items.
+
+3. **No reordering**: There's no drag-and-drop or manual reorder UI in the Cafe Menu Manager to rearrange items or move them between sections.
 
 ### Solution
 
-#### 1. Rewrite `/classes` page to pull from the database
-- Replace the hardcoded `classes[]` array with a query to `class_types` (active only)
-- Each card shows: name, category, duration, capacity, heated badge, description, and the `image_url` from the database
-- If `image_url` is null, fall back to a category-based default image (the existing imported assets)
-- Inactive/paused class types won't appear since we filter by `is_active = true`
+#### 1. Database: Add public read policies + section field
+- Add **public SELECT policies** on `cafe_menu_categories` and `cafe_menu_items` so anyone can view active menu items (these are meant to be public-facing)
+- Add a `section` column to `cafe_menu_categories` with values: `'cafe'`, `'spa'`, `'shop'` (default `'cafe'`) — this lets us segment which categories appear on the cafe page vs. Storm Shop vs. POS-only
 
-#### 2. Update `TempClassSchedule` to read from `class_sessions` instead of hardcoded schedule
-- The soft launch period ended (March 19). Replace the hardcoded `getClassesForDate()` with a database query to `class_sessions` joined with `class_types` and `instructors`
-- This means admin schedule changes (pausing, time edits, cancellations) immediately reflect in the public booking UI
-- Keep the existing enrollment/booking/waitlist logic — just change the data source
+#### 2. Filter `/cafe` page to cafe-only categories
+- Update `useCafeMenuCategories()` to accept an optional `section` filter
+- On the `/cafe` page, only fetch categories where `section = 'cafe'`
+- POS terminals continue to show all categories (no section filter)
 
-#### 3. Add class type images to booking cards
-- Update `TempClassCard` to accept and display `image_url` from `class_types`
-- Show a small image thumbnail or header image on each booking card
-- If no image is set, show a subtle category-based placeholder
+#### 3. Admin: Add section assignment + drag-and-drop reordering
+- In the **Cafe Menu Manager**, add a section dropdown on each category (Cafe / Spa / Shop) so you can reassign categories
+- Add **drag-and-drop reordering** for both categories (left panel) and items within categories (right panel) using `display_order` field
+- Up/down arrow buttons as a simpler alternative if drag-and-drop is too complex
 
-### Files to modify
-- `src/pages/Classes.tsx` — replace hardcoded array with database query
-- `src/components/booking/TempClassSchedule.tsx` — switch from hardcoded schedule to `class_sessions` query
-- `src/components/booking/ClassCard.tsx` — add image rendering support
+#### 4. Update existing categories with correct sections
+- Set `section = 'spa'` for: Spa
+- Set `section = 'shop'` for: Apparel, Supplements, Grip Socks, KITSCH
+- Everything else stays as `section = 'cafe'`
 
-### What this fixes
-- Admin schedule edits (time changes, pausing, adding/removing classes) will immediately appear on the public website
-- Paused/inactive schedules won't show
-- Reformer classes with `image_url` set in the database will display their images
+### Technical Details
+
+**Migration SQL:**
+```sql
+-- Add section column
+ALTER TABLE cafe_menu_categories 
+  ADD COLUMN section text NOT NULL DEFAULT 'cafe';
+
+-- Add public read policies
+CREATE POLICY "Public can view active categories" 
+  ON cafe_menu_categories FOR SELECT TO anon, authenticated 
+  USING (is_active = true);
+
+CREATE POLICY "Public can view active menu items"
+  ON cafe_menu_items FOR SELECT TO anon, authenticated 
+  USING (is_active = true);
+
+-- Set correct sections for existing categories
+UPDATE cafe_menu_categories SET section = 'spa' WHERE name = 'Spa';
+UPDATE cafe_menu_categories SET section = 'shop' 
+  WHERE name IN ('Apparel', 'Supplements', 'Grip Socks', 'KITSCH');
+```
+
+**Files to modify:**
+- `src/hooks/useCafeMenu.ts` — add section filter to category queries
+- `src/pages/Cafe.tsx` — pass `section: 'cafe'` filter
+- `src/pages/admin/CafeMenuManager.tsx` — add section dropdown per category + reorder buttons (up/down arrows) for categories and items
+- `src/components/admin/CafePOSMenu.tsx` — no section filter (POS shows all)
 
