@@ -27,6 +27,7 @@ import {
 import { KidsCareHoursEditor } from "@/components/admin/KidsCareHoursEditor";
 import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDashboard";
 import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
+import { KidsCareAdminChat, useKidsCareUnreadCount } from "@/components/admin/KidsCareAdminChat";
 
 export default function Childcare() {
   const [searchQuery, setSearchQuery] = useState('');
