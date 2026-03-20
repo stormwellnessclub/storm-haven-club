@@ -197,7 +197,7 @@ serve(async (req) => {
               </p>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
-                We are currently finalizing the last details before our opening. Please keep an eye out in the coming days for more emails from us with instructions on how to create your account and complete your membership setup.
+                You will receive your member account activation details shortly. Once your account is set up, your personalized member portal will guide you through any remaining steps.
               </p>
               
               <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 20px 0;">
@@ -207,13 +207,12 @@ serve(async (req) => {
               </div>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
-                Thank you for your patience as we prepare to welcome you.
+                We look forward to seeing you at the club.
               </p>
               
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
-                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm</p>
-                <p style="color: #6b7280; margin: 0;">Founder, Storm Wellness Club</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">The Storm Wellness Club Team</p>
               </div>
             </div>
             <div style="${emailStyles.footer}">
