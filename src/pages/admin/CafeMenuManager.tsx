@@ -31,6 +31,7 @@ import {
   uploadCafeMenuImage,
   type CafeMenuCategory,
   type CafeMenuItem,
+  type CafeMenuSection,
 } from "@/hooks/useCafeMenu";
 
 export default function CafeMenuManager() {
