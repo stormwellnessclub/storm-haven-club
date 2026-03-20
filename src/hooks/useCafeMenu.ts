@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+export type CafeMenuSection = 'cafe' | 'spa' | 'shop';
+
 export interface CafeMenuCategory {
   id: string;
   name: string;
@@ -11,6 +13,7 @@ export interface CafeMenuCategory {
   is_active: boolean;
   description: string | null;
   image_url: string | null;
+  section: CafeMenuSection;
 }
 
 export interface CafeMenuItem {
