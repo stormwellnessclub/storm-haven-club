@@ -534,13 +534,33 @@ export default function ClassSchedules() {
           </Card>
         )}
 
-        {/* Schedules Table */}
+        {/* Schedules View */}
         <Card>
-          <CardHeader>
-            <CardTitle>Weekly Schedule</CardTitle>
-            <CardDescription>
-              These recurring schedules define when classes happen each week
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle>Weekly Schedule</CardTitle>
+              <CardDescription>
+                These recurring schedules define when classes happen each week
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-1 border rounded-lg p-1">
+              <Button
+                variant={viewMode === "calendar" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("calendar")}
+              >
+                <LayoutGrid className="h-4 w-4 mr-1" />
+                Calendar
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("table")}
+              >
+                <Table2 className="h-4 w-4 mr-1" />
+                Table
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {schedulesLoading ? (
@@ -553,6 +573,12 @@ export default function ClassSchedules() {
                 <p className="font-medium">No schedules found</p>
                 <p className="text-sm mt-1">Add your first schedule to get started.</p>
               </div>
+            ) : viewMode === "calendar" ? (
+              <WeeklyCalendarView
+                schedules={schedules}
+                conflicts={conflicts}
+                onEditSchedule={openEditDialog}
+              />
             ) : (
               <Table>
                 <TableHeader>
