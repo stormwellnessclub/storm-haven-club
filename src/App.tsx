@@ -32,7 +32,7 @@ import Goals from "@/pages/member/Goals";
 import FitnessProfile from "@/pages/member/FitnessProfile";
 import MemberWellness from "@/pages/member/Wellness";
 import CheckInHistory from "@/pages/member/CheckInHistory";
-import MemberSchedule from "@/pages/member/Schedule";
+
 import MemberReferrals from "@/pages/member/Referrals";
 import Index from "./pages/Index";
 import Classes from "./pages/Classes";
