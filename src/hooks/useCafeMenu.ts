@@ -46,14 +46,18 @@ export interface CafeMenuAddon {
 }
 
 // Active categories only (for POS and front-facing)
-export function useCafeMenuCategories() {
+export function useCafeMenuCategories(section?: CafeMenuSection) {
   return useQuery({
-    queryKey: ["cafe_menu_categories"],
+    queryKey: ["cafe_menu_categories", section ?? "all_active"],
     queryFn: async (): Promise<CafeMenuCategory[]> => {
-      const { data, error } = await (supabase.from as any)("cafe_menu_categories")
+      let query = (supabase.from as any)("cafe_menu_categories")
         .select("*")
         .eq("is_active", true)
         .order("display_order");
+      if (section) {
+        query = query.eq("section", section);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return (data || []) as CafeMenuCategory[];
     },

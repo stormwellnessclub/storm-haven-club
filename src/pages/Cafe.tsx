@@ -56,7 +56,7 @@ export default function Cafe() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const createOrder = useCreateCafeOrder();
-  const { data: categories = [], isLoading: catLoading } = useCafeMenuCategories();
+  const { data: categories = [], isLoading: catLoading } = useCafeMenuCategories('cafe');
   const { data: menuItems = [], isLoading: itemsLoading } = useCafeMenuItems();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
