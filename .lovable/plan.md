@@ -1,62 +1,31 @@
 
 
-## Fix Cafe Menu: Mobile Loading, Category Segmentation, and Item Reordering
+## Fix: Admin Class Calendar Not Showing
 
-### Problems Found
+### Root Cause Analysis
+After reviewing the code, data (16 active schedules exist), RLS policies, and component structure, the `WeeklyCalendarView` component has a layout issue that can make it appear empty or invisible:
 
-1. **Mobile not loading**: The `cafe_menu_categories` and `cafe_menu_items` tables have RLS policies that only allow **staff roles** to SELECT. Public/non-staff users get empty results. This is why the cafe menu loads when you're logged in on desktop (as admin) but not on your phone (likely not logged in or not staff).
+1. **The grid is 1088px tall** (`17 hours × 64px`) — it likely extends well below the viewport and may appear blank if there are no classes in the first visible rows (5–8 AM range).
+2. **The `min-w-[800px]` inner grid** inside a `CardContent` with `overflow-x-auto` can make it hard to see on smaller screens — the content may be clipped or require scrolling the user doesn't realize exists.
+3. **Category colors may not match** — your class types likely use categories like `pilates_cycling` which don't match the hardcoded color map keys (`pilates`, `cycling`), so all blocks get the subtle default color (`bg-primary/10`) that may be near-invisible on certain backgrounds.
 
-2. **All items showing under cafe tab**: Categories like "Spa", "Apparel", "Supplements", "Grip Socks", and "KITSCH" are all stored in the same `cafe_menu_categories` table alongside actual cafe items. The `/cafe` page shows ALL active categories with no way to filter out non-cafe items.
+### Fix
 
-3. **No reordering**: There's no drag-and-drop or manual reorder UI in the Cafe Menu Manager to rearrange items or move them between sections.
+#### 1. Adjust time range and make calendar more compact
+- Change `DAY_START` from 5 AM → 6 AM (or auto-detect from actual schedule data)
+- Reduce row height from 64px → 48px to keep the calendar from being excessively tall
+- Add a visible border/background to the entire calendar container so it's clear it's rendered
 
-### Solution
+#### 2. Fix category color matching
+- Normalize category names: strip `_cycling`, `_reformer` suffixes and match the base word
+- Add `pilates_cycling`, `pilates_reformer` etc. to the color map
+- Fallback to a more visible default color
 
-#### 1. Database: Add public read policies + section field
-- Add **public SELECT policies** on `cafe_menu_categories` and `cafe_menu_items` so anyone can view active menu items (these are meant to be public-facing)
-- Add a `section` column to `cafe_menu_categories` with values: `'cafe'`, `'spa'`, `'shop'` (default `'cafe'`) — this lets us segment which categories appear on the cafe page vs. Storm Shop vs. POS-only
+#### 3. Improve visibility
+- Add a "No classes scheduled before X AM" indicator at top if early hours are empty
+- Auto-scroll to the first class of the day
+- Add a subtle alternating row background for hour grid lines
 
-#### 2. Filter `/cafe` page to cafe-only categories
-- Update `useCafeMenuCategories()` to accept an optional `section` filter
-- On the `/cafe` page, only fetch categories where `section = 'cafe'`
-- POS terminals continue to show all categories (no section filter)
-
-#### 3. Admin: Add section assignment + drag-and-drop reordering
-- In the **Cafe Menu Manager**, add a section dropdown on each category (Cafe / Spa / Shop) so you can reassign categories
-- Add **drag-and-drop reordering** for both categories (left panel) and items within categories (right panel) using `display_order` field
-- Up/down arrow buttons as a simpler alternative if drag-and-drop is too complex
-
-#### 4. Update existing categories with correct sections
-- Set `section = 'spa'` for: Spa
-- Set `section = 'shop'` for: Apparel, Supplements, Grip Socks, KITSCH
-- Everything else stays as `section = 'cafe'`
-
-### Technical Details
-
-**Migration SQL:**
-```sql
--- Add section column
-ALTER TABLE cafe_menu_categories 
-  ADD COLUMN section text NOT NULL DEFAULT 'cafe';
-
--- Add public read policies
-CREATE POLICY "Public can view active categories" 
-  ON cafe_menu_categories FOR SELECT TO anon, authenticated 
-  USING (is_active = true);
-
-CREATE POLICY "Public can view active menu items"
-  ON cafe_menu_items FOR SELECT TO anon, authenticated 
-  USING (is_active = true);
-
--- Set correct sections for existing categories
-UPDATE cafe_menu_categories SET section = 'spa' WHERE name = 'Spa';
-UPDATE cafe_menu_categories SET section = 'shop' 
-  WHERE name IN ('Apparel', 'Supplements', 'Grip Socks', 'KITSCH');
-```
-
-**Files to modify:**
-- `src/hooks/useCafeMenu.ts` — add section filter to category queries
-- `src/pages/Cafe.tsx` — pass `section: 'cafe'` filter
-- `src/pages/admin/CafeMenuManager.tsx` — add section dropdown per category + reorder buttons (up/down arrows) for categories and items
-- `src/components/admin/CafePOSMenu.tsx` — no section filter (POS shows all)
+### Files to modify
+- `src/components/admin/WeeklyCalendarView.tsx` — fix color matching, adjust time range, improve layout visibility
 
