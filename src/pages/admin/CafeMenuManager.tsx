@@ -61,6 +61,7 @@ export default function CafeMenuManager() {
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId) || categories[0];
   const categoryItems = allItems.filter((i) => i.category_id === selectedCategory?.id);
+  const categoryAddons = allAddons.filter((a) => a.category_id === selectedCategory?.id);
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
