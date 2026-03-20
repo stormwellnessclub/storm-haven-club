@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -45,6 +45,8 @@ import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info } from "
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addWeeks } from "date-fns";
+import { detectScheduleConflicts } from "@/lib/scheduleConflicts";
+import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
 
 interface ClassType {
   id: string;
@@ -268,6 +270,13 @@ export default function ClassSchedules() {
 
   const activeScheduleCount = schedules.filter(s => s.is_active).length;
 
+  const conflicts = useMemo(() => detectScheduleConflicts(schedules), [schedules]);
+
+  function handleConflictEdit(scheduleId: string) {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (schedule) openEditDialog(schedule);
+  }
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -463,6 +472,9 @@ export default function ClassSchedules() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Conflict Detector */}
+        <ScheduleConflictPanel conflicts={conflicts} onEditSchedule={handleConflictEdit} />
 
         {/* Info Banner */}
         {activeScheduleCount > 0 && upcomingSessionCount === 0 && (
