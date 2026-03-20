@@ -280,7 +280,7 @@ export function useCancelKidsCareBooking() {
       // Check cancellation policy (2 hours before start time)
       try {
         const { data: booking, error: fetchError } = await (supabase.from as any)("kids_care_bookings")
-          .select("booking_date, start_time")
+          .select("booking_date, start_time, pass_id")
           .eq("id", bookingId)
           .single();
 
@@ -314,6 +314,30 @@ export function useCancelKidsCareBooking() {
             throw new Error("Kids care booking is not yet available. Please check back later.");
           }
           throw error;
+        }
+
+        // Restore the visit back to the pass
+        if (booking.pass_id) {
+          try {
+            const { data: pass } = await supabase
+              .from("class_passes")
+              .select("classes_remaining")
+              .eq("id", booking.pass_id)
+              .single();
+
+            if (pass) {
+              await supabase
+                .from("class_passes")
+                .update({
+                  classes_remaining: pass.classes_remaining + 1,
+                  status: "active" as any,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", booking.pass_id);
+            }
+          } catch (restoreErr) {
+            console.error("Failed to restore pass visit:", restoreErr);
+          }
         }
 
         return data as KidsCareBooking;
