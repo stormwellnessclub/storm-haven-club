@@ -242,8 +242,20 @@ export default function CafeMenuManager() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {categoryItems.map((item) => (
+                    {categoryItems.map((item, idx) => (
                       <TableRow key={item.id} className={!item.is_active ? "opacity-50" : ""}>
+                        <TableCell>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-5 w-5" disabled={idx === 0}
+                              onClick={() => handleReorderItem(item, 'up')}>
+                              <ArrowUp className="h-3 w-3" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-5 w-5" disabled={idx === categoryItems.length - 1}
+                              onClick={() => handleReorderItem(item, 'down')}>
+                              <ArrowDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {item.image_url ? (
                             <img src={item.image_url} alt="" className="h-8 w-8 rounded object-cover" />
