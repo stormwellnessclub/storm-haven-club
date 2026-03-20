@@ -9,9 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem as SelectOption,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   Plus, Edit2, Upload, Save, X, Loader2, ImageIcon, Leaf, Snowflake, Package,
+  ArrowUp, ArrowDown,
 } from "lucide-react";
 import {
   useAllCafeMenuCategories,
@@ -23,6 +31,7 @@ import {
   uploadCafeMenuImage,
   type CafeMenuCategory,
   type CafeMenuItem,
+  type CafeMenuSection,
 } from "@/hooks/useCafeMenu";
 
 export default function CafeMenuManager() {
@@ -60,6 +69,32 @@ export default function CafeMenuManager() {
     await updateCategory.mutateAsync({ id: cat.id, is_active: !cat.is_active });
     toast.success(cat.is_active ? "Category disabled" : "Category enabled");
   };
+
+  const handleReorderCategory = async (cat: CafeMenuCategory, direction: 'up' | 'down') => {
+    const sorted = [...categories].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+    const idx = sorted.findIndex(c => c.id === cat.id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const other = sorted[swapIdx];
+    await Promise.all([
+      updateCategory.mutateAsync({ id: cat.id, display_order: other.display_order }),
+      updateCategory.mutateAsync({ id: other.id, display_order: cat.display_order }),
+    ]);
+  };
+
+  const handleReorderItem = async (item: CafeMenuItem, direction: 'up' | 'down') => {
+    const sorted = [...categoryItems].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+    const idx = sorted.findIndex(i => i.id === item.id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const other = sorted[swapIdx];
+    await Promise.all([
+      updateItem.mutateAsync({ id: item.id, display_order: other.display_order }),
+      updateItem.mutateAsync({ id: other.id, display_order: item.display_order }),
+    ]);
+  };
+
+  const sectionLabel = (s: string) => s === 'cafe' ? 'Café' : s === 'spa' ? 'Spa' : 'Shop';
 
   return (
     <AdminLayout>
@@ -103,7 +138,7 @@ export default function CafeMenuManager() {
               {catLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
               ) : (
-                categories.map((cat) => (
+                categories.map((cat, idx) => (
                   <div
                     key={cat.id}
                     className={`flex items-center justify-between rounded-md px-3 py-2 cursor-pointer transition-colors text-sm ${
@@ -115,8 +150,31 @@ export default function CafeMenuManager() {
                     }`}
                     onClick={() => setSelectedCategoryId(cat.id)}
                   >
-                    <span className="truncate">{cat.name}</span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="truncate">{cat.name}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{sectionLabel(cat.section)}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <div className="flex flex-col">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5"
+                          disabled={idx === 0}
+                          onClick={(e) => { e.stopPropagation(); handleReorderCategory(cat, 'up'); }}
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5"
+                          disabled={idx === categories.length - 1}
+                          onClick={(e) => { e.stopPropagation(); handleReorderCategory(cat, 'down'); }}
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </Button>
+                      </div>
                       <Badge variant="secondary" className="text-xs">
                         {allItems.filter((i) => i.category_id === cat.id).length}
                       </Badge>
@@ -172,6 +230,7 @@ export default function CafeMenuManager() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-16">Order</TableHead>
                       <TableHead className="w-12">Img</TableHead>
                       <TableHead>Name / Brand</TableHead>
                       <TableHead>Flavor / Size</TableHead>
@@ -183,8 +242,20 @@ export default function CafeMenuManager() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {categoryItems.map((item) => (
+                    {categoryItems.map((item, idx) => (
                       <TableRow key={item.id} className={!item.is_active ? "opacity-50" : ""}>
+                        <TableCell>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-5 w-5" disabled={idx === 0}
+                              onClick={() => handleReorderItem(item, 'up')}>
+                              <ArrowUp className="h-3 w-3" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-5 w-5" disabled={idx === categoryItems.length - 1}
+                              onClick={() => handleReorderItem(item, 'down')}>
+                              <ArrowDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {item.image_url ? (
                             <img src={item.image_url} alt="" className="h-8 w-8 rounded object-cover" />
@@ -640,16 +711,16 @@ function CategoryEditDialog({
   onClose: () => void;
   onSave: (updates: Partial<CafeMenuCategory>) => Promise<void>;
 }) {
-  const [form, setForm] = useState({ name: "", description: "", has_addons: false });
+  const [form, setForm] = useState({ name: "", description: "", has_addons: false, section: "cafe" as CafeMenuSection });
   const [saving, setSaving] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={(v) => {
       if (!v) onClose();
-      else if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons });
+      else if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons, section: category.section || 'cafe' });
     }}>
       <DialogContent className="max-w-md" onOpenAutoFocus={() => {
-        if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons });
+        if (category) setForm({ name: category.name, description: category.description || "", has_addons: category.has_addons, section: category.section || 'cafe' });
       }}>
         <DialogHeader>
           <DialogTitle>Edit Category</DialogTitle>
@@ -658,6 +729,19 @@ function CategoryEditDialog({
           <div>
             <Label>Name</Label>
             <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Section</Label>
+            <Select value={form.section} onValueChange={(v) => setForm((f) => ({ ...f, section: v as CafeMenuSection }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectOption value="cafe">Café</SelectOption>
+                <SelectOption value="spa">Spa</SelectOption>
+                <SelectOption value="shop">Storm Shop</SelectOption>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label>Description</Label>

@@ -429,6 +429,7 @@ export type Database = {
           image_url: string | null
           is_active: boolean | null
           name: string
+          section: string
         }
         Insert: {
           created_at?: string | null
@@ -439,6 +440,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean | null
           name: string
+          section?: string
         }
         Update: {
           created_at?: string | null
@@ -449,6 +451,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean | null
           name?: string
+          section?: string
         }
         Relationships: []
       }
