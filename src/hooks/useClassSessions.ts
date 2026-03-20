@@ -75,6 +75,7 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
         .gte("session_date", format(weekStart, "yyyy-MM-dd"))
         .lte("session_date", format(weekEnd, "yyyy-MM-dd"))
         .eq("is_cancelled", false)
+        .eq("class_types.is_active", true)
         .order("session_date")
         .order("start_time");
 
