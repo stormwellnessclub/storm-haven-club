@@ -45,9 +45,14 @@ export default function CafeMenuManager() {
   const addItem = useAddCafeMenuItem();
   const updateItem = useUpdateCafeMenuItem();
   const updateCategory = useUpdateCafeCategory();
+  const { data: allAddons = [] } = useCafeMenuAddons();
+  const addAddon = useAddCafeAddon();
+  const updateAddon = useUpdateCafeAddon();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newAddonName, setNewAddonName] = useState("");
+  const [newAddonPrice, setNewAddonPrice] = useState("");
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [editingItem, setEditingItem] = useState<CafeMenuItem | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
