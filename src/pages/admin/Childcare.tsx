@@ -44,10 +44,7 @@ export default function Childcare() {
   const updateInterestStatus = useUpdateKidsCareInterestStatus();
   const { data: kidsCareUnread } = useKidsCareUnreadCount();
 
-  const todayBookings = bookings?.filter(booking => {
-    const bookingDate = new Date(booking.booking_date);
-    return bookingDate.toDateString() === selectedDate.toDateString();
-  }) || [];
+  const todayBookings = bookings || [];
 
   const checkedInCount = todayBookings.filter(b => ['checked_in'].includes(b.status)).length;
 
