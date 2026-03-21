@@ -1,34 +1,71 @@
 
+## Fix admin daycare bookings not showing
 
-## Fix: Admin Kids Care Bookings Not Visible (Timezone Bug)
+### What I confirmed
+- The booking is in the backend already, so this is not a failed booking issue.
+- I confirmed at least these confirmed bookings exist:
+  - **Today:** Aria, 10:00 AM–12:00 PM
+  - **Tomorrow:** Aria, 11:00 AM–1:00 PM
+- So yes: at least one booking happened and was not visible in admin.
 
-### Root Cause
-The admin Childcare page has a **double date filter** that breaks due to timezone parsing:
+### Most likely root cause
+The earlier timezone filter has already been removed in `src/pages/admin/Childcare.tsx`, so the remaining likely issue is the **admin fetch itself**:
 
-1. The database query correctly fetches bookings for the selected date (e.g. `booking_date = '2026-03-21'`)
-2. But then line 47–50 in `Childcare.tsx` re-filters in JavaScript:
-   ```js
-   const bookingDate = new Date(booking.booking_date); // "2026-03-21" → UTC midnight
-   return bookingDate.toDateString() === selectedDate.toDateString(); // local time comparison
-   ```
-   `new Date("2026-03-21")` creates **midnight UTC**. In US timezones (behind UTC), this displays as **March 20** locally. So the comparison fails and ALL bookings are filtered out.
+- `useAdminKidsCareBookings` currently does:
+  ```ts
+  .select(`*, member:members(id, first_name, last_name, email)`)
+  ```
+- The childcare page is available to `childcare_staff`, but the `members` table does **not** currently grant that same role read access.
+- If that joined query fails for a staff role, `Childcare.tsx` does not surface the error and instead shows an empty “No bookings found” state.
 
-### Fix
+### Implementation plan
 
-**File: `src/pages/admin/Childcare.tsx` (lines 47–50)**
+#### 1. Replace the fragile joined query with a safe backend-admin fetch
+Create a backend function that returns kids care bookings plus only the parent fields the childcare screen actually needs:
+- booking data from `kids_care_bookings`
+- parent `first_name`, `last_name`, `email`
+- only for approved staff roles (`super_admin`, `admin`, `manager`, `childcare_staff`, `front_desk`)
 
-Remove the redundant JavaScript date filter. The database query already filters by date — the JS filter is unnecessary and introduces the timezone bug. Replace with:
+This avoids the current role mismatch and prevents the admin page from depending on direct `members` table access.
 
-```js
-const todayBookings = bookings || [];
-```
+#### 2. Update the admin hook to use that backend function
+In `src/hooks/useAdminKidsCareBookings.ts`:
+- replace the current embedded `members(...)` select
+- call the backend function instead
+- preserve all existing filters:
+  - date
+  - date range
+  - status
+  - member
+  - age group
 
-This is safe because `useAdminKidsCareBookings({ bookingDate: selectedDate })` already returns only bookings for the selected date.
+#### 3. Show real errors instead of a fake empty state
+In `src/pages/admin/Childcare.tsx`:
+- read the query error state from `useAdminKidsCareBookings`
+- show an error alert/banner if the admin fetch fails
+- only show “No bookings found” when the query succeeded and returned zero rows
 
-### Also fix: Member-side "upcoming bookings" (same bug likely)
+This prevents staff from missing bookings silently.
 
-**File: Check member-side kids care booking display** for similar `new Date(booking.booking_date).toDateString()` comparisons and fix them to use string comparison (`booking.booking_date === format(date, 'yyyy-MM-dd')`) or remove redundant filters.
+#### 4. Keep the timezone-safe date behavior
+Do not reintroduce any JS `new Date(booking.booking_date)` filtering.
+Keep using the backend date filter only.
 
-### Files to modify
-- `src/pages/admin/Childcare.tsx` — remove redundant timezone-broken date filter (line 47–50)
+### Files to update
+- `src/hooks/useAdminKidsCareBookings.ts`
+- `src/pages/admin/Childcare.tsx`
+- new backend migration/function for secure admin kids-care booking retrieval
 
+### Technical details
+Recommended backend shape:
+- `get_admin_kids_care_bookings(...)`
+- `SECURITY DEFINER`
+- explicit staff role check inside the function
+- returns only the fields needed by childcare admin UI
+
+This is safer than broadly opening `members` table access to childcare staff, because it exposes only the limited parent data needed for bookings instead of full member records.
+
+### Expected result after fix
+- Admin daycare will show the existing Aria bookings correctly
+- Childcare staff/admin/front desk won’t get silent empty states
+- If the fetch ever breaks again, staff will see an error instead of missing a live booking
