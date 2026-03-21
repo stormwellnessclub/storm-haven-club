@@ -1,32 +1,34 @@
 
 
-## Update Approval Letter — Now-Open Language (Without Assuming Payment Status)
+## Fix: Admin Kids Care Bookings Not Visible (Timezone Bug)
 
-### The Problem
-The current template says "We are currently finalizing the last details before our opening" and "Thank you for your patience as we prepare to welcome you." Both are outdated since the club is open. But we can't replace them with "complete your initiation fee, payment method, and waivers" because some approved members may have already completed those steps (e.g., immediate activation applicants who already paid).
+### Root Cause
+The admin Childcare page has a **double date filter** that breaks due to timezone parsing:
 
-### Solution
-Use neutral language that works for everyone — whether they've already paid or still need to set up billing. Don't list specific setup steps in the approval letter. The onboarding checklist in the member portal already handles that dynamically (showing only incomplete tasks).
+1. The database query correctly fetches bookings for the selected date (e.g. `booking_date = '2026-03-21'`)
+2. But then line 47–50 in `Childcare.tsx` re-filters in JavaScript:
+   ```js
+   const bookingDate = new Date(booking.booking_date); // "2026-03-21" → UTC midnight
+   return bookingDate.toDateString() === selectedDate.toDateString(); // local time comparison
+   ```
+   `new Date("2026-03-21")` creates **midnight UTC**. In US timezones (behind UTC), this displays as **March 20** locally. So the comparison fails and ALL bookings are filtered out.
 
-### Changes
+### Fix
 
-**File: `supabase/functions/send-email/index.ts` (lines 195–216)**
+**File: `src/pages/admin/Childcare.tsx` (lines 47–50)**
 
-Replace the two outdated paragraphs with:
-- **Line 199-201**: Change "We are currently finalizing..." → "You will receive your member account activation details shortly. Once your account is set up, your personalized member portal will guide you through any remaining steps."
-- **Lines 209-211**: Change "Thank you for your patience..." → "We look forward to seeing you at the club."
-- **Lines 214-216**: Change "Storm / Founder" → "The Storm Wellness Club Team"
+Remove the redundant JavaScript date filter. The database query already filters by date — the JS filter is unnecessary and introduces the timezone bug. Replace with:
 
-This way:
-- Members who already paid won't be confused by being told to "complete payment"
-- Members who haven't paid will see their specific tasks in the onboarding checklist once they log in
-- The email stays clean and doesn't over-promise or under-inform
+```js
+const todayBookings = bookings || [];
+```
 
-**File: `supabase/functions/generate-approval-letter/index.ts`**
-- Update AI prompt guideline #5 from "they'll receive setup instructions soon" → "they'll receive their account activation details shortly, and their member portal will guide them through any remaining steps"
-- Update sign-off instruction to "The Storm Wellness Club Team"
+This is safe because `useAdminKidsCareBookings({ bookingDate: selectedDate })` already returns only bookings for the selected date.
+
+### Also fix: Member-side "upcoming bookings" (same bug likely)
+
+**File: Check member-side kids care booking display** for similar `new Date(booking.booking_date).toDateString()` comparisons and fix them to use string comparison (`booking.booking_date === format(date, 'yyyy-MM-dd')`) or remove redundant filters.
 
 ### Files to modify
-- `supabase/functions/send-email/index.ts` — update 3 text sections (lines 195-216)
-- `supabase/functions/generate-approval-letter/index.ts` — update AI prompt guidelines
+- `src/pages/admin/Childcare.tsx` — remove redundant timezone-broken date filter (line 47–50)
 
