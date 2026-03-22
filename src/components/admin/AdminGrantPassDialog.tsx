@@ -126,7 +126,8 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   };
 
   const typeLabel: Record<GrantType, string> = {
-    guest_pass: "Guest Pass",
+    guest_pass: "Guest Pass (Voucher)",
+    guest_pass_credit: "Guest Pass Credit (Member Perk)",
     class_pass: "Class Pass",
     red_light: "Red Light Therapy Credits",
     dry_cryo: "Dry Cryotherapy Credits",
