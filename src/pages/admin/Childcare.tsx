@@ -41,26 +41,7 @@ import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDa
 import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
 import { KidsCareAdminChat, useKidsCareUnreadCount } from "@/components/admin/KidsCareAdminChat";
 import { KidsCareBookForParent } from "@/components/admin/KidsCareBookForParent";
-import { format, parse } from "date-fns";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { KidsCareHoursEditor } from "@/components/admin/KidsCareHoursEditor";
-import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDashboard";
-import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
-import { KidsCareAdminChat, useKidsCareUnreadCount } from "@/components/admin/KidsCareAdminChat";
+
 
 export default function Childcare() {
   const [searchQuery, setSearchQuery] = useState('');
