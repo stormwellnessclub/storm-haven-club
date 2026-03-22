@@ -1,68 +1,25 @@
 
 
-## Kids Care Enhancements — Multi-Child Passes, Cancel Policy, Admin Booking Management, and Dashboard Flyer
+## Fix: Guest Pass Credits Showing Zero After Admin Grants Them
 
-### Current State
-- Kids Care pass purchase (`create_kids_care_checkout`) creates a single subscription with `quantity: 1`
-- Cancel button exists on the member bookings page (`KidsCareBookings.tsx` line 244-252) and the hook enforces a **2-hour cancellation window** — cancellations less than 2 hours before the start time are blocked, and the credit is NOT restored (they lose it)
-- Admin Childcare page has check-in/check-out but **no cancel, reschedule, or book-on-behalf** capabilities
-- No Kids Care promotional banner on the member dashboard
+### Root Cause
+The `AdminGrantPassDialog` has a type called `"guest_pass"` that inserts rows into the **`guest_passes`** table (individual day-pass vouchers for guests). But the member portal's "complimentary guest pass credit" feature reads from the **`member_credits`** table with `credit_type = 'guest_pass'`. These are two entirely different systems — so when you grant a "Guest Pass" from the member detail page, the credit never appears in the member's portal.
 
----
+### Fix
 
-### 1. Multi-Child Pass Purchases
+**File: `src/components/admin/AdminGrantPassDialog.tsx`**
 
-**Problem:** Parents with multiple children can only buy one $75/mo pass (16 sessions). They need the ability to purchase additional passes for additional children.
+Add a new grant type `"guest_pass_credit"` (Member Guest Pass Credit) that inserts into `member_credits` with `credit_type: 'guest_pass'` — the same table/type the member portal actually reads from. This follows the exact same pattern as the existing `red_light` and `dry_cryo` credit grants.
 
-**Solution:** Allow purchasing multiple passes. On the KidsCare hub page, if a parent already has an active pass, show a "Buy Another Pass" button. Each purchase creates a separate Stripe subscription and a separate `class_passes` row, so each child effectively has their own session pool.
+Changes:
+- Add `"guest_pass_credit"` to the `GrantType` union and `typeLabel` map (label: "Guest Pass Credit (Member Perk)")
+- Include it in `availableTypes` when a `userId` is present
+- In the mutation, handle it just like `red_light`/`dry_cryo`: insert into `member_credits` with `credit_type: 'guest_pass'`, using the member's `memberId` and `userId`, with the specified quantity and expiration
+- Keep the existing `"guest_pass"` type as-is for granting standalone guest day passes (the voucher system)
 
-**Files:**
-- `src/pages/member/KidsCare.tsx` — When `hasActivePass`, show all active passes (not just `availablePasses[0]`) with their remaining sessions. Add "Buy Additional Pass" button below existing pass info that triggers the same checkout flow.
-
-### 2. Cancellation Policy Clarification
-
-**Current policy (already coded):** The 2-hour window is in `useKidsCareBooking.ts` line 297 — if `hoursUntilBooking < 2`, the cancel is blocked entirely (throws error: "Cancellations must be made at least 2 hours before the booking start time"). The credit IS restored for cancellations made 2+ hours before.
-
-**Answer to your question:** Right now, cancellations within 2 hours are **fully blocked** (not allowed at all). The credit is only lost if you change this to allow late cancellations without refund. The current policy is: cancel 2+ hours before = credit restored; cancel under 2 hours = cannot cancel.
-
-**No code change needed** unless you want to adjust this window. The cancel button is already active on member bookings.
-
-### 3. Admin Booking Management (Cancel, Reschedule, Book for Parent)
-
-**Files:**
-- `src/pages/admin/Childcare.tsx` — Add three capabilities to each booking card:
-  - **Cancel Booking** button (with confirmation dialog) — admin can cancel any booking and restore the credit
-  - **Change Time** — inline time picker to update `start_time`/`end_time`
-- Add a **"Book for Parent"** button at the top of the bookings tab that opens a modal where admin can:
-  - Search/select a member
-  - Select a registered child from that member's `kids_care_children`
-  - Pick date and time
-  - The booking uses the parent's pass
-
-- `src/hooks/useAdminKidsCareBookings.ts` — Add mutations:
-  - `useAdminCancelKidsCareBooking` — updates status to cancelled + restores pass credit
-  - `useAdminUpdateKidsCareBookingTime` — updates start_time/end_time
-  - `useAdminCreateKidsCareBooking` — creates booking on behalf of parent
-
-- New DB function `admin_cancel_kids_care_booking` (SECURITY DEFINER) — cancels booking and restores pass credit atomically, bypassing RLS. Staff role check inside.
-
-- New DB function `admin_create_kids_care_booking` (SECURITY DEFINER) — creates booking on behalf of a parent, deducts pass credit. Staff role check inside.
-
-### 4. Kids Care Flyer on Member Dashboard
-
-**File:** `src/pages/member/Dashboard.tsx`
-
-Add a promotional banner/card after the "Up Next" section:
-- Eye-catching card with Baby icon and accent styling
-- Title: "Kids Care is Now Open!"
-- Subtitle: "Supervised childcare while you work out. Ages 3 months to 10 years."
-- Two buttons: "Get a Pass" (→ `/member/kids-care`) and "View Schedule" (→ `/member/kids-care-bookings`)
-- Dismissible (use localStorage to track if user closed it)
+### Result
+When you select "Guest Pass Credit (Member Perk)" and grant it to a member, it will insert into `member_credits` where the member portal actually looks — so credits will appear immediately.
 
 ### Files to modify
-- `src/pages/member/KidsCare.tsx` — multi-pass display + "Buy Another Pass"
-- `src/pages/admin/Childcare.tsx` — cancel, reschedule, book-for-parent UI
-- `src/hooks/useAdminKidsCareBookings.ts` — admin mutations for cancel/reschedule/create
-- `src/pages/member/Dashboard.tsx` — Kids Care flyer banner
-- 2 new DB migrations for `admin_cancel_kids_care_booking` and `admin_create_kids_care_booking` functions
+- `src/components/admin/AdminGrantPassDialog.tsx` — add new `guest_pass_credit` grant type
 
