@@ -166,6 +166,7 @@ export default function Childcare() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              <KidsCareBookForParent />
               <Button
                 variant="outline"
                 onClick={() => {
