@@ -43,63 +43,51 @@ export function useAdminKidsCareBookings(filters?: AdminKidsCareBookingsFilters)
     queryFn: async (): Promise<AdminKidsCareBooking[]> => {
       if (!user) return [];
 
-      try {
-        let query = (supabase.from as any)("kids_care_bookings")
-          .select(`
-            *,
-            member:members(id, first_name, last_name, email)
-          `)
-          .order("booking_date", { ascending: true })
-          .order("start_time", { ascending: true });
+      const params: Record<string, unknown> = {};
 
-        if (filters?.status) {
-          query = query.eq("status", filters.status);
-        }
+      if (filters?.bookingDate) {
+        params.p_booking_date = format(filters.bookingDate, "yyyy-MM-dd");
+      }
+      if (filters?.dateFrom) {
+        params.p_date_from = format(filters.dateFrom, "yyyy-MM-dd");
+      }
+      if (filters?.dateTo) {
+        params.p_date_to = format(filters.dateTo, "yyyy-MM-dd");
+      }
+      if (filters?.status) {
+        params.p_status = filters.status;
+      }
+      if (filters?.memberId) {
+        params.p_member_id = filters.memberId;
+      }
+      if (filters?.ageGroup) {
+        params.p_age_group = filters.ageGroup;
+      }
 
-        if (filters?.memberId) {
-          query = query.eq("member_id", filters.memberId);
-        }
+      const { data, error } = await supabase.rpc(
+        "get_admin_kids_care_bookings" as any,
+        params
+      );
 
-        if (filters?.bookingDate) {
-          query = query.eq("booking_date", format(filters.bookingDate, "yyyy-MM-dd"));
-        }
-
-        if (filters?.dateFrom) {
-          query = query.gte("booking_date", format(filters.dateFrom, "yyyy-MM-dd"));
-        }
-
-        if (filters?.dateTo) {
-          query = query.lte("booking_date", format(filters.dateTo, "yyyy-MM-dd"));
-        }
-
-        if (filters?.ageGroup) {
-          query = query.eq("age_group", filters.ageGroup);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          if (error.code === "42P01" || error.message?.includes("does not exist")) {
-            console.warn("kids_care_bookings table not found, returning empty array");
-            return [];
-          }
-          throw error;
-        }
-
-        return (data || []).map((booking: any) => ({
-          ...booking,
-          member: booking.member ? (Array.isArray(booking.member) ? booking.member[0] : booking.member) : null,
-          user: null, // User info can be fetched separately if needed
-          checkedInByStaff: null, // Staff info can be fetched separately if needed
-          checkedOutByStaff: null, // Staff info can be fetched separately if needed
-        })) as AdminKidsCareBooking[];
-      } catch (error: any) {
-        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
-          console.warn("kids_care_bookings table not found, returning empty array");
-          return [];
-        }
+      if (error) {
+        console.error("Error fetching admin kids care bookings:", error);
         throw error;
       }
+
+      return (data || []).map((row: any) => ({
+        ...row,
+        member: row.parent_first_name || row.parent_last_name || row.parent_email
+          ? {
+              id: row.member_id || "",
+              first_name: row.parent_first_name || "",
+              last_name: row.parent_last_name || "",
+              email: row.parent_email || "",
+            }
+          : null,
+        user: null,
+        checkedInByStaff: null,
+        checkedOutByStaff: null,
+      })) as AdminKidsCareBooking[];
     },
     enabled: !!user,
   });
@@ -166,4 +154,3 @@ export function useUpdateKidsCareBookingStatus() {
     },
   });
 }
-

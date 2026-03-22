@@ -5754,6 +5754,41 @@ export type Database = {
         }[]
       }
       generate_referral_code: { Args: { _member_id: string }; Returns: string }
+      get_admin_kids_care_bookings: {
+        Args: {
+          p_age_group?: string
+          p_booking_date?: string
+          p_date_from?: string
+          p_date_to?: string
+          p_member_id?: string
+          p_status?: string
+        }
+        Returns: {
+          age_group: string
+          booking_date: string
+          checked_in_at: string
+          checked_in_by: string
+          checked_out_at: string
+          checked_out_by: string
+          child_age: number
+          child_name: string
+          created_at: string
+          end_time: string
+          id: string
+          member_id: string
+          parent_confirmed_at: string
+          parent_confirmed_pickup: boolean
+          parent_email: string
+          parent_first_name: string
+          parent_last_name: string
+          room: string
+          special_instructions: string
+          start_time: string
+          status: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_all_class_type_ratings: {
         Args: never
         Returns: {

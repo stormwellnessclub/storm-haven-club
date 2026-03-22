@@ -34,7 +34,7 @@ export default function Childcare() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState("bookings");
   
-  const { data: bookings, isLoading } = useAdminKidsCareBookings({ 
+  const { data: bookings, isLoading, error: bookingsError } = useAdminKidsCareBookings({ 
     bookingDate: selectedDate 
   });
   const updateStatus = useUpdateKidsCareBookingStatus();
@@ -184,6 +184,18 @@ export default function Childcare() {
             {/* Capacity Dashboard */}
             {!isLoading && todayBookings.length > 0 && (
               <KidsCareCapacityDashboard bookings={todayBookings} selectedDate={selectedDate} />
+            )}
+
+            {bookingsError && (
+              <Card className="border-destructive/50 bg-destructive/5">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  <div>
+                    <p className="font-medium text-destructive">Failed to load bookings</p>
+                    <p className="text-sm text-muted-foreground">{(bookingsError as Error).message}</p>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {isLoading ? (
