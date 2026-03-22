@@ -351,6 +351,14 @@ export default function Childcare() {
                                       <p className="text-muted-foreground mt-0.5">{booking.child_special_instructions}</p>
                                     </div>
                                   )}
+                                  {booking.child_preferred_activities && (
+                                    <div className="p-2 rounded bg-accent/10 border border-accent/20">
+                                      <span className="font-semibold flex items-center gap-1">
+                                        <Baby className="h-3 w-3" /> Preferred Activities
+                                      </span>
+                                      <p className="text-muted-foreground mt-0.5">{booking.child_preferred_activities}</p>
+                                    </div>
+                                  )}
                                   {booking.child_emergency_contact_name && (
                                     <div className="p-2 rounded bg-muted">
                                       <span className="font-semibold flex items-center gap-1">
