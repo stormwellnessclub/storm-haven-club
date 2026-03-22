@@ -16,6 +16,7 @@ export interface KidsCareChild {
   emergency_contact_phone: string | null;
   relationship_to_child: string | null;
   authorized_pickup_persons: string | null;
+  preferred_activities: string | null;
   photo_release: boolean;
   is_active: boolean;
   created_at: string;
@@ -33,6 +34,7 @@ export interface AddChildData {
   emergency_contact_phone?: string;
   relationship_to_child?: string;
   authorized_pickup_persons?: string;
+  preferred_activities?: string;
   photo_release?: boolean;
 }
 
@@ -84,6 +86,7 @@ export function useAddChild() {
           emergency_contact_phone: childData.emergency_contact_phone || null,
           relationship_to_child: childData.relationship_to_child || null,
           authorized_pickup_persons: childData.authorized_pickup_persons || null,
+          preferred_activities: childData.preferred_activities || null,
           photo_release: childData.photo_release || false,
         } as any)
         .select()

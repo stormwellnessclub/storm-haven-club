@@ -33,6 +33,7 @@ const EMPTY_FORM: AddChildData = {
   emergency_contact_phone: "",
   relationship_to_child: "",
   authorized_pickup_persons: "",
+  preferred_activities: "",
   photo_release: false,
 };
 
@@ -78,6 +79,7 @@ export default function KidsCareServiceForm() {
       emergency_contact_phone: child.emergency_contact_phone || "",
       relationship_to_child: child.relationship_to_child || "",
       authorized_pickup_persons: child.authorized_pickup_persons || "",
+      preferred_activities: child.preferred_activities || "",
       photo_release: child.photo_release,
     });
     setShowForm(true);
@@ -150,8 +152,14 @@ export default function KidsCareServiceForm() {
                           Emergency: {child.emergency_contact_name} — {child.emergency_contact_phone}
                         </p>
                       )}
-                      {child.allergies && (
+                      {child.allergies && child.allergies !== "None" && (
                         <p className="text-sm text-destructive">Allergies: {child.allergies}</p>
+                      )}
+                      {child.medical_conditions && child.medical_conditions !== "None" && (
+                        <p className="text-sm text-warning">Medical: {child.medical_conditions}</p>
+                      )}
+                      {child.preferred_activities && child.preferred_activities !== "None" && (
+                        <p className="text-sm text-muted-foreground">Activities: {child.preferred_activities}</p>
                       )}
                     </div>
                     <div className="flex gap-2">
@@ -310,6 +318,17 @@ export default function KidsCareServiceForm() {
                       value={formData.special_instructions || ""}
                       onChange={(e) => handleInputChange("special_instructions", e.target.value)}
                       placeholder="Any special instructions for staff"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="preferredActivities">Preferred Activities</Label>
+                    <Textarea
+                      id="preferredActivities"
+                      value={formData.preferred_activities || ""}
+                      onChange={(e) => handleInputChange("preferred_activities", e.target.value)}
+                      placeholder="e.g., Coloring, building blocks, outdoor play, reading"
                       rows={2}
                     />
                   </div>

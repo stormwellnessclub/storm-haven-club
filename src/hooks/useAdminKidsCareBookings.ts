@@ -33,6 +33,7 @@ export interface AdminKidsCareBooking extends KidsCareBooking {
   child_authorized_pickup_persons?: string | null;
   child_special_instructions?: string | null;
   child_photo_release?: boolean | null;
+  child_preferred_activities?: string | null;
 }
 
 interface AdminKidsCareBookingsFilters {
@@ -105,6 +106,7 @@ export function useAdminKidsCareBookings(filters?: AdminKidsCareBookingsFilters)
         child_authorized_pickup_persons: row.child_authorized_pickup_persons || null,
         child_special_instructions: row.child_special_instructions || null,
         child_photo_release: row.child_photo_release ?? null,
+        child_preferred_activities: row.child_preferred_activities || null,
       })) as AdminKidsCareBooking[];
     },
     enabled: !!user,

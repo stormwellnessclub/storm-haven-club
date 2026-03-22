@@ -2366,6 +2366,7 @@ export type Database = {
           medical_conditions: string | null
           medications: string | null
           photo_release: boolean
+          preferred_activities: string | null
           relationship_to_child: string | null
           special_instructions: string | null
           updated_at: string
@@ -2384,6 +2385,7 @@ export type Database = {
           medical_conditions?: string | null
           medications?: string | null
           photo_release?: boolean
+          preferred_activities?: string | null
           relationship_to_child?: string | null
           special_instructions?: string | null
           updated_at?: string
@@ -2402,6 +2404,7 @@ export type Database = {
           medical_conditions?: string | null
           medications?: string | null
           photo_release?: boolean
+          preferred_activities?: string | null
           relationship_to_child?: string | null
           special_instructions?: string | null
           updated_at?: string
@@ -5797,6 +5800,7 @@ export type Database = {
           child_medications: string
           child_name: string
           child_photo_release: boolean
+          child_preferred_activities: string
           child_relationship_to_child: string
           child_special_instructions: string
           created_at: string

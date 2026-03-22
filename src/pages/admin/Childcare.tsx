@@ -305,7 +305,7 @@ export default function Childcare() {
                           )}
 
                           {/* Child Profile Info - Collapsible */}
-                          {(booking.child_allergies || booking.child_medical_conditions || booking.child_medications || booking.child_emergency_contact_name || booking.child_authorized_pickup_persons || booking.child_special_instructions) && (
+                          {(booking.child_allergies || booking.child_medical_conditions || booking.child_medications || booking.child_emergency_contact_name || booking.child_authorized_pickup_persons || booking.child_special_instructions || booking.child_preferred_activities) && (
                             <Collapsible>
                               <CollapsibleTrigger asChild>
                                 <Button variant="ghost" size="sm" className="w-full justify-between text-xs h-7 px-2">
@@ -349,6 +349,14 @@ export default function Childcare() {
                                     <div className="p-2 rounded bg-muted">
                                       <span className="font-semibold">Special Instructions</span>
                                       <p className="text-muted-foreground mt-0.5">{booking.child_special_instructions}</p>
+                                    </div>
+                                  )}
+                                  {booking.child_preferred_activities && (
+                                    <div className="p-2 rounded bg-accent/10 border border-accent/20">
+                                      <span className="font-semibold flex items-center gap-1">
+                                        <Baby className="h-3 w-3" /> Preferred Activities
+                                      </span>
+                                      <p className="text-muted-foreground mt-0.5">{booking.child_preferred_activities}</p>
                                     </div>
                                   )}
                                   {booking.child_emergency_contact_name && (

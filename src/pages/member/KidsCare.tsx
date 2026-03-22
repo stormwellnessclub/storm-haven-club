@@ -3,7 +3,7 @@ import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Baby, Loader2, X, CheckCircle2, FileText, CalendarPlus, ClipboardList } from "lucide-react";
+import { Baby, Loader2, X, CheckCircle2, FileText, CalendarPlus, ClipboardList, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -263,13 +263,15 @@ export default function MemberKidsCare() {
                   <CardContent className="p-4 flex items-center gap-3">
                     <ClipboardList className="h-5 w-5 text-primary shrink-0" />
                     <div>
-                      <p className="font-medium text-sm">Register Your Children</p>
+                      <p className="font-medium text-sm">
+                        {serviceFormCompleted ? "Manage Child Profiles" : "Register Your Children"}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {serviceFormCompleted ? "Update child info" : "Required before booking"}
+                        {serviceFormCompleted ? "Edit info, add children, update medical details" : "Required before booking"}
                       </p>
                     </div>
                     {serviceFormCompleted && (
-                      <CheckCircle2 className="h-4 w-4 text-primary ml-auto shrink-0" />
+                      <Pencil className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
                     )}
                   </CardContent>
                 </Card>

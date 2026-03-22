@@ -1,0 +1,1 @@
+ALTER TABLE public.kids_care_children ADD COLUMN IF NOT EXISTS preferred_activities text;
