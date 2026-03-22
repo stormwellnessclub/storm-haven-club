@@ -186,6 +186,18 @@ export default function Childcare() {
               <KidsCareCapacityDashboard bookings={todayBookings} selectedDate={selectedDate} />
             )}
 
+            {bookingsError && (
+              <Card className="border-destructive/50 bg-destructive/5">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  <div>
+                    <p className="font-medium text-destructive">Failed to load bookings</p>
+                    <p className="text-sm text-muted-foreground">{(bookingsError as Error).message}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
