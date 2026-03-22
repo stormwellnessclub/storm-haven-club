@@ -86,6 +86,7 @@ export function useAddChild() {
           emergency_contact_phone: childData.emergency_contact_phone || null,
           relationship_to_child: childData.relationship_to_child || null,
           authorized_pickup_persons: childData.authorized_pickup_persons || null,
+          preferred_activities: childData.preferred_activities || null,
           photo_release: childData.photo_release || false,
         } as any)
         .select()
