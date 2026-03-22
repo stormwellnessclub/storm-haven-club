@@ -3,7 +3,7 @@ import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Baby, Loader2, X, CheckCircle2, FileText, CalendarPlus, ClipboardList } from "lucide-react";
+import { Baby, Loader2, X, CheckCircle2, FileText, CalendarPlus, ClipboardList, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
