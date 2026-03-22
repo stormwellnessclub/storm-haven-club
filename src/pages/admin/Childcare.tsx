@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle, ChevronDown, Shield, Heart, Pill, Camera, CameraOff } from "lucide-react";
 import { useState } from "react";
 import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus } from "@/hooks/useAdminKidsCareBookings";
 import { useKidsCareInterestList, useUpdateKidsCareInterestStatus } from "@/hooks/useKidsCareInterest";
@@ -259,8 +260,87 @@ export default function Childcare() {
                           </div>
                           {booking.special_instructions && (
                             <div className="text-xs text-muted-foreground italic p-2 bg-muted rounded">
-                              {booking.special_instructions}
+                              <span className="font-medium not-italic">Booking Notes:</span> {booking.special_instructions}
                             </div>
+                          )}
+
+                          {/* Child Profile Info - Collapsible */}
+                          {(booking.child_allergies || booking.child_medical_conditions || booking.child_medications || booking.child_emergency_contact_name || booking.child_authorized_pickup_persons || booking.child_special_instructions) && (
+                            <Collapsible>
+                              <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm" className="w-full justify-between text-xs h-7 px-2">
+                                  <span className="flex items-center gap-1">
+                                    <Shield className="h-3 w-3" />
+                                    Child Profile Info
+                                    {(booking.child_allergies || booking.child_medical_conditions) && (
+                                      <Badge variant="destructive" className="text-[10px] px-1 py-0 h-4">Important</Badge>
+                                    )}
+                                  </span>
+                                  <ChevronDown className="h-3 w-3 transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                                </Button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="space-y-2 pt-2 text-xs">
+                                  {booking.child_allergies && (
+                                    <div className="p-2 rounded bg-destructive/10 border border-destructive/20">
+                                      <span className="font-semibold text-destructive flex items-center gap-1">
+                                        <Heart className="h-3 w-3" /> Allergies
+                                      </span>
+                                      <p className="text-foreground mt-0.5">{booking.child_allergies}</p>
+                                    </div>
+                                  )}
+                                  {booking.child_medical_conditions && (
+                                    <div className="p-2 rounded bg-warning/10 border border-warning/20">
+                                      <span className="font-semibold text-warning flex items-center gap-1">
+                                        <AlertTriangle className="h-3 w-3" /> Medical Conditions
+                                      </span>
+                                      <p className="text-foreground mt-0.5">{booking.child_medical_conditions}</p>
+                                    </div>
+                                  )}
+                                  {booking.child_medications && (
+                                    <div className="p-2 rounded bg-muted">
+                                      <span className="font-semibold flex items-center gap-1">
+                                        <Pill className="h-3 w-3" /> Medications
+                                      </span>
+                                      <p className="text-muted-foreground mt-0.5">{booking.child_medications}</p>
+                                    </div>
+                                  )}
+                                  {booking.child_special_instructions && (
+                                    <div className="p-2 rounded bg-muted">
+                                      <span className="font-semibold">Special Instructions</span>
+                                      <p className="text-muted-foreground mt-0.5">{booking.child_special_instructions}</p>
+                                    </div>
+                                  )}
+                                  {booking.child_emergency_contact_name && (
+                                    <div className="p-2 rounded bg-muted">
+                                      <span className="font-semibold flex items-center gap-1">
+                                        <Phone className="h-3 w-3" /> Emergency Contact
+                                      </span>
+                                      <p className="text-muted-foreground mt-0.5">
+                                        {booking.child_emergency_contact_name}
+                                        {booking.child_relationship_to_child && ` (${booking.child_relationship_to_child})`}
+                                        {booking.child_emergency_contact_phone && ` — ${booking.child_emergency_contact_phone}`}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {booking.child_authorized_pickup_persons && (
+                                    <div className="p-2 rounded bg-muted">
+                                      <span className="font-semibold flex items-center gap-1">
+                                        <UserCheck className="h-3 w-3" /> Authorized Pickup
+                                      </span>
+                                      <p className="text-muted-foreground mt-0.5">{booking.child_authorized_pickup_persons}</p>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-1 text-muted-foreground">
+                                    {booking.child_photo_release ? (
+                                      <><Camera className="h-3 w-3" /> Photo release: Yes</>
+                                    ) : (
+                                      <><CameraOff className="h-3 w-3" /> Photo release: No</>
+                                    )}
+                                  </div>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
                           )}
                           {booking.checked_in_at && (
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">

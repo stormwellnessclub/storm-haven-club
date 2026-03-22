@@ -24,6 +24,15 @@ export interface AdminKidsCareBooking extends KidsCareBooking {
     id: string;
     full_name: string;
   } | null;
+  child_allergies?: string | null;
+  child_medical_conditions?: string | null;
+  child_medications?: string | null;
+  child_emergency_contact_name?: string | null;
+  child_emergency_contact_phone?: string | null;
+  child_relationship_to_child?: string | null;
+  child_authorized_pickup_persons?: string | null;
+  child_special_instructions?: string | null;
+  child_photo_release?: boolean | null;
 }
 
 interface AdminKidsCareBookingsFilters {
@@ -87,6 +96,15 @@ export function useAdminKidsCareBookings(filters?: AdminKidsCareBookingsFilters)
         user: null,
         checkedInByStaff: null,
         checkedOutByStaff: null,
+        child_allergies: row.child_allergies || null,
+        child_medical_conditions: row.child_medical_conditions || null,
+        child_medications: row.child_medications || null,
+        child_emergency_contact_name: row.child_emergency_contact_name || null,
+        child_emergency_contact_phone: row.child_emergency_contact_phone || null,
+        child_relationship_to_child: row.child_relationship_to_child || null,
+        child_authorized_pickup_persons: row.child_authorized_pickup_persons || null,
+        child_special_instructions: row.child_special_instructions || null,
+        child_photo_release: row.child_photo_release ?? null,
       })) as AdminKidsCareBooking[];
     },
     enabled: !!user,

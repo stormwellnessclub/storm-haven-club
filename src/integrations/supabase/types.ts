@@ -5771,7 +5771,16 @@ export type Database = {
           checked_out_at: string
           checked_out_by: string
           child_age: number
+          child_allergies: string
+          child_authorized_pickup_persons: string
+          child_emergency_contact_name: string
+          child_emergency_contact_phone: string
+          child_medical_conditions: string
+          child_medications: string
           child_name: string
+          child_photo_release: boolean
+          child_relationship_to_child: string
+          child_special_instructions: string
           created_at: string
           end_time: string
           id: string
