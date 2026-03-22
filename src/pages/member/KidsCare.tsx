@@ -263,13 +263,15 @@ export default function MemberKidsCare() {
                   <CardContent className="p-4 flex items-center gap-3">
                     <ClipboardList className="h-5 w-5 text-primary shrink-0" />
                     <div>
-                      <p className="font-medium text-sm">Register Your Children</p>
+                      <p className="font-medium text-sm">
+                        {serviceFormCompleted ? "Manage Child Profiles" : "Register Your Children"}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {serviceFormCompleted ? "Update child info" : "Required before booking"}
+                        {serviceFormCompleted ? "Edit info, add children, update medical details" : "Required before booking"}
                       </p>
                     </div>
                     {serviceFormCompleted && (
-                      <CheckCircle2 className="h-4 w-4 text-primary ml-auto shrink-0" />
+                      <Pencil className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
                     )}
                   </CardContent>
                 </Card>
