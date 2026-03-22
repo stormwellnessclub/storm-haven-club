@@ -34,7 +34,7 @@ export default function Childcare() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState("bookings");
   
-  const { data: bookings, isLoading } = useAdminKidsCareBookings({ 
+  const { data: bookings, isLoading, error: bookingsError } = useAdminKidsCareBookings({ 
     bookingDate: selectedDate 
   });
   const updateStatus = useUpdateKidsCareBookingStatus();
