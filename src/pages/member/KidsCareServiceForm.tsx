@@ -33,6 +33,7 @@ const EMPTY_FORM: AddChildData = {
   emergency_contact_phone: "",
   relationship_to_child: "",
   authorized_pickup_persons: "",
+  preferred_activities: "",
   photo_release: false,
 };
 
