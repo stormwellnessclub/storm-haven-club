@@ -78,7 +78,7 @@ export function KidsCareBookForParent() {
         .from("class_passes")
         .select("id, classes_remaining, classes_total, expires_at")
         .eq("user_id", member.user_id)
-        .eq("category", "kids_care")
+        .eq("pass_type", "kids_care")
         .eq("status", "active")
         .gt("classes_remaining", 0),
     ]);
