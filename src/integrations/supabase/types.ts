@@ -5670,6 +5670,24 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_cancel_kids_care_booking: {
+        Args: { p_booking_id: string; p_cancellation_reason?: string }
+        Returns: Json
+      }
+      admin_create_kids_care_booking: {
+        Args: {
+          p_booking_date: string
+          p_child_age: number
+          p_child_name: string
+          p_end_time: string
+          p_member_id: string
+          p_pass_id: string
+          p_special_instructions?: string
+          p_start_time: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       admin_link_member_to_user: {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
