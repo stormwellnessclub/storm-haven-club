@@ -305,7 +305,7 @@ export default function Childcare() {
                           )}
 
                           {/* Child Profile Info - Collapsible */}
-                          {(booking.child_allergies || booking.child_medical_conditions || booking.child_medications || booking.child_emergency_contact_name || booking.child_authorized_pickup_persons || booking.child_special_instructions) && (
+                          {(booking.child_allergies || booking.child_medical_conditions || booking.child_medications || booking.child_emergency_contact_name || booking.child_authorized_pickup_persons || booking.child_special_instructions || booking.child_preferred_activities) && (
                             <Collapsible>
                               <CollapsibleTrigger asChild>
                                 <Button variant="ghost" size="sm" className="w-full justify-between text-xs h-7 px-2">
