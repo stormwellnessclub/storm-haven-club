@@ -1,71 +1,50 @@
 
-## Fix admin daycare bookings not showing
 
-### What I confirmed
-- The booking is in the backend already, so this is not a failed booking issue.
-- I confirmed at least these confirmed bookings exist:
-  - **Today:** Aria, 10:00 AM–12:00 PM
-  - **Tomorrow:** Aria, 11:00 AM–1:00 PM
-- So yes: at least one booking happened and was not visible in admin.
+## Show Child Profile Details in Admin Childcare Bookings
 
-### Most likely root cause
-The earlier timezone filter has already been removed in `src/pages/admin/Childcare.tsx`, so the remaining likely issue is the **admin fetch itself**:
+### Problem
+When parents register their children for Kids Care, they fill out a detailed child profile in `kids_care_children` (allergies, medical conditions, medications, emergency contacts, authorized pickup persons, special instructions). But the admin booking cards don't show any of this — staff only see the child's name, age, and booking time. There's also no `child_id` foreign key linking bookings to child profiles, so the connection has to be made by matching `child_name` + `user_id`.
 
-- `useAdminKidsCareBookings` currently does:
-  ```ts
-  .select(`*, member:members(id, first_name, last_name, email)`)
-  ```
-- The childcare page is available to `childcare_staff`, but the `members` table does **not** currently grant that same role read access.
-- If that joined query fails for a staff role, `Childcare.tsx` does not surface the error and instead shows an empty “No bookings found” state.
+### Solution
 
-### Implementation plan
+#### 1. Update the backend function to include child profile data
+Modify `get_admin_kids_care_bookings` to LEFT JOIN on `kids_care_children` matching by `user_id` and `full_name = child_name`. Return the critical fields:
+- `allergies`
+- `medical_conditions`
+- `medications`
+- `emergency_contact_name`
+- `emergency_contact_phone`
+- `relationship_to_child`
+- `authorized_pickup_persons`
+- `special_instructions` (from child profile, not just booking notes)
+- `photo_release`
 
-#### 1. Replace the fragile joined query with a safe backend-admin fetch
-Create a backend function that returns kids care bookings plus only the parent fields the childcare screen actually needs:
-- booking data from `kids_care_bookings`
-- parent `first_name`, `last_name`, `email`
-- only for approved staff roles (`super_admin`, `admin`, `manager`, `childcare_staff`, `front_desk`)
+#### 2. Update the admin booking cards to display this info
+In `src/pages/admin/Childcare.tsx`, expand each booking card to show:
+- An "Important Info" section with allergies/medical/medications (highlighted if present)
+- Emergency contact details
+- Authorized pickup persons
+- Photo release status
 
-This avoids the current role mismatch and prevents the admin page from depending on direct `members` table access.
+This info will be collapsible/expandable so cards aren't cluttered but staff can quickly access it.
 
-#### 2. Update the admin hook to use that backend function
-In `src/hooks/useAdminKidsCareBookings.ts`:
-- replace the current embedded `members(...)` select
-- call the backend function instead
-- preserve all existing filters:
-  - date
-  - date range
-  - status
-  - member
-  - age group
+#### 3. Update the hook types
+Add the new child profile fields to the `AdminKidsCareBooking` interface in `src/hooks/useAdminKidsCareBookings.ts`.
 
-#### 3. Show real errors instead of a fake empty state
-In `src/pages/admin/Childcare.tsx`:
-- read the query error state from `useAdminKidsCareBookings`
-- show an error alert/banner if the admin fetch fails
-- only show “No bookings found” when the query succeeded and returned zero rows
+### Files to modify
+- Database migration — update `get_admin_kids_care_bookings` to join `kids_care_children`
+- `src/hooks/useAdminKidsCareBookings.ts` — add child profile fields to types and mapping
+- `src/pages/admin/Childcare.tsx` — render child profile info on booking cards
 
-This prevents staff from missing bookings silently.
+### Technical Details
 
-#### 4. Keep the timezone-safe date behavior
-Do not reintroduce any JS `new Date(booking.booking_date)` filtering.
-Keep using the backend date filter only.
+**SQL join strategy** (no `child_id` FK exists):
+```sql
+LEFT JOIN kids_care_children kc 
+  ON kc.user_id = b.user_id 
+  AND kc.full_name = b.child_name 
+  AND kc.is_active = true
+```
 
-### Files to update
-- `src/hooks/useAdminKidsCareBookings.ts`
-- `src/pages/admin/Childcare.tsx`
-- new backend migration/function for secure admin kids-care booking retrieval
+**Card layout**: Each booking card will have an expandable section below the time slot showing allergies (red highlight if present), medical conditions, medications, emergency contact with phone, and authorized pickup list.
 
-### Technical details
-Recommended backend shape:
-- `get_admin_kids_care_bookings(...)`
-- `SECURITY DEFINER`
-- explicit staff role check inside the function
-- returns only the fields needed by childcare admin UI
-
-This is safer than broadly opening `members` table access to childcare staff, because it exposes only the limited parent data needed for bookings instead of full member records.
-
-### Expected result after fix
-- Admin daycare will show the existing Aria bookings correctly
-- Childcare staff/admin/front desk won’t get silent empty states
-- If the fetch ever breaks again, staff will see an error instead of missing a live booking
