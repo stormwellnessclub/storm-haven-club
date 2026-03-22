@@ -1,50 +1,68 @@
 
 
-## Show Child Profile Details in Admin Childcare Bookings
+## Kids Care Enhancements — Multi-Child Passes, Cancel Policy, Admin Booking Management, and Dashboard Flyer
 
-### Problem
-When parents register their children for Kids Care, they fill out a detailed child profile in `kids_care_children` (allergies, medical conditions, medications, emergency contacts, authorized pickup persons, special instructions). But the admin booking cards don't show any of this — staff only see the child's name, age, and booking time. There's also no `child_id` foreign key linking bookings to child profiles, so the connection has to be made by matching `child_name` + `user_id`.
+### Current State
+- Kids Care pass purchase (`create_kids_care_checkout`) creates a single subscription with `quantity: 1`
+- Cancel button exists on the member bookings page (`KidsCareBookings.tsx` line 244-252) and the hook enforces a **2-hour cancellation window** — cancellations less than 2 hours before the start time are blocked, and the credit is NOT restored (they lose it)
+- Admin Childcare page has check-in/check-out but **no cancel, reschedule, or book-on-behalf** capabilities
+- No Kids Care promotional banner on the member dashboard
 
-### Solution
+---
 
-#### 1. Update the backend function to include child profile data
-Modify `get_admin_kids_care_bookings` to LEFT JOIN on `kids_care_children` matching by `user_id` and `full_name = child_name`. Return the critical fields:
-- `allergies`
-- `medical_conditions`
-- `medications`
-- `emergency_contact_name`
-- `emergency_contact_phone`
-- `relationship_to_child`
-- `authorized_pickup_persons`
-- `special_instructions` (from child profile, not just booking notes)
-- `photo_release`
+### 1. Multi-Child Pass Purchases
 
-#### 2. Update the admin booking cards to display this info
-In `src/pages/admin/Childcare.tsx`, expand each booking card to show:
-- An "Important Info" section with allergies/medical/medications (highlighted if present)
-- Emergency contact details
-- Authorized pickup persons
-- Photo release status
+**Problem:** Parents with multiple children can only buy one $75/mo pass (16 sessions). They need the ability to purchase additional passes for additional children.
 
-This info will be collapsible/expandable so cards aren't cluttered but staff can quickly access it.
+**Solution:** Allow purchasing multiple passes. On the KidsCare hub page, if a parent already has an active pass, show a "Buy Another Pass" button. Each purchase creates a separate Stripe subscription and a separate `class_passes` row, so each child effectively has their own session pool.
 
-#### 3. Update the hook types
-Add the new child profile fields to the `AdminKidsCareBooking` interface in `src/hooks/useAdminKidsCareBookings.ts`.
+**Files:**
+- `src/pages/member/KidsCare.tsx` — When `hasActivePass`, show all active passes (not just `availablePasses[0]`) with their remaining sessions. Add "Buy Additional Pass" button below existing pass info that triggers the same checkout flow.
+
+### 2. Cancellation Policy Clarification
+
+**Current policy (already coded):** The 2-hour window is in `useKidsCareBooking.ts` line 297 — if `hoursUntilBooking < 2`, the cancel is blocked entirely (throws error: "Cancellations must be made at least 2 hours before the booking start time"). The credit IS restored for cancellations made 2+ hours before.
+
+**Answer to your question:** Right now, cancellations within 2 hours are **fully blocked** (not allowed at all). The credit is only lost if you change this to allow late cancellations without refund. The current policy is: cancel 2+ hours before = credit restored; cancel under 2 hours = cannot cancel.
+
+**No code change needed** unless you want to adjust this window. The cancel button is already active on member bookings.
+
+### 3. Admin Booking Management (Cancel, Reschedule, Book for Parent)
+
+**Files:**
+- `src/pages/admin/Childcare.tsx` — Add three capabilities to each booking card:
+  - **Cancel Booking** button (with confirmation dialog) — admin can cancel any booking and restore the credit
+  - **Change Time** — inline time picker to update `start_time`/`end_time`
+- Add a **"Book for Parent"** button at the top of the bookings tab that opens a modal where admin can:
+  - Search/select a member
+  - Select a registered child from that member's `kids_care_children`
+  - Pick date and time
+  - The booking uses the parent's pass
+
+- `src/hooks/useAdminKidsCareBookings.ts` — Add mutations:
+  - `useAdminCancelKidsCareBooking` — updates status to cancelled + restores pass credit
+  - `useAdminUpdateKidsCareBookingTime` — updates start_time/end_time
+  - `useAdminCreateKidsCareBooking` — creates booking on behalf of parent
+
+- New DB function `admin_cancel_kids_care_booking` (SECURITY DEFINER) — cancels booking and restores pass credit atomically, bypassing RLS. Staff role check inside.
+
+- New DB function `admin_create_kids_care_booking` (SECURITY DEFINER) — creates booking on behalf of a parent, deducts pass credit. Staff role check inside.
+
+### 4. Kids Care Flyer on Member Dashboard
+
+**File:** `src/pages/member/Dashboard.tsx`
+
+Add a promotional banner/card after the "Up Next" section:
+- Eye-catching card with Baby icon and accent styling
+- Title: "Kids Care is Now Open!"
+- Subtitle: "Supervised childcare while you work out. Ages 3 months to 10 years."
+- Two buttons: "Get a Pass" (→ `/member/kids-care`) and "View Schedule" (→ `/member/kids-care-bookings`)
+- Dismissible (use localStorage to track if user closed it)
 
 ### Files to modify
-- Database migration — update `get_admin_kids_care_bookings` to join `kids_care_children`
-- `src/hooks/useAdminKidsCareBookings.ts` — add child profile fields to types and mapping
-- `src/pages/admin/Childcare.tsx` — render child profile info on booking cards
-
-### Technical Details
-
-**SQL join strategy** (no `child_id` FK exists):
-```sql
-LEFT JOIN kids_care_children kc 
-  ON kc.user_id = b.user_id 
-  AND kc.full_name = b.child_name 
-  AND kc.is_active = true
-```
-
-**Card layout**: Each booking card will have an expandable section below the time slot showing allergies (red highlight if present), medical conditions, medications, emergency contact with phone, and authorized pickup list.
+- `src/pages/member/KidsCare.tsx` — multi-pass display + "Buy Another Pass"
+- `src/pages/admin/Childcare.tsx` — cancel, reschedule, book-for-parent UI
+- `src/hooks/useAdminKidsCareBookings.ts` — admin mutations for cancel/reschedule/create
+- `src/pages/member/Dashboard.tsx` — Kids Care flyer banner
+- 2 new DB migrations for `admin_cancel_kids_care_booking` and `admin_create_kids_care_booking` functions
 
