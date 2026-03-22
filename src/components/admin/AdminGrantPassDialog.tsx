@@ -210,7 +210,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
           )}
 
           {/* Wellness credit quantity */}
-          {(grantType === "red_light" || grantType === "dry_cryo") && (
+          {(grantType === "red_light" || grantType === "dry_cryo" || grantType === "guest_pass_credit") && (
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Credits</Label>
               <Input type="number" min={1} max={50} value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 1)} />
