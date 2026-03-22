@@ -34,6 +34,7 @@ export interface AddChildData {
   emergency_contact_phone?: string;
   relationship_to_child?: string;
   authorized_pickup_persons?: string;
+  preferred_activities?: string;
   photo_release?: boolean;
 }
 
