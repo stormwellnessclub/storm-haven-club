@@ -172,3 +172,98 @@ export function useUpdateKidsCareBookingStatus() {
     },
   });
 }
+
+export function useAdminCancelKidsCareBooking() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ bookingId, reason }: { bookingId: string; reason?: string }) => {
+      if (!user) throw new Error("You must be signed in");
+      const { data, error } = await supabase.rpc("admin_cancel_kids_care_booking" as any, {
+        p_booking_id: bookingId,
+        p_cancellation_reason: reason || "Cancelled by admin",
+      });
+      if (error) throw error;
+      if (data && !(data as any).success) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-kids-care-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-bookings"] });
+      toast.success("Booking cancelled and credit restored");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to cancel booking");
+    },
+  });
+}
+
+export function useAdminUpdateKidsCareBookingTime() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ bookingId, startTime, endTime }: { bookingId: string; startTime: string; endTime: string }) => {
+      if (!user) throw new Error("You must be signed in");
+      const { data, error } = await (supabase.from as any)("kids_care_bookings")
+        .update({ start_time: startTime, end_time: endTime, updated_at: new Date().toISOString() })
+        .eq("id", bookingId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-kids-care-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-bookings"] });
+      toast.success("Booking time updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update booking time");
+    },
+  });
+}
+
+export function useAdminCreateKidsCareBooking() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (params: {
+      userId: string;
+      memberId: string;
+      childName: string;
+      childAge: number;
+      bookingDate: string;
+      startTime: string;
+      endTime: string;
+      passId: string;
+      specialInstructions?: string;
+    }) => {
+      if (!user) throw new Error("You must be signed in");
+      const { data, error } = await supabase.rpc("admin_create_kids_care_booking" as any, {
+        p_user_id: params.userId,
+        p_member_id: params.memberId,
+        p_child_name: params.childName,
+        p_child_age: params.childAge,
+        p_booking_date: params.bookingDate,
+        p_start_time: params.startTime,
+        p_end_time: params.endTime,
+        p_pass_id: params.passId,
+        p_special_instructions: params.specialInstructions || null,
+      });
+      if (error) throw error;
+      if (data && !(data as any).success) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-kids-care-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-bookings"] });
+      toast.success("Booking created successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create booking");
+    },
+  });
+}

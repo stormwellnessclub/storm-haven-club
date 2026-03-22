@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle, ChevronDown, Shield, Heart, Pill, Camera, CameraOff } from "lucide-react";
+import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle, ChevronDown, Shield, Heart, Pill, Camera, CameraOff, XCircle, Pencil } from "lucide-react";
 import { useState } from "react";
-import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus } from "@/hooks/useAdminKidsCareBookings";
+import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus, useAdminCancelKidsCareBooking, useAdminUpdateKidsCareBookingTime } from "@/hooks/useAdminKidsCareBookings";
 import { useKidsCareInterestList, useUpdateKidsCareInterestStatus } from "@/hooks/useKidsCareInterest";
 import { format, parse } from "date-fns";
 import {
@@ -25,21 +25,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { KidsCareHoursEditor } from "@/components/admin/KidsCareHoursEditor";
 import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDashboard";
 import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
 import { KidsCareAdminChat, useKidsCareUnreadCount } from "@/components/admin/KidsCareAdminChat";
+import { KidsCareBookForParent } from "@/components/admin/KidsCareBookForParent";
+
 
 export default function Childcare() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState("bookings");
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEndTime, setEditEndTime] = useState("");
   
   const { data: bookings, isLoading, error: bookingsError } = useAdminKidsCareBookings({ 
     bookingDate: selectedDate 
   });
   const updateStatus = useUpdateKidsCareBookingStatus();
-
+  const cancelBooking = useAdminCancelKidsCareBooking();
+  const updateTime = useAdminUpdateKidsCareBookingTime();
   // Interest waitlist
   const { data: interestList, isLoading: isLoadingInterest } = useKidsCareInterestList();
   const updateInterestStatus = useUpdateKidsCareInterestStatus();
@@ -149,6 +166,7 @@ export default function Childcare() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              <KidsCareBookForParent />
               <Button
                 variant="outline"
                 onClick={() => {
@@ -254,10 +272,32 @@ export default function Childcare() {
                                 : booking.user?.email || 'Unknown'}
                             </span>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            <Clock className="h-3 w-3 inline mr-1" />
-                            {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                          </div>
+                          {editingTimeId === booking.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} className="h-7 w-24 text-xs" />
+                              <span className="text-xs">–</span>
+                              <Input type="time" value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} className="h-7 w-24 text-xs" />
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => {
+                                updateTime.mutate({ bookingId: booking.id, startTime: editStartTime + ":00", endTime: editEndTime + ":00" });
+                                setEditingTimeId(null);
+                              }}>Save</Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingTimeId(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3 inline mr-1" />
+                              {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
+                              {booking.status === 'confirmed' && (
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 ml-1" onClick={() => {
+                                  setEditingTimeId(booking.id);
+                                  setEditStartTime(booking.start_time.substring(0, 5));
+                                  setEditEndTime(booking.end_time.substring(0, 5));
+                                }}>
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
                           {booking.special_instructions && (
                             <div className="text-xs text-muted-foreground italic p-2 bg-muted rounded">
                               <span className="font-medium not-italic">Booking Notes:</span> {booking.special_instructions}
@@ -370,7 +410,7 @@ export default function Childcare() {
                               )}
                             </div>
                           )}
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             {canCheckIn && (
                               <Button
                                 className="flex-1"
@@ -391,6 +431,33 @@ export default function Childcare() {
                                 <UserX className="h-4 w-4 mr-2" />
                                 Check Out
                               </Button>
+                            )}
+                            {booking.status !== 'cancelled' && booking.status !== 'checked_out' && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Cancel
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will cancel {booking.child_name}'s booking and restore the session credit to the parent's pass.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => cancelBooking.mutate({ bookingId: booking.id })}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Cancel Booking
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             )}
                           </div>
                         </CardContent>
