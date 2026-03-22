@@ -16,6 +16,7 @@ export interface KidsCareChild {
   emergency_contact_phone: string | null;
   relationship_to_child: string | null;
   authorized_pickup_persons: string | null;
+  preferred_activities: string | null;
   photo_release: boolean;
   is_active: boolean;
   created_at: string;
