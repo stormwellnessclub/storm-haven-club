@@ -317,6 +317,17 @@ export default function KidsCareServiceForm() {
                   </div>
 
                   <div className="md:col-span-2">
+                    <Label htmlFor="preferredActivities">Preferred Activities</Label>
+                    <Textarea
+                      id="preferredActivities"
+                      value={formData.preferred_activities || ""}
+                      onChange={(e) => handleInputChange("preferred_activities", e.target.value)}
+                      placeholder="e.g., Coloring, building blocks, outdoor play, reading"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
                     <Label htmlFor="authorizedPickupPersons">Authorized Pick-Up Persons</Label>
                     <Textarea
                       id="authorizedPickupPersons"
