@@ -79,6 +79,7 @@ export default function KidsCareServiceForm() {
       emergency_contact_phone: child.emergency_contact_phone || "",
       relationship_to_child: child.relationship_to_child || "",
       authorized_pickup_persons: child.authorized_pickup_persons || "",
+      preferred_activities: child.preferred_activities || "",
       photo_release: child.photo_release,
     });
     setShowForm(true);
