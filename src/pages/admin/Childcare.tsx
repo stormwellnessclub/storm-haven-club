@@ -272,10 +272,32 @@ export default function Childcare() {
                                 : booking.user?.email || 'Unknown'}
                             </span>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            <Clock className="h-3 w-3 inline mr-1" />
-                            {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                          </div>
+                          {editingTimeId === booking.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} className="h-7 w-24 text-xs" />
+                              <span className="text-xs">–</span>
+                              <Input type="time" value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} className="h-7 w-24 text-xs" />
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => {
+                                updateTime.mutate({ bookingId: booking.id, startTime: editStartTime + ":00", endTime: editEndTime + ":00" });
+                                setEditingTimeId(null);
+                              }}>Save</Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingTimeId(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3 inline mr-1" />
+                              {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
+                              {booking.status === 'confirmed' && (
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 ml-1" onClick={() => {
+                                  setEditingTimeId(booking.id);
+                                  setEditStartTime(booking.start_time.substring(0, 5));
+                                  setEditEndTime(booking.end_time.substring(0, 5));
+                                }}>
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
                           {booking.special_instructions && (
                             <div className="text-xs text-muted-foreground italic p-2 bg-muted rounded">
                               <span className="font-medium not-italic">Booking Notes:</span> {booking.special_instructions}
