@@ -410,7 +410,7 @@ export default function Childcare() {
                               )}
                             </div>
                           )}
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             {canCheckIn && (
                               <Button
                                 className="flex-1"
@@ -431,6 +431,33 @@ export default function Childcare() {
                                 <UserX className="h-4 w-4 mr-2" />
                                 Check Out
                               </Button>
+                            )}
+                            {booking.status !== 'cancelled' && booking.status !== 'checked_out' && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Cancel
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will cancel {booking.child_name}'s booking and restore the session credit to the parent's pass.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => cancelBooking.mutate({ bookingId: booking.id })}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Cancel Booking
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             )}
                           </div>
                         </CardContent>
