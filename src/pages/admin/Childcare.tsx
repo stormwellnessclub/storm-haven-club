@@ -5,10 +5,42 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle, ChevronDown, Shield, Heart, Pill, Camera, CameraOff } from "lucide-react";
+import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle, ChevronDown, Shield, Heart, Pill, Camera, CameraOff, XCircle, Pencil } from "lucide-react";
 import { useState } from "react";
-import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus } from "@/hooks/useAdminKidsCareBookings";
+import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus, useAdminCancelKidsCareBooking, useAdminUpdateKidsCareBookingTime } from "@/hooks/useAdminKidsCareBookings";
 import { useKidsCareInterestList, useUpdateKidsCareInterestStatus } from "@/hooks/useKidsCareInterest";
+import { format, parse } from "date-fns";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { KidsCareHoursEditor } from "@/components/admin/KidsCareHoursEditor";
+import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDashboard";
+import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
+import { KidsCareAdminChat, useKidsCareUnreadCount } from "@/components/admin/KidsCareAdminChat";
+import { KidsCareBookForParent } from "@/components/admin/KidsCareBookForParent";
 import { format, parse } from "date-fns";
 import {
   Table,
