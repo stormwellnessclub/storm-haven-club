@@ -111,7 +111,6 @@ export default function MemberKidsCare() {
   const agreementSigned = profile?.kids_care_agreement_signed ?? false;
   const serviceFormCompleted = profile?.kids_care_service_form_completed ?? false;
   const hasActivePass = availablePasses && availablePasses.length > 0;
-  const activePass = hasActivePass ? availablePasses[0] : null;
   const isLoading = profileLoading || passLoading;
 
   // Embedded checkout view
