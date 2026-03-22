@@ -24,6 +24,15 @@ export interface AdminKidsCareBooking extends KidsCareBooking {
     id: string;
     full_name: string;
   } | null;
+  child_allergies?: string | null;
+  child_medical_conditions?: string | null;
+  child_medications?: string | null;
+  child_emergency_contact_name?: string | null;
+  child_emergency_contact_phone?: string | null;
+  child_relationship_to_child?: string | null;
+  child_authorized_pickup_persons?: string | null;
+  child_special_instructions?: string | null;
+  child_photo_release?: boolean | null;
 }
 
 interface AdminKidsCareBookingsFilters {
