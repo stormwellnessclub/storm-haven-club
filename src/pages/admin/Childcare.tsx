@@ -47,12 +47,16 @@ export default function Childcare() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState("bookings");
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEndTime, setEditEndTime] = useState("");
   
   const { data: bookings, isLoading, error: bookingsError } = useAdminKidsCareBookings({ 
     bookingDate: selectedDate 
   });
   const updateStatus = useUpdateKidsCareBookingStatus();
-
+  const cancelBooking = useAdminCancelKidsCareBooking();
+  const updateTime = useAdminUpdateKidsCareBookingTime();
   // Interest waitlist
   const { data: interestList, isLoading: isLoadingInterest } = useKidsCareInterestList();
   const updateInterestStatus = useUpdateKidsCareInterestStatus();
