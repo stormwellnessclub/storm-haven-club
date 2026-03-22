@@ -200,7 +200,7 @@ export default function MemberKidsCare() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Baby className="h-5 w-5" />
-                    Kids Care Pass
+                    Kids Care Pass{hasActivePass && availablePasses!.length > 1 ? 'es' : ''}
                   </CardTitle>
                   <CardDescription>
                     {hasActivePass
@@ -209,19 +209,36 @@ export default function MemberKidsCare() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {hasActivePass && activePass ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                        <span className="text-sm font-medium">Sessions Remaining</span>
-                        <Badge variant="default">{activePass.classes_remaining} / {activePass.classes_total}</Badge>
-                      </div>
-                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                        <span className="text-sm font-medium">Expires</span>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(activePass.expires_at).toLocaleDateString()}
-                        </span>
-                      </div>
+                  {hasActivePass ? (
+                    <div className="space-y-4">
+                      {availablePasses!.map((pass, idx) => (
+                        <div key={pass.id} className="space-y-2">
+                          {availablePasses!.length > 1 && (
+                            <p className="text-xs font-medium text-muted-foreground">Pass {idx + 1}</p>
+                          )}
+                          <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                            <span className="text-sm font-medium">Sessions Remaining</span>
+                            <Badge variant="default">{pass.classes_remaining} / {pass.classes_total}</Badge>
+                          </div>
+                          <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                            <span className="text-sm font-medium">Expires</span>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(pass.expires_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                       <p className="text-xs text-muted-foreground">Auto-renews monthly — cancel anytime. Contact us to manage your subscription.</p>
+                      <Button
+                        onClick={handlePurchase}
+                        loading={isPurchasing}
+                        loadingText="Starting checkout..."
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <Baby className="h-4 w-4 mr-2" />
+                        Buy Additional Pass — $75/mo
+                      </Button>
                     </div>
                   ) : (
                     <Button
