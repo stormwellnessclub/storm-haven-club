@@ -152,8 +152,14 @@ export default function KidsCareServiceForm() {
                           Emergency: {child.emergency_contact_name} — {child.emergency_contact_phone}
                         </p>
                       )}
-                      {child.allergies && (
+                      {child.allergies && child.allergies !== "None" && (
                         <p className="text-sm text-destructive">Allergies: {child.allergies}</p>
+                      )}
+                      {child.medical_conditions && child.medical_conditions !== "None" && (
+                        <p className="text-sm text-warning">Medical: {child.medical_conditions}</p>
+                      )}
+                      {child.preferred_activities && child.preferred_activities !== "None" && (
+                        <p className="text-sm text-muted-foreground">Activities: {child.preferred_activities}</p>
                       )}
                     </div>
                     <div className="flex gap-2">
