@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Loader2, Gift } from "lucide-react";
 
-type GrantType = "guest_pass" | "class_pass" | "red_light" | "dry_cryo";
+type GrantType = "guest_pass" | "guest_pass_credit" | "class_pass" | "red_light" | "dry_cryo";
 
 interface AdminGrantPassDialogProps {
   open: boolean;
@@ -79,14 +79,15 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
         });
         if (error) throw error;
       } else {
-        // red_light or dry_cryo
+        // red_light, dry_cryo, or guest_pass_credit
         if (!prefill?.userId && !prefill?.memberId) throw new Error("User or member ID required");
         const cycleStart = format(new Date(), "yyyy-MM-dd");
         const cycleEnd = format(expiresAt, "yyyy-MM-dd");
+        const creditType = grantType === "guest_pass_credit" ? "guest_pass" : grantType;
         const { error } = await supabase.from("member_credits").insert({
           user_id: prefill?.userId || null,
           member_id: prefill?.memberId || null,
-          credit_type: grantType,
+          credit_type: creditType,
           credits_total: quantity,
           credits_remaining: quantity,
           cycle_start: cycleStart,
@@ -125,7 +126,8 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   };
 
   const typeLabel: Record<GrantType, string> = {
-    guest_pass: "Guest Pass",
+    guest_pass: "Guest Pass (Voucher)",
+    guest_pass_credit: "Guest Pass Credit (Member Perk)",
     class_pass: "Class Pass",
     red_light: "Red Light Therapy Credits",
     dry_cryo: "Dry Cryotherapy Credits",
@@ -133,7 +135,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
 
   // Filter available types based on prefill
   const availableTypes: GrantType[] = prefill?.userId
-    ? ["guest_pass", "class_pass", "red_light", "dry_cryo"]
+    ? ["guest_pass", "guest_pass_credit", "class_pass", "red_light", "dry_cryo"]
     : ["guest_pass"]; // Without a user, can only grant guest passes
 
   return (
@@ -208,7 +210,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
           )}
 
           {/* Wellness credit quantity */}
-          {(grantType === "red_light" || grantType === "dry_cryo") && (
+          {(grantType === "red_light" || grantType === "dry_cryo" || grantType === "guest_pass_credit") && (
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Credits</Label>
               <Input type="number" min={1} max={50} value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 1)} />
