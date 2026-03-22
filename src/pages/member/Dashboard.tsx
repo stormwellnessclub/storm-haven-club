@@ -43,6 +43,7 @@ import {
   Star,
   CalendarPlus,
   Clock,
+  Baby,
 } from "lucide-react";
 import { format, parseISO, isValid, startOfToday, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
