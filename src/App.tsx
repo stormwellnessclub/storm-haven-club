@@ -36,6 +36,7 @@ import CheckInHistory from "@/pages/member/CheckInHistory";
 import MemberReferrals from "@/pages/member/Referrals";
 import Index from "./pages/Index";
 import Classes from "./pages/Classes";
+import Schedule from "./pages/Schedule";
 import Spa from "./pages/Spa";
 import Cafe from "./pages/Cafe";
 import Amenities from "./pages/Amenities";
