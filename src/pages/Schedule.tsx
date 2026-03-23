@@ -355,6 +355,12 @@ export default function Schedule() {
           )}
         </div>
       </section>
+
+      <BookingModal
+        session={selectedSession}
+        open={bookingOpen}
+        onOpenChange={setBookingOpen}
+      />
     </Layout>
   );
 }
