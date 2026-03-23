@@ -136,6 +136,25 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
 
   if (!service) return null;
 
+  // Guard: only Recovery services are bookable right now
+  if (service.category !== "Recovery") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{service.name}</DialogTitle>
+            <DialogDescription>
+              Spa Aella is opening early April. This service is not yet available for booking. Red Light Therapy and ZeroBody Cryo are available now.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   const durationMatch = service.duration.match(/(\d+)/);
   const durationMinutes = durationMatch ? parseInt(durationMatch[1]) : 60;
   const cleanupMatch = service.cleanupTime.match(/(\d+)/);

@@ -500,6 +500,18 @@ export default function Spa() {
         </div>
       </section>
 
+      {/* Spa Aella Opening Notice */}
+      <section className="py-4 bg-accent/10 border-b border-accent/20">
+        <div className="container mx-auto px-6">
+          <div className="flex items-center justify-center gap-3 text-center">
+            <Info className="w-5 h-5 text-accent flex-shrink-0" />
+            <p className="text-sm font-medium text-foreground">
+              Spa Aella is opening early April. <span className="text-accent">Red Light Therapy</span> and <span className="text-accent">ZeroBody Cryo</span> are available now — full spa services coming soon.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Member Discounts Banner */}
       <section className="py-6 bg-secondary/50 border-b border-border">
         <div className="container mx-auto px-6">
@@ -585,20 +597,26 @@ export default function Spa() {
                       )}
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      if (!user) {
-                        navigate("/auth");
-                        return;
-                      }
-                      setSelectedService(service);
-                      setShowBookingModal(true);
-                    }}
-                  >
-                    Book Now
-                  </Button>
+                  {service.category === "Recovery" ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        if (!user) {
+                          navigate("/auth");
+                          return;
+                        }
+                        setSelectedService(service);
+                        setShowBookingModal(true);
+                      }}
+                    >
+                      Book Now
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic px-3 py-1.5 border border-border rounded-md">
+                      Coming Soon
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
