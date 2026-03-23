@@ -13,8 +13,13 @@ import {
   CircleDot, Bike, Activity, CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BookingModal } from "@/components/booking/BookingModal";
+import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useMyBookings } from "@/hooks/useBooking";
 
-type CategoryFilter = "all" | "pilates_cycling" | "cycling" | "aerobics" | "other";
+type CategoryFilter = "all" | "pilates_cycling" | "aerobics" | "other";
 
 const categoryConfig: Record<string, { icon: typeof Activity; label: string; color: string }> = {
   reformer: { icon: CircleDot, label: "Reformer Pilates", color: "bg-amber-900/10 text-amber-900" },
@@ -56,9 +61,19 @@ function formatTime(time: string) {
 }
 
 export default function Schedule() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const today = startOfDay(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 0 }));
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
+  const [bookingOpen, setBookingOpen] = useState(false);
+
+  const { data: myBookings } = useMyBookings();
+  const bookedSessionIds = useMemo(() => {
+    if (!myBookings) return new Set<string>();
+    return new Set(myBookings.filter(b => b.status === "confirmed").map(b => b.session_id));
+  }, [myBookings]);
 
   const weekEnd = addDays(weekStart, 6);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -127,7 +142,6 @@ export default function Schedule() {
             <p className="text-muted-foreground text-lg leading-relaxed">
               Browse our weekly class offerings. Sign in to book your spot.
             </p>
-            </p>
           </div>
         </div>
       </section>
@@ -140,9 +154,9 @@ export default function Schedule() {
             <div className="flex flex-wrap gap-2">
               {[
                 { value: "all" as const, label: "All Classes", icon: null },
-                { value: "pilates_cycling" as const, label: "Pilates", icon: CircleDot },
-                { value: "cycling" as const, label: "Cycling", icon: Bike },
+                { value: "pilates_cycling" as const, label: "Pilates & Cycling", icon: CircleDot },
                 { value: "aerobics" as const, label: "Aerobics", icon: Activity },
+                { value: "other" as const, label: "Other", icon: Bike },
               ].map((cat) => (
                 <button
                   key={cat.value}
@@ -277,6 +291,57 @@ export default function Schedule() {
                                 {session.room && (
                                   <p className="text-xs text-muted-foreground/70 mt-0.5">{session.room}</p>
                                 )}
+
+                                {!isPast && (
+                                  <div className="mt-2">
+                                    {bookedSessionIds.has(session.id) ? (
+                                      <Badge variant="outline" className="text-xs border-primary/50 text-primary">
+                                        Booked
+                                      </Badge>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant={isFull ? "outline" : "default"}
+                                        className="h-7 text-xs"
+                                        onClick={() => {
+                                          if (!user) {
+                                            navigate("/auth?redirect=/schedule");
+                                            return;
+                                          }
+                                          const bookable: BookableSession = {
+                                            id: session.id,
+                                            session_date: session.session_date,
+                                            start_time: session.start_time,
+                                            end_time: session.end_time,
+                                            max_capacity: session.max_capacity,
+                                            current_enrollment: session.current_enrollment,
+                                            room: session.room,
+                                            is_cancelled: session.is_cancelled,
+                                            class_type: {
+                                              id: ct.id,
+                                              name: ct.name,
+                                              category: ct.category,
+                                              description: ct.description,
+                                              duration_minutes: ct.duration_minutes,
+                                              is_heated: ct.is_heated,
+                                              image_url: ct.image_url,
+                                            },
+                                            instructor: instructor ? {
+                                              id: instructor.id,
+                                              first_name: instructor.first_name,
+                                              last_name: instructor.last_name,
+                                              photo_url: null,
+                                            } : null,
+                                          };
+                                          setSelectedSession(bookable);
+                                          setBookingOpen(true);
+                                        }}
+                                      >
+                                        {isFull ? "Join Waitlist" : "Book"}
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
@@ -290,6 +355,12 @@ export default function Schedule() {
           )}
         </div>
       </section>
+
+      <BookingModal
+        session={selectedSession}
+        open={bookingOpen}
+        onOpenChange={setBookingOpen}
+      />
     </Layout>
   );
 }

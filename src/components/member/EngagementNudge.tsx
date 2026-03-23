@@ -46,7 +46,7 @@ export function EngagementNudge() {
                 .
               </p>
               <Button asChild size="sm" variant="gold" className="mt-1">
-                <Link to="/member/schedule">Book Now</Link>
+                <Link to="/schedule">Book Now</Link>
               </Button>
             </div>
           </div>
