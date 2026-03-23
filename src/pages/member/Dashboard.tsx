@@ -264,7 +264,7 @@ export default function MemberDashboard() {
         {/* === NEW: Quick Actions Row === */}
         <AnimatedSection animation="fade-up" delay={50}>
           <StaggerContainer className="grid gap-3 grid-cols-3" staggerDelay={60}>
-            <Link to="/member/schedule" className="block">
+            <Link to="/schedule" className="block">
               <Card variant="interactive" className="hover-lift-sm h-full">
                 <CardContent className="pt-5 pb-4 flex flex-col items-center text-center gap-2">
                   <div className="p-2.5 rounded-full bg-accent/10">
