@@ -1,25 +1,59 @@
 
 
-## Fix: Deactivated Schedules Still Showing Sessions
+# Admin & Public Class Schedule Views — Current State & Improvement Plan
 
-### Root Cause
-When you deactivate a class schedule (e.g., turn off a Bootcamp Glutes time slot), only the `class_schedules` record is updated. The sessions already generated from that schedule (`class_sessions` table) remain with `is_hidden = false` and `is_cancelled = false`. The admin Today's Classes page doesn't check the source schedule's active status.
+## Current State Summary
 
-**Result**: 12 of today's sessions come from deactivated schedules but still appear on the admin page and public schedule.
+### Public Website (`/classes`)
+- **Class catalog only** — shows class type cards with name, description, duration, capacity, ratings, images
+- No times or dates — just a directory of class offerings
+- "Book Class" button navigates to `/schedule`
 
-### Fix (3 parts)
+### Public Website (`/schedule`)
+- **Live weekly timetable** — day-by-day list view (Sun–Sat) with times, instructor, room, spots left
+- Week navigation (prev/next), category filters
+- Book/Join Waitlist buttons for logged-in users; sign-in redirect for guests
+- Heated/Cool badges, room info
 
-#### 1. Database migration — Clean up existing sessions + add automation
-- Set `is_hidden = true` on all **future** `class_sessions` where the linked `class_schedules.is_active = false`
-- Create a trigger on `class_schedules`: when `is_active` changes to `false`, automatically set `is_hidden = true` on all future sessions from that schedule. When reactivated (`is_active → true`), set `is_hidden = false` on future sessions.
+### Member Portal
+- No dedicated schedule page — members use the same public `/schedule` page
+- Dashboard has quick action buttons linking to `/schedule`
 
-#### 2. Admin Today's Classes query — filter hidden sessions
-- In `src/pages/admin/Classes.tsx`, add `.eq('is_hidden', false)` to the query so hidden sessions don't appear.
+### Admin — Class Schedules (`/admin/class-schedules`)
+- **Template management** — recurring weekly schedule patterns (not actual dated sessions)
+- Two views: **Table** (list of all templates) and **Calendar** (Google Calendar-style weekly grid showing templates by day/time)
+- The calendar view (`WeeklyCalendarView`) shows schedule blocks color-coded by category, with conflict detection, click-to-edit, and hide-inactive toggle
 
-#### 3. Admin Today's Classes also shows room info
-- The query currently selects `*` from class_sessions which includes `room`, but it's not displayed. Add room display to match what's useful for staff (the screenshot shows room info like "Aerobics 2", "Reformer 3").
+### Admin — Today's Classes (`/admin/classes`)
+- Shows only **today's** generated sessions in a card/list format
+- No calendar view for upcoming sessions across multiple days
 
-### Files to modify
-- `src/pages/admin/Classes.tsx` — add `is_hidden = false` filter
-- Database migration — bulk-hide sessions from inactive schedules + add trigger
+---
+
+## Plan: Add Admin Sessions Calendar View
+
+Since you want **both** the existing template calendar AND a real sessions calendar with actual dates, here's the plan:
+
+### 1. Create `AdminSessionsCalendar` component
+A new component similar to `WeeklyCalendarView` but showing **actual generated sessions** (from `class_sessions` table) for a specific week, with real dates.
+
+- Week navigation (prev/next arrows) with date range display
+- Same Google Calendar-style grid layout as the template view (time axis on left, days as columns)
+- Each session block shows: class name, time, instructor, room, enrollment count (e.g. "4/8"), status badges (cancelled, hidden)
+- Color-coded by category (same color scheme as template view)
+- Click a session to see details or take actions (cancel, edit enrollment, etc.)
+- Filter: category, show/hide cancelled sessions
+
+### 2. Add to Admin Classes page (`/admin/classes`)
+- Add a view toggle: **"Today"** (existing card view) vs **"Week Calendar"** (new sessions calendar)
+- The week calendar will replace the static "today only" limitation, letting you see actual sessions across any week
+
+### 3. Files to create/modify
+| File | Change |
+|------|--------|
+| `src/components/admin/AdminSessionsCalendar.tsx` | **New** — weekly calendar showing real dated sessions |
+| `src/pages/admin/Classes.tsx` | Add view toggle between Today cards and Week Calendar |
+
+### 4. No changes to public pages
+The public `/schedule` and `/classes` pages stay as-is — the list view is appropriate for public users (mobile-friendly, scannable). The calendar grid view is an admin tool for operational overview.
 
