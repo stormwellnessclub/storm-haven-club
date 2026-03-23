@@ -73,7 +73,7 @@ export function useEngagementNudge(): EngagementNudgeData {
           class_type:class_types!inner(name)
         `)
         .eq("class_type_id", favoriteTypeId)
-        .in("class_types.name", SOFT_LAUNCH_CLASS_NAMES)
+        .eq("class_types.is_active", true)
         .gte("session_date", today)
         .eq("is_cancelled", false)
         .order("session_date")
