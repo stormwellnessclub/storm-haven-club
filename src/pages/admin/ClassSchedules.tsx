@@ -92,6 +92,7 @@ export default function ClassSchedules() {
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
   const [weeksToGenerate, setWeeksToGenerate] = useState(4);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("calendar");
+  const [hideInactive, setHideInactive] = useState(true);
   
   // Form state
   const [classTypeId, setClassTypeId] = useState("");
