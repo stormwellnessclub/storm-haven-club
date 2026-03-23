@@ -126,6 +126,7 @@ export default function Classes() {
           instructors (id, first_name, last_name)
         `)
         .eq('session_date', today)
+        .eq('is_cancelled', false)
         .eq('class_types.is_active', true)
         .order('start_time');
       

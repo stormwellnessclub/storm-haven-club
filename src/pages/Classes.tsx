@@ -110,6 +110,23 @@ export default function Classes() {
         </div>
       </section>
 
+      {/* Schedule Banner */}
+      <section className="py-6 bg-accent/10 border-b border-border">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Clock className="h-5 w-5 text-accent shrink-0" />
+              <p className="text-foreground font-medium">
+                Looking for class times? View our live weekly schedule with dates, times, and booking.
+              </p>
+            </div>
+            <Button onClick={() => navigate("/schedule")} className="shrink-0">
+              View Weekly Schedule
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* Studio Info */}
       <section className="py-12 bg-background border-b border-border">
         <div className="container mx-auto px-6">
