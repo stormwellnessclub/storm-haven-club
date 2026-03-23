@@ -597,20 +597,26 @@ export default function Spa() {
                       )}
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      if (!user) {
-                        navigate("/auth");
-                        return;
-                      }
-                      setSelectedService(service);
-                      setShowBookingModal(true);
-                    }}
-                  >
-                    Book Now
-                  </Button>
+                  {service.category === "Recovery" ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        if (!user) {
+                          navigate("/auth");
+                          return;
+                        }
+                        setSelectedService(service);
+                        setShowBookingModal(true);
+                      }}
+                    >
+                      Book Now
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic px-3 py-1.5 border border-border rounded-md">
+                      Coming Soon
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
