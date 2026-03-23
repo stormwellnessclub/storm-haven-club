@@ -80,7 +80,6 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         <NotificationBar items={notifications} />
         
         {/* Info banners */}
-        <SoftLaunchHoursBanner />
         
         <WifiBanner />
         

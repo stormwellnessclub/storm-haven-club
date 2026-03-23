@@ -274,7 +274,7 @@ export default function Classes() {
                         </span>
                       </div>
                       
-                      <Button variant="outline" className="w-full" onClick={() => navigate("/book")}>
+                      <Button variant="outline" className="w-full" onClick={() => navigate("/schedule")}>
                         Book Class
                       </Button>
                     </div>
