@@ -26,7 +26,7 @@ export interface Booking {
     class_type: {
       id: string;
       name: string;
-      category: "reformer" | "cycling" | "aerobics";
+      category: string;
       is_heated: boolean;
     };
     instructor: {
