@@ -1204,10 +1204,7 @@ serve(async (req) => {
 
       case 'member_activation_setup':
       case 'setup_instructions':
-        subject = 'Action Required: Complete Your Membership Setup - Storm Wellness Club';
-        const launchDate = data.launchDate || 'February 9, 2026';
-        const hasCardOnFile = data.hasCardOnFile || false;
-        const hasSignedAgreement = data.hasSignedAgreement || false;
+        subject = 'Welcome to Storm Wellness Club — Complete Your Membership Setup';
         html = `
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
@@ -1215,8 +1212,7 @@ serve(async (req) => {
               <h2 style="${emailStyles.heading}; font-family: Georgia, 'Times New Roman', Times, serif;">Dear ${data.name},</h2>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
-                We're excited to announce that Storm Wellness Club is opening its doors on <strong>${launchDate}</strong>! 
-                To ensure you're ready to enjoy your membership from day one, please complete the following setup steps.
+                Welcome to Storm Wellness Club! Complete these steps to activate your member portal and unlock full member access.
               </p>
               
               <div style="background: #DEDACE; border: 2px solid #B8A068; border-radius: 8px; padding: 20px; margin: 25px 0;">
@@ -1251,22 +1247,9 @@ serve(async (req) => {
                 </p>
               </div>
               
-              <div style="background: #DEDACE; border: 1px solid #88766B; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <p style="margin: 0 0 10px 0; font-size: 14px; color: #1C170F; font-family: Georgia, 'Times New Roman', Times, serif;">
-                  <strong>One-Time Courtesy:</strong> If you'd like to change your membership tier, 
-                  you may do so once from the My Membership page before activation.
-                </p>
-                <p style="margin: 0; font-size: 14px; color: #6C5D3E; font-family: Georgia, 'Times New Roman', Times, serif;">
-                  Founding members can also contact us to discuss opt-in or opt-out of founding status if needed.
-                </p>
-              </div>
-              
               <div style="background: #F0DFC4; border: 2px solid #B8A068; border-radius: 8px; padding: 20px; margin: 25px 0;">
                 <p style="margin: 0; font-weight: 600; color: #1C170F; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">
-                  ⏰ Please complete these steps before ${launchDate}
-                </p>
-                <p style="margin: 10px 0 0 0; color: #6C5D3E; font-size: 14px; font-family: Georgia, 'Times New Roman', Times, serif;">
-                  Your membership will be activated on opening day once your setup is complete.
+                  Complete these steps to activate your member portal for full member access.
                 </p>
               </div>
               
@@ -1280,7 +1263,7 @@ serve(async (req) => {
               </p>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
-                We look forward to welcoming you to Storm Wellness Club.
+                We're excited to have you at Storm Wellness Club.
               </p>
               
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
