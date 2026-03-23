@@ -1,24 +1,30 @@
 
 
-## Restrict Spa Bookings to Recovery Only + "Opening Early April" Notice
+## Fix Three Issues: Member Book Class 404, Schedule Visibility, Admin Deactivated Classes
 
-### What's Happening Now
-The `/spa` page lists ~44 spa services across 5 categories (Facials, Massage, Body Rituals, Body Wraps, Recovery) and all have a "Book Now" button that opens the booking modal. There's no restriction — anyone can book any service.
+### Issue 1: Member Portal "Book Class" button → 404
+The member dashboard links to `/member/schedule` which doesn't exist as a route.
 
-### Plan
+**Fix**: In `src/pages/member/Dashboard.tsx` line 267, change `/member/schedule` to `/schedule`.
 
-#### 1. Mark non-recovery services as not yet bookable (`src/pages/Spa.tsx`)
-- Add a flag or check: only services in the "Recovery" category (Red Light Therapy and Zero Body Cryo) get the "Book Now" button
-- For all other categories (Body Rituals, Body Wraps, Massage, Facials), replace the "Book Now" button with a disabled state showing "Coming Soon"
-- Add a prominent banner/notice at the top of the spa page (below the hero): **"Spa Aella is opening early April. Red Light Therapy and ZeroBody Cryo are available now — full spa services coming soon."**
+### Issue 2: Public website class schedule shows no times
+The `/classes` page is a class type catalog (names, descriptions, duration) — not a live schedule. The actual weekly schedule with dates and times exists at `/schedule` but users may not realize it.
 
-#### 2. Keep the member Wellness page as-is (`src/pages/member/Wellness.tsx`)
-- This page already only shows Red Light Therapy and Dry Cryotherapy — no changes needed
+**Fix**: 
+- In `src/pages/Classes.tsx`, add a prominent banner/link at the top directing users to `/schedule` for the weekly timetable with times
+- Ensure the "Book a Class" button on each class card navigates to `/schedule` (verify current behavior)
 
-#### 3. Prevent booking modal from processing non-recovery services
-- In `SpaBookingModal`, add a guard: if the service category is not "Recovery", show a message that spa services open early April instead of the booking form. This is a safety net in case someone bypasses the disabled button.
+### Issue 3: Admin shows deactivated class times
+- `src/pages/admin/Classes.tsx` (Today's Classes): Query doesn't filter `is_cancelled = false`, so cancelled sessions still appear
+- `src/pages/admin/ClassSchedules.tsx`: Fetches all schedules including `is_active = false` ones in the weekly calendar view — this is intentional for admin management, but the **calendar/grid view** should visually differentiate or optionally hide inactive schedules
+
+**Fix**:
+- In `src/pages/admin/Classes.tsx` line 128-130: Add `.eq('is_cancelled', false)` to the query
+- In `src/pages/admin/ClassSchedules.tsx`: Add a filter toggle (default ON) to hide inactive schedules from the calendar view, so deactivated time slots don't clutter the display
 
 ### Files to modify
-- `src/pages/Spa.tsx` — add "opening early April" banner, disable booking for non-Recovery services
-- `src/components/booking/SpaBookingModal.tsx` — add guard for non-Recovery services
+- `src/pages/member/Dashboard.tsx` — fix `/member/schedule` → `/schedule`
+- `src/pages/Classes.tsx` — add link to `/schedule` for timetable
+- `src/pages/admin/Classes.tsx` — filter out cancelled sessions
+- `src/pages/admin/ClassSchedules.tsx` — add toggle to hide inactive schedules
 
