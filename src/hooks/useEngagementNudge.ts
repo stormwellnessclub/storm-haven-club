@@ -47,7 +47,7 @@ export function useEngagementNudge(): EngagementNudgeData {
         .select("session_id, status, class_sessions!inner(class_type_id, class_type:class_types!inner(name))")
         .eq("user_id", user.id)
         .in("status", ["confirmed", "completed"])
-        .in("class_types.name", SOFT_LAUNCH_CLASS_NAMES);
+        .eq("class_types.is_active", true);
 
       if (!bookings || bookings.length === 0) return null;
 
