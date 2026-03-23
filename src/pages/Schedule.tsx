@@ -61,9 +61,19 @@ function formatTime(time: string) {
 }
 
 export default function Schedule() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const today = startOfDay(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 0 }));
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
+  const [bookingOpen, setBookingOpen] = useState(false);
+
+  const { data: myBookings } = useMyBookings();
+  const bookedSessionIds = useMemo(() => {
+    if (!myBookings) return new Set<string>();
+    return new Set(myBookings.filter(b => b.status === "confirmed").map(b => b.session_id));
+  }, [myBookings]);
 
   const weekEnd = addDays(weekStart, 6);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
