@@ -8,7 +8,7 @@ import { AnnualFeeNotice } from "./AnnualFeeNotice";
 import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
-import { SoftLaunchHoursBanner } from "./SoftLaunchHoursBanner";
+
 
 import { WifiBanner } from "./WifiBanner";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
@@ -80,7 +80,6 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         <NotificationBar items={notifications} />
         
         {/* Info banners */}
-        <SoftLaunchHoursBanner />
         
         <WifiBanner />
         

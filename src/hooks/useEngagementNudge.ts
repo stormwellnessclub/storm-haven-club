@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
-import { SOFT_LAUNCH_CLASS_NAMES } from "@/lib/softLaunchSchedule";
+
 
 interface EngagementNudgeData {
   shouldShow: boolean;
@@ -47,7 +47,7 @@ export function useEngagementNudge(): EngagementNudgeData {
         .select("session_id, status, class_sessions!inner(class_type_id, class_type:class_types!inner(name))")
         .eq("user_id", user.id)
         .in("status", ["confirmed", "completed"])
-        .in("class_types.name", SOFT_LAUNCH_CLASS_NAMES);
+        .eq("class_types.is_active", true);
 
       if (!bookings || bookings.length === 0) return null;
 
@@ -73,7 +73,7 @@ export function useEngagementNudge(): EngagementNudgeData {
           class_type:class_types!inner(name)
         `)
         .eq("class_type_id", favoriteTypeId)
-        .in("class_types.name", SOFT_LAUNCH_CLASS_NAMES)
+        .eq("class_types.is_active", true)
         .gte("session_date", today)
         .eq("is_cancelled", false)
         .order("session_date")
