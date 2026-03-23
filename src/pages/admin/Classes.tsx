@@ -4,7 +4,9 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Users, CheckCircle, Dumbbell, XCircle, UserCheck, Eye, Loader2 } from "lucide-react";
+import { Calendar, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserCheck, Eye, Loader2, List } from "lucide-react";
+import { AdminSessionsCalendar } from "@/components/admin/AdminSessionsCalendar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
@@ -113,6 +115,7 @@ export default function Classes() {
   const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
+  const [view, setView] = useState<"today" | "calendar">("today");
 
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['admin-class-sessions-today'],
@@ -192,19 +195,42 @@ export default function Classes() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Today's Classes</h1>
+            <h1 className="text-2xl font-bold">Classes</h1>
             <p className="text-muted-foreground">
-              View today's classes and manage attendance
+              Manage classes and attendance
             </p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            {format(new Date(), 'EEEE, MMMM d')}
+          <div className="flex items-center gap-3">
+            <Tabs value={view} onValueChange={(v) => setView(v as "today" | "calendar")}>
+              <TabsList>
+                <TabsTrigger value="today" className="gap-1.5">
+                  <List className="h-3.5 w-3.5" /> Today
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" /> Week Calendar
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              {format(new Date(), 'EEEE, MMMM d')}
+            </div>
           </div>
         </div>
 
+        {view === "calendar" ? (
+          <AdminSessionsCalendar
+            onSelectSession={(session) => {
+              // Cast to ClassSession shape for roster dialog
+              const cs = session as unknown as ClassSession;
+              setSelectedSession(cs);
+              setRosterDialogOpen(true);
+            }}
+          />
+        ) : (
+        <>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -272,6 +298,8 @@ export default function Classes() {
               );
             })}
           </div>
+        )}
+        </>
         )}
       </div>
 
