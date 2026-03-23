@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type CategoryFilter = "all" | "reformer" | "cycling" | "aerobics" | "pilates_cycling";
+type CategoryFilter = "all" | "pilates_cycling" | "cycling" | "aerobics" | "other";
 
 const categoryConfig: Record<string, { icon: typeof Activity; label: string; color: string }> = {
   reformer: { icon: CircleDot, label: "Reformer Pilates", color: "bg-amber-900/10 text-amber-900" },
@@ -125,7 +125,8 @@ export default function Schedule() {
             <p className="text-accent text-sm uppercase tracking-widest mb-4">Weekly Schedule</p>
             <h1 className="heading-display mb-4">Class Schedule</h1>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              Browse our weekly class offerings. Booking coming soon.
+              Browse our weekly class offerings. Sign in to book your spot.
+            </p>
             </p>
           </div>
         </div>
@@ -139,7 +140,7 @@ export default function Schedule() {
             <div className="flex flex-wrap gap-2">
               {[
                 { value: "all" as const, label: "All Classes", icon: null },
-                { value: "reformer" as const, label: "Reformer", icon: CircleDot },
+                { value: "pilates_cycling" as const, label: "Pilates", icon: CircleDot },
                 { value: "cycling" as const, label: "Cycling", icon: Bike },
                 { value: "aerobics" as const, label: "Aerobics", icon: Activity },
               ].map((cat) => (

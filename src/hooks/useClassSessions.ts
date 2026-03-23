@@ -14,7 +14,7 @@ export interface ClassSession {
   class_type: {
     id: string;
     name: string;
-    category: "reformer" | "cycling" | "aerobics" | "other" | "pilates_cycling";
+    category: string;
     description: string | null;
     duration_minutes: number;
     is_heated: boolean;
@@ -30,7 +30,7 @@ export interface ClassSession {
 
 interface UseClassSessionsOptions {
   weekOffset?: number;
-  category?: "reformer" | "cycling" | "aerobics" | "other" | "pilates_cycling" | "all";
+  category?: string;
   isHeated?: boolean | "all";
 }
 
@@ -75,6 +75,7 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
         .gte("session_date", format(weekStart, "yyyy-MM-dd"))
         .lte("session_date", format(weekEnd, "yyyy-MM-dd"))
         .eq("is_cancelled", false)
+        .eq("is_hidden", false)
         .eq("class_types.is_active", true)
         .order("session_date")
         .order("start_time");
@@ -149,6 +150,7 @@ export function useUpcomingSessions(limit = 10) {
         `)
         .gte("session_date", today)
         .eq("is_cancelled", false)
+        .eq("is_hidden", false)
         .eq("class_types.is_active", true)
         .order("session_date")
         .order("start_time")

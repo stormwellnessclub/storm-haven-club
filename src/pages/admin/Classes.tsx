@@ -174,7 +174,7 @@ export default function Classes() {
       if (!selectedSession) return;
       const { error } = await supabase.rpc('admin_cancel_class_session', {
         _session_id: selectedSession.id,
-        _reason: cancellationReason || 'Class cancelled by admin',
+        _cancellation_reason: cancellationReason || 'Class cancelled by admin',
       });
       if (error) throw error;
     },
