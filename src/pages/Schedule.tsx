@@ -13,6 +13,11 @@ import {
   CircleDot, Bike, Activity, CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BookingModal } from "@/components/booking/BookingModal";
+import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useMyBookings } from "@/hooks/useBooking";
 
 type CategoryFilter = "all" | "pilates_cycling" | "aerobics" | "other";
 
