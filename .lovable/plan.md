@@ -1,96 +1,64 @@
 
 
-# Class Schedule & Booking System — Full Audit
+# Class Schedule & Booking System — Re-Audit Results
 
-## Critical Bugs
+## What Was Fixed (Confirmed Working)
+- **Double enrollment increment** — RPC updated, trigger handles it alone
+- **Admin cancel parameter** — now uses `_cancellation_reason` correctly
+- **useClassSessions hook** — filters `is_hidden`, `is_cancelled`, uses DB categories
+- **Admin Today's Classes** — filters `is_cancelled = false`
+- **Member Dashboard "Book Class" button** — links to `/schedule` (line 267)
+- **Booking type interface** — category is now `string` not union
 
-### 1. Double Enrollment Increment (HIGH)
-The `create_atomic_class_booking` RPC manually runs `UPDATE class_sessions SET current_enrollment = current_enrollment + 1` after inserting a booking. But a trigger `update_enrollment_on_booking` also fires on `INSERT` to `class_bookings` and increments enrollment. **Result: every booking increments enrollment by 2**, making classes appear full at half capacity.
+## Still Broken — Must Fix
 
-**Fix**: Remove the manual `UPDATE class_sessions SET current_enrollment = current_enrollment + 1` from the `create_atomic_class_booking` function, since the trigger already handles it. Then run a one-time recalculation migration to fix all existing session counts.
+### 1. Build Error: Duplicate `</p>` Tag (CRITICAL)
+`src/pages/Schedule.tsx` line 130 has an extra `</p>` closing tag causing the build to fail completely. The site cannot deploy.
 
-### 2. Admin Cancel RPC Parameter Mismatch (HIGH)
-In `src/pages/admin/Classes.tsx` line 177, the admin cancel call passes `_reason` as the parameter name:
-```typescript
-supabase.rpc('admin_cancel_class_session', {
-  _session_id: selectedSession.id,
-  _reason: cancellationReason || 'Class cancelled by admin',
-});
-```
-But the actual function signature expects `_cancellation_reason` (confirmed in types.ts). **Result: the cancellation reason is silently ignored** — every admin cancellation stores a NULL reason.
+**Fix**: Remove the duplicate `</p>` on line 130.
 
-**Fix**: Change `_reason` to `_cancellation_reason` in the RPC call.
+### 2. Two More Broken `/member/schedule` Links (HIGH)
+- `src/pages/member/Dashboard.tsx` line 356: "Browse Schedule" → `/member/schedule` (404)
+- `src/components/member/EngagementNudge.tsx` line 49: "Book Now" → `/member/schedule` (404)
 
----
+**Fix**: Change both to `/schedule`.
 
-## Logic Gaps
+### 3. Schedule Filter Still Has Non-Matching "Cycling" Category (MEDIUM)
+The DB has `pilates_cycling`, `aerobics`, and `other`. But the schedule filter buttons include a separate "Cycling" filter (`value: "cycling"`) which matches zero sessions. There's no `other` filter either.
 
-### 3. No Cron Jobs Scheduled for Edge Functions
-The following edge functions exist but have **no cron jobs set up** to call them automatically:
-- `process-session-generation` — should run weekly to generate upcoming sessions
-- `send-class-reminders` — should run hourly to send reminders before class
-- `process-expired-waitlist` — should run every 15-30 min to expire unclaimed waitlist spots
-- `notify-waitlist` — called by other functions, but `process-expired-waitlist` (which calls it) has no cron
+**Fix**: Replace the filter list with:
+- All Classes → `all`
+- Pilates & Cycling → `pilates_cycling`
+- Aerobics → `aerobics`
+- Other → `other`
 
-**Fix**: Create `pg_cron` + `pg_net` scheduled jobs for each function at appropriate intervals.
+### 4. Schedule Page Still Read-Only — No Booking Buttons (MEDIUM)
+The `/schedule` page shows class cards but has no "Book" button or CTA. Members land here from Dashboard but can't actually book. The `BookingModal` component exists and works but isn't integrated.
 
-### 4. Public Schedule Page Has No Booking Capability
-The `/schedule` page (the live weekly timetable with times) is **read-only** — no booking buttons, no login prompt, no link to book. Users can see classes but cannot act on them. The `ClassCalendar` + `ClassCard` + `BookingModal` components exist and are fully functional but are **not used on any page**.
+**Fix**: Add a "Book" button to each session card on the schedule page. When clicked, if logged in → open `BookingModal`; if not → redirect to `/auth?redirect=/schedule`.
 
-**Fix**: Either integrate the booking components into `/schedule`, or add clear CTAs directing logged-in users to the member booking flow.
+### 5. No Cron Jobs for Edge Functions (HIGH)
+The previous migration may have set up cron jobs, but this needs verification. The functions `process-session-generation`, `send-class-reminders`, and `process-expired-waitlist` need automated scheduling.
 
-### 5. No "Pilates & Cycling" Category Filter on Public Schedule
-The `Schedule.tsx` category filters include Reformer, Cycling, and Aerobics — but all classes are stored with category `pilates_cycling` or `other` in the database. **The Reformer and Cycling filters will never match any sessions** because the DB doesn't use those category values.
+**Fix**: Verify cron jobs exist; create if missing.
 
-**Fix**: Update the filter buttons to match actual DB categories (`pilates_cycling` and `other`), or map the filters to the correct DB values.
+### 6. Waitlist Notification Still Client-Side Only (LOW)
+`cancel_class_booking` relies on client-side `notify-waitlist` call (line 421-429 in useBooking.ts). If the edge function call fails, the spot goes unfilled. The `process-expired-waitlist` cron (if set up) partially mitigates this.
 
-### 6. `cancel_class_booking` Doesn't Notify Waitlist
-The member-facing `cancel_class_booking` RPC cancels the booking and restores credits, but does NOT notify the next person on the waitlist. The client-side code in `useBooking.ts` calls `notify-waitlist` after the RPC returns — but if the edge function call fails (network issue, etc.), the waitlist person is never notified and the spot goes unfilled.
+No code change needed if cron is running — it serves as the safety net.
 
-**Fix**: Either move waitlist notification into the RPC itself (call `pg_net` to invoke the edge function), or add a periodic cron that checks for sessions with waitlist entries and available spots.
+## Files to Modify
 
-### 7. `useClassSessions` Hook Filters by Legacy Categories
-The `useClassSessions` hook accepts `"reformer" | "cycling" | "aerobics"` as category filters, but the database only has `pilates_cycling` and `other`. This hook is used by `ClassCalendar`/`ClassCard` components. If someone passes `category: "reformer"`, the `!inner` join on `class_types` with `.eq("class_types.category", "reformer")` will return zero results.
+| File | Changes |
+|------|---------|
+| `src/pages/Schedule.tsx` | Fix duplicate `</p>` (line 130); update category filters; add booking button + BookingModal integration |
+| `src/pages/member/Dashboard.tsx` | Fix `/member/schedule` → `/schedule` (line 356) |
+| `src/components/member/EngagementNudge.tsx` | Fix `/member/schedule` → `/schedule` (line 49) |
 
----
-
-## Edge Cases & Reliability
-
-### 8. No Duplicate Booking Prevention at Schedule Page Level
-The public `/schedule` page has no awareness of whether a user is already booked for a session. The DB `create_atomic_class_booking` RPC checks for duplicates, but the user gets no UI indication they're already booked until they try and get an error.
-
-### 9. Late Cancellation Time Calculation Is Timezone-Naive
-In `cancel_class_booking` RPC (line 49):
-```sql
-_session_datetime := (_session.session_date || 'T' || _session.start_time)::timestamptz;
-```
-This casts without an explicit timezone. If the DB timezone differs from the club's local timezone, the 24-hour policy cutoff will be wrong — potentially forfeiting credits incorrectly or allowing late free cancellations.
-
-**Fix**: Use an explicit timezone cast, e.g., `AT TIME ZONE 'America/Chicago'`.
-
-### 10. Booking Interface Category Type Mismatch
-The `Booking` interface in `useBooking.ts` (line 29) has `category: "reformer" | "cycling" | "aerobics"` but the database only stores `pilates_cycling` and `other`. This means bookings for actual classes won't match these types, potentially causing display issues.
-
-### 11. `is_hidden` Column Not in `useClassSessions` Hook Query
-The public `Schedule.tsx` correctly filters `.eq("is_hidden", false)`, but the `useClassSessions` hook (used by booking components) does NOT filter by `is_hidden`. Hidden sessions could appear in booking flows.
-
----
-
-## Summary of Fixes (Priority Order)
-
-| # | Issue | Severity | Fix Type |
-|---|-------|----------|----------|
-| 1 | Double enrollment increment | Critical | DB migration |
-| 2 | Admin cancel parameter mismatch | High | Code fix |
-| 3 | No cron jobs for edge functions | High | DB insert (pg_cron) |
-| 4 | Schedule page has no booking | Medium | UI integration |
-| 5 | Category filter mismatch | Medium | Code fix |
-| 6 | Waitlist notification reliability | Medium | Architecture |
-| 7 | useClassSessions legacy categories | Medium | Code fix |
-| 8 | No booked-state on schedule | Low | UI enhancement |
-| 9 | Timezone-naive cancellation | Low | DB migration |
-| 10 | Booking type mismatch | Low | Code fix |
-| 11 | is_hidden not filtered in hook | Low | Code fix |
-
-Approve this plan to begin fixing these issues in priority order.
+## Priority Order
+1. Fix build error (duplicate `</p>`) — site is broken
+2. Fix remaining broken links (2 files)
+3. Fix category filters to match DB
+4. Add booking capability to schedule page
+5. Verify/create cron jobs
 
