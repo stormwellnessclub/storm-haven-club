@@ -291,6 +291,57 @@ export default function Schedule() {
                                 {session.room && (
                                   <p className="text-xs text-muted-foreground/70 mt-0.5">{session.room}</p>
                                 )}
+
+                                {!isPast && (
+                                  <div className="mt-2">
+                                    {bookedSessionIds.has(session.id) ? (
+                                      <Badge variant="outline" className="text-xs border-primary/50 text-primary">
+                                        Booked
+                                      </Badge>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant={isFull ? "outline" : "default"}
+                                        className="h-7 text-xs"
+                                        onClick={() => {
+                                          if (!user) {
+                                            navigate("/auth?redirect=/schedule");
+                                            return;
+                                          }
+                                          const bookable: BookableSession = {
+                                            id: session.id,
+                                            session_date: session.session_date,
+                                            start_time: session.start_time,
+                                            end_time: session.end_time,
+                                            max_capacity: session.max_capacity,
+                                            current_enrollment: session.current_enrollment,
+                                            room: session.room,
+                                            is_cancelled: session.is_cancelled,
+                                            class_type: {
+                                              id: ct.id,
+                                              name: ct.name,
+                                              category: ct.category,
+                                              description: ct.description,
+                                              duration_minutes: ct.duration_minutes,
+                                              is_heated: ct.is_heated,
+                                              image_url: ct.image_url,
+                                            },
+                                            instructor: instructor ? {
+                                              id: instructor.id,
+                                              first_name: instructor.first_name,
+                                              last_name: instructor.last_name,
+                                              photo_url: null,
+                                            } : null,
+                                          };
+                                          setSelectedSession(bookable);
+                                          setBookingOpen(true);
+                                        }}
+                                      >
+                                        {isFull ? "Join Waitlist" : "Book"}
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
