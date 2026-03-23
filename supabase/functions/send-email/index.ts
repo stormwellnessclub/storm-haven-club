@@ -1254,7 +1254,7 @@ serve(async (req) => {
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${BASE_URL}/auth" style="${emailStyles.button}; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">Complete Your Setup</a>
+                <a href="${BASE_URL}/auth?redirect=/member/membership" style="${emailStyles.button}; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 16px;">Complete Your Setup</a>
               </div>
               
               <p style="font-size: 14px; line-height: 1.8; color: #6b7280; margin-bottom: 20px; font-family: Georgia, 'Times New Roman', Times, serif;">
