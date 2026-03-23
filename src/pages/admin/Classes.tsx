@@ -240,6 +240,9 @@ export default function Classes() {
                             <Users className="h-3.5 w-3.5" />
                             {session.current_enrollment}/{session.max_capacity}
                           </span>
+                          {session.room && (
+                            <span className="text-muted-foreground">📍 {session.room}</span>
+                          )}
                         </div>
                       </div>
                     </div>
