@@ -115,6 +115,7 @@ export default function Classes() {
   const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
+  const [view, setView] = useState<"today" | "calendar">("today");
 
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['admin-class-sessions-today'],
