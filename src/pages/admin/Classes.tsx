@@ -127,6 +127,7 @@ export default function Classes() {
         `)
         .eq('session_date', today)
         .eq('is_cancelled', false)
+        .eq('is_hidden', false)
         .eq('class_types.is_active', true)
         .order('start_time');
       
