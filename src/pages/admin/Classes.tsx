@@ -299,6 +299,8 @@ export default function Classes() {
             })}
           </div>
         )}
+        </>
+        )}
       </div>
 
       {/* Roster/Attendance Dialog */}
