@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
-import { SOFT_LAUNCH_CLASS_NAMES } from "@/lib/softLaunchSchedule";
+
 
 interface EngagementNudgeData {
   shouldShow: boolean;
