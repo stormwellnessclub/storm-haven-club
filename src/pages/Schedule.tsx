@@ -127,7 +127,6 @@ export default function Schedule() {
             <p className="text-muted-foreground text-lg leading-relaxed">
               Browse our weekly class offerings. Sign in to book your spot.
             </p>
-            </p>
           </div>
         </div>
       </section>
