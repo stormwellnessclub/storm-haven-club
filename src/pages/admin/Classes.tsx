@@ -127,6 +127,7 @@ export default function Classes() {
         `)
         .eq('session_date', today)
         .eq('is_cancelled', false)
+        .eq('is_hidden', false)
         .eq('class_types.is_active', true)
         .order('start_time');
       
@@ -239,6 +240,9 @@ export default function Classes() {
                             <Users className="h-3.5 w-3.5" />
                             {session.current_enrollment}/{session.max_capacity}
                           </span>
+                          {session.room && (
+                            <span className="text-muted-foreground">📍 {session.room}</span>
+                          )}
                         </div>
                       </div>
                     </div>
