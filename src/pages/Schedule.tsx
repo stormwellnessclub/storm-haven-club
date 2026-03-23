@@ -139,9 +139,9 @@ export default function Schedule() {
             <div className="flex flex-wrap gap-2">
               {[
                 { value: "all" as const, label: "All Classes", icon: null },
-                { value: "pilates_cycling" as const, label: "Pilates", icon: CircleDot },
-                { value: "cycling" as const, label: "Cycling", icon: Bike },
+                { value: "pilates_cycling" as const, label: "Pilates & Cycling", icon: CircleDot },
                 { value: "aerobics" as const, label: "Aerobics", icon: Activity },
+                { value: "other" as const, label: "Other", icon: Bike },
               ].map((cat) => (
                 <button
                   key={cat.value}

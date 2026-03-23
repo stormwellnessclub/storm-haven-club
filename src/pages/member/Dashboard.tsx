@@ -353,7 +353,7 @@ export default function MemberDashboard() {
               <Calendar className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">No upcoming bookings</p>
               <Button asChild variant="link" size="sm" className="mt-1">
-                <Link to="/member/schedule">Browse Schedule</Link>
+                <Link to="/schedule">Browse Schedule</Link>
               </Button>
             </Card>
           )}
