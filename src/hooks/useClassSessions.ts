@@ -81,7 +81,7 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
         .order("start_time");
 
       if (category !== "all") {
-        query = query.eq("class_types.category", category);
+        query = query.eq("class_types.category", category as any);
       }
 
       if (isHeated !== "all") {

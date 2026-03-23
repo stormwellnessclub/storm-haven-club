@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type CategoryFilter = "all" | "pilates_cycling" | "cycling" | "aerobics" | "other";
+type CategoryFilter = "all" | "pilates_cycling" | "aerobics" | "other";
 
 const categoryConfig: Record<string, { icon: typeof Activity; label: string; color: string }> = {
   reformer: { icon: CircleDot, label: "Reformer Pilates", color: "bg-amber-900/10 text-amber-900" },
