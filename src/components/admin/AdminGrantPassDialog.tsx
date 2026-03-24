@@ -42,6 +42,9 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   // Class pass specific
   const [classCategory, setClassCategory] = useState<"pilates_cycling" | "other">("pilates_cycling");
   const [passType, setPassType] = useState<"single" | "10-pack">("single");
+  // Kids care pass specific
+  const [kidsCareSessionCount, setKidsCareSessionCount] = useState(16);
+  const [purchasedAt, setPurchasedAt] = useState<Date>(new Date());
 
   const grantMutation = useMutation({
     mutationFn: async () => {
