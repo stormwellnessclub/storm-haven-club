@@ -1,38 +1,69 @@
 
+Fix admin class management so staff can always see who is booked, open a proper roster, add/remove/check in people, and manage classes without tiny unusable blocks.
 
-# Fix Kids Care Age Range: 4 months to 8 years
+What I found
+- `src/pages/admin/Classes.tsx` still uses a small modal (`DialogContent max-w-2xl`) as the main roster UI. That modal only shows a stripped-down booking list plus check-in.
+- The real management screen already exists in `src/pages/admin/ClassRoster.tsx` and includes add-to-class, walk-ins, payment method selection, removing bookings, waitlist handling, and package selling.
+- Nothing in admin class management links to that full roster page. So the powerful workflow exists, but staff are stuck in the limited one.
+- The limited roster query in `Classes.tsx` only joins `members`. If a booking belongs to a pass holder/profile/walk-in without a `members` row, admin sees the count but not the person. That matches the “1 booked but can’t see who” problem.
+- `src/components/admin/AdminSessionsCalendar.tsx` is still a compact week grid. Even with overlap handling, dense days produce tiny blocks that are fine for overview but bad for real front-desk operations.
 
-## What needs to change
+Plan
+1. Make one roster system the source of truth
+- Stop using the small `Classes.tsx` modal as the primary management UI.
+- Use `ClassRoster.tsx` as the main class-management surface for any session.
+- Route both day-list actions and calendar clicks to `/admin/class-roster/:sessionId`.
 
-The current code uses "3 months to 10 years" everywhere. The correct range is **4 months to 8 years**. Jessica's 3-month-old is a one-time exception — the system minimum should be 4 months going forward.
+2. Fix attendee visibility everywhere
+- Reuse the richer booking lookup pattern from `ClassRoster.tsx`.
+- Always resolve attendee identity in this order:
+  - member name/photo from `members`
+  - fallback name/email from `profiles`
+  - walk-in name if present
+- Show clear attendee labels so staff never see “1 booked” without a person attached.
 
-## All locations to update
+3. Replace the limited class actions with real admin actions
+- In `Classes.tsx`, add obvious buttons on each class row/card:
+  - Manage Roster
+  - Add Person
+  - View/Check In Attendees
+  - Cancel Class
+- In calendar view, clicking a class should open the full roster page, not a tiny modal.
+- Add quick attendee preview on class cards/calendar blocks when possible (first names + “+N more”).
 
-### 1. Age validation logic
-- **`src/components/booking/KidsCareBookingModal.tsx`** line 175: change `ageNum < 0.25` (3 months) to `ageNum < 0.333` (4 months), and `ageNum > 10` to `ageNum > 8`. Update error message to "4 months to 8 years".
+4. Make the calendar usable for operations, not just overview
+- Upgrade `AdminSessionsCalendar.tsx` to support:
+  - a single-day operational timeline
+  - a week overview
+  - larger, more readable session blocks
+  - clearer labels for class, room, and booked/max
+- Keep week view for overview, but make day management much easier.
 
-### 2. Age group definitions
-- **`src/hooks/useKidsCareBooking.ts`** line 48: change `AGE_GROUPS.infants.min` from `0.25` to `0.333` (4 months). Change `AGE_GROUPS` school age max from implied 10 to 8. Update the `getAgeGroup` function accordingly.
+5. Remove roster logic drift
+- Extract shared admin roster fetching/formatting into one hook/helper.
+- Use that shared logic for:
+  - full roster page
+  - attendee previews
+  - any quick-view UI
+- This prevents the current mismatch where counts and identities disagree.
 
-### 3. Room/age display on public Kids Care page
-- **`src/pages/KidsCare.tsx`** lines 69, 79: change "3 months - 1 year" to "4 months - 1 year", and "5 - 10 years" to "5 - 8 years".
+6. Keep and expose the tools staff actually need
+- Preserve the existing capabilities already in `ClassRoster.tsx`:
+  - add member / pass holder / walk-in
+  - choose payment method
+  - sell package
+  - remove from class with refund/credit restore
+  - manage waitlist
+- Make these reachable directly from class management instead of hidden on an unlinked page.
 
-### 4. Member dashboard banner
-- **`src/pages/member/Dashboard.tsx`** line 189: change "Ages 3 months – 10 years" to "Ages 4 months – 8 years".
+Files to change
+- `src/pages/admin/Classes.tsx`
+- `src/pages/admin/ClassRoster.tsx`
+- `src/components/admin/AdminSessionsCalendar.tsx`
+- new shared hook/helper for admin roster data
 
-### 5. FAQ page
-- **`src/pages/FAQ.tsx`** line 34: change "6 months to 12 years" to "4 months to 8 years".
-
-### 6. Amenities page (from the current code shown)
-- **`src/pages/Amenities.tsx`**: the Kids Care listing just says "Supervised childcare" — no age range text, so no change needed there.
-
-### 7. Admin childcare RPC
-- **`admin_create_kids_care_booking`** RPC: currently has no age validation. No change needed since the client validates, but the age group assignment logic in the RPC uses hardcoded thresholds that already work for 4mo–8yr.
-
-## Files to change
-- `src/components/booking/KidsCareBookingModal.tsx` — age validation bounds + error message
-- `src/hooks/useKidsCareBooking.ts` — AGE_GROUPS min/max + getAgeGroup function
-- `src/pages/KidsCare.tsx` — room age range display text
-- `src/pages/member/Dashboard.tsx` — banner text
-- `src/pages/FAQ.tsx` — FAQ answer text
-
+Result
+- If a class shows “1 booked,” staff will immediately see who it is.
+- Clicking a class opens a full management screen, not a crippled mini modal.
+- Staff can add people, remove them, manage waitlist, and handle payment from the actual class workflow.
+- The calendar becomes usable for a real business instead of tiny unreadable squares.
