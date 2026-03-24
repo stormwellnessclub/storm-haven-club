@@ -443,16 +443,34 @@ export default function Scanner() {
                             {scanResult.member.first_name} {scanResult.member.last_name}
                           </p>
                           <div className="space-y-1 text-sm">
-                            {scanResult.payment_status?.isAnnualFeeOverdue && (
+                            {scanResult.payment_status?.hasRecentFailedPayment && (
                               <div className="flex items-center gap-2 text-destructive">
-                                <Calendar className="h-4 w-4" />
-                                Annual fee overdue or expired
+                                <DollarSign className="h-4 w-4" />
+                                Recent payment declined
                               </div>
                             )}
                             {scanResult.payment_status?.isDuesPastDue && (
                               <div className="flex items-center gap-2 text-destructive">
                                 <DollarSign className="h-4 w-4" />
                                 Monthly dues past due
+                              </div>
+                            )}
+                            {scanResult.payment_status?.isAnnualFeeOverdue && (
+                              <div className="flex items-center gap-2 text-destructive">
+                                <Calendar className="h-4 w-4" />
+                                Annual fee overdue
+                              </div>
+                            )}
+                            {scanResult.payment_status?.hasNoSubscription && (
+                              <div className="flex items-center gap-2 text-destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                No active subscription
+                              </div>
+                            )}
+                            {scanResult.payment_status?.hasIncompleteSubscription && (
+                              <div className="flex items-center gap-2 text-destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                Subscription payment failed
                               </div>
                             )}
                             {scanResult.denial_reason === "membership_frozen" && (
@@ -475,6 +493,13 @@ export default function Scanner() {
                               </div>
                             )}
                           </div>
+
+                          {/* Show billing block message - no override available */}
+                          {scanResult.is_billing_block && (
+                            <p className="text-xs text-destructive font-medium mt-2">
+                              Billing issue must be resolved before entry. Override is not available.
+                            </p>
+                          )}
                         </div>
                       )}
 
