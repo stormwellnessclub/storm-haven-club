@@ -1,65 +1,69 @@
 
-Fix the class schedule system end-to-end so admin, website, and member-facing views all use the same source of truth and stop showing stale/generated mismatches.
 
-1. Establish the real source of truth
-- Treat `class_schedules` as the authoritative weekly template.
-- Audit how `class_sessions` are generated and why future sessions no longer match the current active schedule list.
-- Specifically fix the stale future-session problem: old generated sessions are still hanging around even after schedules were edited, replaced, or deactivated.
+# Fix: Check-In Still Approving Members With Past Due / Missing Payments
 
-2. Repair session generation + sync behavior
-- Update the backend generation/sync logic so future `class_sessions` stay aligned with `class_schedules`.
-- Add a proper reconciliation flow for future sessions:
-  - hide or cancel future sessions created from inactive/removed schedules
-  - update future sessions when recurring schedule times/rooms/instructors change
-  - prevent duplicate overlapping sessions from old and new schedule rows both appearing
-- Keep past sessions untouched for history/audit.
+## Root Cause Analysis
 
-3. Unify all schedule screens around the same rules
-- Admin class management:
-  - make the recurring schedule page clearly reflect active vs inactive schedule templates
-  - make the admin sessions calendar reflect the reconciled future sessions only
-- Public website:
-  - ensure `/schedule` only shows the cleaned, active, bookable future sessions
-- Member portal:
-  - make member-facing schedule/booking surfaces use the exact same session filtering and timing rules as the public schedule
+There are **three distinct bugs** all contributing to the same visible problem:
 
-4. Remove logic drift between pages
-- Extract shared schedule-query/filter logic instead of each page hand-rolling slightly different queries.
-- Standardize:
-  - hidden/cancelled filtering
-  - active class-type filtering
-  - past/today session handling
-  - time formatting/day grouping
-- This prevents admin, website, and portal from disagreeing again.
+### Bug 1: Client-side billing check ignores `subscription_status = 'past_due'`
+`useMembersBillingIssues.ts` only flags `subscription_status` values of `incomplete` and `incomplete_expired`. It completely ignores `past_due`. Kaitlin Mault has `subscription_status: 'past_due'` but zero `payment_attempts` records, so the client thinks she's clean and shows "Check-In Approved."
 
-5. Add an admin recovery action
-- Add a one-click “rebuild upcoming sessions” or “reconcile schedule” action in admin.
-- This will resync future generated sessions from the current recurring schedule setup after edits, instead of leaving the database in a mixed old/new state.
+### Bug 2: Backend RPC doesn't block members with no subscription at all
+The `process_member_scan` function in the database only checks `subscription_status` IF `stripe_subscription_id IS NOT NULL`. For Sherene (and anyone else whose dead subscription was cleared), `stripe_subscription_id` is NULL, so the subscription check is completely skipped. She gets access granted because her `status` is still `active`.
 
-6. Validate the specific mess currently in the database
-- Reconcile the existing future schedule data already generated so the app stops showing wrong classes immediately after implementation.
-- Focus on duplicate Sunday/Monday reformer/cycle entries and stale hidden/inactive remnants already present in future sessions.
+### Bug 3: The migration from earlier was not applied (or was overwritten)
+The current `process_member_scan` in the database is an older version that does not include the billing-block logic, the `is_billing_block` flag, the `payment_attempts` check, or the no-subscription guard. The function currently running is the simple version that only checks `status` and optionally `subscription_status` when a subscription ID exists.
 
-Technical notes
-- Current issue appears to be structural:
-  - `class_schedules` contains multiple old/inactive and replacement rows
-  - `class_sessions` for upcoming dates were generated from older schedule states
-  - frontend pages query `class_sessions` directly, so stale generated rows leak into website/admin/member experiences
-- The fix should be backend-first, then shared frontend querying.
-- Past sessions should not be mutated; only upcoming/future sessions should be reconciled.
+### Architectural weakness
+The client (`getEffectiveStatus`) and server (`process_member_scan`) make independent access decisions using different data and different rules. The UI shows "Check-In Approved" or "Cannot Check In" before calling the backend, creating conflicting signals when they disagree.
 
-Files likely involved
-- `src/pages/admin/ClassSchedules.tsx`
-- `src/components/admin/WeeklyCalendarView.tsx`
-- `src/components/admin/AdminSessionsCalendar.tsx`
-- `src/pages/admin/Classes.tsx`
-- `src/pages/Schedule.tsx`
-- `src/hooks/useClassSessions.ts`
-- backend migration(s) updating schedule/session sync functions
-- possibly `supabase/functions/process-session-generation/index.ts`
+---
 
-Result
-- The recurring schedule you set in admin becomes the single truth.
-- Admin weekly calendar, admin class list, website schedule, and member booking views all agree.
-- Old generated sessions stop polluting future weeks.
-- You get a safe way to rebuild upcoming sessions whenever schedule templates change.
+## Implementation Plan
+
+### 1. Fix the backend RPC — replace `process_member_scan` with correct logic
+Create a new migration that drops and recreates the function with all required guards:
+- **No subscription guard**: For non-cash members with `stripe_subscription_id IS NULL` and status not `pending_activation` → deny with `no_active_subscription`
+- **Subscription status guard**: For members with a subscription, deny if status is anything other than `active` or `trialing` (catches `past_due`, `incomplete`, `canceled`, `unpaid`)
+- **Recent failed payment guard**: Query `payment_attempts` for failures in last 30 days
+- **Annual fee guard**: Check `annual_fee_paid_at` expiration
+- **Billing block flag**: Return `is_billing_block: true` so the UI knows override is not available
+- **Cash billing exemption**: Skip subscription checks for `billing_type = 'cash'`
+- Keep existing blocked-person check, token validation, check-in creation, and audit logging
+
+### 2. Fix the client-side billing issues hook
+In `useMembersBillingIssues.ts`:
+- Add check for `subscription_status = 'past_due'` → issue code `subscription_past_due`, type `error`
+- Add check for `subscription_status = 'canceled'` or `'unpaid'` → issue code `subscription_canceled`
+- For non-cash members with `status = 'active'` and `stripe_subscription_id` is null → already handled as `missing_subscription` (verify this works)
+- Update `canMemberCheckIn` to also block on the new codes
+
+### 3. Update `getEffectiveStatus` in `EffectiveStatusBadge.tsx`
+- Add `subscription_past_due` to the payment-failure check alongside `failed_payment`, `subscription_incomplete`, etc.
+- This ensures the status banner, badge, and check-in button all reflect the denial
+
+### 4. Make check-in page pre-validate via backend (not just client)
+In `CheckIn.tsx`, when a member is selected:
+- Call `scanMemberAsync` with `autoCheckIn: false` immediately to get the backend's verdict
+- Use the backend result to determine the approval/denial banner, not just the client-side `getEffectiveStatus`
+- This eliminates the "client says approved, backend says denied" disconnect
+- Only show the "Check In Member" button if the backend pre-check returned `access_granted: true`
+
+### 5. Update the backend RPC to support dry-run mode
+Add `p_auto_check_in = false` behavior: when false, skip the `check_ins` insert but still return the full access decision. This allows the pre-validation call without creating a check-in record.
+
+---
+
+## Files to change
+- New migration SQL: recreate `process_member_scan` with all guards
+- `src/hooks/useMembersBillingIssues.ts` — add `past_due` / `canceled` subscription status checks
+- `src/components/admin/EffectiveStatusBadge.tsx` — add new issue codes to payment failure check
+- `src/pages/admin/CheckIn.tsx` — pre-validate via backend on member selection
+
+## Result
+- Members like Kaitlin (past_due subscription) and Sherene (no subscription) will be hard-blocked at both the UI and backend level
+- Staff sees "Cannot Check In" immediately on selection, with the specific reason
+- No way for the UI to show "approved" when the backend would deny
+- Cash-billing members remain unaffected
+
