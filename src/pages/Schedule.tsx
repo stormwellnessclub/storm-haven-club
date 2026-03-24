@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   startOfWeek, addDays, addWeeks, format, isBefore, startOfDay, isToday,
 } from "date-fns";
+import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
   ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake,
   CircleDot, Bike, Activity, CalendarDays,
@@ -101,12 +102,16 @@ export default function Schedule() {
       if (error) throw error;
       return (data || []) as unknown as ClassSession[];
     },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 
   const filteredSessions = useMemo(() => {
-    if (categoryFilter === "all") return sessions;
-    return sessions.filter((s) => s.class_types.category === categoryFilter);
+    const now = new Date();
+    return sessions
+      .filter((s) => !isSessionFinishedToday(s.session_date, s.start_time, s.class_types.duration_minutes || 50, now))
+      .filter((s) => categoryFilter === "all" || s.class_types.category === categoryFilter);
   }, [sessions, categoryFilter]);
 
   // Group by date
