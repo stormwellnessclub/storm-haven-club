@@ -1686,6 +1686,10 @@ export default function MemberDetail() {
 
           {/* Membership Tab */}
           <TabsContent value="membership">
+            {/* Arrears Card - Shows outstanding debt */}
+            <div className="mb-6">
+              <ArrearsCard memberId={member.id} />
+            </div>
             {/* Billing Health Card - Full Width at Top */}
             <div className="mb-6">
               <BillingHealthCard 
