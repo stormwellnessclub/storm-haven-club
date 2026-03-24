@@ -204,10 +204,16 @@ export default function Scanner() {
   const getDenialMessage = (reason?: string) => {
     if (!reason) return "Access denied";
     const reasons: Record<string, string> = {
-      payment_overdue: "Payment overdue - Annual fee or monthly dues not paid",
-      membership_expired: "Membership expired",
-      membership_cancelled: "Membership cancelled",
-      membership_frozen: "Membership frozen",
+      payment_failed: "Payment Failed — Recent payment was declined",
+      payment_overdue: "Payment Overdue — Monthly dues past due",
+      no_active_subscription: "No Active Subscription — Member has no recurring billing",
+      subscription_incomplete: "Subscription Failed — Initial payment never completed",
+      annual_fee_overdue: "Annual Fee Overdue — Initiation fee not paid",
+      pending_activation: "Pending Activation — Awaiting first payment",
+      membership_expired: "Membership Expired",
+      membership_cancelled: "Membership Cancelled",
+      membership_frozen: "Membership Frozen",
+      membership_suspended: "Membership Suspended",
       access_revoked: "ACCESS REVOKED — This person is on the block list",
     };
     return reasons[reason] || reason.replace(/_/g, " ");
