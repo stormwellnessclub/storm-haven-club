@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft,
+  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft, Phone,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -19,27 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PersonSearch, type PersonResult } from "@/components/admin/roster/PersonSearch";
 import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/roster/PaymentMethodSelector";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
-
-interface ClassBooking {
-  id: string;
-  user_id: string;
-  member_id: string | null;
-  status: string;
-  checked_in_at: string | null;
-  walk_in_name: string | null;
-  payment_method: string | null;
-  members: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    photo_url: string | null;
-  } | null;
-  profile?: {
-    first_name: string | null;
-    last_name: string | null;
-    email?: string | null;
-  } | null;
-}
+import { resolveRosterIdentities, type RosterAttendee } from "@/hooks/useRosterIdentity";
 
 export default function ClassRoster() {
   const { sessionId } = useParams<{ sessionId: string }>();
