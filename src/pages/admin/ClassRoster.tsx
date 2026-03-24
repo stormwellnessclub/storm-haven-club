@@ -307,7 +307,8 @@ export default function ClassRoster() {
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
           status: "confirmed", payment_method: "pass", pass_id: selectedPassId,
-          walk_in_name: walkInName, booked_at: new Date().toISOString(),
+          walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
+          booked_at: new Date().toISOString(),
         });
       } else if (paymentMethod === "credits") {
         let targetCreditId = selectedCreditId;
