@@ -77,6 +77,12 @@ export function useMembersBillingIssues() {
         if (!isCashBilling && (memberAny.subscription_status === 'incomplete' || memberAny.subscription_status === 'incomplete_expired')) {
           issues.push({ type: "error", code: "subscription_incomplete", message: "Initial payment failed - subscription never started", shortLabel: "Payment Failed" });
           missingSubscription++;
+        } else if (!isCashBilling && (memberAny.subscription_status === 'past_due')) {
+          issues.push({ type: "error", code: "subscription_past_due", message: "Subscription payment past due", shortLabel: "Past Due" });
+          missingSubscription++;
+        } else if (!isCashBilling && (memberAny.subscription_status === 'canceled' || memberAny.subscription_status === 'unpaid')) {
+          issues.push({ type: "error", code: "subscription_canceled", message: "Subscription canceled or unpaid", shortLabel: "Canceled" });
+          missingSubscription++;
         } else if (!isCashBilling && member.status === "active" && !member.stripe_subscription_id) {
           issues.push({ type: "error", code: "missing_subscription", message: "Active member without recurring subscription", shortLabel: "No Sub" });
           missingSubscription++;
