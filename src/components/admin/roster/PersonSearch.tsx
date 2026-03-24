@@ -3,13 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Ticket } from "lucide-react";
+import { Ticket, Phone } from "lucide-react";
 
 export interface PersonResult {
   userId: string | null;
   memberId: string | null;
   name: string;
   email: string;
+  phone: string;
   type: "member" | "pass_holder" | "account";
   passCount: number;
 }
@@ -31,18 +32,18 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
       const [membersRes, profilesRes, nonMemberRes, passesRes] = await Promise.all([
         supabase
           .from("members")
-          .select("id, user_id, first_name, last_name, email, member_id, status")
+          .select("id, user_id, first_name, last_name, email, phone, member_id, status")
           .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,member_id.ilike.%${q}%`)
           .in("status", ["active", "frozen", "pending_activation"])
           .limit(10),
         supabase
           .from("profiles")
-          .select("user_id, email, full_name")
+          .select("user_id, email, full_name, phone")
           .or(`email.ilike.%${q}%,full_name.ilike.%${q}%`)
           .limit(10),
         supabase
           .from("non_member_profiles")
-          .select("user_id, first_name, last_name, email")
+          .select("user_id, first_name, last_name, email, phone")
           .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
           .limit(10),
         // Get users with active passes
@@ -75,6 +76,7 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
           memberId: m.id,
           name: `${m.first_name} ${m.last_name}`,
           email: m.email || "",
+          phone: m.phone || "",
           type: "member",
           passCount: m.user_id ? (passMap.get(m.user_id) || 0) : 0,
         });
@@ -91,6 +93,7 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
           memberId: null,
           name: nmName || nm.email || "Unknown",
           email: nm.email || "",
+          phone: nm.phone || "",
           type: pc > 0 ? "pass_holder" : "account",
           passCount: pc,
         });
@@ -106,6 +109,7 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
           memberId: null,
           name: p.full_name || p.email || "Unknown",
           email: p.email || "",
+          phone: p.phone || "",
           type: pc > 0 ? "pass_holder" : "account",
           passCount: pc,
         });
@@ -146,7 +150,10 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
             >
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{r.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{r.email}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {r.email}
+                  {r.phone && <span className="ml-2">📱 {r.phone}</span>}
+                </p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {r.passCount > 0 && (

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft,
+  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft, Phone,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -19,27 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PersonSearch, type PersonResult } from "@/components/admin/roster/PersonSearch";
 import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/roster/PaymentMethodSelector";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
-
-interface ClassBooking {
-  id: string;
-  user_id: string;
-  member_id: string | null;
-  status: string;
-  checked_in_at: string | null;
-  walk_in_name: string | null;
-  payment_method: string | null;
-  members: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    photo_url: string | null;
-  } | null;
-  profile?: {
-    first_name: string | null;
-    last_name: string | null;
-    email?: string | null;
-  } | null;
-}
+import { resolveRosterIdentities, type RosterAttendee } from "@/hooks/useRosterIdentity";
 
 export default function ClassRoster() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -132,37 +112,14 @@ export default function ClassRoster() {
   const className = session ? (Array.isArray(session.class_types) ? session.class_types[0]?.name : (session.class_types as any)?.name) : "";
   const sessionDate = session?.session_date ? new Date(session.session_date + "T00:00:00") : new Date();
 
-  // Fetch bookings
+  // Fetch bookings using shared resolver
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
     queryKey: ["class-roster-bookings", sessionId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("class_bookings")
-        .select("id, user_id, member_id, status, checked_in_at, walk_in_name, payment_method, members (id, first_name, last_name, photo_url)")
-        .eq("session_id", sessionId!)
-        .in("status", ["confirmed", "completed"]);
-      if (error) throw error;
-      const bookingsData = (data || []) as ClassBooking[];
-
-      // Secondary lookup for non-member profiles
-      const missingUserIds = bookingsData.filter(b => !b.members && b.user_id).map(b => b.user_id);
-      if (missingUserIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, first_name, last_name, email")
-          .in("user_id", missingUserIds);
-        if (profiles?.length) {
-          const profileMap = new Map(profiles.map(p => [p.user_id, p]));
-          for (const booking of bookingsData) {
-            if (!booking.members && booking.user_id) {
-              booking.profile = profileMap.get(booking.user_id) || null;
-            }
-          }
-        }
-      }
+      const attendees = await resolveRosterIdentities(sessionId!);
 
       // Auto-heal enrollment counter
-      const confirmedCount = bookingsData.length;
+      const confirmedCount = attendees.length;
       if (session && confirmedCount !== session.current_enrollment) {
         await supabase
           .from("class_sessions")
@@ -170,7 +127,7 @@ export default function ClassRoster() {
           .eq("id", sessionId!);
       }
 
-      return bookingsData;
+      return attendees;
     },
     enabled: !!sessionId && !!session,
   });
@@ -316,6 +273,8 @@ export default function ClassRoster() {
       const userId = effectiveUserId || null;
       const memberId = effectiveMemberId || null;
       const walkInName = addTab === "walkin" ? `${walkInFirst.trim()} ${walkInLast.trim()}` : null;
+      const walkInEmailVal = addTab === "walkin" && walkInEmail.trim() ? walkInEmail.trim() : null;
+      const walkInPhoneVal = addTab === "walkin" && walkInPhone.trim() ? walkInPhone.trim() : null;
 
       if (userId) {
         const { data: existing } = await supabase
@@ -348,7 +307,8 @@ export default function ClassRoster() {
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
           status: "confirmed", payment_method: "pass", pass_id: selectedPassId,
-          walk_in_name: walkInName, booked_at: new Date().toISOString(),
+          walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
+          booked_at: new Date().toISOString(),
         });
       } else if (paymentMethod === "credits") {
         let targetCreditId = selectedCreditId;
@@ -382,14 +342,16 @@ export default function ClassRoster() {
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
           status: "confirmed", payment_method: "credits", member_credit_id: targetCreditId,
-          credits_used: 1, walk_in_name: walkInName, booked_at: new Date().toISOString(),
+          credits_used: 1, walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
+          booked_at: new Date().toISOString(),
         });
       } else if (paymentMethod === "dropin") {
         const amountCents = dropInRate === "member" ? 2500 : 3000;
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
           status: "confirmed", payment_method: "walk_in", amount_paid: amountCents,
-          walk_in_name: walkInName, booked_at: new Date().toISOString(),
+          walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
+          booked_at: new Date().toISOString(),
         });
 
         if (memberId) {
@@ -413,6 +375,7 @@ export default function ClassRoster() {
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
           status: "confirmed", payment_method: "comp", walk_in_name: walkInName,
+          walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
           booked_at: new Date().toISOString(),
         });
       }
@@ -431,25 +394,10 @@ export default function ClassRoster() {
     if (!paymentMethod) return false;
     if (paymentMethod === "pass" && !selectedPassId) return false;
     if (paymentMethod === "sell") return false;
-    if (addTab === "walkin" && (!walkInFirst.trim() || !walkInLast.trim())) return false;
+    if (addTab === "walkin" && (!walkInFirst.trim() || !walkInLast.trim() || !walkInPhone.trim())) return false;
     if (addTab === "search" && !selectedPerson) return false;
     return true;
   })();
-
-  const getDisplayName = (booking: ClassBooking) => {
-    if (booking.members) return `${booking.members.first_name} ${booking.members.last_name}`;
-    if (booking.profile?.first_name || booking.profile?.last_name) return `${booking.profile.first_name || ""} ${booking.profile.last_name || ""}`.trim();
-    if (booking.walk_in_name) return booking.walk_in_name;
-    if (booking.profile?.email) return booking.profile.email;
-    return "Unknown";
-  };
-
-  const getInitials = (booking: ClassBooking) => {
-    if (booking.members) return `${booking.members.first_name?.[0] || ""}${booking.members.last_name?.[0] || ""}`;
-    if (booking.profile?.first_name || booking.profile?.last_name) return `${booking.profile.first_name?.[0] || ""}${booking.profile.last_name?.[0] || ""}`;
-    if (booking.walk_in_name) { const parts = booking.walk_in_name.split(" "); return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`; }
-    return "?";
-  };
 
   const paymentLabel = (method: string | null) => {
     switch (method) {
@@ -563,11 +511,14 @@ export default function ClassRoster() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
+                    <Label>Phone *</Label>
+                    <Input value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} placeholder="Required" type="tel" />
+                  </div>
+                  <div>
                     <Label>Email</Label>
                     <Input value={walkInEmail} onChange={(e) => setWalkInEmail(e.target.value)} placeholder="Optional — links passes" type="email" />
                     {resolvedWalkIn && <p className="text-xs text-primary mt-1">✓ Account found — passes will be available</p>}
                   </div>
-                  <div><Label>Phone</Label><Input value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} placeholder="Optional" type="tel" /></div>
                 </div>
               </TabsContent>
             </Tabs>
@@ -620,8 +571,9 @@ export default function ClassRoster() {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                   <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead>Status</TableHead>
@@ -629,39 +581,52 @@ export default function ClassRoster() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bookings.map((booking) => {
-                      const isCheckedIn = booking.status === "completed" || !!booking.checked_in_at;
-                      const isWalkIn = !booking.member_id && !!booking.walk_in_name;
+                    {bookings.map((attendee) => {
+                      const initials = attendee.name.split(" ").map(n => n[0] || "").join("").slice(0, 2) || "?";
+                      const typeLabel = attendee.type === "member" ? "Member" : attendee.type === "pass_holder" ? "Pass Holder" : attendee.type === "walk_in" ? "Walk-In" : "Account";
                       return (
-                        <TableRow key={booking.id}>
+                        <TableRow key={attendee.bookingId}>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                                {getInitials(booking)}
+                                {initials}
                               </div>
-                              <span className="font-medium">{getDisplayName(booking)}</span>
+                              <div>
+                                <span className="font-medium">{attendee.name}</span>
+                                {attendee.email && <p className="text-xs text-muted-foreground">{attendee.email}</p>}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            {isWalkIn ? <Badge variant="outline" className="text-xs">Walk-In</Badge> : <Badge variant="secondary" className="text-xs">Member</Badge>}
+                            {attendee.phone ? (
+                              <span className="flex items-center gap-1 text-sm">
+                                <Phone className="h-3 w-3 text-muted-foreground" />
+                                {attendee.phone}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm text-muted-foreground">{paymentLabel(booking.payment_method)}</span>
+                            <Badge variant={attendee.type === "member" ? "secondary" : "outline"} className="text-xs">{typeLabel}</Badge>
                           </TableCell>
                           <TableCell>
-                            {isCheckedIn ? (
+                            <span className="text-sm text-muted-foreground">{paymentLabel(attendee.paymentMethod)}</span>
+                          </TableCell>
+                          <TableCell>
+                            {attendee.isCheckedIn ? (
                               <Badge variant="default" className="bg-primary"><CheckCircle className="h-3 w-3 mr-1" /> Checked In</Badge>
                             ) : (
                               <Badge variant="secondary">Registered</Badge>
                             )}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
-                            {!isCheckedIn && (
+                            {!attendee.isCheckedIn && (
                               <>
-                                <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(booking.id)} disabled={checkInMutation.isPending}>
+                                <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(attendee.bookingId)} disabled={checkInMutation.isPending}>
                                   <UserCheck className="h-4 w-4 mr-1" /> Check In
                                 </Button>
-                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeMutation.mutate(booking.id)} disabled={removeMutation.isPending}>
+                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeMutation.mutate(attendee.bookingId)} disabled={removeMutation.isPending}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </>

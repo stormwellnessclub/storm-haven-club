@@ -894,11 +894,14 @@ export type Database = {
           member_id: string | null
           pass_id: string | null
           payment_method: string | null
+          pending_import_id: string | null
           session_id: string
           status: Database["public"]["Enums"]["booking_status"]
           updated_at: string
           user_id: string | null
+          walk_in_email: string | null
           walk_in_name: string | null
+          walk_in_phone: string | null
         }
         Insert: {
           amount_paid?: number | null
@@ -913,11 +916,14 @@ export type Database = {
           member_id?: string | null
           pass_id?: string | null
           payment_method?: string | null
+          pending_import_id?: string | null
           session_id: string
           status?: Database["public"]["Enums"]["booking_status"]
           updated_at?: string
           user_id?: string | null
+          walk_in_email?: string | null
           walk_in_name?: string | null
+          walk_in_phone?: string | null
         }
         Update: {
           amount_paid?: number | null
@@ -932,11 +938,14 @@ export type Database = {
           member_id?: string | null
           pass_id?: string | null
           payment_method?: string | null
+          pending_import_id?: string | null
           session_id?: string
           status?: Database["public"]["Enums"]["booking_status"]
           updated_at?: string
           user_id?: string | null
+          walk_in_email?: string | null
           walk_in_name?: string | null
+          walk_in_phone?: string | null
         }
         Relationships: [
           {
@@ -965,6 +974,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_bookings_pending_import_id_fkey"
+            columns: ["pending_import_id"]
+            isOneToOne: false
+            referencedRelation: "pending_non_member_imports"
             referencedColumns: ["id"]
           },
           {

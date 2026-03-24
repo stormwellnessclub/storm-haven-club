@@ -9,6 +9,7 @@ import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumb
 import { AdminSessionsCalendar } from "@/components/admin/AdminSessionsCalendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveAttendeePreviewsForSessions } from "@/hooks/useRosterIdentity";
 import { toast } from "sonner";
 import { format, parseISO, isAfter, isBefore, addDays } from "date-fns";
 import {
@@ -47,6 +48,7 @@ interface ClassSession {
 
 interface AttendeePreview {
   name: string;
+  phone: string;
 }
 
 function getSessionStatus(session: ClassSession): 'upcoming' | 'in-progress' | 'completed' | 'cancelled' {
@@ -129,41 +131,7 @@ export default function Classes() {
   const { data: attendeePreviews = {} } = useQuery({
     queryKey: ['admin-session-attendees-preview', selectedDateStr, sessionIds.join(',')],
     queryFn: async (): Promise<Record<string, AttendeePreview[]>> => {
-      if (sessionIds.length === 0) return {};
-      
-      const { data: bookings, error } = await supabase
-        .from('class_bookings')
-        .select('session_id, user_id, member_id, walk_in_name, members (first_name, last_name)')
-        .in('session_id', sessionIds)
-        .in('status', ['confirmed', 'completed']);
-      if (error) return {};
-
-      // Get profiles for non-member bookings
-      const missingUserIds = (bookings || []).filter(b => !b.members && b.user_id).map(b => b.user_id);
-      const profileMap = new Map<string, { first_name: string | null; last_name: string | null }>();
-      if (missingUserIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, first_name, last_name')
-          .in('user_id', missingUserIds);
-        profiles?.forEach(p => profileMap.set(p.user_id, p));
-      }
-
-      const result: Record<string, AttendeePreview[]> = {};
-      (bookings || []).forEach((b: any) => {
-        if (!result[b.session_id]) result[b.session_id] = [];
-        let name = "Unknown";
-        if (b.members) {
-          name = `${b.members.first_name} ${b.members.last_name}`;
-        } else if (b.walk_in_name) {
-          name = b.walk_in_name;
-        } else if (b.user_id && profileMap.has(b.user_id)) {
-          const p = profileMap.get(b.user_id)!;
-          name = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown';
-        }
-        result[b.session_id].push({ name });
-      });
-      return result;
+      return resolveAttendeePreviewsForSessions(sessionIds);
     },
     enabled: sessionIds.length > 0,
   });
