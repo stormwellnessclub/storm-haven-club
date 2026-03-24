@@ -1,64 +1,92 @@
 
-Fix the check-in system so unpaid/declined members are hard-blocked and clearly labeled everywhere staff uses it.
+Fix billing so staff can always see exactly what a member owes, which billing periods are unpaid, and why access is blocked — without having to rely on Stripe manually.
 
-What’s broken now
-- `/admin/check-in` is bypassing the backend guard and inserts directly into `check_ins` from the client. That means staff can still check someone in even when billing should block them.
-- The manual check-in page uses `checkMemberPaymentStatus(...)`, but that helper is too loose for this job:
-  - it treats any `stripe_subscription_id` as active
-  - it ignores `subscription_status` failures like `incomplete`
-  - it does not consistently use the same rules as the scanner/backend
-- `/admin/scanner` already uses `process_member_scan`, but the override path can still admit billing-blocked members, and the UI does not surface the denial reason strongly enough.
+What’s wrong now
+- The current system tracks payment attempts, but not a durable “dues owed by period” record.
+- Clearing/replacing a dead subscription can remove the visible link to the old dues problem, so admins lose context like “March was never paid.”
+- Failed subscription payments are only partially surfaced. Admin views still rely too much on local member fields, while the live truth is in Stripe invoices.
+- Because of that, you can’t reliably answer:
+  - how many months are past due
+  - which exact dues periods are unpaid
+  - total outstanding balance
+  - whether a canceled subscription still left unpaid invoices behind
 
 Implementation plan
+1. Add a real billing arrears ledger in the backend
+- Create a dedicated table for member billing obligations / invoice periods.
+- Store: member, billing type, period covered, amount due, amount paid, Stripe invoice ID, Stripe subscription ID, status, failure reason, and whether the debt is still collectible.
+- This becomes the source of truth for “March 9 dues is still owed.”
 
-1. Make the backend the single source of truth for check-in eligibility
-- Update the backend check-in logic in `process_member_scan` so it is the one definitive gate for:
-  - recent failed payment
-  - dues `past_due`
-  - missing or incomplete subscription
-  - annual fee overdue/unpaid
-  - pending activation
-- Return richer denial details in the RPC response so the UI can show exactly why access is denied.
-- Tighten override behavior so billing-related denials cannot be overridden. If someone owes money or had a failed payment, the backend must refuse check-in even when staff clicks override.
+2. Sync Stripe invoice reality into that ledger
+- Update webhook handling so subscription invoice events create/update the ledger on:
+  - invoice created
+  - payment failed
+  - payment succeeded
+  - uncollectible / void / closed states where applicable
+- Keep payment_attempts for attempt history, but stop treating it as the only billing truth.
+- Preserve owed records even if the member’s active subscription pointer changes later.
 
-2. Route every member check-in path through that backend gate
-- Refactor `src/pages/admin/CheckIn.tsx` to stop writing directly to `check_ins`.
-- Use the same RPC that the scanner uses, so manual search-based check-in and scanner check-in behave identically.
-- Keep duplicate-check protection and audit logging, but move the final allow/deny decision to the backend only.
+3. Stop losing debt context when replacing bad subscriptions
+- Change the “clear dead subscription” flow so it only disconnects the broken current dues reference.
+- Do not remove historical dues debt or make the UI look like nothing is owed.
+- Keep old subscription/invoice history visible on the member record.
 
-3. Make the blocked status obvious in the admin UI
-- Update `src/pages/admin/CheckIn.tsx` to show a strong red “Cannot Check In” state with specific reasons such as:
-  - Payment Failed
-  - Monthly Dues Past Due
-  - No Active Subscription
-  - Annual Fee Overdue
-- Remove the “Override Check-In” action for billing blocks.
-- Add the effective billing badge directly in member search results so staff can see the problem before selecting the member.
+4. Calculate and expose what’s owed
+- Add a backend summary for each member that returns:
+  - total amount owed
+  - unpaid month count
+  - exact unpaid billing periods (ex: Mar 9–Apr 8)
+  - latest decline reason
+  - latest failed attempt / retry schedule
+  - whether the current subscription is canceled but prior invoices remain unpaid
+- Use Stripe invoice periods and statuses, not just member.status or subscription_status inference.
 
-4. Align scanner, badges, and member admin views
-- Update `src/hooks/useMemberScanner.ts` typings to include the full billing denial payload returned by the backend.
-- Update `src/pages/admin/Scanner.tsx` so denied scans clearly show the exact billing reason instead of a generic denial.
-- Update `src/components/admin/EffectiveStatusBadge.tsx` and related billing issue helpers so the same labels appear consistently across:
-  - scanner
-  - check-in hub
-  - members list
-  - member detail / billing views
+5. Surface it clearly in admin UI
+- Update Member Detail billing area to show:
+  - Amount Owed
+  - Months Past Due
+  - Unpaid Periods list
+  - Latest failure reason
+  - Current dues subscription vs historical unpaid invoices
+- Update BillingHealthCard / SubscriptionCard / PaymentTimeline so staff can see both:
+  - current subscription state
+  - debt history still owed
+- Update Failed Payments + Stripe Live tabs so they merge local attempt history with live open/uncollectible Stripe invoices.
 
-5. Remove the stale client-side billing logic drift
-- Replace or rewrite `checkMemberPaymentStatus` and the current manual check-in-side payment checks so they no longer make independent access decisions.
-- Keep client helpers for display only, but base them on the same rules/fields as the backend gate.
+6. Make check-in messaging reflect the debt
+- Keep the hard block already added.
+- Improve the denial reason to say things like:
+  - “Cannot check in — 1 month past due ($250 owed for March dues)”
+  - “Cannot check in — multiple unpaid dues periods”
+- Use the new arrears summary instead of generic “payment failed” messaging alone.
+
+7. Backfill and reconcile existing members
+- Add an admin sync/rebuild process that pulls historical Stripe invoices for affected members and populates missing owed periods.
+- Use that to repair cases like Sherene so March still shows as owed even after the canceled subscription was detached.
+- Reconcile payment_attempts, member status, and live Stripe invoice state into one consistent view.
 
 Files likely involved
-- `src/pages/admin/CheckIn.tsx`
-- `src/pages/admin/Scanner.tsx`
-- `src/hooks/useMemberScanner.ts`
-- `src/hooks/usePaymentStatus.ts`
-- `src/hooks/useMembersBillingIssues.ts`
-- `src/components/admin/EffectiveStatusBadge.tsx`
-- backend migration updating `process_member_scan` (and possibly a small shared helper function for access evaluation)
+- supabase/functions/stripe-webhook/index.ts
+- supabase/functions/stripe-payment/index.ts
+- new backend migration for billing arrears table/functions
+- src/hooks/useAdminMemberBillingHealth.ts
+- src/components/admin/BillingHealthCard.tsx
+- src/components/admin/SubscriptionCard.tsx
+- src/components/admin/FailedPaymentsTab.tsx
+- src/components/admin/StripeLivePaymentsTab.tsx
+- src/components/admin/FailedPaymentDetailSheet.tsx
+- src/components/admin/PaymentTimeline.tsx
+- src/hooks/usePaymentTracking.ts
+- src/components/admin/EffectiveStatusBadge.tsx
 
-Result after implementation
-- Members with failed payments or money owed cannot be checked in from scanner or manual admin lookup.
-- Staff sees the exact reason immediately.
-- Billing-denied check-ins are enforced server-side, so the UI cannot accidentally bypass the rule again.
-- Audit logs remain intact for denied attempts and any non-billing overrides.
+Technical notes
+- Keep payment_attempts as attempt-level telemetry.
+- Add a separate obligation/ledger model for “what is owed.”
+- Do not rely on stripe_subscription_id alone to determine debt.
+- Use secure backend sync and proper RLS so staff can manage all records while members only see their own billing history.
+
+Result
+- You’ll be able to open a member and immediately see exactly how much they owe and for which months.
+- Failed subscription payments will be tracked from Stripe invoice events, not guessed from member status.
+- Replacing a canceled subscription will no longer erase visibility into old unpaid dues.
+- Check-in blocking will remain enforced, but with specific debt messaging instead of vague failure states.
