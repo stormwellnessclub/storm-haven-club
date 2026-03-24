@@ -342,7 +342,8 @@ export default function ClassRoster() {
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
           status: "confirmed", payment_method: "credits", member_credit_id: targetCreditId,
-          credits_used: 1, walk_in_name: walkInName, booked_at: new Date().toISOString(),
+          credits_used: 1, walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
+          booked_at: new Date().toISOString(),
         });
       } else if (paymentMethod === "dropin") {
         const amountCents = dropInRate === "member" ? 2500 : 3000;
