@@ -329,8 +329,8 @@ export default function ClassSchedules() {
               onClick={() => setGenerateDialogOpen(true)}
               disabled={activeScheduleCount === 0}
             >
-              <CalendarPlus className="h-4 w-4 mr-2" />
-              Generate Sessions
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reconcile & Generate Sessions
             </Button>
             <Dialog open={dialogOpen} onOpenChange={(open) => {
               setDialogOpen(open);
