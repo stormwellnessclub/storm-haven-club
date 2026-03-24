@@ -32,7 +32,7 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
       const [membersRes, profilesRes, nonMemberRes, passesRes] = await Promise.all([
         supabase
           .from("members")
-          .select("id, user_id, first_name, last_name, email, member_id, status")
+          .select("id, user_id, first_name, last_name, email, phone, member_id, status")
           .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,member_id.ilike.%${q}%`)
           .in("status", ["active", "frozen", "pending_activation"])
           .limit(10),
