@@ -48,6 +48,7 @@ interface ClassSession {
 
 interface AttendeePreview {
   name: string;
+  phone: string;
 }
 
 function getSessionStatus(session: ClassSession): 'upcoming' | 'in-progress' | 'completed' | 'cancelled' {
