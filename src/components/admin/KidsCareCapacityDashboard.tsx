@@ -38,6 +38,7 @@ function timeOverlaps(bookingStart: string, bookingEnd: string, blockStart: stri
 
 export function KidsCareCapacityDashboard({ bookings, selectedDate }: Props) {
   const activeBookings = bookings.filter((b) => ["confirmed", "checked_in"].includes(b.status));
+  const checkedOutBookings = bookings.filter((b) => b.status === "checked_out");
 
   return (
     <Card>
