@@ -81,6 +81,22 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
           status: "active" as const,
         });
         if (error) throw error;
+      } else if (grantType === "kids_care_pass") {
+        if (!prefill?.userId) throw new Error("User ID required for kids care passes");
+        const { error } = await supabase.from("class_passes").insert({
+          user_id: prefill.userId,
+          member_id: prefill.memberId || null,
+          category: "other" as any,
+          pass_type: "kids_care_monthly",
+          classes_total: kidsCareSessionCount,
+          classes_remaining: kidsCareSessionCount,
+          price_paid: 0,
+          is_member_price: !!prefill.memberId,
+          purchased_at: purchasedAt.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          status: "active" as const,
+        });
+        if (error) throw error;
       } else {
         // red_light, dry_cryo, or guest_pass_credit
         if (!prefill?.userId && !prefill?.memberId) throw new Error("User or member ID required");
