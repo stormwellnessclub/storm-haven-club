@@ -43,7 +43,7 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
           .limit(10),
         supabase
           .from("non_member_profiles")
-          .select("user_id, first_name, last_name, email")
+          .select("user_id, first_name, last_name, email, phone")
           .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
           .limit(10),
         // Get users with active passes
