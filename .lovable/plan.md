@@ -1,46 +1,43 @@
 
 
-# Fix: Subscription Cleared By Wrong Webhook Event
+# Fix Sherene's Billing: Charge March + Set Up Recurring Dues
 
-## What Happened to Sherene
+## Current State
+- **Member**: Sherene Albosaraj (STM-000122, cus_TtOsmHEP7aEKZw)
+- **Tier**: Gold, monthly billing, $250/mo (women's pricing)
+- **Database**: `stripe_subscription_id` incorrectly points to her annual fee sub (`sub_1SyMm7...`)
+- **Reality**: She has NO monthly dues subscription in Stripe — only the annual fee sub
 
-1. She had subscription `sub_1Synwi...` created in February — $250 paid successfully
-2. A second subscription `sub_1SyMm7...` was also created (possibly an admin action or duplicate)
-3. Subscription #1 was canceled in Stripe
-4. The webhook received the cancellation event, found Sherene by her Stripe customer ID, and **blindly cleared `stripe_subscription_id` to null** — without checking if the canceled subscription matched the one stored in the database
-5. Now her database shows "Subscription: None" despite having an active subscription (#2) in Stripe
-6. Her March invoice ($250) is **open/unpaid** — Stripe is trying to collect but something is blocking it
+## Plan (3 steps)
 
-## The Bug
+### Step 1: Fix her database record
+Clear `stripe_subscription_id` and `subscription_status` so they stop falsely showing an active dues subscription. Keep `annual_fee_subscription_id` as-is (that's correct).
 
-In `supabase/functions/stripe-webhook/index.ts`, when handling `customer.subscription.updated` (line 1442-1456) and `customer.subscription.deleted` (line 1566-1574), the code:
-- Looks up the member by `stripe_customer_id`
-- Clears `stripe_subscription_id = null` without verifying the canceled subscription ID matches the member's stored subscription ID
+```sql
+UPDATE members 
+SET stripe_subscription_id = NULL, 
+    subscription_status = NULL
+WHERE id = '77150c1b-e358-4db0-9110-97078d1c59df';
+```
 
-This means **any** subscription cancellation for that customer wipes the member's subscription reference, even if a different (active) subscription exists.
+### Step 2: Charge March dues via one-time invoice
+Create a Stripe invoice for $250 + processing fee (2.9% + $0.30) for March dues, using:
+- `stripe--create_invoice` for customer `cus_TtOsmHEP7aEKZw`
+- `stripe--create_invoice_item` with Gold monthly price `price_1Sl9pvLyZrsSqLhsIWyf2WwX`
+- `stripe--finalize_invoice` to send/charge it
 
-## Fix
+This charges her saved card immediately for the missed March payment.
 
-### 1. Webhook: Only clear subscription if IDs match
-In `stripe-webhook/index.ts`, for both the `customer.subscription.updated` (canceled/incomplete_expired handling) and `customer.subscription.deleted` events:
-- Before clearing `stripe_subscription_id`, check if `memberData.stripe_subscription_id === subscription.id`
-- If they don't match, log a warning but **don't clear** — the canceled subscription isn't the one we're tracking
+### Step 3: Create new monthly subscription starting April 9th
+Use the existing admin "Create Subscription" feature (the `useAdminCreateSubscription` hook calls the `stripe-payment` edge function with `admin_create_member_subscription` action). This will:
+- Create a new Stripe subscription for Gold monthly ($250/mo + processing fee)
+- Set `billing_cycle_anchor` to April 9th so it charges on the 9th each month
+- Update her `stripe_subscription_id` and `subscription_status` in the database
 
-### 2. Webhook: Same fix in sync-subscription-status
-Apply the same guard in `sync-subscription-status/index.ts` (lines 270-299) — only clear if the subscription being synced matches the stored one.
+### Step 4: Void the orphaned open invoice
+The old open invoice (`in_1T8xIC...`) from the canceled subscription needs to be voided so she's not double-charged.
 
-### 3. Immediate data fix for Sherene
-- Update her `stripe_subscription_id` to `sub_1SyMm7LyZrsSqLhsqBJ7yEKu` (the active one)
-- Update `subscription_status` to `active`
-- The open March invoice needs attention in Stripe — it's $250 unpaid
-
-### 4. Cancel the canceled subscription reference cleanup
-Also consider: should subscription #1 have been canceled? Or was it a mistake? You may want to cancel sub #2 and keep just one clean subscription going forward. That's a business decision.
-
-## Files to modify
-| File | Change |
-|------|--------|
-| `supabase/functions/stripe-webhook/index.ts` | Add subscription ID match check before clearing (2 locations) |
-| `supabase/functions/sync-subscription-status/index.ts` | Add subscription ID match check before clearing |
-| Database update (via insert tool) | Fix Sherene's record to point to active subscription |
+### Summary
+- March: One-time invoice charge of ~$257.55 ($250 + fees)
+- April 9th onward: New recurring subscription, $250/mo + fees, auto-billing on the 9th
 
