@@ -477,7 +477,42 @@ export default function ClassSchedules() {
                     </div>
                   )}
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  {editingSchedule && (
+                    <Button
+                      variant="destructive"
+                      onClick={async () => {
+                        if (!confirm("Delete this schedule? Future sessions from this schedule will be hidden.")) return;
+                        try {
+                          const { error } = await supabase
+                            .from("class_schedules")
+                            .delete()
+                            .eq("id", editingSchedule.id);
+                          if (error) throw error;
+                          // Reconcile to hide orphaned sessions
+                          const today = format(new Date(), 'yyyy-MM-dd');
+                          await supabase.rpc('reconcile_and_generate_class_sessions', {
+                            _start_date: today,
+                            _weeks_ahead: 6
+                          });
+                          queryClient.invalidateQueries({ queryKey: ['class-schedules'] });
+                          queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
+                          queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
+                          queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+                          queryClient.invalidateQueries({ queryKey: ['admin-sessions-calendar'] });
+                          toast.success("Schedule deleted");
+                          setDialogOpen(false);
+                          resetForm();
+                        } catch (err: any) {
+                          toast.error(err.message || "Failed to delete schedule");
+                        }
+                      }}
+                      className="sm:mr-auto"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  )}
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancel
                   </Button>
