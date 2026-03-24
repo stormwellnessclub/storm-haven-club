@@ -20,6 +20,7 @@ import { AdminChargeWith3DSProvider } from "@/components/admin/AdminChargeWith3D
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
 import { PaymentsTabContent } from "@/components/admin/PaymentsTabContent";
 import { BillingHealthCard } from "@/components/admin/BillingHealthCard";
+import { ArrearsCard } from "@/components/admin/ArrearsCard";
 import { SubscriptionCard } from "@/components/admin/SubscriptionCard";
 import { PaymentTimeline } from "@/components/admin/PaymentTimeline";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
