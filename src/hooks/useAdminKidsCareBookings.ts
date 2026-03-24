@@ -34,8 +34,8 @@ export interface AdminKidsCareBooking extends KidsCareBooking {
   child_special_instructions?: string | null;
   child_photo_release?: boolean | null;
   child_preferred_activities?: string | null;
-  // Pass info from JOIN
-  pass_id?: string | null;
+  // Pass info from JOIN (pass_id already in KidsCareBooking)
+  pass_type?: string | null;
   pass_type?: string | null;
   pass_status?: string | null;
   pass_classes_remaining?: number | null;

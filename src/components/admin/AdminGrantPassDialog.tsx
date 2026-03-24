@@ -129,6 +129,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
     guest_pass: "Guest Pass (Voucher)",
     guest_pass_credit: "Guest Pass Credit (Member Perk)",
     class_pass: "Class Pass",
+    kids_care_pass: "Kids Care Pass",
     red_light: "Red Light Therapy Credits",
     dry_cryo: "Dry Cryotherapy Credits",
   };
