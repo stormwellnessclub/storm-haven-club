@@ -268,35 +268,44 @@ serve(async (req) => {
             }
 
             // Clear dead subscription IDs for canceled/expired subscriptions
+            // Only clear if the subscription being synced matches the stored one
             if (shouldClearSubscription) {
-              issueCount++;
-              logStep("Dead subscription found - clearing subscription ID", { 
-                memberId: member.id, 
-                subscriptionId: member.stripe_subscription_id,
-                stripeStatus: subscription.status
-              });
-              
-              if (!options.dryRun) {
-                await supabase
-                  .from('members')
-                  .update({ 
-                    stripe_subscription_id: null,
-                    subscription_status: 'none',
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq('id', member.id);
-                fixedCount++;
+              if (member.stripe_subscription_id === subscription.id) {
+                issueCount++;
+                logStep("Dead subscription found - clearing subscription ID", { 
+                  memberId: member.id, 
+                  subscriptionId: member.stripe_subscription_id,
+                  stripeStatus: subscription.status
+                });
+                
+                if (!options.dryRun) {
+                  await supabase
+                    .from('members')
+                    .update({ 
+                      stripe_subscription_id: null,
+                      subscription_status: 'none',
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', member.id);
+                  fixedCount++;
+                }
+                
+                results.push({
+                  member_id: member.id,
+                  member_name: memberName,
+                  issue_type: 'dead_subscription_cleared',
+                  details: `Subscription ${member.stripe_subscription_id} is ${subscription.status} - ID cleared from database`,
+                  fixed: !options.dryRun
+                });
+              } else {
+                logStep("Canceled subscription does not match stored subscription - skipping clear", {
+                  memberId: member.id,
+                  canceledSubId: subscription.id,
+                  storedSubId: member.stripe_subscription_id
+                });
               }
               
-              results.push({
-                member_id: member.id,
-                member_name: memberName,
-                issue_type: 'dead_subscription_cleared',
-                details: `Subscription ${member.stripe_subscription_id} is ${subscription.status} - ID cleared from database`,
-                fixed: !options.dryRun
-              });
-              
-              continue; // Move to next member after clearing
+              continue;
             }
 
             if (member.status !== expectedStatus && member.status !== 'frozen') {

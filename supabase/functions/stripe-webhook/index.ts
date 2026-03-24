@@ -1574,20 +1574,28 @@ serve(async (req) => {
                 logStep("Subscription deleted - member status updated", { memberId: memberData.id });
               }
 
-              // Also clear subscription_status and stripe_subscription_id to prevent stale data
-              const { error: clearError } = await supabase
-                .from('members')
-                .update({
-                  stripe_subscription_id: null,
-                  subscription_status: 'none',
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', memberData.id);
+              // Only clear subscription fields if the deleted subscription matches the stored one
+              if (memberData.stripe_subscription_id === subscription.id || !memberData.stripe_subscription_id) {
+                const { error: clearError } = await supabase
+                  .from('members')
+                  .update({
+                    stripe_subscription_id: null,
+                    subscription_status: 'none',
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', memberData.id);
 
-              if (clearError) {
-                logError(clearError, "SUBSCRIPTION_DELETED_CLEAR_FIELDS");
+                if (clearError) {
+                  logError(clearError, "SUBSCRIPTION_DELETED_CLEAR_FIELDS");
+                } else {
+                  logStep("Cleared stale subscription fields", { memberId: memberData.id });
+                }
               } else {
-                logStep("Cleared stale subscription fields", { memberId: memberData.id });
+                logStep("Deleted subscription does not match stored subscription - skipping clear", {
+                  memberId: memberData.id,
+                  deletedSubId: subscription.id,
+                  storedSubId: memberData.stripe_subscription_id
+                });
               }
             }
           } else {
