@@ -130,7 +130,8 @@ export function useMembersBillingIssues() {
         const issues = memberIssues[memberId] || [];
         return !issues.some(i =>
           i.code === 'failed_payment' || i.code === 'missing_subscription' ||
-          i.code === 'missing_payment_method' || i.code === 'subscription_incomplete'
+          i.code === 'missing_payment_method' || i.code === 'subscription_incomplete' ||
+          i.code === 'subscription_past_due' || i.code === 'subscription_canceled'
         );
       };
 

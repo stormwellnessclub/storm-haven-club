@@ -6012,19 +6012,17 @@ export type Database = {
         Returns: string
       }
       mark_guest_pass_used: { Args: { p_pass_id: string }; Returns: Json }
-      process_member_scan:
-        | {
-            Args: {
-              p_auto_check_in?: boolean
-              p_device_type?: string
-              p_member_id_text: string
-              p_override?: boolean
-              p_override_reason?: string
-              p_scanned_by: string
-            }
-            Returns: Json
-          }
-        | { Args: { p_scanned_code: string }; Returns: Json }
+      process_member_scan: {
+        Args: {
+          p_auto_check_in?: boolean
+          p_device_type?: string
+          p_member_id_text: string
+          p_override?: boolean
+          p_override_reason?: string
+          p_scanned_by: string
+        }
+        Returns: Json
+      }
       reconcile_and_generate_class_sessions: {
         Args: { _start_date?: string; _weeks_ahead?: number }
         Returns: {
