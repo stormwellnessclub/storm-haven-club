@@ -159,7 +159,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
 
   // Filter available types based on prefill
   const availableTypes: GrantType[] = prefill?.userId
-    ? ["guest_pass", "guest_pass_credit", "class_pass", "red_light", "dry_cryo"]
+    ? ["guest_pass", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo"]
     : ["guest_pass"]; // Without a user, can only grant guest passes
 
   return (
