@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Loader2, Gift } from "lucide-react";
 
-type GrantType = "guest_pass" | "guest_pass_credit" | "class_pass" | "red_light" | "dry_cryo";
+type GrantType = "guest_pass" | "guest_pass_credit" | "class_pass" | "kids_care_pass" | "red_light" | "dry_cryo";
 
 interface AdminGrantPassDialogProps {
   open: boolean;
@@ -42,6 +42,9 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   // Class pass specific
   const [classCategory, setClassCategory] = useState<"pilates_cycling" | "other">("pilates_cycling");
   const [passType, setPassType] = useState<"single" | "10-pack">("single");
+  // Kids care pass specific
+  const [kidsCareSessionCount, setKidsCareSessionCount] = useState(16);
+  const [purchasedAt, setPurchasedAt] = useState<Date>(new Date());
 
   const grantMutation = useMutation({
     mutationFn: async () => {
@@ -78,6 +81,22 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
           status: "active" as const,
         });
         if (error) throw error;
+      } else if (grantType === "kids_care_pass") {
+        if (!prefill?.userId) throw new Error("User ID required for kids care passes");
+        const { error } = await supabase.from("class_passes").insert({
+          user_id: prefill.userId,
+          member_id: prefill.memberId || null,
+          category: "other" as any,
+          pass_type: "kids_care_monthly",
+          classes_total: kidsCareSessionCount,
+          classes_remaining: kidsCareSessionCount,
+          price_paid: 0,
+          is_member_price: !!prefill.memberId,
+          purchased_at: purchasedAt.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          status: "active" as const,
+        });
+        if (error) throw error;
       } else {
         // red_light, dry_cryo, or guest_pass_credit
         if (!prefill?.userId && !prefill?.memberId) throw new Error("User or member ID required");
@@ -106,6 +125,8 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
       queryClient.invalidateQueries({ queryKey: ["admin-nonmember-wellness-credits"] });
       queryClient.invalidateQueries({ queryKey: ["admin-guest-passes"] });
       queryClient.invalidateQueries({ queryKey: ["portal-guest-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-kids-care-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-kids-care-bookings"] });
       onSuccess?.();
       onOpenChange(false);
       resetForm();
@@ -123,19 +144,22 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
     setNotes("");
     setClassCategory("pilates_cycling");
     setPassType("single");
+    setKidsCareSessionCount(16);
+    setPurchasedAt(new Date());
   };
 
   const typeLabel: Record<GrantType, string> = {
     guest_pass: "Guest Pass (Voucher)",
     guest_pass_credit: "Guest Pass Credit (Member Perk)",
     class_pass: "Class Pass",
+    kids_care_pass: "Kids Care Pass",
     red_light: "Red Light Therapy Credits",
     dry_cryo: "Dry Cryotherapy Credits",
   };
 
   // Filter available types based on prefill
   const availableTypes: GrantType[] = prefill?.userId
-    ? ["guest_pass", "guest_pass_credit", "class_pass", "red_light", "dry_cryo"]
+    ? ["guest_pass", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo"]
     : ["guest_pass"]; // Without a user, can only grant guest passes
 
   return (
@@ -205,6 +229,36 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
                     <SelectItem value="10-pack">10-Pack</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </>
+          )}
+
+          {/* Kids Care Pass fields */}
+          {grantType === "kids_care_pass" && (
+            <>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Sessions</Label>
+                <Input type="number" min={1} max={50} value={kidsCareSessionCount} onChange={(e) => setKidsCareSessionCount(parseInt(e.target.value) || 16)} />
+                <p className="text-xs text-muted-foreground">Standard monthly pass = 16 sessions</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Purchase Date (backdate if needed)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(purchasedAt, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={purchasedAt}
+                      onSelect={(d) => d && setPurchasedAt(d)}
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </>
           )}

@@ -5903,6 +5903,13 @@ export type Database = {
           parent_email: string
           parent_first_name: string
           parent_last_name: string
+          pass_classes_remaining: number
+          pass_classes_total: number
+          pass_expires_at: string
+          pass_id: string
+          pass_purchased_at: string
+          pass_status: string
+          pass_type: string
           room: string
           special_instructions: string
           start_time: string

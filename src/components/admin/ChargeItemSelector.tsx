@@ -102,6 +102,8 @@ function buildChargeItems(
     { id: "10pack_nonmember_pilates", label: "10-Pack - Pilates/Cycling (Non-Member $300)", amount: 300, description: "10-pack class pass (non-member) - Pilates/Cycling", chargeType: "class_pass", group: "Class Passes" },
     { id: "10pack_nonmember_other", label: "10-Pack - Other (Non-Member $200)", amount: 200, description: "10-pack class pass (non-member)", chargeType: "class_pass", group: "Class Passes" },
     { id: "late_cancel", label: "Late Cancel Fee ($25)", amount: 25, description: "Late cancellation fee", chargeType: "other", group: "Fees" },
+    { id: "kids_care_monthly", label: "Kids Care Monthly Pass ($75)", amount: 75, description: "Kids Care Monthly Pass - 16 sessions", chargeType: "kids_care", group: "Kids Care" },
+    { id: "kids_care_single", label: "Kids Care Single Session ($40)", amount: 40, description: "Kids Care Single Session", chargeType: "kids_care", group: "Kids Care" },
     { id: "custom", label: "Custom Amount", amount: null, description: "", chargeType: "other", group: "Custom" },
   ];
 }

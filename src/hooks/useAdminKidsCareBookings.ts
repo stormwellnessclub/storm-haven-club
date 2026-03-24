@@ -34,6 +34,13 @@ export interface AdminKidsCareBooking extends KidsCareBooking {
   child_special_instructions?: string | null;
   child_photo_release?: boolean | null;
   child_preferred_activities?: string | null;
+  // Pass info from JOIN (pass_id already in KidsCareBooking)
+  pass_type?: string | null;
+  pass_status?: string | null;
+  pass_classes_remaining?: number | null;
+  pass_classes_total?: number | null;
+  pass_purchased_at?: string | null;
+  pass_expires_at?: string | null;
 }
 
 interface AdminKidsCareBookingsFilters {
@@ -107,6 +114,13 @@ export function useAdminKidsCareBookings(filters?: AdminKidsCareBookingsFilters)
         child_special_instructions: row.child_special_instructions || null,
         child_photo_release: row.child_photo_release ?? null,
         child_preferred_activities: row.child_preferred_activities || null,
+        pass_id: row.pass_id || null,
+        pass_type: row.pass_type || null,
+        pass_status: row.pass_status || null,
+        pass_classes_remaining: row.pass_classes_remaining ?? null,
+        pass_classes_total: row.pass_classes_total ?? null,
+        pass_purchased_at: row.pass_purchased_at || null,
+        pass_expires_at: row.pass_expires_at || null,
       })) as AdminKidsCareBooking[];
     },
     enabled: !!user,

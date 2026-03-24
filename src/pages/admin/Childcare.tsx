@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle, ChevronDown, Shield, Heart, Pill, Camera, CameraOff, XCircle, Pencil } from "lucide-react";
+import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle, ChevronDown, Shield, Heart, Pill, Camera, CameraOff, XCircle, Pencil, Ticket } from "lucide-react";
 import { useState } from "react";
 import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus, useAdminCancelKidsCareBooking, useAdminUpdateKidsCareBookingTime } from "@/hooks/useAdminKidsCareBookings";
 import { useKidsCareInterestList, useUpdateKidsCareInterestStatus } from "@/hooks/useKidsCareInterest";
@@ -41,6 +41,7 @@ import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDa
 import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
 import { KidsCareAdminChat, useKidsCareUnreadCount } from "@/components/admin/KidsCareAdminChat";
 import { KidsCareBookForParent } from "@/components/admin/KidsCareBookForParent";
+import { KidsCarePassesTab } from "@/components/admin/KidsCarePassesTab";
 
 
 export default function Childcare() {
@@ -152,6 +153,10 @@ export default function Childcare() {
                   {kidsCareUnread}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="passes" className="flex items-center gap-2">
+              <Ticket className="h-4 w-4" />
+              Passes
             </TabsTrigger>
           </TabsList>
 
@@ -298,45 +303,73 @@ export default function Childcare() {
                               )}
                             </div>
                           )}
+                          {/* Pass Info */}
+                          {booking.pass_type ? (
+                            <div className="text-xs flex items-center gap-2 p-2 bg-accent/10 rounded border border-accent/20">
+                              <Ticket className="h-3 w-3 text-accent-foreground" />
+                              <span className="font-medium">{booking.pass_type.replace(/_/g, " ")}</span>
+                              <span className="text-muted-foreground">•</span>
+                              <span>{booking.pass_classes_remaining}/{booking.pass_classes_total} sessions left</span>
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                                {booking.pass_status}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <div className="text-xs flex items-center gap-1 p-2 bg-warning/10 rounded border border-warning/20 text-warning">
+                              <AlertTriangle className="h-3 w-3" />
+                              No pass linked to this booking
+                            </div>
+                          )}
+
                           {booking.special_instructions && (
                             <div className="text-xs text-muted-foreground italic p-2 bg-muted rounded">
                               <span className="font-medium not-italic">Booking Notes:</span> {booking.special_instructions}
                             </div>
                           )}
 
-                          {/* Child Profile Info - Collapsible */}
-                          {(booking.child_allergies || booking.child_medical_conditions || booking.child_medications || booking.child_emergency_contact_name || booking.child_authorized_pickup_persons || booking.child_special_instructions || booking.child_preferred_activities) && (
+                          {/* Safety-critical info shown prominently (not collapsed) */}
+                          {(booking.child_allergies || booking.child_medical_conditions) && (
+                            <div className="space-y-1">
+                              {booking.child_allergies && (
+                                <div className="p-2 rounded bg-destructive/10 border border-destructive/20 text-xs">
+                                  <span className="font-semibold text-destructive flex items-center gap-1">
+                                    <Heart className="h-3 w-3" /> Allergies
+                                  </span>
+                                  <p className="text-foreground mt-0.5">{booking.child_allergies}</p>
+                                </div>
+                              )}
+                              {booking.child_medical_conditions && (
+                                <div className="p-2 rounded bg-warning/10 border border-warning/20 text-xs">
+                                  <span className="font-semibold text-warning flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" /> Medical Conditions
+                                  </span>
+                                  <p className="text-foreground mt-0.5">{booking.child_medical_conditions}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* No child profile warning */}
+                          {!booking.child_allergies && !booking.child_medical_conditions && !booking.child_emergency_contact_name && !booking.child_special_instructions && (
+                            <div className="text-xs flex items-center gap-1 p-2 bg-muted rounded text-muted-foreground">
+                              <Shield className="h-3 w-3" />
+                              No child profile registered — parent should complete profile
+                            </div>
+                          )}
+                          {/* Additional child profile info - Collapsible */}
+                          {(booking.child_medications || booking.child_emergency_contact_name || booking.child_authorized_pickup_persons || booking.child_special_instructions || booking.child_preferred_activities) && (
                             <Collapsible>
                               <CollapsibleTrigger asChild>
                                 <Button variant="ghost" size="sm" className="w-full justify-between text-xs h-7 px-2">
                                   <span className="flex items-center gap-1">
                                     <Shield className="h-3 w-3" />
-                                    Child Profile Info
-                                    {(booking.child_allergies || booking.child_medical_conditions) && (
-                                      <Badge variant="destructive" className="text-[10px] px-1 py-0 h-4">Important</Badge>
-                                    )}
+                                    More Child Info
                                   </span>
                                   <ChevronDown className="h-3 w-3 transition-transform duration-200 [&[data-state=open]]:rotate-180" />
                                 </Button>
                               </CollapsibleTrigger>
                               <CollapsibleContent>
                                 <div className="space-y-2 pt-2 text-xs">
-                                  {booking.child_allergies && (
-                                    <div className="p-2 rounded bg-destructive/10 border border-destructive/20">
-                                      <span className="font-semibold text-destructive flex items-center gap-1">
-                                        <Heart className="h-3 w-3" /> Allergies
-                                      </span>
-                                      <p className="text-foreground mt-0.5">{booking.child_allergies}</p>
-                                    </div>
-                                  )}
-                                  {booking.child_medical_conditions && (
-                                    <div className="p-2 rounded bg-warning/10 border border-warning/20">
-                                      <span className="font-semibold text-warning flex items-center gap-1">
-                                        <AlertTriangle className="h-3 w-3" /> Medical Conditions
-                                      </span>
-                                      <p className="text-foreground mt-0.5">{booking.child_medical_conditions}</p>
-                                    </div>
-                                  )}
                                   {booking.child_medications && (
                                     <div className="p-2 rounded bg-muted">
                                       <span className="font-semibold flex items-center gap-1">
@@ -598,6 +631,10 @@ export default function Childcare() {
 
           <TabsContent value="parent-chat" className="space-y-6">
             <KidsCareAdminChat />
+          </TabsContent>
+
+          <TabsContent value="passes" className="space-y-6">
+            <KidsCarePassesTab />
           </TabsContent>
         </Tabs>
       </div>
