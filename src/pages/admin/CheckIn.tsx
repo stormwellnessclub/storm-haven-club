@@ -67,6 +67,10 @@ export default function CheckIn() {
   const { data: billingIssues } = useMembersBillingIssues();
   const { scanMemberAsync } = useMemberScanner();
 
+  // Arrears for the selected member
+  const selectedMemberId = memberData?.id;
+  const { data: arrearsData } = useMemberArrears(selectedMemberId);
+
   // For member-type selections only
   const memberData = selected?.type === "member" ? selected.data : null;
   const effectiveStatus = memberData
