@@ -38,6 +38,7 @@ function timeOverlaps(bookingStart: string, bookingEnd: string, blockStart: stri
 
 export function KidsCareCapacityDashboard({ bookings, selectedDate }: Props) {
   const activeBookings = bookings.filter((b) => ["confirmed", "checked_in"].includes(b.status));
+  const checkedOutBookings = bookings.filter((b) => b.status === "checked_out");
 
   return (
     <Card>
@@ -70,6 +71,11 @@ export function KidsCareCapacityDashboard({ bookings, selectedDate }: Props) {
                       return bRoom === room.name && timeOverlaps(b.start_time, b.end_time, block.start, block.end);
                     }).length;
 
+                    const usedCount = checkedOutBookings.filter((b) => {
+                      const bRoom = b.room || getRoomForAgeGroup(b.age_group);
+                      return bRoom === room.name && timeOverlaps(b.start_time, b.end_time, block.start, block.end);
+                    }).length;
+
                     const ratio = count / room.capacity;
                     let colorClass = "bg-success/10 text-success";
                     if (ratio >= 1) colorClass = "bg-destructive/10 text-destructive";
@@ -80,6 +86,11 @@ export function KidsCareCapacityDashboard({ bookings, selectedDate }: Props) {
                         <Badge variant="outline" className={`${colorClass} text-xs px-1.5 py-0.5`}>
                           {count}/{room.capacity}
                         </Badge>
+                        {usedCount > 0 && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            +{usedCount} done
+                          </div>
+                        )}
                       </td>
                     );
                   })}

@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle, ChevronDown, Shield, Heart, Pill, Camera, CameraOff, XCircle, Pencil, Ticket } from "lucide-react";
+import { Baby, Search, UserCheck, UserX, Clock, Users, Loader2, Calendar, ListPlus, Mail, Phone, AlertTriangle, MessageSquarePlus, MessageCircle, ChevronDown, Shield, Heart, Pill, Camera, CameraOff, XCircle, Pencil, Ticket, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAdminKidsCareBookings, useUpdateKidsCareBookingStatus, useAdminCancelKidsCareBooking, useAdminUpdateKidsCareBookingTime } from "@/hooks/useAdminKidsCareBookings";
 import { useKidsCareInterestList, useUpdateKidsCareInterestStatus } from "@/hooks/useKidsCareInterest";
 import { format, parse } from "date-fns";
@@ -45,6 +46,7 @@ import { KidsCarePassesTab } from "@/components/admin/KidsCarePassesTab";
 
 
 export default function Childcare() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState("bookings");
@@ -269,13 +271,19 @@ export default function Childcare() {
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                          <div className="text-sm">
+                          <div className="text-sm flex items-center gap-1">
                             <span className="text-muted-foreground">Parent: </span>
-                            <span>
-                              {booking.member 
-                                ? `${booking.member.first_name} ${booking.member.last_name}`
-                                : booking.user?.email || 'Unknown'}
-                            </span>
+                            {booking.member ? (
+                              <button
+                                onClick={() => navigate(`/admin/members/${booking.member!.id}`)}
+                                className="text-primary hover:underline flex items-center gap-1"
+                              >
+                                {booking.member.first_name} {booking.member.last_name}
+                                <ExternalLink className="h-3 w-3" />
+                              </button>
+                            ) : (
+                              <span>{booking.user?.email || 'Unknown'}</span>
+                            )}
                           </div>
                           {editingTimeId === booking.id ? (
                             <div className="flex items-center gap-2">
@@ -350,7 +358,7 @@ export default function Childcare() {
                           )}
 
                           {/* No child profile warning */}
-                          {!booking.child_allergies && !booking.child_medical_conditions && !booking.child_emergency_contact_name && !booking.child_special_instructions && (
+                          {!booking.child_profile_found && (
                             <div className="text-xs flex items-center gap-1 p-2 bg-muted rounded text-muted-foreground">
                               <Shield className="h-3 w-3" />
                               No child profile registered — parent should complete profile

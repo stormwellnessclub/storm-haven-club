@@ -41,6 +41,7 @@ export interface AdminKidsCareBooking extends KidsCareBooking {
   pass_classes_total?: number | null;
   pass_purchased_at?: string | null;
   pass_expires_at?: string | null;
+  child_profile_found?: boolean | null;
 }
 
 interface AdminKidsCareBookingsFilters {
@@ -121,6 +122,7 @@ export function useAdminKidsCareBookings(filters?: AdminKidsCareBookingsFilters)
         pass_classes_total: row.pass_classes_total ?? null,
         pass_purchased_at: row.pass_purchased_at || null,
         pass_expires_at: row.pass_expires_at || null,
+        child_profile_found: row.child_profile_found ?? null,
       })) as AdminKidsCareBooking[];
     },
     enabled: !!user,
