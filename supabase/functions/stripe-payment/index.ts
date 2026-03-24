@@ -5158,6 +5158,116 @@ serve(async (req) => {
         );
       }
 
+      // ==================== SYNC MEMBER ARREARS FROM STRIPE ====================
+      case 'sync_member_arrears': {
+        const { memberId } = body;
+        if (!memberId) throw new Error("memberId is required");
+
+        // Verify admin role
+        const { data: adminRoleArr } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+        if (!adminRoleArr || adminRoleArr.length === 0) throw new Error("Unauthorized");
+
+        // Get member
+        const { data: memberArr, error: memberArrErr } = await supabase
+          .from('members')
+          .select('id, stripe_customer_id, stripe_subscription_id, annual_fee_subscription_id')
+          .eq('id', memberId)
+          .single();
+        if (memberArrErr || !memberArr) throw new Error("Member not found");
+        if (!memberArr.stripe_customer_id) throw new Error("No Stripe customer");
+
+        logStep("Syncing arrears from Stripe invoices", { memberId });
+
+        // Pull all open/uncollectible/void invoices for this customer
+        const invoices = await stripe.invoices.list({
+          customer: memberArr.stripe_customer_id,
+          limit: 50,
+          status: 'open',
+        });
+
+        // Also get past invoices that might be uncollectible
+        const paidInvoices = await stripe.invoices.list({
+          customer: memberArr.stripe_customer_id,
+          limit: 50,
+          status: 'paid',
+        });
+
+        const voidInvoices = await stripe.invoices.list({
+          customer: memberArr.stripe_customer_id,
+          limit: 50,
+          status: 'void',
+        });
+
+        const uncollectibleInvoices = await stripe.invoices.list({
+          customer: memberArr.stripe_customer_id,
+          limit: 50,
+          status: 'uncollectible',
+        });
+
+        const allInvoices = [
+          ...invoices.data,
+          ...paidInvoices.data,
+          ...voidInvoices.data,
+          ...uncollectibleInvoices.data,
+        ];
+
+        let upserted = 0;
+        const annualFeePriceIds = ['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN'];
+
+        for (const inv of allInvoices) {
+          if (!inv.subscription) continue; // skip one-time
+
+          const isAnnualFee = inv.lines?.data?.some((line: any) =>
+            line.price && annualFeePriceIds.includes(line.price.id)
+          ) || false;
+
+          const periodStart = inv.period_start ? new Date(inv.period_start * 1000).toISOString().split('T')[0] : new Date(inv.created * 1000).toISOString().split('T')[0];
+          const periodEnd = inv.period_end ? new Date(inv.period_end * 1000).toISOString().split('T')[0] : periodStart;
+
+          let arrStatus = 'unpaid';
+          if (inv.status === 'paid') arrStatus = 'paid';
+          else if (inv.status === 'void') arrStatus = 'void';
+          else if (inv.status === 'uncollectible') arrStatus = 'uncollectible';
+          else if (inv.status === 'open' && inv.amount_paid > 0 && inv.amount_paid < inv.amount_due) arrStatus = 'partial';
+
+          const piId = typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent?.id || null;
+
+          const { error: uErr } = await supabase
+            .from('billing_arrears')
+            .upsert({
+              member_id: memberArr.id,
+              stripe_invoice_id: inv.id,
+              billing_type: isAnnualFee ? 'annual_fee' : 'membership_dues',
+              period_start: periodStart,
+              period_end: periodEnd,
+              amount_due_cents: inv.amount_due || 0,
+              amount_paid_cents: inv.amount_paid || 0,
+              stripe_subscription_id: inv.subscription as string,
+              stripe_payment_intent_id: piId,
+              status: arrStatus,
+              attempt_count: inv.attempt_count || 0,
+              paid_at: arrStatus === 'paid' ? new Date((inv.status_transitions?.paid_at || inv.created) * 1000).toISOString() : null,
+              failure_message: inv.last_payment_error?.message || null,
+              decline_code: inv.last_payment_error?.decline_code || null,
+              next_retry_at: inv.next_payment_attempt ? new Date(inv.next_payment_attempt * 1000).toISOString() : null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'member_id,stripe_invoice_id' });
+
+          if (!uErr) upserted++;
+        }
+
+        logStep("Arrears sync complete", { memberId, upserted, totalInvoices: allInvoices.length });
+
+        return new Response(
+          JSON.stringify({ success: true, upserted, totalInvoices: allInvoices.length }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
       // ==================== DETECT DUPLICATE CUSTOMERS ====================
       case 'detect_duplicate_customers': {
         // Admin only
