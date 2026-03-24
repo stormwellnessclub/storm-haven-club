@@ -125,6 +125,8 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
       queryClient.invalidateQueries({ queryKey: ["admin-nonmember-wellness-credits"] });
       queryClient.invalidateQueries({ queryKey: ["admin-guest-passes"] });
       queryClient.invalidateQueries({ queryKey: ["portal-guest-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-kids-care-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-kids-care-bookings"] });
       onSuccess?.();
       onOpenChange(false);
       resetForm();
