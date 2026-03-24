@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   startOfWeek, addDays, addWeeks, format, isBefore, startOfDay, isToday,
 } from "date-fns";
+import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
   ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake,
   CircleDot, Bike, Activity, CalendarDays,
