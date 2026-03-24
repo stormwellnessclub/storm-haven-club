@@ -1,43 +1,45 @@
 
 
-# Fix Kids Care Pass Fulfillment: Charge Creates Pass + Enforce Pass Requirement
+# Fix Class Schedule: Freshness, Layout, Past-Class Filtering, Admin History
 
-## Problems
+## Problems identified
 
-1. **Charging for Kids Care doesn't create a pass.** `ChargeItemSelector.handleCharge()` processes payment (Stripe or manual) but never inserts a `class_passes` row. So after charging $75 for a monthly pass, the parent still has no pass in the system and cannot book.
+1. **Schedule data goes stale for PWA/webpage users.** The PWA caches aggressively (`skipWaiting + clientsClaim` is fine for code updates) but the React Query `staleTime: 30_000` on `Schedule.tsx` means data is only refetched every 30 seconds — AND there is no `refetchOnFocus` or `refetchInterval`. Users who leave the tab open or use the PWA home screen shortcut can see outdated class info until they manually reload.
 
-2. **No automatic pass provisioning.** The `AdminGrantPassDialog` can grant free passes, and manual inserts work, but the standard billing workflow (charge card → pass created) is broken for Kids Care.
+2. **Public /classes page shows class types without times, confusing users.** `Classes.tsx` is a catalog of class types (Pilates, Cycling, etc.) with descriptions and a "Book Class" button that just navigates to `/schedule`. There's no indication of when classes are. The small "View Weekly Schedule" banner is easy to miss. Users land here expecting to see a schedule but get a brochure.
 
-3. **Members can't book without a pass** (correctly enforced by `useKidsCarePasses` and `useBookKidsCare`), but since charging never creates one, it's a dead end.
+3. **Finished classes today still show on the public /schedule page.** `Schedule.tsx` does its own inline query and does NOT filter out classes that already ended today. The `useClassSessions` hook has this filter, but the Schedule page doesn't use it. Members have to scroll past completed classes.
+
+4. **Admin Classes page hides cancelled classes.** The query filters `.eq('is_cancelled', false)`, so once a class is cancelled, admin can never see it again. No history, no record of what happened.
 
 ## Plan
 
-### 1. Auto-create Kids Care pass after successful charge
-In `ChargeItemSelector.tsx`, after a successful charge (both Stripe and manual), check if any cart item has `chargeType === "kids_care"`. For each one:
-- Insert a `class_passes` row with:
-  - `user_id`: the member's or non-member's user ID
-  - `pass_type`: `"kids_care_monthly"` or `"kids_care_single"` based on item ID
-  - `category`: `"other"`
-  - `classes_total`: 16 for monthly, 1 for single
-  - `classes_remaining`: same as total
-  - `price_paid`: the charge amount
-  - `is_member_price`: true if member, false if non-member
-  - `purchased_at`: now
-  - `expires_at`: 30 days for monthly, 7 days for single
-  - `status`: `"active"`
+### 1. Fix schedule data freshness
+- In `Schedule.tsx`, reduce `staleTime` to `0` and add `refetchOnWindowFocus: true` (React Query default, but be explicit) and `refetchInterval: 60_000` (auto-refresh every 60 seconds).
+- In `useClassSessions.ts`, add `refetchInterval: 60_000` for the same reason — member-facing booking calendar stays fresh.
+- This ensures anyone who opens the app or switches back to it gets current data within seconds.
 
-This goes right after the successful charge toast, before `resetAndClose()`.
+### 2. Merge /classes into /schedule or make /classes clearly link to schedule
+- Restructure `Classes.tsx` to prominently show the weekly schedule at the top, with the class catalog below as a secondary "Our Classes" section.
+- Or: redirect `/classes` to `/schedule` and integrate the studio descriptions into the schedule page hero.
+- Recommendation: redirect `/classes` → `/schedule` and add the studio info cards to the schedule page. This eliminates user confusion about which page to use.
 
-### 2. Resolve user_id for pass creation
-`ChargeItemSelector` receives `member` (with `member.id`) and optionally `nonMember` (with `nonMember.userId`). For members, query `members.user_id` from `member.id`. For non-members, use `nonMember.userId` directly.
+### 3. Filter out finished today's classes on public /schedule page
+- Apply the same time-based filter that `useClassSessions` uses: compare session end time to `now()` and hide classes that have already finished today.
+- Extract this filter into a shared utility so both `Schedule.tsx` and `useClassSessions.ts` use the same logic.
 
-### 3. Surface "No Pass" state clearly on the member Kids Care booking modal
-The modal already shows available passes and requires selection. Add a clear message when no passes exist: "You need to purchase a Kids Care Pass before booking. Ask front desk staff or purchase online." This is already partially handled but should be more prominent.
+### 4. Show cancelled classes in admin view
+- Remove the `.eq('is_cancelled', false)` filter from the admin Classes page query.
+- Show cancelled sessions in the list with a clear "Cancelled" badge and muted styling.
+- Cancelled sessions should still be clickable to view the roster (who was booked, refund history).
+- Hide the "Cancel Class" action on already-cancelled sessions (already done).
+- This gives admin full history without losing data.
 
 ## Files to change
-- `src/components/admin/ChargeItemSelector.tsx` — add pass creation after successful charge for kids_care items
+- `src/pages/Schedule.tsx` — add refetchInterval, refetchOnWindowFocus, filter finished classes today
+- `src/pages/Classes.tsx` — redirect to /schedule (or merge content)
+- `src/App.tsx` — update route if redirecting
+- `src/hooks/useClassSessions.ts` — add refetchInterval
+- `src/pages/admin/Classes.tsx` — remove is_cancelled filter, show cancelled sessions with badge
+- New utility `src/lib/classSessionFilters.ts` — shared "is session finished" filter
 
-## Result
-- Staff charges parent → pass is automatically created and immediately usable
-- Parent can then book Kids Care sessions using that pass
-- No more phantom charges where money is collected but no pass exists
