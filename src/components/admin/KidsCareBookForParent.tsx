@@ -227,20 +227,31 @@ export function KidsCareBookForParent() {
 
               <div className="space-y-2">
                 <Label>Pass</Label>
-                {passes.length > 0 ? (
-                  <Select value={selectedPass} onValueChange={setSelectedPass}>
-                    <SelectTrigger><SelectValue placeholder="Select pass" /></SelectTrigger>
-                    <SelectContent>
-                      {passes.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.classes_remaining}/{p.classes_total} sessions — exp {new Date(p.expires_at).toLocaleDateString()}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No active pass found. Parent needs to purchase one first.</p>
-                )}
+                {(() => {
+                  const filteredPasses = getFilteredPasses();
+                  return filteredPasses.length > 0 ? (
+                    <Select value={selectedPass} onValueChange={setSelectedPass}>
+                      <SelectTrigger><SelectValue placeholder="Select pass" /></SelectTrigger>
+                      <SelectContent>
+                        {filteredPasses.map((p) => {
+                          const assignedChild = passChildMap[p.id];
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.classes_remaining}/{p.classes_total} sessions — exp {new Date(p.expires_at).toLocaleDateString()}
+                              {assignedChild && <span className="text-muted-foreground ml-1">({assignedChild})</span>}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {passes.length > 0
+                        ? "No available pass for this child. Each child needs their own pass."
+                        : "No active pass found. Parent needs to purchase one first."}
+                    </p>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-3 gap-2">

@@ -151,6 +151,29 @@ export function useBookKidsCare() {
         throw new Error("Kids care sessions must be between 1 minute and 2 hours");
       }
 
+      // Per-child pass validation: check if pass is already used by a different child
+      try {
+        const { data: existingPassBooking } = await (supabase.from as any)("kids_care_bookings")
+          .select("child_name")
+          .eq("pass_id", params.passId)
+          .not("status", "in", '("cancelled","no_show")')
+          .neq("child_name", params.childName)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingPassBooking) {
+          throw new Error(`This pass is already assigned to ${existingPassBooking.child_name}. Each child needs their own pass.`);
+        }
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          // Table doesn't exist yet, skip validation
+        } else if (error.message?.includes("already assigned")) {
+          throw error;
+        } else {
+          console.warn("Error checking pass-child assignment:", error);
+        }
+      }
+
       // Check for existing booking for same child on same date
       try {
         const { data: existingBooking } = await (supabase.from as any)("kids_care_bookings")
@@ -170,7 +193,6 @@ export function useBookKidsCare() {
         } else if (error.message === "This child already has a booking for this date") {
           throw error;
         } else {
-          // Other errors, skip validation for now
           console.warn("Error checking existing booking:", error);
         }
       }
