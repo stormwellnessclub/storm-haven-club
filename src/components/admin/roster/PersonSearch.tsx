@@ -10,6 +10,7 @@ export interface PersonResult {
   memberId: string | null;
   name: string;
   email: string;
+  phone: string;
   type: "member" | "pass_holder" | "account";
   passCount: number;
 }
