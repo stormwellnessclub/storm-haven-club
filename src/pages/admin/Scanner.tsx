@@ -503,7 +503,9 @@ export default function Scanner() {
                         </div>
                       )}
 
+                      {/* Override button — only for non-billing, non-terminal denials */}
                       {scanResult.member &&
+                        !scanResult.is_billing_block &&
                         scanResult.denial_reason !== "membership_expired" &&
                         scanResult.denial_reason !== "membership_cancelled" &&
                         scanResult.denial_reason !== "access_revoked" && (
