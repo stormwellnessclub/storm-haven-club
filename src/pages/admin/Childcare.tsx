@@ -604,6 +604,10 @@ export default function Childcare() {
           <TabsContent value="parent-chat" className="space-y-6">
             <KidsCareAdminChat />
           </TabsContent>
+
+          <TabsContent value="passes" className="space-y-6">
+            <KidsCarePassesTab />
+          </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
