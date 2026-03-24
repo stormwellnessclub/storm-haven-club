@@ -572,39 +572,52 @@ export default function ClassRoster() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bookings.map((booking) => {
-                      const isCheckedIn = booking.status === "completed" || !!booking.checked_in_at;
-                      const isWalkIn = !booking.member_id && !!booking.walk_in_name;
+                    {bookings.map((attendee) => {
+                      const initials = attendee.name.split(" ").map(n => n[0] || "").join("").slice(0, 2) || "?";
+                      const typeLabel = attendee.type === "member" ? "Member" : attendee.type === "pass_holder" ? "Pass Holder" : attendee.type === "walk_in" ? "Walk-In" : "Account";
                       return (
-                        <TableRow key={booking.id}>
+                        <TableRow key={attendee.bookingId}>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                                {getInitials(booking)}
+                                {initials}
                               </div>
-                              <span className="font-medium">{getDisplayName(booking)}</span>
+                              <div>
+                                <span className="font-medium">{attendee.name}</span>
+                                {attendee.email && <p className="text-xs text-muted-foreground">{attendee.email}</p>}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            {isWalkIn ? <Badge variant="outline" className="text-xs">Walk-In</Badge> : <Badge variant="secondary" className="text-xs">Member</Badge>}
+                            {attendee.phone ? (
+                              <span className="flex items-center gap-1 text-sm">
+                                <Phone className="h-3 w-3 text-muted-foreground" />
+                                {attendee.phone}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm text-muted-foreground">{paymentLabel(booking.payment_method)}</span>
+                            <Badge variant={attendee.type === "member" ? "secondary" : "outline"} className="text-xs">{typeLabel}</Badge>
                           </TableCell>
                           <TableCell>
-                            {isCheckedIn ? (
+                            <span className="text-sm text-muted-foreground">{paymentLabel(attendee.paymentMethod)}</span>
+                          </TableCell>
+                          <TableCell>
+                            {attendee.isCheckedIn ? (
                               <Badge variant="default" className="bg-primary"><CheckCircle className="h-3 w-3 mr-1" /> Checked In</Badge>
                             ) : (
                               <Badge variant="secondary">Registered</Badge>
                             )}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
-                            {!isCheckedIn && (
+                            {!attendee.isCheckedIn && (
                               <>
-                                <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(booking.id)} disabled={checkInMutation.isPending}>
+                                <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(attendee.bookingId)} disabled={checkInMutation.isPending}>
                                   <UserCheck className="h-4 w-4 mr-1" /> Check In
                                 </Button>
-                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeMutation.mutate(booking.id)} disabled={removeMutation.isPending}>
+                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeMutation.mutate(attendee.bookingId)} disabled={removeMutation.isPending}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </>
