@@ -323,6 +323,97 @@ export type Database = {
           },
         ]
       }
+      billing_arrears: {
+        Row: {
+          amount_due_cents: number
+          amount_paid_cents: number
+          attempt_count: number
+          billing_type: string
+          created_at: string
+          currency: string
+          decline_code: string | null
+          failure_code: string | null
+          failure_message: string | null
+          id: string
+          member_id: string
+          next_retry_at: string | null
+          paid_at: string | null
+          period_end: string
+          period_start: string
+          status: string
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_due_cents?: number
+          amount_paid_cents?: number
+          attempt_count?: number
+          billing_type?: string
+          created_at?: string
+          currency?: string
+          decline_code?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          id?: string
+          member_id: string
+          next_retry_at?: string | null
+          paid_at?: string | null
+          period_end: string
+          period_start: string
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_due_cents?: number
+          amount_paid_cents?: number
+          attempt_count?: number
+          billing_type?: string
+          created_at?: string
+          currency?: string
+          decline_code?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          id?: string
+          member_id?: string
+          next_retry_at?: string | null
+          paid_at?: string | null
+          period_end?: string
+          period_start?: string
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_arrears_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_arrears_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_arrears_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocked_persons: {
         Row: {
           blocked_at: string
@@ -5837,6 +5928,10 @@ export type Database = {
       }
       get_dunning_efficiency: {
         Args: { p_end_date: string; p_start_date: string }
+        Returns: Json
+      }
+      get_member_arrears_summary: {
+        Args: { p_member_id: string }
         Returns: Json
       }
       get_member_attendance_pattern: {

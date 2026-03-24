@@ -180,7 +180,7 @@ const STRIPE_PRODUCTS = {
 };
 
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'create_wellness_credit_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card' | 'update_billing_anchor' | 'add_processing_fees_to_subscription' | 'create_kids_care_checkout';
+  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'sync_member_arrears' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'create_wellness_credit_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card' | 'update_billing_anchor' | 'add_processing_fees_to_subscription' | 'create_kids_care_checkout';
   // For non-member recovery checkout
   serviceName?: string;
   embedded?: boolean; // For embedded checkout mode
@@ -5154,6 +5154,116 @@ serve(async (req) => {
               ? `Updated ${Object.keys(updates).length} fields`
               : 'Already in sync'
           }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      // ==================== SYNC MEMBER ARREARS FROM STRIPE ====================
+      case 'sync_member_arrears': {
+        const { memberId } = body;
+        if (!memberId) throw new Error("memberId is required");
+
+        // Verify admin role
+        const { data: adminRoleArr } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager']);
+        if (!adminRoleArr || adminRoleArr.length === 0) throw new Error("Unauthorized");
+
+        // Get member
+        const { data: memberArr, error: memberArrErr } = await supabase
+          .from('members')
+          .select('id, stripe_customer_id, stripe_subscription_id, annual_fee_subscription_id')
+          .eq('id', memberId)
+          .single();
+        if (memberArrErr || !memberArr) throw new Error("Member not found");
+        if (!memberArr.stripe_customer_id) throw new Error("No Stripe customer");
+
+        logStep("Syncing arrears from Stripe invoices", { memberId });
+
+        // Pull all open/uncollectible/void invoices for this customer
+        const invoices = await stripe.invoices.list({
+          customer: memberArr.stripe_customer_id,
+          limit: 50,
+          status: 'open',
+        });
+
+        // Also get past invoices that might be uncollectible
+        const paidInvoices = await stripe.invoices.list({
+          customer: memberArr.stripe_customer_id,
+          limit: 50,
+          status: 'paid',
+        });
+
+        const voidInvoices = await stripe.invoices.list({
+          customer: memberArr.stripe_customer_id,
+          limit: 50,
+          status: 'void',
+        });
+
+        const uncollectibleInvoices = await stripe.invoices.list({
+          customer: memberArr.stripe_customer_id,
+          limit: 50,
+          status: 'uncollectible',
+        });
+
+        const allInvoices = [
+          ...invoices.data,
+          ...paidInvoices.data,
+          ...voidInvoices.data,
+          ...uncollectibleInvoices.data,
+        ];
+
+        let upserted = 0;
+        const annualFeePriceIds = ['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN'];
+
+        for (const inv of allInvoices) {
+          if (!inv.subscription) continue; // skip one-time
+
+          const isAnnualFee = inv.lines?.data?.some((line: any) =>
+            line.price && annualFeePriceIds.includes(line.price.id)
+          ) || false;
+
+          const periodStart = inv.period_start ? new Date(inv.period_start * 1000).toISOString().split('T')[0] : new Date(inv.created * 1000).toISOString().split('T')[0];
+          const periodEnd = inv.period_end ? new Date(inv.period_end * 1000).toISOString().split('T')[0] : periodStart;
+
+          let arrStatus = 'unpaid';
+          if (inv.status === 'paid') arrStatus = 'paid';
+          else if (inv.status === 'void') arrStatus = 'void';
+          else if (inv.status === 'uncollectible') arrStatus = 'uncollectible';
+          else if (inv.status === 'open' && inv.amount_paid > 0 && inv.amount_paid < inv.amount_due) arrStatus = 'partial';
+
+          const piId = typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent?.id || null;
+
+          const { error: uErr } = await supabase
+            .from('billing_arrears')
+            .upsert({
+              member_id: memberArr.id,
+              stripe_invoice_id: inv.id,
+              billing_type: isAnnualFee ? 'annual_fee' : 'membership_dues',
+              period_start: periodStart,
+              period_end: periodEnd,
+              amount_due_cents: inv.amount_due || 0,
+              amount_paid_cents: inv.amount_paid || 0,
+              stripe_subscription_id: inv.subscription as string,
+              stripe_payment_intent_id: piId,
+              status: arrStatus,
+              attempt_count: inv.attempt_count || 0,
+              paid_at: arrStatus === 'paid' ? new Date((inv.status_transitions?.paid_at || inv.created) * 1000).toISOString() : null,
+              failure_message: inv.last_payment_error?.message || null,
+              decline_code: inv.last_payment_error?.decline_code || null,
+              next_retry_at: inv.next_payment_attempt ? new Date(inv.next_payment_attempt * 1000).toISOString() : null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'member_id,stripe_invoice_id' });
+
+          if (!uErr) upserted++;
+        }
+
+        logStep("Arrears sync complete", { memberId, upserted, totalInvoices: allInvoices.length });
+
+        return new Response(
+          JSON.stringify({ success: true, upserted, totalInvoices: allInvoices.length }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }

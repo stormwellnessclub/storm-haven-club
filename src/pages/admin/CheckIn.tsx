@@ -35,6 +35,7 @@ import { CheckInSupportPanel } from "@/components/admin/CheckInSupportPanel";
 import { useUnifiedCheckInSearch, UnifiedSearchResult, VisitorType } from "@/hooks/useUnifiedCheckInSearch";
 import { useUnifiedAttendance, AttendanceType } from "@/hooks/useUnifiedAttendance";
 import { useMemberScanner, ScanResult } from "@/hooks/useMemberScanner";
+import { useMemberArrears } from "@/hooks/useMemberArrears";
 
 // ─── Type badge config ───────────────────────────────────────────────
 const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
@@ -71,6 +72,10 @@ export default function CheckIn() {
   const effectiveStatus = memberData
     ? getEffectiveStatus(memberData.status, billingIssues?.memberIssues?.[memberData.id])
     : null;
+
+  // Arrears for the selected member
+  const selectedMemberId = memberData?.id;
+  const { data: arrearsData } = useMemberArrears(selectedMemberId);
 
   // ─── Search handler ────────────────────────────────────────────────
   const handleSearch = () => {
@@ -280,6 +285,23 @@ export default function CheckIn() {
                 <Ban className="h-5 w-5" />
                 Cannot Check In — {effectiveStatus?.label}
               </div>
+              {arrearsData && arrearsData.total_owed_cents > 0 && (
+                <div className="p-3 bg-red-200/50 dark:bg-red-900/30 rounded-lg">
+                  <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                    ${(arrearsData.total_owed_cents / 100).toFixed(2)} owed — {arrearsData.unpaid_count} unpaid {arrearsData.unpaid_count === 1 ? "period" : "periods"}
+                  </p>
+                  {arrearsData.unpaid_periods.slice(0, 3).map((p) => (
+                    <p key={p.id} className="text-xs text-red-600 dark:text-red-400 mt-1">
+                      • {p.billing_type === "annual_fee" ? "Annual Fee" : "Dues"}: ${((p.amount_due_cents - p.amount_paid_cents) / 100).toFixed(2)} ({new Date(p.period_start).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – {new Date(p.period_end).toLocaleDateString("en-US", { month: "short", day: "numeric" })})
+                    </p>
+                  ))}
+                  {arrearsData.latest_failure?.failure_message && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1 italic">
+                      Last decline: {arrearsData.latest_failure.failure_message}
+                    </p>
+                  )}
+                </div>
+              )}
               <p className="text-sm text-red-600 dark:text-red-400">
                 {effectiveStatus?.description}
               </p>
