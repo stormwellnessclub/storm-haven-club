@@ -2252,6 +2252,43 @@ serve(async (req) => {
               logError(logAttemptError, "INVOICE_PAYMENT_FAILED_LOG");
             }
 
+            // ── Upsert billing_arrears ledger: mark this period as unpaid ──
+            try {
+              const periodStart = invoice.period_start ? new Date(invoice.period_start * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+              const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000).toISOString().split('T')[0] : periodStart;
+
+              const { error: arrUpsertErr } = await supabase
+                .from('billing_arrears')
+                .upsert({
+                  member_id: memberData.id,
+                  stripe_invoice_id: invoice.id,
+                  billing_type: subscriptionType === 'annual_fee' ? 'annual_fee' : 'membership_dues',
+                  period_start: periodStart,
+                  period_end: periodEnd,
+                  amount_due_cents: invoice.amount_due || 0,
+                  amount_paid_cents: 0,
+                  stripe_subscription_id: invoice.subscription as string,
+                  stripe_payment_intent_id: paymentIntentId,
+                  status: 'unpaid',
+                  failure_code: failureCode,
+                  failure_message: declineReason || failureMessage,
+                  decline_code: declineCode,
+                  attempt_count: attemptCount,
+                  next_retry_at: willRetry && invoice.next_payment_attempt
+                    ? new Date(invoice.next_payment_attempt * 1000).toISOString()
+                    : null,
+                  updated_at: new Date().toISOString(),
+                }, { onConflict: 'member_id,stripe_invoice_id' });
+
+              if (arrUpsertErr) {
+                logError(arrUpsertErr, "BILLING_ARREARS_UPSERT_FAILED");
+              } else {
+                logStep("Billing arrears recorded as unpaid", { memberId: memberData.id, invoiceId: invoice.id });
+              }
+            } catch (arrErr) {
+              logError(arrErr, "BILLING_ARREARS_UPSERT_FAILED");
+            }
+
             // Update member status to past_due for payment failures
             // Apply to 'active' and 'pending_activation' members (not frozen/cancelled/etc)
             const statusesToUpdate = ['active', 'pending_activation'];
