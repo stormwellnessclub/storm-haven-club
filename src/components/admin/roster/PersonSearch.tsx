@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Ticket } from "lucide-react";
+import { Ticket, Phone } from "lucide-react";
 
 export interface PersonResult {
   userId: string | null;
