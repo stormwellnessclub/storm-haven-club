@@ -204,10 +204,16 @@ export default function Scanner() {
   const getDenialMessage = (reason?: string) => {
     if (!reason) return "Access denied";
     const reasons: Record<string, string> = {
-      payment_overdue: "Payment overdue - Annual fee or monthly dues not paid",
-      membership_expired: "Membership expired",
-      membership_cancelled: "Membership cancelled",
-      membership_frozen: "Membership frozen",
+      payment_failed: "Payment Failed — Recent payment was declined",
+      payment_overdue: "Payment Overdue — Monthly dues past due",
+      no_active_subscription: "No Active Subscription — Member has no recurring billing",
+      subscription_incomplete: "Subscription Failed — Initial payment never completed",
+      annual_fee_overdue: "Annual Fee Overdue — Initiation fee not paid",
+      pending_activation: "Pending Activation — Awaiting first payment",
+      membership_expired: "Membership Expired",
+      membership_cancelled: "Membership Cancelled",
+      membership_frozen: "Membership Frozen",
+      membership_suspended: "Membership Suspended",
       access_revoked: "ACCESS REVOKED — This person is on the block list",
     };
     return reasons[reason] || reason.replace(/_/g, " ");
@@ -437,16 +443,34 @@ export default function Scanner() {
                             {scanResult.member.first_name} {scanResult.member.last_name}
                           </p>
                           <div className="space-y-1 text-sm">
-                            {scanResult.payment_status?.isAnnualFeeOverdue && (
+                            {scanResult.payment_status?.hasRecentFailedPayment && (
                               <div className="flex items-center gap-2 text-destructive">
-                                <Calendar className="h-4 w-4" />
-                                Annual fee overdue or expired
+                                <DollarSign className="h-4 w-4" />
+                                Recent payment declined
                               </div>
                             )}
                             {scanResult.payment_status?.isDuesPastDue && (
                               <div className="flex items-center gap-2 text-destructive">
                                 <DollarSign className="h-4 w-4" />
                                 Monthly dues past due
+                              </div>
+                            )}
+                            {scanResult.payment_status?.isAnnualFeeOverdue && (
+                              <div className="flex items-center gap-2 text-destructive">
+                                <Calendar className="h-4 w-4" />
+                                Annual fee overdue
+                              </div>
+                            )}
+                            {scanResult.payment_status?.hasNoSubscription && (
+                              <div className="flex items-center gap-2 text-destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                No active subscription
+                              </div>
+                            )}
+                            {scanResult.payment_status?.hasIncompleteSubscription && (
+                              <div className="flex items-center gap-2 text-destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                Subscription payment failed
                               </div>
                             )}
                             {scanResult.denial_reason === "membership_frozen" && (
@@ -469,10 +493,19 @@ export default function Scanner() {
                               </div>
                             )}
                           </div>
+
+                          {/* Show billing block message - no override available */}
+                          {scanResult.is_billing_block && (
+                            <p className="text-xs text-destructive font-medium mt-2">
+                              Billing issue must be resolved before entry. Override is not available.
+                            </p>
+                          )}
                         </div>
                       )}
 
+                      {/* Override button — only for non-billing, non-terminal denials */}
                       {scanResult.member &&
+                        !scanResult.is_billing_block &&
                         scanResult.denial_reason !== "membership_expired" &&
                         scanResult.denial_reason !== "membership_cancelled" &&
                         scanResult.denial_reason !== "access_revoked" && (

@@ -23,17 +23,18 @@ import {
   Ticket,
   BookOpen,
   Sparkles,
+  Ban,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 import { EffectiveStatusBadge, getEffectiveStatus } from "@/components/admin/EffectiveStatusBadge";
 import { CheckInSupportPanel } from "@/components/admin/CheckInSupportPanel";
 import { useUnifiedCheckInSearch, UnifiedSearchResult, VisitorType } from "@/hooks/useUnifiedCheckInSearch";
 import { useUnifiedAttendance, AttendanceType } from "@/hooks/useUnifiedAttendance";
+import { useMemberScanner, ScanResult } from "@/hooks/useMemberScanner";
 
 // ─── Type badge config ───────────────────────────────────────────────
 const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
@@ -57,22 +58,16 @@ export default function CheckIn() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState<UnifiedSearchResult | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
-  const [isOverriding, setIsOverriding] = useState(false);
   const [memberCheckInCount, setMemberCheckInCount] = useState(0);
+  const [memberScanResult, setMemberScanResult] = useState<ScanResult | null>(null);
 
   const { results, isSearching, search, clearResults } = useUnifiedCheckInSearch();
   const { entries, stats, refetch } = useUnifiedAttendance();
   const { data: billingIssues } = useMembersBillingIssues();
+  const { scanMemberAsync } = useMemberScanner();
 
   // For member-type selections only
   const memberData = selected?.type === "member" ? selected.data : null;
-  const memberPaymentStatus = memberData
-    ? checkMemberPaymentStatus({
-        status: memberData.status,
-        annual_fee_paid_at: memberData.annual_fee_paid_at,
-        stripe_subscription_id: memberData.stripe_subscription_id,
-      })
-    : null;
   const effectiveStatus = memberData
     ? getEffectiveStatus(memberData.status, billingIssues?.memberIssues?.[memberData.id])
     : null;
@@ -104,45 +99,32 @@ export default function CheckIn() {
   };
 
   // ─── Check-in actions ─────────────────────────────────────────────
-  const handleMemberCheckIn = async (override = false) => {
+  const handleMemberCheckIn = async () => {
     if (!memberData || !user) return;
-    override ? setIsOverriding(true) : setIsCheckingIn(true);
+    setIsCheckingIn(true);
 
     try {
-      const { data: dup } = await (supabase.rpc as any)("check_for_duplicate_check_in", {
-        p_member_id: memberData.id,
-        p_check_in_window_minutes: 30,
+      const result = await scanMemberAsync({
+        memberId: memberData.member_id || memberData.id,
+        deviceType: "manual_entry",
+        autoCheckIn: true,
+        override: false,
       });
-      if (dup) {
-        toast.warning(`${memberData.first_name} ${memberData.last_name} is already checked in (within 30 min)`);
-        setIsCheckingIn(false);
-        setIsOverriding(false);
-        return;
+
+      setMemberScanResult(result);
+
+      if (result.access_granted) {
+        toast.success(`${memberData.first_name} ${memberData.last_name} checked in!`);
+        setMemberCheckInCount((c) => c + 1);
+        refetch();
+      } else {
+        const reason = result.denial_reason?.replace(/_/g, " ") || "Access denied";
+        toast.error(`Cannot check in: ${reason}`);
       }
-
-      const notes = override
-        ? `OVERRIDE: Payment issue - checked in by admin (${user.email})`
-        : null;
-
-      const { error } = await supabase.from("check_ins").insert({
-        member_id: memberData.id,
-        checked_in_by: user.id,
-        notes,
-      });
-      if (error) throw error;
-
-      toast.success(
-        override
-          ? `${memberData.first_name} ${memberData.last_name} checked in with OVERRIDE.`
-          : `${memberData.first_name} ${memberData.last_name} checked in!`
-      );
-      setMemberCheckInCount((c) => c + 1);
-      refetch();
     } catch (err: any) {
       toast.error(err?.message || "Check-in failed");
     } finally {
       setIsCheckingIn(false);
-      setIsOverriding(false);
     }
   };
 
@@ -205,7 +187,7 @@ export default function CheckIn() {
   const handleCheckInAction = () => {
     if (!selected) return;
     switch (selected.type) {
-      case "member": return handleMemberCheckIn(false);
+      case "member": return handleMemberCheckIn();
       case "guest_pass": return handleGuestCheckIn();
       case "class_booking": return handleClassCheckIn();
       case "spa_appointment": return handleSpaCheckIn();
@@ -291,46 +273,46 @@ export default function CheckIn() {
             </div>
           </div>
 
-          {/* Payment Issues */}
-          {memberPaymentStatus?.hasPaymentIssues && (
+          {/* Billing Block - Cannot Check In */}
+          {!effectiveStatus?.canCheckIn && (
             <div className="p-4 bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-lg space-y-3">
               <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
-                <ShieldAlert className="h-5 w-5" />
-                Cannot Check In - Payment Required
+                <Ban className="h-5 w-5" />
+                Cannot Check In — {effectiveStatus?.label}
               </div>
-              <div className="text-sm space-y-1 text-red-600 dark:text-red-400">
-                {memberPaymentStatus.isDuesPastDue && (
-                  <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />Monthly dues past due</div>
-                )}
-                {!memberPaymentStatus.isInitiationFeePaid && (
-                  <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />Initiation fee unpaid</div>
-                )}
-                {!memberPaymentStatus.hasActiveSubscription && memberPaymentStatus.isInitiationFeePaid && (
-                  <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />No active subscription</div>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                className="w-full border-red-300 text-red-700 hover:bg-red-200 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/50"
-                onClick={() => handleMemberCheckIn(true)}
-                disabled={isOverriding}
-              >
-                {isOverriding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
-                Override Check-In (Admin)
-              </Button>
-              <p className="text-xs text-center text-red-600 dark:text-red-400">Override will be logged for accountability</p>
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {effectiveStatus?.description}
+              </p>
+              {memberScanResult && !memberScanResult.access_granted && memberScanResult.payment_status && (
+                <div className="text-sm space-y-1 text-red-600 dark:text-red-400">
+                  {memberScanResult.payment_status.hasRecentFailedPayment && (
+                    <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />Recent payment failed</div>
+                  )}
+                  {memberScanResult.payment_status.isDuesPastDue && (
+                    <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />Monthly dues past due</div>
+                  )}
+                  {memberScanResult.payment_status.isAnnualFeeOverdue && (
+                    <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />Annual fee overdue</div>
+                  )}
+                  {memberScanResult.payment_status.hasNoSubscription && (
+                    <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" />No active subscription</div>
+                  )}
+                  {memberScanResult.payment_status.hasIncompleteSubscription && (
+                    <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4" />Subscription payment failed</div>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-center text-red-600 dark:text-red-400 font-medium">
+                Resolve billing issues before check-in. Override is not available for billing blocks.
+              </p>
             </div>
           )}
 
           {effectiveStatus?.canCheckIn && (
-            <Button className="w-full" size="lg" onClick={() => handleMemberCheckIn(false)} disabled={isCheckingIn}>
+            <Button className="w-full" size="lg" onClick={() => handleMemberCheckIn()} disabled={isCheckingIn}>
               {isCheckingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserCheck className="h-4 w-4 mr-2" />}
               Check In Member
             </Button>
-          )}
-
-          {!effectiveStatus?.canCheckIn && !memberPaymentStatus?.hasPaymentIssues && (
-            <p className="text-sm text-center text-destructive">Cannot check in - {effectiveStatus?.description}</p>
           )}
         </div>
       );
