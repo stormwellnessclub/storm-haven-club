@@ -68,8 +68,8 @@ export function KidsCareBookForParent() {
   const selectMember = async (member: MemberResult) => {
     setSelectedMember(member);
     setMembers([]);
-    // Fetch children and passes
-    const [childRes, passRes] = await Promise.all([
+    // Fetch children, passes, and existing pass-child assignments
+    const [childRes, passRes, bookingsRes] = await Promise.all([
       (supabase.from as any)("kids_care_children")
         .select("id, full_name, date_of_birth")
         .eq("user_id", member.user_id)
@@ -81,9 +81,36 @@ export function KidsCareBookForParent() {
         .eq("pass_type", "kids_care")
         .eq("status", "active")
         .gt("classes_remaining", 0),
+      (supabase.from as any)("kids_care_bookings")
+        .select("pass_id, child_name")
+        .eq("user_id", member.user_id)
+        .not("status", "in", '("cancelled","no_show")'),
     ]);
     setChildren(childRes.data || []);
     setPasses(passRes.data || []);
+    setPassChildMap(buildPassChildMap(bookingsRes.data || []));
+  };
+
+  // Build a map of pass_id -> child_name (first child that used it)
+  const buildPassChildMap = (bookings: Array<{ pass_id: string; child_name: string }>): Record<string, string> => {
+    const map: Record<string, string> = {};
+    for (const b of bookings) {
+      if (b.pass_id && !map[b.pass_id]) {
+        map[b.pass_id] = b.child_name;
+      }
+    }
+    return map;
+  };
+
+  const [passChildMap, setPassChildMap] = useState<Record<string, string>>({});
+
+  // Filter passes for the selected child — only show unused passes or passes already assigned to this child
+  const getFilteredPasses = () => {
+    if (!selectedChild) return passes;
+    return passes.filter((p) => {
+      const assignedChild = passChildMap[p.id];
+      return !assignedChild || assignedChild.toLowerCase().trim() === selectedChild.toLowerCase().trim();
+    });
   };
 
   const getChildAge = (child: ChildResult) => {
