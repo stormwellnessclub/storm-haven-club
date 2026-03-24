@@ -46,6 +46,7 @@ import { KidsCarePassesTab } from "@/components/admin/KidsCarePassesTab";
 
 
 export default function Childcare() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState("bookings");
