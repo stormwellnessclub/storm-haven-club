@@ -273,6 +273,8 @@ export default function ClassRoster() {
       const userId = effectiveUserId || null;
       const memberId = effectiveMemberId || null;
       const walkInName = addTab === "walkin" ? `${walkInFirst.trim()} ${walkInLast.trim()}` : null;
+      const walkInEmailVal = addTab === "walkin" && walkInEmail.trim() ? walkInEmail.trim() : null;
+      const walkInPhoneVal = addTab === "walkin" && walkInPhone.trim() ? walkInPhone.trim() : null;
 
       if (userId) {
         const { data: existing } = await supabase
