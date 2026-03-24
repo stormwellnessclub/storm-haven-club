@@ -41,6 +41,7 @@ import { KidsCareCapacityDashboard } from "@/components/admin/KidsCareCapacityDa
 import { KidsCareHourRequests } from "@/components/admin/KidsCareHourRequests";
 import { KidsCareAdminChat, useKidsCareUnreadCount } from "@/components/admin/KidsCareAdminChat";
 import { KidsCareBookForParent } from "@/components/admin/KidsCareBookForParent";
+import { KidsCarePassesTab } from "@/components/admin/KidsCarePassesTab";
 
 
 export default function Childcare() {
