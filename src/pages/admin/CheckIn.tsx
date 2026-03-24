@@ -187,7 +187,7 @@ export default function CheckIn() {
   const handleCheckInAction = () => {
     if (!selected) return;
     switch (selected.type) {
-      case "member": return handleMemberCheckIn(false);
+      case "member": return handleMemberCheckIn();
       case "guest_pass": return handleGuestCheckIn();
       case "class_booking": return handleClassCheckIn();
       case "spa_appointment": return handleSpaCheckIn();
