@@ -35,6 +35,7 @@ import { CheckInSupportPanel } from "@/components/admin/CheckInSupportPanel";
 import { useUnifiedCheckInSearch, UnifiedSearchResult, VisitorType } from "@/hooks/useUnifiedCheckInSearch";
 import { useUnifiedAttendance, AttendanceType } from "@/hooks/useUnifiedAttendance";
 import { useMemberScanner, ScanResult } from "@/hooks/useMemberScanner";
+import { useMemberArrears } from "@/hooks/useMemberArrears";
 
 // ─── Type badge config ───────────────────────────────────────────────
 const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
