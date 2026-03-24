@@ -268,8 +268,20 @@ export default function ClassTypeDetail() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Reconcile future sessions so they match the updated schedule
+      try {
+        await supabase.functions.invoke("process-session-generation", {
+          body: { weeks_ahead: 4 },
+        });
+      } catch (e) {
+        console.error("Reconciliation after schedule save failed:", e);
+      }
       queryClient.invalidateQueries({ queryKey: ['class-schedules-for-type', id] });
+      queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['session-stats-for-type', id] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-sessions'] });
       toast.success(editingSchedule ? "Schedule updated" : "Schedule added");
       setScheduleDialogOpen(false);
       resetScheduleForm();
@@ -289,8 +301,19 @@ export default function ClassTypeDetail() {
         .eq("id", scheduleId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      try {
+        await supabase.functions.invoke("process-session-generation", {
+          body: { weeks_ahead: 4 },
+        });
+      } catch (e) {
+        console.error("Reconciliation after toggle failed:", e);
+      }
       queryClient.invalidateQueries({ queryKey: ['class-schedules-for-type', id] });
+      queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['session-stats-for-type', id] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-sessions'] });
       toast.success("Schedule status updated");
     },
     onError: () => {
@@ -307,8 +330,19 @@ export default function ClassTypeDetail() {
         .eq("id", scheduleId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      try {
+        await supabase.functions.invoke("process-session-generation", {
+          body: { weeks_ahead: 4 },
+        });
+      } catch (e) {
+        console.error("Reconciliation after delete failed:", e);
+      }
       queryClient.invalidateQueries({ queryKey: ['class-schedules-for-type', id] });
+      queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['session-stats-for-type', id] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-sessions'] });
       toast.success("Schedule deleted");
     },
     onError: () => {
