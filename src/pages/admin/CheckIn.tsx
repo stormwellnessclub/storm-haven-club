@@ -99,45 +99,32 @@ export default function CheckIn() {
   };
 
   // ─── Check-in actions ─────────────────────────────────────────────
-  const handleMemberCheckIn = async (override = false) => {
+  const handleMemberCheckIn = async () => {
     if (!memberData || !user) return;
-    override ? setIsOverriding(true) : setIsCheckingIn(true);
+    setIsCheckingIn(true);
 
     try {
-      const { data: dup } = await (supabase.rpc as any)("check_for_duplicate_check_in", {
-        p_member_id: memberData.id,
-        p_check_in_window_minutes: 30,
+      const result = await scanMemberAsync({
+        memberId: memberData.member_id || memberData.id,
+        deviceType: "manual_entry",
+        autoCheckIn: true,
+        override: false,
       });
-      if (dup) {
-        toast.warning(`${memberData.first_name} ${memberData.last_name} is already checked in (within 30 min)`);
-        setIsCheckingIn(false);
-        setIsOverriding(false);
-        return;
+
+      setMemberScanResult(result);
+
+      if (result.access_granted) {
+        toast.success(`${memberData.first_name} ${memberData.last_name} checked in!`);
+        setMemberCheckInCount((c) => c + 1);
+        refetch();
+      } else {
+        const reason = result.denial_reason?.replace(/_/g, " ") || "Access denied";
+        toast.error(`Cannot check in: ${reason}`);
       }
-
-      const notes = override
-        ? `OVERRIDE: Payment issue - checked in by admin (${user.email})`
-        : null;
-
-      const { error } = await supabase.from("check_ins").insert({
-        member_id: memberData.id,
-        checked_in_by: user.id,
-        notes,
-      });
-      if (error) throw error;
-
-      toast.success(
-        override
-          ? `${memberData.first_name} ${memberData.last_name} checked in with OVERRIDE.`
-          : `${memberData.first_name} ${memberData.last_name} checked in!`
-      );
-      setMemberCheckInCount((c) => c + 1);
-      refetch();
     } catch (err: any) {
       toast.error(err?.message || "Check-in failed");
     } finally {
       setIsCheckingIn(false);
-      setIsOverriding(false);
     }
   };
 
