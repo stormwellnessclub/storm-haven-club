@@ -228,24 +228,34 @@ export default function CheckIn() {
 
     // ── Member detail ──
     if (selected.type === "member" && memberData) {
+      // Use backend verdict if available, fall back to client-side
+      const backendGranted = memberScanResult ? memberScanResult.access_granted : null;
+      const canCheckIn = backendGranted !== null ? backendGranted : (effectiveStatus?.canCheckIn ?? false);
+      const statusDescription = memberScanResult && !memberScanResult.access_granted
+        ? `Access denied: ${memberScanResult.denial_reason?.replace(/_/g, " ") || "billing issue"}`
+        : effectiveStatus?.description || "";
+      const statusLabel = memberScanResult && !memberScanResult.access_granted
+        ? (memberScanResult.denial_reason?.replace(/_/g, " ") || effectiveStatus?.label || "Denied")
+        : effectiveStatus?.label || "";
+
       return (
         <div className="space-y-4">
-          {/* Status Banner */}
-          <div className={`p-4 rounded-lg border ${effectiveStatus?.canCheckIn
+          {/* Status Banner — driven by backend pre-check */}
+          <div className={`p-4 rounded-lg border ${canCheckIn
             ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
             : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
           }`}>
             <div className="flex items-center gap-3">
-              {effectiveStatus?.canCheckIn ? (
+              {canCheckIn ? (
                 <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
               ) : (
                 <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
               )}
               <div className="flex-1">
                 <p className="font-semibold text-lg">
-                  {effectiveStatus?.canCheckIn ? "Check-In Approved" : "Cannot Check In"}
+                  {canCheckIn ? "Check-In Approved" : "Cannot Check In"}
                 </p>
-                <p className="text-sm text-muted-foreground">{effectiveStatus?.description}</p>
+                <p className="text-sm text-muted-foreground">{statusDescription}</p>
               </div>
               <EffectiveStatusBadge
                 memberStatus={memberData.status}
