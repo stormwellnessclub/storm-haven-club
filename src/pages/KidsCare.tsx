@@ -76,7 +76,7 @@ const rooms = [
     icon: "🌟",
     ageGroups: [
       { name: "Preschool", range: "3 - 5 years" },
-      { name: "School Age", range: "5 - 10 years" },
+      { name: "School Age", range: "5 - 8 years" },
     ],
     capacity: 6,
   },
