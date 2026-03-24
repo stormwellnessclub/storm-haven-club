@@ -58,22 +58,16 @@ export default function CheckIn() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState<UnifiedSearchResult | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
-  const [isOverriding, setIsOverriding] = useState(false);
   const [memberCheckInCount, setMemberCheckInCount] = useState(0);
+  const [memberScanResult, setMemberScanResult] = useState<ScanResult | null>(null);
 
   const { results, isSearching, search, clearResults } = useUnifiedCheckInSearch();
   const { entries, stats, refetch } = useUnifiedAttendance();
   const { data: billingIssues } = useMembersBillingIssues();
+  const { scanMemberAsync } = useMemberScanner();
 
   // For member-type selections only
   const memberData = selected?.type === "member" ? selected.data : null;
-  const memberPaymentStatus = memberData
-    ? checkMemberPaymentStatus({
-        status: memberData.status,
-        annual_fee_paid_at: memberData.annual_fee_paid_at,
-        stripe_subscription_id: memberData.stripe_subscription_id,
-      })
-    : null;
   const effectiveStatus = memberData
     ? getEffectiveStatus(memberData.status, billingIssues?.memberIssues?.[memberData.id])
     : null;
