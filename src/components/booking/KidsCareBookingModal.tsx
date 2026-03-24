@@ -364,19 +364,36 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
             {/* Kids Care Pass Selection */}
             <div className="space-y-2">
               <Label>Kids Care Pass *</Label>
-              <Select value={selectedPassId} onValueChange={setSelectedPassId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a pass" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePasses.map((pass) => (
-                    <SelectItem key={pass.id} value={pass.id}>
-                      {pass.pass_type} - {pass.classes_remaining} sessions remaining
-                      {pass.expires_at && ` (Expires ${format(parseISO(pass.expires_at), "MMM d, yyyy")})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {(() => {
+                const selectedChild = savedChildren?.find(c => c.id === selectedChildId);
+                const childNameForFilter = selectedChild?.full_name || childName;
+                const filteredPasses = (availablePasses || []).filter((pass) => {
+                  if (!childNameForFilter || !passChildMap) return true;
+                  const assigned = passChildMap[pass.id];
+                  return !assigned || assigned.toLowerCase().trim() === childNameForFilter.toLowerCase().trim();
+                });
+                return filteredPasses.length > 0 ? (
+                  <Select value={selectedPassId} onValueChange={setSelectedPassId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a pass" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredPasses.map((pass) => (
+                        <SelectItem key={pass.id} value={pass.id}>
+                          {pass.pass_type} - {pass.classes_remaining} sessions remaining
+                          {pass.expires_at && ` (Expires ${format(parseISO(pass.expires_at), "MMM d, yyyy")})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {(availablePasses || []).length > 0
+                      ? "No available pass for this child. Each child needs their own pass."
+                      : "No active pass found."}
+                  </p>
+                );
+              })()}
             </div>
 
             {/* Child Selection */}
