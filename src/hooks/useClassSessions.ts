@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfWeek, endOfWeek, addWeeks, format, parse, addMinutes, isBefore } from "date-fns";
+import { startOfWeek, endOfWeek, addWeeks, format } from "date-fns";
+import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 
 export interface ClassSession {
   id: string;
