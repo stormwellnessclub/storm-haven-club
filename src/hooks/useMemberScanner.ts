@@ -21,8 +21,12 @@ export interface ScanResult {
   payment_status?: {
     isAnnualFeeOverdue: boolean;
     isDuesPastDue: boolean;
+    hasRecentFailedPayment: boolean;
+    hasNoSubscription: boolean;
+    hasIncompleteSubscription: boolean;
   };
   denial_reason?: string;
+  is_billing_block?: boolean;
   check_in_id?: string;
   log_id?: string;
   error?: string;

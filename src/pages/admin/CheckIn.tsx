@@ -23,17 +23,18 @@ import {
   Ticket,
   BookOpen,
   Sparkles,
+  Ban,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 import { EffectiveStatusBadge, getEffectiveStatus } from "@/components/admin/EffectiveStatusBadge";
 import { CheckInSupportPanel } from "@/components/admin/CheckInSupportPanel";
 import { useUnifiedCheckInSearch, UnifiedSearchResult, VisitorType } from "@/hooks/useUnifiedCheckInSearch";
 import { useUnifiedAttendance, AttendanceType } from "@/hooks/useUnifiedAttendance";
+import { useMemberScanner, ScanResult } from "@/hooks/useMemberScanner";
 
 // ─── Type badge config ───────────────────────────────────────────────
 const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
