@@ -9,6 +9,7 @@ import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumb
 import { AdminSessionsCalendar } from "@/components/admin/AdminSessionsCalendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveAttendeePreviewsForSessions } from "@/hooks/useRosterIdentity";
 import { toast } from "sonner";
 import { format, parseISO, isAfter, isBefore, addDays } from "date-fns";
 import {
