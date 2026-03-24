@@ -59,6 +59,26 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
   const { profile } = useUserProfile();
   const { data: savedChildren, isLoading: childrenLoading } = useKidsCareChildren();
 
+  // Fetch pass-child assignments to enforce one pass per child
+  const { data: passChildMap } = useQuery({
+    queryKey: ["kids-care-pass-child-map", user?.id],
+    queryFn: async () => {
+      if (!user) return {};
+      try {
+        const { data } = await (supabase.from as any)("kids_care_bookings")
+          .select("pass_id, child_name")
+          .eq("user_id", user.id)
+          .not("status", "in", '("cancelled","no_show")');
+        const map: Record<string, string> = {};
+        for (const b of (data || [])) {
+          if (b.pass_id && !map[b.pass_id]) map[b.pass_id] = b.child_name;
+        }
+        return map;
+      } catch { return {}; }
+    },
+    enabled: !!user,
+  });
+
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate || new Date());
   const [selectedStartTime, setSelectedStartTime] = useState<string>("");
   const [selectedEndTime, setSelectedEndTime] = useState<string>("");
