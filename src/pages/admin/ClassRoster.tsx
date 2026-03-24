@@ -393,21 +393,6 @@ export default function ClassRoster() {
     return true;
   })();
 
-  const getDisplayName = (booking: ClassBooking) => {
-    if (booking.members) return `${booking.members.first_name} ${booking.members.last_name}`;
-    if (booking.profile?.first_name || booking.profile?.last_name) return `${booking.profile.first_name || ""} ${booking.profile.last_name || ""}`.trim();
-    if (booking.walk_in_name) return booking.walk_in_name;
-    if (booking.profile?.email) return booking.profile.email;
-    return "Unknown";
-  };
-
-  const getInitials = (booking: ClassBooking) => {
-    if (booking.members) return `${booking.members.first_name?.[0] || ""}${booking.members.last_name?.[0] || ""}`;
-    if (booking.profile?.first_name || booking.profile?.last_name) return `${booking.profile.first_name?.[0] || ""}${booking.profile.last_name?.[0] || ""}`;
-    if (booking.walk_in_name) { const parts = booking.walk_in_name.split(" "); return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`; }
-    return "?";
-  };
-
   const paymentLabel = (method: string | null) => {
     switch (method) {
       case "pass": return "Pass";
