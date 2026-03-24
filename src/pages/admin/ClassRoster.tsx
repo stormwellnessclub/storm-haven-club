@@ -505,11 +505,14 @@ export default function ClassRoster() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
+                    <Label>Phone *</Label>
+                    <Input value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} placeholder="Required" type="tel" />
+                  </div>
+                  <div>
                     <Label>Email</Label>
                     <Input value={walkInEmail} onChange={(e) => setWalkInEmail(e.target.value)} placeholder="Optional — links passes" type="email" />
                     {resolvedWalkIn && <p className="text-xs text-primary mt-1">✓ Account found — passes will be available</p>}
                   </div>
-                  <div><Label>Phone</Label><Input value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} placeholder="Optional" type="tel" /></div>
                 </div>
               </TabsContent>
             </Tabs>
