@@ -38,7 +38,7 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
           .limit(10),
         supabase
           .from("profiles")
-          .select("user_id, email, full_name")
+          .select("user_id, email, full_name, phone")
           .or(`email.ilike.%${q}%,full_name.ilike.%${q}%`)
           .limit(10),
         supabase
