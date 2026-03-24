@@ -102,7 +102,9 @@ export default function Schedule() {
       if (error) throw error;
       return (data || []) as unknown as ClassSession[];
     },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 
   const filteredSessions = useMemo(() => {
