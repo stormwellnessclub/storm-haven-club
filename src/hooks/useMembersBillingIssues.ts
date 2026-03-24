@@ -77,6 +77,12 @@ export function useMembersBillingIssues() {
         if (!isCashBilling && (memberAny.subscription_status === 'incomplete' || memberAny.subscription_status === 'incomplete_expired')) {
           issues.push({ type: "error", code: "subscription_incomplete", message: "Initial payment failed - subscription never started", shortLabel: "Payment Failed" });
           missingSubscription++;
+        } else if (!isCashBilling && (memberAny.subscription_status === 'past_due')) {
+          issues.push({ type: "error", code: "subscription_past_due", message: "Subscription payment past due", shortLabel: "Past Due" });
+          missingSubscription++;
+        } else if (!isCashBilling && (memberAny.subscription_status === 'canceled' || memberAny.subscription_status === 'unpaid')) {
+          issues.push({ type: "error", code: "subscription_canceled", message: "Subscription canceled or unpaid", shortLabel: "Canceled" });
+          missingSubscription++;
         } else if (!isCashBilling && member.status === "active" && !member.stripe_subscription_id) {
           issues.push({ type: "error", code: "missing_subscription", message: "Active member without recurring subscription", shortLabel: "No Sub" });
           missingSubscription++;
@@ -124,7 +130,8 @@ export function useMembersBillingIssues() {
         const issues = memberIssues[memberId] || [];
         return !issues.some(i =>
           i.code === 'failed_payment' || i.code === 'missing_subscription' ||
-          i.code === 'missing_payment_method' || i.code === 'subscription_incomplete'
+          i.code === 'missing_payment_method' || i.code === 'subscription_incomplete' ||
+          i.code === 'subscription_past_due' || i.code === 'subscription_canceled'
         );
       };
 

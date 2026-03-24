@@ -49,7 +49,9 @@ export function getEffectiveStatus(
   const hasFailedPayment = issues.some(i =>
     i.code === 'failed_payment' ||
     i.code === 'subscription_incomplete' ||
-    i.code === 'subscription_incomplete_expired'
+    i.code === 'subscription_incomplete_expired' ||
+    i.code === 'subscription_past_due' ||
+    i.code === 'subscription_canceled'
   );
 
   if (hasFailedPayment) {

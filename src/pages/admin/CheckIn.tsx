@@ -89,8 +89,10 @@ export default function CheckIn() {
     setSelected(result);
     clearResults();
     setSearchQuery("");
+    setMemberScanResult(null);
 
     if (result.type === "member") {
+      // Count check-ins this month
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
@@ -100,6 +102,19 @@ export default function CheckIn() {
         .eq("member_id", result.data.id)
         .gte("checked_in_at", startOfMonth.toISOString());
       setMemberCheckInCount(count || 0);
+
+      // Pre-validate via backend RPC (dry-run, no actual check-in)
+      try {
+        const preCheck = await scanMemberAsync({
+          memberId: result.data.member_id || result.data.id,
+          deviceType: "manual_entry",
+          autoCheckIn: false,
+          override: false,
+        });
+        setMemberScanResult(preCheck);
+      } catch (err) {
+        console.error("Pre-validation failed:", err);
+      }
     }
   };
 
@@ -213,24 +228,34 @@ export default function CheckIn() {
 
     // ── Member detail ──
     if (selected.type === "member" && memberData) {
+      // Use backend verdict if available, fall back to client-side
+      const backendGranted = memberScanResult ? memberScanResult.access_granted : null;
+      const canCheckIn = backendGranted !== null ? backendGranted : (effectiveStatus?.canCheckIn ?? false);
+      const statusDescription = memberScanResult && !memberScanResult.access_granted
+        ? `Access denied: ${memberScanResult.denial_reason?.replace(/_/g, " ") || "billing issue"}`
+        : effectiveStatus?.description || "";
+      const statusLabel = memberScanResult && !memberScanResult.access_granted
+        ? (memberScanResult.denial_reason?.replace(/_/g, " ") || effectiveStatus?.label || "Denied")
+        : effectiveStatus?.label || "";
+
       return (
         <div className="space-y-4">
-          {/* Status Banner */}
-          <div className={`p-4 rounded-lg border ${effectiveStatus?.canCheckIn
+          {/* Status Banner — driven by backend pre-check */}
+          <div className={`p-4 rounded-lg border ${canCheckIn
             ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
             : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
           }`}>
             <div className="flex items-center gap-3">
-              {effectiveStatus?.canCheckIn ? (
+              {canCheckIn ? (
                 <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
               ) : (
                 <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
               )}
               <div className="flex-1">
                 <p className="font-semibold text-lg">
-                  {effectiveStatus?.canCheckIn ? "Check-In Approved" : "Cannot Check In"}
+                  {canCheckIn ? "Check-In Approved" : "Cannot Check In"}
                 </p>
-                <p className="text-sm text-muted-foreground">{effectiveStatus?.description}</p>
+                <p className="text-sm text-muted-foreground">{statusDescription}</p>
               </div>
               <EffectiveStatusBadge
                 memberStatus={memberData.status}
@@ -279,11 +304,11 @@ export default function CheckIn() {
           </div>
 
           {/* Billing Block - Cannot Check In */}
-          {!effectiveStatus?.canCheckIn && (
+          {!canCheckIn && (
             <div className="p-4 bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-lg space-y-3">
               <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
                 <Ban className="h-5 w-5" />
-                Cannot Check In — {effectiveStatus?.label}
+                Cannot Check In — {statusLabel}
               </div>
               {arrearsData && arrearsData.total_owed_cents > 0 && (
                 <div className="p-3 bg-red-200/50 dark:bg-red-900/30 rounded-lg">
@@ -303,7 +328,7 @@ export default function CheckIn() {
                 </div>
               )}
               <p className="text-sm text-red-600 dark:text-red-400">
-                {effectiveStatus?.description}
+                {statusDescription}
               </p>
               {memberScanResult && !memberScanResult.access_granted && memberScanResult.payment_status && (
                 <div className="text-sm space-y-1 text-red-600 dark:text-red-400">
@@ -330,7 +355,7 @@ export default function CheckIn() {
             </div>
           )}
 
-          {effectiveStatus?.canCheckIn && (
+          {canCheckIn && (
             <Button className="w-full" size="lg" onClick={() => handleMemberCheckIn()} disabled={isCheckingIn}>
               {isCheckingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserCheck className="h-4 w-4 mr-2" />}
               Check In Member
