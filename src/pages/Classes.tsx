@@ -1,52 +1,8 @@
-import { useState } from "react";
-import { SEOHead } from "@/components/SEOHead";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Layout } from "@/components/Layout";
-import { Button } from "@/components/ui/button";
-import { StarRating } from "@/components/reviews/StarRating";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useNavigate } from "react-router-dom";
-import { 
-  Flame, 
-  Snowflake, 
-  Clock, 
-  Users,
-  CircleDot,
-  Bike,
-  Dumbbell,
-  Heart,
-  Zap,
-  Wind,
-  Sparkles,
-  Activity
-} from "lucide-react";
-
-// Fallback images by category
-import reformerPilates from "@/assets/reformer-pilates.jpg";
-import reformerPilates2 from "@/assets/reformer-pilates-2.jpg";
-import cycling from "@/assets/cycling.jpg";
-import cycling2 from "@/assets/cycling-2.jpg";
-import aerobicsStudio from "@/assets/aerobics-studio.jpg";
-
-type ClassCategory = "all" | "reformer" | "cycling" | "aerobics" | "pilates_cycling";
-type HeatFilter = "all" | "heated" | "non-heated";
-
-const categoryFallbackImages: Record<string, string> = {
-  reformer: reformerPilates,
-  pilates_cycling: reformerPilates2,
-  cycling: cycling,
-  aerobics: aerobicsStudio,
-};
-
-const categoryConfig: Record<string, { icon: typeof Dumbbell; label: string }> = {
-  reformer: { icon: CircleDot, label: "Reformer Pilates" },
-  pilates_cycling: { icon: CircleDot, label: "Pilates" },
-  cycling: { icon: Bike, label: "Cycling" },
-  aerobics: { icon: Activity, label: "Aerobics" },
-};
+import { Navigate } from "react-router-dom";
 
 export default function Classes() {
+  return <Navigate to="/schedule" replace />;
+}
   const [typeFilter, setTypeFilter] = useState<ClassCategory>("all");
   const [heatFilter, setHeatFilter] = useState<HeatFilter>("all");
   const navigate = useNavigate();
