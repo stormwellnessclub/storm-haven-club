@@ -41,6 +41,7 @@ export interface AdminKidsCareBooking extends KidsCareBooking {
   pass_classes_total?: number | null;
   pass_purchased_at?: string | null;
   pass_expires_at?: string | null;
+  child_profile_found?: boolean | null;
 }
 
 interface AdminKidsCareBookingsFilters {
