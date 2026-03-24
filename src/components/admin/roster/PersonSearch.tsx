@@ -109,6 +109,7 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
           memberId: null,
           name: p.full_name || p.email || "Unknown",
           email: p.email || "",
+          phone: p.phone || "",
           type: pc > 0 ? "pass_holder" : "account",
           passCount: pc,
         });
