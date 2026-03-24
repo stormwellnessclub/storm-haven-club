@@ -76,6 +76,7 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
           memberId: m.id,
           name: `${m.first_name} ${m.last_name}`,
           email: m.email || "",
+          phone: m.phone || "",
           type: "member",
           passCount: m.user_id ? (passMap.get(m.user_id) || 0) : 0,
         });
