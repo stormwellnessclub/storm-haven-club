@@ -89,8 +89,10 @@ export default function CheckIn() {
     setSelected(result);
     clearResults();
     setSearchQuery("");
+    setMemberScanResult(null);
 
     if (result.type === "member") {
+      // Count check-ins this month
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
@@ -100,6 +102,19 @@ export default function CheckIn() {
         .eq("member_id", result.data.id)
         .gte("checked_in_at", startOfMonth.toISOString());
       setMemberCheckInCount(count || 0);
+
+      // Pre-validate via backend RPC (dry-run, no actual check-in)
+      try {
+        const preCheck = await scanMemberAsync({
+          memberId: result.data.member_id || result.data.id,
+          deviceType: "manual_entry",
+          autoCheckIn: false,
+          override: false,
+        });
+        setMemberScanResult(preCheck);
+      } catch (err) {
+        console.error("Pre-validation failed:", err);
+      }
     }
   };
 
