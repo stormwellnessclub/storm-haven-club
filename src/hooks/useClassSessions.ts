@@ -103,16 +103,16 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
           ? session.instructor[0]
           : session.instructor,
       })).filter((session) => {
-        // Hide classes that have already finished today
-        const sessionDate = format(now, "yyyy-MM-dd");
-        if (session.session_date === sessionDate) {
-          const slotStart = parse(`${session.session_date} ${session.start_time}`, "yyyy-MM-dd HH:mm:ss", new Date());
-          const slotEnd = addMinutes(slotStart, session.class_type?.duration_minutes || 50);
-          if (isBefore(slotEnd, now)) return false;
-        }
-        return true;
+        return !isSessionFinishedToday(
+          session.session_date,
+          session.start_time,
+          session.class_type?.duration_minutes || 50,
+          now
+        );
       }) as ClassSession[];
     },
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 }
 
