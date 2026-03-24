@@ -323,9 +323,21 @@ export default function Childcare() {
                               </Badge>
                             </div>
                           ) : (
-                            <div className="text-xs flex items-center gap-1 p-2 bg-warning/10 rounded border border-warning/20 text-warning">
-                              <AlertTriangle className="h-3 w-3" />
-                              No pass linked to this booking
+                            <div className="text-xs flex items-center gap-2 p-2 bg-warning/10 rounded border border-warning/20 text-warning">
+                              <AlertTriangle className="h-3 w-3 shrink-0" />
+                              <span>No pass linked to this booking</span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-5 text-[10px] px-2 ml-auto border-warning/30 text-warning hover:bg-warning/20"
+                                onClick={() => {
+                                  if (booking.member_id) {
+                                    navigate(`/admin/members/${booking.member_id}`);
+                                  }
+                                }}
+                              >
+                                Charge Parent
+                              </Button>
                             </div>
                           )}
 

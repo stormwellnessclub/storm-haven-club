@@ -68,8 +68,8 @@ export function KidsCareBookForParent() {
   const selectMember = async (member: MemberResult) => {
     setSelectedMember(member);
     setMembers([]);
-    // Fetch children and passes
-    const [childRes, passRes] = await Promise.all([
+    // Fetch children, passes, and existing pass-child assignments
+    const [childRes, passRes, bookingsRes] = await Promise.all([
       (supabase.from as any)("kids_care_children")
         .select("id, full_name, date_of_birth")
         .eq("user_id", member.user_id)
@@ -81,9 +81,36 @@ export function KidsCareBookForParent() {
         .eq("pass_type", "kids_care")
         .eq("status", "active")
         .gt("classes_remaining", 0),
+      (supabase.from as any)("kids_care_bookings")
+        .select("pass_id, child_name")
+        .eq("user_id", member.user_id)
+        .not("status", "in", '("cancelled","no_show")'),
     ]);
     setChildren(childRes.data || []);
     setPasses(passRes.data || []);
+    setPassChildMap(buildPassChildMap(bookingsRes.data || []));
+  };
+
+  // Build a map of pass_id -> child_name (first child that used it)
+  const buildPassChildMap = (bookings: Array<{ pass_id: string; child_name: string }>): Record<string, string> => {
+    const map: Record<string, string> = {};
+    for (const b of bookings) {
+      if (b.pass_id && !map[b.pass_id]) {
+        map[b.pass_id] = b.child_name;
+      }
+    }
+    return map;
+  };
+
+  const [passChildMap, setPassChildMap] = useState<Record<string, string>>({});
+
+  // Filter passes for the selected child — only show unused passes or passes already assigned to this child
+  const getFilteredPasses = () => {
+    if (!selectedChild) return passes;
+    return passes.filter((p) => {
+      const assignedChild = passChildMap[p.id];
+      return !assignedChild || assignedChild.toLowerCase().trim() === selectedChild.toLowerCase().trim();
+    });
   };
 
   const getChildAge = (child: ChildResult) => {
@@ -200,20 +227,31 @@ export function KidsCareBookForParent() {
 
               <div className="space-y-2">
                 <Label>Pass</Label>
-                {passes.length > 0 ? (
-                  <Select value={selectedPass} onValueChange={setSelectedPass}>
-                    <SelectTrigger><SelectValue placeholder="Select pass" /></SelectTrigger>
-                    <SelectContent>
-                      {passes.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.classes_remaining}/{p.classes_total} sessions — exp {new Date(p.expires_at).toLocaleDateString()}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No active pass found. Parent needs to purchase one first.</p>
-                )}
+                {(() => {
+                  const filteredPasses = getFilteredPasses();
+                  return filteredPasses.length > 0 ? (
+                    <Select value={selectedPass} onValueChange={setSelectedPass}>
+                      <SelectTrigger><SelectValue placeholder="Select pass" /></SelectTrigger>
+                      <SelectContent>
+                        {filteredPasses.map((p) => {
+                          const assignedChild = passChildMap[p.id];
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.classes_remaining}/{p.classes_total} sessions — exp {new Date(p.expires_at).toLocaleDateString()}
+                              {assignedChild && <span className="text-muted-foreground ml-1">({assignedChild})</span>}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {passes.length > 0
+                        ? "No available pass for this child. Each child needs their own pass."
+                        : "No active pass found. Parent needs to purchase one first."}
+                    </p>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-3 gap-2">

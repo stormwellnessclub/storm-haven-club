@@ -5,6 +5,8 @@ import { useBookKidsCare, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useKidsCareHoursForDate } from "@/hooks/useKidsCareHours";
 import { useKidsCareChildren } from "@/hooks/useKidsCareChildren";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +58,26 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
   const { data: availablePasses, isLoading: passesLoading } = useKidsCarePasses();
   const { profile } = useUserProfile();
   const { data: savedChildren, isLoading: childrenLoading } = useKidsCareChildren();
+
+  // Fetch pass-child assignments to enforce one pass per child
+  const { data: passChildMap } = useQuery({
+    queryKey: ["kids-care-pass-child-map", user?.id],
+    queryFn: async () => {
+      if (!user) return {};
+      try {
+        const { data } = await (supabase.from as any)("kids_care_bookings")
+          .select("pass_id, child_name")
+          .eq("user_id", user.id)
+          .not("status", "in", '("cancelled","no_show")');
+        const map: Record<string, string> = {};
+        for (const b of (data || [])) {
+          if (b.pass_id && !map[b.pass_id]) map[b.pass_id] = b.child_name;
+        }
+        return map;
+      } catch { return {}; }
+    },
+    enabled: !!user,
+  });
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate || new Date());
   const [selectedStartTime, setSelectedStartTime] = useState<string>("");
@@ -342,19 +364,36 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
             {/* Kids Care Pass Selection */}
             <div className="space-y-2">
               <Label>Kids Care Pass *</Label>
-              <Select value={selectedPassId} onValueChange={setSelectedPassId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a pass" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePasses.map((pass) => (
-                    <SelectItem key={pass.id} value={pass.id}>
-                      {pass.pass_type} - {pass.classes_remaining} sessions remaining
-                      {pass.expires_at && ` (Expires ${format(parseISO(pass.expires_at), "MMM d, yyyy")})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {(() => {
+                const selectedChild = savedChildren?.find(c => c.id === selectedChildId);
+                const childNameForFilter = selectedChild?.full_name || childName;
+                const filteredPasses = (availablePasses || []).filter((pass) => {
+                  if (!childNameForFilter || !passChildMap) return true;
+                  const assigned = passChildMap[pass.id];
+                  return !assigned || assigned.toLowerCase().trim() === childNameForFilter.toLowerCase().trim();
+                });
+                return filteredPasses.length > 0 ? (
+                  <Select value={selectedPassId} onValueChange={setSelectedPassId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a pass" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredPasses.map((pass) => (
+                        <SelectItem key={pass.id} value={pass.id}>
+                          {pass.pass_type} - {pass.classes_remaining} sessions remaining
+                          {pass.expires_at && ` (Expires ${format(parseISO(pass.expires_at), "MMM d, yyyy")})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {(availablePasses || []).length > 0
+                      ? "No available pass for this child. Each child needs their own pass."
+                      : "No active pass found."}
+                  </p>
+                );
+              })()}
             </div>
 
             {/* Child Selection */}
