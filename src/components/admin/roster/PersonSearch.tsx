@@ -150,7 +150,10 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
             >
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{r.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{r.email}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {r.email}
+                  {r.phone && <span className="ml-2">📱 {r.phone}</span>}
+                </p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {r.passCount > 0 && (
