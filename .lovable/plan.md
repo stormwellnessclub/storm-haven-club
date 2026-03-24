@@ -1,59 +1,46 @@
 
 
-# Admin & Public Class Schedule Views — Current State & Improvement Plan
+# Fix: Subscription Cleared By Wrong Webhook Event
 
-## Current State Summary
+## What Happened to Sherene
 
-### Public Website (`/classes`)
-- **Class catalog only** — shows class type cards with name, description, duration, capacity, ratings, images
-- No times or dates — just a directory of class offerings
-- "Book Class" button navigates to `/schedule`
+1. She had subscription `sub_1Synwi...` created in February — $250 paid successfully
+2. A second subscription `sub_1SyMm7...` was also created (possibly an admin action or duplicate)
+3. Subscription #1 was canceled in Stripe
+4. The webhook received the cancellation event, found Sherene by her Stripe customer ID, and **blindly cleared `stripe_subscription_id` to null** — without checking if the canceled subscription matched the one stored in the database
+5. Now her database shows "Subscription: None" despite having an active subscription (#2) in Stripe
+6. Her March invoice ($250) is **open/unpaid** — Stripe is trying to collect but something is blocking it
 
-### Public Website (`/schedule`)
-- **Live weekly timetable** — day-by-day list view (Sun–Sat) with times, instructor, room, spots left
-- Week navigation (prev/next), category filters
-- Book/Join Waitlist buttons for logged-in users; sign-in redirect for guests
-- Heated/Cool badges, room info
+## The Bug
 
-### Member Portal
-- No dedicated schedule page — members use the same public `/schedule` page
-- Dashboard has quick action buttons linking to `/schedule`
+In `supabase/functions/stripe-webhook/index.ts`, when handling `customer.subscription.updated` (line 1442-1456) and `customer.subscription.deleted` (line 1566-1574), the code:
+- Looks up the member by `stripe_customer_id`
+- Clears `stripe_subscription_id = null` without verifying the canceled subscription ID matches the member's stored subscription ID
 
-### Admin — Class Schedules (`/admin/class-schedules`)
-- **Template management** — recurring weekly schedule patterns (not actual dated sessions)
-- Two views: **Table** (list of all templates) and **Calendar** (Google Calendar-style weekly grid showing templates by day/time)
-- The calendar view (`WeeklyCalendarView`) shows schedule blocks color-coded by category, with conflict detection, click-to-edit, and hide-inactive toggle
+This means **any** subscription cancellation for that customer wipes the member's subscription reference, even if a different (active) subscription exists.
 
-### Admin — Today's Classes (`/admin/classes`)
-- Shows only **today's** generated sessions in a card/list format
-- No calendar view for upcoming sessions across multiple days
+## Fix
 
----
+### 1. Webhook: Only clear subscription if IDs match
+In `stripe-webhook/index.ts`, for both the `customer.subscription.updated` (canceled/incomplete_expired handling) and `customer.subscription.deleted` events:
+- Before clearing `stripe_subscription_id`, check if `memberData.stripe_subscription_id === subscription.id`
+- If they don't match, log a warning but **don't clear** — the canceled subscription isn't the one we're tracking
 
-## Plan: Add Admin Sessions Calendar View
+### 2. Webhook: Same fix in sync-subscription-status
+Apply the same guard in `sync-subscription-status/index.ts` (lines 270-299) — only clear if the subscription being synced matches the stored one.
 
-Since you want **both** the existing template calendar AND a real sessions calendar with actual dates, here's the plan:
+### 3. Immediate data fix for Sherene
+- Update her `stripe_subscription_id` to `sub_1SyMm7LyZrsSqLhsqBJ7yEKu` (the active one)
+- Update `subscription_status` to `active`
+- The open March invoice needs attention in Stripe — it's $250 unpaid
 
-### 1. Create `AdminSessionsCalendar` component
-A new component similar to `WeeklyCalendarView` but showing **actual generated sessions** (from `class_sessions` table) for a specific week, with real dates.
+### 4. Cancel the canceled subscription reference cleanup
+Also consider: should subscription #1 have been canceled? Or was it a mistake? You may want to cancel sub #2 and keep just one clean subscription going forward. That's a business decision.
 
-- Week navigation (prev/next arrows) with date range display
-- Same Google Calendar-style grid layout as the template view (time axis on left, days as columns)
-- Each session block shows: class name, time, instructor, room, enrollment count (e.g. "4/8"), status badges (cancelled, hidden)
-- Color-coded by category (same color scheme as template view)
-- Click a session to see details or take actions (cancel, edit enrollment, etc.)
-- Filter: category, show/hide cancelled sessions
-
-### 2. Add to Admin Classes page (`/admin/classes`)
-- Add a view toggle: **"Today"** (existing card view) vs **"Week Calendar"** (new sessions calendar)
-- The week calendar will replace the static "today only" limitation, letting you see actual sessions across any week
-
-### 3. Files to create/modify
+## Files to modify
 | File | Change |
 |------|--------|
-| `src/components/admin/AdminSessionsCalendar.tsx` | **New** — weekly calendar showing real dated sessions |
-| `src/pages/admin/Classes.tsx` | Add view toggle between Today cards and Week Calendar |
-
-### 4. No changes to public pages
-The public `/schedule` and `/classes` pages stay as-is — the list view is appropriate for public users (mobile-friendly, scannable). The calendar grid view is an admin tool for operational overview.
+| `supabase/functions/stripe-webhook/index.ts` | Add subscription ID match check before clearing (2 locations) |
+| `supabase/functions/sync-subscription-status/index.ts` | Add subscription ID match check before clearing |
+| Database update (via insert tool) | Fix Sherene's record to point to active subscription |
 
