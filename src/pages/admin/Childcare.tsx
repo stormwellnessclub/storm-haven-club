@@ -350,7 +350,7 @@ export default function Childcare() {
                           )}
 
                           {/* No child profile warning */}
-                          {!booking.child_allergies && !booking.child_medical_conditions && !booking.child_emergency_contact_name && !booking.child_special_instructions && (
+                          {!booking.child_profile_found && (
                             <div className="text-xs flex items-center gap-1 p-2 bg-muted rounded text-muted-foreground">
                               <Shield className="h-3 w-3" />
                               No child profile registered — parent should complete profile
