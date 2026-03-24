@@ -41,7 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info, Table2, LayoutGrid, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info, Table2, LayoutGrid, AlertTriangle, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addWeeks } from "date-fns";
@@ -160,7 +160,8 @@ export default function ClassSchedules() {
         .from("class_sessions")
         .select("*", { count: 'exact', head: true })
         .gte("session_date", today)
-        .eq("is_cancelled", false);
+        .eq("is_cancelled", false)
+        .eq("is_hidden", false);
       if (error) throw error;
       return count || 0;
     },
@@ -230,20 +231,24 @@ export default function ClassSchedules() {
           .insert([scheduleData]);
         if (error) throw error;
       }
+
+      // Await reconciliation INSIDE the mutation so sessions are synced before onSuccess
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { error: reconcileError } = await supabase.rpc('reconcile_and_generate_class_sessions', {
+        _start_date: today,
+        _weeks_ahead: 6
+      });
+      if (reconcileError) {
+        console.error('Reconciliation error:', reconcileError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['class-schedules'] });
-      // Auto-reconcile future sessions when schedule changes
-      const today = format(new Date(), 'yyyy-MM-dd');
-      supabase.rpc('reconcile_and_generate_class_sessions', {
-        _start_date: today,
-        _weeks_ahead: 6
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
-        queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
-        queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
-        queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
-      });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
+      queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sessions-calendar'] });
       toast.success(editingSchedule ? "Schedule updated — sessions reconciled" : "Schedule created — sessions generated");
       setDialogOpen(false);
       resetForm();
@@ -472,7 +477,42 @@ export default function ClassSchedules() {
                     </div>
                   )}
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  {editingSchedule && (
+                    <Button
+                      variant="destructive"
+                      onClick={async () => {
+                        if (!confirm("Delete this schedule? Future sessions from this schedule will be hidden.")) return;
+                        try {
+                          const { error } = await supabase
+                            .from("class_schedules")
+                            .delete()
+                            .eq("id", editingSchedule.id);
+                          if (error) throw error;
+                          // Reconcile to hide orphaned sessions
+                          const today = format(new Date(), 'yyyy-MM-dd');
+                          await supabase.rpc('reconcile_and_generate_class_sessions', {
+                            _start_date: today,
+                            _weeks_ahead: 6
+                          });
+                          queryClient.invalidateQueries({ queryKey: ['class-schedules'] });
+                          queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
+                          queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
+                          queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+                          queryClient.invalidateQueries({ queryKey: ['admin-sessions-calendar'] });
+                          toast.success("Schedule deleted");
+                          setDialogOpen(false);
+                          resetForm();
+                        } catch (err: any) {
+                          toast.error(err.message || "Failed to delete schedule");
+                        }
+                      }}
+                      className="sm:mr-auto"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  )}
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancel
                   </Button>

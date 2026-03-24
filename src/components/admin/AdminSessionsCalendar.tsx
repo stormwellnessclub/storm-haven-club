@@ -2,12 +2,12 @@ import { useMemo, useRef, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { format, startOfWeek, endOfWeek, addWeeks, addDays, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Loader2, Users, EyeOff, XCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { computeOverlapColumns, timeToMinutes } from "@/lib/calendarOverlap";
 
 interface SessionData {
   id: string;
@@ -53,11 +53,6 @@ function getCategoryColor(category: string | undefined): string {
   return CATEGORY_COLORS[category.toLowerCase()] || DEFAULT_COLOR;
 }
 
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + (m || 0);
-}
-
 function formatTime12h(time: string): string {
   const [hours, minutes] = time.split(":");
   const h = parseInt(hours);
@@ -86,7 +81,7 @@ export function AdminSessionsCalendar({ onSelectSession }: AdminSessionsCalendar
     return Array.from({ length: 7 }, (_, i) => {
       const date = addDays(weekStart, i);
       return {
-        dayOfWeek: i, // 0=Sun
+        dayOfWeek: i,
         date,
         dateStr: format(date, "yyyy-MM-dd"),
         label: format(date, "EEE"),
@@ -132,6 +127,22 @@ export function AdminSessionsCalendar({ onSelectSession }: AdminSessionsCalendar
     });
     return map;
   }, [sessions, days]);
+
+  // Compute overlap columns per day
+  const overlapsByDate = useMemo(() => {
+    const result: Record<string, Map<string, { columnIndex: number; totalColumns: number }>> = {};
+    days.forEach((d) => {
+      const daySessions = sessionsByDate[d.dateStr] || [];
+      result[d.dateStr] = computeOverlapColumns(
+        daySessions.map((s) => ({
+          id: s.id,
+          startMinutes: timeToMinutes(s.start_time),
+          endMinutes: timeToMinutes(s.end_time),
+        }))
+      );
+    });
+    return result;
+  }, [sessionsByDate, days]);
 
   const { dayStart, dayEnd, hourLabels: hours } = useMemo(() => {
     let earliest = 21;
@@ -260,16 +271,29 @@ export function AdminSessionsCalendar({ onSelectSession }: AdminSessionsCalendar
                   const colorClass = getCategoryColor(session.class_types?.category);
                   const isFull = session.current_enrollment >= session.max_capacity;
 
+                  const overlap = overlapsByDate[day.dateStr]?.get(session.id);
+                  const colIndex = overlap?.columnIndex ?? 0;
+                  const totalCols = overlap?.totalColumns ?? 1;
+                  const PAD = 2;
+                  const leftPct = (colIndex / totalCols) * 100;
+                  const widthPct = (1 / totalCols) * 100;
+
                   return (
                     <div
                       key={session.id}
                       className={cn(
-                        "absolute left-0.5 right-0.5 rounded-md border px-1.5 py-0.5 cursor-pointer transition-all hover:shadow-md overflow-hidden z-10",
+                        "absolute rounded-md border px-1.5 py-0.5 cursor-pointer transition-all hover:shadow-md overflow-hidden z-10",
                         colorClass,
                         session.is_cancelled && "opacity-40 line-through",
                         session.is_hidden && !session.is_cancelled && "opacity-50"
                       )}
-                      style={{ top: `${top}%`, height: `${height}%`, minHeight: "28px" }}
+                      style={{
+                        top: `${top}%`,
+                        height: `${height}%`,
+                        minHeight: "28px",
+                        left: `calc(${leftPct}% + ${PAD}px)`,
+                        width: `calc(${widthPct}% - ${PAD * 2}px)`,
+                      }}
                       onClick={() => onSelectSession?.(session)}
                       title={`${session.class_types?.name || "Class"} — ${formatTime12h(session.start_time)}–${formatTime12h(session.end_time)} (${session.current_enrollment}/${session.max_capacity})`}
                     >

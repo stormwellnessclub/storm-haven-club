@@ -4,12 +4,12 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserCheck, Eye, Loader2, List } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserCheck, Eye, Loader2, List, ChevronLeft, ChevronRight } from "lucide-react";
 import { AdminSessionsCalendar } from "@/components/admin/AdminSessionsCalendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, parseISO, isAfter, isBefore } from "date-fns";
+import { format, parseISO, isAfter, isBefore, addDays } from "date-fns";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -22,7 +22,9 @@ import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface ClassSession {
   id: string;
@@ -115,12 +117,15 @@ export default function Classes() {
   const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
-  const [view, setView] = useState<"today" | "calendar">("today");
+  const [view, setView] = useState<"list" | "calendar">("list");
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+  const isToday = selectedDateStr === format(new Date(), 'yyyy-MM-dd');
 
   const { data: sessions = [], isLoading } = useQuery({
-    queryKey: ['admin-class-sessions-today'],
+    queryKey: ['admin-class-sessions-day', selectedDateStr],
     queryFn: async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('class_sessions')
         .select(`
@@ -128,7 +133,7 @@ export default function Classes() {
           class_types!inner (id, name, category),
           instructors (id, first_name, last_name)
         `)
-        .eq('session_date', today)
+        .eq('session_date', selectedDateStr)
         .eq('is_cancelled', false)
         .eq('is_hidden', false)
         .eq('class_types.is_active', true)
@@ -183,7 +188,7 @@ export default function Classes() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-day'] });
       setCancelDialogOpen(false);
       setCancellationReason("");
       setSelectedSession(null);
@@ -202,28 +207,21 @@ export default function Classes() {
               Manage classes and attendance
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Tabs value={view} onValueChange={(v) => setView(v as "today" | "calendar")}>
-              <TabsList>
-                <TabsTrigger value="today" className="gap-1.5">
-                  <List className="h-3.5 w-3.5" /> Today
-                </TabsTrigger>
-                <TabsTrigger value="calendar" className="gap-1.5">
-                  <CalendarDays className="h-3.5 w-3.5" /> Week Calendar
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              {format(new Date(), 'EEEE, MMMM d')}
-            </div>
-          </div>
+          <Tabs value={view} onValueChange={(v) => setView(v as "list" | "calendar")}>
+            <TabsList>
+              <TabsTrigger value="list" className="gap-1.5">
+                <List className="h-3.5 w-3.5" /> Day View
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5" /> Week Calendar
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         {view === "calendar" ? (
           <AdminSessionsCalendar
             onSelectSession={(session) => {
-              // Cast to ClassSession shape for roster dialog
               const cs = session as unknown as ClassSession;
               setSelectedSession(cs);
               setRosterDialogOpen(true);
@@ -231,6 +229,36 @@ export default function Classes() {
           />
         ) : (
         <>
+        {/* Date navigation */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="icon" onClick={() => setSelectedDate(d => addDays(d, -1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setSelectedDate(new Date())} disabled={isToday}>
+            Today
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setSelectedDate(d => addDays(d, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => d && setSelectedDate(d)}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -238,8 +266,8 @@ export default function Classes() {
         ) : sessions.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-lg font-semibold">No Classes Today</p>
-            <p className="text-sm mt-2">There are no active classes scheduled for today.</p>
+            <p className="text-lg font-semibold">No Classes</p>
+            <p className="text-sm mt-2">There are no active classes scheduled for {format(selectedDate, 'MMMM d, yyyy')}.</p>
           </div>
         ) : (
           <div className="grid gap-4">

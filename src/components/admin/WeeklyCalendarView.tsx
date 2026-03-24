@@ -1,6 +1,7 @@
 import { useMemo, useRef, useEffect } from "react";
 import { ScheduleConflict } from "@/lib/scheduleConflicts";
 import { cn } from "@/lib/utils";
+import { computeOverlapColumns, timeToMinutes } from "@/lib/calendarOverlap";
 
 interface ClassType {
   id: string;
@@ -44,14 +45,8 @@ const DAYS = [
   { value: 0, label: "Sun" },
 ];
 
-const ROW_HEIGHT = 48; // px per hour row
+const ROW_HEIGHT = 48;
 
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + (m || 0);
-}
-
-// Extended color map including compound categories
 const CATEGORY_COLORS: Record<string, string> = {
   yoga: "bg-emerald-500/20 border-emerald-500/50 text-emerald-900 dark:text-emerald-200",
   pilates: "bg-violet-500/20 border-violet-500/50 text-violet-900 dark:text-violet-200",
@@ -72,9 +67,7 @@ const DEFAULT_COLOR = "bg-sky-500/20 border-sky-500/50 text-sky-900 dark:text-sk
 function getCategoryColor(category: string | undefined): string {
   if (!category) return DEFAULT_COLOR;
   const lower = category.toLowerCase();
-  // Direct match first
   if (CATEGORY_COLORS[lower]) return CATEGORY_COLORS[lower];
-  // Try base word (first part before underscore)
   const base = lower.split("_")[0];
   if (CATEGORY_COLORS[base]) return CATEGORY_COLORS[base];
   return DEFAULT_COLOR;
@@ -106,7 +99,6 @@ export function WeeklyCalendarView({ schedules, conflicts, onEditSchedule }: Wee
     return ids;
   }, [conflicts]);
 
-  // Auto-detect time range from schedule data
   const { dayStart, dayEnd, hourLabels } = useMemo(() => {
     let earliest = 21;
     let latest = 6;
@@ -116,7 +108,6 @@ export function WeeklyCalendarView({ schedules, conflicts, onEditSchedule }: Wee
       if (startH < earliest) earliest = startH;
       if (endH > latest) latest = endH;
     });
-    // Clamp to reasonable range with 1hr padding
     const ds = Math.max(5, Math.min(earliest - 1, 9));
     const de = Math.min(22, Math.max(latest + 1, 15));
     const labels = Array.from({ length: de - ds + 1 }, (_, i) => hourLabel(ds + i));
@@ -134,7 +125,22 @@ export function WeeklyCalendarView({ schedules, conflicts, onEditSchedule }: Wee
     return map;
   }, [schedules]);
 
-  // Auto-scroll to first class
+  // Compute overlap columns per day
+  const overlapsByDay = useMemo(() => {
+    const result: Record<number, Map<string, { columnIndex: number; totalColumns: number }>> = {};
+    DAYS.forEach((d) => {
+      const daySchedules = schedulesByDay[d.value] || [];
+      result[d.value] = computeOverlapColumns(
+        daySchedules.map((s) => ({
+          id: s.id,
+          startMinutes: timeToMinutes(s.start_time),
+          endMinutes: timeToMinutes(s.end_time),
+        }))
+      );
+    });
+    return result;
+  }, [schedulesByDay]);
+
   useEffect(() => {
     if (!scrollRef.current || schedules.length === 0) return;
     let earliestMin = Infinity;
@@ -187,7 +193,7 @@ export function WeeklyCalendarView({ schedules, conflicts, onEditSchedule }: Wee
             className="relative border-l border-border"
             style={{ height: `${gridHeight}px` }}
           >
-            {/* Hour grid lines with alternating bg */}
+            {/* Hour grid lines */}
             {hourLabels.map((_, i) => (
               <div
                 key={i}
@@ -199,7 +205,7 @@ export function WeeklyCalendarView({ schedules, conflicts, onEditSchedule }: Wee
               />
             ))}
 
-            {/* Schedule blocks */}
+            {/* Schedule blocks with overlap columns */}
             {schedulesByDay[day.value]?.map((schedule) => {
               const startMin = timeToMinutes(schedule.start_time) - dayStart * 60;
               const endMin = timeToMinutes(schedule.end_time) - dayStart * 60;
@@ -208,16 +214,29 @@ export function WeeklyCalendarView({ schedules, conflicts, onEditSchedule }: Wee
               const colorClass = getCategoryColor(schedule.class_types?.category);
               const hasConflict = conflictingIds.has(schedule.id);
 
+              const overlap = overlapsByDay[day.value]?.get(schedule.id);
+              const colIndex = overlap?.columnIndex ?? 0;
+              const totalCols = overlap?.totalColumns ?? 1;
+              const PAD = 2; // px padding
+              const leftPct = (colIndex / totalCols) * 100;
+              const widthPct = (1 / totalCols) * 100;
+
               return (
                 <div
                   key={schedule.id}
                   className={cn(
-                    "absolute left-0.5 right-0.5 rounded-md border px-1.5 py-0.5 cursor-pointer transition-all hover:shadow-md overflow-hidden z-10",
+                    "absolute rounded-md border px-1.5 py-0.5 cursor-pointer transition-all hover:shadow-md overflow-hidden z-10",
                     colorClass,
                     !schedule.is_active && "opacity-40",
                     hasConflict && "ring-2 ring-destructive ring-offset-1 ring-offset-background"
                   )}
-                  style={{ top: `${top}%`, height: `${height}%`, minHeight: "24px" }}
+                  style={{
+                    top: `${top}%`,
+                    height: `${height}%`,
+                    minHeight: "24px",
+                    left: `calc(${leftPct}% + ${PAD}px)`,
+                    width: `calc(${widthPct}% - ${PAD * 2}px)`,
+                  }}
                   onClick={() => onEditSchedule(schedule)}
                   title={`${schedule.class_types?.name || "Class"} — ${formatTime12h(schedule.start_time)}–${formatTime12h(schedule.end_time)}`}
                 >
