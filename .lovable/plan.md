@@ -1,95 +1,70 @@
 
-We need to fix this at the data-model and workflow level, not just the roster label.
 
-What I found
-- The roster still does not guarantee a complete person record for every booking.
-- `ClassRoster.tsx` only enriches missing bookings from `profiles`, not from `non_member_profiles`, and it does not surface phone numbers in the roster table.
-- `Classes.tsx` attendee previews also only fall back to `profiles`, so non-members can still appear as partial or missing identities.
-- `PersonSearch.tsx` returns only name/email/type/passCount. It does not include phone, so staff cannot verify or select people with full contact context.
-- Walk-ins/new people can be added to class with `walk_in_name`, optional email, optional phone, but that phone is not persisted anywhere. So the system literally loses the contact info.
-- `non_member_profiles` requires `user_id`, which means you cannot create a proper non-member profile for a true walk-in who has no account yet. That is the core structural gap.
-- There is already a partial pre-registration system (`pending_non_member_imports`) with name/email/phone, but class-roster walk-ins do not use it.
+# Fix Kids Care: Pass Deduction, Profile Visibility, Parent Navigation, Room Capacity
 
-What to build
-1. Make “every booked person has a real contact record” the rule
-- Treat bare `walk_in_name` bookings as insufficient.
-- For any non-member/non-account attendee, store a real contact record with name, phone, and optionally email.
-- Keep roster display resolution in this order:
-  - member record
-  - non-member profile
-  - account profile
-  - pending non-member contact
-  - walk-in fallback only for legacy rows
+## Issues Found
 
-2. Introduce a proper pre-account contact link for bookings
-- Add a nullable `pending_import_id` (or equivalent contact reference) on `class_bookings`.
-- Use it for people who do not yet have a user account.
-- This avoids forcing fake users while still preserving full identity and phone number.
+### Bug 1: Pass sessions never deducted (16/16 stays forever)
+The member-facing booking flow (`useBookKidsCare`) creates the booking, then tries to UPDATE `class_passes` to deduct a credit. But there is **no RLS UPDATE policy for regular users** on `class_passes`. The only UPDATE-capable policy is "Staff can manage passes" which requires admin/manager roles. So the deduction silently fails every time a parent books through the member portal.
 
-3. Upgrade class-roster add flow
-- In `ClassRoster.tsx`, when staff adds a new non-member/walk-in:
-  - require first name, last name, phone
-  - email optional but recommended
-  - if an existing member/account/non-member exists, reuse it
-  - otherwise create or reuse a pending contact record and attach it to the booking
-- If the person later creates an account, keep the booking link resolvable through the existing fulfillment flow.
+Aria has 3 bookings (1 checked_out, 2 confirmed) and Leila has 1 (checked_out) — all still showing 16/16.
 
-4. Unify roster identity fetching everywhere
-- Extract one shared roster identity query/helper used by:
-  - `ClassRoster.tsx`
-  - `Classes.tsx`
-  - attendee previews / future admin roster surfaces
-- It should fetch:
-  - member name + phone
-  - non-member profile name + phone
-  - account profile name + phone
-  - pending contact name + phone
-  - legacy walk-in name
-- This removes the current mismatch where one screen shows a count, another shows “Unknown”.
+The admin `admin_create_kids_care_booking` RPC runs as SECURITY DEFINER and does deduct, but most bookings are created through the member flow which hits the RLS wall.
 
-5. Surface phone numbers in the admin UI
-- Add phone as a first-class field in:
-  - roster table
-  - attendee previews/details
-  - person search results
-  - add-to-class confirmation
-- Staff should be able to immediately see who the person is and how to contact them.
+**Fix**: Add an RLS policy allowing users to UPDATE their own passes (`user_id = auth.uid()`). Then run a data fix to reconcile the actual remaining credits for Aria's and Leila's passes based on active bookings.
 
-6. Improve person search to return full contact context
-- Extend `PersonSearch.tsx` to include phone and richer source resolution.
-- Search members, non-member profiles, profiles, and pending non-member contacts.
-- Deduplicate by actual identity source, not just `user_id`, so pre-account contacts are also selectable.
+### Bug 2: "No child profile registered" shows even when profile exists
+The RPC's NULLIF strips "None" values from allergies, medical_conditions, and special_instructions (correct behavior — "None" means parent typed "None" meaning no issues). But the UI's "no profile" check at line 353 tests:
+```
+!child_allergies && !child_medical_conditions && !child_emergency_contact_name && !child_special_instructions
+```
+When all allergy/medical/instruction fields are legitimately empty/None, and emergency_contact_name IS filled, it should NOT show the warning. However, there are edge cases where the child name match could fail (trailing spaces, etc.) causing the LEFT JOIN to return NULLs for all child profile fields.
 
-7. Backfill legacy bookings as much as possible
-- For existing bookings with no member and no full profile:
-  - match by `user_id` into `non_member_profiles` first, then `profiles`
-  - where only `walk_in_name` exists, keep legacy fallback visible
-- Do not hide those bookings; just make the new resolver expose the best available identity now.
+For Aria specifically, the data shows `emergency_contact_name = "Ali Koussan"` and `authorized_pickup_persons` is filled. The TRIM match should work. But the "no profile" check should also consider `child_authorized_pickup_persons` and `child_photo_release` — if ANY child profile field has data, the profile exists.
 
-8. Keep non-member profile data synchronized where accounts exist
-- When a non-member has both `profiles` and `non_member_profiles`, keep name/phone aligned consistently.
-- Expand the existing sync approach so updates don’t drift between tables.
+**Fix**: Change the "no profile" check to verify whether the child profile JOIN actually matched, not whether specific fields happen to be null. Add a `child_profile_found` boolean to the RPC return.
 
-Files likely involved
-- `src/pages/admin/ClassRoster.tsx`
-- `src/pages/admin/Classes.tsx`
-- `src/components/admin/roster/PersonSearch.tsx`
-- `src/pages/admin/People.tsx`
-- `src/pages/admin/NonMemberAccounts.tsx`
-- new shared admin roster/contact resolver hook/helper
-- migration(s) for booking contact linkage and contact backfill support
-- possibly existing pending import / non-member sync functions
+### Bug 3: Can't click on child/parent to navigate to their account
+The booking cards show child name and parent name as plain text. There's no link or button to navigate to the parent's member profile or account.
 
-Technical notes
-- The structural problem is that `class_bookings.user_id` was made nullable for walk-ins, but there is no equivalent first-class contact table reference on the booking.
-- `walk_in_name` alone is not enough for business operations.
-- The clean fix is to let bookings reference either:
-  - a real account (`user_id`)
-  - or a stored pre-account contact record
-- This preserves RLS and avoids unsafe fake user/account workarounds.
+**Fix**: Make the parent name a clickable link that navigates to `/admin/members/{member_id}` when member_id exists, or to the non-member accounts page when it's a non-member.
 
-Result
-- Every attendee in class management will have a visible name and phone number.
-- Non-members will no longer disappear behind “Unknown” or incomplete profile fallbacks.
-- Staff can add and manage real non-member contacts from the roster without losing phone data.
-- The system will finally treat members and non-members as full people records instead of second-class bookings.
+### Bug 4: Room capacity dashboard not counting checked-in children
+The capacity dashboard filters by `["confirmed", "checked_in"]` which should work. But if pass data isn't loading correctly or bookings aren't properly attached to rooms, counts will be wrong.
+
+After checking the data: both bookings have `status: checked_out` for today, and the capacity dashboard correctly only counts `confirmed` and `checked_in`. Since both children were already checked out when the user looked, they wouldn't show in capacity. This is actually correct behavior — but the user may have looked while they were still checked in. The real capacity issue is that the booking was likely created without proper room assignment from the member flow.
+
+**Fix**: Ensure room is always assigned on booking creation. Also add `checked_out` children to the capacity view with a different visual indicator so staff can see total daily usage.
+
+## Plan
+
+### 1. Database migration: Add UPDATE RLS policy for users on class_passes
+```sql
+CREATE POLICY "Users can update their own passes"
+  ON public.class_passes FOR UPDATE
+  TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+```
+
+### 2. Data fix: Reconcile pass credits for existing bookings
+Count all non-cancelled bookings per pass and set `classes_remaining = classes_total - count`.
+
+### 3. Update RPC to return `child_profile_found` boolean
+Add `(kc.id IS NOT NULL) AS child_profile_found` to the RPC return, so the UI can distinguish "no profile" from "profile exists but fields are empty."
+
+### 4. Fix "no profile" check in Childcare.tsx
+Replace the four-field check with `!booking.child_profile_found`.
+
+### 5. Add parent navigation links on booking cards
+Make the parent name clickable → `/admin/members/{member_id}`.
+
+### 6. Show checked-out children in capacity dashboard
+Add checked_out bookings with a muted visual so staff can see total daily usage alongside current capacity.
+
+## Files to change
+- New migration SQL: UPDATE policy on `class_passes` + data reconciliation + RPC update with `child_profile_found`
+- `src/pages/admin/Childcare.tsx` — fix "no profile" check, add parent navigation link
+- `src/hooks/useAdminKidsCareBookings.ts` — add `child_profile_found` to interface
+- `src/components/admin/KidsCareCapacityDashboard.tsx` — show checked-out children as "used today"
+
