@@ -372,6 +372,61 @@ export function ChargeItemSelector({
   const cartProcessingFee = !isManualPayment ? calculateProcessingFeeFromDollars(cartTotalBeforeFee) : 0;
   const cartGrandTotal = cartTotalBeforeFee + cartProcessingFee;
 
+  // Auto-create Kids Care pass after successful charge
+  const createKidsCarePassesFromCart = async (items: CartEntry[]) => {
+    const kidsCareItems = items.filter((item) => item.chargeType === "kids_care");
+    if (kidsCareItems.length === 0) return;
+
+    // Resolve user_id
+    let userId = nonMember?.userId;
+    if (!userId) {
+      const { data: memberData } = await supabase
+        .from("members")
+        .select("user_id")
+        .eq("id", member.id)
+        .single();
+      userId = memberData?.user_id ?? undefined;
+    }
+    if (!userId) {
+      console.error("Could not resolve user_id for Kids Care pass creation");
+      toast.error("Pass created but could not link to user account");
+      return;
+    }
+
+    for (const item of kidsCareItems) {
+      const isMonthly = item.key.includes("kids_care_monthly");
+      const classesTotal = isMonthly ? 16 : 1;
+      const expiryDays = isMonthly ? 30 : 7;
+      const passType = isMonthly ? "kids_care_monthly" : "kids_care_single";
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + expiryDays * 24 * 60 * 60 * 1000);
+
+      for (let q = 0; q < item.quantity; q++) {
+        const { error } = await supabase.from("class_passes").insert({
+          user_id: userId,
+          member_id: nonMember ? null : member.id,
+          category: "other" as any,
+          pass_type: passType,
+          classes_total: classesTotal,
+          classes_remaining: classesTotal,
+          price_paid: item.unitAmount,
+          is_member_price: !nonMember,
+          purchased_at: now.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          status: "active" as any,
+        });
+        if (error) {
+          console.error("Failed to create Kids Care pass:", error);
+          toast.error("Payment succeeded but failed to create pass. Please grant manually.");
+        } else {
+          toast.success(`Kids Care ${isMonthly ? "Monthly" : "Single"} Pass created (${classesTotal} sessions)`);
+        }
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ["kids-care-passes"] });
+    queryClient.invalidateQueries({ queryKey: ["class-passes"] });
+  };
+
   const handleCharge = async () => {
     if (cartItems.length === 0) {
       toast.error("Add at least one item to the cart");
@@ -449,6 +504,10 @@ export function ChargeItemSelector({
         if (!data?.success) throw new Error(data?.error || "Charge failed");
         toast.success(`Successfully charged $${cartTotalBeforeFee.toFixed(2)}`);
       }
+
+      // Auto-create Kids Care passes for any kids_care items in cart
+      await createKidsCarePassesFromCart(cartItems);
+
       onChargeSuccess?.();
       resetAndClose();
     } catch (error) {
