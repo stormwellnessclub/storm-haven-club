@@ -233,6 +233,36 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
             </>
           )}
 
+          {/* Kids Care Pass fields */}
+          {grantType === "kids_care_pass" && (
+            <>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Sessions</Label>
+                <Input type="number" min={1} max={50} value={kidsCareSessionCount} onChange={(e) => setKidsCareSessionCount(parseInt(e.target.value) || 16)} />
+                <p className="text-xs text-muted-foreground">Standard monthly pass = 16 sessions</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Purchase Date (backdate if needed)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(purchasedAt, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={purchasedAt}
+                      onSelect={(d) => d && setPurchasedAt(d)}
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </>
+          )}
+
           {/* Wellness credit quantity */}
           {(grantType === "red_light" || grantType === "dry_cryo" || grantType === "guest_pass_credit") && (
             <div className="space-y-1">
