@@ -233,7 +233,18 @@ export default function ClassSchedules() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['class-schedules'] });
-      toast.success(editingSchedule ? "Schedule updated" : "Schedule created");
+      // Auto-reconcile future sessions when schedule changes
+      const today = format(new Date(), 'yyyy-MM-dd');
+      supabase.rpc('reconcile_and_generate_class_sessions', {
+        _start_date: today,
+        _weeks_ahead: 6
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
+        queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+        queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
+      });
+      toast.success(editingSchedule ? "Schedule updated — sessions reconciled" : "Schedule created — sessions generated");
       setDialogOpen(false);
       resetForm();
     },
@@ -243,11 +254,11 @@ export default function ClassSchedules() {
     },
   });
 
-  // Generate sessions mutation
+  // Generate + reconcile sessions mutation
   const generateSessionsMutation = useMutation({
     mutationFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
-      const { data, error } = await supabase.rpc('generate_class_sessions', {
+      const { data, error } = await supabase.rpc('reconcile_and_generate_class_sessions', {
         _start_date: today,
         _weeks_ahead: weeksToGenerate
       });
@@ -258,17 +269,24 @@ export default function ClassSchedules() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
       queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
+      queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
       const result = data?.[0];
       if (result) {
-        toast.success(`Generated ${result.sessions_created} new sessions (${result.sessions_skipped} already existed)`);
+        const parts = [];
+        if (result.sessions_created > 0) parts.push(`${result.sessions_created} created`);
+        if (result.sessions_updated > 0) parts.push(`${result.sessions_updated} updated`);
+        if (result.sessions_hidden > 0) parts.push(`${result.sessions_hidden} hidden`);
+        if (result.sessions_skipped > 0) parts.push(`${result.sessions_skipped} unchanged`);
+        toast.success(`Sessions reconciled: ${parts.join(', ')}`);
       } else {
-        toast.success("Session generation complete");
+        toast.success("Session reconciliation complete");
       }
       setGenerateDialogOpen(false);
     },
     onError: (error) => {
       console.error('Generate sessions error:', error);
-      toast.error("Failed to generate sessions");
+      toast.error("Failed to reconcile sessions");
     },
   });
 
@@ -322,8 +340,8 @@ export default function ClassSchedules() {
               onClick={() => setGenerateDialogOpen(true)}
               disabled={activeScheduleCount === 0}
             >
-              <CalendarPlus className="h-4 w-4 mr-2" />
-              Generate Sessions
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reconcile & Generate Sessions
             </Button>
             <Dialog open={dialogOpen} onOpenChange={(open) => {
               setDialogOpen(open);
