@@ -6025,6 +6025,15 @@ export type Database = {
             Returns: Json
           }
         | { Args: { p_scanned_code: string }; Returns: Json }
+      reconcile_and_generate_class_sessions: {
+        Args: { _start_date?: string; _weeks_ahead?: number }
+        Returns: {
+          sessions_created: number
+          sessions_hidden: number
+          sessions_skipped: number
+          sessions_updated: number
+        }[]
+      }
       redeem_guest_pass_credit: {
         Args: {
           p_guest_email: string
