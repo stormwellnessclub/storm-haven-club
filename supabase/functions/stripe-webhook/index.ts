@@ -1444,15 +1444,26 @@ serve(async (req) => {
               newStatus = 'pending_activation';
               reason = subscription.status === 'canceled' ? 'subscription_canceled' : 'subscription_incomplete_expired';
               
-              // Clear the dead subscription ID so admin can create a new one
-              const { error: clearSubError } = await supabase.from('members')
-                .update({ stripe_subscription_id: null, subscription_status: 'none' })
-                .eq('id', memberData.id);
-              
-              if (clearSubError) {
-                logStep("Failed to clear dead subscription ID", { error: clearSubError.message });
+              // Only clear the subscription ID if it matches the one we're tracking
+              // This prevents a canceled duplicate subscription from wiping the active one
+              if (memberData.stripe_subscription_id === subscription.id) {
+                const { error: clearSubError } = await supabase.from('members')
+                  .update({ stripe_subscription_id: null, subscription_status: 'none' })
+                  .eq('id', memberData.id);
+                
+                if (clearSubError) {
+                  logStep("Failed to clear dead subscription ID", { error: clearSubError.message });
+                } else {
+                  logStep("Cleared dead subscription ID for member", { memberId: memberData.id });
+                }
               } else {
-                logStep("Cleared dead subscription ID for member", { memberId: memberData.id });
+                logStep("Canceled subscription does not match stored subscription - skipping clear", {
+                  memberId: memberData.id,
+                  canceledSubId: subscription.id,
+                  storedSubId: memberData.stripe_subscription_id
+                });
+                // Don't change member status either since their tracked subscription is still active
+                break;
               }
             } else if (subscription.status === 'incomplete') {
               // Payment failed on first attempt - don't activate, keep as pending
