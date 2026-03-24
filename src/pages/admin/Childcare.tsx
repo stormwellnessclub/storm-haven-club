@@ -270,13 +270,19 @@ export default function Childcare() {
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                          <div className="text-sm">
+                          <div className="text-sm flex items-center gap-1">
                             <span className="text-muted-foreground">Parent: </span>
-                            <span>
-                              {booking.member 
-                                ? `${booking.member.first_name} ${booking.member.last_name}`
-                                : booking.user?.email || 'Unknown'}
-                            </span>
+                            {booking.member ? (
+                              <button
+                                onClick={() => navigate(`/admin/members/${booking.member!.id}`)}
+                                className="text-primary hover:underline flex items-center gap-1"
+                              >
+                                {booking.member.first_name} {booking.member.last_name}
+                                <ExternalLink className="h-3 w-3" />
+                              </button>
+                            ) : (
+                              <span>{booking.user?.email || 'Unknown'}</span>
+                            )}
                           </div>
                           {editingTimeId === booking.id ? (
                             <div className="flex items-center gap-2">
