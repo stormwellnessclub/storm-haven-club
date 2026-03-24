@@ -112,37 +112,14 @@ export default function ClassRoster() {
   const className = session ? (Array.isArray(session.class_types) ? session.class_types[0]?.name : (session.class_types as any)?.name) : "";
   const sessionDate = session?.session_date ? new Date(session.session_date + "T00:00:00") : new Date();
 
-  // Fetch bookings
+  // Fetch bookings using shared resolver
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
     queryKey: ["class-roster-bookings", sessionId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("class_bookings")
-        .select("id, user_id, member_id, status, checked_in_at, walk_in_name, payment_method, members (id, first_name, last_name, photo_url)")
-        .eq("session_id", sessionId!)
-        .in("status", ["confirmed", "completed"]);
-      if (error) throw error;
-      const bookingsData = (data || []) as ClassBooking[];
-
-      // Secondary lookup for non-member profiles
-      const missingUserIds = bookingsData.filter(b => !b.members && b.user_id).map(b => b.user_id);
-      if (missingUserIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, first_name, last_name, email")
-          .in("user_id", missingUserIds);
-        if (profiles?.length) {
-          const profileMap = new Map(profiles.map(p => [p.user_id, p]));
-          for (const booking of bookingsData) {
-            if (!booking.members && booking.user_id) {
-              booking.profile = profileMap.get(booking.user_id) || null;
-            }
-          }
-        }
-      }
+      const attendees = await resolveRosterIdentities(sessionId!);
 
       // Auto-heal enrollment counter
-      const confirmedCount = bookingsData.length;
+      const confirmedCount = attendees.length;
       if (session && confirmedCount !== session.current_enrollment) {
         await supabase
           .from("class_sessions")
@@ -150,7 +127,7 @@ export default function ClassRoster() {
           .eq("id", sessionId!);
       }
 
-      return bookingsData;
+      return attendees;
     },
     enabled: !!sessionId && !!session,
   });
