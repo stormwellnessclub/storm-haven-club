@@ -230,6 +230,16 @@ export default function ClassSchedules() {
           .insert([scheduleData]);
         if (error) throw error;
       }
+
+      // Await reconciliation INSIDE the mutation so sessions are synced before onSuccess
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { error: reconcileError } = await supabase.rpc('reconcile_and_generate_class_sessions', {
+        _start_date: today,
+        _weeks_ahead: 6
+      });
+      if (reconcileError) {
+        console.error('Reconciliation error:', reconcileError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['class-schedules'] });
