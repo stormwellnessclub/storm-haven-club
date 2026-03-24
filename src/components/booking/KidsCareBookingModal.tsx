@@ -172,8 +172,8 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
       ageNum = ageDiff / (1000 * 60 * 60 * 24 * 365.25);
     } else {
       ageNum = parseFloat(childAge);
-      if (!childAge || isNaN(ageNum) || ageNum < 0.25 || ageNum > 10) {
-        toast.error("Please enter a valid age (3 months to 10 years)");
+      if (!childAge || isNaN(ageNum) || ageNum < 0.333 || ageNum > 8) {
+        toast.error("Please enter a valid age (4 months to 8 years)");
         return;
       }
     }

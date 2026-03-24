@@ -66,7 +66,7 @@ const rooms = [
     name: "Little Stars Room",
     icon: "🍼",
     ageGroups: [
-      { name: "Infants", range: "3 months - 1 year" },
+      { name: "Infants", range: "4 months - 1 year" },
       { name: "Toddlers", range: "1 - 3 years" },
     ],
     capacity: 8,
@@ -76,7 +76,7 @@ const rooms = [
     icon: "🌟",
     ageGroups: [
       { name: "Preschool", range: "3 - 5 years" },
-      { name: "School Age", range: "5 - 10 years" },
+      { name: "School Age", range: "5 - 8 years" },
     ],
     capacity: 6,
   },

@@ -45,17 +45,17 @@ interface BookKidsCareParams {
 }
 
 const AGE_GROUPS = {
-  infants: { name: "Infants", min: 0.25, max: 1, spots: 4 }, // 3 months to 1 year
+  infants: { name: "Infants", min: 0.333, max: 1, spots: 4 }, // 4 months to 1 year
   toddlers: { name: "Toddlers", min: 1, max: 3, spots: 8 },
   preschool: { name: "Preschool", min: 3, max: 5, spots: 10 },
-  schoolAge: { name: "School Age", min: 5, max: 10, spots: 12 },
+  schoolAge: { name: "School Age", min: 5, max: 8, spots: 12 },
 };
 
 function getAgeGroup(age: number): string {
-  if (age >= 0.25 && age < 1) return "Infants";
+  if (age >= 0.333 && age < 1) return "Infants";
   if (age >= 1 && age < 3) return "Toddlers";
   if (age >= 3 && age < 5) return "Preschool";
-  if (age >= 5 && age <= 10) return "School Age";
+  if (age >= 5 && age <= 8) return "School Age";
   return "Unknown";
 }
 

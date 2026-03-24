@@ -186,7 +186,7 @@ export default function MemberDashboard() {
                   </div>
                   <div className="flex-1 text-center sm:text-left">
                     <h3 className="font-serif text-lg font-semibold">Kids Care is Now Open!</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">Supervised childcare while you work out. Ages 3 months – 10 years. $75/mo for 16 sessions.</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">Supervised childcare while you work out. <p className="text-sm text-muted-foreground mt-0.5">Supervised childcare while you work out. Ages 4 months – 8 years. $75/mo for 16 sessions.</p></p>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <Button asChild size="sm">

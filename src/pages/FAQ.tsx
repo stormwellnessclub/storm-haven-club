@@ -31,7 +31,7 @@ const faqCategories = [
       {
         question: "What childcare services do you offer?",
         answer:
-          "Our Kids Care program provides supervised care for children ages 6 months to 12 years while you enjoy the club. Our trained staff engage children with age-appropriate activities, games, and educational play. Kids Care is available during club hours, and reservations can be made through your member app or at the front desk.",
+          "Our Kids Care program provides supervised care for children ages 4 months to 8 years while you enjoy the club. Our trained staff engage children with age-appropriate activities, games, and educational play. Kids Care is available during club hours, and reservations can be made through your member app or at the front desk.",
       },
     ],
   },
