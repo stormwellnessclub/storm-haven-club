@@ -303,13 +303,59 @@ export default function Childcare() {
                               )}
                             </div>
                           )}
+                          {/* Pass Info */}
+                          {booking.pass_type ? (
+                            <div className="text-xs flex items-center gap-2 p-2 bg-accent/10 rounded border border-accent/20">
+                              <Ticket className="h-3 w-3 text-accent-foreground" />
+                              <span className="font-medium">{booking.pass_type.replace(/_/g, " ")}</span>
+                              <span className="text-muted-foreground">•</span>
+                              <span>{booking.pass_classes_remaining}/{booking.pass_classes_total} sessions left</span>
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                                {booking.pass_status}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <div className="text-xs flex items-center gap-1 p-2 bg-warning/10 rounded border border-warning/20 text-warning">
+                              <AlertTriangle className="h-3 w-3" />
+                              No pass linked to this booking
+                            </div>
+                          )}
+
                           {booking.special_instructions && (
                             <div className="text-xs text-muted-foreground italic p-2 bg-muted rounded">
                               <span className="font-medium not-italic">Booking Notes:</span> {booking.special_instructions}
                             </div>
                           )}
 
-                          {/* Child Profile Info - Collapsible */}
+                          {/* Safety-critical info shown prominently (not collapsed) */}
+                          {(booking.child_allergies || booking.child_medical_conditions) && (
+                            <div className="space-y-1">
+                              {booking.child_allergies && (
+                                <div className="p-2 rounded bg-destructive/10 border border-destructive/20 text-xs">
+                                  <span className="font-semibold text-destructive flex items-center gap-1">
+                                    <Heart className="h-3 w-3" /> Allergies
+                                  </span>
+                                  <p className="text-foreground mt-0.5">{booking.child_allergies}</p>
+                                </div>
+                              )}
+                              {booking.child_medical_conditions && (
+                                <div className="p-2 rounded bg-warning/10 border border-warning/20 text-xs">
+                                  <span className="font-semibold text-warning flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" /> Medical Conditions
+                                  </span>
+                                  <p className="text-foreground mt-0.5">{booking.child_medical_conditions}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* No child profile warning */}
+                          {!booking.child_allergies && !booking.child_medical_conditions && !booking.child_emergency_contact_name && !booking.child_special_instructions && (
+                            <div className="text-xs flex items-center gap-1 p-2 bg-muted rounded text-muted-foreground">
+                              <Shield className="h-3 w-3" />
+                              No child profile registered — parent should complete profile
+                            </div>
+                          )}
                           {(booking.child_allergies || booking.child_medical_conditions || booking.child_medications || booking.child_emergency_contact_name || booking.child_authorized_pickup_persons || booking.child_special_instructions || booking.child_preferred_activities) && (
                             <Collapsible>
                               <CollapsibleTrigger asChild>
