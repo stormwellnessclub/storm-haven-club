@@ -144,6 +144,8 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
     setNotes("");
     setClassCategory("pilates_cycling");
     setPassType("single");
+    setKidsCareSessionCount(16);
+    setPurchasedAt(new Date());
   };
 
   const typeLabel: Record<GrantType, string> = {
