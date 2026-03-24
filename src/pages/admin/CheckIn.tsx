@@ -273,46 +273,46 @@ export default function CheckIn() {
             </div>
           </div>
 
-          {/* Payment Issues */}
-          {memberPaymentStatus?.hasPaymentIssues && (
+          {/* Billing Block - Cannot Check In */}
+          {!effectiveStatus?.canCheckIn && (
             <div className="p-4 bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-lg space-y-3">
               <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
-                <ShieldAlert className="h-5 w-5" />
-                Cannot Check In - Payment Required
+                <Ban className="h-5 w-5" />
+                Cannot Check In — {effectiveStatus?.label}
               </div>
-              <div className="text-sm space-y-1 text-red-600 dark:text-red-400">
-                {memberPaymentStatus.isDuesPastDue && (
-                  <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />Monthly dues past due</div>
-                )}
-                {!memberPaymentStatus.isInitiationFeePaid && (
-                  <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />Initiation fee unpaid</div>
-                )}
-                {!memberPaymentStatus.hasActiveSubscription && memberPaymentStatus.isInitiationFeePaid && (
-                  <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />No active subscription</div>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                className="w-full border-red-300 text-red-700 hover:bg-red-200 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/50"
-                onClick={() => handleMemberCheckIn(true)}
-                disabled={isOverriding}
-              >
-                {isOverriding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <AlertTriangle className="h-4 w-4 mr-2" />}
-                Override Check-In (Admin)
-              </Button>
-              <p className="text-xs text-center text-red-600 dark:text-red-400">Override will be logged for accountability</p>
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {effectiveStatus?.description}
+              </p>
+              {memberScanResult && !memberScanResult.access_granted && memberScanResult.payment_status && (
+                <div className="text-sm space-y-1 text-red-600 dark:text-red-400">
+                  {memberScanResult.payment_status.hasRecentFailedPayment && (
+                    <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />Recent payment failed</div>
+                  )}
+                  {memberScanResult.payment_status.isDuesPastDue && (
+                    <div className="flex items-center gap-2"><DollarSign className="h-4 w-4" />Monthly dues past due</div>
+                  )}
+                  {memberScanResult.payment_status.isAnnualFeeOverdue && (
+                    <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />Annual fee overdue</div>
+                  )}
+                  {memberScanResult.payment_status.hasNoSubscription && (
+                    <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" />No active subscription</div>
+                  )}
+                  {memberScanResult.payment_status.hasIncompleteSubscription && (
+                    <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4" />Subscription payment failed</div>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-center text-red-600 dark:text-red-400 font-medium">
+                Resolve billing issues before check-in. Override is not available for billing blocks.
+              </p>
             </div>
           )}
 
           {effectiveStatus?.canCheckIn && (
-            <Button className="w-full" size="lg" onClick={() => handleMemberCheckIn(false)} disabled={isCheckingIn}>
+            <Button className="w-full" size="lg" onClick={() => handleMemberCheckIn()} disabled={isCheckingIn}>
               {isCheckingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserCheck className="h-4 w-4 mr-2" />}
               Check In Member
             </Button>
-          )}
-
-          {!effectiveStatus?.canCheckIn && !memberPaymentStatus?.hasPaymentIssues && (
-            <p className="text-sm text-center text-destructive">Cannot check in - {effectiveStatus?.description}</p>
           )}
         </div>
       );
