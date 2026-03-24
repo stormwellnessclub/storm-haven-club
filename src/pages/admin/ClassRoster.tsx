@@ -562,8 +562,9 @@ export default function ClassRoster() {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                   <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead>Status</TableHead>
