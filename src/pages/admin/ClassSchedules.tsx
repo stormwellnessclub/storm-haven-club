@@ -160,7 +160,8 @@ export default function ClassSchedules() {
         .from("class_sessions")
         .select("*", { count: 'exact', head: true })
         .gte("session_date", today)
-        .eq("is_cancelled", false);
+        .eq("is_cancelled", false)
+        .eq("is_hidden", false);
       if (error) throw error;
       return count || 0;
     },
