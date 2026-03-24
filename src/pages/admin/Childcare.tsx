@@ -154,6 +154,10 @@ export default function Childcare() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="passes" className="flex items-center gap-2">
+              <Ticket className="h-4 w-4" />
+              Passes
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings" className="space-y-6">
