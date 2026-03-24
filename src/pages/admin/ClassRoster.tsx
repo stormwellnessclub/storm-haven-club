@@ -388,7 +388,7 @@ export default function ClassRoster() {
     if (!paymentMethod) return false;
     if (paymentMethod === "pass" && !selectedPassId) return false;
     if (paymentMethod === "sell") return false;
-    if (addTab === "walkin" && (!walkInFirst.trim() || !walkInLast.trim())) return false;
+    if (addTab === "walkin" && (!walkInFirst.trim() || !walkInLast.trim() || !walkInPhone.trim())) return false;
     if (addTab === "search" && !selectedPerson) return false;
     return true;
   })();
