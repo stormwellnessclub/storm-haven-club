@@ -233,17 +233,11 @@ export default function ClassSchedules() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['class-schedules'] });
-      // Auto-reconcile future sessions when schedule changes
-      const today = format(new Date(), 'yyyy-MM-dd');
-      supabase.rpc('reconcile_and_generate_class_sessions', {
-        _start_date: today,
-        _weeks_ahead: 6
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
-        queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
-        queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
-        queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
-      });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
+      queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sessions-calendar'] });
       toast.success(editingSchedule ? "Schedule updated — sessions reconciled" : "Schedule created — sessions generated");
       setDialogOpen(false);
       resetForm();
