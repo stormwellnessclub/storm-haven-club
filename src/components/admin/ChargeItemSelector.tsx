@@ -449,6 +449,10 @@ export function ChargeItemSelector({
         if (!data?.success) throw new Error(data?.error || "Charge failed");
         toast.success(`Successfully charged $${cartTotalBeforeFee.toFixed(2)}`);
       }
+
+      // Auto-create Kids Care passes for any kids_care items in cart
+      await createKidsCarePassesFromCart(cartItems);
+
       onChargeSuccess?.();
       resetAndClose();
     } catch (error) {
