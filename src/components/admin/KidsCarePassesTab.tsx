@@ -60,7 +60,7 @@ export function KidsCarePassesTab() {
       if (!passData || passData.length === 0) return [];
 
       // Get parent info for each pass
-      const userIds = [...new Set(passData.map((p: any) => p.user_id).filter(Boolean))];
+      const userIds = [...new Set(passData.map((p: any) => p.user_id).filter(Boolean))] as string[];
       
       let profileMap: Record<string, any> = {};
       let memberMap: Record<string, any> = {};
