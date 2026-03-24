@@ -5908,6 +5908,7 @@ export type Database = {
           child_name: string
           child_photo_release: boolean
           child_preferred_activities: string
+          child_profile_found: boolean
           child_relationship_to_child: string
           child_special_instructions: string
           created_at: string
