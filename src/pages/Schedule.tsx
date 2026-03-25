@@ -131,6 +131,18 @@ export default function Schedule() {
 
   const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 0 }));
 
+  const visibleWeekDays = useMemo(() => {
+    return weekDays.filter((day) => !isBefore(day, today) || isToday(day));
+  }, [weekDays, today]);
+
+  useEffect(() => {
+    if (todayRef.current) {
+      setTimeout(() => {
+        todayRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    }
+  }, [weekStart]);
+
   return (
     <Layout>
       <SEOHead
