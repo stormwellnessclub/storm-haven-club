@@ -35,6 +35,7 @@ import {
   ShoppingBag,
   ChevronDown,
   MessagesSquare,
+  Monitor,
 } from "lucide-react";
 import {
   Sidebar,
