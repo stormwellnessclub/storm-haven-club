@@ -218,6 +218,15 @@ export const REPORTS: ReportDefinition[] = [
     filters: [],
     defaultDateRange: 'last30days',
   },
+  {
+    id: 'cafe-sales',
+    name: 'Café Sales Report',
+    description: 'Daily café revenue, top items, category breakdown, tax collected, and order log',
+    category: 'financial',
+    icon: Coffee,
+    filters: [],
+    defaultDateRange: 'today',
+  },
   
   {
     id: 'member-status-distribution',

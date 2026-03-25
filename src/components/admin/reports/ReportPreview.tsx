@@ -38,6 +38,7 @@ import { GuestReturnsReport } from "./reports/GuestReturnsReport";
 import { ClassEngagementReport } from "./reports/ClassEngagementReport";
 import { DailySalesBreakdownReport } from "./reports/DailySalesBreakdownReport";
 import { SalesTaxReport } from "./reports/SalesTaxReport";
+import { CafeSalesReport } from "./reports/CafeSalesReport";
 interface ReportPreviewProps {
   report: ReportDefinition | null;
   dateRange: { start: Date; end: Date };
