@@ -15,6 +15,7 @@ import {
   Calendar,
   Snowflake,
   Calculator,
+  Coffee,
 } from "lucide-react";
 
 export type ReportCategory = 
