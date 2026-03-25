@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
