@@ -66,6 +66,7 @@ export default function Schedule() {
   const navigate = useNavigate();
   const today = startOfDay(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 0 }));
+  const todayRef = React.useRef<HTMLDivElement>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
