@@ -5,11 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Building, Bell, Shield, CreditCard, Users, Loader2 } from "lucide-react";
+import { Building, Bell, Shield, CreditCard, Users, Loader2, Monitor } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function Settings() {
+  const [kioskPin, setKioskPin] = useState("");
+  const [isSavingPin, setIsSavingPin] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<"loading" | "connected" | "disconnected">("loading");
 
   useEffect(() => {
@@ -189,6 +192,57 @@ export default function Settings() {
                 <span className="text-sm text-muted-foreground">minutes</span>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Kiosk PIN */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Monitor className="h-5 w-5" />
+              Front Desk Kiosk PIN
+            </CardTitle>
+            <CardDescription>
+              Set the PIN that staff enter to unlock the front desk kiosk at /front-desk
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-3 items-end max-w-sm">
+              <div className="space-y-2 flex-1">
+                <Label htmlFor="kioskPin">New PIN</Label>
+                <Input
+                  id="kioskPin"
+                  type="password"
+                  inputMode="numeric"
+                  placeholder="Enter 4-8 digit PIN"
+                  value={kioskPin}
+                  onChange={(e) => setKioskPin(e.target.value)}
+                  maxLength={8}
+                />
+              </div>
+              <Button
+                disabled={isSavingPin || kioskPin.length < 4}
+                onClick={async () => {
+                  setIsSavingPin(true);
+                  try {
+                    const { error } = await supabase.rpc("set_kiosk_pin", { p_pin: kioskPin });
+                    if (error) throw error;
+                    toast.success("Kiosk PIN updated");
+                    setKioskPin("");
+                  } catch (err: any) {
+                    toast.error(err?.message || "Failed to set PIN");
+                  } finally {
+                    setIsSavingPin(false);
+                  }
+                }}
+              >
+                {isSavingPin ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Save PIN
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Staff will enter this PIN to unlock the front desk check-in kiosk. Use at least 4 digits.
+            </p>
           </CardContent>
         </Card>
 

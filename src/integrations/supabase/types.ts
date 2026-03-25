@@ -2675,6 +2675,27 @@ export type Database = {
         }
         Relationships: []
       }
+      kiosk_settings: {
+        Row: {
+          id: string
+          pin_hash: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          pin_hash?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          pin_hash?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       manual_charges: {
         Row: {
           amount: number
@@ -6070,6 +6091,7 @@ export type Database = {
         Args: { _member_id: string; _points_cost: number; _reward_type: string }
         Returns: Json
       }
+      set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
       track_payment_method_update: {
         Args: {
           p_card_brand?: string
@@ -6093,6 +6115,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      verify_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
     }
     Enums: {
       amenity_type:

@@ -98,6 +98,7 @@ import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
 import SiteAudit from "./pages/SiteAudit";
 import GuestFeedback from "./pages/GuestFeedback";
+import FrontDeskKiosk from "./pages/FrontDesk";
 import { SitemapRedirect, RobotsRedirect } from "@/components/StaticFileRedirect";
 import { ProtectedPortalRoute } from "@/components/portal/ProtectedPortalRoute";
 import PortalDashboard from "@/pages/portal/Dashboard";
@@ -153,6 +154,7 @@ const App = () => (
               <Route path="/site-audit" element={<SiteAudit />} />
               <Route path="/merch" element={<Merch />} />
               <Route path="/shop" element={<Merch />} />
+              <Route path="/front-desk" element={<FrontDeskKiosk />} />
               
               {/* Member Portal Routes - Protected */}
               <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
