@@ -15,6 +15,7 @@ import {
   Calendar,
   Snowflake,
   Calculator,
+  Coffee,
 } from "lucide-react";
 
 export type ReportCategory = 
@@ -216,6 +217,15 @@ export const REPORTS: ReportDefinition[] = [
     icon: Receipt,
     filters: [],
     defaultDateRange: 'last30days',
+  },
+  {
+    id: 'cafe-sales',
+    name: 'Café Sales Report',
+    description: 'Daily café revenue, top items, category breakdown, tax collected, and order log',
+    category: 'financial',
+    icon: Coffee,
+    filters: [],
+    defaultDateRange: 'today',
   },
   
   {
