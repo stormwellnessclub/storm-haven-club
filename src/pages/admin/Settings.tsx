@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function Settings() {
+  const [kioskPin, setKioskPin] = useState("");
+  const [isSavingPin, setIsSavingPin] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<"loading" | "connected" | "disconnected">("loading");
 
   useEffect(() => {
