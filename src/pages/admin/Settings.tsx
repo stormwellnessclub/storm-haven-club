@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Building, Bell, Shield, CreditCard, Users, Loader2 } from "lucide-react";
+import { Building, Bell, Shield, CreditCard, Users, Loader2, Monitor } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function Settings() {
   const [stripeStatus, setStripeStatus] = useState<"loading" | "connected" | "disconnected">("loading");
