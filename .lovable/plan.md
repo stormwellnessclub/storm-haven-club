@@ -1,99 +1,122 @@
 
-Front Desk should NOT be an admin-sidebar mode. That was the wrong model for your use case.
 
-What I’ll build instead
-- A standalone top-level page, e.g. `/front-desk`
-- No admin sidebar, no back-to-admin, no admin links anywhere
-- No per-staff accounts
-- A single shared kiosk access flow for training/front desk use
-- Your normal admin stays on its own login flow
+# Front Desk Kiosk — Standalone Page
 
-How it will be accessed
-- Open `/front-desk` directly on the front desk computer
-- First screen = simple kiosk unlock (PIN/passcode, not email/password)
-- Once unlocked, it stays open for the desk
-- Admin continues to live under `/admin` with your personal login
-- Important: a sidebar link or `/admin/*` route would keep sharing the normal admin session, which is exactly what you do not want
+## What you get
 
-What it will look like
+A full-screen, spacious page at `/front-desk` (top-level, outside `/admin`). No login required — it's a public route protected only by a simple PIN screen (you set the PIN once, staff enter it to unlock the kiosk for the shift). No admin sidebar, no admin navigation, no sensitive data.
+
+The layout uses large cards with plenty of breathing room across a big screen:
+
 ```text
 /front-desk
-┌──────────────────────────────────────────────────────────┐
-│ Storm Wellness | Front Desk                             │
-├──────────────────────────────────────────────────────────┤
-│ Check-In Hub (same search/select/check-in flow)         │
-│ Search members / guest passes / class bookings / spa    │
-│ [ search bar ]                                          │
-│ [ results list ]      [ selected visitor details ]      │
-│                                                          │
-│ Recent Check-Ins        Today's Appointments            │
-│ Today's Classes         Today's Kids Care               │
-│                                                          │
-│ Club Concierge | Member Support | Kids Support | Class  │
-│ all reply inline, no “go to admin emails” links         │
-└──────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Storm Wellness Club  ·  Front Desk                         │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  CHECK-IN (full width, big search bar)              │    │
+│  │  Search members / guests / class / spa              │    │
+│  │  [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] [Search]        │    │
+│  │                                                     │    │
+│  │  Results list          │  Visitor detail + action   │    │
+│  │  (spacious cards)      │  (big check-in button)    │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌──── Stats ─────┐                                         │
+│  │ 12 Total │ 8 In │ 4 Members │ 2 Guests │ ...           │
+│  └─────────────────┘                                         │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  TODAY'S ATTENDANCE (full width table)               │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌── Club Concierge ──┐ ┌── Member Support ──┐             │
+│  │  (large card)       │ │  (large card)       │             │
+│  │  Full ticket view   │ │  Full ticket view   │             │
+│  │  Inline reply       │ │  Inline reply       │             │
+│  └─────────────────────┘ └─────────────────────┘             │
+│                                                              │
+│  ┌── Kids Care ───────┐ ┌── Class Support ────┐             │
+│  │  Today's bookings   │ │  Tickets            │             │
+│  │  (large card)       │ │  (large card)       │             │
+│  └─────────────────────┘ └─────────────────────┘             │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  TODAY'S CLASSES (class sessions with booking count) │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-What changes from the current Check-In page
-- Keep:
-  - unified search
-  - member / guest pass / class / spa check-in actions
-  - recent check-ins feed
-  - support queues
-- Add:
-  - today’s appointments panel
-  - today’s classes/bookings panel
-  - today’s kids care bookings panel
-- Remove:
-  - admin navigation
-  - applications, revenue, reports, billing pages
-  - member-profile navigation links
-  - any “back to admin” or “view full in admin” links
+Each section gets a **full-size card** — no tiny cramped boxes. The support sections each get their own large card with full conversation view and inline reply, not the small collapsible panels from the admin check-in page.
 
-Key technical correction
-- Right now the app’s normal auth is shared across the site (`AuthContext` + protected `/admin/*` routes), so a sidebar link or admin-only route is the wrong architecture
-- To avoid trainee accounts and keep front desk separate, the front desk page needs its own limited kiosk access layer and its own limited backend endpoints
-- The current support panel also has links out to `/admin/emails`, so that must be changed to fully inline behavior
+## How access works
 
-Implementation plan
-1. Create a standalone `/front-desk` page
-- New dedicated page outside `/admin/*`
-- Full-screen kiosk layout with only front desk tools
-- Reuse the check-in UI pattern from `CheckIn.tsx`, but remove sensitive extras and admin links
+- URL: `/front-desk` — completely outside `/admin/*`
+- No admin login needed. Opens a PIN entry screen
+- You set a kiosk PIN (stored in a simple DB table or env secret)
+- Staff type the PIN → page unlocks for the session (stored in sessionStorage)
+- Your admin account on your separate browser/tab is completely unaffected
+- No links from this page to `/admin` anything. Dead end. Staff can only use what's on this page
 
-2. Add kiosk access instead of staff login
-- Build a simple shared unlock flow (PIN/passcode) for the front desk route
-- No per-trainee accounts
-- No reliance on normal admin sidebar access
+## What's on the page (and what's NOT)
 
-3. Add limited backend endpoints for kiosk-safe operations
-- Fetch unified lookup results
-- Process member / guest pass / class / spa check-ins
-- Fetch recent attendance
-- Fetch today’s appointments, classes, and kids care bookings
-- Fetch/reply to support conversations as “Front Desk”
-- Limit these endpoints so the kiosk can only do front-desk actions, not browse admin data
+**Included:**
+- Member check-in (search, select, check in)
+- Guest pass check-in (search, mark used)
+- Class booking check-in (search, mark attended)
+- Spa appointment check-in (search, mark arrived)
+- Today's attendance feed with stats
+- Club Concierge tickets — view + inline reply
+- Member Support tickets — view + inline reply
+- Kids Care Support — view + inline reply
+- Class Support — view + inline reply
+- Today's Kids Care bookings (child, parent, time, status)
+- Today's class sessions with booking counts
 
-4. Update support UI for kiosk use
-- Rework `CheckInSupportPanel` so all categories reply inline
-- Remove current links that jump to `/admin/emails`
-- Keep Club Concierge, Member Support, Kids Support, and Class Support visible
+**Excluded:**
+- No admin sidebar/navigation
+- No member counts, revenue, applications, billing, reports
+- No links to member profiles or admin pages
+- No "Back to Admin" or "Exit" links
+- No admin account session sharing
 
-5. Keep admin fully separate
-- Leave `/admin` as your personal admin space
-- Do not add front desk controls into your normal admin flow
-- Front desk becomes its own URL and its own limited experience
+## Plan
 
-Files likely involved
-- New front desk page + kiosk unlock components
-- `src/pages/admin/CheckIn.tsx` logic extracted/reused
-- `src/components/admin/CheckInSupportPanel.tsx` adapted for inline-only kiosk replies
-- `src/App.tsx` for the new top-level route
-- New limited backend functions / RPC wrappers for kiosk access
+### 1. Create PIN gate component
+- `src/components/kiosk/KioskPinGate.tsx` — full-screen PIN entry
+- PIN checked against a `kiosk_settings` table (single row with hashed PIN)
+- On success, sets `sessionStorage.kioskUnlocked = true`
+- Migration: create `kiosk_settings` table with `pin_hash` column, no RLS (public read for PIN verification via RPC)
+- RPC: `verify_kiosk_pin(pin text)` returns boolean — compares hash server-side
 
-Expected result
-- One shared front desk page for training
-- No need to create many temporary staff accounts
-- No path from that page back into admin
-- Same operational tools you asked for: check-in, recent check-ins, appointments, kids care, concierge/member/kids/class support, guest pass check-in, and class attendee check-in
-- Your admin remains a separate experience, not the thing trainees are using
+### 2. Create Front Desk page
+- `src/pages/FrontDesk.tsx` — standalone full-screen page, no Layout/AdminLayout wrapper
+- Reuses all check-in logic from `CheckIn.tsx` (search, select, check-in handlers for all 4 types)
+- Reuses `useUnifiedCheckInSearch`, `useUnifiedAttendance`, `useMemberScanner`
+- Large spacious cards for each section
+- Support panel: refactored version of `CheckInSupportPanel` with all links replaced by inline-only actions (no `/admin/emails` links)
+- Today's classes: query `class_sessions` for today, show class name + time + booking count
+- Today's kids care: query `get_admin_kids_care_bookings` for today
+- Strips out: billing arrears detail, member profile links, navigate-to-admin behavior in attendance rows
+
+### 3. Add route
+- `src/App.tsx`: add `/front-desk` as a top-level public route (no `ProtectedAdminRoute`)
+- The PIN gate handles access control instead of auth
+
+### 4. Add admin sidebar link
+- `src/components/admin/AdminSidebar.tsx`: add "Front Desk Mode" with `Monitor` icon under Operations
+- Links to `/front-desk` (opens in same tab — staff can bookmark it)
+
+### 5. Add kiosk PIN management to admin settings
+- In admin Settings page, add a "Kiosk PIN" section where you can set/change the front desk PIN
+
+## Files to create/change
+- **New**: `src/components/kiosk/KioskPinGate.tsx`
+- **New**: `src/pages/FrontDesk.tsx`
+- **Edit**: `src/App.tsx` — add `/front-desk` route
+- **Edit**: `src/components/admin/AdminSidebar.tsx` — add sidebar link
+- **Edit**: `src/pages/admin/Settings.tsx` — add kiosk PIN management
+- **Migration**: create `kiosk_settings` table + `verify_kiosk_pin` RPC + `set_kiosk_pin` RPC (admin only)
+
