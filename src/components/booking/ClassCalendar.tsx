@@ -63,14 +63,10 @@ export function ClassCalendar({
       {weekDays.map((dateStr) => {
         const date = parseISO(dateStr);
         const daySessions = sessionsByDate[dateStr] || [];
-        const isToday = format(new Date(), "yyyy-MM-dd") === dateStr;
-        const isPast = date < new Date() && !isToday;
+        const todayHighlight = format(new Date(), "yyyy-MM-dd") === dateStr;
 
         return (
-          <div
-            key={dateStr}
-            className={`space-y-3 ${isPast ? "opacity-50" : ""}`}
-          >
+          <div key={dateStr} className="space-y-3">
             <div
               className={`text-center p-2 rounded-lg ${
                 isToday
