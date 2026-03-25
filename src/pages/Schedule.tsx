@@ -230,13 +230,12 @@ export default function Schedule() {
             </div>
           ) : (
             <div className="space-y-8">
-              {weekDays.map((day) => {
+              {visibleWeekDays.map((day) => {
                 const dateStr = format(day, "yyyy-MM-dd");
                 const daySessions = sessionsByDate[dateStr] || [];
-                const isPast = isBefore(day, today) && !isToday(day);
 
                 return (
-                  <div key={dateStr} className={isPast ? "opacity-50" : ""}>
+                  <div key={dateStr} ref={isToday(day) ? todayRef : undefined}>
                     <div className="flex items-center gap-3 mb-4">
                       <CalendarDays className="h-5 w-5 text-muted-foreground" />
                       <h2 className="font-serif text-xl">
