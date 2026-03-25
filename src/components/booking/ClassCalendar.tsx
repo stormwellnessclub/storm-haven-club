@@ -31,11 +31,18 @@ export function ClassCalendar({
     return acc;
   }, {} as Record<string, ClassSession[]>);
 
-  // Generate all 7 days of the week
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(weekStartDate, i);
-    return format(date, "yyyy-MM-dd");
-  });
+  const today = useMemo(() => startOfDay(new Date()), []);
+
+  // Generate all 7 days of the week, but only show today and future
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = addDays(weekStartDate, i);
+      return format(date, "yyyy-MM-dd");
+    }).filter((dateStr) => {
+      const date = parseISO(dateStr);
+      return !isBefore(date, today) || isToday(date);
+    });
+  }, [weekStartDate, today]);
 
   if (isLoading) {
     return (
