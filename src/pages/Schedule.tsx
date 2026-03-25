@@ -309,7 +309,7 @@ export default function Schedule() {
                                   <p className="text-xs text-muted-foreground/70 mt-0.5">{session.room}</p>
                                 )}
 
-                                {!isPast && (
+                                {(
                                   <div className="mt-2">
                                     {bookedSessionIds.has(session.id) ? (
                                       <Badge variant="outline" className="text-xs border-primary/50 text-primary">
