@@ -69,7 +69,7 @@ export function ClassCalendar({
           <div key={dateStr} className="space-y-3">
             <div
               className={`text-center p-2 rounded-lg ${
-                isToday
+                todayHighlight
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted"
               }`}
