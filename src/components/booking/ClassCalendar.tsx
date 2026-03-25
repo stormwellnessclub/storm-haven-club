@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { ClassSession } from "@/hooks/useClassSessions";
 import { ClassCard } from "./ClassCard";
-import { format, parseISO, startOfWeek, addDays } from "date-fns";
+import { format, parseISO, addDays, isBefore, startOfDay, isToday } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ClassCalendarProps {
