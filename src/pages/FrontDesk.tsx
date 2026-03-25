@@ -482,7 +482,7 @@ function FrontDeskKiosk() {
     try {
       const result = await scanMemberAsync({
         memberId: memberData.member_id || memberData.id,
-        deviceType: "kiosk",
+        deviceType: "manual_entry",
         autoCheckIn: true,
         override: false,
       });
