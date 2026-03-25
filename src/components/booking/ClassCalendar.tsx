@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { ClassSession } from "@/hooks/useClassSessions";
 import { ClassCard } from "./ClassCard";
-import { format, parseISO, startOfWeek, addDays } from "date-fns";
+import { format, parseISO, addDays, isBefore, startOfDay, isToday } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ClassCalendarProps {
@@ -30,11 +31,18 @@ export function ClassCalendar({
     return acc;
   }, {} as Record<string, ClassSession[]>);
 
-  // Generate all 7 days of the week
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(weekStartDate, i);
-    return format(date, "yyyy-MM-dd");
-  });
+  const today = useMemo(() => startOfDay(new Date()), []);
+
+  // Generate all 7 days of the week, but only show today and future
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = addDays(weekStartDate, i);
+      return format(date, "yyyy-MM-dd");
+    }).filter((dateStr) => {
+      const date = parseISO(dateStr);
+      return !isBefore(date, today) || isToday(date);
+    });
+  }, [weekStartDate, today]);
 
   if (isLoading) {
     return (
@@ -55,17 +63,13 @@ export function ClassCalendar({
       {weekDays.map((dateStr) => {
         const date = parseISO(dateStr);
         const daySessions = sessionsByDate[dateStr] || [];
-        const isToday = format(new Date(), "yyyy-MM-dd") === dateStr;
-        const isPast = date < new Date() && !isToday;
+        const todayHighlight = format(new Date(), "yyyy-MM-dd") === dateStr;
 
         return (
-          <div
-            key={dateStr}
-            className={`space-y-3 ${isPast ? "opacity-50" : ""}`}
-          >
+          <div key={dateStr} className="space-y-3">
             <div
               className={`text-center p-2 rounded-lg ${
-                isToday
+                todayHighlight
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted"
               }`}

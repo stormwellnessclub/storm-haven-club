@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -66,6 +66,7 @@ export default function Schedule() {
   const navigate = useNavigate();
   const today = startOfDay(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 0 }));
+  const todayRef = React.useRef<HTMLDivElement>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -129,6 +130,18 @@ export default function Schedule() {
   }, [filteredSessions, weekDays]);
 
   const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 0 }));
+
+  const visibleWeekDays = useMemo(() => {
+    return weekDays.filter((day) => !isBefore(day, today) || isToday(day));
+  }, [weekDays, today]);
+
+  useEffect(() => {
+    if (todayRef.current) {
+      setTimeout(() => {
+        todayRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    }
+  }, [weekStart]);
 
   return (
     <Layout>
@@ -217,13 +230,12 @@ export default function Schedule() {
             </div>
           ) : (
             <div className="space-y-8">
-              {weekDays.map((day) => {
+              {visibleWeekDays.map((day) => {
                 const dateStr = format(day, "yyyy-MM-dd");
                 const daySessions = sessionsByDate[dateStr] || [];
-                const isPast = isBefore(day, today) && !isToday(day);
 
                 return (
-                  <div key={dateStr} className={isPast ? "opacity-50" : ""}>
+                  <div key={dateStr} ref={isToday(day) ? todayRef : undefined}>
                     <div className="flex items-center gap-3 mb-4">
                       <CalendarDays className="h-5 w-5 text-muted-foreground" />
                       <h2 className="font-serif text-xl">
@@ -297,7 +309,7 @@ export default function Schedule() {
                                   <p className="text-xs text-muted-foreground/70 mt-0.5">{session.room}</p>
                                 )}
 
-                                {!isPast && (
+                                {(
                                   <div className="mt-2">
                                     {bookedSessionIds.has(session.id) ? (
                                       <Badge variant="outline" className="text-xs border-primary/50 text-primary">
