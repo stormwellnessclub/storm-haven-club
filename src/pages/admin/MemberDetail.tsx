@@ -376,6 +376,22 @@ export default function MemberDetail() {
   });
 
 
+  // Fetch guest pass vouchers for this member
+  const { data: guestPassVouchers = [], isLoading: isVouchersLoading } = useQuery({
+    queryKey: ["member-guest-vouchers", id, member?.user_id],
+    queryFn: async () => {
+      if (!member?.user_id) return [];
+      const { data, error } = await supabase
+        .from("guest_passes")
+        .select("*")
+        .eq("user_id", member.user_id)
+        .order("purchased_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id && !!member?.user_id,
+  });
+
   // Fetch credit adjustment history for this member
   const { data: creditAdjustments = [], isLoading: isAdjustmentsLoading } = useQuery({
     queryKey: ["member-credit-adjustments", id],
@@ -1992,6 +2008,75 @@ export default function MemberDetail() {
                             <p className="text-xs text-muted-foreground">
                               Expires {format(new Date(pass.expires_at), 'MMM d, yyyy')}
                             </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Guest Pass Vouchers */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gift className="h-5 w-5" />
+                    Guest Pass Vouchers
+                  </CardTitle>
+                  <CardDescription>Voucher-type guest passes granted to this member</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isVouchersLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : guestPassVouchers.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-6">No guest pass vouchers</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {guestPassVouchers.map((voucher: any) => {
+                        const now = new Date();
+                        const isUsed = voucher.status === 'used';
+                        const isExpired = !isUsed && voucher.expires_at && new Date(voucher.expires_at) < now;
+                        const isActive = !isUsed && !isExpired && (voucher.status === 'active' || voucher.status === 'purchased');
+                        return (
+                          <div key={voucher.id} className={`p-4 border rounded-lg ${isActive ? 'border-primary/30 bg-primary/5' : 'opacity-60'}`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="font-medium text-sm">Guest Pass Voucher</p>
+                              <Badge
+                                variant={isActive ? "default" : "secondary"}
+                                className={
+                                  isUsed
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300"
+                                    : isExpired
+                                    ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+                                    : ""
+                                }
+                              >
+                                {isUsed ? "Used" : isExpired ? "Expired" : "Active"}
+                              </Badge>
+                            </div>
+                            {voucher.guest_name && (
+                              <p className="text-sm"><span className="text-muted-foreground">Guest:</span> {voucher.guest_name}</p>
+                            )}
+                            {voucher.guest_email && (
+                              <p className="text-xs text-muted-foreground">{voucher.guest_email}</p>
+                            )}
+                            {voucher.expires_at && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Expires {format(new Date(voucher.expires_at), 'MMM d, yyyy')}
+                              </p>
+                            )}
+                            {voucher.used_at && (
+                              <p className="text-xs text-muted-foreground">
+                                Used {format(new Date(voucher.used_at), 'MMM d, yyyy')}
+                              </p>
+                            )}
+                            {voucher.valid_date && (
+                              <p className="text-xs text-muted-foreground">
+                                Valid for {format(new Date(voucher.valid_date), 'MMM d, yyyy')}
+                              </p>
+                            )}
                           </div>
                         );
                       })}
