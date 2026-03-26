@@ -1,49 +1,29 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Search,
-  UserCheck,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  User,
-  CreditCard,
-  Calendar,
-  Loader2,
-  Ticket,
-  BookOpen,
-  Sparkles,
-  Ban,
-  Baby,
-  GraduationCap,
-  Flame,
-  MessageCircle,
-  Send,
+  Search, UserCheck, Clock, CheckCircle2, XCircle, User,
+  Calendar, Loader2, Ticket, BookOpen, Sparkles, Ban, Baby,
+  GraduationCap, Flame, MessageCircle, Send,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { format, formatDistanceToNow } from "date-fns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KioskPinGate } from "@/components/kiosk/KioskPinGate";
-import { useUnifiedCheckInSearch, UnifiedSearchResult, VisitorType } from "@/hooks/useUnifiedCheckInSearch";
-import { useUnifiedAttendance, AttendanceType } from "@/hooks/useUnifiedAttendance";
-import { useMemberScanner, ScanResult } from "@/hooks/useMemberScanner";
-import { EffectiveStatusBadge, getEffectiveStatus } from "@/components/admin/EffectiveStatusBadge";
-import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
+import { useKioskSearch, KioskSearchResult, KioskVisitorType } from "@/hooks/useKioskSearch";
+import { useKioskAttendance, KioskAttendanceType } from "@/hooks/useKioskAttendance";
+import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import { Textarea } from "@/components/ui/textarea";
-import { useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
 
 // ─── Type badge config ───────────────────────────────────────────────
-const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
+type AnyType = KioskVisitorType | KioskAttendanceType;
+const typeBadgeConfig: Record<string, { label: string; className: string; icon: typeof User }> = {
   member: { label: "Member", className: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300", icon: User },
   guest_pass: { label: "Guest Pass", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300", icon: Ticket },
   guest: { label: "Guest", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300", icon: Ticket },
@@ -53,8 +33,8 @@ const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; cla
   spa: { label: "Spa", className: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300", icon: Sparkles },
 };
 
-function TypeBadge({ type }: { type: VisitorType | AttendanceType }) {
-  const cfg = typeBadgeConfig[type];
+function TypeBadge({ type }: { type: string }) {
+  const cfg = typeBadgeConfig[type] || typeBadgeConfig.member;
   return <Badge className={cfg.className}>{cfg.label}</Badge>;
 }
 
@@ -72,9 +52,7 @@ interface ConversationWithProfile {
 }
 
 function KioskConversationItem({
-  conversation,
-  onReply,
-  onMarkDone,
+  conversation, onReply, onMarkDone,
 }: {
   conversation: ConversationWithProfile;
   onReply: (id: string, message: string) => void;
@@ -115,8 +93,7 @@ function KioskConversationItem({
             <Send className="h-3.5 w-3.5 mr-1" /> Reply
           </Button>
           <Button
-            variant="outline"
-            size="sm"
+            variant="outline" size="sm"
             onClick={() => onMarkDone(conversation.id)}
             className="text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
           >
@@ -131,13 +108,9 @@ function KioskConversationItem({
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
             className="min-h-[80px]"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSend();
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSend(); }}
           />
-          <Button onClick={handleSend} disabled={!replyText.trim() || isSending} className="self-end">
-            Send
-          </Button>
+          <Button onClick={handleSend} disabled={!replyText.trim() || isSending} className="self-end">Send</Button>
         </div>
       )}
     </div>
@@ -182,13 +155,8 @@ function KioskSupportPanel() {
       }
 
       return convos.map((c) => ({
-        id: c.id,
-        user_id: c.user_id,
-        subject: c.subject,
-        status: c.status,
-        category: c.category,
-        last_message_at: c.last_message_at,
-        created_at: c.created_at,
+        id: c.id, user_id: c.user_id, subject: c.subject, status: c.status,
+        category: c.category, last_message_at: c.last_message_at, created_at: c.created_at,
         member_name: profileMap.get(c.user_id) || "Unknown Member",
         latest_message: latestMessageMap.get(c.id),
       })) as ConversationWithProfile[];
@@ -201,68 +169,40 @@ function KioskSupportPanel() {
   const kidsCareItems = conversations?.filter((c) => c.category === "kids_care") || [];
   const supportItems = conversations?.filter((c) => c.category !== "concierge" && c.category !== "class_support" && c.category !== "kids_care") || [];
 
-  const handleReply = useCallback(
-    async (conversationId: string, message: string) => {
-      // Use service-role-style insert — kiosk doesn't have a logged-in user
-      const { error } = await supabase.from("email_messages").insert({
-        conversation_id: conversationId,
-        sender_type: "staff",
-        sender_email: "frontdesk@stormwellness.com",
-        sender_name: "Front Desk",
-        message_body: message,
-      });
-      if (error) {
-        toast.error("Failed to send reply");
-        return;
-      }
-      await supabase
-        .from("email_conversations")
-        .update({ last_message_at: new Date().toISOString(), status: "in_progress" })
-        .eq("id", conversationId);
-      toast.success("Reply sent");
-      queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
-    },
-    [queryClient]
-  );
+  const handleReply = useCallback(async (conversationId: string, message: string) => {
+    const { error } = await supabase.from("email_messages").insert({
+      conversation_id: conversationId, sender_type: "staff",
+      sender_email: "frontdesk@stormwellness.com", sender_name: "Front Desk",
+      message_body: message,
+    });
+    if (error) { toast.error("Failed to send reply"); return; }
+    await supabase.from("email_conversations")
+      .update({ last_message_at: new Date().toISOString(), status: "in_progress" })
+      .eq("id", conversationId);
+    toast.success("Reply sent");
+    queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
+  }, [queryClient]);
 
-  const handleMarkDone = useCallback(
-    async (conversationId: string) => {
-      const { error } = await supabase
-        .from("email_conversations")
-        .update({ status: "resolved" })
-        .eq("id", conversationId);
-      if (error) {
-        toast.error("Failed to resolve");
-        return;
-      }
-      toast.success("Request resolved");
-      queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
-    },
-    [queryClient]
-  );
+  const handleMarkDone = useCallback(async (conversationId: string) => {
+    const { error } = await supabase.from("email_conversations")
+      .update({ status: "resolved" }).eq("id", conversationId);
+    if (error) { toast.error("Failed to resolve"); return; }
+    toast.success("Request resolved");
+    queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
+  }, [queryClient]);
 
   const renderSection = (title: string, icon: React.ReactNode, items: ConversationWithProfile[], emptyText: string) => (
     <Card className="h-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          {icon}
-          {title}
-          {items.length > 0 && (
-            <Badge variant="secondary" className="ml-auto">{items.length}</Badge>
-          )}
+          {icon} {title}
+          {items.length > 0 && <Badge variant="secondary" className="ml-auto">{items.length}</Badge>}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
-        {items.length > 0 ? (
-          items.map((item) => (
-            <KioskConversationItem
-              key={item.id}
-              conversation={item}
-              onReply={handleReply}
-              onMarkDone={handleMarkDone}
-            />
-          ))
-        ) : (
+        {items.length > 0 ? items.map((item) => (
+          <KioskConversationItem key={item.id} conversation={item} onReply={handleReply} onMarkDone={handleMarkDone} />
+        )) : (
           <p className="text-sm text-muted-foreground text-center py-8">{emptyText}</p>
         )}
       </CardContent>
@@ -288,9 +228,7 @@ function TodaysClasses() {
       const { data, error } = await supabase
         .from("class_sessions")
         .select("id, session_date, start_time, end_time, current_enrollment, max_capacity, is_cancelled, class_type_id, class_types(name)")
-        .eq("session_date", today)
-        .eq("is_cancelled", false)
-        .eq("is_hidden", false)
+        .eq("session_date", today).eq("is_cancelled", false).eq("is_hidden", false)
         .order("start_time", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -302,30 +240,21 @@ function TodaysClasses() {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <BookOpen className="h-5 w-5" />
-          Today's Classes
-          {sessions && sessions.length > 0 && (
-            <Badge variant="secondary" className="ml-auto">{sessions.length}</Badge>
-          )}
+          <BookOpen className="h-5 w-5" /> Today's Classes
+          {sessions && sessions.length > 0 && <Badge variant="secondary" className="ml-auto">{sessions.length}</Badge>}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {sessions && sessions.length > 0 ? (
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Class</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Booked</TableHead>
-              </TableRow>
-            </TableHeader>
+            <TableHeader><TableRow>
+              <TableHead>Class</TableHead><TableHead>Time</TableHead><TableHead>Booked</TableHead>
+            </TableRow></TableHeader>
             <TableBody>
               {sessions.map((s: any) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.class_types?.name || "Unknown"}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)}</TableCell>
                   <TableCell>
                     <Badge variant={s.current_enrollment >= s.max_capacity ? "destructive" : "secondary"}>
                       {s.current_enrollment}/{s.max_capacity}
@@ -349,9 +278,7 @@ function TodaysKidsCare() {
   const { data: bookings } = useQuery({
     queryKey: ["kiosk-todays-kidscare", today],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_admin_kids_care_bookings", {
-        p_booking_date: today,
-      });
+      const { data, error } = await supabase.rpc("get_admin_kids_care_bookings", { p_booking_date: today });
       if (error) throw error;
       return data || [];
     },
@@ -362,38 +289,24 @@ function TodaysKidsCare() {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Baby className="h-5 w-5" />
-          Today's Kids Care
-          {bookings && bookings.length > 0 && (
-            <Badge variant="secondary" className="ml-auto">{bookings.length}</Badge>
-          )}
+          <Baby className="h-5 w-5" /> Today's Kids Care
+          {bookings && bookings.length > 0 && <Badge variant="secondary" className="ml-auto">{bookings.length}</Badge>}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {bookings && bookings.length > 0 ? (
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Child</TableHead>
-                <TableHead>Parent</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
+            <TableHeader><TableRow>
+              <TableHead>Child</TableHead><TableHead>Parent</TableHead><TableHead>Time</TableHead><TableHead>Status</TableHead>
+            </TableRow></TableHeader>
             <TableBody>
               {bookings.map((b: any) => (
                 <TableRow key={b.id}>
                   <TableCell className="font-medium">{b.child_name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {b.parent_first_name} {b.parent_last_name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {b.start_time?.slice(0, 5)} – {b.end_time?.slice(0, 5)}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{b.parent_first_name} {b.parent_last_name}</TableCell>
+                  <TableCell className="text-muted-foreground">{b.start_time?.slice(0, 5)} – {b.end_time?.slice(0, 5)}</TableCell>
                   <TableCell>
-                    <Badge variant={b.status === "checked_in" ? "default" : "secondary"}>
-                      {b.status?.replace(/_/g, " ")}
-                    </Badge>
+                    <Badge variant={b.status === "checked_in" ? "default" : "secondary"}>{b.status?.replace(/_/g, " ")}</Badge>
                   </TableCell>
                 </TableRow>
               ))}
@@ -422,20 +335,11 @@ export default function FrontDeskPage() {
 
 function FrontDeskKiosk() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selected, setSelected] = useState<UnifiedSearchResult | null>(null);
-  const [isCheckingIn, setIsCheckingIn] = useState(false);
-  const [memberCheckInCount, setMemberCheckInCount] = useState(0);
-  const [memberScanResult, setMemberScanResult] = useState<ScanResult | null>(null);
+  const [selected, setSelected] = useState<KioskSearchResult | null>(null);
 
-  const { results, isSearching, search, clearResults } = useUnifiedCheckInSearch();
-  const { entries, stats, refetch } = useUnifiedAttendance();
-  const { data: billingIssues } = useMembersBillingIssues();
-  const { scanMemberAsync } = useMemberScanner();
-
-  const memberData = selected?.type === "member" ? selected.data : null;
-  const effectiveStatus = memberData
-    ? getEffectiveStatus(memberData.status, billingIssues?.memberIssues?.[memberData.id])
-    : null;
+  const { results, isSearching, search, clearResults } = useKioskSearch();
+  const { entries, stats, refetch } = useKioskAttendance();
+  const { checkInMember, checkInGuest, checkInClass, checkInSpa, isCheckingIn } = useKioskCheckIn();
 
   // ─── Search ────────────────────────────────────────────────────────
   const handleSearch = () => {
@@ -444,126 +348,48 @@ function FrontDeskKiosk() {
     search(searchQuery);
   };
 
-  const selectResult = async (result: UnifiedSearchResult) => {
+  const selectResult = (result: KioskSearchResult) => {
     setSelected(result);
     clearResults();
     setSearchQuery("");
-    setMemberScanResult(null);
-
-    if (result.type === "member") {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      const { count } = await supabase
-        .from("check_ins")
-        .select("*", { count: "exact", head: true })
-        .eq("member_id", result.data.id)
-        .gte("checked_in_at", startOfMonth.toISOString());
-      setMemberCheckInCount(count || 0);
-
-      try {
-        const preCheck = await scanMemberAsync({
-          memberId: result.data.member_id || result.data.id,
-          deviceType: "manual_entry",
-          autoCheckIn: false,
-          override: false,
-        });
-        setMemberScanResult(preCheck);
-      } catch (err) {
-        console.error("Pre-validation failed:", err);
-      }
-    }
   };
 
   // ─── Check-in actions ─────────────────────────────────────────────
-  const handleMemberCheckIn = async () => {
-    if (!memberData) return;
-    setIsCheckingIn(true);
-    try {
-      const result = await scanMemberAsync({
-        memberId: memberData.member_id || memberData.id,
-        deviceType: "manual_entry",
-        autoCheckIn: true,
-        override: false,
-      });
-      setMemberScanResult(result);
+  const handleCheckIn = async () => {
+    if (!selected) return;
+
+    if (selected.type === "member") {
+      const idText = selected.member_id_text || selected.name;
+      const result = await checkInMember(idText);
       if (result.access_granted) {
-        toast.success(`${memberData.first_name} ${memberData.last_name} checked in!`);
-        setMemberCheckInCount((c) => c + 1);
+        if (result.already_in) {
+          toast.info(`${result.member?.first_name} ${result.member?.last_name} is already checked in today`);
+        } else {
+          toast.success(`${result.member?.first_name} ${result.member?.last_name} checked in!`);
+        }
         refetch();
       } else {
-        toast.error(`Cannot check in: ${result.denial_reason?.replace(/_/g, " ") || "Access denied"}`);
+        toast.error(`Cannot check in: ${result.denial_reason?.replace(/_/g, " ") || result.error || "Access denied"}`);
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Check-in failed");
-    } finally {
-      setIsCheckingIn(false);
+      return;
     }
-  };
 
-  const handleGuestCheckIn = async () => {
-    if (!selected || selected.type !== "guest_pass") return;
-    setIsCheckingIn(true);
-    try {
-      const { error } = await supabase
-        .from("guest_passes")
-        .update({ status: "used", used_at: new Date().toISOString() })
-        .eq("id", selected.data.id);
-      if (error) throw error;
-      toast.success(`${selected.data.guest_name} checked in as guest!`);
-      refetch();
-      setSelected(null);
-    } catch (err: any) {
-      toast.error(err?.message || "Guest check-in failed");
-    } finally {
-      setIsCheckingIn(false);
+    if (selected.type === "guest_pass" && selected.guest_pass_id) {
+      const ok = await checkInGuest(selected.guest_pass_id);
+      if (ok) { toast.success(`${selected.name} checked in as guest!`); refetch(); setSelected(null); }
+      return;
     }
-  };
 
-  const handleClassCheckIn = async () => {
-    if (!selected || selected.type !== "class_booking") return;
-    setIsCheckingIn(true);
-    try {
-      const { error } = await supabase
-        .from("class_bookings")
-        .update({ checked_in_at: new Date().toISOString(), status: "completed" as any })
-        .eq("id", selected.data.id);
-      if (error) throw error;
-      toast.success(`${selected.data.memberName} checked in for ${selected.data.className}!`);
-      refetch();
-      setSelected(null);
-    } catch (err: any) {
-      toast.error(err?.message || "Class check-in failed");
-    } finally {
-      setIsCheckingIn(false);
+    if (selected.type === "class_booking" && selected.booking_id) {
+      const ok = await checkInClass(selected.booking_id);
+      if (ok) { toast.success(`${selected.name} checked in for class!`); refetch(); setSelected(null); }
+      return;
     }
-  };
 
-  const handleSpaCheckIn = async () => {
-    if (!selected || selected.type !== "spa_appointment") return;
-    setIsCheckingIn(true);
-    try {
-      const { error } = await (supabase.from as any)("spa_appointments")
-        .update({ checked_in_at: new Date().toISOString() })
-        .eq("id", selected.data.id);
-      if (error) throw error;
-      toast.success(`${selected.data.memberName} checked in for ${selected.data.service_name}!`);
-      refetch();
-      setSelected(null);
-    } catch (err: any) {
-      toast.error(err?.message || "Spa check-in failed");
-    } finally {
-      setIsCheckingIn(false);
-    }
-  };
-
-  const handleCheckInAction = () => {
-    if (!selected) return;
-    switch (selected.type) {
-      case "member": return handleMemberCheckIn();
-      case "guest_pass": return handleGuestCheckIn();
-      case "class_booking": return handleClassCheckIn();
-      case "spa_appointment": return handleSpaCheckIn();
+    if (selected.type === "spa_appointment" && selected.spa_id) {
+      const ok = await checkInSpa(selected.spa_id);
+      if (ok) { toast.success(`${selected.name} checked in for spa!`); refetch(); setSelected(null); }
+      return;
     }
   };
 
@@ -579,178 +405,70 @@ function FrontDeskKiosk() {
       );
     }
 
-    if (selected.type === "member" && memberData) {
-      const backendGranted = memberScanResult ? memberScanResult.access_granted : null;
-      const canCheckIn = backendGranted !== null ? backendGranted : (effectiveStatus?.canCheckIn ?? false);
-      const statusDescription = memberScanResult && !memberScanResult.access_granted
-        ? `Access denied: ${memberScanResult.denial_reason?.replace(/_/g, " ") || "billing issue"}`
-        : effectiveStatus?.description || "";
+    const isActive = selected.type !== "member" || selected.status === "active";
+    const statusLabel = selected.type === "member" && !isActive
+      ? `Status: ${selected.status?.replace(/_/g, " ") || "inactive"}`
+      : "";
 
-      return (
-        <div className="space-y-5">
-          <div className={`p-5 rounded-lg border ${canCheckIn
-            ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
-            : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
-          }`}>
-            <div className="flex items-center gap-4">
-              {canCheckIn ? (
-                <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
-              ) : (
-                <XCircle className="h-10 w-10 text-red-600 dark:text-red-400" />
-              )}
-              <div className="flex-1">
-                <p className="font-semibold text-xl">{canCheckIn ? "Check-In Approved" : "Cannot Check In"}</p>
-                <p className="text-sm text-muted-foreground">{statusDescription}</p>
-              </div>
+    const Icon = typeBadgeConfig[selected.type]?.icon || User;
+    const typeLabel = typeBadgeConfig[selected.type]?.label || "Visitor";
+
+    return (
+      <div className="space-y-5">
+        {/* Status banner */}
+        <div className={`p-5 rounded-lg border ${isActive
+          ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
+          : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+        }`}>
+          <div className="flex items-center gap-4">
+            {isActive ? (
+              <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+            ) : (
+              <XCircle className="h-10 w-10 text-red-600 dark:text-red-400" />
+            )}
+            <div className="flex-1">
+              <p className="font-semibold text-xl">{isActive ? "Ready to Check In" : "Cannot Check In"}</p>
+              {statusLabel && <p className="text-sm text-muted-foreground">{statusLabel}</p>}
             </div>
           </div>
-
-          <div className="flex items-center gap-5">
-            <Avatar className="h-20 w-20">
-              {memberData.photo_url && <AvatarImage src={memberData.photo_url} />}
-              <AvatarFallback className="text-xl">
-                {memberData.first_name?.[0]}{memberData.last_name?.[0]}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h3 className="text-2xl font-bold">{memberData.first_name} {memberData.last_name}</h3>
-              <p className="text-muted-foreground">{memberData.member_id}</p>
-              <p className="text-sm text-muted-foreground">{memberData.membership_type}</p>
-            </div>
-          </div>
-
-          <div className="grid gap-3">
-            <div className="flex items-center gap-3 p-4 bg-secondary/50 rounded-lg">
-              <UserCheck className="h-5 w-5 text-muted-foreground" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Check-ins This Month</p>
-                <p className="text-lg font-semibold">{memberCheckInCount}</p>
-              </div>
-            </div>
-          </div>
-
-          {!canCheckIn && (
-            <div className="p-5 bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-lg">
-              <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
-                <Ban className="h-5 w-5" />
-                Cannot Check In
-              </div>
-              <p className="text-sm text-red-600 dark:text-red-400 mt-2">{statusDescription}</p>
-            </div>
-          )}
-
-          {canCheckIn && (
-            <Button className="w-full h-14 text-lg" onClick={handleMemberCheckIn} disabled={isCheckingIn}>
-              {isCheckingIn ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <UserCheck className="h-5 w-5 mr-2" />}
-              Check In Member
-            </Button>
-          )}
         </div>
-      );
-    }
 
-    if (selected.type === "guest_pass") {
-      const g = selected.data;
-      return (
-        <div className="space-y-5">
-          <div className="p-5 rounded-lg border bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
-            <div className="flex items-center gap-4">
-              <Ticket className="h-10 w-10 text-amber-600 dark:text-amber-400" />
-              <div className="flex-1">
-                <p className="font-semibold text-xl">Guest Pass</p>
-                <p className="text-sm text-muted-foreground">Ready to check in</p>
-              </div>
-            </div>
+        {/* Visitor info */}
+        <div className="flex items-center gap-5">
+          <Avatar className="h-20 w-20">
+            {selected.photo_url && <AvatarImage src={selected.photo_url} />}
+            <AvatarFallback className="text-xl">
+              {selected.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h3 className="text-2xl font-bold">{selected.name}</h3>
+            <p className="text-muted-foreground">{selected.subtitle}</p>
+            <TypeBadge type={selected.type} />
           </div>
-          <div className="flex items-center gap-5">
-            <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center">
-              <Ticket className="h-10 w-10 text-muted-foreground" />
+        </div>
+
+        {/* Denial banner */}
+        {!isActive && (
+          <div className="p-5 bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-lg">
+            <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
+              <Ban className="h-5 w-5" /> Cannot Check In
             </div>
-            <div>
-              <h3 className="text-2xl font-bold">{g.guest_name}</h3>
-              <p className="text-muted-foreground">{g.guest_email || "No email"}</p>
-            </div>
+            <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+              This member's status is "{selected.status?.replace(/_/g, " ")}". Please direct them to the front desk manager.
+            </p>
           </div>
-          {g.valid_date && (
-            <div className="flex items-center gap-3 p-4 bg-secondary/50 rounded-lg">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Valid Date</p>
-                <p className="font-medium">{format(new Date(g.valid_date), "MMM d, yyyy")}</p>
-              </div>
-            </div>
-          )}
-          <Button className="w-full h-14 text-lg" onClick={handleCheckInAction} disabled={isCheckingIn}>
+        )}
+
+        {/* Check-in button */}
+        {isActive && (
+          <Button className="w-full h-14 text-lg" onClick={handleCheckIn} disabled={isCheckingIn}>
             {isCheckingIn ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <UserCheck className="h-5 w-5 mr-2" />}
-            Check In Guest
+            Check In {typeLabel}
           </Button>
-        </div>
-      );
-    }
-
-    if (selected.type === "class_booking") {
-      const cb = selected.data;
-      return (
-        <div className="space-y-5">
-          <div className="p-5 rounded-lg border bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800">
-            <div className="flex items-center gap-4">
-              <BookOpen className="h-10 w-10 text-purple-600 dark:text-purple-400" />
-              <div className="flex-1">
-                <p className="font-semibold text-xl">Class Booking</p>
-                <p className="text-sm text-muted-foreground">Ready to check in</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-5">
-            <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center">
-              <BookOpen className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold">{cb.memberName}</h3>
-              <p className="text-muted-foreground">{cb.className}</p>
-              <p className="text-sm text-muted-foreground">{cb.session?.start_time?.slice(0, 5)} – {cb.session?.end_time?.slice(0, 5)}</p>
-            </div>
-          </div>
-          <Button className="w-full h-14 text-lg" onClick={handleCheckInAction} disabled={isCheckingIn}>
-            {isCheckingIn ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <UserCheck className="h-5 w-5 mr-2" />}
-            Check In for Class
-          </Button>
-        </div>
-      );
-    }
-
-    if (selected.type === "spa_appointment") {
-      const sa = selected.data;
-      return (
-        <div className="space-y-5">
-          <div className="p-5 rounded-lg border bg-pink-50 dark:bg-pink-950/30 border-pink-200 dark:border-pink-800">
-            <div className="flex items-center gap-4">
-              <Sparkles className="h-10 w-10 text-pink-600 dark:text-pink-400" />
-              <div className="flex-1">
-                <p className="font-semibold text-xl">Spa Appointment</p>
-                <p className="text-sm text-muted-foreground">Ready to check in</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-5">
-            <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center">
-              <Sparkles className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold">{sa.memberName}</h3>
-              <p className="text-muted-foreground">{sa.service_name}</p>
-              <p className="text-sm text-muted-foreground">{sa.appointment_time?.slice(0, 5)} · {sa.duration_minutes} min</p>
-            </div>
-          </div>
-          <Button className="w-full h-14 text-lg" onClick={handleCheckInAction} disabled={isCheckingIn}>
-            {isCheckingIn ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <UserCheck className="h-5 w-5 mr-2" />}
-            Check In for Spa
-          </Button>
-        </div>
-      );
-    }
-
-    return null;
+        )}
+      </div>
+    );
   };
 
   return (
@@ -777,19 +495,16 @@ function FrontDeskKiosk() {
           <Card className="lg:col-span-3">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <Search className="h-5 w-5" />
-                Visitor Lookup
+                <Search className="h-5 w-5" /> Visitor Lookup
               </CardTitle>
-              <CardDescription>
-                Search members, guest passes, class bookings, and spa appointments
-              </CardDescription>
+              <CardDescription>Search members, guest passes, class bookings, and spa appointments</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
-                    placeholder="Search by name, member ID, email, or phone..."
+                    placeholder="Search by name, email, or phone..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -806,7 +521,7 @@ function FrontDeskKiosk() {
                   <p className="text-sm font-medium text-muted-foreground">Search Results</p>
                   <div className="grid gap-2 max-h-[400px] overflow-y-auto">
                     {results.map((r) => {
-                      const cfg = typeBadgeConfig[r.type];
+                      const cfg = typeBadgeConfig[r.type] || typeBadgeConfig.member;
                       const Icon = cfg.icon;
                       return (
                         <button
@@ -814,9 +529,12 @@ function FrontDeskKiosk() {
                           onClick={() => selectResult(r)}
                           className="flex items-center gap-4 p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors text-left w-full"
                         >
-                          <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                            <Icon className="h-6 w-6 text-muted-foreground" />
-                          </div>
+                          <Avatar className="h-12 w-12 shrink-0">
+                            {r.photo_url && <AvatarImage src={r.photo_url} />}
+                            <AvatarFallback>
+                              <Icon className="h-6 w-6 text-muted-foreground" />
+                            </AvatarFallback>
+                          </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-lg truncate">{r.name}</p>
                             <p className="text-sm text-muted-foreground truncate">{r.subtitle}</p>
@@ -833,7 +551,7 @@ function FrontDeskKiosk() {
                 <div className="text-center py-16 text-muted-foreground">
                   <Search className="h-16 w-16 mx-auto mb-4 opacity-20" />
                   <p className="text-lg font-medium">Search for a visitor</p>
-                  <p className="text-sm mt-1">Enter a name, member ID, email, or phone number</p>
+                  <p className="text-sm mt-1">Enter a name, email, or phone number</p>
                 </div>
               )}
             </CardContent>
@@ -854,7 +572,7 @@ function FrontDeskKiosk() {
             <p className="text-sm text-green-600 dark:text-green-500 mt-1">Total Check-Ins</p>
           </div>
           <div className="text-center p-6 bg-secondary/50 rounded-lg border">
-            <p className="text-4xl font-bold">{stats.currentlyIn}</p>
+            <p className="text-4xl font-bold">{stats.currently_in}</p>
             <p className="text-sm text-muted-foreground mt-1">Currently In</p>
           </div>
           <div className="text-center p-6 bg-secondary/50 rounded-lg border">
@@ -871,8 +589,7 @@ function FrontDeskKiosk() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Clock className="h-5 w-5" />
-              Today's Attendance ({entries.length})
+              <Clock className="h-5 w-5" /> Today's Attendance ({entries.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -884,29 +601,22 @@ function FrontDeskKiosk() {
                       <TableHead className="w-[50px]"></TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Details</TableHead>
                       <TableHead>Time</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {entries.map((entry) => {
-                      const initials = entry.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()
-                        .slice(0, 2);
+                      const initials = entry.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
                       return (
                         <TableRow key={entry.id}>
                           <TableCell>
                             <Avatar className="h-9 w-9">
-                              {entry.photoUrl && <AvatarImage src={entry.photoUrl} alt={entry.name} />}
+                              {entry.photo_url && <AvatarImage src={entry.photo_url} alt={entry.name} />}
                               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                             </Avatar>
                           </TableCell>
                           <TableCell className="font-medium">{entry.name}</TableCell>
                           <TableCell><TypeBadge type={entry.type} /></TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{entry.subtitle}</TableCell>
                           <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                             {format(new Date(entry.time), "h:mm a")}
                           </TableCell>
