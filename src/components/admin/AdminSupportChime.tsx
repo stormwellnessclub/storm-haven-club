@@ -16,21 +16,24 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
-function warmUpAudio() {
+async function warmUpAudio() {
   const ctx = getAudioContext();
   if (!ctx) return;
-  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+  if (ctx.state === "suspended") {
+    try { await ctx.resume(); } catch { /* ignored */ }
+  }
   if (ctx.state === "running") audioCtxWarmedUp = true;
 }
 
 // Warm-up on first user interaction
 if (typeof window !== "undefined") {
   const handler = () => {
-    warmUpAudio();
-    if (audioCtxWarmedUp) {
-      document.removeEventListener("click", handler);
-      document.removeEventListener("keydown", handler);
-    }
+    warmUpAudio().then(() => {
+      if (audioCtxWarmedUp) {
+        document.removeEventListener("click", handler);
+        document.removeEventListener("keydown", handler);
+      }
+    });
   };
   document.addEventListener("click", handler);
   document.addEventListener("keydown", handler);
