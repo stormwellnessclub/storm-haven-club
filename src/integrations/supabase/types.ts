@@ -6019,6 +6019,15 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
+      kiosk_check_in_class: { Args: { p_booking_id: string }; Returns: Json }
+      kiosk_check_in_guest: { Args: { p_guest_pass_id: string }; Returns: Json }
+      kiosk_check_in_member: {
+        Args: { p_member_id_text: string }
+        Returns: Json
+      }
+      kiosk_check_in_spa: { Args: { p_spa_id: string }; Returns: Json }
+      kiosk_search_visitors: { Args: { p_query: string }; Returns: Json }
+      kiosk_todays_attendance: { Args: never; Returns: Json }
       link_member_by_email: {
         Args: never
         Returns: {
