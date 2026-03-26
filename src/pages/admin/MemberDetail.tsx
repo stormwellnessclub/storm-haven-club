@@ -376,6 +376,22 @@ export default function MemberDetail() {
   });
 
 
+  // Fetch guest pass vouchers for this member
+  const { data: guestPassVouchers = [], isLoading: isVouchersLoading } = useQuery({
+    queryKey: ["member-guest-vouchers", id, member?.user_id],
+    queryFn: async () => {
+      if (!member?.user_id) return [];
+      const { data, error } = await supabase
+        .from("guest_passes")
+        .select("*")
+        .eq("user_id", member.user_id)
+        .order("purchased_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id && !!member?.user_id,
+  });
+
   // Fetch credit adjustment history for this member
   const { data: creditAdjustments = [], isLoading: isAdjustmentsLoading } = useQuery({
     queryKey: ["member-credit-adjustments", id],
