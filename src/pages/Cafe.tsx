@@ -306,7 +306,7 @@ export default function Cafe() {
                   {filteredItems.map((item) => {
                     const isSoldOut = item.stock_quantity === 0;
                     const name = getItemDisplayName(item);
-                    const desc = getItemDescription(item);
+                    const parsed = parseItemDescription(item);
                     const catName = categories.find((c) => c.id === item.category_id)?.name || "";
 
                     return (
