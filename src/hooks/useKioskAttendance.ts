@@ -1,0 +1,61 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+export type KioskAttendanceType = "member" | "guest" | "class" | "spa";
+
+export interface KioskAttendanceEntry {
+  id: string;
+  type: KioskAttendanceType;
+  name: string;
+  time: string;
+  subtitle: string;
+  photo_url?: string | null;
+}
+
+export interface KioskAttendanceStats {
+  total: number;
+  currently_in: number;
+  members: number;
+  guests: number;
+  classes: number;
+  spa: number;
+}
+
+export function useKioskAttendance() {
+  const [entries, setEntries] = useState<KioskAttendanceEntry[]>([]);
+  const [stats, setStats] = useState<KioskAttendanceStats>({
+    total: 0, currently_in: 0, members: 0, guests: 0, classes: 0, spa: 0,
+  });
+
+  const fetchAll = useCallback(async () => {
+    try {
+      const { data, error } = await (supabase.rpc as any)("kiosk_todays_attendance");
+      if (error) throw error;
+
+      const rawEntries: KioskAttendanceEntry[] = (data?.entries || []).map((e: any) => ({
+        id: e.id,
+        type: e.type as KioskAttendanceType,
+        name: e.name,
+        time: e.time,
+        subtitle: e.subtitle,
+        photo_url: e.photo_url || null,
+      }));
+
+      // Sort by time descending
+      rawEntries.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+      setEntries(rawEntries);
+      setStats(data?.stats || { total: 0, currently_in: 0, members: 0, guests: 0, classes: 0, spa: 0 });
+    } catch (err) {
+      console.error("Kiosk attendance error:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAll();
+    const interval = setInterval(fetchAll, 15000);
+    return () => clearInterval(interval);
+  }, [fetchAll]);
+
+  return { entries, stats, refetch: fetchAll };
+}
