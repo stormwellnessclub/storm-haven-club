@@ -39,17 +39,54 @@ interface CartItem {
 }
 
 function getItemDisplayName(item: DbMenuItem): string {
-  if (item.item_name) return item.item_name;
-  const parts = [item.brand_name, item.flavor].filter(Boolean);
-  return parts.join(" — ") || "Unnamed Item";
+  const base = item.item_name || item.brand_name || "Unnamed Item";
+  if (item.flavor && item.flavor !== base) return `${base} — ${item.flavor}`;
+  return base;
 }
 
-function getItemDescription(item: DbMenuItem): string {
-  const parts: string[] = [];
-  if (item.description) parts.push(item.description);
-  if (item.size) parts.push(item.size);
-  if (item.protein_flavor) parts.push(`Protein: ${item.protein_flavor}`);
-  return parts.join(" · ") || "";
+interface ParsedDescription {
+  description: string;
+  benefits: string;
+  nutrition: string;
+  size: string;
+  proteinFlavor: string;
+}
+
+function parseItemDescription(item: DbMenuItem): ParsedDescription {
+  const raw = item.description || "";
+  let description = "";
+  let benefits = "";
+  let nutrition = "";
+
+  // Split on known headings (case-insensitive)
+  const benefitsMatch = raw.match(/benefits\s*:/i);
+  const nutritionMatch = raw.match(/nutri(?:tion(?:al)?|ent)\s*(?:profile|info|facts)?\s*:/i);
+
+  const benefitsIdx = benefitsMatch ? raw.indexOf(benefitsMatch[0]) : -1;
+  const nutritionIdx = nutritionMatch ? raw.indexOf(nutritionMatch[0]) : -1;
+
+  // Determine section boundaries
+  const firstSplit = Math.min(
+    ...[benefitsIdx, nutritionIdx].filter((i) => i >= 0).concat([raw.length])
+  );
+  description = raw.slice(0, firstSplit).trim();
+
+  if (benefitsIdx >= 0) {
+    const end = nutritionIdx > benefitsIdx ? nutritionIdx : raw.length;
+    benefits = raw.slice(benefitsIdx + benefitsMatch![0].length, end).trim();
+  }
+  if (nutritionIdx >= 0) {
+    const end = benefitsIdx > nutritionIdx ? benefitsIdx : raw.length;
+    nutrition = raw.slice(nutritionIdx + nutritionMatch![0].length, end).trim();
+  }
+
+  return {
+    description,
+    benefits,
+    nutrition,
+    size: item.size || "",
+    proteinFlavor: item.protein_flavor || "",
+  };
 }
 
 export default function Cafe() {
@@ -269,7 +306,7 @@ export default function Cafe() {
                   {filteredItems.map((item) => {
                     const isSoldOut = item.stock_quantity === 0;
                     const name = getItemDisplayName(item);
-                    const desc = getItemDescription(item);
+                    const parsed = parseItemDescription(item);
                     const catName = categories.find((c) => c.id === item.category_id)?.name || "";
 
                     return (
@@ -307,7 +344,27 @@ export default function Cafe() {
                             </div>
                             <span className="text-gold font-semibold">${item.price.toFixed(2)}</span>
                           </div>
-                          {desc && <p className="text-muted-foreground text-sm mb-3">{desc}</p>}
+                          {parsed.size && (
+                            <p className="text-xs text-muted-foreground mb-1">{parsed.size}</p>
+                          )}
+                          {parsed.proteinFlavor && (
+                            <p className="text-xs text-muted-foreground mb-1">Protein: {parsed.proteinFlavor}</p>
+                          )}
+                          {parsed.description && (
+                            <p className="text-muted-foreground text-sm mb-2">{parsed.description}</p>
+                          )}
+                          {parsed.benefits && (
+                            <div className="mb-2">
+                              <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-0.5">Benefits</p>
+                              <p className="text-muted-foreground text-xs leading-relaxed">{parsed.benefits}</p>
+                            </div>
+                          )}
+                          {parsed.nutrition && (
+                            <div className="mb-2">
+                              <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-0.5">Nutritional Profile</p>
+                              <p className="text-muted-foreground text-xs leading-relaxed">{parsed.nutrition}</p>
+                            </div>
+                          )}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 flex-wrap">
                               {item.dietary_tags?.map((d) => (
