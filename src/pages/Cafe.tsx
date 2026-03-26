@@ -344,7 +344,27 @@ export default function Cafe() {
                             </div>
                             <span className="text-gold font-semibold">${item.price.toFixed(2)}</span>
                           </div>
-                          {desc && <p className="text-muted-foreground text-sm mb-3">{desc}</p>}
+                          {parsed.size && (
+                            <p className="text-xs text-muted-foreground mb-1">{parsed.size}</p>
+                          )}
+                          {parsed.proteinFlavor && (
+                            <p className="text-xs text-muted-foreground mb-1">Protein: {parsed.proteinFlavor}</p>
+                          )}
+                          {parsed.description && (
+                            <p className="text-muted-foreground text-sm mb-2">{parsed.description}</p>
+                          )}
+                          {parsed.benefits && (
+                            <div className="mb-2">
+                              <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-0.5">Benefits</p>
+                              <p className="text-muted-foreground text-xs leading-relaxed">{parsed.benefits}</p>
+                            </div>
+                          )}
+                          {parsed.nutrition && (
+                            <div className="mb-2">
+                              <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-0.5">Nutritional Profile</p>
+                              <p className="text-muted-foreground text-xs leading-relaxed">{parsed.nutrition}</p>
+                            </div>
+                          )}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 flex-wrap">
                               {item.dietary_tags?.map((d) => (
