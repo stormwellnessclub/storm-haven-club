@@ -44,10 +44,22 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                 variant="ghost"
                 size="icon"
                 className="touch-target"
+                onClick={() => {
+                  playNotificationChime();
+                  toast.success("Test chime played");
+                }}
+                title="Test notification sound"
+              >
+                <Play className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="touch-target"
                 onClick={toggleMute}
                 title={muted ? "Unmute notifications" : "Mute notifications"}
               >
-                {muted ? <BellOff className="h-5 w-5 text-muted-foreground" /> : <Bell className="h-5 w-5" />}
+                {muted ? <VolumeX className="h-5 w-5 text-muted-foreground" /> : <Volume2 className="h-5 w-5" />}
               </Button>
               <Button 
                 variant="ghost" 
