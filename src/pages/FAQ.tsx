@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import {
@@ -71,10 +72,28 @@ const scrollToTop = () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqCategories.flatMap((cat) =>
+    cat.questions.map((q) => ({
+      "@type": "Question",
+      "name": q.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": q.answer,
+      },
+    }))
+  ),
+};
+
 export default function FAQ() {
   return (
     <Layout>
       <SEOHead title="FAQ" description="Frequently asked questions about memberships, classes, spa services, café, kids care, and facility policies at Storm Wellness Club." path="/faq" />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
+      </Helmet>
       {/* Header */}
       <section className="bg-primary text-primary-foreground pt-32 pb-16">
         <div className="container mx-auto px-6 text-center">

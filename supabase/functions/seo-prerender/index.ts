@@ -205,6 +205,10 @@ const JSON_LD_LOCAL_BUSINESS = {
     { "@type": "City", "name": "Northville, MI" },
     { "@type": "City", "name": "Novi, MI" },
     { "@type": "City", "name": "Southfield, MI" }
+  ],
+  "sameAs": [
+    "https://www.instagram.com/stormwellnessclub",
+    "https://www.facebook.com/stormwellnessclub"
   ]
 };
 
