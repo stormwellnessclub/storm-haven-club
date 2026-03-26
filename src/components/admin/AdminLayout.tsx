@@ -1,12 +1,12 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
-import { Bell, User } from "lucide-react";
+import { Bell, User, Volume2, VolumeX, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
-import { AdminSupportChime, getIsMuted, setIsMuted } from "./AdminSupportChime";
+import { AdminSupportChime, getIsMuted, setIsMuted, playNotificationChime } from "./AdminSupportChime";
 import { useState } from "react";
-import { BellOff } from "lucide-react";
+import { toast } from "sonner";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
