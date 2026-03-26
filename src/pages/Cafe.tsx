@@ -39,17 +39,54 @@ interface CartItem {
 }
 
 function getItemDisplayName(item: DbMenuItem): string {
-  if (item.item_name) return item.item_name;
-  const parts = [item.brand_name, item.flavor].filter(Boolean);
-  return parts.join(" — ") || "Unnamed Item";
+  const base = item.item_name || item.brand_name || "Unnamed Item";
+  if (item.flavor && item.flavor !== base) return `${base} — ${item.flavor}`;
+  return base;
 }
 
-function getItemDescription(item: DbMenuItem): string {
-  const parts: string[] = [];
-  if (item.description) parts.push(item.description);
-  if (item.size) parts.push(item.size);
-  if (item.protein_flavor) parts.push(`Protein: ${item.protein_flavor}`);
-  return parts.join(" · ") || "";
+interface ParsedDescription {
+  description: string;
+  benefits: string;
+  nutrition: string;
+  size: string;
+  proteinFlavor: string;
+}
+
+function parseItemDescription(item: DbMenuItem): ParsedDescription {
+  const raw = item.description || "";
+  let description = "";
+  let benefits = "";
+  let nutrition = "";
+
+  // Split on known headings (case-insensitive)
+  const benefitsMatch = raw.match(/benefits\s*:/i);
+  const nutritionMatch = raw.match(/nutri(?:tion(?:al)?|ent)\s*(?:profile|info|facts)?\s*:/i);
+
+  const benefitsIdx = benefitsMatch ? raw.indexOf(benefitsMatch[0]) : -1;
+  const nutritionIdx = nutritionMatch ? raw.indexOf(nutritionMatch[0]) : -1;
+
+  // Determine section boundaries
+  const firstSplit = Math.min(
+    ...[benefitsIdx, nutritionIdx].filter((i) => i >= 0).concat([raw.length])
+  );
+  description = raw.slice(0, firstSplit).trim();
+
+  if (benefitsIdx >= 0) {
+    const end = nutritionIdx > benefitsIdx ? nutritionIdx : raw.length;
+    benefits = raw.slice(benefitsIdx + benefitsMatch![0].length, end).trim();
+  }
+  if (nutritionIdx >= 0) {
+    const end = benefitsIdx > nutritionIdx ? benefitsIdx : raw.length;
+    nutrition = raw.slice(nutritionIdx + nutritionMatch![0].length, end).trim();
+  }
+
+  return {
+    description,
+    benefits,
+    nutrition,
+    size: item.size || "",
+    proteinFlavor: item.protein_flavor || "",
+  };
 }
 
 export default function Cafe() {
