@@ -1,28 +1,41 @@
 
 
-# Fix Café Menu Display — Show Flavors & Structured Descriptions
+# Fix Club Support Notification Sound
 
-## Problems
-1. **Missing flavors**: `getItemDisplayName()` returns `item_name` alone if set, ignoring `flavor`. So items with both fields only show the name.
-2. **Description is one blob**: The `description` field contains structured content (item description, benefits, nutritional profile) but it's rendered as a single paragraph.
+## Problem
+The chime never plays when a new support message arrives. After reviewing the code, there are two likely causes:
 
-## Solution
+1. **Mute toggle may be on** — There are two bell icons in the admin header that look similar. The mute toggle (left bell) may have been accidentally clicked, setting `admin-chime-muted = "true"` in localStorage. There's no visual distinction beyond the icon changing to `BellOff`.
+2. **AudioContext autoplay policy** — Browsers block audio until a user gesture. The warm-up code attempts to handle this, but the `resume()` call is async while the success check is synchronous, so the context may stay suspended and the warm-up listeners never detach.
+3. **No test mechanism** — There's no way to verify the sound works independently of a real support message arriving.
 
-### 1. Show flavors alongside item name
-Update `getItemDisplayName` to always include `flavor` when present, e.g. "Acai Bowl — Mixed Berry" instead of just "Acai Bowl".
+## Plan
 
-### 2. Parse description into structured sections
-Instead of adding new database columns, parse the existing `description` text by splitting on common headings the user is already using (e.g. "Benefits:", "Nutritional Profile:", "Nutrition:"). Display each section with its own heading and visual separation:
+### 1. Add a "Test Sound" button to the admin header
+Add a small speaker/test button next to the mute toggle so you can trigger the chime on demand. This also serves as the user gesture needed to unlock the AudioContext.
 
-- **Description** — main item description (everything before the first heading)
-- **Benefits** — if present, shown with a subtle heading
-- **Nutritional Profile** — if present, shown with a subtle heading
+**File**: `src/components/admin/AdminLayout.tsx`
+- Add a "Test Sound" button that calls `playNotificationChime()` directly
+- This doubles as a guaranteed AudioContext warm-up (user click → play)
 
-Each section gets its own styled block with a small label, keeping the card clean and scannable.
+### 2. Fix the mute toggle UX to be clearer
+The current header has two very similar bell icons side-by-side (mute toggle + notification bell). This is confusing.
+
+**File**: `src/components/admin/AdminLayout.tsx`
+- Use `Volume2` / `VolumeX` icons for the mute toggle instead of `Bell` / `BellOff` to differentiate it from the notification bell
+- Keep the notification bell as-is for navigating to support messages
+
+### 3. Fix AudioContext warm-up race condition
+The warm-up checks `ctx.state === "running"` synchronously after an async `resume()`, so it may never register as warmed up.
+
+**File**: `src/components/admin/AdminSupportChime.tsx`
+- Make the warm-up handler async-aware: after calling `resume()`, re-check state in a `.then()` callback
+- Ensure the event listeners are removed once audio is truly running
+
+### 4. Clear potentially stuck mute state on load
+Add a visual indicator in the header showing current mute status text (e.g., "Sound off") so the user always knows the state.
 
 ### Files to change
-- **Edit**: `src/pages/Cafe.tsx`
-  - Fix `getItemDisplayName` to include flavor
-  - Replace `getItemDescription` with a `parseItemDescription` function that returns `{ description, benefits, nutrition }` by splitting on heading keywords
-  - Render each section separately in the card with small bold labels and spacing
+- **Edit**: `src/components/admin/AdminLayout.tsx` — differentiate icons, add test button
+- **Edit**: `src/components/admin/AdminSupportChime.tsx` — fix warm-up race condition
 
