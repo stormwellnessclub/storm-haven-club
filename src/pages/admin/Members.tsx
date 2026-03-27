@@ -1071,10 +1071,13 @@ export default function Members() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <MemberIssuesBadges 
-                          issues={billingIssues?.memberIssues?.[member.id]} 
-                          compact 
-                        />
+                        <div className="flex flex-col gap-1">
+                          <MemberIssuesBadges 
+                            issues={billingIssues?.memberIssues?.[member.id]} 
+                            compact 
+                          />
+                          <MemberArrearsIndicator memberId={member.id} />
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
