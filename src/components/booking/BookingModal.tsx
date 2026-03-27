@@ -224,7 +224,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
 
           {/* No Payment Options Available - Prompt to Purchase */}
-          {user && !creditsLoading && hasNoPaymentOptions && (
+          {user && !isClassFull && !creditsLoading && hasNoPaymentOptions && (
             <div className="space-y-4">
               <Alert variant="destructive">
                 <ShoppingBag className="h-4 w-4" />
