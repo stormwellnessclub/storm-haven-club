@@ -19,6 +19,7 @@ import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useMyBookings } from "@/hooks/useBooking";
+import { useWaitlistStatus } from "@/hooks/useWaitlist";
 
 type CategoryFilter = "all" | "pilates_cycling" | "aerobics" | "other";
 
