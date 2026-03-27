@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 
 interface ClassSession {
   id: string;
@@ -100,6 +101,7 @@ export default function Classes() {
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
+  const [hideFromMembers, setHideFromMembers] = useState(true);
   const [view, setView] = useState<"list" | "calendar">("list");
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -117,7 +119,6 @@ export default function Classes() {
           instructors (id, first_name, last_name)
         `)
         .eq('session_date', selectedDateStr)
-        .eq('is_hidden', false)
         .eq('class_types.is_active', true)
         .order('start_time');
       if (error) throw error;
@@ -141,13 +142,56 @@ export default function Classes() {
       const { error } = await supabase.rpc('admin_cancel_class_session', {
         _session_id: selectedSession.id,
         _cancellation_reason: cancellationReason || 'Class cancelled by admin',
+        _is_hidden: hideFromMembers,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-day'] });
+      
+      // Send cancellation emails to all booked members
+      if (selectedSession) {
+        try {
+          const { data: bookings } = await supabase
+            .from('class_bookings')
+            .select('id, member_id, walk_in_email, walk_in_name, members(first_name, last_name, email)')
+            .eq('session_id', selectedSession.id)
+            .eq('status', 'cancelled');
+          
+          if (bookings && bookings.length > 0) {
+            const sessionDate = format(parseISO(selectedSession.session_date), 'MMMM d, yyyy');
+            const sessionTime = formatTime(selectedSession.start_time);
+            
+            for (const booking of bookings) {
+              const member = booking.members as any;
+              const email = member?.email || booking.walk_in_email;
+              const name = member ? `${member.first_name} ${member.last_name}` : booking.walk_in_name;
+              
+              if (email) {
+                supabase.functions.invoke('send-email', {
+                  body: {
+                    type: 'class_cancelled_by_admin',
+                    to: email,
+                    data: {
+                      name: name || 'Member',
+                      className: selectedSession.class_types?.name || 'Class',
+                      date: sessionDate,
+                      time: sessionTime,
+                      reason: cancellationReason || null,
+                    },
+                  },
+                }).catch(err => console.error('Failed to send cancellation email:', err));
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch bookings for cancellation emails:', err);
+        }
+      }
+      
       setCancelDialogOpen(false);
       setCancellationReason("");
+      setHideFromMembers(true);
       setSelectedSession(null);
       toast.success("Class cancelled");
     },
@@ -331,12 +375,21 @@ export default function Classes() {
               Are you sure you want to cancel {selectedSession?.class_types?.name} at {selectedSession && formatTime(selectedSession.start_time)}? Members who have booked will be notified.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <Label htmlFor="reason">Cancellation Reason (optional)</Label>
-            <Input id="reason" value={cancellationReason} onChange={(e) => setCancellationReason(e.target.value)} placeholder="e.g., Instructor unavailable" className="mt-2" />
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="reason">Cancellation Reason (optional)</Label>
+              <Input id="reason" value={cancellationReason} onChange={(e) => setCancellationReason(e.target.value)} placeholder="e.g., Instructor unavailable" className="mt-2" />
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">Hide from members & website</p>
+                <p className="text-xs text-muted-foreground">When off, the class shows as "Cancelled" on the schedule</p>
+              </div>
+              <Switch checked={hideFromMembers} onCheckedChange={setHideFromMembers} />
+            </div>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setCancellationReason(""); setSelectedSession(null); }}>Keep Class</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setCancellationReason(""); setHideFromMembers(true); setSelectedSession(null); }}>Keep Class</AlertDialogCancel>
             <AlertDialogAction onClick={() => cancelSessionMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={cancelSessionMutation.isPending}>
               {cancelSessionMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Cancel Class

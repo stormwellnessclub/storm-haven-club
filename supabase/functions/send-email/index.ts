@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification';
   to: string;
   data: Record<string, any>;
 }
@@ -457,6 +457,56 @@ serve(async (req) => {
                 </table>
               </div>
               ${data.creditRefunded ? '<p style="color: #10b981; font-weight: 500;">✓ Your class credit has been refunded.</p>' : ''}
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/schedule" style="${emailStyles.button}">Book Another Class</a>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
+      case 'class_cancelled_by_admin':
+        subject = `Class Cancelled - ${data.className}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Class Cancelled</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Hi ${data.name}, we're sorry to let you know that the following class has been cancelled by the studio:
+              </p>
+              <div style="${emailStyles.warningBox}">
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Class</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.className}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Time</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.time}</td>
+                  </tr>
+                </table>
+              </div>
+              ${data.reason ? `
+              <div style="${emailStyles.infoBox}">
+                <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
+                  <strong>Reason:</strong> ${data.reason}
+                </p>
+              </div>
+              ` : ''}
+              <div style="${emailStyles.successBox}">
+                <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
+                  ✓ Your class credit has been automatically refunded to your account.
+                </p>
+              </div>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We apologize for the inconvenience. You're welcome to book another class at your convenience.
+              </p>
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/schedule" style="${emailStyles.button}">Book Another Class</a>
               </div>
