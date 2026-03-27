@@ -1,21 +1,36 @@
 
 
-# Show Guest Pass Vouchers in Member Detail
+# Fix Support Chime — Replace Web Audio API with Reliable Audio File
 
-## Problem
-When you grant a "Guest Pass (Voucher)" from a member's account, it inserts into the `guest_passes` table. But the Member Detail page only displays data from `member_credits` (which is where "Guest Pass Credit (Member Perk)" goes). So voucher-type guest passes are invisible in the member view.
+## Root Cause
+The current implementation uses the Web Audio API (`AudioContext` + `OscillatorNode`) to synthesize a chime programmatically. This approach is fragile because:
+- All errors are silently swallowed (`catch {}` blocks), making debugging impossible
+- `AudioContext` state management has edge cases across browsers
+- The oscillator-based synthesis can fail silently without any audio output
+- There's no fallback mechanism
 
 ## Solution
-Add a "Guest Pass Vouchers" section to the member detail page that queries the `guest_passes` table filtered by `user_id`, showing any vouchers linked to that member.
+Replace the synthesized oscillator approach with a simple `new Audio()` element playing an embedded sound. This is the standard, reliable way to play notification sounds in web apps.
 
-### File: `src/pages/admin/MemberDetail.tsx`
-1. **Add a query** for `guest_passes` where `user_id = member.user_id`, ordered by `purchased_at DESC`
-2. **Add a visual section** (below the existing credits grid or in the wellness tab) showing each guest pass voucher with:
-   - Status badge (active / used / expired)
-   - Expiration date
-   - Guest name (if filled)
-   - Notes/referral source
-3. Keep it compact — a small card or table rows, consistent with the existing credit cards style
+### Approach
+1. Generate a short chime sound as a base64-encoded WAV data URI embedded directly in the code (no external file needed)
+2. Use `new Audio(dataUri).play()` which is simpler and far more reliable than `AudioContext` oscillators
+3. Add `console.warn` logging instead of silent catches so issues are debuggable
+4. Keep the mute toggle and test button as-is
 
-This way, when you grant a guest pass voucher to a member, it will immediately appear in their member detail view.
+### File: `src/components/admin/AdminSupportChime.tsx`
+- Replace `getAudioContext()`, `warmUpAudio()`, and the oscillator-based `playNotificationChime()` with:
+  - A base64 WAV data URI containing a pleasant 3-tone chime
+  - `playNotificationChime()` that creates `new Audio(dataUri)` and calls `.play()` with a `.catch(console.warn)` for visibility
+- Remove the AudioContext singleton, warm-up event listeners, and the component's warm-up `useEffect`
+- Keep the realtime subscription logic, 5-minute interval, and mute helpers unchanged
+
+### File: `src/components/admin/AdminLayout.tsx`
+- No changes needed — the test button and mute toggle already work with the exported `playNotificationChime()` function
+
+### Why this is more reliable
+- `new Audio().play()` is the simplest browser audio API with the widest support
+- No AudioContext state management needed
+- No warm-up or user-gesture unlocking required (the test button click satisfies autoplay policy)
+- Errors surface in the console instead of being swallowed
 
