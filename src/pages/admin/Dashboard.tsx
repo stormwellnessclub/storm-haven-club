@@ -269,13 +269,13 @@ export default function Dashboard() {
       icon: Calendar,
       color: "bg-accent/20 text-accent-foreground",
     },
-    {
+    ...(showAdminOnly ? [{
       title: "Pending Applications",
       value: stats?.pendingApps ?? 0,
       change: "Awaiting review",
       icon: FileText,
       color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    },
+    }] : []),
   ];
 
   return (
