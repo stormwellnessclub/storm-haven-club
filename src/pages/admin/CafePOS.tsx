@@ -12,6 +12,7 @@ import { CafePOSMenu, type POSCartItem } from "@/components/admin/CafePOSMenu";
 import { CafePOSCart } from "@/components/admin/CafePOSCart";
 import { MerchPOSTab } from "@/components/admin/MerchPOSTab";
 import { calculateTax } from "@/hooks/useCafeMenu";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { POSCustomer } from "@/components/admin/POSCustomerSearch";
@@ -62,7 +63,9 @@ export default function CafePOS() {
         return sum + (item.basePrice + addonTotal) * item.quantity;
       }, 0);
       const tax = calculateTax(subtotal);
-      const total = subtotal + tax;
+      const isCardCharge = paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile;
+      const processingFee = isCardCharge ? calculateProcessingFeeFromDollars(subtotal + tax) : 0;
+      const total = subtotal + tax + processingFee;
       const itemNames = cart.map((i) => i.name).join(", ");
 
       // If paying by card and customer has card on file, charge via Stripe
@@ -109,6 +112,16 @@ export default function CafePOS() {
         quantity: 1,
         category: "Tax",
       });
+
+      if (processingFee > 0) {
+        orderItems.push({
+          id: 0,
+          name: "Processing Fee",
+          price: processingFee,
+          quantity: 1,
+          category: "Fee",
+        });
+      }
 
       const orderPaymentMethod = paymentMethod === "cash" ? "cash" : (selectedCustomer?.cardOnFile ? "member_account" : "card");
 
