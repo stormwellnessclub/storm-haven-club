@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 
 interface ClassSession {
   id: string;
