@@ -41,6 +41,7 @@ import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 import { MemberIssuesBadges } from "@/components/admin/MemberIssuesBadges";
+import { MemberArrearsIndicator } from "@/components/admin/MemberArrearsIndicator";
 import { EffectiveStatusBadge } from "@/components/admin/EffectiveStatusBadge";
 import { Switch } from "@/components/ui/switch";
 
