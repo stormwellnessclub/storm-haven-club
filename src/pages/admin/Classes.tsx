@@ -100,6 +100,7 @@ export default function Classes() {
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
+  const [hideFromMembers, setHideFromMembers] = useState(true);
   const [view, setView] = useState<"list" | "calendar">("list");
   const [selectedDate, setSelectedDate] = useState(new Date());
 
