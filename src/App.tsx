@@ -92,6 +92,7 @@ import NonMemberAccounts from "./pages/admin/NonMemberAccounts";
 import NonMemberDetail from "./pages/admin/NonMemberDetail";
 import People from "./pages/admin/People";
 import BlockedPersons from "./pages/admin/BlockedPersons";
+import PaymentFailedEmailPreview from "./pages/admin/PaymentFailedEmailPreview";
 import StaffHub from "./pages/admin/StaffHub";
 import MerchManager from "./pages/admin/MerchManager";
 import Merch from "./pages/Merch";
@@ -231,6 +232,7 @@ const App = () => (
               <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/people" element={<ProtectedAdminRoute><People /></ProtectedAdminRoute>} />
               <Route path="/admin/blocked" element={<ProtectedAdminRoute><BlockedPersons /></ProtectedAdminRoute>} />
+              <Route path="/admin/email-templates/payment-failed" element={<ProtectedAdminRoute><PaymentFailedEmailPreview /></ProtectedAdminRoute>} />
               <Route path="/admin/merch" element={<ProtectedAdminRoute><MerchManager /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-hub" element={<ProtectedAdminRoute><StaffHub /></ProtectedAdminRoute>} />
               

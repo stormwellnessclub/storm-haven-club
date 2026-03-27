@@ -41,6 +41,7 @@ import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 import { MemberIssuesBadges } from "@/components/admin/MemberIssuesBadges";
+import { MemberArrearsIndicator } from "@/components/admin/MemberArrearsIndicator";
 import { EffectiveStatusBadge } from "@/components/admin/EffectiveStatusBadge";
 import { Switch } from "@/components/ui/switch";
 
@@ -1070,10 +1071,13 @@ export default function Members() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <MemberIssuesBadges 
-                          issues={billingIssues?.memberIssues?.[member.id]} 
-                          compact 
-                        />
+                        <div className="flex flex-col gap-1">
+                          <MemberIssuesBadges 
+                            issues={billingIssues?.memberIssues?.[member.id]} 
+                            compact 
+                          />
+                          <MemberArrearsIndicator memberId={member.id} />
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
