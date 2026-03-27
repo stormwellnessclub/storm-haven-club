@@ -44,6 +44,8 @@ import { toast } from "@/hooks/use-toast";
 export default function Dashboard() {
   const [sendingEmails, setSendingEmails] = useState(false);
   const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
+  const { isAdmin } = useUserRoles();
+  const showAdminOnly = isAdmin();
 
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
