@@ -256,7 +256,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
 
           {/* Liability Waiver Required — Inline Signing */}
-          {user && !creditsLoading && !hasNoPaymentOptions && !hasLiabilityWaiver && (
+          {user && !isClassFull && !creditsLoading && !hasNoPaymentOptions && !hasLiabilityWaiver && (
             <div className="space-y-3">
               <Alert className="bg-destructive/10 border-destructive/30">
                 <FileCheck className="h-4 w-4 text-destructive" />
