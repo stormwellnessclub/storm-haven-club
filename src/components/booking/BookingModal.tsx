@@ -205,17 +205,19 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           </div>
 
-          {/* Cancellation Policy */}
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Free cancellation up to 24 hours before class. Late cancellations
-              will forfeit your credit or pass.
-            </AlertDescription>
-          </Alert>
+          {/* Cancellation Policy — only when booking (not waitlist) */}
+          {!isClassFull && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Free cancellation up to 24 hours before class. Late cancellations
+                will forfeit your credit or pass.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Loading State */}
-          {user && creditsLoading && (
+          {user && !isClassFull && creditsLoading && (
             <div className="py-4 text-center text-muted-foreground">
               Checking payment options...
             </div>
