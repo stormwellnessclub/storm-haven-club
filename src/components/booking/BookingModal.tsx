@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { useAllAgreements } from "@/hooks/useAllAgreements";
+import { useJoinWaitlist, useWaitlistStatus } from "@/hooks/useWaitlist";
 import {
   Dialog,
   DialogContent,
