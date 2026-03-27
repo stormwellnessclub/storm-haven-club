@@ -21,6 +21,7 @@ import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/Adm
 import { PaymentsTabContent } from "@/components/admin/PaymentsTabContent";
 import { BillingHealthCard } from "@/components/admin/BillingHealthCard";
 import { ArrearsCard } from "@/components/admin/ArrearsCard";
+import { MemberArrearsBanner } from "@/components/admin/MemberArrearsBanner";
 import { SubscriptionCard } from "@/components/admin/SubscriptionCard";
 import { PaymentTimeline } from "@/components/admin/PaymentTimeline";
 import { useMemberArrears } from "@/hooks/useMemberArrears";
