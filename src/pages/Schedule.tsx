@@ -109,6 +109,9 @@ export default function Schedule() {
     refetchOnWindowFocus: true,
   });
 
+  const allSessionIds = useMemo(() => sessions.map(s => s.id), [sessions]);
+  const { data: waitlistStatus } = useWaitlistStatus(allSessionIds);
+
   const filteredSessions = useMemo(() => {
     const now = new Date();
     return sessions
