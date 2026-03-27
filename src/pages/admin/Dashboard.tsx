@@ -326,31 +326,33 @@ export default function Dashboard() {
                 Open Scanner
               </Link>
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" disabled={sendingEmails}>
-                  <Mail className="h-4 w-4 mr-2" />
-                  {sendingEmails ? `Sending ${emailProgress.sent}/${emailProgress.total}...` : "Send Hours Email"}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Send Soft Launch Hours Email</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will send the soft launch hours email to all active members. Are you sure?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                {sendingEmails && (
-                  <Progress value={emailProgress.total > 0 ? (emailProgress.sent / emailProgress.total) * 100 : 0} className="h-2" />
-                )}
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={sendingEmails}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleSendHoursEmail} disabled={sendingEmails}>
-                    Send to All Members
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {showAdminOnly && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" disabled={sendingEmails}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    {sendingEmails ? `Sending ${emailProgress.sent}/${emailProgress.total}...` : "Send Hours Email"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Send Soft Launch Hours Email</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will send the soft launch hours email to all active members. Are you sure?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  {sendingEmails && (
+                    <Progress value={emailProgress.total > 0 ? (emailProgress.sent / emailProgress.total) * 100 : 0} className="h-2" />
+                  )}
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={sendingEmails}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSendHoursEmail} disabled={sendingEmails}>
+                      Send to All Members
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
 
