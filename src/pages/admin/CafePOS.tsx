@@ -63,7 +63,9 @@ export default function CafePOS() {
         return sum + (item.basePrice + addonTotal) * item.quantity;
       }, 0);
       const tax = calculateTax(subtotal);
-      const total = subtotal + tax;
+      const isCardCharge = paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile;
+      const processingFee = isCardCharge ? calculateProcessingFeeFromDollars(subtotal + tax) : 0;
+      const total = subtotal + tax + processingFee;
       const itemNames = cart.map((i) => i.name).join(", ");
 
       // If paying by card and customer has card on file, charge via Stripe
