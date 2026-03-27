@@ -388,7 +388,7 @@ export default function Classes() {
             </div>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setCancellationReason(""); setSelectedSession(null); }}>Keep Class</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setCancellationReason(""); setHideFromMembers(true); setSelectedSession(null); }}>Keep Class</AlertDialogCancel>
             <AlertDialogAction onClick={() => cancelSessionMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={cancelSessionMutation.isPending}>
               {cancelSessionMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Cancel Class
