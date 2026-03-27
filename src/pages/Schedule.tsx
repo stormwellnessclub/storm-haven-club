@@ -73,6 +73,8 @@ export default function Schedule() {
   const [bookingOpen, setBookingOpen] = useState(false);
 
   const { data: myBookings } = useMyBookings();
+  const allSessionIds = useMemo(() => sessions.map(s => s.id), [sessions]);
+  const { data: waitlistStatus } = useWaitlistStatus(allSessionIds);
   const bookedSessionIds = useMemo(() => {
     if (!myBookings) return new Set<string>();
     return new Set(myBookings.filter(b => b.status === "confirmed").map(b => b.session_id));
