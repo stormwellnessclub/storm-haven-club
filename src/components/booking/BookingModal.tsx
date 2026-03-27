@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { useAllAgreements } from "@/hooks/useAllAgreements";
+import { useJoinWaitlist, useWaitlistStatus } from "@/hooks/useWaitlist";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ import {
   ExternalLink,
   Loader2,
   Check,
+  ListOrdered,
 } from "lucide-react";
 import { format, parse, parseISO } from "date-fns";
 import { useState, useEffect } from "react";
@@ -58,8 +60,10 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const [waiverAcknowledged, setWaiverAcknowledged] = useState(false);
 
   const bookClass = useBookClass();
+  const joinWaitlist = useJoinWaitlist();
   const category = session?.class_type.category || "aerobics";
   const { data: creditsData, isLoading: creditsLoading } = useAvailableCreditsForCategory(category);
+  const { data: waitlistStatus } = useWaitlistStatus(session ? [session.id] : []);
   const { data: agreements } = useAllAgreements();
 
   // Liability waiver PDF URL from agreements
@@ -101,6 +105,9 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const startTime = parse(session.start_time, "HH:mm:ss", new Date());
   const sessionDate = parseISO(session.session_date);
   const spotsRemaining = session.max_capacity - session.current_enrollment;
+  const isClassFull = spotsRemaining <= 0;
+  const myWaitlistEntry = waitlistStatus?.[session.id];
+  const isOnWaitlist = !!myWaitlistEntry;
 
   const handleBook = async () => {
     if (!user) {
@@ -121,6 +128,16 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     });
 
     onOpenChange(false);
+  };
+
+  const handleJoinWaitlist = async () => {
+    if (!user) {
+      navigate("/auth");
+      onOpenChange(false);
+      return;
+    }
+    await joinWaitlist.mutateAsync({ sessionId: session.id });
+    // Keep modal open so user sees their position
   };
 
   const handlePurchasePass = () => {
@@ -180,28 +197,34 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
               </div>
             )}
             <div className="text-sm font-medium">
-              {spotsRemaining} spot{spotsRemaining !== 1 ? "s" : ""} remaining
+              {isClassFull ? (
+                <span className="text-destructive">Class is full</span>
+              ) : (
+                <>{spotsRemaining} spot{spotsRemaining !== 1 ? "s" : ""} remaining</>
+              )}
             </div>
           </div>
 
-          {/* Cancellation Policy */}
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Free cancellation up to 24 hours before class. Late cancellations
-              will forfeit your credit or pass.
-            </AlertDescription>
-          </Alert>
+          {/* Cancellation Policy — only when booking (not waitlist) */}
+          {!isClassFull && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Free cancellation up to 24 hours before class. Late cancellations
+                will forfeit your credit or pass.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Loading State */}
-          {user && creditsLoading && (
+          {user && !isClassFull && creditsLoading && (
             <div className="py-4 text-center text-muted-foreground">
               Checking payment options...
             </div>
           )}
 
           {/* No Payment Options Available - Prompt to Purchase */}
-          {user && !creditsLoading && hasNoPaymentOptions && (
+          {user && !isClassFull && !creditsLoading && hasNoPaymentOptions && (
             <div className="space-y-4">
               <Alert variant="destructive">
                 <ShoppingBag className="h-4 w-4" />
@@ -233,7 +256,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
 
           {/* Liability Waiver Required — Inline Signing */}
-          {user && !creditsLoading && !hasNoPaymentOptions && !hasLiabilityWaiver && (
+          {user && !isClassFull && !creditsLoading && !hasNoPaymentOptions && !hasLiabilityWaiver && (
             <div className="space-y-3">
               <Alert className="bg-destructive/10 border-destructive/30">
                 <FileCheck className="h-4 w-4 text-destructive" />
@@ -302,7 +325,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
 
           {/* Payment Method Selection */}
-          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
+          {user && !isClassFull && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Method</Label>
               <RadioGroup
@@ -361,6 +384,37 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           )}
 
+          {/* Waitlist UI — shown when class is full */}
+          {user && isClassFull && (
+            <div className="space-y-3">
+              {isOnWaitlist ? (
+                <Alert className="bg-primary/10 border-primary/30">
+                  <ListOrdered className="h-4 w-4 text-primary" />
+                  <AlertTitle>You're on the Waitlist</AlertTitle>
+                  <AlertDescription className="mt-1">
+                    You're #{myWaitlistEntry.position} on the waitlist.
+                    {myWaitlistEntry.status === "notified" && (
+                      <span className="block mt-1 font-medium text-primary">
+                        A spot has opened! Check your email to claim it.
+                      </span>
+                    )}
+                    {myWaitlistEntry.status === "waiting" && (
+                      <span className="block mt-1">We'll notify you if a spot opens up.</span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert>
+                  <ListOrdered className="h-4 w-4" />
+                  <AlertTitle>Class is Full</AlertTitle>
+                  <AlertDescription className="mt-1">
+                    Join the waitlist and we'll notify you if a spot opens up.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
           {!user && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
@@ -375,7 +429,27 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          {(!user || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
+          {/* Waitlist join button when class is full */}
+          {user && isClassFull && !isOnWaitlist && (
+            <Button
+              onClick={handleJoinWaitlist}
+              disabled={joinWaitlist.isPending}
+            >
+              {joinWaitlist.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Joining...
+                </>
+              ) : (
+                <>
+                  <ListOrdered className="h-4 w-4 mr-2" />
+                  Join Waitlist
+                </>
+              )}
+            </Button>
+          )}
+          {/* Normal booking button when class has spots */}
+          {!isClassFull && (!user || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
             <Button
               onClick={handleBook}
               disabled={bookClass.isPending || (user && (hasNoPaymentOptions || !hasLiabilityWaiver))}
