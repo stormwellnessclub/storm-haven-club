@@ -12,6 +12,7 @@ import { CafePOSMenu, type POSCartItem } from "@/components/admin/CafePOSMenu";
 import { CafePOSCart } from "@/components/admin/CafePOSCart";
 import { MerchPOSTab } from "@/components/admin/MerchPOSTab";
 import { calculateTax } from "@/hooks/useCafeMenu";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { POSCustomer } from "@/components/admin/POSCustomerSearch";
