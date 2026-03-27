@@ -3,75 +3,100 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 
-// ── AudioContext singleton ──────────────────────────────────────────
-let sharedAudioCtx: AudioContext | null = null;
-let audioCtxWarmedUp = false;
+// ── Chime player (HTML Audio + embedded WAV) ────────────────────────
+const CHIME_DATA_URI = "data:audio/wav;base64," + "UklGRuqnAQBXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YcanAQAA";
 
-function getAudioContext(): AudioContext | null {
-  try {
-    if (!sharedAudioCtx) sharedAudioCtx = new AudioContext();
-    return sharedAudioCtx;
-  } catch {
-    return null;
-  }
-}
+// We'll generate the real data URI at module load from a tiny inline WAV
+let chimeDataUri: string | null = null;
 
-async function warmUpAudio() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  if (ctx.state === "suspended") {
-    try { await ctx.resume(); } catch { /* ignored */ }
-  }
-  if (ctx.state === "running") audioCtxWarmedUp = true;
-}
+function generateChimeWav(): string {
+  const sampleRate = 44100;
+  const tones: Array<{ freq: number; duration: number; volume: number }> = [
+    { freq: 660, duration: 0.15, volume: 0.4 },
+    { freq: 880, duration: 0.15, volume: 0.35 },
+    { freq: 1047, duration: 0.25, volume: 0.3 },
+    // gap
+    { freq: 660, duration: 0.15, volume: 0.2 },
+    { freq: 880, duration: 0.15, volume: 0.18 },
+    { freq: 1047, duration: 0.25, volume: 0.15 },
+  ];
 
-// Warm-up on first user interaction
-if (typeof window !== "undefined") {
-  const handler = () => {
-    warmUpAudio().then(() => {
-      if (audioCtxWarmedUp) {
-        document.removeEventListener("click", handler);
-        document.removeEventListener("keydown", handler);
-      }
-    });
+  const gapSamples = Math.floor(sampleRate * 0.02);
+  const bigGapSamples = Math.floor(sampleRate * 0.05);
+  const segments: number[][] = [];
+
+  tones.forEach((tone, i) => {
+    const n = Math.floor(sampleRate * tone.duration);
+    const samples: number[] = [];
+    for (let j = 0; j < n; j++) {
+      const t = j / sampleRate;
+      const env = tone.volume * (1 - j / n);
+      samples.push(env * Math.sin(2 * Math.PI * tone.freq * t));
+    }
+    segments.push(samples);
+    if (i === 2) {
+      segments.push(new Array(bigGapSamples).fill(0));
+    } else if (i < 5) {
+      segments.push(new Array(gapSamples).fill(0));
+    }
+  });
+
+  const allSamples = segments.flat();
+  const numSamples = allSamples.length;
+  const dataSize = numSamples * 2;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  // WAV header
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
   };
-  document.addEventListener("click", handler);
-  document.addEventListener("keydown", handler);
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  for (let i = 0; i < numSamples; i++) {
+    const val = Math.max(-1, Math.min(1, allSamples[i]));
+    view.setInt16(44 + i * 2, val * 32767, true);
+  }
+
+  // Convert to base64 data URI
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return "data:audio/wav;base64," + btoa(binary);
 }
 
-// ── Chime player ────────────────────────────────────────────────────
+// Generate once at module load
+try {
+  chimeDataUri = generateChimeWav();
+} catch (e) {
+  console.warn("Failed to generate chime WAV:", e);
+}
+
 export async function playNotificationChime() {
+  if (!chimeDataUri) {
+    console.warn("Chime data URI not available");
+    return;
+  }
   try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === "suspended") await ctx.resume();
-
-    const playSequence = (startTime: number, volume: number) => {
-      const tones = [
-        { freq: 660, delay: 0, duration: 0.3 },
-        { freq: 880, delay: 0.32, duration: 0.3 },
-        { freq: 1047, delay: 0.64, duration: 0.4 },
-      ];
-      for (const tone of tones) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = tone.freq;
-        osc.type = "triangle";
-        const t = startTime + tone.delay;
-        gain.gain.setValueAtTime(volume, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + tone.duration);
-        osc.start(t);
-        osc.stop(t + tone.duration);
-      }
-    };
-
-    const now = ctx.currentTime;
-    playSequence(now, 0.4);
-    playSequence(now + 1.1, 0.25);
-  } catch {
-    // AudioContext may not be available
+    const audio = new Audio(chimeDataUri);
+    audio.volume = 0.7;
+    await audio.play();
+  } catch (err) {
+    console.warn("Failed to play notification chime:", err);
   }
 }
 
@@ -129,13 +154,6 @@ export function AdminSupportChime() {
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [notifications]);
-
-  // Warm up audio on click
-  useEffect(() => {
-    const handler = () => warmUpAudio();
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
 
   return null; // Invisible — audio only
 }
