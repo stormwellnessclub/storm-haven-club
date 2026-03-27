@@ -325,7 +325,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
 
           {/* Payment Method Selection */}
-          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
+          {user && !isClassFull && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Method</Label>
               <RadioGroup
