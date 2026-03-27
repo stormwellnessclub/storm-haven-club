@@ -197,7 +197,11 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
               </div>
             )}
             <div className="text-sm font-medium">
-              {spotsRemaining} spot{spotsRemaining !== 1 ? "s" : ""} remaining
+              {isClassFull ? (
+                <span className="text-destructive">Class is full</span>
+              ) : (
+                <>{spotsRemaining} spot{spotsRemaining !== 1 ? "s" : ""} remaining</>
+              )}
             </div>
           </div>
 
