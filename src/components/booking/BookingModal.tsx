@@ -105,6 +105,9 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const startTime = parse(session.start_time, "HH:mm:ss", new Date());
   const sessionDate = parseISO(session.session_date);
   const spotsRemaining = session.max_capacity - session.current_enrollment;
+  const isClassFull = spotsRemaining <= 0;
+  const myWaitlistEntry = waitlistStatus?.[session.id];
+  const isOnWaitlist = !!myWaitlistEntry;
 
   const handleBook = async () => {
     if (!user) {
@@ -125,6 +128,16 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     });
 
     onOpenChange(false);
+  };
+
+  const handleJoinWaitlist = async () => {
+    if (!user) {
+      navigate("/auth");
+      onOpenChange(false);
+      return;
+    }
+    await joinWaitlist.mutateAsync({ sessionId: session.id });
+    // Keep modal open so user sees their position
   };
 
   const handlePurchasePass = () => {
