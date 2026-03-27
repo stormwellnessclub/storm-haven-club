@@ -319,6 +319,10 @@ export default function Schedule() {
                                       <Badge variant="outline" className="text-xs border-primary/50 text-primary">
                                         Booked
                                       </Badge>
+                                    ) : waitlistStatus?.[session.id] ? (
+                                      <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-700">
+                                        Waitlist #{waitlistStatus[session.id].position}
+                                      </Badge>
                                     ) : (
                                       <Button
                                         size="sm"
