@@ -466,6 +466,56 @@ serve(async (req) => {
         `;
         break;
 
+      case 'class_cancelled_by_admin':
+        subject = `Class Cancelled - ${data.className}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Class Cancelled</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Hi ${data.name}, we're sorry to let you know that the following class has been cancelled by the studio:
+              </p>
+              <div style="${emailStyles.warningBox}">
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Class</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.className}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Time</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.time}</td>
+                  </tr>
+                </table>
+              </div>
+              ${data.reason ? `
+              <div style="${emailStyles.infoBox}">
+                <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
+                  <strong>Reason:</strong> ${data.reason}
+                </p>
+              </div>
+              ` : ''}
+              <div style="${emailStyles.successBox}">
+                <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
+                  ✓ Your class credit has been automatically refunded to your account.
+                </p>
+              </div>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We apologize for the inconvenience. You're welcome to book another class at your convenience.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/schedule" style="${emailStyles.button}">Book Another Class</a>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+
       case 'waiver_reminder':
         subject = 'Action Required: Sign Your Waiver';
         html = `
