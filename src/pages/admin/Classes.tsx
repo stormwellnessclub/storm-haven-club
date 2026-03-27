@@ -374,9 +374,18 @@ export default function Classes() {
               Are you sure you want to cancel {selectedSession?.class_types?.name} at {selectedSession && formatTime(selectedSession.start_time)}? Members who have booked will be notified.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <Label htmlFor="reason">Cancellation Reason (optional)</Label>
-            <Input id="reason" value={cancellationReason} onChange={(e) => setCancellationReason(e.target.value)} placeholder="e.g., Instructor unavailable" className="mt-2" />
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="reason">Cancellation Reason (optional)</Label>
+              <Input id="reason" value={cancellationReason} onChange={(e) => setCancellationReason(e.target.value)} placeholder="e.g., Instructor unavailable" className="mt-2" />
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">Hide from members & website</p>
+                <p className="text-xs text-muted-foreground">When off, the class shows as "Cancelled" on the schedule</p>
+              </div>
+              <Switch checked={hideFromMembers} onCheckedChange={setHideFromMembers} />
+            </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setCancellationReason(""); setSelectedSession(null); }}>Keep Class</AlertDialogCancel>
