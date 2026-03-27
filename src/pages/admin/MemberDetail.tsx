@@ -1548,6 +1548,9 @@ export default function MemberDetail() {
           </Card>
         )}
 
+        {/* Arrears Banner - Always visible above tabs */}
+        <MemberArrearsBanner memberId={id!} />
+
         {/* Tabbed Content */}
         <Tabs defaultValue="profile" className="space-y-4">
           <TabsList>
