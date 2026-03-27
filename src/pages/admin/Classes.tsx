@@ -118,7 +118,6 @@ export default function Classes() {
           instructors (id, first_name, last_name)
         `)
         .eq('session_date', selectedDateStr)
-        .eq('is_hidden', false)
         .eq('class_types.is_active', true)
         .order('start_time');
       if (error) throw error;
