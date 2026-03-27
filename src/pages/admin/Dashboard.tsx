@@ -281,8 +281,8 @@ export default function Dashboard() {
   return (
     <AdminLayout title="Dashboard">
       <div className="space-y-6">
-        {/* Failed Payments Alert - Critical */}
-        {!failedPaymentsLoading && failedPayments.length > 0 && (
+        {/* Failed Payments Alert - Critical (Admin only) */}
+        {showAdminOnly && !failedPaymentsLoading && failedPayments.length > 0 && (
           <Card className="border-destructive bg-destructive/5">
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
