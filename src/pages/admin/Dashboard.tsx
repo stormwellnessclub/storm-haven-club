@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,8 @@ import { toast } from "@/hooks/use-toast";
 export default function Dashboard() {
   const [sendingEmails, setSendingEmails] = useState(false);
   const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
+  const { isAdmin } = useUserRoles();
+  const showAdminOnly = isAdmin();
 
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -266,20 +269,20 @@ export default function Dashboard() {
       icon: Calendar,
       color: "bg-accent/20 text-accent-foreground",
     },
-    {
+    ...(showAdminOnly ? [{
       title: "Pending Applications",
       value: stats?.pendingApps ?? 0,
       change: "Awaiting review",
       icon: FileText,
       color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    },
+    }] : []),
   ];
 
   return (
     <AdminLayout title="Dashboard">
       <div className="space-y-6">
-        {/* Failed Payments Alert - Critical */}
-        {!failedPaymentsLoading && failedPayments.length > 0 && (
+        {/* Failed Payments Alert - Critical (Admin only) */}
+        {showAdminOnly && !failedPaymentsLoading && failedPayments.length > 0 && (
           <Card className="border-destructive bg-destructive/5">
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -323,31 +326,33 @@ export default function Dashboard() {
                 Open Scanner
               </Link>
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" disabled={sendingEmails}>
-                  <Mail className="h-4 w-4 mr-2" />
-                  {sendingEmails ? `Sending ${emailProgress.sent}/${emailProgress.total}...` : "Send Hours Email"}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Send Soft Launch Hours Email</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will send the soft launch hours email to all active members. Are you sure?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                {sendingEmails && (
-                  <Progress value={emailProgress.total > 0 ? (emailProgress.sent / emailProgress.total) * 100 : 0} className="h-2" />
-                )}
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={sendingEmails}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleSendHoursEmail} disabled={sendingEmails}>
-                    Send to All Members
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {showAdminOnly && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" disabled={sendingEmails}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    {sendingEmails ? `Sending ${emailProgress.sent}/${emailProgress.total}...` : "Send Hours Email"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Send Soft Launch Hours Email</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will send the soft launch hours email to all active members. Are you sure?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  {sendingEmails && (
+                    <Progress value={emailProgress.total > 0 ? (emailProgress.sent / emailProgress.total) * 100 : 0} className="h-2" />
+                  )}
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={sendingEmails}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSendHoursEmail} disabled={sendingEmails}>
+                      Send to All Members
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
 
@@ -484,62 +489,64 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Pending Applications */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <FileText className="h-4 w-4 text-amber-600" />
-                Pending Applications
-              </CardTitle>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/admin/applications" className="text-xs">
-                  Review <ArrowRight className="h-3 w-3 ml-1" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {applicationsLoading ? (
-                <div className="space-y-3">
-                  {Array(2).fill(0).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : pendingApplications.length > 0 ? (
-                <div className="space-y-3">
-                  {pendingApplications.map((app, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between py-2 border-b border-border last:border-0"
-                    >
-                      <div>
-                        <p className="font-medium text-sm">{app.name}</p>
-                        <p className="text-xs text-muted-foreground">{app.plan} Membership</p>
+          {/* Pending Applications (Admin only) */}
+          {showAdminOnly && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-amber-600" />
+                  Pending Applications
+                </CardTitle>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/admin/applications" className="text-xs">
+                    Review <ArrowRight className="h-3 w-3 ml-1" />
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {applicationsLoading ? (
+                  <div className="space-y-3">
+                    {Array(2).fill(0).map((_, i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
+                  </div>
+                ) : pendingApplications.length > 0 ? (
+                  <div className="space-y-3">
+                    {pendingApplications.map((app, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">{app.name}</p>
+                          <p className="text-xs text-muted-foreground">{app.plan} Membership</p>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">{app.date}</Badge>
                       </div>
-                      <Badge variant="secondary" className="text-xs">{app.date}</Badge>
-                    </div>
-                  ))}
-                  {(stats?.pendingApps ?? 0) > pendingApplications.length && (
-                    <Button variant="outline" size="sm" className="w-full mt-2" asChild>
-                      <Link to="/admin/applications">
-                        View all {stats?.pendingApps} applications
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  No pending applications
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                    {(stats?.pendingApps ?? 0) > pendingApplications.length && (
+                      <Button variant="outline" size="sm" className="w-full mt-2" asChild>
+                        <Link to="/admin/applications">
+                          View all {stats?.pendingApps} applications
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    No pending applications
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Billing Health Widget */}
-          <BillingHealthWidget />
+          {/* Billing Health Widget (Admin only) */}
+          {showAdminOnly && <BillingHealthWidget />}
         </div>
 
-        {/* Card Sync Failures Widget - Critical Alert for Pre-Launch */}
-        <CardSyncFailuresWidget />
+        {/* Card Sync Failures Widget (Admin only) */}
+        {showAdminOnly && <CardSyncFailuresWidget />}
 
         {/* Quick Stats Row */}
 
