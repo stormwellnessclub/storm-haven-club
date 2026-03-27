@@ -382,6 +382,37 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           )}
 
+          {/* Waitlist UI — shown when class is full */}
+          {user && isClassFull && (
+            <div className="space-y-3">
+              {isOnWaitlist ? (
+                <Alert className="bg-primary/10 border-primary/30">
+                  <ListOrdered className="h-4 w-4 text-primary" />
+                  <AlertTitle>You're on the Waitlist</AlertTitle>
+                  <AlertDescription className="mt-1">
+                    You're #{myWaitlistEntry.position} on the waitlist.
+                    {myWaitlistEntry.status === "notified" && (
+                      <span className="block mt-1 font-medium text-primary">
+                        A spot has opened! Check your email to claim it.
+                      </span>
+                    )}
+                    {myWaitlistEntry.status === "waiting" && (
+                      <span className="block mt-1">We'll notify you if a spot opens up.</span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert>
+                  <ListOrdered className="h-4 w-4" />
+                  <AlertTitle>Class is Full</AlertTitle>
+                  <AlertDescription className="mt-1">
+                    Join the waitlist and we'll notify you if a spot opens up.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
           {!user && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
@@ -396,7 +427,27 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          {(!user || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
+          {/* Waitlist join button when class is full */}
+          {user && isClassFull && !isOnWaitlist && (
+            <Button
+              onClick={handleJoinWaitlist}
+              disabled={joinWaitlist.isPending}
+            >
+              {joinWaitlist.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Joining...
+                </>
+              ) : (
+                <>
+                  <ListOrdered className="h-4 w-4 mr-2" />
+                  Join Waitlist
+                </>
+              )}
+            </Button>
+          )}
+          {/* Normal booking button when class has spots */}
+          {!isClassFull && (!user || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
             <Button
               onClick={handleBook}
               disabled={bookClass.isPending || (user && (hasNoPaymentOptions || !hasLiabilityWaiver))}
