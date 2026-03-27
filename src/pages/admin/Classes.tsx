@@ -141,13 +141,56 @@ export default function Classes() {
       const { error } = await supabase.rpc('admin_cancel_class_session', {
         _session_id: selectedSession.id,
         _cancellation_reason: cancellationReason || 'Class cancelled by admin',
+        _is_hidden: hideFromMembers,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-day'] });
+      
+      // Send cancellation emails to all booked members
+      if (selectedSession) {
+        try {
+          const { data: bookings } = await supabase
+            .from('class_bookings')
+            .select('id, member_id, walk_in_email, walk_in_name, members(first_name, last_name, email)')
+            .eq('session_id', selectedSession.id)
+            .eq('status', 'cancelled');
+          
+          if (bookings && bookings.length > 0) {
+            const sessionDate = format(parseISO(selectedSession.session_date), 'MMMM d, yyyy');
+            const sessionTime = formatTime(selectedSession.start_time);
+            
+            for (const booking of bookings) {
+              const member = booking.members as any;
+              const email = member?.email || booking.walk_in_email;
+              const name = member ? `${member.first_name} ${member.last_name}` : booking.walk_in_name;
+              
+              if (email) {
+                supabase.functions.invoke('send-email', {
+                  body: {
+                    type: 'class_cancelled_by_admin',
+                    to: email,
+                    data: {
+                      name: name || 'Member',
+                      className: selectedSession.class_types?.name || 'Class',
+                      date: sessionDate,
+                      time: sessionTime,
+                      reason: cancellationReason || null,
+                    },
+                  },
+                }).catch(err => console.error('Failed to send cancellation email:', err));
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch bookings for cancellation emails:', err);
+        }
+      }
+      
       setCancelDialogOpen(false);
       setCancellationReason("");
+      setHideFromMembers(true);
       setSelectedSession(null);
       toast.success("Class cancelled");
     },
