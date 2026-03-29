@@ -288,7 +288,7 @@ export default function Classes() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {sessions.map((session) => {
+            {filteredSessions.map((session) => {
               const status = getSessionStatus(session);
               const attendees = attendeePreviews[session.id] || [];
               const isFull = session.current_enrollment >= session.max_capacity;
