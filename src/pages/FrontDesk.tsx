@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Search, UserCheck, Clock, CheckCircle2, XCircle, User,
   Calendar, Loader2, Ticket, BookOpen, Sparkles, Ban, Baby,
-  GraduationCap, Flame, MessageCircle, Send,
+  GraduationCap, Flame, MessageCircle, Send, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
