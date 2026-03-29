@@ -117,7 +117,7 @@ export default function Classes() {
         .from('class_sessions')
         .select(`
           *,
-          class_types!inner (id, name, category),
+          class_types!inner (id, name, category, is_active),
           instructors (id, first_name, last_name)
         `)
         .eq('session_date', selectedDateStr)
