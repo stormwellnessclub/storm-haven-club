@@ -5991,6 +5991,10 @@ export type Database = {
         Args: { p_days?: number; p_member_id: string }
         Returns: Json
       }
+      get_next_waitlist_position: {
+        Args: { p_session_id: string }
+        Returns: number
+      }
       get_payment_metrics: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
@@ -6003,6 +6007,13 @@ export type Database = {
         }[]
       }
       get_subscription_health: { Args: never; Returns: Json }
+      get_waitlist_counts: {
+        Args: { p_session_ids: string[] }
+        Returns: {
+          count: number
+          session_id: string
+        }[]
+      }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
