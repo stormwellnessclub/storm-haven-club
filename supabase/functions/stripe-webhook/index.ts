@@ -1940,8 +1940,9 @@ serve(async (req) => {
                 logStep("Synced subscription_status to active", { memberId: memberData.id });
               }
               
-              // Update member status to active if it was past_due (membership subscription)
-              if (memberData.status === 'past_due') {
+              // Update member status to active if it was past_due or pending_activation (membership subscription)
+              // pending_activation covers cases where a subscription was incomplete_expired but payment later succeeded
+              if (memberData.status === 'past_due' || memberData.status === 'pending_activation') {
                 const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
                   p_member_id: memberData.id,
                   p_stripe_subscription_id: invoice.subscription as string,
