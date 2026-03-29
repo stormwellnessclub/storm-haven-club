@@ -6037,6 +6037,7 @@ export type Database = {
         Returns: Json
       }
       kiosk_check_in_spa: { Args: { p_spa_id: string }; Returns: Json }
+      kiosk_class_roster: { Args: { p_session_id: string }; Returns: Json }
       kiosk_search_visitors: { Args: { p_query: string }; Returns: Json }
       kiosk_todays_attendance: { Args: never; Returns: Json }
       link_member_by_email: {
