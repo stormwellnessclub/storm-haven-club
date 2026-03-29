@@ -8,16 +8,14 @@ export function useWaitlistCounts(sessionIds: string[]) {
     queryKey: ["waitlist-counts", sessionIds],
     enabled: sessionIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("class_waitlist")
-        .select("session_id")
-        .in("session_id", sessionIds)
-        .in("status", ["waiting", "notified"]);
+      const { data, error } = await supabase.rpc("get_waitlist_counts", {
+        p_session_ids: sessionIds,
+      });
 
       if (error) throw error;
       const counts: Record<string, number> = {};
-      for (const entry of data || []) {
-        counts[entry.session_id] = (counts[entry.session_id] || 0) + 1;
+      for (const entry of (data as any[]) || []) {
+        counts[entry.session_id] = Number(entry.count);
       }
       return counts;
     },
@@ -57,16 +55,14 @@ export function useJoinWaitlist() {
     mutationFn: async ({ sessionId }: { sessionId: string }) => {
       if (!user) throw new Error("Please sign in first.");
 
-      // Get next position
-      const { data: maxPos } = await supabase
-        .from("class_waitlist")
-        .select("position")
-        .eq("session_id", sessionId)
-        .order("position", { ascending: false })
-        .limit(1)
-        .single();
+      // Get next position using SECURITY DEFINER function (bypasses RLS)
+      const { data: posData, error: posError } = await supabase.rpc(
+        "get_next_waitlist_position",
+        { p_session_id: sessionId }
+      );
 
-      const nextPosition = (maxPos?.position ?? 0) + 1;
+      if (posError) throw posError;
+      const nextPosition = posData as number;
 
       const { error } = await supabase.from("class_waitlist").insert({
         session_id: sessionId,
