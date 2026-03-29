@@ -1,38 +1,36 @@
 
 
-# Add Class Check-In to Front Desk Kiosk
+# Admin Guest Pass Bulk Sale with Custom Pricing
 
-## Problem
-The Today's Classes section is read-only — it shows class names and enrollment counts but staff can't click into a class to see its roster or check attendees in. The only way to check in a class booking is via the general search, which requires knowing the person's name.
+## What
+Add quantity selector and custom price override (discount) to the Guest Pass Quick Sale form on `/admin/guest-passes`. Only visible to admin/super_admin roles. Works for any guest (member or non-member).
 
-## Solution
-Make the Today's Classes card interactive: clicking a class row expands it to show the roster of confirmed bookings with a one-tap "Check In" button per attendee.
+## Changes
 
-## Steps
+### 1. Frontend — `src/pages/admin/GuestPasses.tsx`
+- Add `quantity` state (default 1, min 1, max 10) with a number input or +/- stepper
+- Add `customPrice` state (nullable number) and a toggle/checkbox "Apply discount" — when enabled, show an input to override the per-pass price (default $60)
+- Both fields only render when `isAdmin()` returns true (from `useUserRoles`)
+- Display calculated total: `quantity × (customPrice || 60)` + processing fee
+- Pass `quantity` and `customPrice` to the edge function in `handleCreatePass`
 
-### 1. Create a new `KioskClassRoster` component
-- When a class session row is clicked, fetch its bookings via a new kiosk-safe RPC (`kiosk_class_roster`)
-- Display each attendee with name, check-in status, and a "Check In" button
-- Use the existing `kiosk_check_in_class` RPC to process the check-in
-- After check-in, refresh the roster and attendance feed
+### 2. Edge Function — `supabase/functions/stripe-payment/index.ts`
+In the `create_guest_pass_checkout` case:
+- Accept new fields: `quantity` (number, default 1) and `customPrice` (number in dollars, optional)
+- If `customPrice` is provided, create an ad-hoc Stripe Price (using `stripe.prices.create` with `unit_amount` in cents, `currency: 'usd'`, linked to the guest pass product) instead of using the fixed `STRIPE_PRODUCTS.guestPass` price
+- Set `quantity` on the line item instead of hardcoded `1`
+- Add `quantity` and `custom_price` to the checkout session metadata so the webhook can create the correct number of guest_passes records
 
-### 2. Create `kiosk_class_roster` database RPC
-A SECURITY DEFINER function granted to `anon` that returns today's bookings for a given session:
-```sql
-CREATE OR REPLACE FUNCTION kiosk_class_roster(p_session_id uuid)
-RETURNS jsonb
-```
-Returns: `booking_id`, `name` (member name or walk-in name), `status`, `checked_in_at`, `photo_url`
+### 3. Webhook handling — ensure multiple passes created
+- Check the existing webhook handler that processes guest pass checkout completions
+- Ensure it reads `metadata.quantity` and creates that many `guest_passes` rows (currently it creates 1)
+- Each pass gets the same guest info but its own unique ID
 
-### 3. Update `TodaysClasses` in FrontDesk.tsx
-- Make each class row clickable — clicking toggles the inline roster
-- Show the `KioskClassRoster` component below the selected row
-- Add visual indicator (chevron, highlight) for the expanded class
-
-### 4. Wire up check-in
-- Reuse existing `useKioskCheckIn.checkInClass()` hook
-- On successful check-in, invalidate the roster query and call `refetch()` on attendance
+### 4. Role gating
+- Import and use `useUserRoles` hook (already imported in the file)
+- Show quantity + discount fields only when `isAdmin()` is true
+- The edge function doesn't need role checks since Stripe Checkout handles payment — the discount is just a different price
 
 ## Result
-Staff can tap a class → see all attendees → tap "Check In" next to each name, all without leaving the front desk kiosk.
+Admins see quantity and discount controls in Quick Sale. They can sell e.g. 3 guest passes at $50 each. Non-admin staff see the standard single-pass $60 form. The correct number of passes is created in the database after payment.
 
