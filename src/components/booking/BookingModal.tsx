@@ -411,6 +411,9 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                   <AlertTitle>Class is Full</AlertTitle>
                   <AlertDescription className="mt-1">
                     Join the waitlist and we'll notify you if a spot opens up.
+                    {waitlistCount > 0 && (
+                      <span className="block mt-1 text-muted-foreground">{waitlistCount} {waitlistCount === 1 ? "person" : "people"} currently on the waitlist.</span>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}

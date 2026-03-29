@@ -296,7 +296,7 @@ export default function Schedule() {
                                   <span className="flex items-center gap-1">
                                     <Users className="w-3 h-3" />
                                     {isFull ? (
-                                      <span className="text-destructive font-medium">Full</span>
+                                      <span className="text-destructive font-medium">Full{waitlistCounts?.[session.id] ? ` · ${waitlistCounts[session.id]} waitlisted` : ""}</span>
                                     ) : (
                                       `${spotsLeft} spots`
                                     )}
