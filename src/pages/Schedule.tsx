@@ -141,8 +141,20 @@ export default function Schedule() {
   const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 0 }));
 
   const visibleWeekDays = useMemo(() => {
+    if (selectedDate) {
+      return [startOfDay(selectedDate)];
+    }
     return weekDays.filter((day) => !isBefore(day, today) || isToday(day));
-  }, [weekDays, today]);
+  }, [weekDays, today, selectedDate]);
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      const d = startOfDay(date);
+      setSelectedDate(d);
+      setWeekStart(startOfWeek(d, { weekStartsOn: 0 }));
+      setCalendarOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (todayRef.current) {
