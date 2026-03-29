@@ -602,23 +602,35 @@ export default function ClassSchedules() {
                 These recurring schedules define when classes happen each week
               </CardDescription>
             </div>
-            <div className="flex items-center gap-1 border rounded-lg p-1">
-              <Button
-                variant={viewMode === "calendar" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("calendar")}
-              >
-                <LayoutGrid className="h-4 w-4 mr-1" />
-                Calendar
-              </Button>
-              <Button
-                variant={viewMode === "table" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("table")}
-              >
-                <Table2 className="h-4 w-4 mr-1" />
-                Table
-              </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="hide-inactive"
+                  checked={hideInactive}
+                  onCheckedChange={setHideInactive}
+                />
+                <Label htmlFor="hide-inactive" className="text-sm text-muted-foreground cursor-pointer">
+                  Hide inactive
+                </Label>
+              </div>
+              <div className="flex items-center gap-1 border rounded-lg p-1">
+                <Button
+                  variant={viewMode === "calendar" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("calendar")}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  Calendar
+                </Button>
+                <Button
+                  variant={viewMode === "table" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("table")}
+                >
+                  <Table2 className="h-4 w-4 mr-1" />
+                  Table
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
