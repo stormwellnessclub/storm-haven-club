@@ -1318,7 +1318,7 @@ serve(async (req) => {
       }
 
       case 'charge_saved_card': {
-        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description } = body;
+        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount, subtotal: bodySubtotal, payment_type } = body;
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
@@ -1432,12 +1432,14 @@ serve(async (req) => {
           confirm: true,
           description: feeDescription,
           metadata: {
-            type: 'manual_charge',
+            type: payment_type || 'manual_charge',
             member_id: memberIdForLog || 'application',
             charged_by: user.id,
             customer_name: customerName,
             base_amount: String(amount),
             processing_fee: String(processingFeeCents),
+            ...(taxAmount ? { tax_amount: String(taxAmount) } : {}),
+            ...(bodySubtotal ? { subtotal: String(bodySubtotal) } : {}),
           },
         });
 
@@ -1553,7 +1555,7 @@ serve(async (req) => {
 
       // NEW: 3DS-aware charging for admin card charges
       case 'charge_saved_card_with_3ds': {
-        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description } = body;
+        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount: taxAmount3ds, subtotal: bodySubtotal3ds, payment_type: paymentType3ds } = body;
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
@@ -1714,13 +1716,15 @@ serve(async (req) => {
           confirm: true,
           return_url: `${Deno.env.get('SUPABASE_URL') || 'https://localhost'}/`,
           metadata: {
-            type: 'manual_charge',
+            type: paymentType3ds || 'manual_charge',
             member_id: memberIdForLog || 'application',
             application_id: applicationIdForLog || '',
             charged_by: user.id,
             customer_name: customerName,
             base_amount: String(amount),
             processing_fee: String(processingFee3ds),
+            ...(taxAmount3ds ? { tax_amount: String(taxAmount3ds) } : {}),
+            ...(bodySubtotal3ds ? { subtotal: String(bodySubtotal3ds) } : {}),
           },
         });
 

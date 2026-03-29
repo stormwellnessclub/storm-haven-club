@@ -220,18 +220,12 @@ serve(async (req) => {
           }
         }
 
-        // If still no tax found but we know it's a taxable sale (café, merch, guest pass),
-        // check if 6% was embedded
-        if (
-          taxAmount === 0 &&
-          (source === "Café / POS" ||
-            source === "Storm Shop" ||
-            source === "Guest Pass")
-        ) {
-          // Check if the charge description mentions tax
+        // If still no tax found, check if description mentions MI 6% tax
+        // This covers historical charges and manual_charge types
+        if (taxAmount === 0) {
           const desc = (charge.description || "").toLowerCase();
-          if (desc.includes("tax")) {
-            // Tax is likely embedded; calculate: total = subtotal * 1.06
+          if (desc.includes("mi 6% tax") || desc.includes("mi sales tax") || desc.includes("incl. mi 6%")) {
+            // Tax is embedded; calculate: total = subtotal * 1.06
             subtotal = Math.round((amountTotal / 1.06) * 100) / 100;
             taxAmount = Math.round((amountTotal - subtotal) * 100) / 100;
           }
