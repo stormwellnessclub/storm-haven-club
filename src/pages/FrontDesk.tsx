@@ -20,6 +20,7 @@ import { useKioskAttendance, KioskAttendanceType } from "@/hooks/useKioskAttenda
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import { Textarea } from "@/components/ui/textarea";
+import { KioskClassRoster } from "@/components/kiosk/KioskClassRoster";
 
 // ─── Type badge config ───────────────────────────────────────────────
 type AnyType = KioskVisitorType | KioskAttendanceType;
