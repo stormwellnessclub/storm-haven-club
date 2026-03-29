@@ -280,7 +280,7 @@ export default function Classes() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : sessions.length === 0 ? (
+        ) : filteredSessions.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p className="text-lg font-semibold">No Classes</p>
