@@ -208,26 +208,74 @@ export default function Schedule() {
               ))}
             </div>
 
-            {/* Week navigation */}
+            {/* Week navigation + date picker */}
             <div className="flex items-center gap-2">
+              {selectedDate ? (
+                <>
+                  <span className="text-sm font-medium">
+                    {format(selectedDate, "EEEE, MMMM d, yyyy")}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedDate(null)}
+                  >
+                    Back to week
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setWeekStart((w) => addWeeks(w, -1))}
+                    disabled={!canGoPrev}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium min-w-[180px] text-center">
+                    {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setWeekStart((w) => addWeeks(w, 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+
               <Button
                 variant="outline"
-                size="icon"
-                onClick={() => setWeekStart((w) => addWeeks(w, -1))}
-                disabled={!canGoPrev}
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  const t = startOfDay(new Date());
+                  setSelectedDate(t);
+                  setWeekStart(startOfWeek(t, { weekStartsOn: 0 }));
+                }}
               >
-                <ChevronLeft className="h-4 w-4" />
+                Today
               </Button>
-              <span className="text-sm font-medium min-w-[180px] text-center">
-                {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setWeekStart((w) => addWeeks(w, 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <CalendarIcon className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate || undefined}
+                    onSelect={handleDateSelect}
+                    disabled={(date) => isBefore(startOfDay(date), today)}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
