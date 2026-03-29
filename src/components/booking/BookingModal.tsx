@@ -64,6 +64,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const category = session?.class_type.category || "aerobics";
   const { data: creditsData, isLoading: creditsLoading } = useAvailableCreditsForCategory(category);
   const { data: waitlistStatus } = useWaitlistStatus(session ? [session.id] : []);
+  const { data: waitlistCounts } = useWaitlistCounts(session ? [session.id] : []);
+  const waitlistCount = session ? (waitlistCounts?.[session.id] || 0) : 0;
   const { data: agreements } = useAllAgreements();
 
   // Liability waiver PDF URL from agreements
