@@ -736,6 +736,8 @@ serve(async (req) => {
 
       case 'create_guest_pass_checkout': {
         const { guestName, guestEmail, successUrl, cancelUrl } = body;
+        const passQuantity = Math.max(1, Math.min(10, parseInt(body.quantity) || 1));
+        const customPriceValue = body.customPrice != null ? parseFloat(body.customPrice) : null;
 
         if (!guestName || !successUrl || !cancelUrl) {
           throw new Error("Missing required fields for guest pass checkout");
@@ -750,10 +752,24 @@ serve(async (req) => {
 
         const customerId = await getOrCreateCustomer();
 
+        let lineItemPriceId = priceId;
+
+        // If custom price provided, create an ad-hoc price
+        if (customPriceValue != null && customPriceValue >= 0) {
+          const originalPrice = await stripe.prices.retrieve(priceId);
+          const adHocPrice = await stripe.prices.create({
+            unit_amount: Math.round(customPriceValue * 100),
+            currency: 'usd',
+            product: originalPrice.product as string,
+          });
+          lineItemPriceId = adHocPrice.id;
+        }
+
         // Add processing fee for guest pass
-        const guestPassPrice = await stripe.prices.retrieve(priceId);
-        const guestPassFeeItem = await createProcessingFeeLineItem(stripe, guestPassPrice.unit_amount || 0);
-        const guestPassLineItems: { price: string; quantity: number }[] = [{ price: priceId, quantity: 1 }];
+        const effectivePrice = customPriceValue != null ? Math.round(customPriceValue * 100) : (await stripe.prices.retrieve(priceId)).unit_amount || 0;
+        const totalAmount = effectivePrice * passQuantity;
+        const guestPassFeeItem = await createProcessingFeeLineItem(stripe, totalAmount);
+        const guestPassLineItems: { price: string; quantity: number }[] = [{ price: lineItemPriceId, quantity: passQuantity }];
         if (guestPassFeeItem) guestPassLineItems.push(guestPassFeeItem);
 
         // Create checkout session for guest pass
@@ -775,10 +791,12 @@ serve(async (req) => {
             phone_number: body.phoneNumber || '',
             valid_date: body.validDate || '',
             member_referral: body.memberReferral || '',
+            quantity: String(passQuantity),
+            custom_price: customPriceValue != null ? String(customPriceValue) : '',
           },
         });
 
-        logStep("Guest pass checkout created", { sessionId: session.id, url: session.url, guestName });
+        logStep("Guest pass checkout created", { sessionId: session.id, url: session.url, guestName, quantity: passQuantity });
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),
