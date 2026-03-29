@@ -111,6 +111,7 @@ export default function Schedule() {
 
   const allSessionIds = useMemo(() => sessions.map(s => s.id), [sessions]);
   const { data: waitlistStatus } = useWaitlistStatus(allSessionIds);
+  const { data: waitlistCounts } = useWaitlistCounts(allSessionIds);
 
   const filteredSessions = useMemo(() => {
     const now = new Date();
