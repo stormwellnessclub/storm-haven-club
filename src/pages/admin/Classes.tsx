@@ -133,7 +133,7 @@ export default function Classes() {
     : sessions.filter(s => s.class_types && (s.class_types as any).is_active !== false);
 
   // Fetch attendee previews for all sessions on this day
-  const sessionIds = sessions.map(s => s.id);
+  const sessionIds = filteredSessions.map(s => s.id);
   const { data: attendeePreviews = {} } = useQuery({
     queryKey: ['admin-session-attendees-preview', selectedDateStr, sessionIds.join(',')],
     queryFn: async (): Promise<Record<string, AttendeePreview[]>> => {
