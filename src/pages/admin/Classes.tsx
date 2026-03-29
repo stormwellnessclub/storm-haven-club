@@ -211,16 +211,28 @@ export default function Classes() {
             <h1 className="text-2xl font-bold">Classes</h1>
             <p className="text-muted-foreground">Manage classes and attendance</p>
           </div>
-          <Tabs value={view} onValueChange={(v) => setView(v as "list" | "calendar")}>
-            <TabsList>
-              <TabsTrigger value="list" className="gap-1.5">
-                <List className="h-3.5 w-3.5" /> Day View
-              </TabsTrigger>
-              <TabsTrigger value="calendar" className="gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" /> Week Calendar
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="show-inactive-sessions"
+                checked={showInactive}
+                onCheckedChange={setShowInactive}
+              />
+              <Label htmlFor="show-inactive-sessions" className="text-sm text-muted-foreground cursor-pointer">
+                Show inactive
+              </Label>
+            </div>
+            <Tabs value={view} onValueChange={(v) => setView(v as "list" | "calendar")}>
+              <TabsList>
+                <TabsTrigger value="list" className="gap-1.5">
+                  <List className="h-3.5 w-3.5" /> Day View
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" /> Week Calendar
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
 
         {view === "calendar" ? (
