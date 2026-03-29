@@ -131,7 +131,7 @@ export default function Classes() {
   // Filter out sessions from inactive class types unless toggle is on
   const filteredSessions = showInactive
     ? sessions
-    : sessions.filter(s => s.class_types && (s.class_types as any).is_active !== false);
+    : sessions.filter(s => s.class_types?.is_active !== false);
 
   // Fetch attendee previews for all sessions on this day
   const sessionIds = filteredSessions.map(s => s.id);
