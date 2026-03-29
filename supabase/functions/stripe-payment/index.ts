@@ -1432,12 +1432,14 @@ serve(async (req) => {
           confirm: true,
           description: feeDescription,
           metadata: {
-            type: 'manual_charge',
+            type: payment_type || 'manual_charge',
             member_id: memberIdForLog || 'application',
             charged_by: user.id,
             customer_name: customerName,
             base_amount: String(amount),
             processing_fee: String(processingFeeCents),
+            ...(taxAmount ? { tax_amount: String(taxAmount) } : {}),
+            ...(bodySubtotal ? { subtotal: String(bodySubtotal) } : {}),
           },
         });
 
