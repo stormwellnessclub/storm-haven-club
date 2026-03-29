@@ -11,8 +11,10 @@ import {
 import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
   ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake,
-  CircleDot, Bike, Activity, CalendarDays,
+  CircleDot, Bike, Activity, CalendarDays, CalendarIcon,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { BookingModal } from "@/components/booking/BookingModal";
 import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
