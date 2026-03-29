@@ -1,29 +1,28 @@
 
 
-# Fix: Waitlist Position Always Shows #1 + Counts Not Visible to Members
+# Add Single-Day View to Public Class Schedule
 
-## Root cause
+## Overview
+Add a date picker alongside the existing weekly view so members can jump to a specific day and see only that day's classes. The weekly view stays as the default; picking a date switches to a focused single-day view with a "Back to week" button.
 
-**RLS (Row Level Security) blocks the queries.** The `class_waitlist` table has a policy: users can only see their own entries. So:
+## Changes
 
-1. **Position bug**: When a new user joins, the query to find the max existing position returns nothing (they have no entries yet) → everyone gets position 1.
-2. **Count bug**: `useWaitlistCounts` counts entries the user can see — which is only their own — so regular members always see 0 or 1 waitlisted instead of the real total.
+### `src/pages/Schedule.tsx`
 
-## Fix
+1. **Add state**: `selectedDate: Date | null` (null = weekly view, set = single-day view)
 
-### 1. Database function for next position (SECURITY DEFINER)
-Create a Postgres function `get_next_waitlist_position(p_session_id uuid)` that runs with elevated privileges (bypasses RLS) and returns the correct next position number. This replaces the broken client-side max-position query.
+2. **Add a date picker button** next to the week navigation controls — a calendar icon button that opens a Popover with the shadcn `<Calendar>` component. When a date is picked, set `selectedDate` to that date. Disable past dates.
 
-### 2. Database function for waitlist counts (SECURITY DEFINER)
-Create a Postgres function `get_waitlist_counts(p_session_ids uuid[])` that returns session_id + count pairs for active waitlist entries, bypassing RLS so all users see accurate totals.
+3. **When `selectedDate` is set**:
+   - Show the day header (e.g. "Wednesday, April 2") with a "Back to week view" button
+   - Auto-adjust `weekStart` so the query includes that date (the existing query fetches by week range, so set `weekStart` to `startOfWeek(selectedDate)`)
+   - Filter `visibleWeekDays` to only the selected date
+   - Everything else (session cards, booking, waitlist counts) works exactly the same since it's the same data, just filtered to one day
 
-### 3. Update `useJoinWaitlist` in `useWaitlist.ts`
-Replace the manual max-position query with an RPC call to `get_next_waitlist_position`. The insert still happens client-side using the returned position.
+4. **"Today" button** — add a small "Today" shortcut button that sets `selectedDate` to today for quick access
 
-### 4. Update `useWaitlistCounts` in `useWaitlist.ts`
-Replace the direct table query with an RPC call to `get_waitlist_counts`.
+5. **Clearing**: clicking "Back to week view" sets `selectedDate` back to `null`
 
-### Files to change
-- **New migration**: Two SECURITY DEFINER functions
-- **Edit**: `src/hooks/useWaitlist.ts` — use RPC calls instead of direct queries for position and counts
+### No other files need changes
+The schedule grid rendering already works per-day (it maps over `visibleWeekDays`), so narrowing that array to a single date is all that's needed. No new hooks, no new queries.
 
