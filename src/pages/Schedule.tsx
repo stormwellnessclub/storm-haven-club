@@ -73,6 +73,8 @@ export default function Schedule() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const { data: myBookings } = useMyBookings();
   const bookedSessionIds = useMemo(() => {
