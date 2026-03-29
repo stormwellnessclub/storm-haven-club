@@ -39,6 +39,7 @@ interface ClassSession {
     id: string;
     name: string;
     category: string;
+    is_active: boolean;
   } | null;
   instructors: {
     id: string;
@@ -103,6 +104,7 @@ export default function Classes() {
   const [cancellationReason, setCancellationReason] = useState("");
   const [hideFromMembers, setHideFromMembers] = useState(true);
   const [view, setView] = useState<"list" | "calendar">("list");
+  const [showInactive, setShowInactive] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -111,23 +113,28 @@ export default function Classes() {
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['admin-class-sessions-day', selectedDateStr],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const query = supabase
         .from('class_sessions')
         .select(`
           *,
-          class_types!inner (id, name, category),
+          class_types!inner (id, name, category, is_active),
           instructors (id, first_name, last_name)
         `)
         .eq('session_date', selectedDateStr)
-        .eq('class_types.is_active', true)
         .order('start_time');
+      const { data, error } = await query;
       if (error) throw error;
       return data as ClassSession[];
     },
   });
 
+  // Filter out sessions from inactive class types unless toggle is on
+  const filteredSessions = showInactive
+    ? sessions
+    : sessions.filter(s => s.class_types?.is_active !== false);
+
   // Fetch attendee previews for all sessions on this day
-  const sessionIds = sessions.map(s => s.id);
+  const sessionIds = filteredSessions.map(s => s.id);
   const { data: attendeePreviews = {} } = useQuery({
     queryKey: ['admin-session-attendees-preview', selectedDateStr, sessionIds.join(',')],
     queryFn: async (): Promise<Record<string, AttendeePreview[]>> => {
@@ -210,16 +217,28 @@ export default function Classes() {
             <h1 className="text-2xl font-bold">Classes</h1>
             <p className="text-muted-foreground">Manage classes and attendance</p>
           </div>
-          <Tabs value={view} onValueChange={(v) => setView(v as "list" | "calendar")}>
-            <TabsList>
-              <TabsTrigger value="list" className="gap-1.5">
-                <List className="h-3.5 w-3.5" /> Day View
-              </TabsTrigger>
-              <TabsTrigger value="calendar" className="gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" /> Week Calendar
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="show-inactive-sessions"
+                checked={showInactive}
+                onCheckedChange={setShowInactive}
+              />
+              <Label htmlFor="show-inactive-sessions" className="text-sm text-muted-foreground cursor-pointer">
+                Show inactive
+              </Label>
+            </div>
+            <Tabs value={view} onValueChange={(v) => setView(v as "list" | "calendar")}>
+              <TabsList>
+                <TabsTrigger value="list" className="gap-1.5">
+                  <List className="h-3.5 w-3.5" /> Day View
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" /> Week Calendar
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
 
         {view === "calendar" ? (
@@ -262,7 +281,7 @@ export default function Classes() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : sessions.length === 0 ? (
+        ) : filteredSessions.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p className="text-lg font-semibold">No Classes</p>
@@ -270,7 +289,7 @@ export default function Classes() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {sessions.map((session) => {
+            {filteredSessions.map((session) => {
               const status = getSessionStatus(session);
               const attendees = attendeePreviews[session.id] || [];
               const isFull = session.current_enrollment >= session.max_capacity;

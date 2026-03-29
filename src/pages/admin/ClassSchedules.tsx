@@ -602,23 +602,35 @@ export default function ClassSchedules() {
                 These recurring schedules define when classes happen each week
               </CardDescription>
             </div>
-            <div className="flex items-center gap-1 border rounded-lg p-1">
-              <Button
-                variant={viewMode === "calendar" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("calendar")}
-              >
-                <LayoutGrid className="h-4 w-4 mr-1" />
-                Calendar
-              </Button>
-              <Button
-                variant={viewMode === "table" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("table")}
-              >
-                <Table2 className="h-4 w-4 mr-1" />
-                Table
-              </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="hide-inactive"
+                  checked={hideInactive}
+                  onCheckedChange={setHideInactive}
+                />
+                <Label htmlFor="hide-inactive" className="text-sm text-muted-foreground cursor-pointer">
+                  Hide inactive
+                </Label>
+              </div>
+              <div className="flex items-center gap-1 border rounded-lg p-1">
+                <Button
+                  variant={viewMode === "calendar" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("calendar")}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  Calendar
+                </Button>
+                <Button
+                  variant={viewMode === "table" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("table")}
+                >
+                  <Table2 className="h-4 w-4 mr-1" />
+                  Table
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -633,23 +645,11 @@ export default function ClassSchedules() {
                 <p className="text-sm mt-1">Add your first schedule to get started.</p>
               </div>
             ) : viewMode === "calendar" ? (
-              <>
-                <div className="flex items-center gap-2 mb-4">
-                  <Switch
-                    id="hide-inactive"
-                    checked={hideInactive}
-                    onCheckedChange={setHideInactive}
-                  />
-                  <Label htmlFor="hide-inactive" className="text-sm text-muted-foreground cursor-pointer">
-                    Hide inactive schedules
-                  </Label>
-                </div>
-                <WeeklyCalendarView
-                  schedules={hideInactive ? schedules.filter(s => s.is_active) : schedules}
-                  conflicts={conflicts}
-                  onEditSchedule={openEditDialog}
-                />
-              </>
+              <WeeklyCalendarView
+                schedules={hideInactive ? schedules.filter(s => s.is_active) : schedules}
+                conflicts={conflicts}
+                onEditSchedule={openEditDialog}
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -664,7 +664,7 @@ export default function ClassSchedules() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedules.map((schedule) => (
+                  {(hideInactive ? schedules.filter(s => s.is_active) : schedules).map((schedule) => (
                     <TableRow key={schedule.id}>
                       <TableCell className="font-medium">
                         {DAYS_OF_WEEK.find((d) => d.value === schedule.day_of_week)?.label}
