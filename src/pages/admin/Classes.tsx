@@ -113,7 +113,7 @@ export default function Classes() {
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['admin-class-sessions-day', selectedDateStr],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const query = supabase
         .from('class_sessions')
         .select(`
           *,
@@ -121,12 +121,17 @@ export default function Classes() {
           instructors (id, first_name, last_name)
         `)
         .eq('session_date', selectedDateStr)
-        .eq('class_types.is_active', true)
         .order('start_time');
+      const { data, error } = await query;
       if (error) throw error;
       return data as ClassSession[];
     },
   });
+
+  // Filter out sessions from inactive class types unless toggle is on
+  const filteredSessions = showInactive
+    ? sessions
+    : sessions.filter(s => s.class_types && (s.class_types as any).is_active !== false);
 
   // Fetch attendee previews for all sessions on this day
   const sessionIds = sessions.map(s => s.id);
