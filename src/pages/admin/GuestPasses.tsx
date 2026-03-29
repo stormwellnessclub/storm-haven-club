@@ -153,6 +153,8 @@ export default function GuestPasses() {
           phoneNumber: phoneNumber.trim() || undefined,
           validDate: visitDate ? format(visitDate, "yyyy-MM-dd") : undefined,
           memberReferral: memberReferral.trim() || undefined,
+          quantity: isAdmin() ? quantity : 1,
+          customPrice: isAdmin() && applyDiscount ? customPrice : undefined,
           successUrl: `${origin}/admin/guest-passes?purchase=success`,
           cancelUrl: `${origin}/admin/guest-passes?purchase=cancelled`,
         },
