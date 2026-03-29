@@ -223,6 +223,7 @@ function KioskSupportPanel() {
 // ─── Today's Classes ────────────────────────────────────────────────
 function TodaysClasses() {
   const today = format(new Date(), "yyyy-MM-dd");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const { data: sessions } = useQuery({
     queryKey: ["kiosk-todays-classes", today],
     queryFn: async () => {
@@ -247,24 +248,36 @@ function TodaysClasses() {
       </CardHeader>
       <CardContent>
         {sessions && sessions.length > 0 ? (
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Class</TableHead><TableHead>Time</TableHead><TableHead>Booked</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {sessions.map((s: any) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-medium">{s.class_types?.name || "Unknown"}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)}</TableCell>
-                  <TableCell>
-                    <Badge variant={s.current_enrollment >= s.max_capacity ? "destructive" : "secondary"}>
+          <div className="space-y-1">
+            {sessions.map((s: any) => {
+              const isExpanded = expandedId === s.id;
+              return (
+                <div key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-left hover:bg-muted/50 transition-colors"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="font-medium text-sm flex-1 truncate">{s.class_types?.name || "Unknown"}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)}</span>
+                    <Badge variant={s.current_enrollment >= s.max_capacity ? "destructive" : "secondary"} className="shrink-0">
                       {s.current_enrollment}/{s.max_capacity}
                     </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </button>
+                  {isExpanded && (
+                    <div className="ml-6 border-l-2 border-muted pl-3 mb-2">
+                      <KioskClassRoster sessionId={s.id} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground text-center py-8">No classes scheduled today</p>
         )}
