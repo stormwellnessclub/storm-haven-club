@@ -1716,13 +1716,15 @@ serve(async (req) => {
           confirm: true,
           return_url: `${Deno.env.get('SUPABASE_URL') || 'https://localhost'}/`,
           metadata: {
-            type: 'manual_charge',
+            type: paymentType3ds || 'manual_charge',
             member_id: memberIdForLog || 'application',
             application_id: applicationIdForLog || '',
             charged_by: user.id,
             customer_name: customerName,
             base_amount: String(amount),
             processing_fee: String(processingFee3ds),
+            ...(taxAmount3ds ? { tax_amount: String(taxAmount3ds) } : {}),
+            ...(bodySubtotal3ds ? { subtotal: String(bodySubtotal3ds) } : {}),
           },
         });
 

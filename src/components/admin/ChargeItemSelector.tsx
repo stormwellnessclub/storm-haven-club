@@ -482,10 +482,24 @@ export function ChargeItemSelector({
         }
         toast.success(`Manual payment of $${cartTotalBeforeFee.toFixed(2)} recorded`);
       } else {
+        // Determine dominant payment type for tax reporting
+        const hasCafe = cartItems.some((item) => item.isCafe);
+        const hasMerch = cartItems.some((item) => item.chargeType === "merch");
+        let paymentType = "manual_charge";
+        if (hasCafe && !hasMerch) paymentType = "cafe_order";
+        else if (hasMerch && !hasCafe) paymentType = "merch_order";
+        else if (hasCafe && hasMerch) paymentType = "cafe_order"; // mixed defaults to café
+
+        const taxAmountCents = Math.round(cartCafeTax * 100);
+        const subtotalCents = Math.round(cartSubtotal * 100);
+
         const chargeBody: any = {
           action: "charge_saved_card_with_3ds",
           amount: amountInCents,
           description: desc,
+          taxAmount: taxAmountCents,
+          subtotal: subtotalCents,
+          payment_type: paymentType,
         };
         if (nonMember?.stripeCustomerId) {
           chargeBody.stripeCustomerId = nonMember.stripeCustomerId;
