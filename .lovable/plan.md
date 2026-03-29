@@ -1,25 +1,32 @@
 
 
-# Hide Deactivated Classes from Admin Views by Default
+# Show Waitlist Count + Clarify Waitlist Payment Flow
 
-## Problem
-Deactivated class schedules still show up in admin views, causing confusion:
-1. **Class Schedules list view** — shows all schedules with no filter (only the calendar view has a "Hide inactive" toggle)
-2. **Daily Sessions view** (`Classes.tsx`) — filters by `class_types.is_active` but doesn't filter out sessions generated from deactivated schedules
+## How waitlist payment currently works (no code changes needed)
 
-## Changes
+- **Joining the waitlist does NOT charge anything** — no credits deducted, no pass consumed
+- When a spot opens, the system notifies the next person via email
+- That person must then **book the class normally** through the booking modal, choosing credits or a pass at that point
+- If they don't claim within the expiration window, the spot goes to the next person
+- So the "waitlisted people with credits" you see still have those credits — they haven't been charged yet
 
-### 1. ClassSchedules.tsx — Filter inactive from list view too
-- Apply the same `hideInactive` toggle to the **list/table view**, not just the calendar
-- Move the toggle above both views so it applies regardless of view mode
-- Default `hideInactive` to **true** so deactivated schedules are hidden by default (admin can toggle to show them)
+## Code changes: Show waitlist count
 
-### 2. Classes.tsx — Dim or badge deactivated-schedule sessions
-- Sessions generated from inactive schedules should either be hidden by default or shown with a clear "Inactive" badge
-- Add a toggle similar to the schedules page: "Show inactive" (off by default)
-- Query can join on `class_schedules.is_active` or check the session's source schedule status
+### 1. Add a waitlist count query
+Create a hook or extend `useClassSessions` to fetch the count of active waitlist entries per session. A simple approach: query `class_waitlist` grouped by `session_id` where `status` in (`waiting`, `notified`), returning a `Record<session_id, count>`.
 
-### Files to edit
-- `src/pages/admin/ClassSchedules.tsx` — move toggle above view switcher, apply filter to list view, default to true
-- `src/pages/admin/Classes.tsx` — add inactive schedule filtering/indication
+### 2. Schedule page — show "(X waitlisted)" next to "Full"
+In `src/pages/Schedule.tsx`, where it currently shows `"Full"` (line 299), append the waitlist count: e.g., **"Full · 3 waitlisted"**. No names shown — just the number.
+
+### 3. ClassCard component — show waitlist count
+In `src/components/booking/ClassCard.tsx`, where it shows `"Full"` (line 97), similarly show the count.
+
+### 4. BookingModal — show waitlist count when class is full
+In `src/components/booking/BookingModal.tsx`, the "Class is Full" alert can show "X people on waitlist" to set expectations.
+
+### Files to change
+- **Create/extend**: Hook to fetch waitlist counts per session (can be added to `useWaitlist.ts`)
+- **Edit**: `src/pages/Schedule.tsx` — show count next to "Full"
+- **Edit**: `src/components/booking/ClassCard.tsx` — show count next to "Full"
+- **Edit**: `src/components/booking/BookingModal.tsx` — show count in the full-class alert
 
