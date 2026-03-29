@@ -131,6 +131,9 @@ export default function GuestPasses() {
     setGuestGender('');
     setVisitDate(new Date());
     setMemberReferral('');
+    setQuantity(1);
+    setApplyDiscount(false);
+    setCustomPrice(GUEST_PASS_PRICE);
   };
 
   const handleCreatePass = async () => {
