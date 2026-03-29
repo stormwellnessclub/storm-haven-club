@@ -11,8 +11,10 @@ import {
 import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
   ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake,
-  CircleDot, Bike, Activity, CalendarDays,
+  CircleDot, Bike, Activity, CalendarDays, CalendarIcon,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { BookingModal } from "@/components/booking/BookingModal";
 import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
@@ -71,6 +73,8 @@ export default function Schedule() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const { data: myBookings } = useMyBookings();
   const bookedSessionIds = useMemo(() => {
@@ -137,8 +141,20 @@ export default function Schedule() {
   const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 0 }));
 
   const visibleWeekDays = useMemo(() => {
+    if (selectedDate) {
+      return [startOfDay(selectedDate)];
+    }
     return weekDays.filter((day) => !isBefore(day, today) || isToday(day));
-  }, [weekDays, today]);
+  }, [weekDays, today, selectedDate]);
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      const d = startOfDay(date);
+      setSelectedDate(d);
+      setWeekStart(startOfWeek(d, { weekStartsOn: 0 }));
+      setCalendarOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (todayRef.current) {
@@ -192,26 +208,74 @@ export default function Schedule() {
               ))}
             </div>
 
-            {/* Week navigation */}
+            {/* Week navigation + date picker */}
             <div className="flex items-center gap-2">
+              {selectedDate ? (
+                <>
+                  <span className="text-sm font-medium">
+                    {format(selectedDate, "EEEE, MMMM d, yyyy")}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedDate(null)}
+                  >
+                    Back to week
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setWeekStart((w) => addWeeks(w, -1))}
+                    disabled={!canGoPrev}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium min-w-[180px] text-center">
+                    {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setWeekStart((w) => addWeeks(w, 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+
               <Button
                 variant="outline"
-                size="icon"
-                onClick={() => setWeekStart((w) => addWeeks(w, -1))}
-                disabled={!canGoPrev}
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  const t = startOfDay(new Date());
+                  setSelectedDate(t);
+                  setWeekStart(startOfWeek(t, { weekStartsOn: 0 }));
+                }}
               >
-                <ChevronLeft className="h-4 w-4" />
+                Today
               </Button>
-              <span className="text-sm font-medium min-w-[180px] text-center">
-                {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setWeekStart((w) => addWeeks(w, 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <CalendarIcon className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate || undefined}
+                    onSelect={handleDateSelect}
+                    disabled={(date) => isBefore(startOfDay(date), today)}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
