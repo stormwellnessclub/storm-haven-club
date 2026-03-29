@@ -55,16 +55,14 @@ export function useJoinWaitlist() {
     mutationFn: async ({ sessionId }: { sessionId: string }) => {
       if (!user) throw new Error("Please sign in first.");
 
-      // Get next position
-      const { data: maxPos } = await supabase
-        .from("class_waitlist")
-        .select("position")
-        .eq("session_id", sessionId)
-        .order("position", { ascending: false })
-        .limit(1)
-        .single();
+      // Get next position using SECURITY DEFINER function (bypasses RLS)
+      const { data: posData, error: posError } = await supabase.rpc(
+        "get_next_waitlist_position",
+        { p_session_id: sessionId }
+      );
 
-      const nextPosition = (maxPos?.position ?? 0) + 1;
+      if (posError) throw posError;
+      const nextPosition = posData as number;
 
       const { error } = await supabase.from("class_waitlist").insert({
         session_id: sessionId,
