@@ -1,11 +1,25 @@
 
 
-# Fix: Show Amount Owed Prominently + Review Failed Payment Email
+# Hide Deactivated Classes from Admin Views by Default
 
-## What's actually happening now
+## Problem
+Deactivated class schedules still show up in admin views, causing confusion:
+1. **Class Schedules list view** — shows all schedules with no filter (only the calendar view has a "Hide inactive" toggle)
+2. **Daily Sessions view** (`Classes.tsx`) — filters by `class_types.is_active` but doesn't filter out sessions generated from deactivated schedules
 
-1. **Amount owed IS tracked** — the ArrearsCard component exists and shows total debt with period-by-period breakdown, but it's hidden on the **Membership tab**. The default tab is "Profile", so when you open a member like Shireen, you never see it unless you click over to Membership.
+## Changes
 
-2. **Failed payment emails ARE being sent** — when Stripe reports `invoice.payment_failed`, the webhook already sends:
-   - A **member-facing email** ("Payment Issue") with the amount, failure reason, next retry date, and a button to update their payment method
-   - An **admin alert email** to hello@stormwellnessclub.com with
+### 1. ClassSchedules.tsx — Filter inactive from list view too
+- Apply the same `hideInactive` toggle to the **list/table view**, not just the calendar
+- Move the toggle above both views so it applies regardless of view mode
+- Default `hideInactive` to **true** so deactivated schedules are hidden by default (admin can toggle to show them)
+
+### 2. Classes.tsx — Dim or badge deactivated-schedule sessions
+- Sessions generated from inactive schedules should either be hidden by default or shown with a clear "Inactive" badge
+- Add a toggle similar to the schedules page: "Show inactive" (off by default)
+- Query can join on `class_schedules.is_active` or check the session's source schedule status
+
+### Files to edit
+- `src/pages/admin/ClassSchedules.tsx` — move toggle above view switcher, apply filter to list view, default to true
+- `src/pages/admin/Classes.tsx` — add inactive schedule filtering/indication
+
