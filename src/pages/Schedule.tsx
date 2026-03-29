@@ -19,7 +19,7 @@ import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useMyBookings } from "@/hooks/useBooking";
-import { useWaitlistStatus } from "@/hooks/useWaitlist";
+import { useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
 
 type CategoryFilter = "all" | "pilates_cycling" | "aerobics" | "other";
 
@@ -111,6 +111,7 @@ export default function Schedule() {
 
   const allSessionIds = useMemo(() => sessions.map(s => s.id), [sessions]);
   const { data: waitlistStatus } = useWaitlistStatus(allSessionIds);
+  const { data: waitlistCounts } = useWaitlistCounts(allSessionIds);
 
   const filteredSessions = useMemo(() => {
     const now = new Date();
@@ -296,7 +297,7 @@ export default function Schedule() {
                                   <span className="flex items-center gap-1">
                                     <Users className="w-3 h-3" />
                                     {isFull ? (
-                                      <span className="text-destructive font-medium">Full</span>
+                                      <span className="text-destructive font-medium">Full{waitlistCounts?.[session.id] ? ` · ${waitlistCounts[session.id]} waitlisted` : ""}</span>
                                     ) : (
                                       `${spotsLeft} spots`
                                     )}

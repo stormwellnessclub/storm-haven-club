@@ -13,9 +13,10 @@ interface ClassCardProps {
   isOnWaitlist?: boolean;
   bookingDisabled?: boolean;
   imageUrl?: string | null;
+  waitlistCount?: number;
 }
 
-export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false, imageUrl }: ClassCardProps) {
+export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false, imageUrl, waitlistCount = 0 }: ClassCardProps) {
   const spotsRemaining = session.max_capacity - session.current_enrollment;
   const isFull = spotsRemaining <= 0;
   const isLowSpots = spotsRemaining > 0 && spotsRemaining <= 3;
@@ -95,7 +96,7 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
               }
             >
               {isFull
-                ? "Full"
+                ? `Full${waitlistCount > 0 ? ` · ${waitlistCount} waitlisted` : ""}`
                 : `${spotsRemaining} spot${spotsRemaining !== 1 ? "s" : ""} left`}
             </span>
           </div>

@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { useAllAgreements } from "@/hooks/useAllAgreements";
-import { useJoinWaitlist, useWaitlistStatus } from "@/hooks/useWaitlist";
+import { useJoinWaitlist, useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +64,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const category = session?.class_type.category || "aerobics";
   const { data: creditsData, isLoading: creditsLoading } = useAvailableCreditsForCategory(category);
   const { data: waitlistStatus } = useWaitlistStatus(session ? [session.id] : []);
+  const { data: waitlistCounts } = useWaitlistCounts(session ? [session.id] : []);
+  const waitlistCount = session ? (waitlistCounts?.[session.id] || 0) : 0;
   const { data: agreements } = useAllAgreements();
 
   // Liability waiver PDF URL from agreements
@@ -198,7 +200,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             )}
             <div className="text-sm font-medium">
               {isClassFull ? (
-                <span className="text-destructive">Class is full</span>
+                <span className="text-destructive">Class is full{waitlistCount > 0 ? ` · ${waitlistCount} on waitlist` : ""}</span>
               ) : (
                 <>{spotsRemaining} spot{spotsRemaining !== 1 ? "s" : ""} remaining</>
               )}
@@ -409,6 +411,9 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                   <AlertTitle>Class is Full</AlertTitle>
                   <AlertDescription className="mt-1">
                     Join the waitlist and we'll notify you if a spot opens up.
+                    {waitlistCount > 0 && (
+                      <span className="block mt-1 text-muted-foreground">{waitlistCount} {waitlistCount === 1 ? "person" : "people"} currently on the waitlist.</span>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}

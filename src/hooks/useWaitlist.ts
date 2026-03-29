@@ -3,6 +3,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+export function useWaitlistCounts(sessionIds: string[]) {
+  return useQuery({
+    queryKey: ["waitlist-counts", sessionIds],
+    enabled: sessionIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("class_waitlist")
+        .select("session_id")
+        .in("session_id", sessionIds)
+        .in("status", ["waiting", "notified"]);
+
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      for (const entry of data || []) {
+        counts[entry.session_id] = (counts[entry.session_id] || 0) + 1;
+      }
+      return counts;
+    },
+  });
+}
+
 export function useWaitlistStatus(sessionIds: string[]) {
   const { user } = useAuth();
 
