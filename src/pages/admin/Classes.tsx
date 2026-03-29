@@ -39,6 +39,7 @@ interface ClassSession {
     id: string;
     name: string;
     category: string;
+    is_active: boolean;
   } | null;
   instructors: {
     id: string;
