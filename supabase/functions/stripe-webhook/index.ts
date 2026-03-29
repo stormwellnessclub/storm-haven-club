@@ -611,6 +611,7 @@ serve(async (req) => {
             const userId = metadata.user_id; // Admin user who sold the pass
             const guestName = metadata.guest_name;
             const guestEmail = metadata.guest_email || null;
+            const passQuantity = Math.max(1, parseInt(metadata.quantity || '1') || 1);
 
             if (!userId || !guestName) {
               logError("Missing required metadata for guest_pass", "GUEST_PASS");
@@ -621,31 +622,40 @@ serve(async (req) => {
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + 1); // 1 day
 
-            // Create guest pass record
+            // Calculate per-pass price
+            const customPriceMeta = metadata.custom_price;
+            const perPassPrice = customPriceMeta ? parseFloat(customPriceMeta) : (session.amount_total ? session.amount_total / 100 / passQuantity : 60.00);
+
+            // Create guest pass records (one per quantity)
             try {
-              const { error: passError } = await supabase
-                .from('guest_passes')
-                .insert({
+              const passRecords = [];
+              for (let i = 0; i < passQuantity; i++) {
+                passRecords.push({
                   guest_name: guestName,
                   guest_email: guestEmail,
                   guest_gender: metadata.guest_gender || null,
                   phone_number: metadata.phone_number || null,
                   valid_date: metadata.valid_date || null,
                   member_referral: metadata.member_referral || null,
-                  user_id: userId, // Admin user who sold the pass
-                  price_paid: session.amount_total ? session.amount_total / 100 : 60.00,
+                  user_id: userId,
+                  price_paid: perPassPrice,
                   status: 'active',
                   expires_at: expiresAt.toISOString(),
                   stripe_payment_id: session.payment_intent as string,
                   sold_by: userId,
                 });
+              }
+
+              const { error: passError } = await supabase
+                .from('guest_passes')
+                .insert(passRecords);
 
               if (passError) {
                 logError(passError, "GUEST_PASS_CREATION");
                 return errorResponse(passError, "GUEST_PASS_CREATION");
               }
 
-              logStep("Guest pass created", { userId, guestName, expiresAt: expiresAt.toISOString() });
+              logStep("Guest pass(es) created", { userId, guestName, quantity: passQuantity, expiresAt: expiresAt.toISOString() });
             } catch (passError) {
               logError(passError, "GUEST_PASS_CREATION");
               return errorResponse(passError, "GUEST_PASS_CREATION");

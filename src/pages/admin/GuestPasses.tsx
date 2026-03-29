@@ -361,8 +361,42 @@ export default function GuestPasses() {
                     <Input id="memberReferral" placeholder="Optional" value={memberReferral} onChange={(e) => setMemberReferral(e.target.value)} />
                   </div>
 
+                  {/* Admin-only: Quantity & Discount */}
+                  {isAdmin() && (
+                    <div className="space-y-3 border-t pt-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="quantity">Quantity</Label>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={quantity <= 1} onClick={() => setQuantity(q => Math.max(1, q - 1))}>−</Button>
+                          <Input id="quantity" type="number" min={1} max={10} value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))} className="w-16 text-center" />
+                          <Button type="button" variant="outline" size="icon" className="h-9 w-9" disabled={quantity >= 10} onClick={() => setQuantity(q => Math.min(10, q + 1))}>+</Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" id="applyDiscount" checked={applyDiscount} onChange={(e) => { setApplyDiscount(e.target.checked); if (!e.target.checked) setCustomPrice(GUEST_PASS_PRICE); }} className="rounded" />
+                          <Label htmlFor="applyDiscount" className="font-normal cursor-pointer">Apply discount</Label>
+                        </div>
+                        {applyDiscount && (
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            <Input type="number" min={0} step={1} value={customPrice} onChange={(e) => setCustomPrice(Math.max(0, parseFloat(e.target.value) || 0))} className="w-24" placeholder="Price per pass" />
+                            <span className="text-sm text-muted-foreground">per pass</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-3 rounded-md bg-muted/50 text-sm space-y-1">
+                        <div className="flex justify-between"><span>Subtotal</span><span>${((applyDiscount ? customPrice : GUEST_PASS_PRICE) * quantity).toFixed(2)}</span></div>
+                        <div className="flex justify-between text-muted-foreground"><span>Processing fee</span><span>~${(((applyDiscount ? customPrice : GUEST_PASS_PRICE) * quantity * 0.029) + 0.30).toFixed(2)}</span></div>
+                        <div className="flex justify-between font-medium border-t pt-1"><span>Est. Total</span><span>${(((applyDiscount ? customPrice : GUEST_PASS_PRICE) * quantity) * 1.029 + 0.30).toFixed(2)}</span></div>
+                      </div>
+                    </div>
+                  )}
+
                   <Button className="w-full" disabled={!guestName || isProcessing || isMaleBlocked} onClick={handleCreatePass}>
-                    {isProcessing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</> : <><Plus className="h-4 w-4 mr-2" />Create & Checkout</>}
+                    {isProcessing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</> : <><Plus className="h-4 w-4 mr-2" />{quantity > 1 ? `Create ${quantity} Passes & Checkout` : 'Create & Checkout'}</>}
                   </Button>
                 </CardContent>
               </Card>
