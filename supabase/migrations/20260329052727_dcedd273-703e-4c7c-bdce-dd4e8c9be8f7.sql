@@ -1,0 +1,1 @@
+UPDATE kiosk_settings SET pin_hash = crypt('0201', gen_salt('bf')), updated_at = now() WHERE id = 'default';
