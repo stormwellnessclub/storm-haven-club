@@ -200,7 +200,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             )}
             <div className="text-sm font-medium">
               {isClassFull ? (
-                <span className="text-destructive">Class is full</span>
+                <span className="text-destructive">Class is full{waitlistCount > 0 ? ` · ${waitlistCount} on waitlist` : ""}</span>
               ) : (
                 <>{spotsRemaining} spot{spotsRemaining !== 1 ? "s" : ""} remaining</>
               )}
