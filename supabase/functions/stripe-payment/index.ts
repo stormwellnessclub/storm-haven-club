@@ -1318,7 +1318,7 @@ serve(async (req) => {
       }
 
       case 'charge_saved_card': {
-        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description } = body;
+        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount, subtotal: bodySubtotal, payment_type } = body;
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
