@@ -1,0 +1,1 @@
+UPDATE kiosk_settings SET pin_hash = extensions.crypt('0201', extensions.gen_salt('bf')), updated_at = now() WHERE id = 'default';
