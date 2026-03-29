@@ -96,7 +96,7 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
               }
             >
               {isFull
-                ? "Full"
+                ? `Full${waitlistCount > 0 ? ` · ${waitlistCount} waitlisted` : ""}`
                 : `${spotsRemaining} spot${spotsRemaining !== 1 ? "s" : ""} left`}
             </span>
           </div>
