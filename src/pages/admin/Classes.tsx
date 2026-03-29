@@ -103,6 +103,7 @@ export default function Classes() {
   const [cancellationReason, setCancellationReason] = useState("");
   const [hideFromMembers, setHideFromMembers] = useState(true);
   const [view, setView] = useState<"list" | "calendar">("list");
+  const [showInactive, setShowInactive] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');

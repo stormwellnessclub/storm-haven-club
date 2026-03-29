@@ -645,23 +645,11 @@ export default function ClassSchedules() {
                 <p className="text-sm mt-1">Add your first schedule to get started.</p>
               </div>
             ) : viewMode === "calendar" ? (
-              <>
-                <div className="flex items-center gap-2 mb-4">
-                  <Switch
-                    id="hide-inactive"
-                    checked={hideInactive}
-                    onCheckedChange={setHideInactive}
-                  />
-                  <Label htmlFor="hide-inactive" className="text-sm text-muted-foreground cursor-pointer">
-                    Hide inactive schedules
-                  </Label>
-                </div>
-                <WeeklyCalendarView
-                  schedules={hideInactive ? schedules.filter(s => s.is_active) : schedules}
-                  conflicts={conflicts}
-                  onEditSchedule={openEditDialog}
-                />
-              </>
+              <WeeklyCalendarView
+                schedules={hideInactive ? schedules.filter(s => s.is_active) : schedules}
+                conflicts={conflicts}
+                onEditSchedule={openEditDialog}
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -676,7 +664,7 @@ export default function ClassSchedules() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedules.map((schedule) => (
+                  {(hideInactive ? schedules.filter(s => s.is_active) : schedules).map((schedule) => (
                     <TableRow key={schedule.id}>
                       <TableCell className="font-medium">
                         {DAYS_OF_WEEK.find((d) => d.value === schedule.day_of_week)?.label}
