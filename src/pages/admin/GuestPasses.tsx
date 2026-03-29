@@ -63,6 +63,12 @@ export default function GuestPasses() {
   const [memberReferral, setMemberReferral] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Admin bulk/discount state
+  const { isAdmin } = useUserRoles();
+  const [quantity, setQuantity] = useState(1);
+  const [applyDiscount, setApplyDiscount] = useState(false);
+  const [customPrice, setCustomPrice] = useState<number>(GUEST_PASS_PRICE);
+
   // Data state
   const [passes, setPasses] = useState<GuestPass[]>([]);
   const [isLoadingPasses, setIsLoadingPasses] = useState(false);
