@@ -1,43 +1,31 @@
 
 
-# Fix Guest Pass Admin Controls & Profile Visibility
+# Add Per-Session Capacity Override on ClassRoster
 
-## Problems
-1. **No expiration date control** — The Quick Sale form has no field to set a custom expiration date. The webhook hardcodes `expiresAt` to 1 day from purchase.
-2. **Price/discount field exists but needs clearer UX** — The discount toggle works but the custom price isn't passed through to the expiration date metadata.
-3. **Guest passes don't show on member/non-member profiles** — The `guest_passes` table stores `user_id` as the *admin who sold* the pass, not the guest. So the MemberDetail query (`guest_passes.user_id = member.user_id`) only finds passes where that member was the seller. Non-member profiles have no guest pass section at all.
+## What
+Add an inline edit control on the ClassRoster page (`src/pages/admin/ClassRoster.tsx`) so admins can adjust `max_capacity` for a single session (e.g., today's "Buns of Steel") without affecting the schedule template or other sessions.
 
-## Changes
+## How
 
-### 1. Add Expiration Date Field to Quick Sale (`src/pages/admin/GuestPasses.tsx`)
-- Add `expirationDate` state (default: 1 day from visit date) inside the admin-only section
-- Add a date picker labeled "Expiration Date" next to quantity and discount
-- Pass `expirationDate` to the edge function as `expiresAt` metadata
+### 1. Add editable capacity display (ClassRoster.tsx, ~line 455-459)
+Replace the static `{bookings.length}/{session.max_capacity}` display with a clickable/editable version:
+- Show a pencil icon next to the capacity number
+- On click, swap to a small number input + save/cancel buttons
+- On save, update `class_sessions.max_capacity` for just that session ID
+- Refresh session data after save
 
-### 2. Pass Expiration Through Edge Function (`supabase/functions/stripe-payment/index.ts`)
-- Accept `expiresAt` in the `create_guest_pass_checkout` metadata
-- Add it to the Stripe session metadata as `expires_at`
-
-### 3. Use Custom Expiration in Webhook (`supabase/functions/stripe-webhook/index.ts`)
-- In the `guest_pass` handler (~line 622), check for `metadata.expires_at`
-- If present, use it instead of the hardcoded 1-day expiration
-- Fallback to 1 day if not provided (preserves behavior for public/non-admin sales)
-
-### 4. Link Guest Passes to Guest Profiles
-The `guest_passes` table has `guest_email` and `guest_name` fields. To show passes on a person's profile:
-
-**MemberDetail.tsx** (~line 387): Change the query to also match by email:
-```
-.or(`user_id.eq.${member.user_id},guest_email.ilike.${member.email}`)
+### 2. Database update
+No schema changes needed — `class_sessions` already has a `max_capacity` column. The update is a simple:
+```sql
+UPDATE class_sessions SET max_capacity = :newValue WHERE id = :sessionId
 ```
 
-**NonMemberDetail.tsx**: Add a guest passes query matching by `guest_email` (using the non-member's email) and display a "Guest Passes" section in the profile tabs.
+### 3. Behavior
+- Only admins/staff see the edit control (same role gating already on ClassRoster)
+- Changing capacity on one session does NOT touch the `class_schedules` template or any other session
+- If new capacity > current enrollment, the session shows open slots immediately
+- If new capacity < current enrollment, show a warning but still allow it (no one gets kicked)
 
-### 5. Summary of the price display
-The admin discount controls (quantity + custom price) already work and flow through Stripe correctly. The only missing piece is the expiration date — with that added, admins will have full control over quantity, price, and expiration.
-
-## Result
-- Admins see quantity, discount, and expiration date controls on Quick Sale
-- Guest passes appear on the correct person's profile (member or non-member) matched by email
-- Non-admin staff see the standard single-pass $60 form with no overrides
+### 4. Files changed
+- `src/pages/admin/ClassRoster.tsx` — add inline capacity editor in the header area
 
