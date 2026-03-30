@@ -268,6 +268,45 @@ export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
               )}
             </CardContent>
           </Card>
+
+          {/* Guest Passes */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Ticket className="h-4 w-4" />
+                Guest Passes ({guestPasses?.length || 0})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {guestPassesLoading ? (
+                <div className="text-sm text-muted-foreground">Loading...</div>
+              ) : !guestPasses?.length ? (
+                <p className="text-sm text-muted-foreground">No guest passes</p>
+              ) : (
+                <div className="space-y-2">
+                  {guestPasses.map((gp: any) => (
+                    <div key={gp.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <div>
+                        <p className="text-sm font-medium">{gp.guest_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {gp.valid_date ? format(new Date(gp.valid_date), "MMM d, yyyy") : gp.purchased_at ? format(new Date(gp.purchased_at), "MMM d, yyyy") : "—"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge
+                          variant={gp.status === "active" ? "default" : gp.status === "exhausted" ? "secondary" : "outline"}
+                          className="text-xs"
+                        >
+                          {gp.status === "exhausted" ? "Used" : gp.status}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">${gp.price_paid}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </SheetContent>
     </Sheet>
