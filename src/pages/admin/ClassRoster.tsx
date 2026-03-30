@@ -167,6 +167,23 @@ export default function ClassRoster() {
     queryClient.invalidateQueries({ queryKey: ["soft-launch-booking-counts"] });
   };
 
+  // Update capacity mutation
+  const updateCapacityMutation = useMutation({
+    mutationFn: async (newCapacity: number) => {
+      const { error } = await supabase
+        .from("class_sessions")
+        .update({ max_capacity: newCapacity })
+        .eq("id", sessionId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Capacity updated");
+      invalidateAll();
+      setEditingCapacity(false);
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to update capacity"),
+  });
+
   // Check in mutation
   const checkInMutation = useMutation({
     mutationFn: async (bookingId: string) => {
