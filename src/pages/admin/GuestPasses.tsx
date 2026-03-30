@@ -163,6 +163,7 @@ export default function GuestPasses() {
           memberReferral: memberReferral.trim() || undefined,
           quantity: isAdmin() ? quantity : 1,
           customPrice: isAdmin() && applyDiscount ? customPrice : undefined,
+          expiresAt: isAdmin() && expirationDate ? expirationDate.toISOString() : undefined,
           successUrl: `${origin}/admin/guest-passes?purchase=success`,
           cancelUrl: `${origin}/admin/guest-passes?purchase=cancelled`,
         },
