@@ -473,7 +473,36 @@ export default function ClassRoster() {
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <p className="text-2xl font-bold">{bookings.length}/{session.max_capacity}</p>
+            {editingCapacity ? (
+              <div className="flex items-center gap-1">
+                <span className="text-2xl font-bold">{bookings.length}/</span>
+                <Input
+                  type="number"
+                  min={1}
+                  value={capacityValue}
+                  onChange={(e) => setCapacityValue(Number(e.target.value))}
+                  className="w-16 h-8 text-center text-lg font-bold"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") updateCapacityMutation.mutate(capacityValue);
+                    if (e.key === "Escape") setEditingCapacity(false);
+                  }}
+                />
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateCapacityMutation.mutate(capacityValue)} disabled={updateCapacityMutation.isPending}>
+                  <Check className="h-4 w-4 text-green-600" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingCapacity(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <p className="text-2xl font-bold">{bookings.length}/{session.max_capacity}</p>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setCapacityValue(session.max_capacity); setEditingCapacity(true); }}>
+                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                </Button>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">Enrolled</p>
           </div>
           {session.is_cancelled && <Badge variant="destructive">Cancelled</Badge>}
