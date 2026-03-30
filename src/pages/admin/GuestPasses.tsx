@@ -139,6 +139,9 @@ export default function GuestPasses() {
     setQuantity(1);
     setApplyDiscount(false);
     setCustomPrice(GUEST_PASS_PRICE);
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    setExpirationDate(d);
   };
 
   const handleCreatePass = async () => {
