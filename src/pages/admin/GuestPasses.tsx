@@ -396,6 +396,21 @@ export default function GuestPasses() {
                         )}
                       </div>
 
+                      <div className="space-y-2">
+                        <Label>Expiration Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !expirationDate && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {expirationDate ? format(expirationDate, "PPP") : "Select expiration"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={expirationDate} onSelect={setExpirationDate} initialFocus className={cn("p-3 pointer-events-auto")} />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
                       <div className="p-3 rounded-md bg-muted/50 text-sm space-y-1">
                         <div className="flex justify-between"><span>Subtotal</span><span>${((applyDiscount ? customPrice : GUEST_PASS_PRICE) * quantity).toFixed(2)}</span></div>
                         <div className="flex justify-between text-muted-foreground"><span>Processing fee</span><span>~${(((applyDiscount ? customPrice : GUEST_PASS_PRICE) * quantity * 0.029) + 0.30).toFixed(2)}</span></div>

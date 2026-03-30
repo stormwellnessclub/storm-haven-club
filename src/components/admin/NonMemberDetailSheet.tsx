@@ -35,6 +35,21 @@ interface Props {
 export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
   const queryClient = useQueryClient();
 
+  // Fetch guest passes for this user (by email match)
+  const { data: guestPasses, isLoading: guestPassesLoading } = useQuery({
+    queryKey: ["admin-nonmember-guest-passes", account?.email],
+    enabled: !!account?.email && open,
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from("guest_passes" as any)
+        .select("*")
+        .ilike("guest_email", account!.email!)
+        .order("purchased_at", { ascending: false }) as any);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch class passes for this user
   const { data: passes, isLoading: passesLoading } = useQuery({
     queryKey: ["admin-nonmember-passes", account?.user_id],

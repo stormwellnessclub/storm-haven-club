@@ -793,6 +793,7 @@ serve(async (req) => {
             member_referral: body.memberReferral || '',
             quantity: String(passQuantity),
             custom_price: customPriceValue != null ? String(customPriceValue) : '',
+            expires_at: body.expiresAt || '',
           },
         });
 

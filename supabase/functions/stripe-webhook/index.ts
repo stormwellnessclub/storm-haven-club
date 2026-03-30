@@ -618,9 +618,14 @@ serve(async (req) => {
               return errorResponse(new Error("Missing required metadata: user_id or guest_name"), "GUEST_PASS");
             }
 
-            // Guest pass expires 1 day from purchase
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 1); // 1 day
+            // Use custom expiration if provided, otherwise default to 1 day
+            let expiresAt: Date;
+            if (metadata.expires_at) {
+              expiresAt = new Date(metadata.expires_at);
+            } else {
+              expiresAt = new Date();
+              expiresAt.setDate(expiresAt.getDate() + 1);
+            }
 
             // Calculate per-pass price
             const customPriceMeta = metadata.custom_price;

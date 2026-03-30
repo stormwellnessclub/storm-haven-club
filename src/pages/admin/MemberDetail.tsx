@@ -386,7 +386,7 @@ export default function MemberDetail() {
       const { data, error } = await supabase
         .from("guest_passes")
         .select("*")
-        .eq("user_id", member.user_id)
+        .or(`user_id.eq.${member.user_id}${member.email ? `,guest_email.ilike.${member.email}` : ''}`)
         .order("purchased_at", { ascending: false });
       if (error) throw error;
       return data || [];
