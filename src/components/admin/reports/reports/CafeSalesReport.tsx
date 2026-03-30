@@ -24,17 +24,35 @@ const PIE_COLORS = [
   "#ff7300",
 ];
 
+interface NormalizedOrder {
+  id: string;
+  created_at: string;
+  total_amount: number; // dollars
+  items: { name: string; category: string }[];
+  payment_method: string;
+  status: string;
+  source: "manual_charges" | "cafe_orders";
+}
+
+/** Parse item names from manual_charges description like:
+ *  "Cafe - Matcha - Vanilla | Cafe - Banana Mango - (20oz) (incl. MI 6% tax)" */
+function parseDescription(desc: string): { name: string; category: string }[] {
+  // Remove trailing tax note
+  const cleaned = desc.replace(/\s*\(incl\.\s*MI\s*\d+%?\s*tax\)\s*$/i, "");
+  const segments = cleaned.split(" | ");
+  return segments.map((seg) => {
+    const parts = seg.split(" - ").map((p) => p.trim());
+    // parts[0] = "Cafe", parts[1] = item name, rest = variant/size
+    const itemName = parts.length > 1 ? parts.slice(1).filter(p => !p.startsWith("(")).join(" - ") : seg;
+    return { name: itemName || seg, category: "Café" };
+  });
+}
+
 interface OrderItem {
-  name?: string;
-  itemName?: string;
-  item_name?: string;
-  quantity?: number;
-  qty?: number;
-  price?: number;
-  total?: number;
-  category?: string;
-  categoryName?: string;
-  category_name?: string;
+  name?: string; itemName?: string; item_name?: string;
+  quantity?: number; qty?: number;
+  price?: number; total?: number;
+  category?: string; categoryName?: string; category_name?: string;
 }
 
 function extractItems(orderItems: unknown): OrderItem[] {
@@ -50,23 +68,35 @@ function getItemQty(item: OrderItem): number {
   return item.quantity || item.qty || 1;
 }
 
-function getItemTotal(item: OrderItem): number {
-  if (item.total != null) return Number(item.total);
-  if (item.price != null) return Number(item.price) * getItemQty(item);
-  return 0;
-}
-
 function getItemCategory(item: OrderItem): string {
-  return item.category || item.categoryName || item.category_name || "Uncategorized";
+  return item.category || item.categoryName || item.category_name || "Café";
 }
 
 export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
-  const { data: orders, isLoading } = useQuery({
-    queryKey: ["cafe-sales-report", dateRange.start.toISOString(), dateRange.end.toISOString()],
+  // Query manual_charges (primary source — actual Stripe payments)
+  const { data: manualCharges, isLoading: loadingCharges } = useQuery({
+    queryKey: ["cafe-manual-charges", dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("manual_charges")
+        .select("id, created_at, amount, description, status, stripe_payment_intent_id, member_id")
+        .ilike("description", "Cafe%")
+        .eq("status", "succeeded")
+        .gte("created_at", dateRange.start.toISOString())
+        .lte("created_at", dateRange.end.toISOString())
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Query cafe_orders (fallback — cash/member account sales)
+  const { data: cafeOrders, isLoading: loadingOrders } = useQuery({
+    queryKey: ["cafe-orders-report", dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cafe_orders")
-        .select("id, created_at, total_amount, order_items, payment_method, status, member_id")
+        .select("id, created_at, total_amount, order_items, payment_method, status, payment_intent_id")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString())
         .in("status", ["completed", "ready", "preparing", "pending"])
@@ -75,6 +105,8 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
       return data || [];
     },
   });
+
+  const isLoading = loadingCharges || loadingOrders;
 
   if (isLoading) {
     return (
@@ -88,17 +120,56 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
     );
   }
 
-  if (!orders || orders.length === 0) {
+  // Build set of payment_intent_ids from manual_charges to deduplicate
+  const mcPiIds = new Set(
+    (manualCharges || []).map((mc) => mc.stripe_payment_intent_id).filter(Boolean)
+  );
+
+  // Normalize manual_charges → NormalizedOrder
+  const mcOrders: NormalizedOrder[] = (manualCharges || []).map((mc) => ({
+    id: mc.id,
+    created_at: mc.created_at,
+    total_amount: (mc.amount || 0) / 100, // cents → dollars
+    items: parseDescription(mc.description || ""),
+    payment_method: "card",
+    status: "succeeded",
+    source: "manual_charges",
+  }));
+
+  // Normalize cafe_orders (only those NOT already in manual_charges)
+  const coOrders: NormalizedOrder[] = (cafeOrders || [])
+    .filter((co) => !co.payment_intent_id || !mcPiIds.has(co.payment_intent_id))
+    .map((co) => {
+      const items = extractItems(co.order_items);
+      return {
+        id: co.id,
+        created_at: co.created_at,
+        total_amount: co.total_amount || 0,
+        items: items.map((it) => ({
+          name: getItemName(it),
+          category: getItemCategory(it),
+        })),
+        payment_method: co.payment_method || "unknown",
+        status: co.status,
+        source: "cafe_orders" as const,
+      };
+    });
+
+  const orders = [...mcOrders, ...coOrders].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  if (orders.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <Coffee className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>No café orders found for this date range</p>
+        <p>No café sales found for this date range</p>
       </div>
     );
   }
 
   // Summary stats
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  const totalRevenue = orders.reduce((sum, o) => sum + o.total_amount, 0);
   const totalOrders = orders.length;
   const avgOrderValue = totalRevenue / totalOrders;
   const totalTax = totalRevenue * TAX_RATE;
@@ -110,7 +181,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
   orders.forEach((o) => {
     const day = format(parseISO(o.created_at), "yyyy-MM-dd");
     const entry = dailyMap.get(day) || { revenue: 0, orders: 0 };
-    entry.revenue += o.total_amount || 0;
+    entry.revenue += o.total_amount;
     entry.orders += 1;
     dailyMap.set(day, entry);
   });
@@ -121,16 +192,13 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
   // Item aggregation
   const itemMap = new Map<string, { qty: number; revenue: number; category: string }>();
   orders.forEach((o) => {
-    const items = extractItems(o.order_items);
-    items.forEach((item) => {
-      const name = getItemName(item);
-      const qty = getItemQty(item);
-      const total = getItemTotal(item);
-      const cat = getItemCategory(item);
-      const entry = itemMap.get(name) || { qty: 0, revenue: 0, category: cat };
-      entry.qty += qty;
-      entry.revenue += total;
-      itemMap.set(name, entry);
+    const itemCount = o.items.length || 1;
+    const perItemRevenue = o.total_amount / itemCount;
+    o.items.forEach((item) => {
+      const entry = itemMap.get(item.name) || { qty: 0, revenue: 0, category: item.category };
+      entry.qty += 1;
+      entry.revenue += perItemRevenue;
+      itemMap.set(item.name, entry);
     });
   });
   const topItems = Array.from(itemMap.entries())
@@ -156,7 +224,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
     const method = o.payment_method || "Unknown";
     const entry = payMap.get(method) || { count: 0, revenue: 0 };
     entry.count += 1;
-    entry.revenue += o.total_amount || 0;
+    entry.revenue += o.total_amount;
     payMap.set(method, entry);
   });
   const paymentData = Array.from(payMap.entries())
@@ -295,7 +363,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
         </CardContent>
       </Card>
 
-      {/* Individual Orders */}
+      {/* Order Log */}
       <Card>
         <CardHeader><CardTitle className="text-base">Order Log ({orders.length} orders)</CardTitle></CardHeader>
         <CardContent>
@@ -311,15 +379,14 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
             </TableHeader>
             <TableBody>
               {orders.slice(0, 100).map((order) => {
-                const items = extractItems(order.order_items);
-                const itemSummary = items.map((it) => `${getItemName(it)}${getItemQty(it) > 1 ? ` ×${getItemQty(it)}` : ""}`).join(", ");
+                const itemSummary = order.items.map((it) => it.name).join(", ");
                 return (
                   <TableRow key={order.id}>
                     <TableCell className="whitespace-nowrap">{format(parseISO(order.created_at), "MMM d, h:mm a")}</TableCell>
                     <TableCell className="max-w-[300px] truncate" title={itemSummary}>{itemSummary || "—"}</TableCell>
-                    <TableCell className="capitalize">{order.payment_method || "—"}</TableCell>
+                    <TableCell className="capitalize">{order.payment_method}</TableCell>
                     <TableCell className="capitalize">{order.status}</TableCell>
-                    <TableCell className="text-right font-medium">${(order.total_amount || 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-medium">${order.total_amount.toFixed(2)}</TableCell>
                   </TableRow>
                 );
               })}
