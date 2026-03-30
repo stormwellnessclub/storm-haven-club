@@ -1,38 +1,43 @@
 
 
-# Fix Café Sales Report — Use Actual Stripe Sales Data
+# Fix Guest Pass Admin Controls & Profile Visibility
 
-## Problem
-The Café Sales Report queries `cafe_orders` which has only 4 records (3 cancelled, 1 pending). All real café sales go through the POS via `charge_saved_card` and land in `manual_charges` with descriptions starting with "Cafe -". There are dozens of real transactions there that the report completely ignores.
+## Problems
+1. **No expiration date control** — The Quick Sale form has no field to set a custom expiration date. The webhook hardcodes `expiresAt` to 1 day from purchase.
+2. **Price/discount field exists but needs clearer UX** — The discount toggle works but the custom price isn't passed through to the expiration date metadata.
+3. **Guest passes don't show on member/non-member profiles** — The `guest_passes` table stores `user_id` as the *admin who sold* the pass, not the guest. So the MemberDetail query (`guest_passes.user_id = member.user_id`) only finds passes where that member was the seller. Non-member profiles have no guest pass section at all.
 
-## Root Cause
-The POS charges the card via Stripe first, then creates a `cafe_orders` record — but the `cafe_orders` insert is unreliable (RLS issues, errors swallowed by `as any` casting). The actual source of truth for café revenue is `manual_charges` where `description LIKE 'Cafe %'` and `status = 'succeeded'`.
+## Changes
 
-## Fix — Dual-Source Query
+### 1. Add Expiration Date Field to Quick Sale (`src/pages/admin/GuestPasses.tsx`)
+- Add `expirationDate` state (default: 1 day from visit date) inside the admin-only section
+- Add a date picker labeled "Expiration Date" next to quantity and discount
+- Pass `expirationDate` to the edge function as `expiresAt` metadata
 
-Update `src/components/admin/reports/reports/CafeSalesReport.tsx` to pull from **both** `cafe_orders` (for any legitimate orders) **and** `manual_charges` (for Stripe-processed POS sales):
+### 2. Pass Expiration Through Edge Function (`supabase/functions/stripe-payment/index.ts`)
+- Accept `expiresAt` in the `create_guest_pass_checkout` metadata
+- Add it to the Stripe session metadata as `expires_at`
 
-### 1. Add `manual_charges` query
-- Query `manual_charges` where `description ILIKE 'Cafe%'` and `status = 'succeeded'` within the date range
-- Parse item names from the description field (format: `Cafe - ItemName - Variant - (Size) | Cafe - ItemName2...`)
-- Convert amounts from cents to dollars (`amount / 100`)
+### 3. Use Custom Expiration in Webhook (`supabase/functions/stripe-webhook/index.ts`)
+- In the `guest_pass` handler (~line 622), check for `metadata.expires_at`
+- If present, use it instead of the hardcoded 1-day expiration
+- Fallback to 1 day if not provided (preserves behavior for public/non-admin sales)
 
-### 2. Parse item details from descriptions
-The descriptions follow a pattern: `Cafe - Matcha - Vanilla | Cafe - Latte - (20oz) (incl. MI 6% tax)`
-- Split by ` | ` to get individual items
-- Extract item name (second segment after "Cafe - ")
-- This enables the per-item breakdown and top-selling items table
+### 4. Link Guest Passes to Guest Profiles
+The `guest_passes` table has `guest_email` and `guest_name` fields. To show passes on a person's profile:
 
-### 3. Merge data sources
-- Use `manual_charges` as the primary revenue source (it has real Stripe-confirmed payments)
-- Fall back to `cafe_orders` for any orders not captured in manual charges (e.g., cash sales)
-- Deduplicate by checking `payment_intent_id` if both sources have the same transaction
+**MemberDetail.tsx** (~line 387): Change the query to also match by email:
+```
+.or(`user_id.eq.${member.user_id},guest_email.ilike.${member.email}`)
+```
 
-### 4. Keep existing UI intact
-- Same summary cards (Total Revenue, Total Orders, Avg Order Value, Tax Collected)
-- Same daily trend chart, top items table, category breakdown, payment method split, and order log
-- Revenue figures will now reflect actual Stripe charges
+**NonMemberDetail.tsx**: Add a guest passes query matching by `guest_email` (using the non-member's email) and display a "Guest Passes" section in the profile tabs.
+
+### 5. Summary of the price display
+The admin discount controls (quantity + custom price) already work and flow through Stripe correctly. The only missing piece is the expiration date — with that added, admins will have full control over quantity, price, and expiration.
 
 ## Result
-The Café Sales Report will show all real sales data — the dozens of daily transactions currently invisible — with accurate revenue totals and per-item breakdowns parsed from Stripe charge descriptions.
+- Admins see quantity, discount, and expiration date controls on Quick Sale
+- Guest passes appear on the correct person's profile (member or non-member) matched by email
+- Non-admin staff see the standard single-pass $60 form with no overrides
 
