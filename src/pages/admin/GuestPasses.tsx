@@ -68,6 +68,11 @@ export default function GuestPasses() {
   const [quantity, setQuantity] = useState(1);
   const [applyDiscount, setApplyDiscount] = useState(false);
   const [customPrice, setCustomPrice] = useState<number>(GUEST_PASS_PRICE);
+  const [expirationDate, setExpirationDate] = useState<Date | undefined>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d;
+  });
 
   // Data state
   const [passes, setPasses] = useState<GuestPass[]>([]);
