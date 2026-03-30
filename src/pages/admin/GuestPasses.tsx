@@ -68,6 +68,11 @@ export default function GuestPasses() {
   const [quantity, setQuantity] = useState(1);
   const [applyDiscount, setApplyDiscount] = useState(false);
   const [customPrice, setCustomPrice] = useState<number>(GUEST_PASS_PRICE);
+  const [expirationDate, setExpirationDate] = useState<Date | undefined>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d;
+  });
 
   // Data state
   const [passes, setPasses] = useState<GuestPass[]>([]);
@@ -134,6 +139,9 @@ export default function GuestPasses() {
     setQuantity(1);
     setApplyDiscount(false);
     setCustomPrice(GUEST_PASS_PRICE);
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    setExpirationDate(d);
   };
 
   const handleCreatePass = async () => {
@@ -155,6 +163,7 @@ export default function GuestPasses() {
           memberReferral: memberReferral.trim() || undefined,
           quantity: isAdmin() ? quantity : 1,
           customPrice: isAdmin() && applyDiscount ? customPrice : undefined,
+          expiresAt: isAdmin() && expirationDate ? expirationDate.toISOString() : undefined,
           successUrl: `${origin}/admin/guest-passes?purchase=success`,
           cancelUrl: `${origin}/admin/guest-passes?purchase=cancelled`,
         },
@@ -385,6 +394,21 @@ export default function GuestPasses() {
                             <span className="text-sm text-muted-foreground">per pass</span>
                           </div>
                         )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Expiration Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !expirationDate && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {expirationDate ? format(expirationDate, "PPP") : "Select expiration"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={expirationDate} onSelect={setExpirationDate} initialFocus className={cn("p-3 pointer-events-auto")} />
+                          </PopoverContent>
+                        </Popover>
                       </div>
 
                       <div className="p-3 rounded-md bg-muted/50 text-sm space-y-1">

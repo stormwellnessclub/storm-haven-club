@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CreditCard, RefreshCw, ShieldCheck, ShieldX, Package, Calendar, Loader2 } from "lucide-react";
+import { CreditCard, RefreshCw, ShieldCheck, ShieldX, Package, Calendar, Loader2, Ticket } from "lucide-react";
 import { format } from "date-fns";
 
 interface NonMemberAccount {
@@ -34,6 +34,21 @@ interface Props {
 
 export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
   const queryClient = useQueryClient();
+
+  // Fetch guest passes for this user (by email match)
+  const { data: guestPasses, isLoading: guestPassesLoading } = useQuery({
+    queryKey: ["admin-nonmember-guest-passes", account?.email],
+    enabled: !!account?.email && open,
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from("guest_passes" as any)
+        .select("*")
+        .ilike("guest_email", account!.email!)
+        .order("purchased_at", { ascending: false }) as any);
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Fetch class passes for this user
   const { data: passes, isLoading: passesLoading } = useQuery({
@@ -247,6 +262,45 @@ export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
                       >
                         {booking.status}
                       </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Guest Passes */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Ticket className="h-4 w-4" />
+                Guest Passes ({guestPasses?.length || 0})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {guestPassesLoading ? (
+                <div className="text-sm text-muted-foreground">Loading...</div>
+              ) : !guestPasses?.length ? (
+                <p className="text-sm text-muted-foreground">No guest passes</p>
+              ) : (
+                <div className="space-y-2">
+                  {guestPasses.map((gp: any) => (
+                    <div key={gp.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <div>
+                        <p className="text-sm font-medium">{gp.guest_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {gp.valid_date ? format(new Date(gp.valid_date), "MMM d, yyyy") : gp.purchased_at ? format(new Date(gp.purchased_at), "MMM d, yyyy") : "—"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge
+                          variant={gp.status === "active" ? "default" : gp.status === "exhausted" ? "secondary" : "outline"}
+                          className="text-xs"
+                        >
+                          {gp.status === "exhausted" ? "Used" : gp.status}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">${gp.price_paid}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
