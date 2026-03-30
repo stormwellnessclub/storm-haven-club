@@ -42,6 +42,8 @@ export default function ClassRoster() {
   const [showSellPackage, setShowSellPackage] = useState(false);
   const [resolvedWalkIn, setResolvedWalkIn] = useState<{ userId: string | null; memberId: string | null } | null>(null);
   const [rosterTab, setRosterTab] = useState<"roster" | "waitlist">("roster");
+  const [editingCapacity, setEditingCapacity] = useState(false);
+  const [capacityValue, setCapacityValue] = useState<number>(0);
 
   // Resolve walk-in email
   useEffect(() => {
