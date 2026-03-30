@@ -213,7 +213,7 @@ serve(async (req) => {
 
         // Check metadata for subtotal
         if (metadata.subtotal) {
-          subtotal = parseFloat(metadata.subtotal) || subtotal;
+          subtotal = (parseFloat(metadata.subtotal) || 0) / 100;
           if (taxAmount === 0) {
             taxAmount = amountTotal - subtotal;
             if (taxAmount < 0) taxAmount = 0;
