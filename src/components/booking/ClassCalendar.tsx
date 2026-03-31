@@ -22,6 +22,8 @@ export function ClassCalendar({
   weekStartDate,
   bookingDisabled = false,
 }: ClassCalendarProps) {
+  const { data: ratingsMap } = useClassTypeRatings();
+
   // Group sessions by date
   const sessionsByDate = sessions.reduce((acc, session) => {
     const date = session.session_date;
