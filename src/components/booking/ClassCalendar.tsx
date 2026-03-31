@@ -102,8 +102,7 @@ export function ClassCalendar({
                       rating={r ? { average: r.average_rating, count: r.review_count } : null}
                     />
                   );
-                })
-                ))
+                )
               )}
             </div>
           </div>
