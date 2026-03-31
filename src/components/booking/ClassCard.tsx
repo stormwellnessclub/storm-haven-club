@@ -15,6 +15,7 @@ interface ClassCardProps {
   bookingDisabled?: boolean;
   imageUrl?: string | null;
   waitlistCount?: number;
+  rating?: { average: number; count: number } | null;
 }
 
 export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false, imageUrl, waitlistCount = 0 }: ClassCardProps) {
