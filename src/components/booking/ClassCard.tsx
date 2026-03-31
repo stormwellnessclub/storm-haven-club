@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, MapPin, User, Flame, Users } from "lucide-react";
 import { format, parse } from "date-fns";
+import { StarRating } from "@/components/reviews/StarRating";
 
 interface ClassCardProps {
   session: ClassSession;
@@ -14,9 +15,10 @@ interface ClassCardProps {
   bookingDisabled?: boolean;
   imageUrl?: string | null;
   waitlistCount?: number;
+  rating?: { average: number; count: number } | null;
 }
 
-export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false, imageUrl, waitlistCount = 0 }: ClassCardProps) {
+export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, isOnWaitlist = false, bookingDisabled = false, imageUrl, waitlistCount = 0, rating }: ClassCardProps) {
   const spotsRemaining = session.max_capacity - session.current_enrollment;
   const isFull = spotsRemaining <= 0;
   const isLowSpots = spotsRemaining > 0 && spotsRemaining <= 3;
@@ -56,9 +58,12 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
                 </Badge>
               )}
             </div>
-            <Badge variant="secondary" className="text-xs mb-2">
+            <Badge variant="secondary" className="text-xs mb-1">
               {categoryLabel}
             </Badge>
+            {rating && rating.count > 0 && (
+              <StarRating rating={rating.average} size="sm" showValue count={rating.count} />
+            )}
           </div>
           <div className="text-right">
             <span className="text-lg font-bold text-primary">{formattedTime}</span>

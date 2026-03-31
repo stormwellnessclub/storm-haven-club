@@ -3,6 +3,7 @@ import { ClassSession } from "@/hooks/useClassSessions";
 import { ClassCard } from "./ClassCard";
 import { format, parseISO, addDays, isBefore, startOfDay, isToday } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useClassTypeRatings } from "@/hooks/useClassReviews";
 
 interface ClassCalendarProps {
   sessions: ClassSession[];
@@ -21,6 +22,8 @@ export function ClassCalendar({
   weekStartDate,
   bookingDisabled = false,
 }: ClassCalendarProps) {
+  const { data: ratingsMap } = useClassTypeRatings();
+
   // Group sessions by date
   const sessionsByDate = sessions.reduce((acc, session) => {
     const date = session.session_date;
@@ -87,15 +90,19 @@ export function ClassCalendar({
                   No classes
                 </div>
               ) : (
-                daySessions.map((session) => (
-                  <ClassCard
-                    key={session.id}
-                    session={session}
-                    bookingDisabled={bookingDisabled}
-                    onBook={onBook}
-                    isBooked={bookedSessionIds.includes(session.id)}
-                  />
-                ))
+                daySessions.map((session) => {
+                  const r = ratingsMap?.[session.class_type?.id];
+                  return (
+                    <ClassCard
+                      key={session.id}
+                      session={session}
+                      bookingDisabled={bookingDisabled}
+                      onBook={onBook}
+                      isBooked={bookedSessionIds.includes(session.id)}
+                      rating={r ? { average: r.average_rating, count: r.review_count } : null}
+                    />
+                  );
+                })
               )}
             </div>
           </div>
