@@ -91,7 +91,7 @@ export function ClassCalendar({
                 </div>
               ) : (
                 daySessions.map((session) => {
-                  const r = ratingsMap?.[session.class_type_id];
+                  const r = ratingsMap?.[session.class_type?.id];
                   return (
                     <ClassCard
                       key={session.id}
