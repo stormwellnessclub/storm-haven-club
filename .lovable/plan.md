@@ -1,31 +1,28 @@
 
 
-# Add Per-Session Capacity Override on ClassRoster
+# Show Class Ratings on the Schedule
 
-## What
-Add an inline edit control on the ClassRoster page (`src/pages/admin/ClassRoster.tsx`) so admins can adjust `max_capacity` for a single session (e.g., today's "Buns of Steel") without affecting the schedule template or other sessions.
+## Current State
+The review system already works: members can leave 1-5 star reviews from their past bookings, and each booking allows one review. Since each class attendance creates a new booking, members can rate every time they take a class. The `get_all_class_type_ratings` RPC already aggregates average ratings per class type.
 
-## How
+**The missing piece**: ratings are never displayed on the public/member-facing class schedule.
 
-### 1. Add editable capacity display (ClassRoster.tsx, ~line 455-459)
-Replace the static `{bookings.length}/{session.max_capacity}` display with a clickable/editable version:
-- Show a pencil icon next to the capacity number
-- On click, swap to a small number input + save/cancel buttons
-- On save, update `class_sessions.max_capacity` for just that session ID
-- Refresh session data after save
+## Plan
 
-### 2. Database update
-No schema changes needed — `class_sessions` already has a `max_capacity` column. The update is a simple:
-```sql
-UPDATE class_sessions SET max_capacity = :newValue WHERE id = :sessionId
-```
+### 1. Add ratings to ClassCard (src/components/booking/ClassCard.tsx)
+- Accept an optional `rating` prop: `{ average: number; count: number } | null`
+- Display a small `StarRating` component (with average + count) below the class name/category badge
+- Example: ★★★★☆ 4.2 (17)
 
-### 3. Behavior
-- Only admins/staff see the edit control (same role gating already on ClassRoster)
-- Changing capacity on one session does NOT touch the `class_schedules` template or any other session
-- If new capacity > current enrollment, the session shows open slots immediately
-- If new capacity < current enrollment, show a warning but still allow it (no one gets kicked)
+### 2. Fetch and pass ratings in ClassCalendar (src/components/booking/ClassCalendar.tsx)
+- Call `useClassTypeRatings()` to get the ratings map
+- Pass the matching rating data to each `ClassCard` via the new prop
 
-### 4. Files changed
-- `src/pages/admin/ClassRoster.tsx` — add inline capacity editor in the header area
+### 3. No database changes needed
+- The `class_reviews` table, unique constraint, and `get_all_class_type_ratings` RPC already exist and work correctly
+- The per-booking uniqueness means users already can review each time they attend
+
+### Files Changed
+- `src/components/booking/ClassCard.tsx` — add rating display
+- `src/components/booking/ClassCalendar.tsx` — fetch ratings and pass to cards
 
