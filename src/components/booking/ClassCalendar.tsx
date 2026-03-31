@@ -3,6 +3,7 @@ import { ClassSession } from "@/hooks/useClassSessions";
 import { ClassCard } from "./ClassCard";
 import { format, parseISO, addDays, isBefore, startOfDay, isToday } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useClassTypeRatings } from "@/hooks/useClassReviews";
 
 interface ClassCalendarProps {
   sessions: ClassSession[];
