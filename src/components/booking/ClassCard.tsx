@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, MapPin, User, Flame, Users } from "lucide-react";
 import { format, parse } from "date-fns";
+import { StarRating } from "@/components/reviews/StarRating";
 
 interface ClassCardProps {
   session: ClassSession;
