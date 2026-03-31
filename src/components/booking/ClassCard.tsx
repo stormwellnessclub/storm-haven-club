@@ -58,9 +58,12 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
                 </Badge>
               )}
             </div>
-            <Badge variant="secondary" className="text-xs mb-2">
+            <Badge variant="secondary" className="text-xs mb-1">
               {categoryLabel}
             </Badge>
+            {rating && rating.count > 0 && (
+              <StarRating rating={rating.average} size="sm" showValue count={rating.count} />
+            )}
           </div>
           <div className="text-right">
             <span className="text-lg font-bold text-primary">{formattedTime}</span>

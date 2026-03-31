@@ -90,14 +90,19 @@ export function ClassCalendar({
                   No classes
                 </div>
               ) : (
-                daySessions.map((session) => (
-                  <ClassCard
-                    key={session.id}
-                    session={session}
-                    bookingDisabled={bookingDisabled}
-                    onBook={onBook}
-                    isBooked={bookedSessionIds.includes(session.id)}
-                  />
+                daySessions.map((session) => {
+                  const r = ratingsMap?.[session.class_type_id];
+                  return (
+                    <ClassCard
+                      key={session.id}
+                      session={session}
+                      bookingDisabled={bookingDisabled}
+                      onBook={onBook}
+                      isBooked={bookedSessionIds.includes(session.id)}
+                      rating={r ? { average: r.average_rating, count: r.review_count } : null}
+                    />
+                  );
+                })
                 ))
               )}
             </div>
