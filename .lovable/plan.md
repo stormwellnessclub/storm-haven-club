@@ -1,59 +1,41 @@
 
-Goal: fix the café checkout paths so the amount shown to staff/customers is the exact amount actually charged, and so reports no longer make it look like you absorbed the processing fee.
 
-What I found
-- Admin POS pages are already sending fee-inclusive totals correctly:
-  - `src/pages/admin/CafePOS.tsx`
-  - `src/pages/admin/FrontDeskPOS.tsx`
-- The main broken café admin flow is `src/components/admin/ChargeItemSelector.tsx`:
-  - it displays `Subtotal + Tax + Processing Fee`
-  - but it submits `cartTotalBeforeFee` instead of `cartGrandTotal`
-  - the button label also shows the pre-fee amount
-- The backend also records the wrong amount in `manual_charges`:
-  - `supabase/functions/stripe-payment/index.ts` inserts `amount: amount`
-  - for fee-bearing charges, that is the pre-fee request amount, not the actual Stripe total
-  - so internal records/reports can look like the fee was never charged even when Stripe charged it
-- Public café checkout in `src/pages/Cafe.tsx` is also inconsistent:
-  - it sends `cartTotal` only
-  - it is not using the same café tax/fee breakdown as the admin flows
+# Schedule Downgrade for Next Billing Cycle
 
-Implementation plan
-1. Fix the admin café charge cart
-- Update `src/components/admin/ChargeItemSelector.tsx`
-- Submit the fee-inclusive total (`cartGrandTotal`) instead of `cartTotalBeforeFee`
-- Pass explicit fee metadata (`processingFee`, `subtotal`, `taxAmount`)
-- Update the charge button text so staff sees the real amount being charged
+## Current State
+The admin TierChangeDialog already has proration options, but all three ("Create Prorations", "No Prorations", "Invoice Immediately") change the tier **immediately** in both Stripe and the database. There's no way to defer a downgrade to the next billing cycle.
 
-2. Make the backend support “fee already included” charges cleanly
-- Update `supabase/functions/stripe-payment/index.ts`
-- Add a generic fee-included path for `charge_saved_card` and `charge_saved_card_with_3ds`
-- When that flag is present:
-  - charge the amount exactly as sent
-  - do not recalculate the fee again
-- Keep existing non-café/manual fee behavior unchanged
+## Approach
+Store a "pending tier change" in the database. When the next billing cycle arrives (detected via Stripe webhook on `invoice.paid`), automatically apply the tier change at that point.
 
-3. Fix backend recordkeeping so reports match reality
-- In the same backend file, store the actual charged total in `manual_charges.amount`
-- Store the fee-aware description used on the Stripe charge
-- This makes café reports and admin history reflect the real charged amount instead of the pre-fee subtotal/tax amount
+## Implementation
 
-4. Align the public café checkout
-- Update `src/pages/Cafe.tsx`
-- Compute subtotal, MI sales tax, processing fee, and total explicitly
-- Show that breakdown in the payment dialog
-- Send the same fee-inclusive amount/metadata as the admin café flow so the UI and Stripe stay in sync
+### 1. Add pending tier change columns to `members` table
+- `pending_tier_change` (text, nullable) — the new tier to switch to
+- `pending_tier_change_at` (timestamptz, nullable) — when the change was scheduled
+- `pending_tier_change_by` (uuid, nullable) — admin who scheduled it
 
-Technical details
-- Files to change:
-  - `src/components/admin/ChargeItemSelector.tsx`
-  - `src/pages/Cafe.tsx`
-  - `supabase/functions/stripe-payment/index.ts`
-- Likely no database schema changes needed
-- I would leave `src/pages/admin/CafePOS.tsx` and `src/pages/admin/FrontDeskPOS.tsx` mostly as-is, then verify they still behave correctly after the backend cleanup
+### 2. Update TierChangeDialog with "Schedule for next cycle" option
+- Add a new toggle/option: **"Apply at next billing cycle"** — visible only for downgrades with active subscriptions
+- When selected, instead of calling `admin_update_member_tier`, save the pending change to the database and show a success toast
+- Skip the Stripe subscription update entirely at this point
 
-Verification checklist
-- Admin café charge cart: displayed total equals Stripe total exactly
-- Public café checkout: displayed total equals Stripe total exactly
-- `manual_charges.amount` matches the actual Stripe charge amount
-- Café reports no longer undercount fee-bearing charges
-- Existing POS card flows still work without double-charging
+### 3. Show pending change indicator on Member Detail page
+- Display a banner/badge when a member has a pending tier change
+- Include a "Cancel Pending Change" button so admins can revoke it before it takes effect
+
+### 4. Apply the change in the webhook
+- In `stripe-webhook` handler, on `invoice.paid` events for membership subscriptions, check if the member has a `pending_tier_change`
+- If so, call the same Stripe subscription update logic (swap price, update metadata) and update the database tier, then clear the pending fields
+- This ensures the new price kicks in exactly when the new billing period starts
+
+### 5. Update `useUserMembership` hook
+- Add `pending_tier_change`, `pending_tier_change_at` fields to the interface so the member detail page can display pending status
+
+### Files to change
+- **Database migration** — add 3 columns to `members`
+- `src/components/admin/TierChangeDialog.tsx` — add "schedule for next cycle" option for downgrades
+- `src/pages/admin/MemberDetail.tsx` — show pending tier change indicator with cancel action
+- `supabase/functions/stripe-webhook/index.ts` — apply pending tier change on `invoice.paid`
+- `src/hooks/useUserMembership.ts` — add pending fields to interface
+
