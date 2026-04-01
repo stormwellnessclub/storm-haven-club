@@ -3657,6 +3657,9 @@ export type Database = {
           membership_start_date: string
           membership_type: string
           original_tier_at_application: string | null
+          pending_tier_change: string | null
+          pending_tier_change_at: string | null
+          pending_tier_change_by: string | null
           phone: string | null
           photo_url: string | null
           referral_points_balance: number
@@ -3701,6 +3704,9 @@ export type Database = {
           membership_start_date?: string
           membership_type?: string
           original_tier_at_application?: string | null
+          pending_tier_change?: string | null
+          pending_tier_change_at?: string | null
+          pending_tier_change_by?: string | null
           phone?: string | null
           photo_url?: string | null
           referral_points_balance?: number
@@ -3745,6 +3751,9 @@ export type Database = {
           membership_start_date?: string
           membership_type?: string
           original_tier_at_application?: string | null
+          pending_tier_change?: string | null
+          pending_tier_change_at?: string | null
+          pending_tier_change_by?: string | null
           phone?: string | null
           photo_url?: string | null
           referral_points_balance?: number

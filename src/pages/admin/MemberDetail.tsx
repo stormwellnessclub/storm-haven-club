@@ -1746,6 +1746,47 @@ export default function MemberDetail() {
                         {normalizeTierDisplay(member.membership_type)}
                       </Badge>
                     </div>
+                    {/* Pending Tier Change Banner */}
+                    {(member as Record<string, unknown>).pending_tier_change && (
+                      <div className="col-span-2 p-3 border rounded-lg bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CalendarClock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            <div>
+                              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                Pending downgrade to {String((member as Record<string, unknown>).pending_tier_change)}
+                              </p>
+                              <p className="text-xs text-amber-600 dark:text-amber-400">
+                                Scheduled {(member as Record<string, unknown>).pending_tier_change_at ? format(new Date(String((member as Record<string, unknown>).pending_tier_change_at)), 'PPP') : ''} · Will apply at next billing cycle
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-700 dark:hover:bg-amber-900/50"
+                            onClick={async () => {
+                              const { error } = await supabase
+                                .from("members")
+                                .update({
+                                  pending_tier_change: null,
+                                  pending_tier_change_at: null,
+                                  pending_tier_change_by: null,
+                                } as Record<string, unknown>)
+                                .eq("id", member.id);
+                              if (error) {
+                                toast.error("Failed to cancel pending change");
+                              } else {
+                                toast.success("Pending tier change cancelled");
+                                queryClient.invalidateQueries({ queryKey: ["admin-member-detail", member.id] });
+                              }
+                            }}
+                          >
+                            <X className="h-3 w-3 mr-1" /> Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm text-muted-foreground">Member Since</p>
                       <p className="font-medium">{member.membership_start_date ? format(new Date(member.membership_start_date), 'PPP') : '—'}</p>

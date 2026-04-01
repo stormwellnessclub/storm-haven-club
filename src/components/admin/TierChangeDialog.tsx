@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, ArrowRight, Info, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, CalendarClock, Info, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type MembershipTier = "silver" | "gold" | "platinum" | "diamond";
@@ -115,6 +116,7 @@ export function TierChangeDialog({
   hasAnnualFeePaid = false,
   isFoundingMember: initialIsFoundingMember = false,
 }: TierChangeDialogProps) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const normalizedCurrentTier = normalizeTier(currentTier);
   const normalizedGender = normalizeGender(memberGender);
@@ -123,6 +125,7 @@ export function TierChangeDialog({
   const [selectedTier, setSelectedTier] = useState<MembershipTier>(normalizedCurrentTier);
   const [prorationBehavior, setProrationBehavior] = useState<ProrationBehavior>("create_prorations");
   const [isFounding, setIsFounding] = useState(initialIsFoundingMember);
+  const [scheduleForNextCycle, setScheduleForNextCycle] = useState(false);
 
   const effectiveBilling = isFounding ? "annual" : "monthly";
 
@@ -221,11 +224,43 @@ export function TierChangeDialog({
     },
   });
 
-  const isPending = databaseTierChangeMutation.isPending || stripeTierChangeMutation.isPending;
+  // Schedule tier change for next billing cycle
+  const scheduleTierChangeMutation = useMutation({
+    mutationFn: async () => {
+      const capitalizedTier = selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1);
+      const { error } = await supabase
+        .from("members")
+        .update({
+          pending_tier_change: capitalizedTier,
+          pending_tier_change_at: new Date().toISOString(),
+          pending_tier_change_by: user?.id || null,
+        } as Record<string, unknown>)
+        .eq("id", memberId);
+
+      if (error) throw new Error(error.message || "Failed to schedule tier change");
+      return { success: true };
+    },
+    onSuccess: () => {
+      toast.success(`Tier change to ${TIER_LABELS[selectedTier]} scheduled for next billing cycle`);
+      queryClient.invalidateQueries({ queryKey: ["admin-member-detail", memberId] });
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to schedule tier change");
+    },
+  });
+
+  const isPending = databaseTierChangeMutation.isPending || stripeTierChangeMutation.isPending || scheduleTierChangeMutation.isPending;
 
   const handleConfirm = () => {
     if (!hasAnyChange) {
       toast.error("Please make a change before confirming");
+      return;
+    }
+
+    // If scheduling for next cycle, just save to DB
+    if (scheduleForNextCycle && isDowngrade && hasActiveSubscription) {
+      scheduleTierChangeMutation.mutate();
       return;
     }
     
@@ -351,8 +386,28 @@ export function TierChangeDialog({
             </div>
           )}
 
-          {/* Proration Options - Only for active subscriptions with tier change */}
-          {!isSameTier && hasActiveSubscription && (
+          {/* Schedule for Next Billing Cycle - Only for downgrades with active subscriptions */}
+          {isDowngrade && hasActiveSubscription && !isSameTier && (
+            <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="schedule-toggle" className="font-medium">Apply at next billing cycle</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Schedule this downgrade to take effect when the next invoice is paid, instead of changing immediately
+                </p>
+              </div>
+              <Switch
+                id="schedule-toggle"
+                checked={scheduleForNextCycle}
+                onCheckedChange={setScheduleForNextCycle}
+              />
+            </div>
+          )}
+
+          {/* Proration Options - Only for active subscriptions with tier change, and not scheduled */}
+          {!isSameTier && hasActiveSubscription && !scheduleForNextCycle && (
             <div className="space-y-2">
               <Label>Proration Behavior</Label>
               <Select 
@@ -374,6 +429,16 @@ export function TierChangeDialog({
                 </SelectContent>
               </Select>
             </div>
+          )}
+
+          {/* Scheduled downgrade info */}
+          {scheduleForNextCycle && isDowngrade && hasActiveSubscription && (
+            <Alert>
+              <CalendarClock className="h-4 w-4" />
+              <AlertDescription>
+                The tier will remain <strong>{TIER_LABELS[normalizedCurrentTier]}</strong> until the next successful payment. At that point, it will automatically switch to <strong>{TIER_LABELS[selectedTier]}</strong> and the new price will apply.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Info Notice for Non-Subscribed Members */}
@@ -406,7 +471,7 @@ export function TierChangeDialog({
             disabled={!hasAnyChange || isPending}
           >
             {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isUpgrade ? "Upgrade" : isDowngrade ? `Change to ${TIER_LABELS[selectedTier]}` : "Confirm Changes"}
+            {scheduleForNextCycle && isDowngrade ? `Schedule ${TIER_LABELS[selectedTier]} Downgrade` : isUpgrade ? "Upgrade" : isDowngrade ? `Change to ${TIER_LABELS[selectedTier]}` : "Confirm Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
