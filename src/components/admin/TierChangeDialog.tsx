@@ -116,6 +116,7 @@ export function TierChangeDialog({
   hasAnnualFeePaid = false,
   isFoundingMember: initialIsFoundingMember = false,
 }: TierChangeDialogProps) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const normalizedCurrentTier = normalizeTier(currentTier);
   const normalizedGender = normalizeGender(memberGender);
@@ -124,6 +125,7 @@ export function TierChangeDialog({
   const [selectedTier, setSelectedTier] = useState<MembershipTier>(normalizedCurrentTier);
   const [prorationBehavior, setProrationBehavior] = useState<ProrationBehavior>("create_prorations");
   const [isFounding, setIsFounding] = useState(initialIsFoundingMember);
+  const [scheduleForNextCycle, setScheduleForNextCycle] = useState(false);
 
   const effectiveBilling = isFounding ? "annual" : "monthly";
 
