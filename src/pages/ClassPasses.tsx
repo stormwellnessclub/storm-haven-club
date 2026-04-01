@@ -341,7 +341,7 @@ export default function ClassPasses() {
   }, []);
 
   const handlePurchase = async (
-    category: 'pilatesCycling' | 'otherClasses',
+    category: 'pilatesCycling',
     passType: 'single' | 'tenPack'
   ) => {
     if (!user) {
