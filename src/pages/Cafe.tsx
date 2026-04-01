@@ -138,7 +138,10 @@ export default function Cafe() {
     );
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartTax = calculateTax(cartSubtotal);
+  const cartProcessingFee = calculateProcessingFeeFromDollars(cartSubtotal + cartTax);
+  const cartTotal = cartSubtotal + cartTax + cartProcessingFee;
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handlePlaceOrder = async () => {
