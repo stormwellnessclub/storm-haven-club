@@ -121,7 +121,7 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
     passType, 
     price 
   }: { 
-    category: 'pilatesCycling' | 'otherClasses';
+    category: 'pilatesCycling';
     passType: 'single' | 'tenPack';
     price: number;
   }) => {
