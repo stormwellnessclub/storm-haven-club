@@ -220,6 +220,8 @@ interface PaymentRequest {
   description?: string;
   stripeCustomerId?: string; // Direct customer ID for applications
   applicationId?: string; // For tracking application charges
+  chargeType?: string; // 'pos' for POS charges — skips backend fee recalculation
+  processingFee?: number; // Processing fee in cents (used when chargeType === 'pos')
   // For application setup (unauthenticated)
   applicantEmail?: string;
   applicantName?: string;
