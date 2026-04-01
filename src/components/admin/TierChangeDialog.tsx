@@ -224,11 +224,43 @@ export function TierChangeDialog({
     },
   });
 
-  const isPending = databaseTierChangeMutation.isPending || stripeTierChangeMutation.isPending;
+  // Schedule tier change for next billing cycle
+  const scheduleTierChangeMutation = useMutation({
+    mutationFn: async () => {
+      const capitalizedTier = selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1);
+      const { error } = await supabase
+        .from("members")
+        .update({
+          pending_tier_change: capitalizedTier,
+          pending_tier_change_at: new Date().toISOString(),
+          pending_tier_change_by: user?.id || null,
+        } as Record<string, unknown>)
+        .eq("id", memberId);
+
+      if (error) throw new Error(error.message || "Failed to schedule tier change");
+      return { success: true };
+    },
+    onSuccess: () => {
+      toast.success(`Tier change to ${TIER_LABELS[selectedTier]} scheduled for next billing cycle`);
+      queryClient.invalidateQueries({ queryKey: ["admin-member-detail", memberId] });
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to schedule tier change");
+    },
+  });
+
+  const isPending = databaseTierChangeMutation.isPending || stripeTierChangeMutation.isPending || scheduleTierChangeMutation.isPending;
 
   const handleConfirm = () => {
     if (!hasAnyChange) {
       toast.error("Please make a change before confirming");
+      return;
+    }
+
+    // If scheduling for next cycle, just save to DB
+    if (scheduleForNextCycle && isDowngrade && hasActiveSubscription) {
+      scheduleTierChangeMutation.mutate();
       return;
     }
     
