@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, ShoppingBag, Loader2, CreditCard, User } from "lucide-react";
+import { Plus, Minus, ShoppingBag, Loader2, CreditCard, User, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCreateCafeOrder } from "@/hooks/useCafeOrder";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   useCafeMenuCategories,
   useCafeMenuItems,
