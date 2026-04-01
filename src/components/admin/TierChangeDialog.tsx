@@ -386,8 +386,28 @@ export function TierChangeDialog({
             </div>
           )}
 
-          {/* Proration Options - Only for active subscriptions with tier change */}
-          {!isSameTier && hasActiveSubscription && (
+          {/* Schedule for Next Billing Cycle - Only for downgrades with active subscriptions */}
+          {isDowngrade && hasActiveSubscription && !isSameTier && (
+            <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="schedule-toggle" className="font-medium">Apply at next billing cycle</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Schedule this downgrade to take effect when the next invoice is paid, instead of changing immediately
+                </p>
+              </div>
+              <Switch
+                id="schedule-toggle"
+                checked={scheduleForNextCycle}
+                onCheckedChange={setScheduleForNextCycle}
+              />
+            </div>
+          )}
+
+          {/* Proration Options - Only for active subscriptions with tier change, and not scheduled */}
+          {!isSameTier && hasActiveSubscription && !scheduleForNextCycle && (
             <div className="space-y-2">
               <Label>Proration Behavior</Label>
               <Select 
@@ -409,6 +429,16 @@ export function TierChangeDialog({
                 </SelectContent>
               </Select>
             </div>
+          )}
+
+          {/* Scheduled downgrade info */}
+          {scheduleForNextCycle && isDowngrade && hasActiveSubscription && (
+            <Alert>
+              <CalendarClock className="h-4 w-4" />
+              <AlertDescription>
+                The tier will remain <strong>{TIER_LABELS[normalizedCurrentTier]}</strong> until the next successful payment. At that point, it will automatically switch to <strong>{TIER_LABELS[selectedTier]}</strong> and the new price will apply.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Info Notice for Non-Subscribed Members */}
@@ -441,7 +471,7 @@ export function TierChangeDialog({
             disabled={!hasAnyChange || isPending}
           >
             {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isUpgrade ? "Upgrade" : isDowngrade ? `Change to ${TIER_LABELS[selectedTier]}` : "Confirm Changes"}
+            {scheduleForNextCycle && isDowngrade ? `Schedule ${TIER_LABELS[selectedTier]} Downgrade` : isUpgrade ? "Upgrade" : isDowngrade ? `Change to ${TIER_LABELS[selectedTier]}` : "Confirm Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
