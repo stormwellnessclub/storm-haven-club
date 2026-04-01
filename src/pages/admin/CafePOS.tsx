@@ -74,10 +74,12 @@ export default function CafePOS() {
         const { data: chargeResult, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
           body: {
             action: "charge_saved_card",
-            customerId: selectedCustomer.stripeCustomerId,
+            stripeCustomerId: selectedCustomer.stripeCustomerId,
             amount: amountCents,
             description: `Cafe POS - ${itemNames}`,
             chargeType: "pos",
+            subtotal: Math.round(subtotal * 100),
+            taxAmount: Math.round(tax * 100),
           },
         });
 
