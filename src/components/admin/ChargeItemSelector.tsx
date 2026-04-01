@@ -492,11 +492,14 @@ export function ChargeItemSelector({
 
         const taxAmountCents = Math.round(cartCafeTax * 100);
         const subtotalCents = Math.round(cartSubtotal * 100);
+        const processingFeeCents = Math.round(cartProcessingFee * 100);
 
         const chargeBody: any = {
           action: "charge_saved_card_with_3ds",
           amount: amountInCents,
           description: desc,
+          chargeType: "pos",
+          processingFee: processingFeeCents,
           taxAmount: taxAmountCents,
           subtotal: subtotalCents,
           payment_type: paymentType,
