@@ -3,11 +3,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { CreditCard, RefreshCw, ShieldCheck, ShieldX, Package, Calendar, Loader2, Ticket } from "lucide-react";
+import { CreditCard, RefreshCw, ShieldCheck, ShieldX, Package, Calendar as CalendarIcon2, Loader2, Ticket, Plus, DollarSign, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
+
+const GUEST_PASS_PRICE = 60;
 
 interface NonMemberAccount {
   user_id: string;
@@ -33,7 +43,19 @@ interface Props {
 }
 
 export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Guest pass sale form state
+  const [gpQuantity, setGpQuantity] = useState(1);
+  const [gpApplyDiscount, setGpApplyDiscount] = useState(false);
+  const [gpCustomPrice, setGpCustomPrice] = useState<number>(GUEST_PASS_PRICE);
+  const [gpExpirationDate, setGpExpirationDate] = useState<Date | undefined>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d;
+  });
+  const [gpIsProcessing, setGpIsProcessing] = useState(false);
 
   // Fetch guest passes for this user (by email match)
   const { data: guestPasses, isLoading: guestPassesLoading } = useQuery({
@@ -103,9 +125,55 @@ export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
     },
   });
 
+  const handleSellGuestPass = async () => {
+    if (!account || !user) return;
+    const guestName = [account.first_name, account.last_name].filter(Boolean).join(" ") || "Guest";
+    setGpIsProcessing(true);
+    try {
+      const origin = window.location.origin;
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_guest_pass_checkout",
+          guestName,
+          guestEmail: account.email || undefined,
+          phoneNumber: account.phone || undefined,
+          quantity: gpQuantity,
+          customPrice: gpApplyDiscount ? gpCustomPrice : undefined,
+          expiresAt: gpExpirationDate ? gpExpirationDate.toISOString() : undefined,
+          successUrl: `${origin}/admin/non-member-accounts?purchase=success`,
+          cancelUrl: `${origin}/admin/non-member-accounts?purchase=cancelled`,
+        },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error: any) {
+      console.error("Error creating guest pass checkout:", error);
+      toast.error(error?.message || "Failed to create guest pass checkout");
+    } finally {
+      setGpIsProcessing(false);
+    }
+  };
+
+  const resetGuestPassForm = () => {
+    setGpQuantity(1);
+    setGpApplyDiscount(false);
+    setGpCustomPrice(GUEST_PASS_PRICE);
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    setGpExpirationDate(d);
+  };
+
   if (!account) return null;
 
   const fullName = [account.first_name, account.last_name].filter(Boolean).join(" ") || "Unknown";
+  const effectivePrice = gpApplyDiscount ? gpCustomPrice : GUEST_PASS_PRICE;
+  const gpSubtotal = effectivePrice * gpQuantity;
+  const gpEstFee = gpSubtotal * 0.029 + 0.30;
+  const gpEstTotal = gpSubtotal + gpEstFee;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -186,6 +254,136 @@ export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
             </CardContent>
           </Card>
 
+          {/* Sell Guest Pass */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Ticket className="h-4 w-4" />
+                Sell Guest Pass
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 bg-muted rounded-md text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Guest Pass</span>
+                  <span className="font-semibold">${GUEST_PASS_PRICE}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Gym & amenities access
+                </p>
+              </div>
+
+              {/* Quantity */}
+              <div className="space-y-1">
+                <Label className="text-xs">Quantity</Label>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="icon" className="h-8 w-8" disabled={gpQuantity <= 1} onClick={() => setGpQuantity((q) => Math.max(1, q - 1))}>
+                    −
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={gpQuantity}
+                    onChange={(e) => setGpQuantity(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    className="w-14 text-center h-8"
+                  />
+                  <Button type="button" variant="outline" size="icon" className="h-8 w-8" disabled={gpQuantity >= 10} onClick={() => setGpQuantity((q) => Math.min(10, q + 1))}>
+                    +
+                  </Button>
+                </div>
+              </div>
+
+              {/* Discount */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="nm-discount"
+                    checked={gpApplyDiscount}
+                    onCheckedChange={(checked) => {
+                      setGpApplyDiscount(!!checked);
+                      if (!checked) setGpCustomPrice(GUEST_PASS_PRICE);
+                    }}
+                  />
+                  <Label htmlFor="nm-discount" className="text-xs font-normal cursor-pointer">
+                    Apply discount
+                  </Label>
+                </div>
+                {gpApplyDiscount && (
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={gpCustomPrice}
+                      onChange={(e) => setGpCustomPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-20 h-8"
+                      placeholder="Price"
+                    />
+                    <span className="text-xs text-muted-foreground">per pass</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Expiration */}
+              <div className="space-y-1">
+                <Label className="text-xs">Expiration Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn("w-full justify-start text-left font-normal h-8", !gpExpirationDate && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="mr-2 h-3 w-3" />
+                      {gpExpirationDate ? format(gpExpirationDate, "PPP") : "Select expiration"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={gpExpirationDate}
+                      onSelect={setGpExpirationDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Price breakdown */}
+              <div className="p-3 rounded-md bg-muted/50 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>${gpSubtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Processing fee</span>
+                  <span>~${gpEstFee.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-medium border-t pt-1">
+                  <span>Est. Total</span>
+                  <span>${gpEstTotal.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <Button className="w-full" size="sm" disabled={gpIsProcessing} onClick={handleSellGuestPass}>
+                {gpIsProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {gpQuantity > 1 ? `Create ${gpQuantity} Passes & Checkout` : "Create & Checkout"}
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Class Passes */}
           <Card>
             <CardHeader className="pb-3">
@@ -233,7 +431,7 @@ export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+                <CalendarIcon2 className="h-4 w-4" />
                 Recent Bookings ({bookings?.length || 0})
               </CardTitle>
             </CardHeader>
