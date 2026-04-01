@@ -63,20 +63,24 @@ export default function FrontDeskPOS() {
         return sum + (item.basePrice + addonTotal) * item.quantity;
       }, 0);
       const tax = calculateTax(subtotal);
-      const total = subtotal + tax;
+      const isCardCharge = paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile;
+      const processingFee = isCardCharge ? calculateProcessingFeeFromDollars(subtotal + tax) : 0;
+      const total = subtotal + tax + processingFee;
 
       const itemNames = cart.map((i) => i.name).join(", ");
 
       // If paying by card and customer has card on file, charge via Stripe first
-      if (paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile) {
+      if (isCardCharge) {
         const amountCents = Math.round(total * 100);
         const { data: chargeResult, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
           body: {
             action: "charge_saved_card",
-            customerId: selectedCustomer.stripeCustomerId,
+            stripeCustomerId: selectedCustomer.stripeCustomerId,
             amount: amountCents,
             description: `Front Desk POS - ${itemNames}`,
             chargeType: "pos",
+            subtotal: Math.round(subtotal * 100),
+            taxAmount: Math.round(tax * 100),
           },
         });
 
