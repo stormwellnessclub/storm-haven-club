@@ -41,6 +41,10 @@ export interface UserMembership {
   tier_change_used: boolean | null;
   tier_change_used_at: string | null;
   original_tier_at_application: string | null;
+  // Pending tier change (scheduled downgrade)
+  pending_tier_change: string | null;
+  pending_tier_change_at: string | null;
+  pending_tier_change_by: string | null;
 }
 
 export function useUserMembership() {
