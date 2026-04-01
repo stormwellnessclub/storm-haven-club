@@ -27,14 +27,15 @@ interface ImportableSession {
 }
 
 const KNOWN_PRICE_IDS = [
-  { label: "Pilates/Cycling Single (Non-Member) — $30", value: STRIPE_PRODUCTS.classPasses.pilatesCycling.single.nonMember },
-  { label: "Pilates/Cycling 10-Pack (Non-Member) — $285", value: STRIPE_PRODUCTS.classPasses.pilatesCycling.tenPack.nonMember },
-  { label: "Other Classes Single (Non-Member) — $30", value: STRIPE_PRODUCTS.classPasses.otherClasses.single.nonMember },
-  { label: "Other Classes 10-Pack (Non-Member) — $180", value: STRIPE_PRODUCTS.classPasses.otherClasses.tenPack.nonMember },
-  { label: "Pilates/Cycling Single (Member) — $25", value: STRIPE_PRODUCTS.classPasses.pilatesCycling.single.member },
-  { label: "Pilates/Cycling 10-Pack (Member) — $170", value: STRIPE_PRODUCTS.classPasses.pilatesCycling.tenPack.member },
-  { label: "Other Classes Single (Member) — $20", value: STRIPE_PRODUCTS.classPasses.otherClasses.single.member },
-  { label: "Other Classes 10-Pack (Member) — $150", value: STRIPE_PRODUCTS.classPasses.otherClasses.tenPack.member },
+  { label: "Class Pass Single (Non-Member) — $30", value: STRIPE_PRODUCTS.classPasses.pilatesCycling.single.nonMember },
+  { label: "Class Pass 10-Pack (Non-Member) — $285", value: STRIPE_PRODUCTS.classPasses.pilatesCycling.tenPack.nonMember },
+  { label: "Class Pass Single (Member) — $25", value: STRIPE_PRODUCTS.classPasses.pilatesCycling.single.member },
+  { label: "Class Pass 10-Pack (Member) — $170", value: STRIPE_PRODUCTS.classPasses.pilatesCycling.tenPack.member },
+  // Legacy "Other Classes" price IDs (for importing old purchases)
+  { label: "[Legacy] Other Classes Single (Non-Member) — $30", value: STRIPE_PRODUCTS.classPasses.otherClasses.single.nonMember },
+  { label: "[Legacy] Other Classes 10-Pack (Non-Member) — $180", value: STRIPE_PRODUCTS.classPasses.otherClasses.tenPack.nonMember },
+  { label: "[Legacy] Other Classes Single (Member) — $20", value: STRIPE_PRODUCTS.classPasses.otherClasses.single.member },
+  { label: "[Legacy] Other Classes 10-Pack (Member) — $150", value: STRIPE_PRODUCTS.classPasses.otherClasses.tenPack.member },
 ];
 
 export function NonMemberStripeImport() {

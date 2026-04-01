@@ -127,10 +127,10 @@ const PRICE_ID_MAP: Record<string, {
   label: string;
 }> = {
   // Pilates/Cycling
-  'price_1SlA2vLyZrsSqLhsBHHWlQPD': { productType: 'class_pass', category: 'pilates_cycling', passType: 'single', isMember: true, classes: 1, validityDays: 7, label: 'Pilates/Cycling Single (Member)' },
-  'price_1T2XzALyZrsSqLhs1N07i160': { productType: 'class_pass', category: 'pilates_cycling', passType: 'single', isMember: false, classes: 1, validityDays: 7, label: 'Pilates/Cycling Single (Non-Member)' },
-  'price_1SlA9sLyZrsSqLhsM0X8VDhN': { productType: 'class_pass', category: 'pilates_cycling', passType: 'tenPack', isMember: true, classes: 10, validityDays: 60, label: 'Pilates/Cycling 10-Pack (Member)' },
-  'price_1T2XzfLyZrsSqLhsd8Gu4c7B': { productType: 'class_pass', category: 'pilates_cycling', passType: 'tenPack', isMember: false, classes: 10, validityDays: 60, label: 'Pilates/Cycling 10-Pack (Non-Member)' },
+  'price_1SlA2vLyZrsSqLhsBHHWlQPD': { productType: 'class_pass', category: 'pilates_cycling', passType: 'single', isMember: true, classes: 1, validityDays: 7, label: 'Class Pass Single (Member)' },
+  'price_1T2XzALyZrsSqLhs1N07i160': { productType: 'class_pass', category: 'pilates_cycling', passType: 'single', isMember: false, classes: 1, validityDays: 7, label: 'Class Pass Single (Non-Member)' },
+  'price_1SlA9sLyZrsSqLhsM0X8VDhN': { productType: 'class_pass', category: 'pilates_cycling', passType: 'tenPack', isMember: true, classes: 10, validityDays: 60, label: 'Class Pass 10-Pack (Member)' },
+  'price_1T2XzfLyZrsSqLhsd8Gu4c7B': { productType: 'class_pass', category: 'pilates_cycling', passType: 'tenPack', isMember: false, classes: 10, validityDays: 60, label: 'Class Pass 10-Pack (Non-Member)' },
   // Other Classes
   'price_1T2XmKLyZrsSqLhsmtaMSUiF': { productType: 'class_pass', category: 'aerobics', passType: 'single', isMember: true, classes: 1, validityDays: 7, label: 'Other Classes Single (Member)' },
   'price_1SlABFLyZrsSqLhsGOpvWGFE': { productType: 'class_pass', category: 'aerobics', passType: 'single', isMember: false, classes: 1, validityDays: 7, label: 'Other Classes Single (Non-Member)' },

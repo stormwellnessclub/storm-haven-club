@@ -25,14 +25,9 @@ interface PricingTier {
   nonMemberPrice: number;
 }
 
-const pilatesCyclingPricing: PricingTier[] = [
+const classPassPricing: PricingTier[] = [
   { type: "Single Class", passType: 'single', memberPrice: 25, nonMemberPrice: 30 },
   { type: "10 Class Pack", passType: 'tenPack', memberPrice: 170, nonMemberPrice: 285 },
-];
-
-const otherClassesPricing: PricingTier[] = [
-  { type: "Single Class", passType: 'single', memberPrice: 20, nonMemberPrice: 30 },
-  { type: "10 Class Pack", passType: 'tenPack', memberPrice: 150, nonMemberPrice: 180 },
 ];
 
 // Inline waiver signing prompt shown when user tries to purchase without signing
@@ -116,7 +111,7 @@ function InlineWaiverPrompt({
 
 // Extracted pricing tables component
 function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
-  onPurchase: (category: 'pilatesCycling' | 'otherClasses', passType: 'single' | 'tenPack') => void;
+  onPurchase: (category: 'pilatesCycling', passType: 'single' | 'tenPack') => void;
   loadingPass: string | null;
   isMember: boolean;
   user: any;
@@ -126,7 +121,7 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
     passType, 
     price 
   }: { 
-    category: 'pilatesCycling' | 'otherClasses';
+    category: 'pilatesCycling';
     passType: 'single' | 'tenPack';
     price: number;
   }) => {
@@ -154,12 +149,12 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
 
   return (
     <>
-      {/* Pilates & Cycling Pricing */}
+      {/* Class Pass Pricing */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-6">
           <SectionHeading
-            title="Pilates & Cycling Classes"
-            subtitle="Our signature Reformer Pilates and high-energy Cycling classes."
+            title="Class Pass"
+            subtitle="Valid for all studio classes."
           />
           
           <div className="max-w-4xl mx-auto">
@@ -173,11 +168,11 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
               </div>
               
               {/* Rows */}
-              {pilatesCyclingPricing.map((tier, index) => (
+              {classPassPricing.map((tier, index) => (
                 <div 
                   key={tier.type}
                   className={`grid grid-cols-4 p-4 items-center ${
-                    index !== pilatesCyclingPricing.length - 1 ? "border-b border-border" : ""
+                    index !== classPassPricing.length - 1 ? "border-b border-border" : ""
                   }`}
                 >
                   <div className="font-medium">{tier.type}</div>
@@ -195,68 +190,6 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
                     {user ? (
                       <PurchaseButton 
                         category="pilatesCycling" 
-                        passType={tier.passType}
-                        price={isMember ? tier.memberPrice : tier.nonMemberPrice}
-                      />
-                    ) : (
-                      <div className="flex flex-col gap-1 items-center">
-                        <Button size="sm" variant="outline" asChild>
-                          <Link to="/auth?redirect=/class-passes">Sign In</Link>
-                        </Button>
-                        <Link to="/auth?redirect=/class-passes" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                          Create Account
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Other Classes Pricing */}
-      <section className="py-16 bg-secondary/30">
-        <div className="container mx-auto px-6">
-          <SectionHeading
-            title="Other Classes"
-            subtitle="Yoga, Mat Pilates, Bootcamp, and other studio classes."
-          />
-          
-          <div className="max-w-4xl mx-auto">
-            <div className="card-luxury overflow-hidden">
-              {/* Header */}
-              <div className="grid grid-cols-4 bg-secondary/50 p-4 border-b border-border">
-                <div className="font-medium">Package</div>
-                <div className="font-medium text-center">Member Price</div>
-                <div className="font-medium text-center">Non-Member Price</div>
-                <div className="font-medium text-center">Purchase</div>
-              </div>
-              
-              {/* Rows */}
-              {otherClassesPricing.map((tier, index) => (
-                <div 
-                  key={tier.type}
-                  className={`grid grid-cols-4 p-4 items-center ${
-                    index !== otherClassesPricing.length - 1 ? "border-b border-border" : ""
-                  }`}
-                >
-                  <div className="font-medium">{tier.type}</div>
-                  <div className="text-center">
-                    <span className={`text-2xl font-light ${isMember ? 'text-gold' : ''}`}>
-                      ${tier.memberPrice}
-                    </span>
-                  </div>
-                  <div className="text-center">
-                    <span className={`text-2xl font-light ${!isMember && user ? 'text-gold' : ''}`}>
-                      ${tier.nonMemberPrice}
-                    </span>
-                  </div>
-                  <div className="text-center">
-                    {user ? (
-                      <PurchaseButton 
-                        category="otherClasses" 
                         passType={tier.passType}
                         price={isMember ? tier.memberPrice : tier.nonMemberPrice}
                       />
@@ -379,7 +312,7 @@ export default function ClassPasses() {
   const [showWaiverFor, setShowWaiverFor] = useState<{
     type: string;
     title: string;
-    pendingPurchase?: { category: 'pilatesCycling' | 'otherClasses'; passType: 'single' | 'tenPack' };
+    pendingPurchase?: { category: 'pilatesCycling'; passType: 'single' | 'tenPack' };
   } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -408,7 +341,7 @@ export default function ClassPasses() {
   }, []);
 
   const handlePurchase = async (
-    category: 'pilatesCycling' | 'otherClasses',
+    category: 'pilatesCycling',
     passType: 'single' | 'tenPack'
   ) => {
     if (!user) {
@@ -479,7 +412,7 @@ export default function ClassPasses() {
 
   return (
     <Layout>
-      <SEOHead title="Class Passes" description="Purchase class passes for non-members. Single class, 5-pack, and 10-pack options for Pilates, Cycling, Yoga, and more at Storm Wellness Club." path="/class-passes" />
+      <SEOHead title="Class Passes" description="Purchase class passes for all studio classes. Single class and 10-pack options available with member and non-member pricing at Storm Wellness Club." path="/class-passes" />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
         <div className="container mx-auto px-6">
@@ -487,7 +420,7 @@ export default function ClassPasses() {
             <p className="text-gold text-sm uppercase tracking-widest mb-4">Flexible Options</p>
             <h1 className="heading-display mb-6">Class Passes</h1>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              Purchase class passes for our Reformer Pilates, Cycling, and Aerobics studios. 
+              Purchase class passes valid for all studio classes. 
               Members receive discounted pricing on all class packages.
             </p>
             {!user ? (
