@@ -25,14 +25,9 @@ interface PricingTier {
   nonMemberPrice: number;
 }
 
-const pilatesCyclingPricing: PricingTier[] = [
+const classPassPricing: PricingTier[] = [
   { type: "Single Class", passType: 'single', memberPrice: 25, nonMemberPrice: 30 },
   { type: "10 Class Pack", passType: 'tenPack', memberPrice: 170, nonMemberPrice: 285 },
-];
-
-const otherClassesPricing: PricingTier[] = [
-  { type: "Single Class", passType: 'single', memberPrice: 20, nonMemberPrice: 30 },
-  { type: "10 Class Pack", passType: 'tenPack', memberPrice: 150, nonMemberPrice: 180 },
 ];
 
 // Inline waiver signing prompt shown when user tries to purchase without signing

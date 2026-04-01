@@ -31,7 +31,7 @@ export const PASS_TO_CLASS_MAPPING: Record<string, string[]> = {
 // Class category -> Valid pass categories (what passes are accepted for this class)
 export const CLASS_TO_PASS_MAPPING: Record<string, string[]> = {
   'pilates_cycling': ['reformer', 'cycling', 'pilates_cycling'],
-  'other': ['aerobics', 'other'],
+  'other': ['aerobics', 'other', 'pilates_cycling'],
 };
 
 // Frontend purchase category -> Database pass category mapping
