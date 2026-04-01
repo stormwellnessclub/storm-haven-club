@@ -433,7 +433,7 @@ export function ChargeItemSelector({
       return;
     }
 
-    const amountInCents = Math.round(cartTotalBeforeFee * 100);
+    const amountInCents = Math.round(cartGrandTotal * 100);
     if (isNaN(amountInCents) || amountInCents < 50) {
       toast.error("Minimum charge amount is $0.50");
       return;
