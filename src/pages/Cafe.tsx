@@ -13,9 +13,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   useCafeMenuCategories,
   useCafeMenuItems,
+  calculateTax,
   type CafeMenuItem as DbMenuItem,
   type CafeMenuCategory,
 } from "@/hooks/useCafeMenu";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
   Dialog,
   DialogContent,
