@@ -170,6 +170,10 @@ export default function Cafe() {
         category: item.category,
       }));
       const totalAmountCents = Math.round(cartTotal * 100);
+      const processingFeeCents = Math.round(cartProcessingFee * 100);
+      const taxAmountCents = Math.round(cartTax * 100);
+      const subtotalCents = Math.round(cartSubtotal * 100);
+      const itemDesc = `Cafe Order - ${orderItems.map((i) => i.name).join(", ")} (incl. MI 6% tax)`;
 
       if (paymentMethod === "card" && selectedPaymentMethodId) {
         const { data: memberData } = await supabase
@@ -183,9 +187,13 @@ export default function Cafe() {
           body: {
             action: "charge_saved_card",
             amount: totalAmountCents,
-            description: `Cafe Order - ${orderItems.map((i) => i.name).join(", ")}`,
+            description: itemDesc,
             stripeCustomerId: customerId,
             paymentMethodId: selectedPaymentMethodId,
+            chargeType: "pos",
+            processingFee: processingFeeCents,
+            taxAmount: taxAmountCents,
+            subtotal: subtotalCents,
           },
         });
         if (chargeError) throw chargeError;
@@ -204,7 +212,11 @@ export default function Cafe() {
             action: "charge_saved_card",
             memberId: memberData.id,
             amount: totalAmountCents,
-            description: `Cafe Order - ${orderItems.map((i) => i.name).join(", ")}`,
+            description: itemDesc,
+            chargeType: "pos",
+            processingFee: processingFeeCents,
+            taxAmount: taxAmountCents,
+            subtotal: subtotalCents,
           },
         });
         if (chargeError) throw chargeError;
@@ -215,8 +227,15 @@ export default function Cafe() {
         throw new Error("Please select a payment method");
       }
 
+      // Add tax + fee as line items in the order record
+      const fullOrderItems = [
+        ...orderItems,
+        { id: 0, name: "MI Sales Tax (6%)", price: cartTax, quantity: 1, category: "Tax" },
+        ...(cartProcessingFee > 0 ? [{ id: 0, name: "Processing Fee", price: cartProcessingFee, quantity: 1, category: "Fee" }] : []),
+      ];
+
       await createOrder.mutateAsync({
-        orderItems,
+        orderItems: fullOrderItems,
         paymentMethod: paymentMethod === "member_account" ? "member_account" : "card",
         paymentIntentId,
       });
