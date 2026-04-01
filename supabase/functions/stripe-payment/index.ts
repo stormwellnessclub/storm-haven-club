@@ -1722,9 +1722,14 @@ serve(async (req) => {
           // Use automatic confirmation for ACH
         }
 
-        // Calculate processing fee and add to charge
-        const processingFee3ds = calculateProcessingFee(amount);
-        const totalAmount3ds = amount + processingFee3ds;
+        // Calculate processing fee — for POS charges, the frontend already included the fee
+        const isPosCharge3ds = body.chargeType === 'pos';
+        const processingFee3ds = isPosCharge3ds
+          ? (body.processingFee || 0)
+          : calculateProcessingFee(amount);
+        const totalAmount3ds = isPosCharge3ds
+          ? amount
+          : amount + processingFee3ds;
         const feeDescription3ds = processingFee3ds > 0
           ? `${description} (includes $${(processingFee3ds / 100).toFixed(2)} processing fee)`
           : description;
@@ -1741,12 +1746,12 @@ serve(async (req) => {
           confirm: true,
           return_url: `${Deno.env.get('SUPABASE_URL') || 'https://localhost'}/`,
           metadata: {
-            type: paymentType3ds || 'manual_charge',
+            type: isPosCharge3ds ? 'pos' : (paymentType3ds || 'manual_charge'),
             member_id: memberIdForLog || 'application',
             application_id: applicationIdForLog || '',
             charged_by: user.id,
             customer_name: customerName,
-            base_amount: String(amount),
+            base_amount: isPosCharge3ds ? String(amount - processingFee3ds) : String(amount),
             processing_fee: String(processingFee3ds),
             ...(taxAmount3ds ? { tax_amount: String(taxAmount3ds) } : {}),
             ...(bodySubtotal3ds ? { subtotal: String(bodySubtotal3ds) } : {}),
