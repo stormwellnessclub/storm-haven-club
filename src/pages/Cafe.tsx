@@ -476,9 +476,21 @@ export default function Cafe() {
                           </div>
                         ))}
                       </div>
-                      <div className="border-t border-border pt-4 mb-4">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium">Total</span>
+                      <div className="border-t border-border pt-4 mb-4 space-y-1">
+                        <div className="flex justify-between items-center text-sm text-muted-foreground">
+                          <span>Subtotal</span>
+                          <span>${cartSubtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm text-muted-foreground">
+                          <span>MI Sales Tax (6%)</span>
+                          <span>${cartTax.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm text-muted-foreground">
+                          <span>Processing Fee</span>
+                          <span>${cartProcessingFee.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center font-medium pt-1 border-t border-border">
+                          <span>Total</span>
                           <span className="text-accent font-semibold text-xl">${cartTotal.toFixed(2)}</span>
                         </div>
                       </div>
