@@ -220,6 +220,8 @@ interface PaymentRequest {
   description?: string;
   stripeCustomerId?: string; // Direct customer ID for applications
   applicationId?: string; // For tracking application charges
+  chargeType?: string; // 'pos' for POS charges — skips backend fee recalculation
+  processingFee?: number; // Processing fee in cents (used when chargeType === 'pos')
   // For application setup (unauthenticated)
   applicantEmail?: string;
   applicantName?: string;
@@ -1434,9 +1436,15 @@ serve(async (req) => {
         const cardBrand = paymentMethod.card?.brand ? paymentMethod.card.brand.charAt(0).toUpperCase() + paymentMethod.card.brand.slice(1) : 'Card';
         const cardLast4 = paymentMethod.card?.last4 || '****';
 
-        // Calculate processing fee and add to charge
-        const processingFeeCents = calculateProcessingFee(amount);
-        const totalAmountWithFee = amount + processingFeeCents;
+        // Calculate processing fee — for POS charges, the frontend already included the fee
+        // in the amount, so we use it as-is. For non-POS charges, we add the fee on top.
+        const isPosCharge = body.chargeType === 'pos';
+        const processingFeeCents = isPosCharge
+          ? (body.processingFee || 0)  // Use the fee the POS frontend already calculated
+          : calculateProcessingFee(amount);
+        const totalAmountWithFee = isPosCharge
+          ? amount  // POS amount already includes the fee
+          : amount + processingFeeCents;
         const feeDescription = processingFeeCents > 0 
           ? `${description} (includes $${(processingFeeCents / 100).toFixed(2)} processing fee)` 
           : description;
@@ -1451,11 +1459,11 @@ serve(async (req) => {
           confirm: true,
           description: feeDescription,
           metadata: {
-            type: payment_type || 'manual_charge',
+            type: isPosCharge ? 'pos' : (payment_type || 'manual_charge'),
             member_id: memberIdForLog || 'application',
             charged_by: user.id,
             customer_name: customerName,
-            base_amount: String(amount),
+            base_amount: isPosCharge ? String(amount - processingFeeCents) : String(amount),
             processing_fee: String(processingFeeCents),
             ...(taxAmount ? { tax_amount: String(taxAmount) } : {}),
             ...(bodySubtotal ? { subtotal: String(bodySubtotal) } : {}),
@@ -1716,9 +1724,14 @@ serve(async (req) => {
           // Use automatic confirmation for ACH
         }
 
-        // Calculate processing fee and add to charge
-        const processingFee3ds = calculateProcessingFee(amount);
-        const totalAmount3ds = amount + processingFee3ds;
+        // Calculate processing fee — for POS charges, the frontend already included the fee
+        const isPosCharge3ds = body.chargeType === 'pos';
+        const processingFee3ds = isPosCharge3ds
+          ? (body.processingFee || 0)
+          : calculateProcessingFee(amount);
+        const totalAmount3ds = isPosCharge3ds
+          ? amount
+          : amount + processingFee3ds;
         const feeDescription3ds = processingFee3ds > 0
           ? `${description} (includes $${(processingFee3ds / 100).toFixed(2)} processing fee)`
           : description;
@@ -1735,12 +1748,12 @@ serve(async (req) => {
           confirm: true,
           return_url: `${Deno.env.get('SUPABASE_URL') || 'https://localhost'}/`,
           metadata: {
-            type: paymentType3ds || 'manual_charge',
+            type: isPosCharge3ds ? 'pos' : (paymentType3ds || 'manual_charge'),
             member_id: memberIdForLog || 'application',
             application_id: applicationIdForLog || '',
             charged_by: user.id,
             customer_name: customerName,
-            base_amount: String(amount),
+            base_amount: isPosCharge3ds ? String(amount - processingFee3ds) : String(amount),
             processing_fee: String(processingFee3ds),
             ...(taxAmount3ds ? { tax_amount: String(taxAmount3ds) } : {}),
             ...(bodySubtotal3ds ? { subtotal: String(bodySubtotal3ds) } : {}),

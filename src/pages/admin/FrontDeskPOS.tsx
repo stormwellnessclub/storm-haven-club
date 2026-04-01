@@ -79,6 +79,7 @@ export default function FrontDeskPOS() {
             amount: amountCents,
             description: `Front Desk POS - ${itemNames}`,
             chargeType: "pos",
+            processingFee: Math.round(processingFee * 100),
             subtotal: Math.round(subtotal * 100),
             taxAmount: Math.round(tax * 100),
           },

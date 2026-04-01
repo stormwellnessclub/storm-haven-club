@@ -78,6 +78,7 @@ export default function CafePOS() {
             amount: amountCents,
             description: `Cafe POS - ${itemNames}`,
             chargeType: "pos",
+            processingFee: Math.round(processingFee * 100),
             subtotal: Math.round(subtotal * 100),
             taxAmount: Math.round(tax * 100),
           },
