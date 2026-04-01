@@ -2061,6 +2061,84 @@ serve(async (req) => {
                 logError(creditRenewalError, "CREDIT_RENEWAL");
               }
 
+              // ── Apply pending tier change (scheduled downgrade) ──
+              try {
+                const { data: pendingMember } = await supabase
+                  .from('members')
+                  .select('pending_tier_change, membership_type, stripe_subscription_id, stripe_customer_id, gender, billing_type, is_founding_member')
+                  .eq('id', memberData.id)
+                  .single();
+
+                if (pendingMember?.pending_tier_change && pendingMember.stripe_subscription_id) {
+                  const pendingTier = pendingMember.pending_tier_change.toLowerCase().replace(' membership', '');
+                  logStep("Applying pending tier change", { memberId: memberData.id, pendingTier });
+
+                  // Determine new price ID
+                  const MEMBERSHIP_PRICES: Record<string, Record<string, Record<string, string | null>>> = {
+                    silver: {
+                      monthly: { women: 'price_1Sl9llLyZrsSqLhsJhm0MdJi', men: 'price_1Sl9mBLyZrsSqLhsas4CTChz' },
+                      annual: { women: 'price_1Sl9x2LyZrsSqLhsYLtI7doB', men: 'price_1Sl9yLLyZrsSqLhsG6NiPqH5' },
+                    },
+                    gold: {
+                      monthly: { women: 'price_1Sl9pvLyZrsSqLhsIWyf2WwX', men: 'price_1Sl9quLyZrsSqLhs6PPn9AeL' },
+                      annual: { women: 'price_1SlA0bLyZrsSqLhsOIdyhLo7', men: 'price_1SlA11LyZrsSqLhsfSqUElkE' },
+                    },
+                    platinum: {
+                      monthly: { women: 'price_1Sl9r7LyZrsSqLhs5RBuy2f7', men: 'price_1Sl9roLyZrsSqLhsQCydIccE' },
+                      annual: { women: 'price_1SlA1cLyZrsSqLhsAXXQEqVx', men: 'price_1SlA1oLyZrsSqLhstHpodZzv' },
+                    },
+                    diamond: {
+                      monthly: { women: 'price_1Sl9wILyZrsSqLhsLjYqkoqq', men: null },
+                      annual: { women: 'price_1SlA1zLyZrsSqLhsbJMZ0za2', men: null },
+                    },
+                  };
+
+                  const normalizedGender = (pendingMember.gender?.toLowerCase() === 'male' || pendingMember.gender?.toLowerCase() === 'men') ? 'men' : 'women';
+                  const billingInterval = pendingMember.billing_type || (pendingMember.is_founding_member ? 'annual' : 'monthly');
+                  const newPriceId = MEMBERSHIP_PRICES[pendingTier]?.[billingInterval]?.[normalizedGender];
+
+                  if (newPriceId) {
+                    // Retrieve current subscription and swap price with no proration (already on new cycle)
+                    const currentSub = await stripe.subscriptions.retrieve(pendingMember.stripe_subscription_id);
+                    const subItem = currentSub.items.data[0];
+
+                    if (subItem) {
+                      await stripe.subscriptions.update(pendingMember.stripe_subscription_id, {
+                        items: [{ id: subItem.id, price: newPriceId }],
+                        proration_behavior: 'none',
+                        metadata: {
+                          ...currentSub.metadata,
+                          tier: pendingTier,
+                          previous_tier: getTierName(pendingMember.membership_type || 'silver'),
+                          tier_changed_at: new Date().toISOString(),
+                          tier_changed_by: 'webhook_scheduled',
+                        },
+                      });
+
+                      // Update member record: apply tier and clear pending fields
+                      const capitalizedTier = pendingTier.charAt(0).toUpperCase() + pendingTier.slice(1);
+                      await supabase
+                        .from('members')
+                        .update({
+                          membership_type: capitalizedTier,
+                          pending_tier_change: null,
+                          pending_tier_change_at: null,
+                          pending_tier_change_by: null,
+                          updated_at: new Date().toISOString(),
+                        })
+                        .eq('id', memberData.id);
+
+                      logStep("Pending tier change applied", { memberId: memberData.id, newTier: capitalizedTier });
+                    }
+                  } else {
+                    logStep("Invalid pending tier or price not found", { pendingTier, gender: normalizedGender, billing: billingInterval });
+                  }
+                }
+              } catch (pendingTierError) {
+                logError(pendingTierError, "PENDING_TIER_CHANGE");
+                // Don't fail the webhook for pending tier change errors
+              }
+
               // Send receipt email for membership dues renewal
               try {
                 const { data: fullMemberData } = await supabase
