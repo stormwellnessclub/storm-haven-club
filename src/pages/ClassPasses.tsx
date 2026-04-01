@@ -312,7 +312,7 @@ export default function ClassPasses() {
   const [showWaiverFor, setShowWaiverFor] = useState<{
     type: string;
     title: string;
-    pendingPurchase?: { category: 'pilatesCycling' | 'otherClasses'; passType: 'single' | 'tenPack' };
+    pendingPurchase?: { category: 'pilatesCycling'; passType: 'single' | 'tenPack' };
   } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
