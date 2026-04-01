@@ -1,35 +1,59 @@
 
+Goal: fix the café checkout paths so the amount shown to staff/customers is the exact amount actually charged, and so reports no longer make it look like you absorbed the processing fee.
 
-# Café Menu Card Improvements
+What I found
+- Admin POS pages are already sending fee-inclusive totals correctly:
+  - `src/pages/admin/CafePOS.tsx`
+  - `src/pages/admin/FrontDeskPOS.tsx`
+- The main broken café admin flow is `src/components/admin/ChargeItemSelector.tsx`:
+  - it displays `Subtotal + Tax + Processing Fee`
+  - but it submits `cartTotalBeforeFee` instead of `cartGrandTotal`
+  - the button label also shows the pre-fee amount
+- The backend also records the wrong amount in `manual_charges`:
+  - `supabase/functions/stripe-payment/index.ts` inserts `amount: amount`
+  - for fee-bearing charges, that is the pre-fee request amount, not the actual Stripe total
+  - so internal records/reports can look like the fee was never charged even when Stripe charged it
+- Public café checkout in `src/pages/Cafe.tsx` is also inconsistent:
+  - it sends `cartTotal` only
+  - it is not using the same café tax/fee breakdown as the admin flows
 
-## Problems (confirmed from preview)
+Implementation plan
+1. Fix the admin café charge cart
+- Update `src/components/admin/ChargeItemSelector.tsx`
+- Submit the fee-inclusive total (`cartGrandTotal`) instead of `cartTotalBeforeFee`
+- Pass explicit fee metadata (`processingFee`, `subtotal`, `taxAmount`)
+- Update the charge button text so staff sees the real amount being charged
 
-1. **Badge overlap** — Seasonal badge (e.g. "Small Batch French Farm") is `absolute top-3 right-3` and overlaps the item title area, covering chia item titles
-2. **Nutritional info is a wall of text** — Benefits and Nutritional Profile sections render as dense inline paragraphs with bullet points running together (visible on the chia pudding card)
-3. **Calories invisible** — `text-xs text-muted-foreground` crammed in with dietary tags, easy to miss
-4. **Cards feel bland** — flat hierarchy, everything is small muted text, no visual structure
+2. Make the backend support “fee already included” charges cleanly
+- Update `supabase/functions/stripe-payment/index.ts`
+- Add a generic fee-included path for `charge_saved_card` and `charge_saved_card_with_3ds`
+- When that flag is present:
+  - charge the amount exactly as sent
+  - do not recalculate the fee again
+- Keep existing non-café/manual fee behavior unchanged
 
-## Changes — `src/pages/Cafe.tsx`
+3. Fix backend recordkeeping so reports match reality
+- In the same backend file, store the actual charged total in `manual_charges.amount`
+- Store the fee-aware description used on the Stripe charge
+- This makes café reports and admin history reflect the real charged amount instead of the pre-fee subtotal/tax amount
 
-### 1. Fix badge overlap (line 315-321)
-- Move the seasonal badge **out of absolute positioning** and into the content area (`p-5` div), rendered as an inline badge **above** the item title
-- This eliminates any overlap with titles or images
+4. Align the public café checkout
+- Update `src/pages/Cafe.tsx`
+- Compute subtotal, MI sales tax, processing fee, and total explicitly
+- Show that breakdown in the payment dialog
+- Send the same fee-inclusive amount/metadata as the admin café flow so the UI and Stripe stay in sync
 
-### 2. Collapsible nutritional info (lines 356-367)
-- Wrap the Benefits and Nutritional Profile sections inside a `<Collapsible>` component
-- Add a subtle "Nutritional Info ▾" trigger button below the description
-- When expanded, show Benefits and Nutritional Profile as structured, labeled sections
-- Format the benefits text: split on bullet markers (`•` or `·`) and render as an actual list with `<ul><li>` elements for readability
+Technical details
+- Files to change:
+  - `src/components/admin/ChargeItemSelector.tsx`
+  - `src/pages/Cafe.tsx`
+  - `supabase/functions/stripe-payment/index.ts`
+- Likely no database schema changes needed
+- I would leave `src/pages/admin/CafePOS.tsx` and `src/pages/admin/FrontDeskPOS.tsx` mostly as-is, then verify they still behave correctly after the backend cleanup
 
-### 3. Improve calorie visibility (lines 375-377)
-- Move calories out of the dietary tags row
-- Display as its own line below the price: `text-sm text-foreground/60` — readable but not loud
-- Position it near the title/price area so it's noticed
-
-### 4. Minor card hierarchy improvements
-- Add `font-medium` to the item title for slightly more weight
-- Add slightly more spacing between description and action row
-
-### Files changed
-- `src/pages/Cafe.tsx`
-
+Verification checklist
+- Admin café charge cart: displayed total equals Stripe total exactly
+- Public café checkout: displayed total equals Stripe total exactly
+- `manual_charges.amount` matches the actual Stripe charge amount
+- Café reports no longer undercount fee-bearing charges
+- Existing POS card flows still work without double-charging
