@@ -420,7 +420,7 @@ export default function ClassPasses() {
             <p className="text-gold text-sm uppercase tracking-widest mb-4">Flexible Options</p>
             <h1 className="heading-display mb-6">Class Passes</h1>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              Purchase class passes for our Reformer Pilates, Cycling, and Aerobics studios. 
+              Purchase class passes valid for all studio classes. 
               Members receive discounted pricing on all class packages.
             </p>
             {!user ? (
