@@ -312,14 +312,6 @@ export default function Cafe() {
 
                     return (
                       <div key={item.id} className={`card-luxury overflow-hidden group relative ${isSoldOut ? "opacity-60" : ""}`}>
-                        {/* Seasonal badge */}
-                        {item.is_seasonal && (
-                          <div className="absolute top-3 right-3 z-10">
-                            <Badge className="bg-accent text-accent-foreground text-xs">
-                              {item.seasonal_label || "Limited Time"}
-                            </Badge>
-                          </div>
-                        )}
                         {/* Sold out overlay */}
                         {isSoldOut && (
                           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60">
@@ -338,12 +330,25 @@ export default function Cafe() {
                           </div>
                         )}
                         <div className="p-5">
-                          <div className="flex justify-between items-start mb-2">
+                          {/* Seasonal badge - inline, not absolute */}
+                          {item.is_seasonal && (
+                            <div className="mb-2">
+                              <Badge className="bg-accent text-accent-foreground text-xs">
+                                {item.seasonal_label || "Limited Time"}
+                              </Badge>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-start mb-1">
                             <div>
-                              <h3 className="font-serif text-lg">{name}</h3>
+                              <h3 className="font-serif text-lg font-medium">{name}</h3>
                               <p className="text-xs text-muted-foreground">{catName}</p>
                             </div>
-                            <span className="text-gold font-semibold">${item.price.toFixed(2)}</span>
+                            <div className="text-right shrink-0 ml-3">
+                              <span className="text-gold font-semibold">${item.price.toFixed(2)}</span>
+                              {item.calories && (
+                                <p className="text-sm text-foreground/60">{item.calories} cal</p>
+                              )}
+                            </div>
                           </div>
                           {parsed.size && (
                             <p className="text-xs text-muted-foreground mb-1">{parsed.size}</p>
@@ -352,30 +357,46 @@ export default function Cafe() {
                             <p className="text-xs text-muted-foreground mb-1">Protein: {parsed.proteinFlavor}</p>
                           )}
                           {parsed.description && (
-                            <p className="text-muted-foreground text-sm mb-2">{parsed.description}</p>
+                            <p className="text-muted-foreground text-sm mb-3">{parsed.description}</p>
                           )}
-                          {parsed.benefits && (
-                            <div className="mb-2">
-                              <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-0.5">Benefits</p>
-                              <p className="text-muted-foreground text-xs leading-relaxed">{parsed.benefits}</p>
-                            </div>
+                          {/* Collapsible nutritional info */}
+                          {(parsed.benefits || parsed.nutrition) && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="flex items-center gap-1 text-xs text-foreground/50 hover:text-foreground/70 transition-colors mb-2 group/trigger">
+                                <ChevronDown className="w-3 h-3 transition-transform group-data-[state=open]/trigger:rotate-180" />
+                                Nutritional Info
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="space-y-2 mb-3">
+                                {parsed.benefits && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">Benefits</p>
+                                    <ul className="text-muted-foreground text-xs leading-relaxed space-y-0.5 pl-3">
+                                      {parsed.benefits.split(/[•·]/).filter(b => b.trim()).map((benefit, i) => (
+                                        <li key={i} className="list-disc">{benefit.trim()}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                {parsed.nutrition && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">Nutritional Profile</p>
+                                    <ul className="text-muted-foreground text-xs leading-relaxed space-y-0.5 pl-3">
+                                      {parsed.nutrition.split(/[•·,]/).filter(n => n.trim()).map((nutrient, i) => (
+                                        <li key={i} className="list-disc">{nutrient.trim()}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </CollapsibleContent>
+                            </Collapsible>
                           )}
-                          {parsed.nutrition && (
-                            <div className="mb-2">
-                              <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-0.5">Nutritional Profile</p>
-                              <p className="text-muted-foreground text-xs leading-relaxed">{parsed.nutrition}</p>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between mt-3">
                             <div className="flex items-center gap-2 flex-wrap">
                               {item.dietary_tags?.map((d) => (
                                 <span key={d} className="text-xs px-2 py-0.5 bg-secondary text-secondary-foreground rounded-sm">
                                   {d}
                                 </span>
                               ))}
-                              {item.calories && (
-                                <span className="text-xs text-muted-foreground">{item.calories} cal</span>
-                              )}
                             </div>
                             <Button
                               variant="outline"
