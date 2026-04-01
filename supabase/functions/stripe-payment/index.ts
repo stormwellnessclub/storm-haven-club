@@ -1485,8 +1485,8 @@ serve(async (req) => {
             .insert({
               member_id: memberIdForLog,
               user_id: userIdForLog,
-              amount: amount,
-              description: description,
+              amount: totalAmountWithFee,
+              description: feeDescription,
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
               charged_by: user.id,
@@ -1502,8 +1502,8 @@ serve(async (req) => {
             .insert({
               application_id: applicationIdForLog,
               user_id: user.id, // Use the admin's user_id since applicant doesn't have one yet
-              amount: amount,
-              description: description,
+              amount: totalAmountWithFee,
+              description: feeDescription,
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
               charged_by: user.id,
@@ -1791,8 +1791,8 @@ serve(async (req) => {
               .insert({
                 member_id: memberIdForLog,
                 user_id: userIdForLog,
-                amount: amount,
-                description: description,
+                amount: totalAmount3ds,
+                description: feeDescription3ds,
                 stripe_payment_intent_id: paymentIntent3ds.id,
                 status: 'succeeded',
                 charged_by: user.id,
@@ -1803,8 +1803,8 @@ serve(async (req) => {
               .insert({
                 application_id: applicationIdForLog,
                 user_id: user.id,
-                amount: amount,
-                description: description,
+                amount: totalAmount3ds,
+                description: feeDescription3ds,
                 stripe_payment_intent_id: paymentIntent3ds.id,
                 status: 'succeeded',
                 charged_by: user.id,

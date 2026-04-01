@@ -13,9 +13,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   useCafeMenuCategories,
   useCafeMenuItems,
+  calculateTax,
   type CafeMenuItem as DbMenuItem,
   type CafeMenuCategory,
 } from "@/hooks/useCafeMenu";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
   Dialog,
   DialogContent,
@@ -136,7 +138,10 @@ export default function Cafe() {
     );
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartTax = calculateTax(cartSubtotal);
+  const cartProcessingFee = calculateProcessingFeeFromDollars(cartSubtotal + cartTax);
+  const cartTotal = cartSubtotal + cartTax + cartProcessingFee;
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handlePlaceOrder = async () => {
@@ -165,6 +170,10 @@ export default function Cafe() {
         category: item.category,
       }));
       const totalAmountCents = Math.round(cartTotal * 100);
+      const processingFeeCents = Math.round(cartProcessingFee * 100);
+      const taxAmountCents = Math.round(cartTax * 100);
+      const subtotalCents = Math.round(cartSubtotal * 100);
+      const itemDesc = `Cafe Order - ${orderItems.map((i) => i.name).join(", ")} (incl. MI 6% tax)`;
 
       if (paymentMethod === "card" && selectedPaymentMethodId) {
         const { data: memberData } = await supabase
@@ -178,9 +187,13 @@ export default function Cafe() {
           body: {
             action: "charge_saved_card",
             amount: totalAmountCents,
-            description: `Cafe Order - ${orderItems.map((i) => i.name).join(", ")}`,
+            description: itemDesc,
             stripeCustomerId: customerId,
             paymentMethodId: selectedPaymentMethodId,
+            chargeType: "pos",
+            processingFee: processingFeeCents,
+            taxAmount: taxAmountCents,
+            subtotal: subtotalCents,
           },
         });
         if (chargeError) throw chargeError;
@@ -199,7 +212,11 @@ export default function Cafe() {
             action: "charge_saved_card",
             memberId: memberData.id,
             amount: totalAmountCents,
-            description: `Cafe Order - ${orderItems.map((i) => i.name).join(", ")}`,
+            description: itemDesc,
+            chargeType: "pos",
+            processingFee: processingFeeCents,
+            taxAmount: taxAmountCents,
+            subtotal: subtotalCents,
           },
         });
         if (chargeError) throw chargeError;
@@ -210,8 +227,15 @@ export default function Cafe() {
         throw new Error("Please select a payment method");
       }
 
+      // Add tax + fee as line items in the order record
+      const fullOrderItems = [
+        ...orderItems,
+        { id: 0, name: "MI Sales Tax (6%)", price: cartTax, quantity: 1, category: "Tax" },
+        ...(cartProcessingFee > 0 ? [{ id: 0, name: "Processing Fee", price: cartProcessingFee, quantity: 1, category: "Fee" }] : []),
+      ];
+
       await createOrder.mutateAsync({
-        orderItems,
+        orderItems: fullOrderItems,
         paymentMethod: paymentMethod === "member_account" ? "member_account" : "card",
         paymentIntentId,
       });
@@ -283,7 +307,7 @@ export default function Cafe() {
               <div className="hidden md:flex items-center gap-2 text-sm">
                 <ShoppingBag className="w-4 h-4" />
                 <span>{cartCount} items</span>
-                <span className="text-gold font-semibold">${cartTotal.toFixed(2)}</span>
+                <span className="text-gold font-semibold">${cartSubtotal.toFixed(2)}</span>
               </div>
             )}
           </div>
@@ -452,9 +476,21 @@ export default function Cafe() {
                           </div>
                         ))}
                       </div>
-                      <div className="border-t border-border pt-4 mb-4">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium">Total</span>
+                      <div className="border-t border-border pt-4 mb-4 space-y-1">
+                        <div className="flex justify-between items-center text-sm text-muted-foreground">
+                          <span>Subtotal</span>
+                          <span>${cartSubtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm text-muted-foreground">
+                          <span>MI Sales Tax (6%)</span>
+                          <span>${cartTax.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm text-muted-foreground">
+                          <span>Processing Fee</span>
+                          <span>${cartProcessingFee.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center font-medium pt-1 border-t border-border">
+                          <span>Total</span>
                           <span className="text-accent font-semibold text-xl">${cartTotal.toFixed(2)}</span>
                         </div>
                       </div>
@@ -542,8 +578,20 @@ export default function Cafe() {
                 </p>
               </div>
             )}
-            <div className="border-t pt-4">
-              <div className="flex justify-between items-center text-lg font-semibold">
+            <div className="border-t pt-4 space-y-1">
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>Subtotal</span>
+                <span>${cartSubtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>MI Sales Tax (6%)</span>
+                <span>${cartTax.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>Processing Fee</span>
+                <span>${cartProcessingFee.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-lg font-semibold pt-1 border-t">
                 <span>Total</span>
                 <span className="text-accent">${cartTotal.toFixed(2)}</span>
               </div>

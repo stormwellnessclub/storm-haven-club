@@ -433,7 +433,7 @@ export function ChargeItemSelector({
       return;
     }
 
-    const amountInCents = Math.round(cartTotalBeforeFee * 100);
+    const amountInCents = Math.round(cartGrandTotal * 100);
     if (isNaN(amountInCents) || amountInCents < 50) {
       toast.error("Minimum charge amount is $0.50");
       return;
@@ -492,11 +492,14 @@ export function ChargeItemSelector({
 
         const taxAmountCents = Math.round(cartCafeTax * 100);
         const subtotalCents = Math.round(cartSubtotal * 100);
+        const processingFeeCents = Math.round(cartProcessingFee * 100);
 
         const chargeBody: any = {
           action: "charge_saved_card_with_3ds",
           amount: amountInCents,
           description: desc,
+          chargeType: "pos",
+          processingFee: processingFeeCents,
           taxAmount: taxAmountCents,
           subtotal: subtotalCents,
           payment_type: paymentType,
@@ -516,7 +519,7 @@ export function ChargeItemSelector({
           return;
         }
         if (!data?.success) throw new Error(data?.error || "Charge failed");
-        toast.success(`Successfully charged $${cartTotalBeforeFee.toFixed(2)}`);
+        toast.success(`Successfully charged $${cartGrandTotal.toFixed(2)}`);
       }
 
       // Auto-create Kids Care passes for any kids_care items in cart
@@ -916,7 +919,7 @@ export function ChargeItemSelector({
 
                 <Button className="w-full" onClick={handleCharge} disabled={isCharging}>
                   {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  {isManualPayment ? "Record" : "Charge"} ${cartTotalBeforeFee.toFixed(2)}
+                  {isManualPayment ? "Record" : "Charge"} ${isManualPayment ? cartTotalBeforeFee.toFixed(2) : cartGrandTotal.toFixed(2)}
                 </Button>
               </>
             )}
