@@ -1,19 +1,29 @@
 
 
-# Unify Class Passes as "Class Pass"
+# Fix: Stop Absorbing Stripe Processing Fees on POS Orders
 
-## Status: ✅ Implemented
+## Problem
+You're absorbing Stripe's 2.9% + $0.30 processing fee on POS card charges because of two bugs:
 
-## Summary
-Merged the two class pass categories (Pilates/Cycling and Other) into one **"Class Pass"** at the Pilates/Cycling price ($25/$30 single, $170/$285 10-pack). Processing fees already pass through to customers. Legacy passes honored with directional upgrade logic.
+1. **Front Desk POS** (`FrontDeskPOS.tsx`) — does NOT calculate or add any processing fee at all. The customer only pays subtotal + tax, and Stripe deducts its fee from your payout.
 
-## Legacy Pass Rules
-- **pilates_cycling passes** → valid for ALL classes (upgraded)
-- **aerobics passes** → still restricted to "other" classes only (lower price respected)
-- Old "Other Classes" Stripe price IDs remain in webhook for legacy checkout links
+2. **Both POS terminals** send `customerId` to the edge function, but the `charge_saved_card` handler expects `stripeCustomerId`. This means the parameter is silently ignored and the charge may route incorrectly. The Café POS does calculate the fee but the field name mismatch is a latent bug.
 
-## Changes Made
-- `src/lib/classCategories.ts` — added `pilates_cycling` to `CLASS_TO_PASS_MAPPING['other']`, renamed display to "Class Pass"
-- `src/pages/ClassPasses.tsx` — merged to single "Class Pass" pricing table, removed "Other Classes" section
-- `src/components/admin/NonMemberStripeImport.tsx` — renamed labels to "Class Pass", legacy entries marked [Legacy]
-- `supabase/functions/stripe-webhook/index.ts` — updated labels to "Class Pass"
+## Fix
+
+### 1. Front Desk POS — add processing fee (`src/pages/admin/FrontDeskPOS.tsx`)
+- Import `calculateProcessingFeeFromDollars`
+- Calculate processing fee for card-on-file charges (same logic Café POS already has)
+- Add fee to the total charged and include it as an order line item
+
+### 2. Fix field name in both POS charge calls
+- **CafePOS.tsx line 77**: change `customerId` → `stripeCustomerId`
+- **FrontDeskPOS.tsx line 75**: change `customerId` → `stripeCustomerId`
+
+### 3. Add tax/subtotal metadata to POS charges
+- Both POS files should send `taxAmount` and `subtotal` in the charge body (like ChargeItemSelector already does) for proper tax reporting
+
+### Files changed
+- `src/pages/admin/CafePOS.tsx` — fix field name, add metadata
+- `src/pages/admin/FrontDeskPOS.tsx` — add processing fee calculation, fix field name, add metadata
+
