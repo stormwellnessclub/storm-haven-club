@@ -1,28 +1,19 @@
 
 
-# Show Class Ratings on the Schedule
+# Unify Class Passes as "Class Pass"
 
-## Current State
-The review system already works: members can leave 1-5 star reviews from their past bookings, and each booking allows one review. Since each class attendance creates a new booking, members can rate every time they take a class. The `get_all_class_type_ratings` RPC already aggregates average ratings per class type.
+## Status: ✅ Implemented
 
-**The missing piece**: ratings are never displayed on the public/member-facing class schedule.
+## Summary
+Merged the two class pass categories (Pilates/Cycling and Other) into one **"Class Pass"** at the Pilates/Cycling price ($25/$30 single, $170/$285 10-pack). Processing fees already pass through to customers. Legacy passes honored with directional upgrade logic.
 
-## Plan
+## Legacy Pass Rules
+- **pilates_cycling passes** → valid for ALL classes (upgraded)
+- **aerobics passes** → still restricted to "other" classes only (lower price respected)
+- Old "Other Classes" Stripe price IDs remain in webhook for legacy checkout links
 
-### 1. Add ratings to ClassCard (src/components/booking/ClassCard.tsx)
-- Accept an optional `rating` prop: `{ average: number; count: number } | null`
-- Display a small `StarRating` component (with average + count) below the class name/category badge
-- Example: ★★★★☆ 4.2 (17)
-
-### 2. Fetch and pass ratings in ClassCalendar (src/components/booking/ClassCalendar.tsx)
-- Call `useClassTypeRatings()` to get the ratings map
-- Pass the matching rating data to each `ClassCard` via the new prop
-
-### 3. No database changes needed
-- The `class_reviews` table, unique constraint, and `get_all_class_type_ratings` RPC already exist and work correctly
-- The per-booking uniqueness means users already can review each time they attend
-
-### Files Changed
-- `src/components/booking/ClassCard.tsx` — add rating display
-- `src/components/booking/ClassCalendar.tsx` — fetch ratings and pass to cards
-
+## Changes Made
+- `src/lib/classCategories.ts` — added `pilates_cycling` to `CLASS_TO_PASS_MAPPING['other']`, renamed display to "Class Pass"
+- `src/pages/ClassPasses.tsx` — merged to single "Class Pass" pricing table, removed "Other Classes" section
+- `src/components/admin/NonMemberStripeImport.tsx` — renamed labels to "Class Pass", legacy entries marked [Legacy]
+- `supabase/functions/stripe-webhook/index.ts` — updated labels to "Class Pass"
