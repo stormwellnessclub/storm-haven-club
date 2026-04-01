@@ -1502,8 +1502,8 @@ serve(async (req) => {
             .insert({
               application_id: applicationIdForLog,
               user_id: user.id, // Use the admin's user_id since applicant doesn't have one yet
-              amount: amount,
-              description: description,
+              amount: totalAmountWithFee,
+              description: feeDescription,
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
               charged_by: user.id,
