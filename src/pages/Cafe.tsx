@@ -307,7 +307,7 @@ export default function Cafe() {
               <div className="hidden md:flex items-center gap-2 text-sm">
                 <ShoppingBag className="w-4 h-4" />
                 <span>{cartCount} items</span>
-                <span className="text-gold font-semibold">${cartTotal.toFixed(2)}</span>
+                <span className="text-gold font-semibold">${cartSubtotal.toFixed(2)}</span>
               </div>
             )}
           </div>
