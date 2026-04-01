@@ -116,6 +116,16 @@ export default function FrontDeskPOS() {
         category: "Tax",
       });
 
+      if (processingFee > 0) {
+        orderItems.push({
+          id: 0,
+          name: "Processing Fee",
+          price: processingFee,
+          quantity: 1,
+          category: "Fee",
+        });
+      }
+
       const orderPaymentMethod = paymentMethod === "cash" ? "cash" : (selectedCustomer?.cardOnFile ? "member_account" : "card");
 
       await createOrder.mutateAsync({
