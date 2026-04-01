@@ -1,19 +1,15 @@
 
 
-# Unify Class Passes as "Class Pass"
+# Fix: Stop Absorbing Stripe Processing Fees on POS Orders
 
 ## Status: ✅ Implemented
 
 ## Summary
-Merged the two class pass categories (Pilates/Cycling and Other) into one **"Class Pass"** at the Pilates/Cycling price ($25/$30 single, $170/$285 10-pack). Processing fees already pass through to customers. Legacy passes honored with directional upgrade logic.
-
-## Legacy Pass Rules
-- **pilates_cycling passes** → valid for ALL classes (upgraded)
-- **aerobics passes** → still restricted to "other" classes only (lower price respected)
-- Old "Other Classes" Stripe price IDs remain in webhook for legacy checkout links
+Fixed two POS terminals to stop absorbing Stripe processing fees (2.9% + $0.30) and corrected the `customerId` → `stripeCustomerId` field name mismatch.
 
 ## Changes Made
-- `src/lib/classCategories.ts` — added `pilates_cycling` to `CLASS_TO_PASS_MAPPING['other']`, renamed display to "Class Pass"
-- `src/pages/ClassPasses.tsx` — merged to single "Class Pass" pricing table, removed "Other Classes" section
-- `src/components/admin/NonMemberStripeImport.tsx` — renamed labels to "Class Pass", legacy entries marked [Legacy]
-- `supabase/functions/stripe-webhook/index.ts` — updated labels to "Class Pass"
+- `src/pages/admin/FrontDeskPOS.tsx` — added processing fee calculation, fixed field name, added tax/subtotal metadata
+- `src/pages/admin/CafePOS.tsx` — fixed `customerId` → `stripeCustomerId`, added tax/subtotal metadata
+
+## Previous: Unify Class Passes as "Class Pass" (✅ Done)
+Merged two class pass categories into one "Class Pass" at the Pilates/Cycling price. Legacy passes honored with directional upgrade logic.
