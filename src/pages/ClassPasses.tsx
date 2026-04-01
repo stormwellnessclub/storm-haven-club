@@ -111,7 +111,7 @@ function InlineWaiverPrompt({
 
 // Extracted pricing tables component
 function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
-  onPurchase: (category: 'pilatesCycling' | 'otherClasses', passType: 'single' | 'tenPack') => void;
+  onPurchase: (category: 'pilatesCycling', passType: 'single' | 'tenPack') => void;
   loadingPass: string | null;
   isMember: boolean;
   user: any;
