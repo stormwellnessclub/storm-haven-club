@@ -12,7 +12,7 @@ export type FrontendPurchaseCategory = 'pilatesCycling' | 'otherClasses';
 
 // Database category -> Display name
 export const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
-  'pilates_cycling': 'Pilates & Cycling',
+  'pilates_cycling': 'Class Pass',
   'reformer': 'Reformer Pilates',
   'cycling': 'Cycling',
   'aerobics': 'Aerobics & Other',
