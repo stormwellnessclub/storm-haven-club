@@ -919,7 +919,7 @@ export function ChargeItemSelector({
 
                 <Button className="w-full" onClick={handleCharge} disabled={isCharging}>
                   {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  {isManualPayment ? "Record" : "Charge"} ${cartTotalBeforeFee.toFixed(2)}
+                  {isManualPayment ? "Record" : "Charge"} ${isManualPayment ? cartTotalBeforeFee.toFixed(2) : cartGrandTotal.toFixed(2)}
                 </Button>
               </>
             )}

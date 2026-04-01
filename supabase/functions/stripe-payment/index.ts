@@ -1803,8 +1803,8 @@ serve(async (req) => {
               .insert({
                 application_id: applicationIdForLog,
                 user_id: user.id,
-                amount: amount,
-                description: description,
+                amount: totalAmount3ds,
+                description: feeDescription3ds,
                 stripe_payment_intent_id: paymentIntent3ds.id,
                 status: 'succeeded',
                 charged_by: user.id,
