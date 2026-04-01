@@ -1485,8 +1485,8 @@ serve(async (req) => {
             .insert({
               member_id: memberIdForLog,
               user_id: userIdForLog,
-              amount: amount,
-              description: description,
+              amount: totalAmountWithFee,
+              description: feeDescription,
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
               charged_by: user.id,
