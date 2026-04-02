@@ -106,6 +106,7 @@ const departments: DepartmentSection[] = [
     roles: ['super_admin', 'admin', 'manager', 'spa_staff', 'front_desk'],
     items: [
       { title: "Appointments", url: "/admin/appointments", icon: Calendar },
+      { title: "Spa Management", url: "/admin/spa-management", icon: Calendar },
       { title: "Front Desk POS", url: "/admin/front-desk", icon: Sparkles },
     ],
   },
