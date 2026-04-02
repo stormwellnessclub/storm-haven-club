@@ -95,6 +95,7 @@ import BlockedPersons from "./pages/admin/BlockedPersons";
 import PaymentFailedEmailPreview from "./pages/admin/PaymentFailedEmailPreview";
 import StaffHub from "./pages/admin/StaffHub";
 import MerchManager from "./pages/admin/MerchManager";
+import SpaManagement from "./pages/admin/SpaManagement";
 import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
 import SiteAudit from "./pages/SiteAudit";
