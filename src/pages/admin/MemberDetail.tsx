@@ -2564,25 +2564,22 @@ export default function MemberDetail() {
                     }
                     queryClient.invalidateQueries({ queryKey: ["member-credit-usage", id] });
                   } else {
-                    // Book wellness session
+                    // Book wellness session via atomic RPC
                     if (!adminBookDate || !adminBookTime) return;
-                    const credit = memberCredits.find(c => c.credit_type === adminBookServiceType && c.credits_remaining > 0 && c.expires_at > new Date().toISOString());
-                    if (!credit) throw new Error("No credits available");
-                    const serviceName = adminBookServiceType === "red_light" ? "Red Light Therapy" : "Dry Cryotherapy";
-                    const durationMinutes = adminBookServiceType === "red_light" ? 20 : 3;
-                    const { error: creditError } = await supabase.from("member_credits").update({ credits_remaining: credit.credits_remaining - 1, updated_at: new Date().toISOString() }).eq("id", credit.id);
-                    if (creditError) throw creditError;
-                    const { error: aptError } = await supabase.from("spa_appointments").insert({
-                      user_id: member.user_id || null, member_id: member.id,
-                      service_id: adminBookServiceType === "red_light" ? 101 : 102,
-                      service_name: serviceName, service_category: "Recovery", service_price: 0,
-                      appointment_date: format(adminBookDate, "yyyy-MM-dd"), appointment_time: adminBookTime,
-                      duration_minutes: durationMinutes, cleanup_minutes: 5, status: "confirmed",
-                      payment_method: "credit", credit_type: adminBookServiceType, credit_id: credit.id,
-                      staff_notes: "Booked by staff",
-                    });
-                    if (aptError) throw aptError;
-                    toast.success(`${serviceName} booked for ${member.first_name} on ${format(adminBookDate, "MMM d")} using 1 credit`);
+                    const { data: rpcResult, error: rpcError } = await supabase.rpc(
+                      'staff_book_wellness_appointment' as any,
+                      {
+                        p_member_id: member.id,
+                        p_credit_type: adminBookServiceType,
+                        p_appointment_date: format(adminBookDate, "yyyy-MM-dd"),
+                        p_appointment_time: adminBookTime,
+                        p_staff_notes: "Booked by staff",
+                      }
+                    );
+                    if (rpcError) throw new Error(rpcError.message);
+                    const wellnessResult = rpcResult as any;
+                    if (!wellnessResult?.success) throw new Error(wellnessResult?.error || "Booking failed");
+                    toast.success(`${wellnessResult.service_name} booked for ${member.first_name} on ${format(adminBookDate, "MMM d")} using 1 credit`);
                     queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
                   }
                   setShowAdminBookWellnessDialog(false);
