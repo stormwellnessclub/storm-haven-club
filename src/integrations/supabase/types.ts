@@ -5064,6 +5064,247 @@ export type Database = {
           },
         ]
       }
+      spa_rooms: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          room_type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          room_type?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          room_type?: string
+        }
+        Relationships: []
+      }
+      spa_service_addons: {
+        Row: {
+          applicable_categories: string[] | null
+          created_at: string
+          description: string | null
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+        }
+        Insert: {
+          applicable_categories?: string[] | null
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          price?: number
+        }
+        Update: {
+          applicable_categories?: string[] | null
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
+      spa_service_availability: {
+        Row: {
+          day_of_week: number
+          end_time: string
+          id: string
+          is_active: boolean
+          max_bookings: number
+          room_id: string | null
+          service_id: string
+          start_time: string
+          therapist_id: string | null
+        }
+        Insert: {
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_active?: boolean
+          max_bookings?: number
+          room_id?: string | null
+          service_id: string
+          start_time: string
+          therapist_id?: string | null
+        }
+        Update: {
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          max_bookings?: number
+          room_id?: string | null
+          service_id?: string
+          start_time?: string
+          therapist_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_service_availability_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "spa_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spa_service_availability_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "spa_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spa_service_availability_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "spa_therapists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spa_services: {
+        Row: {
+          category: string
+          cleanup_minutes: number
+          created_at: string
+          description: string | null
+          display_order: number | null
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          member_price: number | null
+          name: string
+          popular: boolean | null
+          price: number
+          requires_intake_form: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          cleanup_minutes?: number
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          member_price?: number | null
+          name: string
+          popular?: boolean | null
+          price: number
+          requires_intake_form?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          cleanup_minutes?: number
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          member_price?: number | null
+          name?: string
+          popular?: boolean | null
+          price?: number
+          requires_intake_form?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      spa_therapist_services: {
+        Row: {
+          id: string
+          service_id: string
+          therapist_id: string
+        }
+        Insert: {
+          id?: string
+          service_id: string
+          therapist_id: string
+        }
+        Update: {
+          id?: string
+          service_id?: string
+          therapist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_therapist_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "spa_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spa_therapist_services_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "spa_therapists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spa_therapists: {
+        Row: {
+          bio: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          photo_url: string | null
+          specialties: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          photo_url?: string | null
+          specialties?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          photo_url?: string | null
+          specialties?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_channels: {
         Row: {
           channel_type: Database["public"]["Enums"]["channel_type"]

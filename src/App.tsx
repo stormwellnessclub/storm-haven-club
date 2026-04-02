@@ -95,6 +95,7 @@ import BlockedPersons from "./pages/admin/BlockedPersons";
 import PaymentFailedEmailPreview from "./pages/admin/PaymentFailedEmailPreview";
 import StaffHub from "./pages/admin/StaffHub";
 import MerchManager from "./pages/admin/MerchManager";
+import SpaManagement from "./pages/admin/SpaManagement";
 import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
 import SiteAudit from "./pages/SiteAudit";
@@ -235,6 +236,7 @@ const App = () => (
               <Route path="/admin/email-templates/payment-failed" element={<ProtectedAdminRoute><PaymentFailedEmailPreview /></ProtectedAdminRoute>} />
               <Route path="/admin/merch" element={<ProtectedAdminRoute><MerchManager /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-hub" element={<ProtectedAdminRoute><StaffHub /></ProtectedAdminRoute>} />
+              <Route path="/admin/spa-management" element={<ProtectedAdminRoute><SpaManagement /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

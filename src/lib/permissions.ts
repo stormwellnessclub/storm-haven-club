@@ -60,6 +60,7 @@ export const PAGE_PERMISSIONS: Record<string, AppRole[]> = {
   '/admin/class-schedules': ['super_admin', 'admin', 'manager'],
   '/admin/instructors': ['super_admin', 'admin', 'manager'],
   '/admin/front-desk': ['super_admin', 'admin', 'manager', 'front_desk', 'spa_staff'],
+  '/admin/spa-management': ['super_admin', 'admin', 'manager', 'spa_staff'],
   '/admin/equipment': ['super_admin', 'admin', 'manager'],
   '/admin/agreements': ['super_admin', 'admin', 'manager'],
   '/admin/emails': ['super_admin', 'admin', 'manager', 'front_desk'],
