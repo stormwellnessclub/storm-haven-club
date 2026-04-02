@@ -28,6 +28,7 @@ export function useWellnessCredits() {
         .from("members")
         .select("id")
         .eq("user_id", user.id)
+        .in("status", ["active", "frozen"])
         .maybeSingle();
 
       if (!memberData) {
