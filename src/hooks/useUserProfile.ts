@@ -279,9 +279,10 @@ export function useUserProfile() {
         })
         .eq("user_id", user.id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error("Profile not found — please try again");
       return data;
     },
     onSuccess: () => {
