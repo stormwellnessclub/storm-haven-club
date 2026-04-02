@@ -2103,8 +2103,62 @@ serve(async (req) => {
                     const subItem = currentSub.items.data[0];
 
                     if (subItem) {
+                      // Build update items: swap main price
+                      const updateItems: any[] = [{ id: subItem.id, price: newPriceId }];
+
+                      // Find and update the processing fee subscription item
+                      const newBasePrice = await stripe.prices.retrieve(newPriceId);
+                      const newBaseAmountCents = newBasePrice.unit_amount || 0;
+                      const interval = (newBasePrice.recurring?.interval as 'month' | 'year') || 'month';
+
+                      // Look for existing processing fee item on the subscription
+                      const processingFeeItem = currentSub.items.data.find((item: any) => {
+                        const desc = item.price?.product?.toString() || '';
+                        const nickname = item.price?.nickname || '';
+                        const metadata = item.price?.metadata || {};
+                        return metadata.type === 'processing_fee' || 
+                               nickname.toLowerCase().includes('processing fee');
+                      });
+
+                      // Also check by fetching product details for each non-main item
+                      let feeItemToUpdate = processingFeeItem;
+                      if (!feeItemToUpdate && currentSub.items.data.length > 1) {
+                        for (const item of currentSub.items.data) {
+                          if (item.id === subItem.id) continue; // skip main item
+                          try {
+                            const product = await stripe.products.retrieve(item.price.product as string);
+                            if (product.name === 'Processing Fee' || product.metadata?.type === 'processing_fee') {
+                              feeItemToUpdate = item;
+                              break;
+                            }
+                          } catch (_e) { /* skip */ }
+                        }
+                      }
+
+                      if (feeItemToUpdate && newBaseAmountCents > 0) {
+                        // Get or create a new recurring processing fee price for the new tier amount
+                        const newFeePriceId = await getOrCreateRecurringProcessingFeePrice(stripe, newBaseAmountCents, interval);
+                        if (newFeePriceId) {
+                          updateItems.push({ id: feeItemToUpdate.id, price: newFeePriceId });
+                          const newFeeCents = calculateProcessingFee(newBaseAmountCents);
+                          logStep("Updating processing fee for tier change", {
+                            oldFeeItemId: feeItemToUpdate.id,
+                            newFeePriceId,
+                            newFeeCents,
+                            newBaseAmountCents,
+                          });
+                        }
+                      } else if (!feeItemToUpdate && newBaseAmountCents > 0) {
+                        // No existing fee item found — add one
+                        const newFeePriceId = await getOrCreateRecurringProcessingFeePrice(stripe, newBaseAmountCents, interval);
+                        if (newFeePriceId) {
+                          updateItems.push({ price: newFeePriceId, quantity: 1 });
+                          logStep("Adding missing processing fee for tier change", { newFeePriceId });
+                        }
+                      }
+
                       await stripe.subscriptions.update(pendingMember.stripe_subscription_id, {
-                        items: [{ id: subItem.id, price: newPriceId }],
+                        items: updateItems,
                         proration_behavior: 'none',
                         metadata: {
                           ...currentSub.metadata,
