@@ -4969,6 +4969,8 @@ export type Database = {
           cleanup_minutes: number
           completed_at: string | null
           created_at: string
+          credit_id: string | null
+          credit_type: Database["public"]["Enums"]["credit_type"] | null
           duration_minutes: number
           id: string
           member_id: string | null
@@ -4996,6 +4998,8 @@ export type Database = {
           cleanup_minutes?: number
           completed_at?: string | null
           created_at?: string
+          credit_id?: string | null
+          credit_type?: Database["public"]["Enums"]["credit_type"] | null
           duration_minutes: number
           id?: string
           member_id?: string | null
@@ -5023,6 +5027,8 @@ export type Database = {
           cleanup_minutes?: number
           completed_at?: string | null
           created_at?: string
+          credit_id?: string | null
+          credit_type?: Database["public"]["Enums"]["credit_type"] | null
           duration_minutes?: number
           id?: string
           member_id?: string | null
@@ -5041,6 +5047,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "spa_appointments_credit_id_fkey"
+            columns: ["credit_id"]
+            isOneToOne: false
+            referencedRelation: "member_credits"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "spa_appointments_member_id_fkey"
             columns: ["member_id"]
@@ -6363,6 +6376,16 @@ export type Database = {
         Returns: Json
       }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
+      staff_book_wellness_appointment: {
+        Args: {
+          p_appointment_date: string
+          p_appointment_time: string
+          p_credit_type: string
+          p_member_id: string
+          p_staff_notes?: string
+        }
+        Returns: Json
+      }
       track_payment_method_update: {
         Args: {
           p_card_brand?: string
