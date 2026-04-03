@@ -39,6 +39,7 @@ export default function NonMemberDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const { user } = useAuth();
   const { isSuperAdmin } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
