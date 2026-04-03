@@ -806,6 +806,15 @@ export default function NonMemberDetail() {
                 </Card>
               )}
 
+              {/* Sell Guest Pass */}
+              <NonMemberGuestPassSaleCard
+                userId={userId!}
+                firstName={profile.first_name}
+                lastName={profile.last_name}
+                email={profile.email}
+                phone={profile.phone}
+                adminUserId={user?.id || ""}
+              />
 
               <Card>
                 <CardHeader className="pb-3">
