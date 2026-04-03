@@ -32,7 +32,7 @@ interface AdminGrantPassDialogProps {
 
 export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }: AdminGrantPassDialogProps) {
   const queryClient = useQueryClient();
-  const [grantType, setGrantType] = useState<GrantType>("guest_pass");
+  const [grantType, setGrantType] = useState<GrantType>(prefill?.memberId ? "guest_pass_credit" : "guest_pass");
   const [guestName, setGuestName] = useState(prefill?.name || "");
   const [guestEmail, setGuestEmail] = useState(prefill?.email || "");
   const [quantity, setQuantity] = useState(1);
