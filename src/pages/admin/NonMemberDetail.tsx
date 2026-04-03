@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, addDays, differenceInDays } from "date-fns";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -31,12 +32,14 @@ import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { ChargeItemSelector } from "@/components/admin/ChargeItemSelector";
 import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
 import { getCategoryDisplayName } from "@/lib/classCategories";
+import { NonMemberGuestPassSaleCard } from "@/components/admin/NonMemberGuestPassSaleCard";
 
 export default function NonMemberDetail() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const { user } = useAuth();
   const { isSuperAdmin } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -803,6 +806,15 @@ export default function NonMemberDetail() {
                 </Card>
               )}
 
+              {/* Sell Guest Pass */}
+              <NonMemberGuestPassSaleCard
+                userId={userId!}
+                firstName={profile.first_name}
+                lastName={profile.last_name}
+                email={profile.email}
+                phone={profile.phone}
+                adminUserId={user?.id || ""}
+              />
 
               <Card>
                 <CardHeader className="pb-3">
