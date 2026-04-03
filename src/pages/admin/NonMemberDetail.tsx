@@ -31,6 +31,7 @@ import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { ChargeItemSelector } from "@/components/admin/ChargeItemSelector";
 import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
 import { getCategoryDisplayName } from "@/lib/classCategories";
+import { NonMemberGuestPassSaleCard } from "@/components/admin/NonMemberGuestPassSaleCard";
 
 export default function NonMemberDetail() {
   const { userId } = useParams<{ userId: string }>();
