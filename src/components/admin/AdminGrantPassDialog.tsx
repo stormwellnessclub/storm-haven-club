@@ -135,7 +135,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   });
 
   const resetForm = () => {
-    setGrantType("guest_pass");
+    setGrantType(prefill?.memberId ? "guest_pass_credit" : "guest_pass");
     setGuestName(prefill?.name || "");
     setGuestEmail(prefill?.email || "");
     setQuantity(1);
