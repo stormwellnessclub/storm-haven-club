@@ -191,7 +191,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
 
           {/* Warning when voucher selected for a member */}
           {grantType === "guest_pass" && prefill?.memberId && (
-            <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+            <div className="rounded-md bg-yellow-50 border border-yellow-300 p-3 text-xs text-yellow-900 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200">
               ⚠️ Vouchers are for direct guest entries (walk-ins). Use <strong>Guest Pass Credit</strong> instead so the member can see and redeem it in their app.
             </div>
           )}
