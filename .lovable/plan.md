@@ -1,23 +1,27 @@
 
 
-# Fix: Auto-select correct guest pass type for members
+# Add "Membership Management" Section to Admin Sidebar
 
 ## Problem
-When granting a complimentary guest pass to a member, staff can accidentally select "Guest Pass (Voucher)" instead of "Guest Pass Credit (Member Perk)." The voucher option inserts into `guest_passes` with the member's own name — which is wrong. The credit option (inserting into `member_credits`) is what members actually see and can redeem on their app.
+Freeze Requests, Member Credits, and other membership-related items are currently buried in the Finance section. There's no dedicated "Membership Management" group, making these hard to find.
 
-## Fix
+## Plan
 
-### File: `src/components/admin/AdminGrantPassDialog.tsx`
+### File: `src/components/admin/AdminSidebar.tsx`
 
-1. **Default to "Guest Pass Credit" when opened for a member**: When `prefill` has a `memberId`, set the initial `grantType` to `"guest_pass_credit"` instead of `"guest_pass"`.
+Reorganize the `departments` array to add a new **"Membership Management"** section and move the relevant items into it:
 
-2. **Add a warning on the voucher option when targeting a member**: If staff still selects "Guest Pass (Voucher)" while granting to a member, show a small warning like: *"Vouchers are for direct guest entries — use Guest Pass Credit so the member can see and redeem it in their app."*
+**New "Membership Management" section** (placed after Operations):
+- Applications (moved from Operations)
+- Member Credits (moved from Finance)
+- Freeze Requests (moved from Finance)
+- Agreements (moved from Administration)
+- Roles: `super_admin`, `admin`, `manager`, `front_desk`
 
-3. **Rename labels for clarity**:
-   - "Guest Pass (Voucher)" → "Guest Pass Voucher (non-member / walk-in)"
-   - "Guest Pass Credit (Member Perk)" → "Guest Pass Credit (member can redeem in app)"
+**Items removed from their current sections:**
+- "Applications" removed from Operations
+- "Member Credits" and "Freeze Requests" removed from Finance
+- "Agreements" removed from Administration
 
-4. **Update `resetForm`**: Use `"guest_pass_credit"` as default when `prefill?.memberId` exists.
-
-This is a single-file change to `AdminGrantPassDialog.tsx`. No database changes needed since you already cleaned up Layal's data.
+No other files need to change — this is a sidebar reorganization only.
 
