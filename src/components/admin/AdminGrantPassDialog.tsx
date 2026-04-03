@@ -32,7 +32,7 @@ interface AdminGrantPassDialogProps {
 
 export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }: AdminGrantPassDialogProps) {
   const queryClient = useQueryClient();
-  const [grantType, setGrantType] = useState<GrantType>("guest_pass");
+  const [grantType, setGrantType] = useState<GrantType>(prefill?.memberId ? "guest_pass_credit" : "guest_pass");
   const [guestName, setGuestName] = useState(prefill?.name || "");
   const [guestEmail, setGuestEmail] = useState(prefill?.email || "");
   const [quantity, setQuantity] = useState(1);
@@ -135,7 +135,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   });
 
   const resetForm = () => {
-    setGrantType("guest_pass");
+    setGrantType(prefill?.memberId ? "guest_pass_credit" : "guest_pass");
     setGuestName(prefill?.name || "");
     setGuestEmail(prefill?.email || "");
     setQuantity(1);
@@ -149,8 +149,8 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   };
 
   const typeLabel: Record<GrantType, string> = {
-    guest_pass: "Guest Pass (Voucher)",
-    guest_pass_credit: "Guest Pass Credit (Member Perk)",
+    guest_pass: "Guest Pass Voucher (non-member / walk-in)",
+    guest_pass_credit: "Guest Pass Credit (member can redeem in app)",
     class_pass: "Class Pass",
     kids_care_pass: "Kids Care Pass",
     red_light: "Red Light Therapy Credits",
@@ -188,6 +188,13 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
               </SelectContent>
             </Select>
           </div>
+
+          {/* Warning when voucher selected for a member */}
+          {grantType === "guest_pass" && prefill?.memberId && (
+            <div className="rounded-md bg-yellow-50 border border-yellow-300 p-3 text-xs text-yellow-900 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-200">
+              ⚠️ Vouchers are for direct guest entries (walk-ins). Use <strong>Guest Pass Credit</strong> instead so the member can see and redeem it in their app.
+            </div>
+          )}
 
           {/* Guest Pass fields */}
           {grantType === "guest_pass" && (
