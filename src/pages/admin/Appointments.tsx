@@ -3,10 +3,12 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, CreditCard } from "lucide-react";
 import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus } from "@/hooks/useAdminSpaAppointments";
 import { format, parse } from "date-fns";
 import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModal";
+import { SpaCompletionDialog } from "@/components/admin/spa/SpaCompletionDialog";
+import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 
 const timeSlots = [
   "08:00", "09:00", "10:00", "11:00", "12:00",
