@@ -49,7 +49,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       if (memberSearch.length < 2) return [];
       const { data, error } = await supabase
         .from("members")
-        .select("id, first_name, last_name, email, membership_type")
+        .select("id, first_name, last_name, email, membership_type, liability_waiver_signed")
         .or(`first_name.ilike.%${memberSearch}%,last_name.ilike.%${memberSearch}%,email.ilike.%${memberSearch}%`)
         .limit(10);
       if (error) throw error;
@@ -57,6 +57,9 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     },
     enabled: memberSearch.length >= 2,
   });
+
+  // Track selected member's waiver status
+  const [selectedMemberWaiverSigned, setSelectedMemberWaiverSigned] = useState(false);
 
   const selectedService = useMemo(() => 
     services?.find(s => s.id === serviceId), [services, serviceId]
