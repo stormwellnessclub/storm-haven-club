@@ -1,26 +1,33 @@
 
 
-# Add Processing Fees to Heather's Subscriptions
+# Fix Batul Bazzi's Missing Member Record
 
-## Current State
-Heather has two active subscriptions with no processing fees:
-- **Monthly dues**: Silver $200/mo (`sub_1SynrZLyZrsSqLhsJon2Pk7k`)
-- **Annual fee**: $300/yr (`sub_1SygPYLyZrsSqLhshEA7Pfdv`)
+## Problem
+Batul's application (f469ae29) has status `approved` but no corresponding member record was ever created in the `members` table. This means she won't show up in the members list or be able to access her membership.
 
-You will handle the $100 refund yourself separately.
+The most likely cause: the approval may have been done outside the normal UI flow, or the member insert failed silently during approval.
 
-## Steps
+## Plan
 
-### Step 1: Create recurring processing fee prices
-- **$6.29/mo** processing fee for the $200/mo subscription (product: `prod_UIlCLcsYb1yhUU`)
-- **$9.28/yr** processing fee for the $300/yr subscription (product: `prod_UIlCLcsYb1yhUU`)
+### Step 1: Create member record via database migration
+Insert a member record for Batul using data from her approved application:
 
-### Step 2: Add fee items to both subscriptions
-- Add the $6.29/mo price to `sub_1SynrZLyZrsSqLhsJon2Pk7k` with `proration_behavior: none` (takes effect next billing cycle)
-- Add the $9.28/yr price to `sub_1SygPYLyZrsSqLhshEA7Pfdv` with `proration_behavior: none`
+- **Name**: Batul Bazzi
+- **Email**: bazzibatul@gmail.com
+- **Phone**: 3138998647
+- **Membership type**: Silver
+- **Status**: pending_activation (she has `skip_tour_activate_immediately: true`, but since no subscription is set up yet, pending_activation is safer)
+- **Stripe customer ID**: cus_UIDj3EV4UiW57Q
+- **Gender**: Women
+- **Founding member**: No
+- **Annual fee paid**: Yes (annual_fee_status = 'paid')
+- **Card info**: AMEX ending 2007, exp 3/2030
+- **Activation deadline**: 7 days from now
 
-## Result
-Heather's future invoices will include the processing fee line items:
-- Monthly: $200 + $6.29 = **$206.29**
-- Annual: $300 + $9.28 = **$309.28**
+### Step 2: Verify in admin
+After the record is created, Batul should appear in the admin members list and be ready for activation/subscription setup.
+
+## Technical Details
+- Single SQL INSERT into `members` table
+- No code changes needed — this is a data fix for a member record that should have been created during approval
 
