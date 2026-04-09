@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus } from "@/hooks/useAdminSpaAppointments";
 import { format, parse } from "date-fns";
+import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModal";
 
 const timeSlots = [
   "08:00", "09:00", "10:00", "11:00", "12:00",
