@@ -1,33 +1,30 @@
 
 
-# Fix Batul Bazzi's Missing Member Record
+# Fix: Hide Non-Active Sessions from Admin Day View
 
 ## Problem
-Batul's application (f469ae29) has status `approved` but no corresponding member record was ever created in the `members` table. This means she won't show up in the members list or be able to access her membership.
+The admin **Classes → Day View** is showing all 20 sessions for today, but only **1 is actually active** (`is_hidden = false`). The other 19 are marked `is_hidden = true` (meaning their schedules were deactivated and the reconciliation process hid them). The current "Show inactive" toggle only filters by class type `is_active`, not by session `is_hidden`.
 
-The most likely cause: the approval may have been done outside the normal UI flow, or the member insert failed silently during approval.
+The Week Calendar view already handles this correctly with separate `showCancelled` and `showHidden` filters — the Day View just never got the same treatment.
 
 ## Plan
 
-### Step 1: Create member record via database migration
-Insert a member record for Batul using data from her approved application:
+### Step 1: Filter hidden sessions by default in Day View query
+In `src/pages/admin/Classes.tsx`, update the Day View query (line ~116-128) to add `.eq('is_hidden', false)` by default, matching what the public schedule does. Also add `.eq('is_cancelled', false)` to hide cancelled sessions by default.
 
-- **Name**: Batul Bazzi
-- **Email**: bazzibatul@gmail.com
-- **Phone**: 3138998647
-- **Membership type**: Silver
-- **Status**: pending_activation (she has `skip_tour_activate_immediately: true`, but since no subscription is set up yet, pending_activation is safer)
-- **Stripe customer ID**: cus_UIDj3EV4UiW57Q
-- **Gender**: Women
-- **Founding member**: No
-- **Annual fee paid**: Yes (annual_fee_status = 'paid')
-- **Card info**: AMEX ending 2007, exp 3/2030
-- **Activation deadline**: 7 days from now
+### Step 2: Update the "Show inactive" toggle to also reveal hidden/cancelled sessions
+Rename or expand the existing `showInactive` toggle to act as a "Show all" toggle that:
+- Removes the `is_hidden = false` filter from the query
+- Removes the `is_cancelled = false` filter from the query
+- Keeps the existing `is_active` client-side filter removal
 
-### Step 2: Verify in admin
-After the record is created, Batul should appear in the admin members list and be ready for activation/subscription setup.
+This way, by default admins see only the classes that are actually running. When they toggle "Show inactive," they see everything (hidden, cancelled, inactive class types) for auditing purposes.
 
-## Technical Details
-- Single SQL INSERT into `members` table
-- No code changes needed — this is a data fix for a member record that should have been created during approval
+### Step 3: Visual indicators for hidden/cancelled sessions
+When "Show inactive" is on, add subtle visual cues (like the calendar view already does):
+- Hidden sessions get reduced opacity and an eye-off icon
+- Cancelled sessions get strikethrough styling
+
+## Result
+Today's admin Day View will show **1 class** by default instead of 20, dramatically reducing clutter. The toggle remains available for when staff need to audit or review past/deactivated sessions.
 
