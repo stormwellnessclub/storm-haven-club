@@ -85,8 +85,8 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
         return (data || []).map((apt: any) => ({
           ...apt,
           member: apt.member ? (Array.isArray(apt.member) ? apt.member[0] : apt.member) : null,
-          user: null, // User info can be fetched separately if needed
-          staff: null, // Staff info can be fetched separately if needed
+          user: null,
+          staff: apt.staff ? (Array.isArray(apt.staff) ? apt.staff[0] : apt.staff) : null,
         })) as AdminSpaAppointment[];
       } catch (error: any) {
         if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
