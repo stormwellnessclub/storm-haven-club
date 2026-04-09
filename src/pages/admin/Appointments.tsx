@@ -307,6 +307,14 @@ export default function Appointments() {
         onOpenChange={setShowBookingModal}
         defaultDate={selectedDate}
       />
+      <SpaCompletionDialog
+        open={!!completionAppointment}
+        onOpenChange={(open) => {
+          if (!open) setCompletionAppointment(null);
+        }}
+        appointment={completionAppointment}
+        retroactive={isRetroactive}
+      />
     </AdminLayout>
   );
 }
