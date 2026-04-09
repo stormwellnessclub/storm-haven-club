@@ -350,6 +350,77 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
             </div>
           </div>
 
+          {/* Liability Waiver Required — Inline Signing */}
+          {user && !hasLiabilityWaiver && (
+            <div className="space-y-3">
+              <Alert className="bg-destructive/10 border-destructive/30">
+                <FileCheck className="h-4 w-4 text-destructive" />
+                <AlertTitle className="text-destructive">Liability Waiver Required</AlertTitle>
+                <AlertDescription className="mt-1">
+                  Sign the liability waiver below to continue booking.
+                </AlertDescription>
+              </Alert>
+
+              {!showWaiverInline ? (
+                <Button
+                  onClick={() => setShowWaiverInline(true)}
+                  variant="outline"
+                  className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  <FileCheck className="h-4 w-4 mr-2" />
+                  Sign Liability Waiver
+                </Button>
+              ) : (
+                <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                  <p className="text-sm font-medium">Liability Waiver</p>
+
+                  {liabilityWaiverPdf && (
+                    <Button variant="outline" size="sm" className="w-full gap-2" asChild>
+                      <a href={liabilityWaiverPdf} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        Open & Review Waiver PDF
+                      </a>
+                    </Button>
+                  )}
+
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="spa-waiver-inline"
+                      checked={waiverAcknowledged}
+                      onCheckedChange={(v) => setWaiverAcknowledged(v === true)}
+                    />
+                    <label
+                      htmlFor="spa-waiver-inline"
+                      className="text-sm leading-snug cursor-pointer"
+                    >
+                      I have reviewed the Liability Waiver and agree to its terms
+                    </label>
+                  </div>
+
+                  <Button
+                    onClick={handleSignWaiverInline}
+                    disabled={!waiverAcknowledged || isSigningWaiver || isSigningNonMemberWaiver}
+                    className="w-full"
+                  >
+                    {(isSigningWaiver || isSigningNonMemberWaiver) ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Signing...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        I Agree — Sign Waiver & Continue
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Booking form — only show if waiver is signed (or user not logged in yet) */}
+          {(!user || hasLiabilityWaiver) && (<>
           {/* Date Selection */}
           <div className="space-y-2">
             <Label>Select Date</Label>
