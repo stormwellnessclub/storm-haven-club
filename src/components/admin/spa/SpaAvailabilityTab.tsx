@@ -414,6 +414,15 @@ export function SpaAvailabilityTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SpaCompletionDialog
+        open={!!completionAppointment}
+        onOpenChange={(open) => {
+          if (!open) setCompletionAppointment(null);
+        }}
+        appointment={completionAppointment}
+        retroactive={isRetroactive}
+      />
     </div>
   );
 }

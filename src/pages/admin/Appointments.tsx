@@ -137,12 +137,26 @@ export default function Appointments() {
                 <div className="space-y-2">
                   {timeSlots.map((slot) => {
                     const appointment = getAppointmentForSlot(slot);
+                    const isClickable = appointment && (
+                      ['confirmed'].includes(appointment.status) ||
+                      (appointment.status === 'completed' && (!appointment.amount_paid || appointment.amount_paid === 0))
+                    );
                     return (
                       <div
                         key={slot}
                         className={`flex items-stretch gap-4 p-3 rounded-lg border ${
                           appointment ? "bg-card" : "bg-secondary/30"
-                        }`}
+                        } ${isClickable ? "cursor-pointer hover:bg-accent/50 transition-colors" : ""}`}
+                        onClick={() => {
+                          if (!isClickable || !appointment) return;
+                          if (['confirmed'].includes(appointment.status)) {
+                            setCompletionAppointment(appointment);
+                            setIsRetroactive(false);
+                          } else {
+                            setCompletionAppointment(appointment);
+                            setIsRetroactive(true);
+                          }
+                        }}
                       >
                         <div className="w-20 text-sm font-medium text-muted-foreground">
                           {formatTime(slot + ":00")}
