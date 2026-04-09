@@ -283,6 +283,11 @@ export default function Appointments() {
           </div>
         </div>
       </div>
+      <AdminSpaBookingModal 
+        open={showBookingModal} 
+        onOpenChange={setShowBookingModal}
+        defaultDate={selectedDate}
+      />
     </AdminLayout>
   );
 }
