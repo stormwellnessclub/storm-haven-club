@@ -216,6 +216,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setStaffNotes("");
     setPaymentMethod("in_person");
     setConflict(null);
+    setSelectedMemberWaiverSigned(false);
   };
 
   const activeServices = services?.filter(s => s.is_active) || [];
@@ -405,7 +406,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button 
             onClick={() => bookMutation.mutate()} 
-            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict}
+            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || (selectedMemberId && !selectedMemberWaiverSigned)}
           >
             {bookMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Book Appointment
