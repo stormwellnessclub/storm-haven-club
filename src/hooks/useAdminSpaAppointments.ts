@@ -43,7 +43,7 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
           .select(`
             *,
             member:members(id, first_name, last_name, email),
-            staff:spa_staff(id, full_name)
+            staff:spa_therapists(id, full_name)
           `)
           .order("appointment_date", { ascending: true })
           .order("appointment_time", { ascending: true });
