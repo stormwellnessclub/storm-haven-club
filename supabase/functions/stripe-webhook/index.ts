@@ -2306,6 +2306,120 @@ serve(async (req) => {
           }
 
           if (memberData) {
+            // ── Apply pending tier downgrade immediately on failure ──
+            // If member has a pending_tier_change (scheduled downgrade), apply it now
+            // so the next Stripe retry uses the correct (lower) price.
+            try {
+              const { data: pendingCheckMember } = await supabase
+                .from('members')
+                .select('pending_tier_change, membership_type, stripe_subscription_id, stripe_customer_id, gender, billing_type, is_founding_member')
+                .eq('id', memberData.id)
+                .single();
+
+              if (pendingCheckMember?.pending_tier_change && pendingCheckMember.stripe_subscription_id) {
+                const pendingTier = pendingCheckMember.pending_tier_change.toLowerCase().replace(' membership', '');
+                logStep("Applying pending tier change on payment failure", { memberId: memberData.id, pendingTier });
+
+                const MEMBERSHIP_PRICES: Record<string, Record<string, Record<string, string | null>>> = {
+                  silver: {
+                    monthly: { women: 'price_1Sl9llLyZrsSqLhsJhm0MdJi', men: 'price_1Sl9mBLyZrsSqLhsas4CTChz' },
+                    annual: { women: 'price_1Sl9x2LyZrsSqLhsYLtI7doB', men: 'price_1Sl9yLLyZrsSqLhsG6NiPqH5' },
+                  },
+                  gold: {
+                    monthly: { women: 'price_1Sl9pvLyZrsSqLhsIWyf2WwX', men: 'price_1Sl9quLyZrsSqLhs6PPn9AeL' },
+                    annual: { women: 'price_1SlA0bLyZrsSqLhsOIdyhLo7', men: 'price_1SlA11LyZrsSqLhsfSqUElkE' },
+                  },
+                  platinum: {
+                    monthly: { women: 'price_1Sl9r7LyZrsSqLhs5RBuy2f7', men: 'price_1Sl9roLyZrsSqLhsQCydIccE' },
+                    annual: { women: 'price_1SlA1cLyZrsSqLhsAXXQEqVx', men: 'price_1SlA1oLyZrsSqLhstHpodZzv' },
+                  },
+                  diamond: {
+                    monthly: { women: 'price_1Sl9wILyZrsSqLhsLjYqkoqq', men: null },
+                    annual: { women: 'price_1SlA1zLyZrsSqLhsbJMZ0za2', men: null },
+                  },
+                };
+
+                const normalizedGender = (pendingCheckMember.gender?.toLowerCase() === 'male' || pendingCheckMember.gender?.toLowerCase() === 'men') ? 'men' : 'women';
+                const billingInterval = pendingCheckMember.billing_type || (pendingCheckMember.is_founding_member ? 'annual' : 'monthly');
+                const newPriceId = MEMBERSHIP_PRICES[pendingTier]?.[billingInterval]?.[normalizedGender];
+
+                if (newPriceId) {
+                  const currentSub = await stripe.subscriptions.retrieve(pendingCheckMember.stripe_subscription_id);
+                  const subItem = currentSub.items.data[0];
+
+                  if (subItem) {
+                    const updateItems: any[] = [{ id: subItem.id, price: newPriceId }];
+
+                    // Recalculate processing fee
+                    const newBasePrice = await stripe.prices.retrieve(newPriceId);
+                    const newBaseAmountCents = newBasePrice.unit_amount || 0;
+                    const interval = (newBasePrice.recurring?.interval as 'month' | 'year') || 'month';
+
+                    const processingFeeItem = currentSub.items.data.find((item: any) => {
+                      const metadata = item.price?.metadata || {};
+                      return metadata.type === 'processing_fee';
+                    });
+
+                    let feeItemToUpdate = processingFeeItem;
+                    if (!feeItemToUpdate && currentSub.items.data.length > 1) {
+                      for (const item of currentSub.items.data) {
+                        if (item.id === subItem.id) continue;
+                        try {
+                          const product = await stripe.products.retrieve(item.price.product as string);
+                          if (product.name === 'Processing Fee' || product.metadata?.type === 'processing_fee') {
+                            feeItemToUpdate = item;
+                            break;
+                          }
+                        } catch (_e) { /* skip */ }
+                      }
+                    }
+
+                    if (feeItemToUpdate && newBaseAmountCents > 0) {
+                      const newFeePriceId = await getOrCreateRecurringProcessingFeePrice(stripe, newBaseAmountCents, interval);
+                      if (newFeePriceId) {
+                        updateItems.push({ id: feeItemToUpdate.id, price: newFeePriceId });
+                      }
+                    }
+
+                    await stripe.subscriptions.update(pendingCheckMember.stripe_subscription_id, {
+                      items: updateItems,
+                      proration_behavior: 'none',
+                      metadata: {
+                        ...currentSub.metadata,
+                        tier: pendingTier,
+                        previous_tier: getTierName(pendingCheckMember.membership_type || 'silver'),
+                        tier_changed_at: new Date().toISOString(),
+                        tier_changed_by: 'webhook_failure_downgrade',
+                      },
+                    });
+
+                    const capitalizedTier = pendingTier.charAt(0).toUpperCase() + pendingTier.slice(1);
+                    await supabase
+                      .from('members')
+                      .update({
+                        membership_type: capitalizedTier,
+                        pending_tier_change: null,
+                        pending_tier_change_at: null,
+                        pending_tier_change_by: null,
+                        updated_at: new Date().toISOString(),
+                      })
+                      .eq('id', memberData.id);
+
+                    logStep("Pending tier change applied on failure — next retry will use correct price", {
+                      memberId: memberData.id,
+                      newTier: capitalizedTier,
+                      newPriceId,
+                    });
+                  }
+                } else {
+                  logStep("Invalid pending tier or price not found for failure downgrade", { pendingTier });
+                }
+              }
+            } catch (pendingTierOnFailureError) {
+              logError(pendingTierOnFailureError, "PENDING_TIER_CHANGE_ON_FAILURE");
+              // Don't fail the webhook
+            }
+
             // Get payment intent and charge details for failure info
             const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
             const lastPaymentError = invoice.last_payment_error;
