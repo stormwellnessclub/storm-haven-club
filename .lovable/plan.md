@@ -1,27 +1,29 @@
 
 
-# Fix Appointment Visibility and Charging
+# Make Spa Appointments Clickable for Checkout/Charging
 
 ## Problem
-Wafa's 10:00 AM massage appointment exists in the database but isn't showing on the Appointments page. Additionally, the therapist name (Teresa) doesn't appear because the query never joins staff data.
-
-## Root Cause
-The `useAdminSpaAppointments` hook (line 88) hardcodes `staff: null` instead of joining the `spa_staff` table. This means therapist names never display. The appointment data itself should be fetching correctly — I'll also verify nothing else is blocking display.
+Appointments show up in the Therapist Schedule view but are plain, non-interactive rows. You can't click them to complete or charge. The Appointments page (`/admin/appointments`) does have Complete/Charge buttons, but they're small and easy to miss.
 
 ## Plan
 
-### Step 1: Fix the staff join in useAdminSpaAppointments
-Update the Supabase query in `src/hooks/useAdminSpaAppointments.ts` to join `spa_staff` via `staff_id`:
-- Change the select to include `staff:spa_staff(id, full_name)`
-- Remove the hardcoded `staff: null` on line 88 and use the actual joined data
+### Step 1: Add checkout interaction to Therapist Schedule
+Update `src/components/admin/spa/SpaAvailabilityTab.tsx`:
+- Import `SpaCompletionDialog` and add state for the selected appointment
+- Make each booked appointment row clickable (cursor-pointer, hover effect)
+- Add small "Complete" and "Charge" buttons on each appointment row (matching what the Appointments page already does)
+- Wire clicks to open the `SpaCompletionDialog` with the correct appointment and retroactive flag
 
-### Step 2: Verify appointment rendering
-Confirm the time slot matching logic works correctly for Wafa's `10:00:00` appointment time against the `10:00` slot. If needed, fix edge cases in the matching.
+### Step 2: Improve Appointments page clickability
+Update `src/pages/admin/Appointments.tsx`:
+- Make the entire appointment row clickable (not just the small buttons) to open the completion dialog
+- Keep the existing buttons but also allow clicking the row itself
 
-### Step 3: Confirm charging flow works
-With the appointment visible, the existing "Complete" button will open the `SpaCompletionDialog` where you can charge Wafa's card, record cash, or add a tip. No changes needed to the dialog itself — just needs the appointment to be visible first.
+### Result
+Both screens — the Therapist Schedule and the Appointments page — will let you click any appointment to complete it and charge the customer using the existing payment dialog (card on file, cash, no charge, tips, etc.).
 
 ## Technical Details
-- **Modified file**: `src/hooks/useAdminSpaAppointments.ts` — add `spa_staff` join to the select query
-- Single-file fix, no migrations needed
+- **Files modified**: `src/components/admin/spa/SpaAvailabilityTab.tsx`, `src/pages/admin/Appointments.tsx`
+- **Reuses**: Existing `SpaCompletionDialog` component — no new payment logic needed
+- **No migrations needed**
 
