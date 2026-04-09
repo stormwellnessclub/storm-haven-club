@@ -4,6 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { useSpaBookAppointment, useCheckSpaAvailability } from "@/hooks/useSpaBooking";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useWellnessCredits } from "@/hooks/useWellnessCredits";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
+import { useAllAgreements } from "@/hooks/useAllAgreements";
+import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { getWellnessCreditType, getCreditTypeDisplayName, WellnessCreditType } from "@/lib/wellnessCategories";
 import {
   Dialog,
@@ -25,7 +29,9 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, addMonths } from "date-fns";
-import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles } from "lucide-react";
+import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles, FileCheck, ExternalLink, Check } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatTime12h } from "@/lib/timeFormat";
@@ -63,19 +69,47 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const navigate = useNavigate();
   const { data: membership } = useUserMembership();
   const { data: wellnessCredits, refetch: refetchCredits } = useWellnessCredits();
+  const { profile, signWaiver, isSigningWaiver } = useUserProfile();
+  const { profile: nonMemberProfile, signWaiver: signNonMemberWaiver, isSigningWaiver: isSigningNonMemberWaiver } = useNonMemberProfile();
+  const { data: agreements } = useAllAgreements();
   const bookAppointment = useSpaBookAppointment();
   const checkAvailability = useCheckSpaAvailability();
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [memberNotes, setMemberNotes] = useState("");
+  const [showWaiverInline, setShowWaiverInline] = useState(false);
+  const [waiverAcknowledged, setWaiverAcknowledged] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("card");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<Set<string>>(new Set());
 
-  // Determine if this service can be booked with credits
+  // Liability waiver check
+  const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
+  const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
+    ? resolvePdfUrl(agreements.liability_waiver[0].pdf_url)
+    : null;
+
+  // Reset inline waiver state when modal closes
+  useEffect(() => {
+    if (!open) {
+      setShowWaiverInline(false);
+      setWaiverAcknowledged(false);
+    }
+  }, [open]);
+
+  const handleSignWaiverInline = async () => {
+    if (profile) {
+      await signWaiver();
+    } else {
+      await signNonMemberWaiver();
+    }
+    setShowWaiverInline(false);
+    setWaiverAcknowledged(false);
+  };
+
   const creditType = service ? getWellnessCreditType(service.name) : null;
   const availableCredit = creditType && wellnessCredits ? wellnessCredits[creditType] : null;
   const canUseCredit = !!availableCredit && availableCredit.credits_remaining > 0;
@@ -135,25 +169,6 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   }, [selectedDate, service]);
 
   if (!service) return null;
-
-  // Guard: only Recovery services are bookable right now
-  if (service.category !== "Recovery") {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{service.name}</DialogTitle>
-            <DialogDescription>
-              Spa Aella is opening early April. This service is not yet available for booking. Red Light Therapy and ZeroBody Cryo are available now.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   const durationMatch = service.duration.match(/(\d+)/);
   const durationMinutes = durationMatch ? parseInt(durationMatch[1]) : 60;
@@ -335,6 +350,77 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
             </div>
           </div>
 
+          {/* Liability Waiver Required — Inline Signing */}
+          {user && !hasLiabilityWaiver && (
+            <div className="space-y-3">
+              <Alert className="bg-destructive/10 border-destructive/30">
+                <FileCheck className="h-4 w-4 text-destructive" />
+                <AlertTitle className="text-destructive">Liability Waiver Required</AlertTitle>
+                <AlertDescription className="mt-1">
+                  Sign the liability waiver below to continue booking.
+                </AlertDescription>
+              </Alert>
+
+              {!showWaiverInline ? (
+                <Button
+                  onClick={() => setShowWaiverInline(true)}
+                  variant="outline"
+                  className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  <FileCheck className="h-4 w-4 mr-2" />
+                  Sign Liability Waiver
+                </Button>
+              ) : (
+                <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                  <p className="text-sm font-medium">Liability Waiver</p>
+
+                  {liabilityWaiverPdf && (
+                    <Button variant="outline" size="sm" className="w-full gap-2" asChild>
+                      <a href={liabilityWaiverPdf} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        Open & Review Waiver PDF
+                      </a>
+                    </Button>
+                  )}
+
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="spa-waiver-inline"
+                      checked={waiverAcknowledged}
+                      onCheckedChange={(v) => setWaiverAcknowledged(v === true)}
+                    />
+                    <label
+                      htmlFor="spa-waiver-inline"
+                      className="text-sm leading-snug cursor-pointer"
+                    >
+                      I have reviewed the Liability Waiver and agree to its terms
+                    </label>
+                  </div>
+
+                  <Button
+                    onClick={handleSignWaiverInline}
+                    disabled={!waiverAcknowledged || isSigningWaiver || isSigningNonMemberWaiver}
+                    className="w-full"
+                  >
+                    {(isSigningWaiver || isSigningNonMemberWaiver) ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Signing...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        I Agree — Sign Waiver & Continue
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Booking form — only show if waiver is signed (or user not logged in yet) */}
+          {(!user || hasLiabilityWaiver) && (<>
           {/* Date Selection */}
           <div className="space-y-2">
             <Label>Select Date</Label>
@@ -508,6 +594,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
               </>
             )}
           </div>
+          </>)}
         </div>
 
         <div className="flex gap-2 justify-end">

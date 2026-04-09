@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, Search } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, AlertTriangle, Search, FileCheck } from "lucide-react";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability } from "@/hooks/useSpaBooking";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,7 +49,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       if (memberSearch.length < 2) return [];
       const { data, error } = await supabase
         .from("members")
-        .select("id, first_name, last_name, email, membership_type")
+        .select("id, first_name, last_name, email, membership_type, user_id")
         .or(`first_name.ilike.%${memberSearch}%,last_name.ilike.%${memberSearch}%,email.ilike.%${memberSearch}%`)
         .limit(10);
       if (error) throw error;
@@ -56,6 +57,34 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     },
     enabled: memberSearch.length >= 2,
   });
+
+  // Track selected member's waiver status
+  const [selectedMemberWaiverSigned, setSelectedMemberWaiverSigned] = useState(false);
+
+  // Check waiver status when member is selected
+  const checkMemberWaiver = async (userId: string | null) => {
+    if (!userId) {
+      setSelectedMemberWaiverSigned(false);
+      return;
+    }
+    // Check profiles table
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("waiver_signed")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (profileData?.waiver_signed) {
+      setSelectedMemberWaiverSigned(true);
+      return;
+    }
+    // Check non_member_profiles table
+    const { data: nonMemberData } = await supabase
+      .from("non_member_profiles")
+      .select("waiver_signed")
+      .eq("user_id", userId)
+      .maybeSingle();
+    setSelectedMemberWaiverSigned(nonMemberData?.waiver_signed === true);
+  };
 
   const selectedService = useMemo(() => 
     services?.find(s => s.id === serviceId), [services, serviceId]
@@ -187,6 +216,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setStaffNotes("");
     setPaymentMethod("in_person");
     setConflict(null);
+    setSelectedMemberWaiverSigned(false);
   };
 
   const activeServices = services?.filter(s => s.is_active) || [];
@@ -206,7 +236,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             {selectedMemberId ? (
               <div className="flex items-center justify-between p-2 border rounded-md bg-secondary/30">
                 <span className="text-sm font-medium">{selectedMemberName}</span>
-                <Button size="sm" variant="ghost" onClick={() => { setSelectedMemberId(null); setSelectedMemberName(""); }}>
+                <Button size="sm" variant="ghost" onClick={() => { setSelectedMemberId(null); setSelectedMemberName(""); setSelectedMemberWaiverSigned(false); }}>
                   Change
                 </Button>
               </div>
@@ -229,6 +259,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                           setSelectedMemberId(m.id);
                           setSelectedMemberName(`${m.first_name} ${m.last_name}`);
                           setMemberSearch("");
+                          checkMemberWaiver(m.user_id);
                         }}
                       >
                         <span>{m.first_name} {m.last_name}</span>
@@ -240,6 +271,17 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
               </div>
             )}
           </div>
+
+          {/* Waiver Warning */}
+          {selectedMemberId && !selectedMemberWaiverSigned && (
+            <Alert className="bg-destructive/10 border-destructive/30">
+              <FileCheck className="h-4 w-4 text-destructive" />
+              <AlertTitle className="text-destructive">Liability Waiver Not Signed</AlertTitle>
+              <AlertDescription className="mt-1">
+                This member has not signed the liability waiver. They must sign it via the member portal before a spa appointment can be booked.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Service */}
           <div>
@@ -364,7 +406,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button 
             onClick={() => bookMutation.mutate()} 
-            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict}
+            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || (selectedMemberId && !selectedMemberWaiverSigned)}
           >
             {bookMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Book Appointment
