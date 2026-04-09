@@ -118,7 +118,7 @@ export default function Appointments() {
                 <Clock className="h-5 w-5" />
                 Daily Schedule
               </CardTitle>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowBookingModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 New Appointment
               </Button>
