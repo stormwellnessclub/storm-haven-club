@@ -86,7 +86,30 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<Set<string>>(new Set());
 
-  // Determine if this service can be booked with credits
+  // Liability waiver check
+  const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
+  const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
+    ? resolvePdfUrl(agreements.liability_waiver[0].pdf_url)
+    : null;
+
+  // Reset inline waiver state when modal closes
+  useEffect(() => {
+    if (!open) {
+      setShowWaiverInline(false);
+      setWaiverAcknowledged(false);
+    }
+  }, [open]);
+
+  const handleSignWaiverInline = async () => {
+    if (profile) {
+      await signWaiver();
+    } else {
+      await signNonMemberWaiver();
+    }
+    setShowWaiverInline(false);
+    setWaiverAcknowledged(false);
+  };
+
   const creditType = service ? getWellnessCreditType(service.name) : null;
   const availableCredit = creditType && wellnessCredits ? wellnessCredits[creditType] : null;
   const canUseCredit = !!availableCredit && availableCredit.credits_remaining > 0;
@@ -146,25 +169,6 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   }, [selectedDate, service]);
 
   if (!service) return null;
-
-  // Guard: only Recovery services are bookable right now
-  if (service.category !== "Recovery") {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{service.name}</DialogTitle>
-            <DialogDescription>
-              Spa Aella is opening early April. This service is not yet available for booking. Red Light Therapy and ZeroBody Cryo are available now.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   const durationMatch = service.duration.match(/(\d+)/);
   const durationMinutes = durationMatch ? parseInt(durationMatch[1]) : 60;
