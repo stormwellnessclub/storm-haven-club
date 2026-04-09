@@ -4985,6 +4985,7 @@ export type Database = {
           staff_id: string | null
           staff_notes: string | null
           status: string
+          tip_amount: number | null
           updated_at: string
           user_id: string | null
         }
@@ -5014,6 +5015,7 @@ export type Database = {
           staff_id?: string | null
           staff_notes?: string | null
           status?: string
+          tip_amount?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -5043,6 +5045,7 @@ export type Database = {
           staff_id?: string | null
           staff_notes?: string | null
           status?: string
+          tip_amount?: number | null
           updated_at?: string
           user_id?: string | null
         }

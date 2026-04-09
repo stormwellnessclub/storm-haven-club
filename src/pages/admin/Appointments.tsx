@@ -3,10 +3,12 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, CreditCard } from "lucide-react";
 import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus } from "@/hooks/useAdminSpaAppointments";
 import { format, parse } from "date-fns";
 import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModal";
+import { SpaCompletionDialog } from "@/components/admin/spa/SpaCompletionDialog";
+import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 
 const timeSlots = [
   "08:00", "09:00", "10:00", "11:00", "12:00",
@@ -48,6 +50,8 @@ const getStatusColor = (status: string) => {
 export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
+  const [isRetroactive, setIsRetroactive] = useState(false);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -179,10 +183,10 @@ export default function Appointments() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => updateStatus.mutate({ 
-                                    appointmentId: appointment.id, 
-                                    status: 'completed' 
-                                  })}
+                                  onClick={() => {
+                                    setCompletionAppointment(appointment);
+                                    setIsRetroactive(false);
+                                  }}
                                 >
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
                                   Complete
@@ -197,6 +201,21 @@ export default function Appointments() {
                                 >
                                   <XCircle className="h-3 w-3 mr-1" />
                                   Cancel
+                                </Button>
+                              </div>
+                            )}
+                            {appointment.status === 'completed' && (!appointment.amount_paid || appointment.amount_paid === 0) && (
+                              <div className="ml-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setCompletionAppointment(appointment);
+                                    setIsRetroactive(true);
+                                  }}
+                                >
+                                  <CreditCard className="h-3 w-3 mr-1" />
+                                  Charge
                                 </Button>
                               </div>
                             )}
@@ -287,6 +306,14 @@ export default function Appointments() {
         open={showBookingModal} 
         onOpenChange={setShowBookingModal}
         defaultDate={selectedDate}
+      />
+      <SpaCompletionDialog
+        open={!!completionAppointment}
+        onOpenChange={(open) => {
+          if (!open) setCompletionAppointment(null);
+        }}
+        appointment={completionAppointment}
+        retroactive={isRetroactive}
       />
     </AdminLayout>
   );
