@@ -5,7 +5,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserPlus, List, ChevronLeft, ChevronRight, Loader2, ExternalLink } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserPlus, List, ChevronLeft, ChevronRight, Loader2, ExternalLink, EyeOff } from "lucide-react";
 import { AdminSessionsCalendar } from "@/components/admin/AdminSessionsCalendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,9 +111,9 @@ export default function Classes() {
   const isToday = selectedDateStr === format(new Date(), 'yyyy-MM-dd');
 
   const { data: sessions = [], isLoading } = useQuery({
-    queryKey: ['admin-class-sessions-day', selectedDateStr],
+    queryKey: ['admin-class-sessions-day', selectedDateStr, showInactive],
     queryFn: async () => {
-      const query = supabase
+      let query = supabase
         .from('class_sessions')
         .select(`
           *,
@@ -122,6 +122,9 @@ export default function Classes() {
         `)
         .eq('session_date', selectedDateStr)
         .order('start_time');
+      if (!showInactive) {
+        query = query.eq('is_hidden', false).eq('is_cancelled', false);
+      }
       const { data, error } = await query;
       if (error) throw error;
       return data as ClassSession[];
@@ -225,7 +228,7 @@ export default function Classes() {
                 onCheckedChange={setShowInactive}
               />
               <Label htmlFor="show-inactive-sessions" className="text-sm text-muted-foreground cursor-pointer">
-                Show inactive
+                Show all
               </Label>
             </div>
             <Tabs value={view} onValueChange={(v) => setView(v as "list" | "calendar")}>
@@ -298,7 +301,8 @@ export default function Classes() {
                   key={session.id}
                   className={cn(
                     "hover:shadow-md transition-shadow cursor-pointer",
-                    session.is_cancelled && "opacity-60"
+                    session.is_cancelled && "opacity-60",
+                    (session as any).is_hidden && "opacity-50"
                   )}
                   onClick={() => openRoster(session.id)}
                 >
@@ -306,8 +310,13 @@ export default function Classes() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-lg">{session.class_types?.name}</span>
+                          <span className={cn("font-semibold text-lg", session.is_cancelled && "line-through")}>{session.class_types?.name}</span>
                           <Badge className={getStatusColor(status)}>{getStatusLabel(status)}</Badge>
+                          {(session as any).is_hidden && (
+                            <Badge variant="outline" className="text-xs gap-1 text-muted-foreground">
+                              <EyeOff className="h-3 w-3" /> Hidden
+                            </Badge>
+                          )}
                           {isFull && <Badge variant="destructive" className="text-xs">Full</Badge>}
                         </div>
                         <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
