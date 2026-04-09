@@ -50,6 +50,8 @@ const getStatusColor = (status: string) => {
 export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
+  const [isRetroactive, setIsRetroactive] = useState(false);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
