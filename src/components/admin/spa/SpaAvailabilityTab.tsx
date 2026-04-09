@@ -4,7 +4,7 @@ import {
   useSpaServiceAvailability, useCreateSpaAvailability, useUpdateSpaAvailability, useDeleteSpaAvailability,
   type SpaServiceAvailability,
 } from "@/hooks/useSpaManagement";
-import { useAdminSpaAppointments } from "@/hooks/useAdminSpaAppointments";
+import { useAdminSpaAppointments, AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CalendarDays } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CalendarDays, CheckCircle2, CreditCard } from "lucide-react";
+import { SpaCompletionDialog } from "./SpaCompletionDialog";
 import { format, parse } from "date-fns";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -42,6 +43,8 @@ export function SpaAvailabilityTab() {
   const [conflicts, setConflicts] = useState<string[]>([]);
   const [subTab, setSubTab] = useState("slots");
   const [scheduleDate, setScheduleDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
+  const [isRetroactive, setIsRetroactive] = useState(false);
 
   // Fetch appointments for schedule view
   const { data: dayAppointments } = useAdminSpaAppointments({
@@ -254,14 +257,42 @@ export function SpaAvailabilityTab() {
                       ))}
                       {booked.map(apt => {
                         const timeStr = apt.appointment_time?.slice(0, 5) || "";
+                        const isActionable = ['confirmed'].includes(apt.status);
+                        const needsCharge = apt.status === 'completed' && (!apt.amount_paid || apt.amount_paid === 0);
                         return (
-                          <div key={apt.id} className="flex items-center gap-3 px-4 py-2 text-sm bg-primary/5">
+                          <div
+                            key={apt.id}
+                            className={`flex items-center gap-3 px-4 py-2 text-sm bg-primary/5 ${
+                              (isActionable || needsCharge) ? 'cursor-pointer hover:bg-primary/10 transition-colors' : ''
+                            }`}
+                            onClick={() => {
+                              if (isActionable) {
+                                setCompletionAppointment(apt);
+                                setIsRetroactive(false);
+                              } else if (needsCharge) {
+                                setCompletionAppointment(apt);
+                                setIsRetroactive(true);
+                              }
+                            }}
+                          >
                             <Badge className="text-xs">{timeStr}</Badge>
                             <span className="text-xs font-medium">
                               {apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest"}
                             </span>
                             <span className="text-xs">{apt.service_name}</span>
                             <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
+                            {isActionable && (
+                              <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(false); }}>
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Complete
+                              </Button>
+                            )}
+                            {needsCharge && (
+                              <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(true); }}>
+                                <CreditCard className="h-3 w-3 mr-1" />
+                                Charge
+                              </Button>
+                            )}
                           </div>
                         );
                       })}
@@ -383,6 +414,15 @@ export function SpaAvailabilityTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SpaCompletionDialog
+        open={!!completionAppointment}
+        onOpenChange={(open) => {
+          if (!open) setCompletionAppointment(null);
+        }}
+        appointment={completionAppointment}
+        retroactive={isRetroactive}
+      />
     </div>
   );
 }
