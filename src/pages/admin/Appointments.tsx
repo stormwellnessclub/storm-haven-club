@@ -183,10 +183,10 @@ export default function Appointments() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => updateStatus.mutate({ 
-                                    appointmentId: appointment.id, 
-                                    status: 'completed' 
-                                  })}
+                                  onClick={() => {
+                                    setCompletionAppointment(appointment);
+                                    setIsRetroactive(false);
+                                  }}
                                 >
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
                                   Complete
@@ -201,6 +201,21 @@ export default function Appointments() {
                                 >
                                   <XCircle className="h-3 w-3 mr-1" />
                                   Cancel
+                                </Button>
+                              </div>
+                            )}
+                            {appointment.status === 'completed' && (!appointment.amount_paid || appointment.amount_paid === 0) && (
+                              <div className="ml-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setCompletionAppointment(appointment);
+                                    setIsRetroactive(true);
+                                  }}
+                                >
+                                  <CreditCard className="h-3 w-3 mr-1" />
+                                  Charge
                                 </Button>
                               </div>
                             )}
