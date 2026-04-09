@@ -594,6 +594,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
               </>
             )}
           </div>
+          </>)}
         </div>
 
         <div className="flex gap-2 justify-end">
