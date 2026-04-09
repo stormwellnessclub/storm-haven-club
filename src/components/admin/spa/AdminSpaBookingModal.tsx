@@ -49,7 +49,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       if (memberSearch.length < 2) return [];
       const { data, error } = await supabase
         .from("members")
-        .select("id, first_name, last_name, email, membership_type, liability_waiver_signed")
+        .select("id, first_name, last_name, email, membership_type, user_id")
         .or(`first_name.ilike.%${memberSearch}%,last_name.ilike.%${memberSearch}%,email.ilike.%${memberSearch}%`)
         .limit(10);
       if (error) throw error;
@@ -60,6 +60,31 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
   // Track selected member's waiver status
   const [selectedMemberWaiverSigned, setSelectedMemberWaiverSigned] = useState(false);
+
+  // Check waiver status when member is selected
+  const checkMemberWaiver = async (userId: string | null) => {
+    if (!userId) {
+      setSelectedMemberWaiverSigned(false);
+      return;
+    }
+    // Check profiles table
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("waiver_signed")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (profileData?.waiver_signed) {
+      setSelectedMemberWaiverSigned(true);
+      return;
+    }
+    // Check non_member_profiles table
+    const { data: nonMemberData } = await supabase
+      .from("non_member_profiles")
+      .select("waiver_signed")
+      .eq("user_id", userId)
+      .maybeSingle();
+    setSelectedMemberWaiverSigned(nonMemberData?.waiver_signed === true);
+  };
 
   const selectedService = useMemo(() => 
     services?.find(s => s.id === serviceId), [services, serviceId]
