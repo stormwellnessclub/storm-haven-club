@@ -1,0 +1,1 @@
+ALTER TABLE spa_appointments ADD COLUMN IF NOT EXISTS tip_amount numeric DEFAULT 0;
