@@ -4,6 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { useSpaBookAppointment, useCheckSpaAvailability } from "@/hooks/useSpaBooking";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useWellnessCredits } from "@/hooks/useWellnessCredits";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
+import { useAllAgreements } from "@/hooks/useAllAgreements";
+import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { getWellnessCreditType, getCreditTypeDisplayName, WellnessCreditType } from "@/lib/wellnessCategories";
 import {
   Dialog,
@@ -25,7 +29,9 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, addMonths } from "date-fns";
-import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles } from "lucide-react";
+import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles, FileCheck, ExternalLink, Check } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatTime12h } from "@/lib/timeFormat";
