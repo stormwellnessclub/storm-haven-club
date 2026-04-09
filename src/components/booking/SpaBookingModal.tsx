@@ -69,12 +69,17 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const navigate = useNavigate();
   const { data: membership } = useUserMembership();
   const { data: wellnessCredits, refetch: refetchCredits } = useWellnessCredits();
+  const { profile, signWaiver, isSigningWaiver } = useUserProfile();
+  const { profile: nonMemberProfile, signWaiver: signNonMemberWaiver, isSigningWaiver: isSigningNonMemberWaiver } = useNonMemberProfile();
+  const { data: agreements } = useAllAgreements();
   const bookAppointment = useSpaBookAppointment();
   const checkAvailability = useCheckSpaAvailability();
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [memberNotes, setMemberNotes] = useState("");
+  const [showWaiverInline, setShowWaiverInline] = useState(false);
+  const [waiverAcknowledged, setWaiverAcknowledged] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("card");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
