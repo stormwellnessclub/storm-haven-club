@@ -1,49 +1,20 @@
 
 
-# Fix: Guest check-ins not counted in front desk attendance
+# Fix: Delete old cancelled record and update approval logic
 
-## Problem
+## Steps
 
-The attendance feed on the front desk (`kiosk_todays_attendance`) filters guest passes by `valid_date = today`. But when a guest pass is created with a future or past `valid_date` — or when the guest simply shows up on a different day than the pass date — checking them in sets `used_at = now()` but does NOT update `valid_date` to today. So the attendance query misses them entirely.
+### 1. Delete Batul Bazzi's old cancelled member record
+Use a data operation to remove the cancelled record (`id: 41c65b17-1fa0-4d5f-89c9-98b00580ec9d`, STM-000029).
 
-Additionally, the guest search (`kiosk_search_visitors`) also filters by `valid_date = today`, meaning guests with passes for other dates can't even be found to check in.
+### 2. Update approval logic in `src/pages/admin/Applications.tsx`
+Change the existing-member check so that `cancelled` members don't block new applications:
+- If an existing member is found with status `cancelled`, delete or ignore that old record and proceed with creating a new one
+- Only skip creation if the existing member is `active` or `pending_activation`
 
-## Root cause
+This way the problem won't recur for any future re-applicants.
 
-In `kiosk_check_in_guest`, line 348-349:
-```sql
-UPDATE public.guest_passes
-SET status = 'used', used_at = now()
-WHERE id = p_guest_pass_id;
-```
-It never sets `valid_date = current_date`.
-
-And `kiosk_todays_attendance` line 256:
-```sql
-WHERE valid_date = v_today AND status = 'used' AND used_at IS NOT NULL
-```
-This misses any guest pass whose `valid_date` doesn't match today.
-
-## Fix (database migration)
-
-1. **Update `kiosk_check_in_guest`** — also set `valid_date = current_date` when marking a pass as used, so the attendance query picks it up:
-```sql
-UPDATE public.guest_passes
-SET status = 'used', used_at = now(), valid_date = current_date
-WHERE id = p_guest_pass_id;
-```
-
-2. **Update `kiosk_todays_attendance`** guest query — use `used_at >= today_start` as the primary filter instead of relying solely on `valid_date`, so any guest checked in today appears regardless of original valid_date:
-```sql
-WHERE status = 'used' AND used_at >= v_today_start
-```
-
-3. **Update `kiosk_search_visitors`** guest search — broaden to also show passes with future valid_dates or no valid_date, so staff can check in a guest who shows up on an unexpected day:
-```sql
-WHERE status IN ('active', 'purchased')
-  AND (valid_date IS NULL OR valid_date >= v_today)
-```
-
-## Files changed
-- One database migration (SQL only, no frontend changes needed)
+### Files changed
+- `src/pages/admin/Applications.tsx` (approval logic update)
+- One data operation (delete old record)
 
