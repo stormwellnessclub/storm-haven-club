@@ -457,27 +457,33 @@ export default function Applications() {
           .maybeSingle();
         
         if (existingMember) {
-          console.log("Member already exists for:", application.email, "status:", existingMember.status);
-          toast.warning(`Member record already exists for ${application.email} (status: ${existingMember.status}). Skipping creation.`);
-          
-          // Still send email if not suppressed and not auto-activating
-          if (!suppressEmail && !autoActivate) {
-            try {
-              const emailType = lockedStartDate ? "application_approved_locked_date" : "application_approved";
-              await supabase.functions.invoke("send-email", {
-                body: {
-                  type: emailType,
-                  to: application.email,
-                  data: lockedStartDate 
-                    ? { name: firstName, lockedStartDate: format(lockedStartDate, "MMMM d, yyyy") }
-                    : { name: firstName, activationDeadline: format(activationDeadline, "MMMM d, yyyy") },
-                },
-              });
-            } catch (emailError) {
-              console.error("Failed to send approval email:", emailError);
+          // If the existing member is cancelled, delete the old record so we can create a fresh one
+          if (existingMember.status === 'cancelled') {
+            console.log("Found cancelled member for:", application.email, "— removing old record to allow re-application");
+            await supabase.from("members").delete().eq("id", existingMember.id);
+          } else {
+            console.log("Member already exists for:", application.email, "status:", existingMember.status);
+            toast.warning(`Member record already exists for ${application.email} (status: ${existingMember.status}). Skipping creation.`);
+            
+            // Still send email if not suppressed and not auto-activating
+            if (!suppressEmail && !autoActivate) {
+              try {
+                const emailType = lockedStartDate ? "application_approved_locked_date" : "application_approved";
+                await supabase.functions.invoke("send-email", {
+                  body: {
+                    type: emailType,
+                    to: application.email,
+                    data: lockedStartDate 
+                      ? { name: firstName, lockedStartDate: format(lockedStartDate, "MMMM d, yyyy") }
+                      : { name: firstName, activationDeadline: format(activationDeadline, "MMMM d, yyyy") },
+                  },
+                });
+              } catch (emailError) {
+                console.error("Failed to send approval email:", emailError);
+              }
             }
+            return;
           }
-          return;
         }
         
         // Look up user_id by email
