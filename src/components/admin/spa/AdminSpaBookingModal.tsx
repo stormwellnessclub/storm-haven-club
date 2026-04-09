@@ -235,7 +235,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             {selectedMemberId ? (
               <div className="flex items-center justify-between p-2 border rounded-md bg-secondary/30">
                 <span className="text-sm font-medium">{selectedMemberName}</span>
-                <Button size="sm" variant="ghost" onClick={() => { setSelectedMemberId(null); setSelectedMemberName(""); }}>
+                <Button size="sm" variant="ghost" onClick={() => { setSelectedMemberId(null); setSelectedMemberName(""); setSelectedMemberWaiverSigned(false); }}>
                   Change
                 </Button>
               </div>
@@ -258,6 +258,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                           setSelectedMemberId(m.id);
                           setSelectedMemberName(`${m.first_name} ${m.last_name}`);
                           setMemberSearch("");
+                          checkMemberWaiver(m.user_id);
                         }}
                       >
                         <span>{m.first_name} {m.last_name}</span>
