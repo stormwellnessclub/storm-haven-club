@@ -184,10 +184,10 @@ export function useCheckSpaAvailability() {
       appointmentDateTime.setHours(timeObj.getHours(), timeObj.getMinutes(), 0, 0);
       const endDateTime = addMinutes(appointmentDateTime, durationMinutes + 15);
 
-      // Check for conflicting appointments
+      // Check for conflicting appointments across ALL services for same therapist/room
       try {
         let query = (supabase.from as any)("spa_appointments")
-          .select("id, appointment_time, duration_minutes")
+          .select("id, appointment_time, duration_minutes, cleanup_minutes, service_name, staff_id")
           .eq("appointment_date", format(appointmentDate, "yyyy-MM-dd"))
           .in("status", ["confirmed", "pending"]);
 
@@ -199,21 +199,17 @@ export function useCheckSpaAvailability() {
 
         if (error) {
           if (error.code === "42P01" || error.message?.includes("does not exist")) {
-            // Table doesn't exist yet, return available
-            return {
-              available: true,
-              conflictingAppointments: [],
-            };
+            return { available: true, conflictingAppointments: [] };
           }
           throw error;
         }
 
         // Check if any appointments overlap
-        const hasConflict = (data || []).some((apt) => {
+        const conflicting = (data || []).filter((apt: any) => {
           const aptStart = parse(apt.appointment_time, "HH:mm:ss", new Date());
           const aptStartFull = new Date(appointmentDate);
           aptStartFull.setHours(aptStart.getHours(), aptStart.getMinutes(), 0, 0);
-          const aptEnd = addMinutes(aptStartFull, apt.duration_minutes + 15);
+          const aptEnd = addMinutes(aptStartFull, (apt.duration_minutes || 60) + (apt.cleanup_minutes || 15));
 
           return (
             (appointmentDateTime >= aptStartFull && appointmentDateTime < aptEnd) ||
@@ -223,16 +219,12 @@ export function useCheckSpaAvailability() {
         });
 
         return {
-          available: !hasConflict,
-          conflictingAppointments: data || [],
+          available: conflicting.length === 0,
+          conflictingAppointments: conflicting,
         };
       } catch (error: any) {
         if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
-          // Table doesn't exist yet, return available
-          return {
-            available: true,
-            conflictingAppointments: [],
-          };
+          return { available: true, conflictingAppointments: [] };
         }
         throw error;
       }

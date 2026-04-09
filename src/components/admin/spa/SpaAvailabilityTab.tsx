@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useSpaServices, useSpaTherapists, useSpaRooms,
   useSpaServiceAvailability, useCreateSpaAvailability, useUpdateSpaAvailability, useDeleteSpaAvailability,
   type SpaServiceAvailability,
 } from "@/hooks/useSpaManagement";
+import { useAdminSpaAppointments } from "@/hooks/useAdminSpaAppointments";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CalendarDays } from "lucide-react";
+import { format, parse } from "date-fns";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -35,8 +38,24 @@ export function SpaAvailabilityTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptySlot());
   const [filterService, setFilterService] = useState("all");
+  const [selectedDays, setSelectedDays] = useState<number[]>([1]);
+  const [conflicts, setConflicts] = useState<string[]>([]);
+  const [subTab, setSubTab] = useState("slots");
+  const [scheduleDate, setScheduleDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
-  const openNew = () => { setForm(emptySlot()); setEditingId(null); setShowForm(true); };
+  // Fetch appointments for schedule view
+  const { data: dayAppointments } = useAdminSpaAppointments({
+    appointmentDate: new Date(scheduleDate + "T12:00:00"),
+  });
+
+  const openNew = () => { 
+    setForm(emptySlot()); 
+    setEditingId(null); 
+    setSelectedDays([1]); 
+    setConflicts([]); 
+    setShowForm(true); 
+  };
+  
   const openEdit = (slot: SpaServiceAvailability) => {
     setForm({
       service_id: slot.service_id, therapist_id: slot.therapist_id, room_id: slot.room_id,
@@ -44,15 +63,65 @@ export function SpaAvailabilityTab() {
       max_bookings: slot.max_bookings, is_active: slot.is_active,
     });
     setEditingId(slot.id);
+    setSelectedDays([slot.day_of_week]);
+    setConflicts([]);
     setShowForm(true);
   };
 
+  // Conflict detection
+  const checkConflicts = (days: number[], formData: typeof form) => {
+    if (!availability) return [];
+    const found: string[] = [];
+    for (const day of days) {
+      const overlapping = availability.filter(a => {
+        if (editingId && a.id === editingId) return false;
+        if (a.day_of_week !== day) return false;
+        // Check therapist overlap
+        const therapistMatch = formData.therapist_id && a.therapist_id && a.therapist_id === formData.therapist_id;
+        // Check room overlap  
+        const roomMatch = formData.room_id && a.room_id && a.room_id === formData.room_id;
+        if (!therapistMatch && !roomMatch) return false;
+        // Check time overlap
+        const aStart = a.start_time.slice(0, 5);
+        const aEnd = a.end_time.slice(0, 5);
+        const fStart = formData.start_time.slice(0, 5);
+        const fEnd = formData.end_time.slice(0, 5);
+        return fStart < aEnd && fEnd > aStart;
+      });
+      for (const o of overlapping) {
+        const resource = o.therapist_id === formData.therapist_id
+          ? getTherapistName(o.therapist_id)
+          : getRoomName(o.room_id);
+        const svcName = getServiceName(o.service_id);
+        found.push(`${DAYS[day]}: ${resource} already assigned to "${svcName}" ${o.start_time.slice(0, 5)}–${o.end_time.slice(0, 5)}`);
+      }
+    }
+    return found;
+  };
+
   const handleSave = () => {
+    const detectedConflicts = checkConflicts(editingId ? [form.day_of_week] : selectedDays, form);
+    setConflicts(detectedConflicts);
+
     if (editingId) {
       updateAvail.mutate({ id: editingId, ...form }, { onSuccess: () => setShowForm(false) });
     } else {
-      createAvail.mutate(form, { onSuccess: () => setShowForm(false) });
+      // Bulk create for all selected days
+      const daysToCreate = selectedDays.length > 0 ? selectedDays : [form.day_of_week];
+      let completed = 0;
+      for (const day of daysToCreate) {
+        createAvail.mutate(
+          { ...form, day_of_week: day },
+          { onSuccess: () => { completed++; if (completed === daysToCreate.length) setShowForm(false); } }
+        );
+      }
     }
+  };
+
+  const toggleDay = (day: number) => {
+    setSelectedDays(prev => 
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
   };
 
   const getServiceName = (id: string) => services?.find(s => s.id === id)?.name || "Unknown";
@@ -63,63 +132,149 @@ export function SpaAvailabilityTab() {
     ? availability
     : availability?.filter(a => a.service_id === filterService);
 
-  // Group by service
   const grouped = (filtered || []).reduce((acc, slot) => {
     const name = getServiceName(slot.service_id);
     (acc[name] = acc[name] || []).push(slot);
     return acc;
   }, {} as Record<string, SpaServiceAvailability[]>);
 
-  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  // Schedule view: group availability by therapist for the selected date's day of week
+  const scheduleDayOfWeek = new Date(scheduleDate + "T12:00:00").getDay();
+  const therapistSchedule = useMemo(() => {
+    if (!availability || !therapists) return [];
+    const activeTherapists = therapists.filter(t => t.is_active);
+    return activeTherapists.map(t => {
+      const slots = (availability || []).filter(
+        a => a.therapist_id === t.id && a.day_of_week === scheduleDayOfWeek && a.is_active
+      );
+      const booked = (dayAppointments || []).filter(
+        a => a.staff_id === t.id && ["confirmed", "pending"].includes(a.status)
+      );
+      return { therapist: t, slots, booked };
+    });
+  }, [availability, therapists, scheduleDayOfWeek, dayAppointments]);
 
-  const activeServices = services?.filter(s => s.is_active) || [];
+  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3 items-center justify-between">
-        <Select value={filterService} onValueChange={setFilterService}>
-          <SelectTrigger className="w-[260px]"><SelectValue placeholder="Filter by service" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Services</SelectItem>
-            {services?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" />Add Slot</Button>
-      </div>
-
-      {Object.keys(grouped).length === 0 && (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">
-          No availability slots configured. Add a slot to define when services are available.
-        </CardContent></Card>
-      )}
-
-      {Object.entries(grouped).sort().map(([serviceName, slots]) => (
-        <Card key={serviceName}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{serviceName}</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y">
-              {slots.map(slot => (
-                <div key={slot.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                  <Badge variant={slot.is_active ? "default" : "outline"} className="text-xs w-20 justify-center">
-                    {DAYS[slot.day_of_week]?.slice(0, 3)}
-                  </Badge>
-                  <span className="text-muted-foreground">
-                    {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
-                  </span>
-                  <span className="text-xs">👤 {getTherapistName(slot.therapist_id)}</span>
-                  <span className="text-xs">🚪 {getRoomName(slot.room_id)}</span>
-                  <span className="text-xs text-muted-foreground ml-auto">max {slot.max_bookings}</span>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(slot)}><Pencil className="h-3 w-3" /></Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteAvail.mutate(slot.id)}><Trash2 className="h-3 w-3" /></Button>
-                </div>
-              ))}
+      <Tabs value={subTab} onValueChange={setSubTab}>
+        <div className="flex flex-wrap gap-3 items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="slots">Availability Slots</TabsTrigger>
+            <TabsTrigger value="schedule">Therapist Schedule</TabsTrigger>
+          </TabsList>
+          {subTab === "slots" && (
+            <div className="flex gap-3 items-center">
+              <Select value={filterService} onValueChange={setFilterService}>
+                <SelectTrigger className="w-[260px]"><SelectValue placeholder="Filter by service" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Services</SelectItem>
+                  {services?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" />Add Slot</Button>
             </div>
-          </CardContent>
-        </Card>
-      ))}
+          )}
+        </div>
 
+        <TabsContent value="slots" className="space-y-4 mt-4">
+          {Object.keys(grouped).length === 0 && (
+            <Card><CardContent className="p-8 text-center text-muted-foreground">
+              No availability slots configured. Add a slot to define when services are available.
+            </CardContent></Card>
+          )}
+
+          {Object.entries(grouped).sort().map(([serviceName, slots]) => (
+            <Card key={serviceName}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">{serviceName}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y">
+                  {slots.map(slot => (
+                    <div key={slot.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                      <Badge variant={slot.is_active ? "default" : "outline"} className="text-xs w-20 justify-center">
+                        {DAYS[slot.day_of_week]?.slice(0, 3)}
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
+                      </span>
+                      <span className="text-xs">👤 {getTherapistName(slot.therapist_id)}</span>
+                      <span className="text-xs">🚪 {getRoomName(slot.room_id)}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">max {slot.max_bookings}</span>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(slot)}><Pencil className="h-3 w-3" /></Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteAvail.mutate(slot.id)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="schedule" className="space-y-4 mt-4">
+          <div className="flex items-center gap-3">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            <Input 
+              type="date" 
+              value={scheduleDate} 
+              onChange={e => setScheduleDate(e.target.value)}
+              className="w-auto"
+            />
+            <span className="text-sm text-muted-foreground">
+              {DAYS[scheduleDayOfWeek]}
+            </span>
+          </div>
+
+          {therapistSchedule.length === 0 ? (
+            <Card><CardContent className="p-8 text-center text-muted-foreground">
+              No active therapists found.
+            </CardContent></Card>
+          ) : (
+            therapistSchedule.map(({ therapist, slots, booked }) => (
+              <Card key={therapist.id}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    👤 {therapist.full_name}
+                    {slots.length === 0 && <Badge variant="outline" className="text-xs">No availability</Badge>}
+                  </CardTitle>
+                </CardHeader>
+                {(slots.length > 0 || booked.length > 0) && (
+                  <CardContent className="p-0">
+                    <div className="divide-y">
+                      {slots.map(slot => (
+                        <div key={slot.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+                          <Badge variant="outline" className="text-xs bg-secondary/50">
+                            {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
+                          </Badge>
+                          <span className="text-xs">{getServiceName(slot.service_id)}</span>
+                          <span className="text-xs text-muted-foreground">🚪 {getRoomName(slot.room_id)}</span>
+                        </div>
+                      ))}
+                      {booked.map(apt => {
+                        const timeStr = apt.appointment_time?.slice(0, 5) || "";
+                        return (
+                          <div key={apt.id} className="flex items-center gap-3 px-4 py-2 text-sm bg-primary/5">
+                            <Badge className="text-xs">{timeStr}</Badge>
+                            <span className="text-xs font-medium">
+                              {apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest"}
+                            </span>
+                            <span className="text-xs">{apt.service_name}</span>
+                            <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            ))
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Add/Edit Slot Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -135,15 +290,37 @@ export function SpaAvailabilityTab() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Day of Week</Label>
-              <Select value={String(form.day_of_week)} onValueChange={v => setForm({ ...form, day_of_week: parseInt(v) })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DAYS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+
+            {/* Day selection - bulk for new, single for edit */}
+            {editingId ? (
+              <div>
+                <Label>Day of Week</Label>
+                <Select value={String(form.day_of_week)} onValueChange={v => setForm({ ...form, day_of_week: parseInt(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DAYS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <Label>Days of Week (select multiple)</Label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {DAYS.map((d, i) => (
+                    <Button
+                      key={i}
+                      size="sm"
+                      variant={selectedDays.includes(i) ? "default" : "outline"}
+                      onClick={() => toggleDay(i)}
+                      className="text-xs"
+                    >
+                      {d.slice(0, 3)}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Start Time</Label><Input type="time" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} /></div>
               <div><Label>End Time</Label><Input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} /></div>
@@ -176,10 +353,33 @@ export function SpaAvailabilityTab() {
               <Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} />
               <Label>Active</Label>
             </div>
+
+            {/* Conflict warnings */}
+            {conflicts.length > 0 && (
+              <div className="p-3 border border-amber-500/30 bg-amber-500/5 rounded-md space-y-1">
+                <div className="flex items-center gap-2 text-amber-600 text-sm font-medium">
+                  <AlertTriangle className="h-4 w-4" />
+                  Resource Conflicts Detected
+                </div>
+                {conflicts.map((c, i) => (
+                  <p key={i} className="text-xs text-muted-foreground">{c}</p>
+                ))}
+                <p className="text-xs text-muted-foreground italic">
+                  You can still save — conflicts are blocked at booking time, not at availability setup.
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!form.service_id || createAvail.isPending || updateAvail.isPending}>Save</Button>
+            <Button 
+              onClick={handleSave} 
+              disabled={!form.service_id || createAvail.isPending || updateAvail.isPending}
+            >
+              {!editingId && selectedDays.length > 1 
+                ? `Save for ${selectedDays.length} days` 
+                : "Save"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

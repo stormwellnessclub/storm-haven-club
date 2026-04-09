@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus } from "@/hooks/useAdminSpaAppointments";
 import { format, parse } from "date-fns";
+import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModal";
 
 const timeSlots = [
   "08:00", "09:00", "10:00", "11:00", "12:00",
@@ -46,6 +47,7 @@ const getStatusColor = (status: string) => {
 
 export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -117,7 +119,7 @@ export default function Appointments() {
                 <Clock className="h-5 w-5" />
                 Daily Schedule
               </CardTitle>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowBookingModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 New Appointment
               </Button>
@@ -281,6 +283,11 @@ export default function Appointments() {
           </div>
         </div>
       </div>
+      <AdminSpaBookingModal 
+        open={showBookingModal} 
+        onOpenChange={setShowBookingModal}
+        defaultDate={selectedDate}
+      />
     </AdminLayout>
   );
 }
