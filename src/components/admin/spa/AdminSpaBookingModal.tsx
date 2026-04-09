@@ -271,6 +271,17 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             )}
           </div>
 
+          {/* Waiver Warning */}
+          {selectedMemberId && !selectedMemberWaiverSigned && (
+            <Alert className="bg-destructive/10 border-destructive/30">
+              <FileCheck className="h-4 w-4 text-destructive" />
+              <AlertTitle className="text-destructive">Liability Waiver Not Signed</AlertTitle>
+              <AlertDescription className="mt-1">
+                This member has not signed the liability waiver. They must sign it via the member portal before a spa appointment can be booked.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Service */}
           <div>
             <Label>Service *</Label>
