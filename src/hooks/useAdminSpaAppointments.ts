@@ -61,15 +61,21 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
         }
 
         if (filters?.appointmentDate) {
-          query = query.eq("appointment_date", filters.appointmentDate.toISOString().split("T")[0]);
+          const d = filters.appointmentDate;
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          query = query.eq("appointment_date", dateStr);
         }
 
         if (filters?.dateFrom) {
-          query = query.gte("appointment_date", filters.dateFrom.toISOString().split("T")[0]);
+          const d = filters.dateFrom;
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          query = query.gte("appointment_date", dateStr);
         }
 
         if (filters?.dateTo) {
-          query = query.lte("appointment_date", filters.dateTo.toISOString().split("T")[0]);
+          const d = filters.dateTo;
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          query = query.lte("appointment_date", dateStr);
         }
 
         const { data, error } = await query;
