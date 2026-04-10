@@ -814,6 +814,9 @@ export default function NonMemberDetail() {
                 email={profile.email}
                 phone={profile.phone}
                 adminUserId={user?.id || ""}
+                stripeCustomerId={profile.stripe_customer_id}
+                cardBrand={profile.card_brand}
+                cardLast4={profile.card_last4}
               />
 
               <Card>

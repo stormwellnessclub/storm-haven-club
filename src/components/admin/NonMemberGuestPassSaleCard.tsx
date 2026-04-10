@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Ticket, Plus, DollarSign, CalendarIcon, Loader2 } from "lucide-react";
+import { Ticket, Plus, DollarSign, CalendarIcon, Loader2, CreditCard } from "lucide-react";
 
 const GUEST_PASS_PRICE = 60;
 
@@ -21,6 +21,9 @@ interface NonMemberGuestPassSaleCardProps {
   email: string | null;
   phone: string | null;
   adminUserId: string;
+  stripeCustomerId?: string | null;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
 }
 
 export function NonMemberGuestPassSaleCard({
@@ -30,6 +33,9 @@ export function NonMemberGuestPassSaleCard({
   email,
   phone,
   adminUserId,
+  stripeCustomerId,
+  cardBrand,
+  cardLast4,
 }: NonMemberGuestPassSaleCardProps) {
   const [quantity, setQuantity] = useState(1);
   const [applyDiscount, setApplyDiscount] = useState(false);
@@ -46,9 +52,68 @@ export function NonMemberGuestPassSaleCard({
   const estFee = subtotal * 0.029 + 0.30;
   const estTotal = subtotal + estFee;
 
-  const handleSell = async () => {
+  const hasCardOnFile = !!(stripeCustomerId && cardLast4);
+
+  const guestName = [firstName, lastName].filter(Boolean).join(" ") || "Guest";
+
+  const handleChargeCard = async () => {
+    if (!adminUserId || !stripeCustomerId) return;
+    setIsProcessing(true);
+    try {
+      const amountCents = Math.round(estTotal * 100);
+      const description = `Guest Pass${quantity > 1 ? ` x${quantity}` : ""} – ${guestName}`;
+
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "charge_saved_card",
+          memberId: userId,
+          stripeCustomerId,
+          amount: amountCents,
+          description,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const paymentIntentId = data?.paymentIntentId || data?.payment_intent_id || null;
+
+      // Create guest pass records
+      const passes = Array.from({ length: quantity }, () => ({
+        guest_name: guestName,
+        guest_email: email || null,
+        phone_number: phone || null,
+        price_paid: effectivePrice,
+        status: "active",
+        purchased_at: new Date().toISOString(),
+        expires_at: expirationDate ? expirationDate.toISOString() : null,
+        sold_by: adminUserId,
+        stripe_payment_id: paymentIntentId,
+        stripe_customer_id: stripeCustomerId,
+        user_id: userId,
+      }));
+
+      const { error: insertError } = await supabase.from("guest_passes").insert(passes);
+      if (insertError) {
+        console.error("Failed to create guest pass records:", insertError);
+        toast.error("Payment succeeded but failed to create pass records. Contact support.");
+        return;
+      }
+
+      toast.success(`${quantity} guest pass${quantity > 1 ? "es" : ""} charged & created successfully`);
+      // Reset form
+      setQuantity(1);
+      setApplyDiscount(false);
+      setCustomPrice(GUEST_PASS_PRICE);
+    } catch (error: any) {
+      console.error("Error charging card for guest pass:", error);
+      toast.error(error?.message || "Failed to charge card");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCheckout = async () => {
     if (!adminUserId) return;
-    const guestName = [firstName, lastName].filter(Boolean).join(" ") || "Guest";
     setIsProcessing(true);
     try {
       const origin = window.location.origin;
@@ -191,7 +256,37 @@ export function NonMemberGuestPassSaleCard({
           </div>
         </div>
 
-        <Button className="w-full" size="sm" disabled={isProcessing} onClick={handleSell}>
+        {/* Card on file info + charge button */}
+        {hasCardOnFile && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 p-2 bg-muted rounded-md text-xs">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <span className="capitalize">{cardBrand || "Card"} •••• {cardLast4}</span>
+            </div>
+            <Button className="w-full" size="sm" disabled={isProcessing} onClick={handleChargeCard}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Charging...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Charge Card – ${estTotal.toFixed(2)}
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Fallback checkout button */}
+        <Button
+          className="w-full"
+          size="sm"
+          variant={hasCardOnFile ? "outline" : "default"}
+          disabled={isProcessing}
+          onClick={handleCheckout}
+        >
           {isProcessing ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -200,7 +295,11 @@ export function NonMemberGuestPassSaleCard({
           ) : (
             <>
               <Plus className="h-4 w-4 mr-2" />
-              {quantity > 1 ? `Create ${quantity} Passes & Checkout` : "Create & Checkout"}
+              {hasCardOnFile
+                ? "Use Stripe Checkout Instead"
+                : quantity > 1
+                  ? `Create ${quantity} Passes & Checkout`
+                  : "Create & Checkout"}
             </>
           )}
         </Button>
