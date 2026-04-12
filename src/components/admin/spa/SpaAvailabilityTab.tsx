@@ -234,32 +234,88 @@ export function SpaAvailabilityTab() {
             </span>
           </div>
 
-          {therapistSchedule.length === 0 ? (
+          {therapistSchedule.assigned.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground">
               No active therapists found.
             </CardContent></Card>
           ) : (
-            therapistSchedule.map(({ therapist, slots, booked }) => (
-              <Card key={therapist.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    👤 {therapist.full_name}
-                    {slots.length === 0 && <Badge variant="outline" className="text-xs">No availability</Badge>}
-                  </CardTitle>
-                </CardHeader>
-                {(slots.length > 0 || booked.length > 0) && (
+            <>
+              {therapistSchedule.assigned.map(({ therapist, slots, booked }) => (
+                <Card key={therapist.id}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      👤 {therapist.full_name}
+                      {slots.length === 0 && booked.length === 0 && <Badge variant="outline" className="text-xs">No availability or bookings</Badge>}
+                    </CardTitle>
+                  </CardHeader>
+                  {(slots.length > 0 || booked.length > 0) && (
+                    <CardContent className="p-0">
+                      <div className="divide-y">
+                        {slots.map(slot => (
+                          <div key={slot.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+                            <Badge variant="outline" className="text-xs bg-secondary/50">
+                              {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
+                            </Badge>
+                            <span className="text-xs">{getServiceName(slot.service_id)}</span>
+                            <span className="text-xs text-muted-foreground">🚪 {getRoomName(slot.room_id)}</span>
+                          </div>
+                        ))}
+                        {booked.length > 0 && (
+                          <div className="px-4 py-1.5 bg-primary/5 border-t">
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Booked Appointments ({booked.length})</span>
+                          </div>
+                        )}
+                        {booked.map(apt => {
+                          const timeStr = apt.appointment_time?.slice(0, 5) || "";
+                          const isActionable = ['confirmed'].includes(apt.status);
+                          const needsCharge = apt.status === 'completed' && (!apt.amount_paid || apt.amount_paid === 0);
+                          return (
+                            <div
+                              key={apt.id}
+                              className={`flex items-center gap-3 px-4 py-2 text-sm bg-primary/5 ${
+                                (isActionable || needsCharge) ? 'cursor-pointer hover:bg-primary/10 transition-colors' : ''
+                              }`}
+                              onClick={() => {
+                                if (isActionable) { setCompletionAppointment(apt); setIsRetroactive(false); }
+                                else if (needsCharge) { setCompletionAppointment(apt); setIsRetroactive(true); }
+                              }}
+                            >
+                              <Badge className="text-xs">{timeStr}</Badge>
+                              <span className="text-xs font-medium">
+                                {apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest"}
+                              </span>
+                              <span className="text-xs">{apt.service_name}</span>
+                              <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
+                              {isActionable && (
+                                <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(false); }}>
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />Complete
+                                </Button>
+                              )}
+                              {needsCharge && (
+                                <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(true); }}>
+                                  <CreditCard className="h-3 w-3 mr-1" />Charge
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+
+              {therapistSchedule.unassigned.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      📋 Unassigned Appointments
+                      <Badge variant="outline" className="text-xs">{therapistSchedule.unassigned.length}</Badge>
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="p-0">
                     <div className="divide-y">
-                      {slots.map(slot => (
-                        <div key={slot.id} className="flex items-center gap-3 px-4 py-2 text-sm">
-                          <Badge variant="outline" className="text-xs bg-secondary/50">
-                            {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
-                          </Badge>
-                          <span className="text-xs">{getServiceName(slot.service_id)}</span>
-                          <span className="text-xs text-muted-foreground">🚪 {getRoomName(slot.room_id)}</span>
-                        </div>
-                      ))}
-                      {booked.map(apt => {
+                      {therapistSchedule.unassigned.map(apt => {
                         const timeStr = apt.appointment_time?.slice(0, 5) || "";
                         const isActionable = ['confirmed'].includes(apt.status);
                         const needsCharge = apt.status === 'completed' && (!apt.amount_paid || apt.amount_paid === 0);
@@ -270,13 +326,8 @@ export function SpaAvailabilityTab() {
                               (isActionable || needsCharge) ? 'cursor-pointer hover:bg-primary/10 transition-colors' : ''
                             }`}
                             onClick={() => {
-                              if (isActionable) {
-                                setCompletionAppointment(apt);
-                                setIsRetroactive(false);
-                              } else if (needsCharge) {
-                                setCompletionAppointment(apt);
-                                setIsRetroactive(true);
-                              }
+                              if (isActionable) { setCompletionAppointment(apt); setIsRetroactive(false); }
+                              else if (needsCharge) { setCompletionAppointment(apt); setIsRetroactive(true); }
                             }}
                           >
                             <Badge className="text-xs">{timeStr}</Badge>
@@ -287,14 +338,12 @@ export function SpaAvailabilityTab() {
                             <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
                             {isActionable && (
                               <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(false); }}>
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Complete
+                                <CheckCircle2 className="h-3 w-3 mr-1" />Complete
                               </Button>
                             )}
                             {needsCharge && (
                               <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(true); }}>
-                                <CreditCard className="h-3 w-3 mr-1" />
-                                Charge
+                                <CreditCard className="h-3 w-3 mr-1" />Charge
                               </Button>
                             )}
                           </div>
@@ -302,9 +351,9 @@ export function SpaAvailabilityTab() {
                       })}
                     </div>
                   </CardContent>
-                )}
-              </Card>
-            ))
+                </Card>
+              )}
+            </>
           )}
         </TabsContent>
       </Tabs>
