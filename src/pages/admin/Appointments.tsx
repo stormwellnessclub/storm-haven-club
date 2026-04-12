@@ -216,7 +216,7 @@ export default function Appointments() {
             <Plus className="h-4 w-4 mr-2" />
             Book Spa Appointment
           </Button>
-          <Button variant="outline" onClick={() => navigate("/admin/spa-management?tab=availability&view=schedule")}>
+          <Button variant="outline" onClick={() => navigate(`/admin/spa-management?tab=availability&view=schedule&date=${selectedDateStr}`)}>
             <LayoutGrid className="h-4 w-4 mr-2" />
             Therapist Schedule
           </Button>
