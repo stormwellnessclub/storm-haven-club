@@ -216,11 +216,11 @@ export default function Appointments() {
             <Plus className="h-4 w-4 mr-2" />
             Book Spa Appointment
           </Button>
-          <Button variant="outline" onClick={() => navigate("/admin/spa")}>
+          <Button variant="outline" onClick={() => navigate("/admin/spa-management?tab=availability&view=schedule")}>
             <LayoutGrid className="h-4 w-4 mr-2" />
             Therapist Schedule
           </Button>
-          <Button variant="outline" onClick={() => navigate("/admin/spa")}>
+          <Button variant="outline" onClick={() => navigate("/admin/spa-management")}>
             <Sparkles className="h-4 w-4 mr-2" />
             Spa Management
           </Button>

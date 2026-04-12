@@ -151,7 +151,7 @@ export function SpaAvailabilityTab() {
         a => a.therapist_id === t.id && a.day_of_week === scheduleDayOfWeek && a.is_active
       );
       const booked = (dayAppointments || []).filter(
-        a => a.staff_id === t.id && ["confirmed", "pending"].includes(a.status)
+        a => a.staff_id === t.id && !["cancelled", "no_show"].includes(a.status)
       );
       return { therapist: t, slots, booked };
     });
