@@ -149,8 +149,9 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
   // Schedule view: group availability by therapist for the selected date's day of week
   const scheduleDayOfWeek = new Date(scheduleDate + "T12:00:00").getDay();
   const therapistSchedule = useMemo(() => {
-    if (!availability || !therapists) return { assigned: [], unassigned: [] };
+    if (!availability || !therapists) return { assigned: [], unassigned: [], needsAttention: [] };
     const activeTherapists = therapists.filter(t => t.is_active);
+    const surfacedIds = new Set<string>();
     const assigned = activeTherapists.map(t => {
       const slots = (availability || []).filter(
         a => a.therapist_id === t.id && a.day_of_week === scheduleDayOfWeek && a.is_active
@@ -158,12 +159,18 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
       const booked = (dayAppointments || []).filter(
         a => a.staff_id === t.id && !["cancelled", "no_show"].includes(a.status)
       );
+      booked.forEach(b => surfacedIds.add(b.id));
       return { therapist: t, slots, booked };
     });
     const unassigned = (dayAppointments || []).filter(
       a => !a.staff_id && !["cancelled", "no_show"].includes(a.status)
     );
-    return { assigned, unassigned };
+    unassigned.forEach(u => surfacedIds.add(u.id));
+    // Catch-all: any non-cancelled appointment not already surfaced
+    const needsAttention = (dayAppointments || []).filter(
+      a => !surfacedIds.has(a.id) && !["cancelled", "no_show"].includes(a.status)
+    );
+    return { assigned, unassigned, needsAttention };
   }, [availability, therapists, scheduleDayOfWeek, dayAppointments]);
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
@@ -329,6 +336,56 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                             key={apt.id}
                             className={`flex items-center gap-3 px-4 py-2 text-sm bg-primary/5 ${
                               (isActionable || needsCharge) ? 'cursor-pointer hover:bg-primary/10 transition-colors' : ''
+                            }`}
+                            onClick={() => {
+                              if (isActionable) { setCompletionAppointment(apt); setIsRetroactive(false); }
+                              else if (needsCharge) { setCompletionAppointment(apt); setIsRetroactive(true); }
+                            }}
+                          >
+                            <Badge className="text-xs">{timeStr}</Badge>
+                            <span className="text-xs font-medium">
+                              {apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest"}
+                            </span>
+                            <span className="text-xs">{apt.service_name}</span>
+                            <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
+                            {isActionable && (
+                              <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(false); }}>
+                                <CheckCircle2 className="h-3 w-3 mr-1" />Complete
+                              </Button>
+                            )}
+                            {needsCharge && (
+                              <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(true); }}>
+                                <CreditCard className="h-3 w-3 mr-1" />Charge
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {therapistSchedule.needsAttention.length > 0 && (
+                <Card className="border-amber-500/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-amber-600">
+                      <AlertTriangle className="h-4 w-4" />
+                      Needs Attention
+                      <Badge variant="outline" className="text-xs">{therapistSchedule.needsAttention.length}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y">
+                      {therapistSchedule.needsAttention.map(apt => {
+                        const timeStr = apt.appointment_time?.slice(0, 5) || "";
+                        const isActionable = ['confirmed'].includes(apt.status);
+                        const needsCharge = apt.status === 'completed' && (!apt.amount_paid || apt.amount_paid === 0);
+                        return (
+                          <div
+                            key={apt.id}
+                            className={`flex items-center gap-3 px-4 py-2 text-sm bg-amber-500/5 ${
+                              (isActionable || needsCharge) ? 'cursor-pointer hover:bg-amber-500/10 transition-colors' : ''
                             }`}
                             onClick={() => {
                               if (isActionable) { setCompletionAppointment(apt); setIsRetroactive(false); }
