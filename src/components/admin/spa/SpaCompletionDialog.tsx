@@ -79,7 +79,7 @@ export function SpaCompletionDialog({
     try {
       let paymentIntentId: string | null = null;
 
-      if (paymentMethod === "card" && appointment.member_id) {
+      if (paymentMethod === "card" && appointment.member?.stripe_customer_id) {
         // Charge saved card via stripe-payment edge function
         const amountCents = Math.round(totalAmount * 100);
         if (amountCents < 50) {
@@ -154,7 +154,10 @@ export function SpaCompletionDialog({
     }
   };
 
-  const hasCardOnFile = !!appointment.member_id;
+  const hasCardOnFile = !!(appointment.member?.stripe_customer_id && appointment.member?.card_last4);
+  const cardLabel = hasCardOnFile
+    ? `${appointment.member?.card_brand || "Card"} •••• ${appointment.member?.card_last4}`
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,7 +184,7 @@ export function SpaCompletionDialog({
                 <RadioGroupItem value="card" id="pm-card" disabled={!hasCardOnFile} />
                 <Label htmlFor="pm-card" className="flex items-center gap-1">
                   <CreditCard className="h-4 w-4" />
-                  Charge card on file
+                  {cardLabel ? `Charge ${cardLabel}` : "Charge card on file"}
                   {!hasCardOnFile && (
                     <Badge variant="outline" className="ml-1 text-xs text-destructive">
                       No card
