@@ -26,7 +26,12 @@ const emptySlot = (): Omit<SpaServiceAvailability, "id"> => ({
   max_bookings: 1, is_active: true,
 });
 
-export function SpaAvailabilityTab() {
+interface SpaAvailabilityTabProps {
+  initialView?: string;
+  initialDate?: string;
+}
+
+export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailabilityTabProps) {
   const { data: services } = useSpaServices();
   const { data: therapists } = useSpaTherapists();
   const { data: rooms } = useSpaRooms();

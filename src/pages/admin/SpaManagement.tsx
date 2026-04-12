@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SpaServicesTab } from "@/components/admin/spa/SpaServicesTab";
@@ -6,11 +5,28 @@ import { SpaTherapistsTab } from "@/components/admin/spa/SpaTherapistsTab";
 import { SpaRoomsTab } from "@/components/admin/spa/SpaRoomsTab";
 import { SpaAvailabilityTab } from "@/components/admin/spa/SpaAvailabilityTab";
 import { SpaAddonsTab } from "@/components/admin/spa/SpaAddonsTab";
+import { useSearchParams } from "react-router-dom";
 
 export default function SpaManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "services";
+  const initialView = searchParams.get("view") || undefined;
+  const initialDate = searchParams.get("date") || undefined;
+
+  const handleTabChange = (value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("tab", value);
+    // Clear view/date when switching away from availability
+    if (value !== "availability") {
+      newParams.delete("view");
+      newParams.delete("date");
+    }
+    setSearchParams(newParams, { replace: true });
+  };
+
   return (
     <AdminLayout title="Spa Management">
-      <Tabs defaultValue="services" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="therapists">Therapists</TabsTrigger>
@@ -22,7 +38,9 @@ export default function SpaManagement() {
         <TabsContent value="services"><SpaServicesTab /></TabsContent>
         <TabsContent value="therapists"><SpaTherapistsTab /></TabsContent>
         <TabsContent value="rooms"><SpaRoomsTab /></TabsContent>
-        <TabsContent value="availability"><SpaAvailabilityTab /></TabsContent>
+        <TabsContent value="availability">
+          <SpaAvailabilityTab initialView={initialView} initialDate={initialDate} />
+        </TabsContent>
         <TabsContent value="addons"><SpaAddonsTab /></TabsContent>
       </Tabs>
     </AdminLayout>
