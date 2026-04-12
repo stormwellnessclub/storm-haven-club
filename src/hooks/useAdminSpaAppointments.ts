@@ -10,6 +10,9 @@ export interface AdminSpaAppointment extends SpaAppointment {
     first_name: string;
     last_name: string;
     email: string;
+    stripe_customer_id?: string | null;
+    card_last4?: string | null;
+    card_brand?: string | null;
   } | null;
   user?: {
     id: string;
@@ -42,7 +45,7 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
         let query = (supabase.from as any)("spa_appointments")
           .select(`
             *,
-            member:members(id, first_name, last_name, email),
+            member:members(id, first_name, last_name, email, stripe_customer_id, card_last4, card_brand),
             staff:spa_therapists(id, full_name)
           `)
           .order("appointment_date", { ascending: true })
