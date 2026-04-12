@@ -178,7 +178,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       const { error } = await (supabase.from as any)("spa_appointments").insert({
         member_id: selectedMemberId,
         user_id: null,
-        service_id: parseInt(selectedService.id),
+        service_id: 0,
         service_name: selectedService.name,
         service_category: selectedService.category,
         service_price: selectedService.price,
@@ -190,8 +190,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         status: "confirmed",
         staff_id: resolvedTherapist,
         staff_notes: staffNotes || null,
-        payment_method: paymentMethod,
-        amount_paid: selectedService.member_price || selectedService.price,
+        payment_method: paymentMethod === "comp" ? "comp" : null,
+        amount_paid: paymentMethod === "comp" ? 0 : null,
       });
       if (error) throw error;
     },
