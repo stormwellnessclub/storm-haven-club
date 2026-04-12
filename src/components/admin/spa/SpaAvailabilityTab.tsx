@@ -46,8 +46,8 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
   const [filterService, setFilterService] = useState("all");
   const [selectedDays, setSelectedDays] = useState<number[]>([1]);
   const [conflicts, setConflicts] = useState<string[]>([]);
-  const [subTab, setSubTab] = useState("slots");
-  const [scheduleDate, setScheduleDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [subTab, setSubTab] = useState(initialView === "schedule" ? "schedule" : "slots");
+  const [scheduleDate, setScheduleDate] = useState(initialDate || format(new Date(), "yyyy-MM-dd"));
   const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
   const [isRetroactive, setIsRetroactive] = useState(false);
 
