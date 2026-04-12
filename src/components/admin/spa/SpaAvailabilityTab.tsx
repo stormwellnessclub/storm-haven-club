@@ -144,9 +144,9 @@ export function SpaAvailabilityTab() {
   // Schedule view: group availability by therapist for the selected date's day of week
   const scheduleDayOfWeek = new Date(scheduleDate + "T12:00:00").getDay();
   const therapistSchedule = useMemo(() => {
-    if (!availability || !therapists) return [];
+    if (!availability || !therapists) return { assigned: [], unassigned: [] };
     const activeTherapists = therapists.filter(t => t.is_active);
-    return activeTherapists.map(t => {
+    const assigned = activeTherapists.map(t => {
       const slots = (availability || []).filter(
         a => a.therapist_id === t.id && a.day_of_week === scheduleDayOfWeek && a.is_active
       );
@@ -155,6 +155,10 @@ export function SpaAvailabilityTab() {
       );
       return { therapist: t, slots, booked };
     });
+    const unassigned = (dayAppointments || []).filter(
+      a => !a.staff_id && !["cancelled", "no_show"].includes(a.status)
+    );
+    return { assigned, unassigned };
   }, [availability, therapists, scheduleDayOfWeek, dayAppointments]);
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
