@@ -55,7 +55,6 @@ export default function Spa() {
   const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || "All");
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [showBookingModal, setShowBookingModal] = useState(false);
 
   // Gate states
   const [showWaiverGate, setShowWaiverGate] = useState(false);
@@ -363,15 +362,15 @@ export default function Spa() {
                   <div className="flex items-center gap-4 text-sm">
                     <span className="flex items-center gap-1 text-muted-foreground">
                       <Clock className="w-4 h-4" />
-                      {service.duration}
+                      {service.duration_minutes} min
                     </span>
                     <div className="flex flex-col">
                       <span className="text-gold font-semibold text-lg">
                         {formatPrice(service.price)}
                       </span>
-                      {service.memberPrice && (
+                      {service.member_price && (
                         <span className="text-xs text-muted-foreground">
-                          Members: {formatPrice(service.memberPrice)}
+                          Members: {formatPrice(service.member_price)}
                         </span>
                       )}
                     </div>
