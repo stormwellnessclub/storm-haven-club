@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
