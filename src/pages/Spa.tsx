@@ -45,12 +45,16 @@ const memberDiscounts = [
 ];
 
 export default function Spa() {
+  const { data: dbServices, isLoading: servicesLoading } = useSpaServices();
+  const spaServices = (dbServices || []).filter(s => s.is_active);
+
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
   const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || "All");
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
 
   // Gate states
