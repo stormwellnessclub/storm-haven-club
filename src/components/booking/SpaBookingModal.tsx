@@ -132,8 +132,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   useEffect(() => {
     if (selectedDate && service) {
       setIsCheckingAvailability(true);
-      const durationMatch = service.duration.match(/(\d+)/);
-      const durationMinutes = durationMatch ? parseInt(durationMatch[1]) : 60;
+      const durationMinutes = service.duration_minutes;
 
       // Check all time slots for this date
       Promise.all(
@@ -161,10 +160,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
 
   if (!service) return null;
 
-  const durationMatch = service.duration.match(/(\d+)/);
-  const durationMinutes = durationMatch ? parseInt(durationMatch[1]) : 60;
-  const cleanupMatch = service.cleanupTime.match(/(\d+)/);
-  const cleanupMinutes = cleanupMatch ? parseInt(cleanupMatch[1]) : 15;
+  const durationMinutes = service.duration_minutes;
+  const cleanupMinutes = service.cleanup_minutes;
 
   // Calculate member price
   let finalPrice = service.price;
@@ -302,7 +299,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         <DialogHeader>
           <DialogTitle>Book {service.name}</DialogTitle>
           <DialogDescription>
-            Select your preferred date and time for this {service.duration} service.
+            Select your preferred date and time for this {service.duration_minutes} min service.
           </DialogDescription>
         </DialogHeader>
 
@@ -335,9 +332,9 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
             <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                {service.duration}
+                {service.duration_minutes} min
               </span>
-              <span className="text-xs">+ {service.cleanupTime} cleanup</span>
+              <span className="text-xs">+ {service.cleanup_minutes} min cleanup</span>
             </div>
           </div>
 
