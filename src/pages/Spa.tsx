@@ -332,54 +332,64 @@ export default function Spa() {
       {/* Services */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {filteredServices.map((service) => (
-              <div
-                key={service.id}
-                className="card-luxury p-6 flex flex-col"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-serif text-xl">{service.name}</h3>
-                      {service.popular && (
-                        <span className="flex items-center gap-1 text-xs text-gold">
-                          <Star className="w-3 h-3 fill-current" /> Popular
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                      {service.category}
-                    </span>
-                  </div>
-                </div>
-                
-                <p className="text-muted-foreground text-sm mb-4 flex-1">
-                  {service.description}
-                </p>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      {service.duration_minutes} min
-                    </span>
-                    <div className="flex flex-col">
-                      <span className="text-gold font-semibold text-lg">
-                        {formatPrice(service.price)}
+          {servicesLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredServices.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground">No services available in this category yet.</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              {filteredServices.map((service) => (
+                <div
+                  key={service.id}
+                  className="card-luxury p-6 flex flex-col"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-serif text-xl">{service.name}</h3>
+                        {service.popular && (
+                          <span className="flex items-center gap-1 text-xs text-gold">
+                            <Star className="w-3 h-3 fill-current" /> Popular
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                        {service.category}
                       </span>
-                      {service.member_price && (
-                        <span className="text-xs text-muted-foreground">
-                          Members: {formatPrice(service.member_price)}
-                        </span>
-                      )}
                     </div>
                   </div>
-                  {renderServiceButton(service)}
+                  
+                  <p className="text-muted-foreground text-sm mb-4 flex-1">
+                    {service.description}
+                  </p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        {service.duration_minutes} min
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-gold font-semibold text-lg">
+                          {formatPrice(service.price)}
+                        </span>
+                        {service.member_price && (
+                          <span className="text-xs text-muted-foreground">
+                            Members: {formatPrice(service.member_price)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {renderServiceButton(service)}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
