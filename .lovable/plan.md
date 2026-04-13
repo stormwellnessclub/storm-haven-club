@@ -1,29 +1,30 @@
 
 
-## Fix: Completed Appointments Locked Out of Checkout
+## Fix: Waiver PDF 404 Error
 
-**Problem**: Three conditions in `Appointments.tsx` restrict completed appointments from reopening checkout if `amount_paid` is already set. This prevents correcting charges, adding tips, or re-charging.
+**Root cause**: The PWA service worker (Workbox) is likely intercepting PDF asset requests. The `globPatterns` only caches `js,css,html,ico,png,svg` files — PDFs are excluded. When the service worker intercepts a PDF request, it either returns the `navigateFallback` (index.html) or fails with a 404-like response.
 
 ### Changes
 
-**File 1: `src/pages/admin/Appointments.tsx`**
+**File: `vite.config.ts`**
 
-1. **Line 114** — `handleAppointmentClick`: Remove `&& (!appointment.amount_paid || appointment.amount_paid === 0)` from the completed branch.
+1. Add `pdf` to the Workbox `globPatterns` so PDF assets are cached by the service worker:
+   ```
+   globPatterns: ["**/*.{js,css,html,ico,png,svg,pdf}"]
+   ```
 
-2. **Lines 120-122** — `isClickable`: Simplify to `apt.status === 'completed'` without amount check.
+2. Alternatively (and more robustly), add a Workbox runtime caching rule for PDF files so they're fetched network-first:
+   ```js
+   runtimeCaching: [{
+     urlPattern: /\.pdf$/,
+     handler: 'NetworkFirst',
+     options: {
+       cacheName: 'pdf-cache',
+     }
+   }]
+   ```
 
-3. **Lines 191-206** — Charge button: Remove `&& (!appointment.amount_paid || appointment.amount_paid === 0)` from the render condition. Make button label dynamic: show "Edit Payment" if `amount_paid > 0`, otherwise "Charge".
+This ensures PDF files served as Vite assets are properly handled by the service worker instead of being intercepted and returning fallback HTML.
 
-**File 2: `src/components/admin/spa/SpaCompletionDialog.tsx`**
-
-4. **Pre-populate from existing data**: Initialize `paymentMethod`, `tipPreset`/`customTip`, and `staffNotes` state from the appointment's existing values when present (using lazy initializers or an effect keyed on `appointment.id`).
-
-5. **Previous payment notice**: Add an amber info box at the top of the dialog body when `appointment.amount_paid > 0`, showing previously recorded amount, tip breakdown, and an "overwrite" warning.
-
-6. **Dynamic title**: Replace the current title logic with:
-   - `amount_paid > 0` → "Edit Payment"
-   - `retroactive` → "Charge for Appointment"  
-   - else → "Complete Appointment"
-
-No changes to Stripe logic, tip math, totals, submit handler, or any other file.
+**Scope**: One file changed (`vite.config.ts`), specifically the Workbox configuration block. No changes to PDF resolution logic, waiver pages, or agreement components.
 
