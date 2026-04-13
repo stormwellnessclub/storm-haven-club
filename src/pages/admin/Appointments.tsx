@@ -111,7 +111,7 @@ export default function Appointments() {
     if (['confirmed'].includes(appointment.status)) {
       setCompletionAppointment(appointment);
       setIsRetroactive(false);
-    } else if (appointment.status === 'completed' && (!appointment.amount_paid || appointment.amount_paid === 0)) {
+    } else if (appointment.status === 'completed') {
       setCompletionAppointment(appointment);
       setIsRetroactive(true);
     }
@@ -119,7 +119,7 @@ export default function Appointments() {
 
   const isClickable = (apt: AdminSpaAppointment) =>
     ['confirmed'].includes(apt.status) ||
-    (apt.status === 'completed' && (!apt.amount_paid || apt.amount_paid === 0));
+    apt.status === 'completed';
 
   const renderAppointmentCard = (appointment: AdminSpaAppointment) => (
     <div
@@ -188,7 +188,7 @@ export default function Appointments() {
           </Button>
         </div>
       )}
-      {appointment.status === 'completed' && (!appointment.amount_paid || appointment.amount_paid === 0) && (
+      {appointment.status === 'completed' && (
         <div className="ml-2">
           <Button
             size="sm"
@@ -200,7 +200,7 @@ export default function Appointments() {
             }}
           >
             <CreditCard className="h-3 w-3 mr-1" />
-            Charge
+            {appointment.amount_paid && appointment.amount_paid > 0 ? "Edit Payment" : "Charge"}
           </Button>
         </div>
       )}

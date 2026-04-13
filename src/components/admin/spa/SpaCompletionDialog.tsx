@@ -44,6 +44,34 @@ export function SpaCompletionDialog({
   const [customTip, setCustomTip] = useState("");
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [lastAppointmentId, setLastAppointmentId] = useState<string | null>(null);
+
+  // Pre-populate fields when appointment changes
+  if (appointment && appointment.id !== lastAppointmentId) {
+    setLastAppointmentId(appointment.id);
+    setPaymentMethod(appointment.payment_method || "card");
+    setStaffNotes((appointment as any).staff_notes || "");
+    setIsProcessing(false);
+
+    // Pre-populate tip
+    const existingTip = (appointment as any).tip_amount;
+    if (existingTip && existingTip > 0) {
+      const svcPrice = appointment.member_price ?? appointment.service_price ?? 0;
+      const matchedPreset = TIP_PRESETS.find(
+        (t) => Math.abs(svcPrice * t.value - existingTip) < 0.01
+      );
+      if (matchedPreset) {
+        setTipPreset(matchedPreset.value);
+        setCustomTip("");
+      } else {
+        setTipPreset(null);
+        setCustomTip(String(existingTip));
+      }
+    } else {
+      setTipPreset(null);
+      setCustomTip("");
+    }
+  }
 
   if (!appointment) return null;
 
@@ -164,11 +192,31 @@ export function SpaCompletionDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {retroactive ? "Charge for Appointment" : "Complete Appointment"}
+            {appointment.amount_paid && appointment.amount_paid > 0
+              ? "Edit Payment"
+              : retroactive
+              ? "Charge for Appointment"
+              : "Complete Appointment"}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">
+          {/* Previous payment notice */}
+          {appointment.amount_paid && appointment.amount_paid > 0 && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
+              <p className="font-medium text-amber-700">Previously recorded</p>
+              <p className="text-amber-600">
+                Amount: ${appointment.amount_paid.toFixed(2)}
+                {(appointment as any).tip_amount && (appointment as any).tip_amount > 0
+                  ? ` (includes $${(appointment as any).tip_amount.toFixed(2)} tip)`
+                  : ' (no tip recorded)'}
+              </p>
+              <p className="text-amber-600 text-xs mt-1">
+                Submitting this form will overwrite the previous payment record.
+              </p>
+            </div>
+          )}
+
           {/* Appointment summary */}
           <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
             <p className="font-medium">{memberName}</p>
