@@ -1,11 +1,31 @@
 
 
-## One-line fix in AdminSpaBookingModal.tsx
+## Two Changes: Fix service_id + Add Room Conflict Detection
 
-**Change**: Line in `bookMutation.mutationFn` where `service_id: 0` → `service_id: selectedService.id`
+### 1. service_id fix — Already done
+The previous edit already changed `service_id: 0` to `service_id: selectedService.id` on line 181. No action needed.
 
-**Verification**: The guard `if (!selectedService || !appointmentTime) throw new Error("Missing required fields")` already exists at the top of the `mutationFn` (visible in the current code), so `selectedService` is guaranteed non-null at the insert call. No additional guard needed.
+### 2. Add room conflict check to `useCheckSpaAvailability`
 
-**File**: `src/components/admin/spa/AdminSpaBookingModal.tsx`  
-**Scope**: One line change only. Nothing else touched.
+**File: `src/hooks/useSpaBooking.ts`**
+
+- Add `roomId?: string` to `CheckAvailabilityParams` interface
+- After the existing therapist conflict query (lines 188-224), add a second independent query block for room conflicts:
+  - Query `spa_appointments` where `room_id` matches, same date, status not in `['cancelled', 'no_show']`
+  - Apply the same overlap logic already used for therapist conflicts
+  - If room conflicts found, merge them into the return value
+
+The return shape stays the same (`{ available, conflictingAppointments }`) — room conflicts are added to the conflicting array so existing UI renders them.
+
+### 3. Pass roomId from AdminSpaBookingModal
+
+**File: `src/components/admin/spa/AdminSpaBookingModal.tsx`**
+
+- In `handleTimeSelect` (line 152-168), resolve the room the same way therapist is resolved: `const resolvedRoom = roomId !== "auto" ? roomId : matchingSlot?.room_id;`
+- Pass `roomId: resolvedRoom` to `checkAvail.mutateAsync()`
+- If room conflict is detected, show a room-specific message in `setConflict()`
+
+### Scope
+- No changes to booking form, availability generation, member search, waiver check, or any other logic
+- Two files touched: `useSpaBooking.ts` (interface + query), `AdminSpaBookingModal.tsx` (pass roomId + display)
 
