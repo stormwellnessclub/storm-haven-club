@@ -46,12 +46,19 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,pdf}"],
         globIgnores: ["**/assets/*.jpg", "**/assets/*.jpeg", "**/assets/*.webp"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         skipWaiting: true,
         clientsClaim: true,
         navigateFallback: "index.html",
+        runtimeCaching: [{
+          urlPattern: /\.pdf$/,
+          handler: 'NetworkFirst',
+          options: {
+            cacheName: 'pdf-cache',
+          },
+        }],
       },
     }),
   ].filter(Boolean),
