@@ -178,7 +178,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       const { error } = await (supabase.from as any)("spa_appointments").insert({
         member_id: selectedMemberId,
         user_id: null,
-        service_id: 0,
+        service_id: selectedService.id,
         service_name: selectedService.name,
         service_category: selectedService.category,
         service_price: selectedService.price,
