@@ -151,16 +151,26 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
     // Check existing appointments for conflicts
     const resolvedTherapist = therapistId !== "auto" ? therapistId : matchingSlot?.therapist_id;
-    if (resolvedTherapist) {
+    const resolvedRoom = roomId !== "auto" ? roomId : matchingSlot?.room_id;
+    if (resolvedTherapist || resolvedRoom) {
       try {
         const result = await checkAvail.mutateAsync({
           appointmentDate: new Date(appointmentDate),
           appointmentTime: time,
           durationMinutes: selectedService.duration_minutes + selectedService.cleanup_minutes,
-          staffId: resolvedTherapist,
+          staffId: resolvedTherapist || undefined,
+          roomId: resolvedRoom || undefined,
         });
         if (!result.available) {
-          setConflict("This therapist already has a booking at this time. Choose a different time or therapist.");
+          const hasRoomConflict = result.conflictingAppointments.some((c: any) => c._conflictType === "room");
+          const hasTherapistConflict = result.conflictingAppointments.some((c: any) => !c._conflictType);
+          if (hasTherapistConflict && hasRoomConflict) {
+            setConflict("Both the therapist and treatment room are already booked at this time. Please select a different time, therapist, or room.");
+          } else if (hasRoomConflict) {
+            setConflict("This treatment room is already booked at that time. Please select a different time or room.");
+          } else {
+            setConflict("This therapist already has a booking at this time. Choose a different time or therapist.");
+          }
         }
       } catch {
         // ignore
