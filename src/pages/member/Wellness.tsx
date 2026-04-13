@@ -21,32 +21,46 @@ import { formatTime12h } from "@/lib/timeFormat";
  import { Link } from "react-router-dom";
  import { CREDIT_TYPE_LABELS, CREDIT_TYPE_DESCRIPTIONS, CreditType } from "@/lib/memberCredits";
  
- // Wellness service definitions for booking
- const WELLNESS_SERVICES = {
-   redLight: {
-     id: 101,
-     name: "Red Light Therapy",
-     description: "Full-body red light therapy session to boost cellular energy and promote healing",
-     duration: "20 min",
-     cleanupTime: "5 min",
-     price: 45,
-     category: "Recovery",
-   },
-   dryCryo: {
-     id: 102,
-     name: "Dry Cryotherapy",
-     description: "Whole-body dry cryotherapy session for recovery and wellness",
-     duration: "3 min",
-     cleanupTime: "5 min",
-     price: 65,
-     category: "Recovery",
-   },
- };
+// Wellness service definitions for booking (shaped to match SpaService from DB)
+const WELLNESS_SERVICES = {
+  redLight: {
+    id: "wellness-red-light",
+    name: "Red Light Therapy",
+    description: "Full-body red light therapy session to boost cellular energy and promote healing",
+    duration_minutes: 20,
+    cleanup_minutes: 5,
+    price: 45,
+    member_price: null,
+    category: "Recovery",
+    is_active: true,
+    display_order: 0,
+    popular: false,
+    requires_intake_form: false,
+    created_at: "",
+    updated_at: "",
+  },
+  dryCryo: {
+    id: "wellness-dry-cryo",
+    name: "Dry Cryotherapy",
+    description: "Whole-body dry cryotherapy session for recovery and wellness",
+    duration_minutes: 3,
+    cleanup_minutes: 5,
+    price: 65,
+    member_price: null,
+    category: "Recovery",
+    is_active: true,
+    display_order: 0,
+    popular: false,
+    requires_intake_form: false,
+    created_at: "",
+    updated_at: "",
+  },
+};
  
  export default function MemberWellness() {
    const { data: credits, isLoading: creditsLoading } = useUserCredits();
   const { data: appointments, isLoading: appointmentsLoading } = useMySpaAppointments();
-   const [selectedService, setSelectedService] = useState<typeof WELLNESS_SERVICES.redLight | null>(null);
+   const [selectedService, setSelectedService] = useState<(typeof WELLNESS_SERVICES)[keyof typeof WELLNESS_SERVICES] | null>(null);
    const [bookingOpen, setBookingOpen] = useState(false);
  
    const isLoading = creditsLoading;
