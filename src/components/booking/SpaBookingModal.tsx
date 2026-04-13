@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useSpaBookAppointment, useCheckSpaAvailability } from "@/hooks/useSpaBooking";
@@ -38,16 +39,6 @@ import { formatTime12h } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 
-interface SpaService {
-  id: number;
-  name: string;
-  description: string;
-  duration: string;
-  cleanupTime: string;
-  price: number;
-  memberPrice?: number;
-  category: string;
-}
 
 interface SpaBookingModalProps {
   service: SpaService | null;
