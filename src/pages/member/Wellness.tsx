@@ -60,7 +60,7 @@ const WELLNESS_SERVICES = {
  export default function MemberWellness() {
    const { data: credits, isLoading: creditsLoading } = useUserCredits();
   const { data: appointments, isLoading: appointmentsLoading } = useMySpaAppointments();
-   const [selectedService, setSelectedService] = useState<typeof WELLNESS_SERVICES.redLight | null>(null);
+   const [selectedService, setSelectedService] = useState<(typeof WELLNESS_SERVICES)[keyof typeof WELLNESS_SERVICES] | null>(null);
    const [bookingOpen, setBookingOpen] = useState(false);
  
    const isLoading = creditsLoading;

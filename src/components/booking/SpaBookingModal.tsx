@@ -263,7 +263,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         }
 
         await bookAppointment.mutateAsync({
-          serviceId: service.id,
+          serviceId: typeof service.id === 'number' ? service.id : 0,
           serviceName: service.name,
           serviceCategory: service.category,
           servicePrice: service.price,
