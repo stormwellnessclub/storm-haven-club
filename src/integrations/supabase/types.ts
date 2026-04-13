@@ -5198,6 +5198,36 @@ export type Database = {
           },
         ]
       }
+      spa_service_requests: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string | null
+          name: string
+          service_category: string
+          service_name: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message?: string | null
+          name: string
+          service_category: string
+          service_name: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string | null
+          name?: string
+          service_category?: string
+          service_name?: string
+        }
+        Relationships: []
+      }
       spa_services: {
         Row: {
           category: string

@@ -2,12 +2,29 @@ import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
-import { Clock, Star, Users, Info } from "lucide-react";
+import { Clock, Star, Users, Info, ShieldCheck, CreditCard, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
+import { useUserMembership } from "@/hooks/useUserMembership";
+import { useAllAgreements } from "@/hooks/useAllAgreements";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 import sauna from "@/assets/sauna.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
@@ -461,6 +478,26 @@ export default function Spa() {
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
 
+  // Gate states
+  const [showWaiverGate, setShowWaiverGate] = useState(false);
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
+  const [waiverAgreed, setWaiverAgreed] = useState(false);
+  const [pendingMassageService, setPendingMassageService] = useState<SpaService | null>(null);
+
+  // Request modal states
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestService, setRequestService] = useState<SpaService | null>(null);
+  const [requestName, setRequestName] = useState("");
+  const [requestEmail, setRequestEmail] = useState("");
+  const [requestMessage, setRequestMessage] = useState("");
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+
+  // Hooks for gate checks
+  const { profile: memberProfile, signWaiver, isSigningWaiver } = useUserProfile();
+  const { profile: nonMemberProfile, signWaiver: signNonMemberWaiver, isSigningWaiver: isSigningNonMemberWaiver } = useNonMemberProfile();
+  const { data: membership } = useUserMembership();
+  const { data: agreements } = useAllAgreements();
+
   useEffect(() => {
     if (categoryFromUrl && categories.includes(categoryFromUrl)) {
       setSelectedCategory(categoryFromUrl);
@@ -472,6 +509,169 @@ export default function Spa() {
     : spaServices.filter(s => s.category === selectedCategory);
 
   const formatPrice = (price: number) => `$${price}`;
+
+  // Determine if user is a member or non-member
+  const isMember = !!membership;
+
+  // Check waiver status across both profile tables
+  const isWaiverSigned = isMember
+    ? !!memberProfile?.waiver_signed
+    : !!nonMemberProfile?.waiver_signed;
+
+  // Check payment on file
+  const hasPaymentOnFile = isMember
+    ? !!(membership?.stripe_customer_id && membership?.card_last4)
+    : !!(nonMemberProfile?.stripe_customer_id && nonMemberProfile?.card_last4);
+
+  // Get waiver PDF URL
+  const waiverAgreements = agreements?.liability_waiver || [];
+  const waiverPdfUrl = waiverAgreements.length > 0 ? waiverAgreements[0].pdf_url : null;
+
+  // Handle "Book Now" for Massage category
+  const handleMassageBooking = (service: SpaService) => {
+    if (!user) {
+      navigate(`/auth?returnTo=${encodeURIComponent("/spa?category=Massage")}`);
+      return;
+    }
+
+    setPendingMassageService(service);
+
+    // Gate 1: Waiver
+    if (!isWaiverSigned) {
+      setWaiverAgreed(false);
+      setShowWaiverGate(true);
+      return;
+    }
+
+    // Gate 2: Payment
+    if (!hasPaymentOnFile) {
+      setShowPaymentGate(true);
+      return;
+    }
+
+    // Both gates passed — open booking
+    setSelectedService(service);
+    setShowBookingModal(true);
+    setPendingMassageService(null);
+  };
+
+  // After waiver is signed, proceed to payment gate check
+  const handleWaiverSign = () => {
+    if (isMember) {
+      signWaiver(undefined, {
+        onSuccess: () => {
+          setShowWaiverGate(false);
+          // Now check payment gate
+          if (!hasPaymentOnFile) {
+            setShowPaymentGate(true);
+          } else if (pendingMassageService) {
+            setSelectedService(pendingMassageService);
+            setShowBookingModal(true);
+            setPendingMassageService(null);
+          }
+        },
+      });
+    } else {
+      signNonMemberWaiver(undefined, {
+        onSuccess: () => {
+          setShowWaiverGate(false);
+          if (!hasPaymentOnFile) {
+            setShowPaymentGate(true);
+          } else if (pendingMassageService) {
+            setSelectedService(pendingMassageService);
+            setShowBookingModal(true);
+            setPendingMassageService(null);
+          }
+        },
+      });
+    }
+  };
+
+  // Handle "Request" for non-Massage/non-Recovery categories
+  const handleRequestService = (service: SpaService) => {
+    setRequestService(service);
+    setRequestName(user?.user_metadata?.first_name
+      ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ""}`.trim()
+      : memberProfile?.first_name
+        ? `${memberProfile.first_name} ${memberProfile.last_name || ""}`.trim()
+        : "");
+    setRequestEmail(user?.email || "");
+    setRequestMessage(`I'm interested in booking: ${service.name}`);
+    setShowRequestModal(true);
+  };
+
+  const handleSubmitRequest = async () => {
+    if (!requestName.trim() || !requestEmail.trim()) {
+      toast.error("Please fill in your name and email.");
+      return;
+    }
+
+    setIsSubmittingRequest(true);
+    try {
+      const { error } = await supabase.from("spa_service_requests").insert({
+        name: requestName.trim(),
+        email: requestEmail.trim(),
+        service_name: requestService?.name || "",
+        service_category: requestService?.category || "",
+        message: requestMessage.trim() || null,
+      });
+
+      if (error) throw error;
+
+      toast.success("We'll be in touch soon!");
+      setShowRequestModal(false);
+      setRequestService(null);
+    } catch (err: any) {
+      toast.error("Failed to submit request: " + err.message);
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
+
+  // Render button per service category
+  const renderServiceButton = (service: SpaService) => {
+    if (service.category === "Recovery") {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (!user) {
+              navigate("/auth");
+              return;
+            }
+            setSelectedService(service);
+            setShowBookingModal(true);
+          }}
+        >
+          Book Now
+        </Button>
+      );
+    }
+
+    if (service.category === "Massage") {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleMassageBooking(service)}
+        >
+          Book Now
+        </Button>
+      );
+    }
+
+    // All other categories: Request button
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => handleRequestService(service)}
+      >
+        Request
+      </Button>
+    );
+  };
 
   return (
     <Layout>
@@ -597,26 +797,7 @@ export default function Spa() {
                       )}
                     </div>
                   </div>
-                  {service.category === "Recovery" ? (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        if (!user) {
-                          navigate("/auth");
-                          return;
-                        }
-                        setSelectedService(service);
-                        setShowBookingModal(true);
-                      }}
-                    >
-                      Book Now
-                    </Button>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic px-3 py-1.5 border border-border rounded-md">
-                      Coming Soon
-                    </span>
-                  )}
+                  {renderServiceButton(service)}
                 </div>
               </div>
             ))}
@@ -696,6 +877,157 @@ export default function Spa() {
           if (!open) setSelectedService(null);
         }}
       />
+
+      {/* ===== WAIVER GATE MODAL ===== */}
+      <Dialog open={showWaiverGate} onOpenChange={(open) => {
+        setShowWaiverGate(open);
+        if (!open) {
+          setWaiverAgreed(false);
+          setPendingMassageService(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-gold" />
+              Liability Waiver Required
+            </DialogTitle>
+            <DialogDescription>
+              You must sign our liability waiver before booking a massage service.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {waiverPdfUrl && (
+              <a
+                href={waiverPdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-accent hover:underline"
+              >
+                <ExternalLink className="w-4 h-4" />
+                View Liability Waiver (PDF)
+              </a>
+            )}
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              By signing this waiver, you acknowledge that you have read, understood, and agree to 
+              the terms of the liability waiver for spa services at Storm Wellness Club / Spa Aella. 
+              You assume all risks associated with spa treatments and release the facility from liability.
+            </p>
+            <div className="flex items-start gap-3 pt-2">
+              <Checkbox
+                id="waiver-agree"
+                checked={waiverAgreed}
+                onCheckedChange={(checked) => setWaiverAgreed(checked === true)}
+              />
+              <label htmlFor="waiver-agree" className="text-sm font-medium leading-tight cursor-pointer">
+                I have read and agree to the liability waiver
+              </label>
+            </div>
+            <Button
+              className="w-full"
+              variant="gold"
+              disabled={!waiverAgreed || isSigningWaiver || isSigningNonMemberWaiver}
+              onClick={handleWaiverSign}
+            >
+              {(isSigningWaiver || isSigningNonMemberWaiver) ? "Signing…" : "Sign & Continue"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== PAYMENT GATE MODAL ===== */}
+      <Dialog open={showPaymentGate} onOpenChange={(open) => {
+        setShowPaymentGate(open);
+        if (!open) setPendingMassageService(null);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-gold" />
+              Payment Method Required
+            </DialogTitle>
+            <DialogDescription>
+              A payment method on file is required before booking a massage.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Please add a credit or debit card to your account before proceeding. 
+              Your card will be charged at the time of booking.
+            </p>
+            <Button
+              className="w-full"
+              variant="gold"
+              onClick={() => {
+                setShowPaymentGate(false);
+                setPendingMassageService(null);
+                navigate(isMember ? "/member/billing" : "/portal/billing");
+              }}
+            >
+              Go to Billing
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== SERVICE REQUEST MODAL ===== */}
+      <Dialog open={showRequestModal} onOpenChange={(open) => {
+        setShowRequestModal(open);
+        if (!open) setRequestService(null);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request a Service</DialogTitle>
+            <DialogDescription>
+              {requestService
+                ? `Inquire about ${requestService.name}. We'll reach out to schedule your appointment.`
+                : "Tell us what you're interested in."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="req-name">Name</Label>
+              <Input
+                id="req-name"
+                value={requestName}
+                onChange={(e) => setRequestName(e.target.value)}
+                placeholder="Your full name"
+                maxLength={100}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="req-email">Email</Label>
+              <Input
+                id="req-email"
+                type="email"
+                value={requestEmail}
+                onChange={(e) => setRequestEmail(e.target.value)}
+                placeholder="you@example.com"
+                maxLength={255}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="req-message">Message</Label>
+              <Textarea
+                id="req-message"
+                value={requestMessage}
+                onChange={(e) => setRequestMessage(e.target.value)}
+                placeholder="Tell us about your interest…"
+                rows={3}
+                maxLength={1000}
+              />
+            </div>
+            <Button
+              className="w-full"
+              variant="gold"
+              disabled={isSubmittingRequest || !requestName.trim() || !requestEmail.trim()}
+              onClick={handleSubmitRequest}
+            >
+              {isSubmittingRequest ? "Submitting…" : "Send Request"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
