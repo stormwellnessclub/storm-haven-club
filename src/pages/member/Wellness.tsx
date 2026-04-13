@@ -55,7 +55,7 @@ const WELLNESS_SERVICES = {
     created_at: "",
     updated_at: "",
   },
-} as const;
+} as const satisfies Record<string, { id: string; name: string; description: string; duration_minutes: number; cleanup_minutes: number; price: number; member_price: number | null; category: string; is_active: boolean; display_order: number; popular: boolean; requires_intake_form: boolean; created_at: string; updated_at: string }>;
  
  export default function MemberWellness() {
    const { data: credits, isLoading: creditsLoading } = useUserCredits();
