@@ -38,18 +38,19 @@ const pdfMap: Record<string, string> = {
  * - Unknown filenames fall back to /agreements/filename
  */
 export function resolvePdfUrl(pdfInput: string): string {
-  // Pass through full URLs
-  if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://')) {
-    return pdfInput;
-  }
+  // Extract filename from any path or URL first
+  const filename = pdfInput.split('/').pop()?.split('?')[0] || pdfInput;
 
-  // Extract filename from any path
-  const filename = pdfInput.split('/').pop() || pdfInput;
-
-  // Try mapped import first (most reliable)
+  // Always try mapped import first — even for full URLs, since the DB may
+  // store a stale build/preview URL whose asset hash no longer exists.
   const mapped = pdfMap[filename];
   if (mapped) {
     return mapped;
+  }
+
+  // Pass through real external URLs (storage buckets, CDNs, etc.)
+  if (pdfInput.startsWith('http://') || pdfInput.startsWith('https://')) {
+    return pdfInput;
   }
 
   // Absolute path fallback
