@@ -282,6 +282,9 @@ function LiabilityWaiverSection({ isSigned, onCheckboxChange }: { isSigned: bool
   const downloadPdf = async (url: string, filename: string) => {
     try {
       const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) throw new Error('Received HTML instead of PDF');
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");

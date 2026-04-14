@@ -44,16 +44,14 @@ export function SpaCompletionDialog({
   const [customTip, setCustomTip] = useState("");
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [lastAppointmentId, setLastAppointmentId] = useState<string | null>(null);
 
-  // Pre-populate fields when appointment changes
-  if (appointment && appointment.id !== lastAppointmentId) {
-    setLastAppointmentId(appointment.id);
+  // Pre-populate fields when appointment changes — in useEffect, not during render
+  useEffect(() => {
+    if (!appointment) return;
     setPaymentMethod(appointment.payment_method || "card");
     setStaffNotes((appointment as any).staff_notes || "");
     setIsProcessing(false);
 
-    // Pre-populate tip
     const existingTip = (appointment as any).tip_amount;
     if (existingTip && existingTip > 0) {
       const svcPrice = appointment.member_price ?? appointment.service_price ?? 0;
@@ -71,7 +69,7 @@ export function SpaCompletionDialog({
       setTipPreset(null);
       setCustomTip("");
     }
-  }
+  }, [appointment?.id]);
 
   if (!appointment) return null;
 
