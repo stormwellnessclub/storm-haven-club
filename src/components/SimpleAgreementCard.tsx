@@ -35,6 +35,13 @@ interface SimpleAgreementCardProps {
 const downloadPdf = async (url: string, filename: string) => {
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("text/html")) {
+      throw new Error("Received HTML instead of PDF");
+    }
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -46,8 +53,9 @@ const downloadPdf = async (url: string, filename: string) => {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     }, 100);
-  } catch {
-    window.location.href = url;
+  } catch (err) {
+    console.warn("[PDF download] Falling back to direct navigation:", err);
+    window.open(url, "_blank");
   }
 };
 

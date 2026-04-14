@@ -12,6 +12,13 @@ function MobilePDFCard({ pdfSrc, filename }: { pdfSrc: string; filename: string 
   const downloadPdf = async () => {
     try {
       const response = await fetch(pdfSrc);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        throw new Error("Received HTML instead of PDF");
+      }
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -23,8 +30,9 @@ function MobilePDFCard({ pdfSrc, filename }: { pdfSrc: string; filename: string 
         document.body.removeChild(a);
         URL.revokeObjectURL(blobUrl);
       }, 100);
-    } catch {
-      window.location.href = pdfSrc;
+    } catch (err) {
+      console.warn("[PDF download] Falling back to direct open:", err);
+      window.open(pdfSrc, "_blank");
     }
   };
 
