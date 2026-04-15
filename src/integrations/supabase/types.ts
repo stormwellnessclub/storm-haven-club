@@ -5078,6 +5078,13 @@ export type Database = {
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "spa_appointments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "spa_therapists"
+            referencedColumns: ["id"]
+          },
         ]
       }
       spa_rooms: {
