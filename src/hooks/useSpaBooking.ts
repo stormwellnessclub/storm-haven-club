@@ -8,7 +8,7 @@ export interface SpaAppointment {
   id: string;
   member_id: string | null;
   user_id: string | null;
-  service_id: number;
+  service_id: string;
   service_name: string;
   service_category: string;
   service_price: number;
@@ -32,7 +32,7 @@ export interface SpaAppointment {
 }
 
 interface BookSpaAppointmentParams {
-  serviceId: number;
+  serviceId: string;
   serviceName: string;
   serviceCategory: string;
   servicePrice: number;
@@ -66,38 +66,33 @@ export function useSpaBookAppointment() {
         throw new Error("You must be signed in to book an appointment");
       }
 
-      // Check for conflicts using database function
-      try {
-        const appointmentTimeStr = format(parse(params.appointmentTime, "HH:mm", new Date()), "HH:mm:ss");
-        const { data: conflictCheck, error: conflictError } = await (supabase.rpc as any)('check_spa_appointment_conflict', {
-          p_appointment_date: format(params.appointmentDate, "yyyy-MM-dd"),
-          p_appointment_time: appointmentTimeStr,
-          p_duration_minutes: params.durationMinutes,
-          p_cleanup_minutes: params.cleanupMinutes || 15,
-          p_staff_id: params.staffId || null,
-          p_exclude_appointment_id: null
-        });
+      // Check for conflicts only when a specific staff member is assigned
+      // Without a staff/room constraint, member bookings shouldn't globally block slots
+      if (params.staffId) {
+        try {
+          const appointmentTimeStr = format(parse(params.appointmentTime, "HH:mm", new Date()), "HH:mm:ss");
+          const { data: conflictCheck, error: conflictError } = await (supabase.rpc as any)('check_spa_appointment_conflict', {
+            p_appointment_date: format(params.appointmentDate, "yyyy-MM-dd"),
+            p_appointment_time: appointmentTimeStr,
+            p_duration_minutes: params.durationMinutes,
+            p_cleanup_minutes: params.cleanupMinutes || 15,
+            p_staff_id: params.staffId,
+            p_exclude_appointment_id: null
+          });
 
-        if (conflictError) {
-          if (conflictError.code === "42883" || conflictError.message?.includes("does not exist")) {
-            // Function doesn't exist yet, skip conflict check (backward compatibility)
-            console.warn('Conflict check function not available, skipping conflict detection');
-          } else {
-            throw conflictError;
+          if (conflictError) {
+            if (!(conflictError.code === "42883" || conflictError.message?.includes("does not exist"))) {
+              throw conflictError;
+            }
+          } else if (conflictCheck && conflictCheck.length > 0 && conflictCheck[0].has_conflict) {
+            throw new Error('This time slot is already booked. Please select a different time.');
           }
-        } else if (conflictCheck && conflictCheck.length > 0 && conflictCheck[0].has_conflict) {
-          // Conflict detected
-          throw new Error('This time slot is already booked. Please select a different time.');
-        }
-      } catch (error: any) {
-        if (error?.code === "42883" || error?.message?.includes("does not exist")) {
-          // Function doesn't exist yet, skip conflict check (backward compatibility)
-          console.warn('Conflict check function not available, skipping conflict detection');
-        } else if (error?.message?.includes('already booked')) {
-          // Re-throw conflict errors
-          throw error;
-        } else {
-          throw error;
+        } catch (error: any) {
+          if (error?.message?.includes('already booked')) {
+            throw error;
+          }
+          // For other errors (missing function, etc.), allow booking to proceed
+          console.warn('Conflict check skipped:', error?.message);
         }
       }
 
@@ -180,6 +175,12 @@ export function useSpaBookAppointment() {
 export function useCheckSpaAvailability() {
   return useMutation({
     mutationFn: async ({ appointmentDate, appointmentTime, durationMinutes, staffId, roomId }: CheckAvailabilityParams) => {
+      // If no specific staff or room is provided, the slot is always available
+      // from the member's perspective — resource conflicts are checked at booking time
+      if (!staffId && !roomId) {
+        return { available: true, conflictingAppointments: [] };
+      }
+
       const timeObj = parse(appointmentTime, "HH:mm", new Date());
       const appointmentDateTime = new Date(appointmentDate);
       appointmentDateTime.setHours(timeObj.getHours(), timeObj.getMinutes(), 0, 0);
@@ -203,46 +204,31 @@ export function useCheckSpaAvailability() {
       try {
         let allConflicting: any[] = [];
 
-        // Check therapist conflicts
         if (staffId) {
-          let query = (supabase.from as any)("spa_appointments")
+          const { data, error } = await (supabase.from as any)("spa_appointments")
             .select("id, appointment_time, duration_minutes, cleanup_minutes, service_name, staff_id, room_id")
             .eq("appointment_date", format(appointmentDate, "yyyy-MM-dd"))
             .in("status", ["confirmed", "pending"])
             .eq("staff_id", staffId);
 
-          const { data, error } = await query;
-
-          if (error) {
-            if (!(error.code === "42P01" || error.message?.includes("does not exist"))) {
-              throw error;
-            }
-          } else {
+          if (!error) {
             allConflicting.push(...checkOverlap(data));
           }
         }
 
-        // Check room conflicts
         if (roomId) {
-          let query = (supabase.from as any)("spa_appointments")
+          const { data, error } = await (supabase.from as any)("spa_appointments")
             .select("id, appointment_time, duration_minutes, cleanup_minutes, service_name, staff_id, room_id")
             .eq("appointment_date", format(appointmentDate, "yyyy-MM-dd"))
             .in("status", ["confirmed", "pending"])
             .eq("room_id", roomId);
 
-          const { data, error } = await query;
-
-          if (error) {
-            if (!(error.code === "42P01" || error.message?.includes("does not exist"))) {
-              throw error;
-            }
-          } else {
+          if (!error) {
             const roomConflicts = checkOverlap(data);
-            // Deduplicate by id
             const existingIds = new Set(allConflicting.map((c: any) => c.id));
             for (const rc of roomConflicts) {
               if (!existingIds.has(rc.id)) {
-                allConflicting.push({ ...rc, _conflictType: "room" });
+                allConflicting.push(rc);
               }
             }
           }

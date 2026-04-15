@@ -4979,7 +4979,7 @@ export type Database = {
           payment_intent_id: string | null
           payment_method: string | null
           service_category: string
-          service_id: number
+          service_id: string
           service_name: string
           service_price: number
           staff_id: string | null
@@ -5009,7 +5009,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_method?: string | null
           service_category: string
-          service_id: number
+          service_id: string
           service_name: string
           service_price: number
           staff_id?: string | null
@@ -5039,7 +5039,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_method?: string | null
           service_category?: string
-          service_id?: number
+          service_id?: string
           service_name?: string
           service_price?: number
           staff_id?: string | null
@@ -6123,21 +6123,37 @@ export type Database = {
         Args: { _referred_member_id: string; _referring_member_id: string }
         Returns: undefined
       }
-      book_wellness_appointment: {
-        Args: {
-          p_appointment_date: string
-          p_appointment_time: string
-          p_cleanup_minutes: number
-          p_credit_type: string
-          p_duration_minutes: number
-          p_member_notes?: string
-          p_service_category: string
-          p_service_id: number
-          p_service_name: string
-          p_service_price: number
-        }
-        Returns: Json
-      }
+      book_wellness_appointment:
+        | {
+            Args: {
+              p_appointment_date: string
+              p_appointment_time: string
+              p_cleanup_minutes: number
+              p_credit_type: string
+              p_duration_minutes: number
+              p_member_notes?: string
+              p_service_category: string
+              p_service_id: number
+              p_service_name: string
+              p_service_price: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_appointment_date: string
+              p_appointment_time: string
+              p_cleanup_minutes: number
+              p_credit_type: string
+              p_duration_minutes: number
+              p_member_notes?: string
+              p_service_category: string
+              p_service_id: string
+              p_service_name: string
+              p_service_price: number
+            }
+            Returns: Json
+          }
       calculate_churn_risk: { Args: { p_member_id: string }; Returns: number }
       calculate_engagement_score: {
         Args: { p_days?: number; p_member_id: string }
