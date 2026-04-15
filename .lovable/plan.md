@@ -1,61 +1,46 @@
 
 
-## Fix: Spa Appointments Not Visible After Booking
+## Fix: Spa Appointments Not Visible in Admin Views
 
-**Root cause**: Appointments booked by admin set `user_id: null` (only `member_id` is populated). But the member-facing query AND the RLS SELECT policy both filter by `user_id = auth.uid()`. So admin-booked appointments are invisible to the member they belong to.
+### Root Cause
 
-Even member-self-booked appointments work by coincidence only — if any code path skips `user_id`, the appointment vanishes.
+The `useAdminSpaAppointments` hook — used by **all three** admin views (Appointments page, Therapist Schedule, Dashboard) — joins `staff:spa_therapists(id, full_name)`. But there is **no foreign key** from `spa_appointments.staff_id` to `spa_therapists.id`. Without that FK, PostgREST cannot resolve the relationship and the entire query fails with an error, returning zero results.
 
-### Changes
+Additionally, the Dashboard appointment cards are rendered as plain `<div>` elements with no click handler — they display data but are not interactive.
 
-**1. Update RLS SELECT policy for members**
+### Verified Data
 
-Replace the "Users can view their own spa appointments" policy so it matches on EITHER `user_id` OR `member_id` (via a subquery on the `members` table):
+- There **are** appointments in the database for April 15, 16, and 17 (confirmed status, with member_id and user_id populated).
+- RLS policies are correct — staff roles have full access.
+- The query simply fails before RLS even matters because PostgREST rejects the unknown join relationship.
 
-```sql
-DROP POLICY "Users can view their own spa appointments" ON spa_appointments;
-CREATE POLICY "Users can view their own spa appointments"
-  ON spa_appointments FOR SELECT TO authenticated
-  USING (
-    auth.uid() = user_id
-    OR member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
-  );
-```
+### Plan
 
-Similarly update the UPDATE policy so members can cancel/modify their own admin-booked appointments.
-
-**2. Update RLS INSERT policy**
-
-The current INSERT policy requires `auth.uid() = user_id`. Keep this, but also ensure admin-booked rows (with null `user_id`) are covered by the existing staff policy.
-
-**3. Fix admin booking to populate `user_id`**
-
-Update `AdminSpaBookingModal.tsx` line 190 to look up the member's `user_id` and set it on insert instead of hardcoding `null`. This prevents the mismatch going forward.
-
-**4. Update member-facing query to also match by `member_id`**
-
-Update `useMySpaAppointments` in `useSpaBooking.ts` to query with an OR condition: fetch appointments where `user_id = currentUser` OR where `member_id` matches the current user's member record. This ensures both admin-booked and self-booked appointments appear.
-
-**5. Backfill existing orphaned appointments**
-
-Run a migration to populate `user_id` on existing `spa_appointments` rows where `user_id IS NULL` but `member_id` maps to a known `members.user_id`.
+**1. Add FK from `spa_appointments.staff_id` to `spa_therapists.id` (database migration)**
 
 ```sql
-UPDATE spa_appointments sa
-SET user_id = m.user_id
-FROM members m
-WHERE sa.member_id = m.id
-  AND sa.user_id IS NULL
-  AND m.user_id IS NOT NULL;
+ALTER TABLE public.spa_appointments
+  ADD CONSTRAINT spa_appointments_staff_id_fkey
+  FOREIGN KEY (staff_id) REFERENCES public.spa_therapists(id)
+  ON DELETE SET NULL;
 ```
+
+This single change fixes all three admin views simultaneously because they all flow through the same `useAdminSpaAppointments` hook.
+
+**2. Change Dashboard `members!inner` join to left join**
+
+The Dashboard query at line 171 uses `members!inner(...)`, which excludes any appointment where `member_id` is null. Change to `members(...)` (left join) so guest/unlinked appointments still appear.
+
+**3. Make Dashboard appointment cards clickable**
+
+Add an `onClick` handler to each appointment card in the Dashboard that navigates to `/admin/appointments` (or opens the completion dialog). At minimum, make them link to the Appointments page for that date.
 
 ### Files to change
-- Database migration (RLS policies + backfill)
-- `src/hooks/useSpaBooking.ts` — `useMySpaAppointments` query logic
-- `src/components/admin/spa/AdminSpaBookingModal.tsx` — populate `user_id` on admin inserts
+- Database migration (add FK constraint)
+- `src/pages/admin/Dashboard.tsx` — fix join type, add click handler to appointment cards
 
 ### Expected result
-- All spa appointments (admin-booked or self-booked) appear in the member's wellness view
-- Admin appointments grid continues working unchanged
-- No security regression — members can only see their own appointments
+- All admin appointment views show the correct data for any date.
+- Dashboard appointment cards are clickable and navigate to the appointments page.
+- No security or data changes — this is purely a relationship declaration and UI fix.
 
