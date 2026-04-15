@@ -1,32 +1,46 @@
-<final-text>
-You’re right: the next pass needs to verify the real failures first, not just tweak nearby UI.
 
-What I confirmed from the code:
-- The three `Appointments.tsx` gate conditions are already open for completed appointments. So the remaining appointment bug is not those button/show conditions anymore.
-- The waiver flow already has the PWA/cache changes. So the remaining waiver bug is likely the actual PDF source/value being used in live data, plus one waiver flow (`Apply.tsx`) still using its own separate download/open logic.
-- `SpaCompletionDialog.tsx` is still pre-populating form state by calling `setState` during render. That is brittle and is the strongest code-level suspect for old completed appointments behaving incorrectly.
-- `resolvePdfUrl()` currently passes all full URLs through unchanged. If the active waiver record is storing an old preview/build URL, it will keep trying that dead URL and 404 forever.
+Fix the booking issue at the actual failure points, not just the symptoms.
 
-Plan:
-1. Verify the live backend records before changing code
-- Check the actual `spa_appointments` rows that are failing, including `status`, `amount_paid`, `payment_method`, `member_id`, `payment_intent_id`, and role/update access.
-- Check the active `agreements` rows for `liability_waiver` and inspect the exact `pdf_url` values being served right now.
+1. Diagnose the primary spa booking bug in code
+- The member booking flow is currently broken by a schema mismatch:
+  - `spa_services.id` is a UUID
+  - `useSpaBookAppointment` still expects `serviceId: number`
+  - `SpaBookingModal` sends `serviceId: typeof service.id === "number" ? service.id : 0`
+- That means normal future bookings can be inserted with an invalid `service_id` value of `0`, or fail outright depending on the live database shape.
 
-2. Fix the completed-appointment checkout at the real failure point
-- Refactor `src/components/admin/spa/SpaCompletionDialog.tsx` to move all pre-population into a proper `useEffect` keyed to the selected appointment.
-- Normalize legacy/old appointment values so older completed rows can still open, edit, tip, and save without bad default state.
-- Verify every entry point that opens the checkout dialog still uses the corrected behavior.
+2. Fix the booking payload to match the real schema
+- Update the member booking types and insert logic to use the real `spa_services.id` type consistently.
+- Remove the fallback that coerces service IDs to `0`.
+- Align all non-credit spa booking code with the UUID-based spa services table already used elsewhere in the app.
 
-3. Fix waiver URL resolution for stale live data
-- Update `src/lib/pdfAssets.ts` so known agreement PDFs are resolved by filename even when the database contains old absolute app URLs or legacy paths, instead of blindly passing those URLs through.
-- Keep real external/storage URLs working, but stop preserving obviously stale app/build asset links.
+3. Fix availability/conflict logic so future bookings are not blocked incorrectly
+- Right now the member flow checks conflicts without a therapist or room, which can turn one existing appointment into a global block for that timeslot.
+- Update the member-facing availability logic to validate against actual service availability records and only block when there is a real resource conflict.
+- Reuse the same service-availability model already present in admin booking instead of treating all bookings as mutually exclusive.
 
-4. Patch the remaining waiver UI path
-- Update `src/pages/Apply.tsx` so its liability waiver open/download logic uses the same hardened URL handling and response validation as the shared agreement components.
-- Keep `SimpleAgreementCard` / `AgreementPDFViewer` aligned so all waiver entry points behave the same.
+4. Audit wellness/recovery compatibility
+- The recovery credit RPCs still use integer-style service IDs, while the newer spa services table uses UUIDs.
+- Review and normalize recovery booking paths so they remain valid after the member booking fix and do not reintroduce mixed ID behavior.
 
-5. Verify end-to-end before calling it fixed
-- Open an older completed appointment and submit a corrected payment/tip successfully.
-- Open and download the liability waiver from each member-facing flow that can show it, especially the one currently failing.
-- Confirm the browser network request returns the real PDF instead of a 404 page.
-</final-text>
+5. Verify waiver issue in the same pass
+- Re-check the liability waiver entry points used from spa booking and apply flow.
+- Ensure every waiver link/download path resolves through the same PDF resolver and does not rely on stale stored asset URLs.
+- Keep the UI the same; only fix the delivery path.
+
+Technical details
+- Files likely involved:
+  - `src/components/booking/SpaBookingModal.tsx`
+  - `src/hooks/useSpaBooking.ts`
+  - `src/hooks/useSpaManagement.ts`
+  - possibly `src/pages/Spa.tsx`
+  - waiver-related files only if a remaining inconsistent path is found
+- Backend review needed:
+  - confirm live `spa_appointments.service_id` type
+  - confirm whether member booking should reference `spa_service_availability` / therapist-service assignments for valid future slots
+- If database changes are required, I’ll add a migration instead of patching around the mismatch in the UI.
+
+Expected result
+- Members can book future spa appointments again.
+- The booking modal will only show/book valid time slots.
+- Bookings will use the correct service IDs instead of `0`.
+- Waiver open/download behavior will be checked and aligned in the same fix pass.
