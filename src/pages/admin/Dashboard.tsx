@@ -44,6 +44,7 @@ import { toast } from "@/hooks/use-toast";
 export default function Dashboard() {
   const [sendingEmails, setSendingEmails] = useState(false);
   const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
+  const navigate = useNavigate();
   const { isAdmin } = useUserRoles();
   const showAdminOnly = isAdmin();
 
