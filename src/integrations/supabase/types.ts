@@ -4979,7 +4979,7 @@ export type Database = {
           payment_intent_id: string | null
           payment_method: string | null
           service_category: string
-          service_id: number
+          service_id: string
           service_name: string
           service_price: number
           staff_id: string | null
@@ -5009,7 +5009,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_method?: string | null
           service_category: string
-          service_id: number
+          service_id: string
           service_name: string
           service_price: number
           staff_id?: string | null
@@ -5039,7 +5039,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_method?: string | null
           service_category?: string
-          service_id?: number
+          service_id?: string
           service_name?: string
           service_price?: number
           staff_id?: string | null
