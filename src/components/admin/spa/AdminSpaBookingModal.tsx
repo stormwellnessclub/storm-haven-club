@@ -185,9 +185,20 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       const resolvedTherapist = therapistId !== "auto" ? therapistId : null;
       const resolvedRoom = roomId !== "auto" ? roomId : null;
 
+      // Look up the member's user_id so the appointment is visible to them
+      let memberUserId: string | null = null;
+      if (selectedMemberId) {
+        const { data: memberRow } = await supabase
+          .from("members")
+          .select("user_id")
+          .eq("id", selectedMemberId)
+          .maybeSingle();
+        memberUserId = memberRow?.user_id || null;
+      }
+
       const { error } = await (supabase.from as any)("spa_appointments").insert({
         member_id: selectedMemberId,
-        user_id: null,
+        user_id: memberUserId,
         service_id: selectedService.id,
         service_name: selectedService.name,
         service_category: selectedService.category,

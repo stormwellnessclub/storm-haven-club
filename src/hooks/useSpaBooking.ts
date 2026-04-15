@@ -257,11 +257,26 @@ export function useMySpaAppointments() {
       if (!user) return [];
 
       try {
-        const { data, error } = await (supabase.from as any)("spa_appointments")
-          .select("*")
+        // First get the member_id for this user
+        const { data: memberData } = await supabase
+          .from("members")
+          .select("id")
           .eq("user_id", user.id)
+          .maybeSingle();
+
+        // Query by user_id OR member_id so admin-booked appointments also appear
+        let query = (supabase.from as any)("spa_appointments")
+          .select("*")
           .order("appointment_date", { ascending: true })
           .order("appointment_time", { ascending: true });
+
+        if (memberData?.id) {
+          query = query.or(`user_id.eq.${user.id},member_id.eq.${memberData.id}`);
+        } else {
+          query = query.eq("user_id", user.id);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           if (error.code === "42P01" || error.message?.includes("does not exist")) {
