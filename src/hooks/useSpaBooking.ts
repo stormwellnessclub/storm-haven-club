@@ -52,6 +52,7 @@ interface CheckAvailabilityParams {
   appointmentDate: Date;
   appointmentTime: string;
   durationMinutes: number;
+  cleanupMinutes?: number;
   staffId?: string;
   roomId?: string;
 }
