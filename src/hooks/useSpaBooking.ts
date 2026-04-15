@@ -8,7 +8,7 @@ export interface SpaAppointment {
   id: string;
   member_id: string | null;
   user_id: string | null;
-  service_id: number;
+  service_id: string;
   service_name: string;
   service_category: string;
   service_price: number;
@@ -32,7 +32,7 @@ export interface SpaAppointment {
 }
 
 interface BookSpaAppointmentParams {
-  serviceId: number;
+  serviceId: string;
   serviceName: string;
   serviceCategory: string;
   servicePrice: number;
