@@ -66,38 +66,33 @@ export function useSpaBookAppointment() {
         throw new Error("You must be signed in to book an appointment");
       }
 
-      // Check for conflicts using database function
-      try {
-        const appointmentTimeStr = format(parse(params.appointmentTime, "HH:mm", new Date()), "HH:mm:ss");
-        const { data: conflictCheck, error: conflictError } = await (supabase.rpc as any)('check_spa_appointment_conflict', {
-          p_appointment_date: format(params.appointmentDate, "yyyy-MM-dd"),
-          p_appointment_time: appointmentTimeStr,
-          p_duration_minutes: params.durationMinutes,
-          p_cleanup_minutes: params.cleanupMinutes || 15,
-          p_staff_id: params.staffId || null,
-          p_exclude_appointment_id: null
-        });
+      // Check for conflicts only when a specific staff member is assigned
+      // Without a staff/room constraint, member bookings shouldn't globally block slots
+      if (params.staffId) {
+        try {
+          const appointmentTimeStr = format(parse(params.appointmentTime, "HH:mm", new Date()), "HH:mm:ss");
+          const { data: conflictCheck, error: conflictError } = await (supabase.rpc as any)('check_spa_appointment_conflict', {
+            p_appointment_date: format(params.appointmentDate, "yyyy-MM-dd"),
+            p_appointment_time: appointmentTimeStr,
+            p_duration_minutes: params.durationMinutes,
+            p_cleanup_minutes: params.cleanupMinutes || 15,
+            p_staff_id: params.staffId,
+            p_exclude_appointment_id: null
+          });
 
-        if (conflictError) {
-          if (conflictError.code === "42883" || conflictError.message?.includes("does not exist")) {
-            // Function doesn't exist yet, skip conflict check (backward compatibility)
-            console.warn('Conflict check function not available, skipping conflict detection');
-          } else {
-            throw conflictError;
+          if (conflictError) {
+            if (!(conflictError.code === "42883" || conflictError.message?.includes("does not exist"))) {
+              throw conflictError;
+            }
+          } else if (conflictCheck && conflictCheck.length > 0 && conflictCheck[0].has_conflict) {
+            throw new Error('This time slot is already booked. Please select a different time.');
           }
-        } else if (conflictCheck && conflictCheck.length > 0 && conflictCheck[0].has_conflict) {
-          // Conflict detected
-          throw new Error('This time slot is already booked. Please select a different time.');
-        }
-      } catch (error: any) {
-        if (error?.code === "42883" || error?.message?.includes("does not exist")) {
-          // Function doesn't exist yet, skip conflict check (backward compatibility)
-          console.warn('Conflict check function not available, skipping conflict detection');
-        } else if (error?.message?.includes('already booked')) {
-          // Re-throw conflict errors
-          throw error;
-        } else {
-          throw error;
+        } catch (error: any) {
+          if (error?.message?.includes('already booked')) {
+            throw error;
+          }
+          // For other errors (missing function, etc.), allow booking to proceed
+          console.warn('Conflict check skipped:', error?.message);
         }
       }
 
