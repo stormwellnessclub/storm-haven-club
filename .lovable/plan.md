@@ -1,46 +1,61 @@
 
-Fix the booking issue at the actual failure points, not just the symptoms.
 
-1. Diagnose the primary spa booking bug in code
-- The member booking flow is currently broken by a schema mismatch:
-  - `spa_services.id` is a UUID
-  - `useSpaBookAppointment` still expects `serviceId: number`
-  - `SpaBookingModal` sends `serviceId: typeof service.id === "number" ? service.id : 0`
-- That means normal future bookings can be inserted with an invalid `service_id` value of `0`, or fail outright depending on the live database shape.
+## Fix: Spa Appointments Not Visible After Booking
 
-2. Fix the booking payload to match the real schema
-- Update the member booking types and insert logic to use the real `spa_services.id` type consistently.
-- Remove the fallback that coerces service IDs to `0`.
-- Align all non-credit spa booking code with the UUID-based spa services table already used elsewhere in the app.
+**Root cause**: Appointments booked by admin set `user_id: null` (only `member_id` is populated). But the member-facing query AND the RLS SELECT policy both filter by `user_id = auth.uid()`. So admin-booked appointments are invisible to the member they belong to.
 
-3. Fix availability/conflict logic so future bookings are not blocked incorrectly
-- Right now the member flow checks conflicts without a therapist or room, which can turn one existing appointment into a global block for that timeslot.
-- Update the member-facing availability logic to validate against actual service availability records and only block when there is a real resource conflict.
-- Reuse the same service-availability model already present in admin booking instead of treating all bookings as mutually exclusive.
+Even member-self-booked appointments work by coincidence only — if any code path skips `user_id`, the appointment vanishes.
 
-4. Audit wellness/recovery compatibility
-- The recovery credit RPCs still use integer-style service IDs, while the newer spa services table uses UUIDs.
-- Review and normalize recovery booking paths so they remain valid after the member booking fix and do not reintroduce mixed ID behavior.
+### Changes
 
-5. Verify waiver issue in the same pass
-- Re-check the liability waiver entry points used from spa booking and apply flow.
-- Ensure every waiver link/download path resolves through the same PDF resolver and does not rely on stale stored asset URLs.
-- Keep the UI the same; only fix the delivery path.
+**1. Update RLS SELECT policy for members**
 
-Technical details
-- Files likely involved:
-  - `src/components/booking/SpaBookingModal.tsx`
-  - `src/hooks/useSpaBooking.ts`
-  - `src/hooks/useSpaManagement.ts`
-  - possibly `src/pages/Spa.tsx`
-  - waiver-related files only if a remaining inconsistent path is found
-- Backend review needed:
-  - confirm live `spa_appointments.service_id` type
-  - confirm whether member booking should reference `spa_service_availability` / therapist-service assignments for valid future slots
-- If database changes are required, I’ll add a migration instead of patching around the mismatch in the UI.
+Replace the "Users can view their own spa appointments" policy so it matches on EITHER `user_id` OR `member_id` (via a subquery on the `members` table):
 
-Expected result
-- Members can book future spa appointments again.
-- The booking modal will only show/book valid time slots.
-- Bookings will use the correct service IDs instead of `0`.
-- Waiver open/download behavior will be checked and aligned in the same fix pass.
+```sql
+DROP POLICY "Users can view their own spa appointments" ON spa_appointments;
+CREATE POLICY "Users can view their own spa appointments"
+  ON spa_appointments FOR SELECT TO authenticated
+  USING (
+    auth.uid() = user_id
+    OR member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
+  );
+```
+
+Similarly update the UPDATE policy so members can cancel/modify their own admin-booked appointments.
+
+**2. Update RLS INSERT policy**
+
+The current INSERT policy requires `auth.uid() = user_id`. Keep this, but also ensure admin-booked rows (with null `user_id`) are covered by the existing staff policy.
+
+**3. Fix admin booking to populate `user_id`**
+
+Update `AdminSpaBookingModal.tsx` line 190 to look up the member's `user_id` and set it on insert instead of hardcoding `null`. This prevents the mismatch going forward.
+
+**4. Update member-facing query to also match by `member_id`**
+
+Update `useMySpaAppointments` in `useSpaBooking.ts` to query with an OR condition: fetch appointments where `user_id = currentUser` OR where `member_id` matches the current user's member record. This ensures both admin-booked and self-booked appointments appear.
+
+**5. Backfill existing orphaned appointments**
+
+Run a migration to populate `user_id` on existing `spa_appointments` rows where `user_id IS NULL` but `member_id` maps to a known `members.user_id`.
+
+```sql
+UPDATE spa_appointments sa
+SET user_id = m.user_id
+FROM members m
+WHERE sa.member_id = m.id
+  AND sa.user_id IS NULL
+  AND m.user_id IS NOT NULL;
+```
+
+### Files to change
+- Database migration (RLS policies + backfill)
+- `src/hooks/useSpaBooking.ts` — `useMySpaAppointments` query logic
+- `src/components/admin/spa/AdminSpaBookingModal.tsx` — populate `user_id` on admin inserts
+
+### Expected result
+- All spa appointments (admin-booked or self-booked) appear in the member's wellness view
+- Admin appointments grid continues working unchanged
+- No security regression — members can only see their own appointments
+
