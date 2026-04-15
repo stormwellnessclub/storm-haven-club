@@ -1,46 +1,34 @@
 
 
-## Fix: Spa Appointments Not Visible in Admin Views
+## Fix: Spa Booking — Cleanup Blocking, 12-Hour Time, Free-Text Input
 
-### Root Cause
+### Issues identified
 
-The `useAdminSpaAppointments` hook — used by **all three** admin views (Appointments page, Therapist Schedule, Dashboard) — joins `staff:spa_therapists(id, full_name)`. But there is **no foreign key** from `spa_appointments.staff_id` to `spa_therapists.id`. Without that FK, PostgREST cannot resolve the relationship and the entire query fails with an error, returning zero results.
+1. **Cleanup time not blocking the next slot**: The availability slot generator (lines 100–116 of `AdminSpaBookingModal.tsx`) steps in 30-min increments using only `duration_minutes` — it does NOT add `cleanup_minutes`. So a 90-min massage with 15-min cleanup still offers the next slot at +90min instead of +105min.
 
-Additionally, the Dashboard appointment cards are rendered as plain `<div>` elements with no click handler — they display data but are not interactive.
+2. **Military time**: Time slot buttons display `HH:mm` (e.g. "14:00") instead of 12-hour format ("2:00 PM").
 
-### Verified Data
+3. **Forced slot picking**: The user wants to freely type a time instead of clicking predefined slot buttons. The manual input only appears as a fallback when zero availability is configured.
 
-- There **are** appointments in the database for April 15, 16, and 17 (confirmed status, with member_id and user_id populated).
-- RLS policies are correct — staff roles have full access.
-- The query simply fails before RLS even matters because PostgREST rejects the unknown join relationship.
+### Changes
 
-### Plan
+**File: `src/components/admin/spa/AdminSpaBookingModal.tsx`**
 
-**1. Add FK from `spa_appointments.staff_id` to `spa_therapists.id` (database migration)**
+1. **Replace slot buttons with a free-text time input** — Always show a standard text input for time (not `type="time"` which renders military). Use a simple text input with placeholder "e.g. 10:00 AM" that parses common 12h formats (10:00 AM, 10am, 2:30 PM, etc.) and converts to HH:mm internally. Remove the slot-button grid entirely.
 
-```sql
-ALTER TABLE public.spa_appointments
-  ADD CONSTRAINT spa_appointments_staff_id_fkey
-  FOREIGN KEY (staff_id) REFERENCES public.spa_therapists(id)
-  ON DELETE SET NULL;
-```
+2. **Show available hours as a hint** — Below the input, display a small helper line like "Available: 9:00 AM – 5:00 PM" derived from the availability config, so the admin knows the window without being locked into rigid slots.
 
-This single change fixes all three admin views simultaneously because they all flow through the same `useAdminSpaAppointments` hook.
+3. **Fix cleanup blocking in conflict check** — The conflict check on line 160 already passes `duration_minutes + cleanup_minutes` ✓. The real gap is in `useCheckSpaAvailability` line 187 which hardcodes `+15` instead of using the actual cleanup time. Update to pass `durationMinutes` inclusive of cleanup so the overlap check correctly blocks the buffer window.
 
-**2. Change Dashboard `members!inner` join to left join**
+4. **Format any displayed times in 12h** — Any time shown in the modal (conflict messages, slot hints) will use `formatTime12h` from `src/lib/timeFormat.ts`.
 
-The Dashboard query at line 171 uses `members!inner(...)`, which excludes any appointment where `member_id` is null. Change to `members(...)` (left join) so guest/unlinked appointments still appear.
+### Technical detail
 
-**3. Make Dashboard appointment cards clickable**
-
-Add an `onClick` handler to each appointment card in the Dashboard that navigates to `/admin/appointments` (or opens the completion dialog). At minimum, make them link to the Appointments page for that date.
+- Parse function handles: "10:00 AM", "10:00AM", "10am", "2:30 PM", "14:00" → normalized to "HH:mm"
+- Validation: show inline error if typed time is unparseable or outside available window
+- Conflict check continues to fire on blur/change after parsing
 
 ### Files to change
-- Database migration (add FK constraint)
-- `src/pages/admin/Dashboard.tsx` — fix join type, add click handler to appointment cards
-
-### Expected result
-- All admin appointment views show the correct data for any date.
-- Dashboard appointment cards are clickable and navigate to the appointments page.
-- No security or data changes — this is purely a relationship declaration and UI fix.
+- `src/components/admin/spa/AdminSpaBookingModal.tsx` — replace time slot UI with free-text input, fix cleanup in duration passed to conflict check
+- `src/hooks/useSpaBooking.ts` — `useCheckSpaAvailability` to use passed cleanup instead of hardcoded 15
 
