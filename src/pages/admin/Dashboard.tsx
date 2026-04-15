@@ -32,7 +32,7 @@ import {
   AlertTriangle,
   Mail
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow, subDays } from "date-fns";
@@ -44,6 +44,7 @@ import { toast } from "@/hooks/use-toast";
 export default function Dashboard() {
   const [sendingEmails, setSendingEmails] = useState(false);
   const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
+  const navigate = useNavigate();
   const { isAdmin } = useUserRoles();
   const showAdminOnly = isAdmin();
 
@@ -168,7 +169,7 @@ export default function Dashboard() {
           appointment_date,
           appointment_time,
           service_name,
-          members!inner (
+          members (
             first_name,
             last_name
           )
@@ -469,7 +470,8 @@ export default function Dashboard() {
                   {upcomingAppointments.map((apt, index) => (
                     <div
                       key={index}
-                      className="py-2 border-b border-border last:border-0"
+                      className="py-2 border-b border-border last:border-0 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
+                      onClick={() => navigate('/admin/appointments')}
                     >
                       <div className="flex items-center justify-between">
                         <p className="font-medium text-sm">{apt.member}</p>
