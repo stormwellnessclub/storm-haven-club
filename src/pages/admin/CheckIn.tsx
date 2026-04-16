@@ -36,6 +36,7 @@ import { useUnifiedCheckInSearch, UnifiedSearchResult, VisitorType } from "@/hoo
 import { useUnifiedAttendance, AttendanceType } from "@/hooks/useUnifiedAttendance";
 import { useMemberScanner, ScanResult } from "@/hooks/useMemberScanner";
 import { useMemberArrears } from "@/hooks/useMemberArrears";
+import { formatSpaTime } from "@/lib/spaTime";
 
 // ─── Type badge config ───────────────────────────────────────────────
 const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
@@ -485,7 +486,7 @@ export default function CheckIn() {
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Appointment Time</p>
-                <p className="font-medium">{sa.appointment_time?.slice(0, 5)}</p>
+                <p className="font-medium">{formatSpaTime(sa.appointment_time)}</p>
               </div>
             </div>
             {sa.duration_minutes && (
