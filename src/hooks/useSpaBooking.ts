@@ -185,7 +185,8 @@ export function useCheckSpaAvailability() {
       const timeObj = parse(appointmentTime, "HH:mm", new Date());
       const appointmentDateTime = new Date(appointmentDate);
       appointmentDateTime.setHours(timeObj.getHours(), timeObj.getMinutes(), 0, 0);
-      const endDateTime = addMinutes(appointmentDateTime, durationMinutes + 15);
+      const cleanup = cleanupMinutes ?? 15;
+      const endDateTime = addMinutes(appointmentDateTime, durationMinutes + cleanup);
 
       const checkOverlap = (data: any[]) => {
         return (data || []).filter((apt: any) => {
