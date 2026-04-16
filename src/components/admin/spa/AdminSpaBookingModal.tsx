@@ -145,8 +145,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       }
     }
 
-    const resolvedTherapist = therapistId !== "auto" ? therapistId : matchingSlot?.therapist_id;
-    const resolvedRoom = roomId !== "auto" ? roomId : matchingSlot?.room_id;
+    const resolvedTherapist = therapistId !== "auto" ? therapistId : matchingSlot?.therapist_id || null;
+    const resolvedRoom = roomId !== "auto" ? roomId : matchingSlot?.room_id || null;
     setResolvedTherapistId(resolvedTherapist || null);
     setResolvedRoomId(resolvedRoom || null);
 
@@ -212,8 +212,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       if (!selectedService || !appointmentTime) throw new Error("Missing required fields");
       if (conflict) throw new Error(conflict);
       
-      const resolvedTherapist = therapistId !== "auto" ? therapistId : resolvedTherapistId;
-      const resolvedRoom = roomId !== "auto" ? roomId : resolvedRoomId;
+      const resolvedTherapist = therapistId !== "auto" ? therapistId : resolvedTherapistId || null;
+      const resolvedRoom = roomId !== "auto" ? roomId : resolvedRoomId || null;
 
       if ((therapistId === "auto" && !resolvedTherapist) || (roomId === "auto" && !resolvedRoom)) {
         throw new Error("Please choose a time that has both therapist and room coverage.");
@@ -422,7 +422,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           {/* Therapist */}
           <div>
             <Label>Therapist</Label>
-            <Select value={therapistId} onValueChange={setTherapistId}>
+            <Select value={therapistId} onValueChange={(value) => { setTherapistId(value); if (appointmentTime) void runConflictCheck(appointmentTime); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto-assign</SelectItem>
@@ -441,7 +441,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           {/* Room */}
           <div>
             <Label>Room</Label>
-            <Select value={roomId} onValueChange={setRoomId}>
+            <Select value={roomId} onValueChange={(value) => { setRoomId(value); if (appointmentTime) void runConflictCheck(appointmentTime); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto-assign</SelectItem>
