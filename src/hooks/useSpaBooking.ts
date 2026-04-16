@@ -52,6 +52,7 @@ interface CheckAvailabilityParams {
   appointmentDate: Date;
   appointmentTime: string;
   durationMinutes: number;
+  cleanupMinutes?: number;
   staffId?: string;
   roomId?: string;
 }
@@ -174,7 +175,7 @@ export function useSpaBookAppointment() {
 
 export function useCheckSpaAvailability() {
   return useMutation({
-    mutationFn: async ({ appointmentDate, appointmentTime, durationMinutes, staffId, roomId }: CheckAvailabilityParams) => {
+    mutationFn: async ({ appointmentDate, appointmentTime, durationMinutes, cleanupMinutes, staffId, roomId }: CheckAvailabilityParams) => {
       // If no specific staff or room is provided, the slot is always available
       // from the member's perspective — resource conflicts are checked at booking time
       if (!staffId && !roomId) {
@@ -184,7 +185,8 @@ export function useCheckSpaAvailability() {
       const timeObj = parse(appointmentTime, "HH:mm", new Date());
       const appointmentDateTime = new Date(appointmentDate);
       appointmentDateTime.setHours(timeObj.getHours(), timeObj.getMinutes(), 0, 0);
-      const endDateTime = addMinutes(appointmentDateTime, durationMinutes + 15);
+      const cleanup = cleanupMinutes ?? 15;
+      const endDateTime = addMinutes(appointmentDateTime, durationMinutes + cleanup);
 
       const checkOverlap = (data: any[]) => {
         return (data || []).filter((apt: any) => {
