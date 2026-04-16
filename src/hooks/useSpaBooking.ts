@@ -19,6 +19,7 @@ export interface SpaAppointment {
   cleanup_minutes: number;
   status: "confirmed" | "completed" | "cancelled" | "no_show";
   staff_id: string | null;
+  room_id?: string | null;
   staff_notes: string | null;
   member_notes: string | null;
   payment_method: string | null;
@@ -214,7 +215,12 @@ export function useCheckSpaAvailability() {
             .eq("staff_id", staffId);
 
           if (!error) {
-            allConflicting.push(...checkOverlap(data));
+            allConflicting.push(
+              ...checkOverlap(data).map((apt: any) => ({
+                ...apt,
+                _conflictType: "staff",
+              }))
+            );
           }
         }
 
@@ -226,10 +232,13 @@ export function useCheckSpaAvailability() {
             .eq("room_id", roomId);
 
           if (!error) {
-            const roomConflicts = checkOverlap(data);
-            const existingIds = new Set(allConflicting.map((c: any) => c.id));
+            const roomConflicts = checkOverlap(data).map((apt: any) => ({
+              ...apt,
+              _conflictType: "room",
+            }));
+            const existingIds = new Set(allConflicting.map((c: any) => `${c.id}:${c._conflictType}`));
             for (const rc of roomConflicts) {
-              if (!existingIds.has(rc.id)) {
+              if (!existingIds.has(`${rc.id}:${rc._conflictType}`)) {
                 allConflicting.push(rc);
               }
             }

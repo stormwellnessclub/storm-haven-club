@@ -45,6 +45,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const [staffNotes, setStaffNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("in_person");
   const [conflict, setConflict] = useState<string | null>(null);
+  const [resolvedTherapistId, setResolvedTherapistId] = useState<string | null>(null);
+  const [resolvedRoomId, setResolvedRoomId] = useState<string | null>(null);
 
   // Search members
   const { data: memberResults } = useQuery({
@@ -115,6 +117,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
   const runConflictCheck = useCallback(async (time: string) => {
     setConflict(null);
+    setResolvedTherapistId(null);
+    setResolvedRoomId(null);
     if (!selectedService) return;
 
     // Find availability slot for this time to auto-assign therapist/room
@@ -127,17 +131,30 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       return t >= start && t < end;
     });
 
+    if (!matchingSlot && (therapistId === "auto" || roomId === "auto")) {
+      setConflict("No therapist/room availability covers that time. Choose another time or assign resources manually.");
+      return;
+    }
+
     if (matchingSlot) {
       if (therapistId === "auto" && matchingSlot.therapist_id) {
-        setTherapistId(matchingSlot.therapist_id);
+        setResolvedTherapistId(matchingSlot.therapist_id);
       }
       if (roomId === "auto" && matchingSlot.room_id) {
-        setRoomId(matchingSlot.room_id);
+        setResolvedRoomId(matchingSlot.room_id);
       }
     }
 
-    const resolvedTherapist = therapistId !== "auto" ? therapistId : matchingSlot?.therapist_id;
-    const resolvedRoom = roomId !== "auto" ? roomId : matchingSlot?.room_id;
+    const resolvedTherapist = therapistId !== "auto" ? therapistId : matchingSlot?.therapist_id || null;
+    const resolvedRoom = roomId !== "auto" ? roomId : matchingSlot?.room_id || null;
+    setResolvedTherapistId(resolvedTherapist || null);
+    setResolvedRoomId(resolvedRoom || null);
+
+    if ((therapistId === "auto" && !resolvedTherapist) || (roomId === "auto" && !resolvedRoom)) {
+      setConflict("That time is outside the configured therapist or room availability for this service.");
+      return;
+    }
+
     if (resolvedTherapist || resolvedRoom) {
       try {
         const result = await checkAvail.mutateAsync({
@@ -150,7 +167,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         });
         if (!result.available) {
           const hasRoomConflict = result.conflictingAppointments.some((c: any) => c._conflictType === "room");
-          const hasTherapistConflict = result.conflictingAppointments.some((c: any) => !c._conflictType);
+          const hasTherapistConflict = result.conflictingAppointments.some((c: any) => c._conflictType === "staff");
           if (hasTherapistConflict && hasRoomConflict) {
             setConflict("Both the therapist and treatment room are already booked at this time. Please select a different time, therapist, or room.");
           } else if (hasRoomConflict) {
@@ -193,9 +210,29 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const bookMutation = useMutation({
     mutationFn: async () => {
       if (!selectedService || !appointmentTime) throw new Error("Missing required fields");
+      if (conflict) throw new Error(conflict);
       
-      const resolvedTherapist = therapistId !== "auto" ? therapistId : null;
-      const resolvedRoom = roomId !== "auto" ? roomId : null;
+      const resolvedTherapist = therapistId !== "auto" ? therapistId : resolvedTherapistId || null;
+      const resolvedRoom = roomId !== "auto" ? roomId : resolvedRoomId || null;
+
+      if ((therapistId === "auto" && !resolvedTherapist) || (roomId === "auto" && !resolvedRoom)) {
+        throw new Error("Please choose a time that has both therapist and room coverage.");
+      }
+
+      if (selectedService && appointmentTime) {
+        const result = await checkAvail.mutateAsync({
+          appointmentDate: new Date(appointmentDate),
+          appointmentTime,
+          durationMinutes: selectedService.duration_minutes,
+          cleanupMinutes: selectedService.cleanup_minutes,
+          staffId: resolvedTherapist || undefined,
+          roomId: resolvedRoom || undefined,
+        });
+
+        if (!result.available) {
+          throw new Error("That therapist or room is already blocked for the full service plus cleanup time.");
+        }
+      }
 
       let memberUserId: string | null = null;
       if (selectedMemberId) {
@@ -221,6 +258,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         cleanup_minutes: selectedService.cleanup_minutes,
         status: "confirmed",
         staff_id: resolvedTherapist,
+        room_id: resolvedRoom,
         staff_notes: staffNotes || null,
         payment_method: paymentMethod === "comp" ? "comp" : null,
         amount_paid: paymentMethod === "comp" ? 0 : null,
@@ -247,6 +285,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setTimeError(null);
     setTherapistId("auto");
     setRoomId("auto");
+    setResolvedTherapistId(null);
+    setResolvedRoomId(null);
     setStaffNotes("");
     setPaymentMethod("in_person");
     setConflict(null);
@@ -382,7 +422,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           {/* Therapist */}
           <div>
             <Label>Therapist</Label>
-            <Select value={therapistId} onValueChange={setTherapistId}>
+            <Select value={therapistId} onValueChange={(value) => { setTherapistId(value); if (appointmentTime) void runConflictCheck(appointmentTime); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto-assign</SelectItem>
@@ -391,12 +431,17 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 ))}
               </SelectContent>
             </Select>
+            {therapistId === "auto" && resolvedTherapistId && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Auto-assigned therapist: {activeTherapists.find(t => t.id === resolvedTherapistId)?.full_name || "Assigned"}
+              </p>
+            )}
           </div>
 
           {/* Room */}
           <div>
             <Label>Room</Label>
-            <Select value={roomId} onValueChange={setRoomId}>
+            <Select value={roomId} onValueChange={(value) => { setRoomId(value); if (appointmentTime) void runConflictCheck(appointmentTime); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto-assign</SelectItem>
@@ -405,6 +450,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 ))}
               </SelectContent>
             </Select>
+            {roomId === "auto" && resolvedRoomId && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Auto-assigned room: {activeRooms.find(r => r.id === resolvedRoomId)?.name || "Assigned"}
+              </p>
+            )}
           </div>
 
           {/* Payment */}

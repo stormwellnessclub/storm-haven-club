@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CalendarDays, CheckCircle2, CreditCard } from "lucide-react";
 import { SpaCompletionDialog } from "./SpaCompletionDialog";
 import { format, parse } from "date-fns";
+import { formatSpaTime, formatSpaTimeRange } from "@/lib/spaTime";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -101,7 +102,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
           ? getTherapistName(o.therapist_id)
           : getRoomName(o.room_id);
         const svcName = getServiceName(o.service_id);
-        found.push(`${DAYS[day]}: ${resource} already assigned to "${svcName}" ${o.start_time.slice(0, 5)}–${o.end_time.slice(0, 5)}`);
+        found.push(`${DAYS[day]}: ${resource} already assigned to "${svcName}" ${formatSpaTimeRange(o.start_time, o.end_time)}`);
       }
     }
     return found;
@@ -217,7 +218,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                         {DAYS[slot.day_of_week]?.slice(0, 3)}
                       </Badge>
                       <span className="text-muted-foreground">
-                        {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
+                        {formatSpaTimeRange(slot.start_time, slot.end_time)}
                       </span>
                       <span className="text-xs">👤 {getTherapistName(slot.therapist_id)}</span>
                       <span className="text-xs">🚪 {getRoomName(slot.room_id)}</span>
@@ -266,7 +267,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                         {slots.map(slot => (
                           <div key={slot.id} className="flex items-center gap-3 px-4 py-2 text-sm">
                             <Badge variant="outline" className="text-xs bg-secondary/50">
-                              {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
+                              {formatSpaTimeRange(slot.start_time, slot.end_time)}
                             </Badge>
                             <span className="text-xs">{getServiceName(slot.service_id)}</span>
                             <span className="text-xs text-muted-foreground">🚪 {getRoomName(slot.room_id)}</span>
@@ -278,7 +279,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                           </div>
                         )}
                         {booked.map(apt => {
-                          const timeStr = apt.appointment_time?.slice(0, 5) || "";
+                          const timeStr = formatSpaTime(apt.appointment_time);
                           const isActionable = ['confirmed'].includes(apt.status);
                           const needsCharge = apt.status === 'completed' && (!apt.amount_paid || apt.amount_paid === 0);
                           return (
@@ -328,7 +329,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                   <CardContent className="p-0">
                     <div className="divide-y">
                       {therapistSchedule.unassigned.map(apt => {
-                        const timeStr = apt.appointment_time?.slice(0, 5) || "";
+                        const timeStr = formatSpaTime(apt.appointment_time);
                         const isActionable = ['confirmed'].includes(apt.status);
                         const needsCharge = apt.status === 'completed' && (!apt.amount_paid || apt.amount_paid === 0);
                         return (
@@ -378,7 +379,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                   <CardContent className="p-0">
                     <div className="divide-y">
                       {therapistSchedule.needsAttention.map(apt => {
-                        const timeStr = apt.appointment_time?.slice(0, 5) || "";
+                        const timeStr = formatSpaTime(apt.appointment_time);
                         const isActionable = ['confirmed'].includes(apt.status);
                         const needsCharge = apt.status === 'completed' && (!apt.amount_paid || apt.amount_paid === 0);
                         return (
