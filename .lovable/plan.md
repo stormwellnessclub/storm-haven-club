@@ -1,34 +1,85 @@
 
+## Revised fix: admin spa booking is still bypassing resource blocking
 
-## Fix: Spa Booking — Cleanup Blocking, 12-Hour Time, Free-Text Input
+### What I found
+There are two separate problems in the current code:
 
-### Issues identified
+1. **Auto-assigned therapist/room are not actually saved**
+   - In `AdminSpaBookingModal.tsx`, the conflict check resolves a matching availability slot and may discover Theresa + Room X.
+   - But the actual insert still saves:
+     - `staff_id = null` whenever the selector is still `"auto"`
+     - no `room_id` at all
+   - So the booking can pass validation visually, then save as effectively unassigned.
 
-1. **Cleanup time not blocking the next slot**: The availability slot generator (lines 100–116 of `AdminSpaBookingModal.tsx`) steps in 30-min increments using only `duration_minutes` — it does NOT add `cleanup_minutes`. So a 90-min massage with 15-min cleanup still offers the next slot at +90min instead of +105min.
+2. **Room conflicts cannot work yet**
+   - `useCheckSpaAvailability()` queries `spa_appointments.room_id`
+   - But the current `spa_appointments` schema/types shown here do **not** include `room_id`
+   - That means room blocking is not authoritative today.
 
-2. **Military time**: Time slot buttons display `HH:mm` (e.g. "14:00") instead of 12-hour format ("2:00 PM").
+3. **Military time is still rendered in several admin spa views**
+   - `SpaAvailabilityTab.tsx` shows booked times with `slice(0, 5)`
+   - `CheckIn.tsx` also shows raw `HH:mm`
+   - So even if the modal changed, other spa/admin screens still display military time.
 
-3. **Forced slot picking**: The user wants to freely type a time instead of clicking predefined slot buttons. The manual input only appears as a fallback when zero availability is configured.
+### Implementation plan
 
-### Changes
+#### 1. Make resource blocking real at the database level
+Create a migration that:
+- adds `room_id` to `spa_appointments`
+- adds FK to `spa_rooms`
+- adds an index for room/date lookups
+- updates the spa conflict RPC so it can block by:
+  - therapist
+  - room
+  - or both
+- keeps cleanup time included in overlap logic
 
-**File: `src/components/admin/spa/AdminSpaBookingModal.tsx`**
+This makes the blocking authoritative instead of only client-side.
 
-1. **Replace slot buttons with a free-text time input** — Always show a standard text input for time (not `type="time"` which renders military). Use a simple text input with placeholder "e.g. 10:00 AM" that parses common 12h formats (10:00 AM, 10am, 2:30 PM, etc.) and converts to HH:mm internally. Remove the slot-button grid entirely.
+#### 2. Save the resolved therapist and room from the admin booking modal
+Update `src/components/admin/spa/AdminSpaBookingModal.tsx` so that:
+- the same resolved availability slot used for validation is also used for the final insert
+- if therapist/room are set to `auto`, the modal saves the matched slot’s therapist and room IDs
+- booking is prevented if the typed time is outside available resource coverage
+- conflict text correctly distinguishes therapist vs room vs both
 
-2. **Show available hours as a hint** — Below the input, display a small helper line like "Available: 9:00 AM – 5:00 PM" derived from the availability config, so the admin knows the window without being locked into rigid slots.
+This is the key fix for your “10:00 AM should block Theresa + that room” case.
 
-3. **Fix cleanup blocking in conflict check** — The conflict check on line 160 already passes `duration_minutes + cleanup_minutes` ✓. The real gap is in `useCheckSpaAvailability` line 187 which hardcodes `+15` instead of using the actual cleanup time. Update to pass `durationMinutes` inclusive of cleanup so the overlap check correctly blocks the buffer window.
+#### 3. Fix availability/conflict hook behavior
+Update `src/hooks/useSpaBooking.ts` so that:
+- room conflicts actually work once `room_id` exists
+- returned conflicts are tagged clearly by type
+- cleanup time remains part of the blocked window for both therapist and room checks
+- the hook no longer silently behaves as if room checks succeeded when the column/resource is missing
 
-4. **Format any displayed times in 12h** — Any time shown in the modal (conflict messages, slot hints) will use `formatTime12h` from `src/lib/timeFormat.ts`.
+#### 4. Convert remaining admin spa time displays to 12-hour format
+Replace raw `HH:mm` display usage with `formatTime12h(...)` in:
+- `src/components/admin/spa/SpaAvailabilityTab.tsx`
+- `src/pages/admin/CheckIn.tsx`
+- any nearby admin spa appointment displays still using raw slices
 
-### Technical detail
+Result: the modal, therapist schedule, and check-in/admin views all show `10:00 AM` instead of `10:00`.
 
-- Parse function handles: "10:00 AM", "10:00AM", "10am", "2:30 PM", "14:00" → normalized to "HH:mm"
-- Validation: show inline error if typed time is unparseable or outside available window
-- Conflict check continues to fire on blur/change after parsing
+#### 5. Review alternate admin wellness booking path
+There is another staff booking path in `src/pages/admin/MemberDetail.tsx` that uses `staff_book_wellness_appointment`.
+I will verify whether that path also needs therapist/room-aware blocking so it does not reintroduce the same issue from a different screen.
 
-### Files to change
-- `src/components/admin/spa/AdminSpaBookingModal.tsx` — replace time slot UI with free-text input, fix cleanup in duration passed to conflict check
-- `src/hooks/useSpaBooking.ts` — `useCheckSpaAvailability` to use passed cleanup instead of hardcoded 15
+### Expected result
+For a 90-minute appointment with 15-minute cleanup:
+- booking Theresa at **10:00 AM** blocks her until **11:45 AM**
+- the assigned room is also blocked until **11:45 AM**
+- trying to book another overlapping appointment with that therapist or room will be rejected
+- admin spa screens show **12-hour time** consistently
 
+### Files likely involved
+- Database migration for `spa_appointments.room_id` + conflict RPC update
+- `src/components/admin/spa/AdminSpaBookingModal.tsx`
+- `src/hooks/useSpaBooking.ts`
+- `src/components/admin/spa/SpaAvailabilityTab.tsx`
+- `src/pages/admin/CheckIn.tsx`
+- possibly `src/pages/admin/MemberDetail.tsx` for the alternate staff booking flow
+
+### Technical notes
+- Current modal validation and current save path are out of sync.
+- Current room conflict logic depends on a column that does not appear to exist yet.
+- Client-only blocking is not enough; this needs server/database enforcement to be reliable after publish.
