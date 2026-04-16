@@ -175,7 +175,7 @@ export function useSpaBookAppointment() {
 
 export function useCheckSpaAvailability() {
   return useMutation({
-    mutationFn: async ({ appointmentDate, appointmentTime, durationMinutes, staffId, roomId }: CheckAvailabilityParams) => {
+    mutationFn: async ({ appointmentDate, appointmentTime, durationMinutes, cleanupMinutes, staffId, roomId }: CheckAvailabilityParams) => {
       // If no specific staff or room is provided, the slot is always available
       // from the member's perspective — resource conflicts are checked at booking time
       if (!staffId && !roomId) {
