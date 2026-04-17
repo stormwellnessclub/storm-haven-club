@@ -177,6 +177,7 @@ export function useSpaBookAppointment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
       toast.success("Spa appointment booked successfully!");
     },
     onError: (error: Error) => {
