@@ -445,7 +445,7 @@ export default function CheckIn() {
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Class Time</p>
-                <p className="font-medium">{cb.session?.start_time?.slice(0, 5)} – {cb.session?.end_time?.slice(0, 5)}</p>
+                <p className="font-medium">{formatTime12h(cb.session?.start_time)} – {formatTime12h(cb.session?.end_time)}</p>
               </div>
             </div>
           </div>

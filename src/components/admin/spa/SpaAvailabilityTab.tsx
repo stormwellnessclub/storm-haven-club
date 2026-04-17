@@ -469,8 +469,14 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
             )}
 
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Start Time</Label><Input type="time" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} /></div>
-              <div><Label>End Time</Label><Input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} /></div>
+              <div>
+                <Label>Start Time</Label>
+                <TimeTextInput value={form.start_time} onChange={(v) => setForm({ ...form, start_time: v })} />
+              </div>
+              <div>
+                <Label>End Time</Label>
+                <TimeTextInput value={form.end_time} onChange={(v) => setForm({ ...form, end_time: v })} />
+              </div>
             </div>
             <div>
               <Label>Therapist</Label>

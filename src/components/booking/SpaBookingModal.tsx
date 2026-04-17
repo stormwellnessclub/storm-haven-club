@@ -1,15 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { useSpaBookAppointment, useCheckSpaAvailability } from "@/hooks/useSpaBooking";
+import { useSpaBookAppointment } from "@/hooks/useSpaBooking";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useWellnessCredits } from "@/hooks/useWellnessCredits";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { useAllAgreements } from "@/hooks/useAllAgreements";
+import { useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { getWellnessCreditType, getCreditTypeDisplayName, WellnessCreditType } from "@/lib/wellnessCategories";
+import {
+  generateAvailableStartTimes,
+  hasCoverageOnDate,
+  findNextAvailableSlot,
+  findCoveringSlot,
+  getServiceWindowForDate,
+  latestStartTime,
+} from "@/lib/spaAvailability";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +39,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, addMonths } from "date-fns";
-import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles, FileCheck, ExternalLink, Check } from "lucide-react";
+import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles, FileCheck, ExternalLink, Check, ArrowRight } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -46,13 +55,6 @@ interface SpaBookingModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const TIME_SLOTS = [
-  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
-  "15:00", "15:30", "16:00", "16:30", "17:00", "17:30",
-  "18:00", "18:30", "19:00", "19:30",
-];
-
 type PaymentMethodType = "card" | "member_account" | "credit";
 
 export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModalProps) {
@@ -63,8 +65,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const { profile, signWaiver, isSigningWaiver } = useUserProfile();
   const { profile: nonMemberProfile, signWaiver: signNonMemberWaiver, isSigningWaiver: isSigningNonMemberWaiver } = useNonMemberProfile();
   const { data: agreements } = useAllAgreements();
+  const { data: availability } = useSpaServiceAvailability();
   const bookAppointment = useSpaBookAppointment();
-  const checkAvailability = useCheckSpaAvailability();
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -74,16 +76,12 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("card");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
-  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
-  const [availableSlots, setAvailableSlots] = useState<Set<string>>(new Set());
 
-  // Liability waiver check
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
   const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
     ? resolvePdfUrl(agreements.liability_waiver[0].pdf_url)
     : null;
 
-  // Reset inline waiver state when modal closes
   useEffect(() => {
     if (!open) {
       setShowWaiverInline(false);
@@ -105,14 +103,12 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const availableCredit = creditType && wellnessCredits ? wellnessCredits[creditType] : null;
   const canUseCredit = !!availableCredit && availableCredit.credits_remaining > 0;
 
-  // Auto-select credit payment if available
   useEffect(() => {
     if (canUseCredit && paymentMethod === "card") {
       setPaymentMethod("credit");
     }
   }, [canUseCredit]);
 
-  // Fetch saved payment methods
   useEffect(() => {
     if (user && open && paymentMethod === "card") {
       supabase.functions.invoke("stripe-payment", {
@@ -128,42 +124,59 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
     }
   }, [user, open, paymentMethod]);
 
-  // Check availability when date/time changes
+  // Reset selected time whenever date or service changes
   useEffect(() => {
-    if (selectedDate && service) {
-      setIsCheckingAvailability(true);
-      const durationMinutes = service.duration_minutes;
+    setSelectedTime("");
+  }, [selectedDate, service?.id]);
 
-      // Check all time slots for this date
-      Promise.all(
-        TIME_SLOTS.map(async (time) => {
-          try {
-            const result = await checkAvailability.mutateAsync({
-              appointmentDate: selectedDate,
-              appointmentTime: time,
-              durationMinutes,
-            });
-            return { time, available: result?.available || false };
-          } catch {
-            return { time, available: false };
-          }
-        })
-      ).then((results) => {
-        const available = new Set(
-          results.filter((r) => r.available).map((r) => r.time)
-        );
-        setAvailableSlots(available);
-        setIsCheckingAvailability(false);
-      });
-    }
-  }, [selectedDate, service]);
+  // Compute available start times for this date/service from availability config
+  const availableStartTimes = useMemo(() => {
+    if (!service || !selectedDate) return [];
+    return generateAvailableStartTimes(
+      availability,
+      service.id,
+      selectedDate,
+      service.duration_minutes,
+      service.cleanup_minutes
+    );
+  }, [availability, service, selectedDate]);
+
+  const coverageOnDate = useMemo(() => {
+    if (!service || !selectedDate) return false;
+    return hasCoverageOnDate(availability, service.id, selectedDate);
+  }, [availability, service, selectedDate]);
+
+  // Next available slot if current date has none
+  const nextAvailable = useMemo(() => {
+    if (!service || !selectedDate) return null;
+    if (availableStartTimes.length > 0) return null;
+    return findNextAvailableSlot(
+      availability,
+      service.id,
+      selectedDate,
+      service.duration_minutes,
+      service.cleanup_minutes
+    );
+  }, [availability, service, selectedDate, availableStartTimes]);
+
+  // Window hint for selected date
+  const windowHint = useMemo(() => {
+    if (!service || !selectedDate) return null;
+    const w = getServiceWindowForDate(availability, service.id, selectedDate);
+    if (!w) return null;
+    const last = latestStartTime(w.end, service.duration_minutes, service.cleanup_minutes);
+    return {
+      start: w.start,
+      end: w.end,
+      latestStart: last,
+    };
+  }, [availability, service, selectedDate]);
 
   if (!service) return null;
 
   const durationMinutes = service.duration_minutes;
   const cleanupMinutes = service.cleanup_minutes;
 
-  // Calculate member price
   let finalPrice = service.price;
   if (membership) {
     const tier = membership.membership_type?.toLowerCase() || "";
@@ -177,9 +190,6 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
       finalPrice = Math.round(service.price * (1 - discount) * 100) / 100;
     }
   }
-
-  // If using credit, price is $0
-  const displayPrice = paymentMethod === "credit" ? 0 : finalPrice;
 
   const handleBook = async () => {
     if (!user) {
@@ -198,19 +208,33 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
       return;
     }
 
+    // Resolve therapist + room from availability so the booking is properly assigned
+    const slot = findCoveringSlot(
+      availability,
+      service.id,
+      selectedDate,
+      selectedTime,
+      durationMinutes,
+      cleanupMinutes
+    );
+
+    if (!slot) {
+      toast.error("That time is no longer available. Please pick another.");
+      return;
+    }
+
     try {
       let paymentIntentId: string | undefined;
 
-      // Handle credit-based payment via atomic RPC
       if (paymentMethod === "credit" && creditType) {
         const { data: rpcResult, error: rpcError } = await supabase.rpc(
-          'book_wellness_appointment' as any,
+          "book_wellness_appointment" as any,
           {
             p_service_id: service.id,
             p_service_name: service.name,
             p_service_category: service.category,
             p_service_price: service.price,
-            p_appointment_date: format(selectedDate, 'yyyy-MM-dd'),
+            p_appointment_date: format(selectedDate, "yyyy-MM-dd"),
             p_appointment_time: selectedTime,
             p_duration_minutes: durationMinutes,
             p_cleanup_minutes: cleanupMinutes,
@@ -219,20 +243,12 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
           }
         );
 
-        if (rpcError) {
-          console.error("Wellness booking RPC error:", rpcError);
-          throw new Error(rpcError.message || "Failed to book with wellness credit");
-        }
-
+        if (rpcError) throw new Error(rpcError.message || "Failed to book with wellness credit");
         const result = rpcResult as any;
-        if (!result?.success) {
-          throw new Error(result?.error || "Failed to book with wellness credit");
-        }
+        if (!result?.success) throw new Error(result?.error || "Failed to book with wellness credit");
 
-        console.log(`Wellness credit booking success: appointment ${result.appointment_id}, credits remaining: ${result.credits_remaining}`);
         refetchCredits();
       } else {
-        // Process card payment if using card
         if (paymentMethod === "card" && selectedPaymentMethodId) {
           const { data: memberData } = await supabase
             .from("members")
@@ -274,6 +290,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
           memberNotes: memberNotes || undefined,
           paymentMethod,
           paymentIntentId,
+          staffId: slot.therapist_id || undefined,
+          roomId: slot.room_id || undefined,
         });
       }
 
@@ -283,9 +301,6 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
       setMemberNotes("");
     } catch (error: any) {
       console.error("Booking error:", error);
-      
-      // If credit was deducted but booking failed, we should ideally refund
-      // For now, just show error - admin can manually adjust credits if needed
       toast.error(error.message || "Failed to book appointment");
     }
   };
@@ -338,7 +353,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
             </div>
           </div>
 
-          {/* Liability Waiver Required — Inline Signing */}
+          {/* Liability Waiver */}
           {user && !hasLiabilityWaiver && (
             <div className="space-y-3">
               <Alert className="bg-destructive/10 border-destructive/30">
@@ -407,7 +422,6 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
             </div>
           )}
 
-          {/* Booking form — only show if waiver is signed (or user not logged in yet) */}
           {(!user || hasLiabilityWaiver) && (<>
           {/* Date Selection */}
           <div className="space-y-2">
@@ -430,39 +444,85 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
                   mode="single"
                   selected={selectedDate}
                   onSelect={setSelectedDate}
-                  disabled={(date) => date < minDate || date > maxDate}
+                  disabled={(date) => {
+                    if (date < minDate || date > maxDate) return true;
+                    // Disable dates with no therapist coverage for this service
+                    return !hasCoverageOnDate(availability, service.id, date);
+                  }}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
+            {windowHint && (
+              <p className="text-xs text-muted-foreground">
+                Available: {formatTime12h(windowHint.start)} – {formatTime12h(windowHint.end)} (last booking {formatTime12h(windowHint.latestStart)})
+              </p>
+            )}
           </div>
 
           {/* Time Selection */}
           {selectedDate && (
             <div className="space-y-2">
               <Label>Select Time</Label>
-              {isCheckingAvailability ? (
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-accent mr-2" />
-                  <span className="text-sm text-muted-foreground">Checking availability...</span>
+              {!coverageOnDate ? (
+                <div className="rounded-md border bg-muted/30 p-4 space-y-3">
+                  <p className="text-sm font-medium">
+                    No appointments available on {format(selectedDate, "EEEE, MMMM d")}.
+                  </p>
+                  {nextAvailable ? (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between"
+                      onClick={() => {
+                        setSelectedDate(nextAvailable.date);
+                        setSelectedTime(nextAvailable.time);
+                      }}
+                    >
+                      <span>
+                        Next available: {format(nextAvailable.date, "EEEE, MMM d")} at {formatTime12h(nextAvailable.time)}
+                      </span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No availability found in the next 60 days. Please contact the front desk.
+                    </p>
+                  )}
+                </div>
+              ) : availableStartTimes.length === 0 ? (
+                <div className="rounded-md border bg-muted/30 p-4 space-y-3">
+                  <p className="text-sm font-medium">
+                    No openings on {format(selectedDate, "EEEE, MMMM d")} that fit this service.
+                  </p>
+                  {nextAvailable && (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between"
+                      onClick={() => {
+                        setSelectedDate(nextAvailable.date);
+                        setSelectedTime(nextAvailable.time);
+                      }}
+                    >
+                      <span>
+                        Next available: {format(nextAvailable.date, "EEEE, MMM d")} at {formatTime12h(nextAvailable.time)}
+                      </span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 border rounded-md">
-                  {TIME_SLOTS.map((time) => {
-                    const isAvailable = availableSlots.has(time);
+                  {availableStartTimes.map((time) => {
                     const isSelected = selectedTime === time;
-
                     return (
                       <button
                         key={time}
                         type="button"
-                        onClick={() => isAvailable && setSelectedTime(time)}
-                        disabled={!isAvailable}
+                        onClick={() => setSelectedTime(time)}
                         className={cn(
                           "px-3 py-2 text-sm rounded-md border transition-colors",
                           isSelected && "bg-accent text-accent-foreground border-accent",
-                          !isSelected && isAvailable && "hover:bg-secondary border-border",
-                          !isAvailable && "opacity-50 cursor-not-allowed bg-muted"
+                          !isSelected && "hover:bg-secondary border-border"
                         )}
                       >
                         {formatTime12h(time)}
@@ -482,7 +542,6 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {/* Show credit option first if available */}
                 {canUseCredit && creditType && (
                   <SelectItem value="credit">
                     <div className="flex items-center gap-2">
@@ -509,7 +568,6 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
             </Select>
           </div>
 
-          {/* Credit info banner */}
           {paymentMethod === "credit" && availableCredit && creditType && (
             <div className="p-3 bg-accent/10 border border-accent/20 rounded-md">
               <div className="flex items-center gap-2 text-accent">
@@ -517,8 +575,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
                 <span className="font-medium">Using Member Credit</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                1 {getCreditTypeDisplayName(creditType)} credit will be deducted. 
-                You have {availableCredit.credits_remaining} credit{availableCredit.credits_remaining > 1 ? 's' : ''} remaining.
+                1 {getCreditTypeDisplayName(creditType)} credit will be deducted.
+                You have {availableCredit.credits_remaining} credit{availableCredit.credits_remaining > 1 ? "s" : ""} remaining.
               </p>
             </div>
           )}
@@ -574,7 +632,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
                 <div className="flex justify-between items-center text-lg font-semibold">
                   <span>Total</span>
                   <span className="text-accent">
-                    ${paymentMethod === "card" 
+                    ${paymentMethod === "card"
                       ? (finalPrice + calculateProcessingFeeFromDollars(finalPrice)).toFixed(2)
                       : finalPrice.toFixed(2)}
                   </span>
@@ -595,7 +653,6 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
               !selectedDate ||
               !selectedTime ||
               bookAppointment.isPending ||
-              isCheckingAvailability ||
               (paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0)
             }
           >
