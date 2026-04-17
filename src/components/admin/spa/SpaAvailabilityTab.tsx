@@ -18,8 +18,41 @@ import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CalendarDays, CheckCircle
 import { SpaCompletionDialog } from "./SpaCompletionDialog";
 import { format, parse } from "date-fns";
 import { formatSpaTime, formatSpaTimeRange } from "@/lib/spaTime";
+import { parseTimeInput } from "@/lib/parseTimeInput";
+import { formatTime12h } from "@/lib/timeFormat";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function TimeTextInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [text, setText] = useState(value ? formatTime12h(value) : "");
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-1">
+      <Input
+        type="text"
+        placeholder="e.g. 10:00 AM"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setError(null);
+        }}
+        onBlur={() => {
+          if (!text.trim()) return;
+          const parsed = parseTimeInput(text);
+          if (parsed) {
+            onChange(parsed);
+            setText(formatTime12h(parsed));
+            setError(null);
+          } else {
+            setError("Invalid time");
+          }
+        }}
+      />
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
 
 const emptySlot = (): Omit<SpaServiceAvailability, "id"> => ({
   service_id: "", therapist_id: null, room_id: null,
