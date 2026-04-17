@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info } from "lucide-react";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
-import { useCheckSpaAvailability } from "@/hooks/useSpaBooking";
+import { useCheckSpaAvailability, useSpaBookedSlots } from "@/hooks/useSpaBooking";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import {
   findNextAvailableSlot,
   getServiceWindowForDate,
   latestStartTime,
+  generateAvailableStartTimes,
 } from "@/lib/spaAvailability";
 
 interface AdminSpaBookingModalProps {
