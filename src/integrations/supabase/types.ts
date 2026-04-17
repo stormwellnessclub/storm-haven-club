@@ -4978,6 +4978,7 @@ export type Database = {
           member_price: number | null
           payment_intent_id: string | null
           payment_method: string | null
+          room_id: string | null
           service_category: string
           service_id: string
           service_name: string
@@ -5008,6 +5009,7 @@ export type Database = {
           member_price?: number | null
           payment_intent_id?: string | null
           payment_method?: string | null
+          room_id?: string | null
           service_category: string
           service_id: string
           service_name: string
@@ -5038,6 +5040,7 @@ export type Database = {
           member_price?: number | null
           payment_intent_id?: string | null
           payment_method?: string | null
+          room_id?: string | null
           service_category?: string
           service_id?: string
           service_name?: string
@@ -5076,6 +5079,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spa_appointments_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "spa_rooms"
             referencedColumns: ["id"]
           },
           {
@@ -6178,20 +6188,37 @@ export type Database = {
         Returns: boolean
       }
       check_goal_milestones: { Args: { _goal_id: string }; Returns: undefined }
-      check_spa_appointment_conflict: {
-        Args: {
-          p_appointment_date: string
-          p_appointment_time: string
-          p_cleanup_minutes?: number
-          p_duration_minutes: number
-          p_exclude_appointment_id?: string
-          p_staff_id?: string
-        }
-        Returns: {
-          conflicting_appointment_id: string
-          has_conflict: boolean
-        }[]
-      }
+      check_spa_appointment_conflict:
+        | {
+            Args: {
+              p_appointment_date: string
+              p_appointment_time: string
+              p_cleanup_minutes?: number
+              p_duration_minutes: number
+              p_exclude_appointment_id?: string
+              p_staff_id?: string
+            }
+            Returns: {
+              conflicting_appointment_id: string
+              has_conflict: boolean
+            }[]
+          }
+        | {
+            Args: {
+              p_appointment_date: string
+              p_appointment_time: string
+              p_cleanup_minutes?: number
+              p_duration_minutes: number
+              p_exclude_appointment_id?: string
+              p_room_id?: string
+              p_staff_id?: string
+            }
+            Returns: {
+              conflict_type: string
+              conflicting_appointment_id: string
+              has_conflict: boolean
+            }[]
+          }
       create_atomic_class_booking: {
         Args: {
           _member_credit_id?: string
