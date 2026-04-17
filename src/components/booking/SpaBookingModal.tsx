@@ -67,6 +67,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const { data: agreements } = useAllAgreements();
   const { data: availability } = useSpaServiceAvailability();
   const bookAppointment = useSpaBookAppointment();
+  const { data: bookedSlots } = useSpaBookedSlots(undefined as any);
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime, setSelectedTime] = useState<string>("");
