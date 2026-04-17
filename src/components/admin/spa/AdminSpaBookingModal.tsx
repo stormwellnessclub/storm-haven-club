@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info } from "lucide-react";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
-import { useCheckSpaAvailability } from "@/hooks/useSpaBooking";
+import { useCheckSpaAvailability, useSpaBookedSlots } from "@/hooks/useSpaBooking";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import {
   findNextAvailableSlot,
   getServiceWindowForDate,
   latestStartTime,
+  generateAvailableStartTimes,
 } from "@/lib/spaAvailability";
 
 interface AdminSpaBookingModalProps {
@@ -102,6 +103,9 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
   const dateObj = useMemo(() => new Date(appointmentDate + "T12:00:00"), [appointmentDate]);
 
+  // Existing bookings on this date — used to filter booked slots out of the grid hint
+  const { data: bookedSlots } = useSpaBookedSlots(dateObj);
+
   // Day-level coverage info for the selected service+date
   const coverageOnDate = useMemo(() => {
     if (!serviceId) return false;
@@ -115,6 +119,35 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     if (!w) return null;
     const last = latestStartTime(w.end, selectedService.duration_minutes, selectedService.cleanup_minutes);
     return { start: w.start, end: w.end, latestStart: last };
+  }, [availability, selectedService, serviceId, dateObj]);
+
+  // Available start times remaining on this date for the selected service & resources.
+  // Used to show a "X slots already booked" hint.
+  const availableStartTimes = useMemo(() => {
+    if (!selectedService || !serviceId) return [];
+    return generateAvailableStartTimes(
+      availability,
+      serviceId,
+      dateObj,
+      selectedService.duration_minutes,
+      selectedService.cleanup_minutes,
+      bookedSlots,
+      {
+        therapistId: therapistId !== "auto" ? therapistId : undefined,
+        roomId: roomId !== "auto" ? roomId : undefined,
+      }
+    );
+  }, [availability, selectedService, serviceId, dateObj, bookedSlots, therapistId, roomId]);
+
+  const totalPossibleStartTimes = useMemo(() => {
+    if (!selectedService || !serviceId) return 0;
+    return generateAvailableStartTimes(
+      availability,
+      serviceId,
+      dateObj,
+      selectedService.duration_minutes,
+      selectedService.cleanup_minutes
+    ).length;
   }, [availability, selectedService, serviceId, dateObj]);
 
   // Next-available helper for empty days
@@ -451,6 +484,13 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 {selectedService && (
                   <p className="text-xs text-muted-foreground">
                     Duration: {selectedService.duration_minutes}min + {selectedService.cleanup_minutes}min cleanup
+                  </p>
+                )}
+                {selectedService && totalPossibleStartTimes > 0 && availableStartTimes.length < totalPossibleStartTimes && (
+                  <p className="text-xs text-destructive/80">
+                    {totalPossibleStartTimes - availableStartTimes.length} slot
+                    {totalPossibleStartTimes - availableStartTimes.length === 1 ? "" : "s"} already booked on this date
+                    {therapistId !== "auto" || roomId !== "auto" ? " for this therapist/room" : ""}.
                   </p>
                 )}
               </div>

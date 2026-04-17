@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, addMinutes, parse } from "date-fns";
+import type { BookedSlot } from "@/lib/spaAvailability";
 
 export interface SpaAppointment {
   id: string;
@@ -176,6 +177,7 @@ export function useSpaBookAppointment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
       toast.success("Spa appointment booked successfully!");
     },
     onError: (error: Error) => {
@@ -381,5 +383,46 @@ export function useCancelSpaAppointment() {
     onError: (error: Error) => {
       toast.error(error.message || "Failed to cancel appointment");
     },
+  });
+}
+
+/**
+ * Fetch existing spa appointments for a given date that could conflict with a new
+ * booking. Used by the booking modals to hide already-booked time slots from the grid.
+ */
+export function useSpaBookedSlots(date: Date | undefined | null) {
+  return useQuery({
+    queryKey: ["spa-booked-slots", date ? format(date, "yyyy-MM-dd") : null],
+    queryFn: async (): Promise<BookedSlot[]> => {
+      if (!date) return [];
+      try {
+        const { data, error } = await (supabase.from as any)("spa_appointments")
+          .select("appointment_time, duration_minutes, cleanup_minutes, staff_id, room_id, status")
+          .eq("appointment_date", format(date, "yyyy-MM-dd"))
+          .in("status", ["confirmed", "pending", "checked_in", "in_progress"]);
+
+        if (error) {
+          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+            return [];
+          }
+          throw error;
+        }
+
+        return (data || []).map((d: any) => ({
+          appointment_time: d.appointment_time,
+          duration_minutes: d.duration_minutes ?? 60,
+          cleanup_minutes: d.cleanup_minutes ?? 15,
+          staff_id: d.staff_id,
+          room_id: d.room_id,
+        }));
+      } catch (error: any) {
+        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+          return [];
+        }
+        throw error;
+      }
+    },
+    enabled: !!date,
+    staleTime: 30_000,
   });
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { useSpaBookAppointment } from "@/hooks/useSpaBooking";
+import { useSpaBookAppointment, useSpaBookedSlots } from "@/hooks/useSpaBooking";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useWellnessCredits } from "@/hooks/useWellnessCredits";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -77,6 +77,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
 
+  const { data: bookedSlots } = useSpaBookedSlots(selectedDate);
+
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
   const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
     ? resolvePdfUrl(agreements.liability_waiver[0].pdf_url)
@@ -129,7 +131,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
     setSelectedTime("");
   }, [selectedDate, service?.id]);
 
-  // Compute available start times for this date/service from availability config
+  // Compute available start times for this date/service from availability config,
+  // filtering out slots already booked (including 15-min cleanup buffer).
   const availableStartTimes = useMemo(() => {
     if (!service || !selectedDate) return [];
     return generateAvailableStartTimes(
@@ -137,9 +140,10 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
       service.id,
       selectedDate,
       service.duration_minutes,
-      service.cleanup_minutes
+      service.cleanup_minutes,
+      bookedSlots
     );
-  }, [availability, service, selectedDate]);
+  }, [availability, service, selectedDate, bookedSlots]);
 
   const coverageOnDate = useMemo(() => {
     if (!service || !selectedDate) return false;
