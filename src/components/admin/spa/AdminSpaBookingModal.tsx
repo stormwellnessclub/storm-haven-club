@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,15 +7,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, Search, FileCheck } from "lucide-react";
+import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info } from "lucide-react";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability } from "@/hooks/useSpaBooking";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { format, parse, getDay } from "date-fns";
+import { format, addDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { parseTimeInput } from "@/lib/parseTimeInput";
+import {
+  findCoveringSlot,
+  hasCoverageOnDate,
+  findNextAvailableSlot,
+  getServiceWindowForDate,
+  latestStartTime,
+} from "@/lib/spaAvailability";
 
 interface AdminSpaBookingModalProps {
   open: boolean;
@@ -64,10 +71,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     enabled: memberSearch.length >= 2,
   });
 
-  // Track selected member's waiver status
   const [selectedMemberWaiverSigned, setSelectedMemberWaiverSigned] = useState(false);
 
-  // Check waiver status when member is selected
   const checkMemberWaiver = async (userId: string | null) => {
     if (!userId) {
       setSelectedMemberWaiverSigned(false);
@@ -90,75 +95,82 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setSelectedMemberWaiverSigned(nonMemberData?.waiver_signed === true);
   };
 
-  const selectedService = useMemo(() => 
-    services?.find(s => s.id === serviceId), [services, serviceId]
+  const selectedService = useMemo(
+    () => services?.find((s) => s.id === serviceId),
+    [services, serviceId]
   );
 
-  // Derive available window hint from availability config
-  const availabilityHint = useMemo(() => {
-    if (!serviceId || !appointmentDate || !availability) return null;
-    const dayOfWeek = getDay(new Date(appointmentDate + "T12:00:00"));
-    const serviceSlots = availability.filter(
-      a => a.service_id === serviceId && a.day_of_week === dayOfWeek && a.is_active
-    );
-    if (serviceSlots.length === 0) return null;
-    // Find earliest start and latest end
-    let earliest = "23:59:59";
-    let latest = "00:00:00";
-    for (const slot of serviceSlots) {
-      if (slot.start_time < earliest) earliest = slot.start_time;
-      if (slot.end_time > latest) latest = slot.end_time;
-    }
-    return `Available: ${formatTime12h(earliest)} – ${formatTime12h(latest)}`;
-  }, [serviceId, appointmentDate, availability]);
+  const dateObj = useMemo(() => new Date(appointmentDate + "T12:00:00"), [appointmentDate]);
 
-  // Check for conflicts when time changes
+  // Day-level coverage info for the selected service+date
+  const coverageOnDate = useMemo(() => {
+    if (!serviceId) return false;
+    return hasCoverageOnDate(availability, serviceId, dateObj);
+  }, [availability, serviceId, dateObj]);
+
+  // Window hint with last-booking time
+  const windowHint = useMemo(() => {
+    if (!selectedService) return null;
+    const w = getServiceWindowForDate(availability, serviceId, dateObj);
+    if (!w) return null;
+    const last = latestStartTime(w.end, selectedService.duration_minutes, selectedService.cleanup_minutes);
+    return { start: w.start, end: w.end, latestStart: last };
+  }, [availability, selectedService, serviceId, dateObj]);
+
+  // Next-available helper for empty days
+  const nextAvailable = useMemo(() => {
+    if (!selectedService) return null;
+    if (coverageOnDate) return null;
+    return findNextAvailableSlot(
+      availability,
+      serviceId,
+      dateObj,
+      selectedService.duration_minutes,
+      selectedService.cleanup_minutes
+    );
+  }, [availability, selectedService, serviceId, dateObj, coverageOnDate]);
+
   const checkAvail = useCheckSpaAvailability();
 
-  const runConflictCheck = useCallback(async (time: string) => {
-    setConflict(null);
-    setResolvedTherapistId(null);
-    setResolvedRoomId(null);
-    if (!selectedService) return;
+  const runConflictCheck = useCallback(
+    async (time: string) => {
+      setConflict(null);
+      setResolvedTherapistId(null);
+      setResolvedRoomId(null);
+      if (!selectedService) return;
 
-    // Find availability slot for this time to auto-assign therapist/room
-    const dayOfWeek = getDay(new Date(appointmentDate + "T12:00:00"));
-    const matchingSlot = availability?.find(a => {
-      if (a.service_id !== serviceId || a.day_of_week !== dayOfWeek || !a.is_active) return false;
-      const start = parse(a.start_time, "HH:mm:ss", new Date());
-      const end = parse(a.end_time, "HH:mm:ss", new Date());
-      const t = parse(time, "HH:mm", new Date());
-      return t >= start && t < end;
-    });
+      const slot = findCoveringSlot(
+        availability,
+        serviceId,
+        dateObj,
+        time,
+        selectedService.duration_minutes,
+        selectedService.cleanup_minutes
+      );
 
-    if (!matchingSlot && (therapistId === "auto" || roomId === "auto")) {
-      setConflict("No therapist/room availability covers that time. Choose another time or assign resources manually.");
-      return;
-    }
+      const hasManualTherapist = therapistId !== "auto";
+      const hasManualRoom = roomId !== "auto";
 
-    if (matchingSlot) {
-      if (therapistId === "auto" && matchingSlot.therapist_id) {
-        setResolvedTherapistId(matchingSlot.therapist_id);
+      if (!slot && (!hasManualTherapist || !hasManualRoom)) {
+        setConflict(
+          "That time is outside the configured therapist or room availability for this service. Pick another time, or assign a therapist and room manually to override."
+        );
+        return;
       }
-      if (roomId === "auto" && matchingSlot.room_id) {
-        setResolvedRoomId(matchingSlot.room_id);
+
+      const resolvedTherapist = hasManualTherapist ? therapistId : slot?.therapist_id || null;
+      const resolvedRoom = hasManualRoom ? roomId : slot?.room_id || null;
+      setResolvedTherapistId(resolvedTherapist);
+      setResolvedRoomId(resolvedRoom);
+
+      if (!resolvedTherapist && !resolvedRoom) {
+        setConflict("Please assign a therapist or room to book this appointment.");
+        return;
       }
-    }
 
-    const resolvedTherapist = therapistId !== "auto" ? therapistId : matchingSlot?.therapist_id || null;
-    const resolvedRoom = roomId !== "auto" ? roomId : matchingSlot?.room_id || null;
-    setResolvedTherapistId(resolvedTherapist || null);
-    setResolvedRoomId(resolvedRoom || null);
-
-    if ((therapistId === "auto" && !resolvedTherapist) || (roomId === "auto" && !resolvedRoom)) {
-      setConflict("That time is outside the configured therapist or room availability for this service.");
-      return;
-    }
-
-    if (resolvedTherapist || resolvedRoom) {
       try {
         const result = await checkAvail.mutateAsync({
-          appointmentDate: new Date(appointmentDate),
+          appointmentDate: dateObj,
           appointmentTime: time,
           durationMinutes: selectedService.duration_minutes,
           cleanupMinutes: selectedService.cleanup_minutes,
@@ -166,21 +178,27 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           roomId: resolvedRoom || undefined,
         });
         if (!result.available) {
-          const hasRoomConflict = result.conflictingAppointments.some((c: any) => c._conflictType === "room");
-          const hasTherapistConflict = result.conflictingAppointments.some((c: any) => c._conflictType === "staff");
-          if (hasTherapistConflict && hasRoomConflict) {
-            setConflict("Both the therapist and treatment room are already booked at this time. Please select a different time, therapist, or room.");
-          } else if (hasRoomConflict) {
-            setConflict("This treatment room is already booked at that time. Please select a different time or room.");
+          const types = new Set(result.conflictingAppointments.map((c: any) => c._conflictType));
+          if (types.has("staff") && types.has("room")) {
+            setConflict("Both the therapist and treatment room are already booked at this time. Choose another time, therapist, or room.");
+          } else if (types.has("room")) {
+            setConflict("This treatment room is already booked at that time. Choose another time or room.");
           } else {
             setConflict("This therapist already has a booking at this time. Choose a different time or therapist.");
           }
         }
       } catch {
-        // ignore
+        // ignore — fail-soft, server will reject if needed
       }
-    }
-  }, [selectedService, appointmentDate, availability, serviceId, therapistId, roomId, checkAvail]);
+    },
+    [selectedService, dateObj, availability, serviceId, therapistId, roomId, checkAvail]
+  );
+
+  // Re-run conflict check when therapist/room/date change after a time was set
+  useEffect(() => {
+    if (appointmentTime) void runConflictCheck(appointmentTime);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [therapistId, roomId, appointmentDate]);
 
   const handleTimeInputBlur = () => {
     if (!timeInputDisplay.trim()) {
@@ -211,27 +229,26 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     mutationFn: async () => {
       if (!selectedService || !appointmentTime) throw new Error("Missing required fields");
       if (conflict) throw new Error(conflict);
-      
+
       const resolvedTherapist = therapistId !== "auto" ? therapistId : resolvedTherapistId || null;
       const resolvedRoom = roomId !== "auto" ? roomId : resolvedRoomId || null;
 
-      if ((therapistId === "auto" && !resolvedTherapist) || (roomId === "auto" && !resolvedRoom)) {
-        throw new Error("Please choose a time that has both therapist and room coverage.");
+      if (!resolvedTherapist && !resolvedRoom) {
+        throw new Error("Please assign a therapist or room before booking.");
       }
 
-      if (selectedService && appointmentTime) {
-        const result = await checkAvail.mutateAsync({
-          appointmentDate: new Date(appointmentDate),
-          appointmentTime,
-          durationMinutes: selectedService.duration_minutes,
-          cleanupMinutes: selectedService.cleanup_minutes,
-          staffId: resolvedTherapist || undefined,
-          roomId: resolvedRoom || undefined,
-        });
+      // Final check via server RPC
+      const result = await checkAvail.mutateAsync({
+        appointmentDate: dateObj,
+        appointmentTime,
+        durationMinutes: selectedService.duration_minutes,
+        cleanupMinutes: selectedService.cleanup_minutes,
+        staffId: resolvedTherapist || undefined,
+        roomId: resolvedRoom || undefined,
+      });
 
-        if (!result.available) {
-          throw new Error("That therapist or room is already blocked for the full service plus cleanup time.");
-        }
+      if (!result.available) {
+        throw new Error("That therapist or room is already blocked for the full service plus cleanup time.");
       }
 
       let memberUserId: string | null = null;
@@ -293,9 +310,9 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setSelectedMemberWaiverSigned(false);
   };
 
-  const activeServices = services?.filter(s => s.is_active) || [];
-  const activeTherapists = therapists?.filter(t => t.is_active) || [];
-  const activeRooms = rooms?.filter(r => r.is_active) || [];
+  const activeServices = services?.filter((s) => s.is_active) || [];
+  const activeTherapists = therapists?.filter((t) => t.is_active) || [];
+  const activeRooms = rooms?.filter((r) => r.is_active) || [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -321,11 +338,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                   className="pl-9"
                   placeholder="Search member by name or email..."
                   value={memberSearch}
-                  onChange={e => setMemberSearch(e.target.value)}
+                  onChange={(e) => setMemberSearch(e.target.value)}
                 />
                 {memberResults && memberResults.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto">
-                    {memberResults.map(m => (
+                    {memberResults.map((m) => (
                       <button
                         key={m.id}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex justify-between"
@@ -346,7 +363,6 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             )}
           </div>
 
-          {/* Waiver Warning */}
           {selectedMemberId && !selectedMemberWaiverSigned && (
             <Alert className="bg-destructive/10 border-destructive/30">
               <FileCheck className="h-4 w-4 text-destructive" />
@@ -360,10 +376,10 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           {/* Service */}
           <div>
             <Label>Service *</Label>
-            <Select value={serviceId} onValueChange={v => { setServiceId(v); setAppointmentTime(""); setTimeInputDisplay(""); setTimeError(null); setConflict(null); }}>
+            <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setAppointmentTime(""); setTimeInputDisplay(""); setTimeError(null); setConflict(null); }}>
               <SelectTrigger><SelectValue placeholder="Select service" /></SelectTrigger>
               <SelectContent>
-                {activeServices.map(s => (
+                {activeServices.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name} — {s.duration_minutes}min — ${s.price}
                   </SelectItem>
@@ -375,14 +391,43 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           {/* Date */}
           <div>
             <Label>Date *</Label>
-            <Input 
-              type="date" 
-              value={appointmentDate} 
-              onChange={e => { setAppointmentDate(e.target.value); setAppointmentTime(""); setTimeInputDisplay(""); setTimeError(null); setConflict(null); }}
+            <Input
+              type="date"
+              value={appointmentDate}
+              onChange={(e) => { setAppointmentDate(e.target.value); setAppointmentTime(""); setTimeInputDisplay(""); setTimeError(null); setConflict(null); }}
             />
+            {serviceId && !coverageOnDate && (
+              <div className="mt-2 rounded-md border bg-muted/30 p-3 space-y-2">
+                <p className="text-sm flex items-center gap-2">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                  No appointments available on {format(dateObj, "EEEE, MMMM d")}.
+                </p>
+                {nextAvailable ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-between"
+                    onClick={() => {
+                      setAppointmentDate(format(nextAvailable.date, "yyyy-MM-dd"));
+                      setAppointmentTime(nextAvailable.time);
+                      setTimeInputDisplay(formatTime12h(nextAvailable.time));
+                    }}
+                  >
+                    <span>
+                      Next available: {format(nextAvailable.date, "EEE, MMM d")} at {formatTime12h(nextAvailable.time)}
+                    </span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No availability found in the next 60 days. Assign a therapist + room manually below to override.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Time — Free-text input */}
+          {/* Time */}
           <div>
             <Label>Time *</Label>
             {serviceId && appointmentDate ? (
@@ -390,7 +435,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 <Input
                   placeholder="e.g. 10:00 AM or 2:30 PM"
                   value={timeInputDisplay}
-                  onChange={e => { setTimeInputDisplay(e.target.value); setTimeError(null); }}
+                  onChange={(e) => { setTimeInputDisplay(e.target.value); setTimeError(null); }}
                   onBlur={handleTimeInputBlur}
                   onKeyDown={handleTimeKeyDown}
                   error={!!timeError}
@@ -398,8 +443,10 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 {timeError && (
                   <p className="text-xs text-destructive">{timeError}</p>
                 )}
-                {availabilityHint && (
-                  <p className="text-xs text-muted-foreground">{availabilityHint}</p>
+                {windowHint && (
+                  <p className="text-xs text-muted-foreground">
+                    Available: {formatTime12h(windowHint.start)} – {formatTime12h(windowHint.end)} (last booking {formatTime12h(windowHint.latestStart)})
+                  </p>
                 )}
                 {selectedService && (
                   <p className="text-xs text-muted-foreground">
@@ -422,18 +469,18 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           {/* Therapist */}
           <div>
             <Label>Therapist</Label>
-            <Select value={therapistId} onValueChange={(value) => { setTherapistId(value); if (appointmentTime) void runConflictCheck(appointmentTime); }}>
+            <Select value={therapistId} onValueChange={setTherapistId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto-assign</SelectItem>
-                {activeTherapists.map(t => (
+                {activeTherapists.map((t) => (
                   <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {therapistId === "auto" && resolvedTherapistId && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Auto-assigned therapist: {activeTherapists.find(t => t.id === resolvedTherapistId)?.full_name || "Assigned"}
+                Auto-assigned therapist: {activeTherapists.find((t) => t.id === resolvedTherapistId)?.full_name || "Assigned"}
               </p>
             )}
           </div>
@@ -441,18 +488,18 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           {/* Room */}
           <div>
             <Label>Room</Label>
-            <Select value={roomId} onValueChange={(value) => { setRoomId(value); if (appointmentTime) void runConflictCheck(appointmentTime); }}>
+            <Select value={roomId} onValueChange={setRoomId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Auto-assign</SelectItem>
-                {activeRooms.map(r => (
+                {activeRooms.map((r) => (
                   <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {roomId === "auto" && resolvedRoomId && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Auto-assigned room: {activeRooms.find(r => r.id === resolvedRoomId)?.name || "Assigned"}
+                Auto-assigned room: {activeRooms.find((r) => r.id === resolvedRoomId)?.name || "Assigned"}
               </p>
             )}
           </div>
@@ -474,9 +521,9 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           {/* Notes */}
           <div>
             <Label>Staff Notes</Label>
-            <Textarea 
-              value={staffNotes} 
-              onChange={e => setStaffNotes(e.target.value)}
+            <Textarea
+              value={staffNotes}
+              onChange={(e) => setStaffNotes(e.target.value)}
               placeholder="Internal notes..."
               rows={2}
             />
@@ -485,9 +532,9 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button 
-            onClick={() => bookMutation.mutate()} 
-            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (selectedMemberId && !selectedMemberWaiverSigned)}
+          <Button
+            onClick={() => bookMutation.mutate()}
+            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (!!selectedMemberId && !selectedMemberWaiverSigned)}
           >
             {bookMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Book Appointment
