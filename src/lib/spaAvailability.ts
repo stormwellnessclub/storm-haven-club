@@ -8,6 +8,20 @@ export interface AvailabilitySlotMatch {
   end_time: string;
 }
 
+export interface BookedSlot {
+  appointment_time: string; // "HH:mm" or "HH:mm:ss"
+  duration_minutes: number;
+  cleanup_minutes: number;
+  staff_id: string | null;
+  room_id: string | null;
+}
+
+/** Convert "HH:mm" or "HH:mm:ss" to total minutes since midnight. */
+function toMin(t: string): number {
+  const [h, m] = t.split(":").map((n) => parseInt(n, 10));
+  return h * 60 + m;
+}
+
 const TIME_GRID = [
   "09:00", "09:15", "09:30", "09:45",
   "10:00", "10:15", "10:30", "10:45",
