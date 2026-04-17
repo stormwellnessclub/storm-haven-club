@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, addMinutes, parse } from "date-fns";
+import type { BookedSlot } from "@/lib/spaAvailability";
 
 export interface SpaAppointment {
   id: string;
