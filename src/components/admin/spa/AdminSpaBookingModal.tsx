@@ -487,7 +487,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                   </p>
                 )}
                 {selectedService && totalPossibleStartTimes > 0 && availableStartTimes.length < totalPossibleStartTimes && (
-                  <p className="text-xs text-amber-600 dark:text-amber-500">
+                  <p className="text-xs text-destructive/80">
                     {totalPossibleStartTimes - availableStartTimes.length} slot
                     {totalPossibleStartTimes - availableStartTimes.length === 1 ? "" : "s"} already booked on this date
                     {therapistId !== "auto" || roomId !== "auto" ? " for this therapist/room" : ""}.
