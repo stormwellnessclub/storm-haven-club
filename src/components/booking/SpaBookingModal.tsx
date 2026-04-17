@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { useSpaBookAppointment } from "@/hooks/useSpaBooking";
+import { useSpaBookAppointment, useSpaBookedSlots } from "@/hooks/useSpaBooking";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useWellnessCredits } from "@/hooks/useWellnessCredits";
 import { useUserProfile } from "@/hooks/useUserProfile";
