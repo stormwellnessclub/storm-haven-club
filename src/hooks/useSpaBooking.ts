@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, addMinutes, parseISO, parse } from "date-fns";
+import { format, addMinutes, parse } from "date-fns";
 
 export interface SpaAppointment {
   id: string;
@@ -45,6 +45,7 @@ interface BookSpaAppointmentParams {
   paymentMethod: "card" | "member_account" | "credit";
   paymentIntentId?: string;
   staffId?: string;
+  roomId?: string;
   creditType?: "red_light" | "dry_cryo";
   creditId?: string;
 }
@@ -68,33 +69,42 @@ export function useSpaBookAppointment() {
         throw new Error("You must be signed in to book an appointment");
       }
 
-      // Check for conflicts only when a specific staff member is assigned
-      // Without a staff/room constraint, member bookings shouldn't globally block slots
-      if (params.staffId) {
-        try {
-          const appointmentTimeStr = format(parse(params.appointmentTime, "HH:mm", new Date()), "HH:mm:ss");
-          const { data: conflictCheck, error: conflictError } = await (supabase.rpc as any)('check_spa_appointment_conflict', {
+      const cleanup = params.cleanupMinutes ?? 15;
+      const appointmentTimeStr = format(
+        parse(params.appointmentTime, "HH:mm", new Date()),
+        "HH:mm:ss"
+      );
+
+      // Server-side conflict check (therapist + room aware)
+      if (params.staffId || params.roomId) {
+        const { data: conflictCheck, error: conflictError } = await (supabase.rpc as any)(
+          "check_spa_appointment_conflict",
+          {
             p_appointment_date: format(params.appointmentDate, "yyyy-MM-dd"),
             p_appointment_time: appointmentTimeStr,
             p_duration_minutes: params.durationMinutes,
-            p_cleanup_minutes: params.cleanupMinutes || 15,
-            p_staff_id: params.staffId,
-            p_exclude_appointment_id: null
-          });
+            p_cleanup_minutes: cleanup,
+            p_staff_id: params.staffId || null,
+            p_room_id: params.roomId || null,
+            p_exclude_appointment_id: null,
+          }
+        );
 
-          if (conflictError) {
-            if (!(conflictError.code === "42883" || conflictError.message?.includes("does not exist"))) {
-              throw conflictError;
-            }
-          } else if (conflictCheck && conflictCheck.length > 0 && conflictCheck[0].has_conflict) {
-            throw new Error('This time slot is already booked. Please select a different time.');
+        if (conflictError) {
+          if (
+            !(
+              conflictError.code === "42883" ||
+              conflictError.message?.includes("does not exist")
+            )
+          ) {
+            throw conflictError;
           }
-        } catch (error: any) {
-          if (error?.message?.includes('already booked')) {
-            throw error;
+        } else if (conflictCheck && conflictCheck.length > 0 && conflictCheck[0].has_conflict) {
+          const kind = conflictCheck[0].conflict_type;
+          if (kind === "room") {
+            throw new Error("This treatment room is already booked at that time. Please choose a different time.");
           }
-          // For other errors (missing function, etc.), allow booking to proceed
-          console.warn('Conflict check skipped:', error?.message);
+          throw new Error("This time slot is already booked. Please select a different time.");
         }
       }
 
@@ -110,7 +120,6 @@ export function useSpaBookAppointment() {
       let memberPrice = null;
 
       if (memberData) {
-        // Apply member discount based on tier
         const tier = memberData.membership_type?.toLowerCase() || "";
         let discount = 0;
         if (tier.includes("diamond")) discount = 0.12;
@@ -124,7 +133,6 @@ export function useSpaBookAppointment() {
         }
       }
 
-      // Create appointment
       try {
         const { data, error } = await (supabase.from as any)("spa_appointments")
           .insert({
@@ -136,15 +144,16 @@ export function useSpaBookAppointment() {
             service_price: params.servicePrice,
             member_price: memberPrice,
             appointment_date: format(params.appointmentDate, "yyyy-MM-dd"),
-            appointment_time: format(parse(params.appointmentTime, "HH:mm", new Date()), "HH:mm:ss"),
+            appointment_time: appointmentTimeStr,
             duration_minutes: params.durationMinutes,
-            cleanup_minutes: params.cleanupMinutes || 15,
+            cleanup_minutes: cleanup,
             status: "confirmed",
             member_notes: params.memberNotes || null,
             payment_method: params.paymentMethod,
             payment_intent_id: params.paymentIntentId || null,
             amount_paid: finalPrice,
             staff_id: params.staffId || null,
+            room_id: params.roomId || null,
           })
           .select()
           .single();
@@ -166,6 +175,7 @@ export function useSpaBookAppointment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       toast.success("Spa appointment booked successfully!");
     },
     onError: (error: Error) => {
@@ -176,85 +186,108 @@ export function useSpaBookAppointment() {
 
 export function useCheckSpaAvailability() {
   return useMutation({
-    mutationFn: async ({ appointmentDate, appointmentTime, durationMinutes, cleanupMinutes, staffId, roomId }: CheckAvailabilityParams) => {
-      // If no specific staff or room is provided, the slot is always available
-      // from the member's perspective — resource conflicts are checked at booking time
+    mutationFn: async ({
+      appointmentDate,
+      appointmentTime,
+      durationMinutes,
+      cleanupMinutes,
+      staffId,
+      roomId,
+    }: CheckAvailabilityParams) => {
+      // Without resource constraints, treat as available — resource conflicts
+      // are enforced at booking time by the database.
       if (!staffId && !roomId) {
         return { available: true, conflictingAppointments: [] };
       }
 
+      const cleanup = cleanupMinutes ?? 15;
+      const appointmentTimeStr = format(parse(appointmentTime, "HH:mm", new Date()), "HH:mm:ss");
+
+      // Try the server RPC first (authoritative).
+      try {
+        const { data, error } = await (supabase.rpc as any)("check_spa_appointment_conflict", {
+          p_appointment_date: format(appointmentDate, "yyyy-MM-dd"),
+          p_appointment_time: appointmentTimeStr,
+          p_duration_minutes: durationMinutes,
+          p_cleanup_minutes: cleanup,
+          p_staff_id: staffId || null,
+          p_room_id: roomId || null,
+          p_exclude_appointment_id: null,
+        });
+        if (!error && data && data.length > 0) {
+          if (data[0].has_conflict) {
+            return {
+              available: false,
+              conflictingAppointments: [
+                {
+                  id: data[0].conflicting_appointment_id,
+                  _conflictType: data[0].conflict_type,
+                },
+              ],
+            };
+          }
+          return { available: true, conflictingAppointments: [] };
+        }
+      } catch {
+        // fall through to client-side check
+      }
+
+      // Client-side fallback (legacy path)
       const timeObj = parse(appointmentTime, "HH:mm", new Date());
       const appointmentDateTime = new Date(appointmentDate);
       appointmentDateTime.setHours(timeObj.getHours(), timeObj.getMinutes(), 0, 0);
-      const cleanup = cleanupMinutes ?? 15;
       const endDateTime = addMinutes(appointmentDateTime, durationMinutes + cleanup);
 
-      const checkOverlap = (data: any[]) => {
-        return (data || []).filter((apt: any) => {
+      const checkOverlap = (rows: any[]) =>
+        (rows || []).filter((apt: any) => {
           const aptStart = parse(apt.appointment_time, "HH:mm:ss", new Date());
           const aptStartFull = new Date(appointmentDate);
           aptStartFull.setHours(aptStart.getHours(), aptStart.getMinutes(), 0, 0);
-          const aptEnd = addMinutes(aptStartFull, (apt.duration_minutes || 60) + (apt.cleanup_minutes || 15));
-
+          const aptEnd = addMinutes(
+            aptStartFull,
+            (apt.duration_minutes || 60) + (apt.cleanup_minutes || 15)
+          );
           return (
             (appointmentDateTime >= aptStartFull && appointmentDateTime < aptEnd) ||
             (endDateTime > aptStartFull && endDateTime <= aptEnd) ||
             (appointmentDateTime <= aptStartFull && endDateTime >= aptEnd)
           );
         });
-      };
 
+      const allConflicting: any[] = [];
       try {
-        let allConflicting: any[] = [];
-
         if (staffId) {
-          const { data, error } = await (supabase.from as any)("spa_appointments")
+          const { data } = await (supabase.from as any)("spa_appointments")
             .select("id, appointment_time, duration_minutes, cleanup_minutes, service_name, staff_id, room_id")
             .eq("appointment_date", format(appointmentDate, "yyyy-MM-dd"))
             .in("status", ["confirmed", "pending"])
             .eq("staff_id", staffId);
-
-          if (!error) {
-            allConflicting.push(
-              ...checkOverlap(data).map((apt: any) => ({
-                ...apt,
-                _conflictType: "staff",
-              }))
-            );
+          for (const apt of checkOverlap(data || [])) {
+            allConflicting.push({ ...apt, _conflictType: "staff" });
           }
         }
-
         if (roomId) {
-          const { data, error } = await (supabase.from as any)("spa_appointments")
+          const { data } = await (supabase.from as any)("spa_appointments")
             .select("id, appointment_time, duration_minutes, cleanup_minutes, service_name, staff_id, room_id")
             .eq("appointment_date", format(appointmentDate, "yyyy-MM-dd"))
             .in("status", ["confirmed", "pending"])
             .eq("room_id", roomId);
-
-          if (!error) {
-            const roomConflicts = checkOverlap(data).map((apt: any) => ({
-              ...apt,
-              _conflictType: "room",
-            }));
-            const existingIds = new Set(allConflicting.map((c: any) => `${c.id}:${c._conflictType}`));
-            for (const rc of roomConflicts) {
-              if (!existingIds.has(`${rc.id}:${rc._conflictType}`)) {
-                allConflicting.push(rc);
-              }
-            }
+          const seen = new Set(allConflicting.map((c: any) => c.id));
+          for (const apt of checkOverlap(data || [])) {
+            if (!seen.has(apt.id)) allConflicting.push({ ...apt, _conflictType: "room" });
           }
         }
-
-        return {
-          available: allConflicting.length === 0,
-          conflictingAppointments: allConflicting,
-        };
       } catch (error: any) {
         if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
           return { available: true, conflictingAppointments: [] };
         }
         throw error;
       }
+
+      return {
+        available: allConflicting.length === 0,
+        conflictingAppointments: allConflicting,
+      };
     },
   });
 }
@@ -268,14 +301,12 @@ export function useMySpaAppointments() {
       if (!user) return [];
 
       try {
-        // First get the member_id for this user
         const { data: memberData } = await supabase
           .from("members")
           .select("id")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        // Query by user_id OR member_id so admin-booked appointments also appear
         let query = (supabase.from as any)("spa_appointments")
           .select("*")
           .order("appointment_date", { ascending: true })
@@ -344,6 +375,7 @@ export function useCancelSpaAppointment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       toast.success("Appointment cancelled successfully");
     },
     onError: (error: Error) => {
@@ -351,6 +383,3 @@ export function useCancelSpaAppointment() {
     },
   });
 }
-
-
-
