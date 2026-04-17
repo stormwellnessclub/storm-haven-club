@@ -486,6 +486,13 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                     Duration: {selectedService.duration_minutes}min + {selectedService.cleanup_minutes}min cleanup
                   </p>
                 )}
+                {selectedService && totalPossibleStartTimes > 0 && availableStartTimes.length < totalPossibleStartTimes && (
+                  <p className="text-xs text-amber-600 dark:text-amber-500">
+                    {totalPossibleStartTimes - availableStartTimes.length} slot
+                    {totalPossibleStartTimes - availableStartTimes.length === 1 ? "" : "s"} already booked on this date
+                    {therapistId !== "auto" || roomId !== "auto" ? " for this therapist/room" : ""}.
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">Select a service and date first</p>
