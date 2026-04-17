@@ -112,7 +112,9 @@ export function generateAvailableStartTimes(
   serviceId: string,
   date: Date,
   durationMinutes: number,
-  cleanupMinutes: number
+  cleanupMinutes: number,
+  bookedSlots?: BookedSlot[],
+  resourceFilter?: { therapistId?: string | null; roomId?: string | null }
 ): string[] {
   if (!availability) return [];
   const dow = getDay(date);
@@ -125,7 +127,42 @@ export function generateAvailableStartTimes(
   for (const t of TIME_GRID) {
     const endT = addMinutesToTime(t, durationMinutes + cleanupMinutes);
     const fits = windows.some((w) => t >= trim(w.start_time) && endT <= trim(w.end_time));
-    if (fits) slots.add(t);
+    if (!fits) continue;
+
+    // Check booked-slot conflicts (therapist or room overlap, including 15-min cleanup)
+    if (bookedSlots && bookedSlots.length > 0) {
+      const newStart = toMin(t);
+      const newEnd = newStart + durationMinutes + cleanupMinutes;
+
+      // Determine which window will satisfy this slot, to know what therapist/room
+      // will be auto-assigned (if no manual override).
+      const coveringWindow = windows.find(
+        (w) => t >= trim(w.start_time) && endT <= trim(w.end_time)
+      );
+      const intendedTherapist =
+        resourceFilter?.therapistId !== undefined
+          ? resourceFilter.therapistId
+          : coveringWindow?.therapist_id || null;
+      const intendedRoom =
+        resourceFilter?.roomId !== undefined
+          ? resourceFilter.roomId
+          : coveringWindow?.room_id || null;
+
+      const conflicts = bookedSlots.some((b) => {
+        const bStart = toMin(trim(b.appointment_time));
+        const bEnd = bStart + (b.duration_minutes || 0) + (b.cleanup_minutes || 0);
+        const overlaps = newStart < bEnd && bStart < newEnd;
+        if (!overlaps) return false;
+        const sameTherapist =
+          !!intendedTherapist && !!b.staff_id && intendedTherapist === b.staff_id;
+        const sameRoom = !!intendedRoom && !!b.room_id && intendedRoom === b.room_id;
+        return sameTherapist || sameRoom;
+      });
+
+      if (conflicts) continue;
+    }
+
+    slots.add(t);
   }
   return Array.from(slots).sort();
 }
