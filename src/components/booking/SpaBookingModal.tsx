@@ -67,7 +67,6 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const { data: agreements } = useAllAgreements();
   const { data: availability } = useSpaServiceAvailability();
   const bookAppointment = useSpaBookAppointment();
-  const { data: bookedSlots } = useSpaBookedSlots(undefined as any);
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -77,6 +76,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("card");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
+
+  const { data: bookedSlots } = useSpaBookedSlots(selectedDate);
 
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
   const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
@@ -130,7 +131,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
     setSelectedTime("");
   }, [selectedDate, service?.id]);
 
-  // Compute available start times for this date/service from availability config
+  // Compute available start times for this date/service from availability config,
+  // filtering out slots already booked (including 15-min cleanup buffer).
   const availableStartTimes = useMemo(() => {
     if (!service || !selectedDate) return [];
     return generateAvailableStartTimes(
@@ -138,9 +140,10 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
       service.id,
       selectedDate,
       service.duration_minutes,
-      service.cleanup_minutes
+      service.cleanup_minutes,
+      bookedSlots
     );
-  }, [availability, service, selectedDate]);
+  }, [availability, service, selectedDate, bookedSlots]);
 
   const coverageOnDate = useMemo(() => {
     if (!service || !selectedDate) return false;
