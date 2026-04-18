@@ -704,5 +704,14 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         </div>
       </DialogContent>
     </Dialog>
+
+    <IntakeFormDialog
+      open={intakeOpen}
+      onOpenChange={setIntakeOpen}
+      appointmentId={intakeAppointmentId}
+      memberId={intakeMemberId}
+      serviceName={service?.name}
+    />
+    </>
   );
 }
