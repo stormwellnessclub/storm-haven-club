@@ -226,6 +226,11 @@ export function SpaCompletionDialog({
             <p className="text-sm font-semibold">${servicePrice.toFixed(2)}</p>
           </div>
 
+          {/* Intake form summary */}
+          <div className="p-3 rounded-lg border bg-muted/20">
+            <IntakeFormSummary intake={intake} />
+          </div>
+
           {/* Payment method */}
           <div className="space-y-2">
             <Label className="font-medium">Payment Method</Label>
