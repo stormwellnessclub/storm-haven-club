@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
+import { useIntakeForm } from "@/hooks/useSpaIntake";
+import { IntakeFormSummary } from "@/components/spa/IntakeFormSummary";
 
 interface SpaCompletionDialogProps {
   open: boolean;
@@ -44,6 +46,8 @@ export function SpaCompletionDialog({
   const [customTip, setCustomTip] = useState("");
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const { data: intake } = useIntakeForm(appointment?.id ?? null);
 
   // Pre-populate fields when appointment changes — in useEffect, not during render
   useEffect(() => {
@@ -220,6 +224,11 @@ export function SpaCompletionDialog({
             <p className="font-medium">{memberName}</p>
             <p className="text-sm text-muted-foreground">{appointment.service_name}</p>
             <p className="text-sm font-semibold">${servicePrice.toFixed(2)}</p>
+          </div>
+
+          {/* Intake form summary */}
+          <div className="p-3 rounded-lg border bg-muted/20">
+            <IntakeFormSummary intake={intake} />
           </div>
 
           {/* Payment method */}

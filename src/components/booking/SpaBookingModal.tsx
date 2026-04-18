@@ -47,6 +47,7 @@ import { toast } from "sonner";
 import { formatTime12h } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
+import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
 
 
 interface SpaBookingModalProps {
@@ -78,6 +79,11 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
 
   const { data: bookedSlots } = useSpaBookedSlots(selectedDate);
+
+  // Intake form follow-up state
+  const [intakeOpen, setIntakeOpen] = useState(false);
+  const [intakeAppointmentId, setIntakeAppointmentId] = useState<string | null>(null);
+  const [intakeMemberId, setIntakeMemberId] = useState<string | null>(null);
 
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
   const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
@@ -252,6 +258,19 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         if (!result?.success) throw new Error(result?.error || "Failed to book with wellness credit");
 
         refetchCredits();
+
+        // Capture appointment id for intake follow-up (RPC returns it as appointment_id)
+        const newAppointmentId = result?.appointment_id || result?.id || null;
+        if (service.requires_intake_form && newAppointmentId) {
+          setIntakeAppointmentId(newAppointmentId);
+          setIntakeMemberId(null);
+          onOpenChange(false);
+          setIntakeOpen(true);
+          setSelectedDate(undefined);
+          setSelectedTime("");
+          setMemberNotes("");
+          return;
+        }
       } else {
         if (paymentMethod === "card" && selectedPaymentMethodId) {
           const { data: memberData } = await supabase
@@ -282,7 +301,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
           paymentIntentId = chargeData?.paymentIntentId || chargeData?.id;
         }
 
-        await bookAppointment.mutateAsync({
+        const appt = await bookAppointment.mutateAsync({
           serviceId: service.id,
           serviceName: service.name,
           serviceCategory: service.category,
@@ -297,6 +316,17 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
           staffId: slot.therapist_id || undefined,
           roomId: slot.room_id || undefined,
         });
+
+        if (service.requires_intake_form && appt?.id) {
+          setIntakeAppointmentId(appt.id);
+          setIntakeMemberId(appt.member_id || null);
+          onOpenChange(false);
+          setIntakeOpen(true);
+          setSelectedDate(undefined);
+          setSelectedTime("");
+          setMemberNotes("");
+          return;
+        }
       }
 
       onOpenChange(false);
@@ -313,6 +343,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const maxDate = addMonths(new Date(), 3);
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -674,5 +705,14 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         </div>
       </DialogContent>
     </Dialog>
+
+    <IntakeFormDialog
+      open={intakeOpen}
+      onOpenChange={setIntakeOpen}
+      appointmentId={intakeAppointmentId}
+      memberId={intakeMemberId}
+      serviceName={service?.name}
+    />
+    </>
   );
 }

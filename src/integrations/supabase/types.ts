@@ -5097,6 +5097,77 @@ export type Database = {
           },
         ]
       }
+      spa_intake_forms: {
+        Row: {
+          allergies: string | null
+          appointment_id: string
+          areas_to_avoid: string | null
+          consent_signed: boolean
+          consent_signed_at: string | null
+          created_at: string
+          focus_areas: string[] | null
+          goals: string | null
+          health_conditions: string[] | null
+          id: string
+          medications: string | null
+          member_id: string | null
+          pain_areas: string | null
+          pain_level: number | null
+          pressure_preference: string | null
+          prior_massage_experience: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allergies?: string | null
+          appointment_id: string
+          areas_to_avoid?: string | null
+          consent_signed?: boolean
+          consent_signed_at?: string | null
+          created_at?: string
+          focus_areas?: string[] | null
+          goals?: string | null
+          health_conditions?: string[] | null
+          id?: string
+          medications?: string | null
+          member_id?: string | null
+          pain_areas?: string | null
+          pain_level?: number | null
+          pressure_preference?: string | null
+          prior_massage_experience?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allergies?: string | null
+          appointment_id?: string
+          areas_to_avoid?: string | null
+          consent_signed?: boolean
+          consent_signed_at?: string | null
+          created_at?: string
+          focus_areas?: string[] | null
+          goals?: string | null
+          health_conditions?: string[] | null
+          id?: string
+          medications?: string | null
+          member_id?: string | null
+          pain_areas?: string | null
+          pain_level?: number | null
+          pressure_preference?: string | null
+          prior_massage_experience?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_intake_forms_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_rooms: {
         Row: {
           created_at: string
