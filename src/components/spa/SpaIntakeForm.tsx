@@ -7,8 +7,8 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BodyDiagram } from "./BodyDiagram";
 import {
-  FOCUS_AREAS,
   HEALTH_CONDITIONS,
   PRESSURE_OPTIONS,
   EXPERIENCE_OPTIONS,
@@ -115,26 +115,7 @@ export function SpaIntakeForm({
             (select all that apply)
           </span>
         </Label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {FOCUS_AREAS.map((area) => {
-            const selected = focusAreas.includes(area.value);
-            return (
-              <button
-                key={area.value}
-                type="button"
-                onClick={() => toggle(focusAreas, setFocusAreas, area.value)}
-                className={cn(
-                  "px-3 py-2 text-sm rounded-md border text-left transition-colors",
-                  selected
-                    ? "bg-accent text-accent-foreground border-accent font-medium"
-                    : "bg-background hover:bg-secondary border-border",
-                )}
-              >
-                {area.label}
-              </button>
-            );
-          })}
-        </div>
+        <BodyDiagram selected={focusAreas} onChange={setFocusAreas} />
         {focusAreas.length === 0 && (
           <p className="text-xs text-muted-foreground">Pick at least one area to focus on.</p>
         )}

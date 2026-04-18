@@ -8,6 +8,7 @@ import {
   EXPERIENCE_OPTIONS,
 } from "@/hooks/useSpaIntake";
 import { format } from "date-fns";
+import { BodyDiagramReadOnly } from "./BodyDiagramReadOnly";
 
 interface Props {
   intake: SpaIntakeForm | null | undefined;
@@ -45,12 +46,15 @@ export function IntakeFormSummary({ intake, showEmptyState = true }: Props) {
 
       {intake.focus_areas?.length > 0 && (
         <Field label="Focus areas">
-          <div className="flex flex-wrap gap-1">
-            {intake.focus_areas.map((a) => (
-              <Badge key={a} variant="secondary" className="text-xs">
-                {getFocusAreaLabel(a)}
-              </Badge>
-            ))}
+          <div className="space-y-2">
+            <BodyDiagramReadOnly selected={intake.focus_areas} />
+            <div className="flex flex-wrap gap-1">
+              {intake.focus_areas.map((a) => (
+                <Badge key={a} variant="secondary" className="text-xs">
+                  {getFocusAreaLabel(a)}
+                </Badge>
+              ))}
+            </div>
           </div>
         </Field>
       )}
