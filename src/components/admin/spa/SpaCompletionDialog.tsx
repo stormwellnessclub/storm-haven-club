@@ -47,6 +47,8 @@ export function SpaCompletionDialog({
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const { data: intake } = useIntakeForm(appointment?.id ?? null);
+
   // Pre-populate fields when appointment changes — in useEffect, not during render
   useEffect(() => {
     if (!appointment) return;
