@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
+import { useIntakeForm } from "@/hooks/useSpaIntake";
+import { IntakeFormSummary } from "@/components/spa/IntakeFormSummary";
 
 interface SpaCompletionDialogProps {
   open: boolean;
