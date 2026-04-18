@@ -47,6 +47,7 @@ import { toast } from "sonner";
 import { formatTime12h } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
+import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
 
 
 interface SpaBookingModalProps {
@@ -78,6 +79,11 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
 
   const { data: bookedSlots } = useSpaBookedSlots(selectedDate);
+
+  // Intake form follow-up state
+  const [intakeOpen, setIntakeOpen] = useState(false);
+  const [intakeAppointmentId, setIntakeAppointmentId] = useState<string | null>(null);
+  const [intakeMemberId, setIntakeMemberId] = useState<string | null>(null);
 
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
   const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
