@@ -5579,6 +5579,119 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_shift_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          effective_from: string | null
+          effective_to: string | null
+          end_time: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          person_name: string | null
+          person_ref: string | null
+          position: string | null
+          start_time: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          effective_from?: string | null
+          effective_to?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          person_name?: string | null
+          person_ref?: string | null
+          position?: string | null
+          start_time: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          effective_from?: string | null
+          effective_to?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          person_name?: string | null
+          person_ref?: string | null
+          position?: string | null
+          start_time?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      staff_shifts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_time: string
+          id: string
+          notes: string | null
+          person_name: string | null
+          person_ref: string | null
+          position: string | null
+          shift_date: string
+          start_time: string
+          status: Database["public"]["Enums"]["staff_shift_status"]
+          template_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_time: string
+          id?: string
+          notes?: string | null
+          person_name?: string | null
+          person_ref?: string | null
+          position?: string | null
+          shift_date: string
+          start_time: string
+          status?: Database["public"]["Enums"]["staff_shift_status"]
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_time?: string
+          id?: string
+          notes?: string | null
+          person_name?: string | null
+          person_ref?: string | null
+          position?: string | null
+          shift_date?: string
+          start_time?: string
+          status?: Database["public"]["Enums"]["staff_shift_status"]
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_shifts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "staff_shift_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_tasks: {
         Row: {
           assigned_to: string | null
@@ -5621,6 +5734,48 @@ export type Database = {
           title?: string
           updated_at?: string
           visible_to_roles?: Database["public"]["Enums"]["app_role"][] | null
+        }
+        Relationships: []
+      }
+      staff_time_off_requests: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          notes: string | null
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["staff_time_off_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["staff_time_off_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["staff_time_off_status"]
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -6249,6 +6404,10 @@ export type Database = {
       }
       calculate_health_score: { Args: { _member_id: string }; Returns: number }
       calculate_member_ltv: { Args: { p_member_id: string }; Returns: number }
+      can_manage_staff_schedule: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       cancel_class_booking: { Args: { _booking_id: string }; Returns: Json }
       check_and_award_achievements: {
         Args: { _member_id: string }
@@ -6320,6 +6479,13 @@ export type Database = {
         }[]
       }
       generate_referral_code: { Args: { _member_id: string }; Returns: string }
+      generate_shifts_from_templates: {
+        Args: { week_start: string }
+        Returns: {
+          inserted_count: number
+          skipped_count: number
+        }[]
+      }
       get_admin_kids_care_bookings: {
         Args: {
           p_age_group?: string
@@ -6438,6 +6604,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_any_staff_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -6613,6 +6780,8 @@ export type Database = {
         | "churn_risk"
         | "manual"
       sms_status: "queued" | "sent" | "failed" | "delivered" | "undelivered"
+      staff_shift_status: "scheduled" | "pto" | "cancelled" | "swapped"
+      staff_time_off_status: "pending" | "approved" | "denied"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "todo" | "in_progress" | "done"
       waitlist_status:
@@ -6800,6 +6969,8 @@ export const Constants = {
         "manual",
       ],
       sms_status: ["queued", "sent", "failed", "delivered", "undelivered"],
+      staff_shift_status: ["scheduled", "pto", "cancelled", "swapped"],
+      staff_time_off_status: ["pending", "approved", "denied"],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["todo", "in_progress", "done"],
       waitlist_status: [
