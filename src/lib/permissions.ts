@@ -76,7 +76,7 @@ export const PAGE_PERMISSIONS: Record<string, AppRole[]> = {
   '/admin/merch': ['super_admin', 'admin', 'manager'],
   '/admin/portal': ['super_admin', 'admin', 'manager', 'front_desk'],
   '/admin/staff-hub': ['super_admin', 'admin', 'manager', 'front_desk', 'spa_staff', 'class_instructor', 'cafe_staff', 'childcare_staff'],
-  '/admin/staff-schedule': ['super_admin', 'admin', 'manager'],
+  '/admin/staff-schedule': ['super_admin', 'admin', 'manager', 'front_desk'],
 };
 
 // Convert a pattern like '/admin/members/:id' to a regex
