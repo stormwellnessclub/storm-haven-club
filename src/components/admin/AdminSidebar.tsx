@@ -88,6 +88,7 @@ const departments: DepartmentSection[] = [
       { title: "Non-Member Accounts", url: "/admin/non-member-accounts", icon: UserPlus },
       { title: "Support", url: "/admin/emails", icon: MessageSquare },
       { title: "Staff Hub", url: "/admin/staff-hub", icon: MessagesSquare, highlight: true },
+      { title: "Staff Schedule", url: "/admin/staff-schedule", icon: CalendarDays, highlight: true },
       { title: "Front Desk Mode", url: "/front-desk", icon: Monitor, highlight: true },
     ],
   },
@@ -152,7 +153,6 @@ const departments: DepartmentSection[] = [
     roles: ['super_admin', 'admin'],
     items: [
       { title: "Staff Management", url: "/admin/staff-roles", icon: Shield },
-      { title: "Staff Schedule", url: "/admin/staff-schedule", icon: CalendarDays },
       { title: "Blocked Persons", url: "/admin/blocked", icon: ShieldX },
       { title: "Equipment", url: "/admin/equipment", icon: Dumbbell },
       { title: "Marketing", url: "/admin/marketing", icon: Megaphone },
