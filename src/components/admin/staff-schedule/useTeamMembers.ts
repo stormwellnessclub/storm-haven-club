@@ -26,7 +26,7 @@ export function useTeamMembers() {
         // Pull staff via user_roles + profiles
         const [{ data: roles }, { data: instructors }, { data: therapists }] = await Promise.all([
           supabase.from('user_roles').select('user_id, role'),
-          supabase.from('instructors').select('id, full_name, email').eq('is_active', true),
+          supabase.from('instructors').select('id, user_id, first_name, last_name, email').eq('is_active', true),
           supabase.from('spa_therapists' as any).select('id, full_name, email').eq('is_active', true),
         ]);
 
@@ -71,30 +71,35 @@ export function useTeamMembers() {
           }
         }
 
-        // Instructors (link by email when possible)
+        // Instructors (link by email or user_id when possible)
         for (const i of instructors ?? []) {
-          const email = (i.email || '').toLowerCase() || null;
-          let key = `ref:${email}`;
-          let user_id: string | null = null;
+          const iAny = i as any;
+          const email = (iAny.email || '').toLowerCase() || null;
+          const fullName = `${iAny.first_name ?? ''} ${iAny.last_name ?? ''}`.trim();
+          // If linked by user_id, fold into existing staff entry
+          if (iAny.user_id && byKey.has(iAny.user_id)) {
+            const matched = byKey.get(iAny.user_id)!;
+            matched.roleLabels.push('class_instructor' as AppRole);
+            if (matched.group !== 'Managers') matched.group = 'Instructors';
+            continue;
+          }
           if (email) {
-            // Match to existing staff by profile email
             const matched = Array.from(byKey.values()).find(
               (m) => (m.email || '').toLowerCase() === email
             );
             if (matched) {
-              key = matched.key;
-              user_id = matched.user_id;
               matched.roleLabels.push('class_instructor' as AppRole);
               if (matched.group !== 'Managers') matched.group = 'Instructors';
               continue;
             }
           }
+          const key = iAny.user_id ?? `ref:${email ?? iAny.id}`;
           if (!byKey.has(key)) {
             byKey.set(key, {
               key,
-              user_id,
+              user_id: iAny.user_id ?? null,
               email,
-              name: i.full_name || email || 'Instructor',
+              name: fullName || email || 'Instructor',
               group: 'Instructors',
               roleLabels: ['class_instructor' as AppRole],
             });
