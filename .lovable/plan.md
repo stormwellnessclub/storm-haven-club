@@ -1,56 +1,88 @@
 
 
-## Plan: Approve Alise James — Sponsored Silver + bonus credits
+## Plan: Staff Schedule page (`/admin/staff-schedule`)
 
-### Approval details
-- **Tier**: Silver Membership (active, sponsored)
-- **Status**: `active`, `subscription_status: sponsored`
-- **End date**: 2026-12-31
-- **Stripe**: skip — no customer/subscription created
-- **Bonus credits** (one-time, non-recurring):
-  - 6 Red Light sessions, expires 2026-12-31 23:59:59
-  - 6 Dry Cryo sessions, expires 2026-12-31 23:59:59
-  - No class credits (Silver tier — à la carte only)
+A unified weekly + daily schedule for the entire team — staff, instructors, and therapists — with recurring templates, per-date overrides, PTO, and shift notes.
 
-### Steps (data ops only, no code changes)
-1. Look up Alise James in `membership_applications` — confirm email + applied tier (Platinum)
-2. Create `members` row: Silver, sponsored, end date 2026-12-31, `original_tier_at_application: Platinum`
-3. Insert 2 rows into `member_credits`: red_light × 6 and dry_cryo × 6, both expiring 2026-12-31
-4. Update `membership_applications` row → `approved`, with note: "Sponsored Silver (applied Platinum). 6 RL + 6 DC bonus credits. Expires 2026-12-31."
-5. Send approval email (draft below)
-6. Auth account auto-links via existing email-match trigger
+### Database (3 new tables)
 
-### Email draft (final)
+**`staff_shift_templates`** — recurring weekly baseline
+- `id`, `user_id` (auth.users), `day_of_week` (0–6), `start_time`, `end_time`
+- `position` (text, e.g. "Front Desk", "Closer"), `notes` (text), `is_active` (bool)
+- `effective_from` / `effective_to` (date, nullable) — optional date bounds
 
-> **Subject**: Welcome to Storm Wellness Club, Alise — Your Sponsored Membership is Active
->
-> Hi Alise,
->
-> Wonderful news — your Storm Wellness Club application has been **approved as a sponsored Silver Membership**, valid through **December 31, 2026**. All initiation fees and monthly dues are fully waived.
->
-> **Your Silver membership includes:**
-> - Full access to our state-of-the-art gym
-> - Wet spa amenities: sauna, steam room, Himalayan salt room, cold plunge
-> - Member pricing on classes (à la carte or via class passes)
->
-> **As a welcome bonus, we've also added to your account:**
-> - **6 Red Light Therapy sessions**
-> - **6 Dry Cryo sessions**
->
-> Both bonus credit packs are valid through **December 31, 2026** — use them anytime before then.
->
-> **Next steps to activate your membership:**
-> 1. Sign in to your member portal at stormwellnessclub.com
-> 2. Sign your membership agreement and liability waiver
-> 3. Upload a headshot photo for check-in
->
-> Once those are complete, you're free to start enjoying the club.
->
-> If you have any questions, just reply to this email or stop by the front desk.
->
-> Welcome to the club,
-> The Storm Wellness Club Team
+**`staff_shifts`** — specific dated shifts (overrides + ad-hoc)
+- `id`, `user_id`, `shift_date` (date), `start_time`, `end_time`
+- `position`, `notes`, `template_id` (nullable FK — links to template if generated from one)
+- `status` enum: `scheduled` | `pto` | `cancelled` | `swapped`
+- `created_by`, `created_at`, `updated_at`
+- Unique-ish: a date+user can have multiple shifts (split shifts allowed)
+
+**`staff_time_off_requests`** — PTO/off-day requests
+- `id`, `user_id`, `start_date`, `end_date`, `reason`, `status` (`pending`|`approved`|`denied`), `reviewed_by`, `reviewed_at`, `notes`
+
+**RLS**: staff can read their own shifts + all shifts (team visibility); only managers/admins/super_admins can write. Time-off requests: staff can create/view their own, managers approve.
+
+**Resolution rule**: For any given date, the displayed schedule = `staff_shifts` rows for that date if any exist, otherwise generated from the matching `staff_shift_templates`. PTO rows on a date suppress template-generated shifts for that user that day.
+
+### People sourced
+
+The "team" list pulls from three sources, deduped by email:
+1. Everyone in `user_roles` (staff)
+2. Everyone in `instructors` (matched to auth users by email when possible)
+3. Everyone in `spa_therapists` (matched by email)
+
+Instructors/therapists without auth accounts still appear as scheduleable "people" — `user_id` nullable in shift rows, with a `person_ref` (email) fallback. _Decision needed only if you want non-auth therapists to be schedulable; otherwise we restrict to auth users only — defaulting to **include all, with email fallback**._
+
+### UI: `/admin/staff-schedule`
+
+**Header**: title, week/date picker, view toggle (Week ⇄ Day), "Add Shift" button, "Manage Templates" button, "Time Off" button.
+
+**Week view** (default)
+- Grid: rows = team members (grouped: Managers / Front Desk / Instructors / Therapists), columns = Mon–Sun
+- Each cell shows shift block(s): `8a–4p · Front Desk` with note tooltip
+- Color coding: blue=scheduled, amber=PTO, gray=template-generated (not yet customized), red ring=conflict
+- Click empty cell → "Add shift" dialog; click existing → edit/delete
+- Conflict detection: overlapping shifts for same person, double-booked instructors vs. their class_schedules
+
+**Day view**
+- Hour timeline (6am–10pm) × team members
+- Same shift blocks as horizontal bars
+- Quick "Who's on now" summary at top
+
+**Templates manager** (dialog or side sheet)
+- Per-person weekly recurring template editor
+- "Generate shifts for week of [date]" button → materializes templates into `staff_shifts` rows for that week (lets you then edit individual days)
+
+**Time-off panel** (dialog)
+- List pending requests with approve/deny
+- "Mark off" quick action from the grid
+
+### Sidebar / routing
+- Add **"Staff Schedule"** link to admin sidebar under the "Staff" / "People" section (next to Staff Roles, Staff Hub)
+- Route: `/admin/staff-schedule` → new `StaffSchedule.tsx` page
 
 ### Files
-None — pure data operation via DB tools + system approval email.
+
+**New**
+- `src/pages/admin/StaffSchedule.tsx`
+- `src/components/admin/staff-schedule/WeekGridView.tsx`
+- `src/components/admin/staff-schedule/DayTimelineView.tsx`
+- `src/components/admin/staff-schedule/ShiftDialog.tsx` (add/edit/delete a single shift)
+- `src/components/admin/staff-schedule/TemplateManagerDialog.tsx`
+- `src/components/admin/staff-schedule/TimeOffPanel.tsx`
+- `src/lib/staffScheduleResolution.ts` (template + override + PTO merging logic)
+
+**Modified**
+- `src/App.tsx` (add route)
+- `src/components/admin/AdminSidebar.tsx` (add nav link)
+
+**Migrations**
+- Create the 3 tables, enums, indexes, RLS policies, and an RPC `generate_shifts_from_templates(week_start date)` for materializing a week.
+
+### Out of scope (call out for later if wanted)
+- Shift swap requests between staff
+- Payroll/hours export
+- Mobile staff-side "my schedule" view (we can add to existing Staff Hub later)
+- Auto-publishing/notifications when schedule changes
 
