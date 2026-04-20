@@ -94,6 +94,7 @@ import People from "./pages/admin/People";
 import BlockedPersons from "./pages/admin/BlockedPersons";
 import PaymentFailedEmailPreview from "./pages/admin/PaymentFailedEmailPreview";
 import StaffHub from "./pages/admin/StaffHub";
+import StaffSchedule from "./pages/admin/StaffSchedule";
 import MerchManager from "./pages/admin/MerchManager";
 import SpaManagement from "./pages/admin/SpaManagement";
 import Merch from "./pages/Merch";
@@ -220,6 +221,7 @@ const App = () => (
               <Route path="/admin/class-schedules" element={<ProtectedAdminRoute><ClassSchedules /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles" element={<ProtectedAdminRoute><StaffRoles /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles/:userId" element={<ProtectedAdminRoute><StaffDetail /></ProtectedAdminRoute>} />
+              <Route path="/admin/staff-schedule" element={<ProtectedAdminRoute><StaffSchedule /></ProtectedAdminRoute>} />
               <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
               <Route path="/admin/emails" element={<ProtectedAdminRoute><EmailManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/freeze-requests" element={<ProtectedAdminRoute><FreezeRequests /></ProtectedAdminRoute>} />
