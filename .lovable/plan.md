@@ -1,65 +1,112 @@
 
 
-## Issue: Check-in counts differ across laptops & front desk
+## Full audit: failed payment tracking is broken
 
-### Root cause: timezone mismatch between counting surfaces
+You were right to push for a deep look. The failed-payment tracking has been **completely non-functional since it was built**. Here's exactly what I found and what I'll do to fix it.
 
-Three different surfaces count "today's check-ins" using three different definitions of "today":
+---
 
-| Surface | Code | "Today" boundary used |
-|---|---|---|
-| Front Desk Kiosk (`/front-desk`) | RPC `kiosk_todays_attendance` → `date_trunc('day', now())` | **UTC midnight** |
-| Admin Dashboard (`/admin`) | `new Date(y, m, d).toISOString()` | **Browser's local midnight** (varies per laptop) |
-| Unified Attendance widget | Same browser-local logic | Browser's local midnight |
+### What I found
 
-Per project policy, the authoritative timezone is **America/Chicago** — but neither path uses it. This causes the symptoms you're seeing:
+**1. The `payment_attempts` table has never had a single row.**
+Confirmed by direct DB query: `0 rows, no earliest, no latest`. Same story for `billing_arrears`. So the "Failed Payments" tab in `/admin/payments` and the "Members with Billing Issues" widget have been empty the entire time — not because nothing failed, but because **nothing was ever written**.
 
-- A check-in at **8:00 PM Chicago time Monday** = 01:00 UTC Tuesday. The kiosk (UTC) puts it in Tuesday's bucket. A Chicago laptop puts it in Monday. A Pacific laptop puts it in Monday. An Eastern laptop puts it in Tuesday.
-- Late-night and early-morning check-ins shift between buckets depending on which device you open
-- Two devices in different timezones will literally never agree on the count
+**2. The webhook silently fails to log every payment, every time.**
+The Stripe webhook calls `log_payment_attempt(...)` with these named params:
+`p_member_id, p_stripe_invoice_id, p_stripe_payment_intent_id, p_stripe_charge_id, p_stripe_subscription_id, p_invoice_number, p_amount, p_currency, p_status, p_attempt_number, p_payment_method_id, p_payment_method_type, p_failure_code, p_failure_message, p_decline_code, p_decline_reason, p_retry_attempted, p_next_retry_at, p_succeeded_at, p_failed_at, p_metadata`
 
-There is also a related second issue: **`stats.currently_in`** counts everyone with `checked_out_at IS NULL` since "today" — but check-outs are rarely recorded, so this number drifts upward over time and isn't a real "in the building right now" figure. (Worth fixing while we're in here, but separate from the count-disagreement complaint.)
+But the **actual function in the database** only accepts 12 params:
+`p_member_id, p_invoice_id, p_invoice_number, p_amount, p_currency, p_status, p_attempt_number, p_failure_code, p_failure_message, p_decline_code, p_decline_reason, p_next_retry_at`
 
-### Fix
+Every call returns a Postgres "function does not exist" error. The webhook code logs that error and moves on — the payment is never recorded in `payment_attempts` and the arrears upsert never reaches the next code block. This affects **both** `invoice.payment_succeeded` AND `invoice.payment_failed` events.
 
-Make every surface use the **America/Chicago day boundary** (the project standard) so all devices see the same number.
+**3. Stripe shows the real damage.**
+Searching live Stripe data: 100+ failed charges since Jan 2026 alone (subscription updates, dues, café, initiation fees, guest passes). None visible in the app. There are also 10+ currently-open unpaid invoices (e.g. invoices `in_1TNm3PLyZrsSqLhsjPV8oLUF`, `in_1TLmuRLyZrsSqLhsruDUoHDT` and others) with money owed that the dashboard treats as "no problem."
 
-**1. Update the kiosk RPC `kiosk_todays_attendance`** — replace `date_trunc('day', now())` with the Chicago-day equivalent:
-```sql
-v_today_start := date_trunc('day', now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago';
-v_today_end   := v_today_start + interval '1 day';
-```
-And add `< v_today_end` bounds to all four loops + the `currently_in` query so we don't accidentally include yesterday/tomorrow at boundary edges.
+**4. Members who may not be billed at all.**
+177 total members, 108 active. Of the active members, 5 are NOT founding members AND have NO Stripe subscription:
+- Alise James (Silver, sponsored)
+- Duha Ahmed (Diamond)
+- Sara Ghamloush (Gold)
+- fatimah alshara (Silver)
+- Sahar Durant (Diamond)
 
-**2. Update browser-side counters** to use Chicago time instead of local time. Three call sites:
-- `src/pages/admin/Dashboard.tsx` (lines 58–82) — the `todayCheckins`, `todayAppointments`, `todayClasses` query
-- `src/hooks/useUnifiedAttendance.ts` (lines 32–82) — the parallel fetches
-- `src/pages/admin/CheckIn.tsx` (~line 100) — "Check-ins This Month" counter
+3 active members have NO card on file. These need a separate review — the "sponsored" one is probably intentional, the others may be silent revenue leaks.
 
-Add a small helper `src/lib/clubTime.ts` exporting:
-- `clubTodayStart()` → ISO string of Chicago midnight today, in UTC
-- `clubTodayEnd()` → next day's Chicago midnight, in UTC
-- `clubTodayDateStr()` → `YYYY-MM-DD` in Chicago tz
+---
 
-Then every surface uses the same helpers.
+### What I'll fix (in order)
 
-**3. (Recommended) Tighten `currently_in`** so it only counts members whose `checked_out_at IS NULL` AND who checked in within the last ~6 hours, OR auto-expire stale check-ins via a cron. Even simpler: relabel that stat as "Members Checked In Today (Not Checked Out)" so users don't expect it to be a real-time occupancy. Pick one — I'll default to the relabel + 12-hour cutoff unless you say otherwise.
+**A. Fix the broken RPC — root cause.** Rewrite `log_payment_attempt` with the full 21-parameter signature the webhook actually calls. After this single migration, every new succeeded/failed/retried Stripe payment starts landing in `payment_attempts` automatically going forward.
 
-**4. Realtime sync (bonus polish)** — kiosk and admin dashboards currently poll every 15s and 60s respectively, so two devices can disagree by up to a minute even after the timezone fix. Subscribe to `postgres_changes` on `check_ins` so all open surfaces invalidate their query the moment a new check-in lands. Small change, makes the "why is mine different" complaint disappear entirely.
+**B. Backfill last 12 months from Stripe.** Build a one-time backfill edge function `backfill-payment-history` that:
+- Pages through every Stripe charge + invoice from Jan 1, 2025 → today
+- Matches each to a member by `stripe_customer_id`
+- Inserts into `payment_attempts` (succeeded, failed, refunded) with full metadata
+- Upserts `billing_arrears` rows for unpaid invoices
+- Idempotent — safe to re-run, dedupes by `stripe_charge_id` / `stripe_invoice_id`
+- Streams progress so you can see it working
+- Triggered from a new admin button "Backfill from Stripe" with a date range picker (default last 12 months, max range 24 months)
 
-### Files to change
+**C. New dedicated page: `/admin/payments/failed-history`.**
+A real audit-grade page (not the broken tab). Features:
+- **Date range picker** with presets: Last 7d / 30d / 90d / Year-to-date / **Last 12 months** / **All time** / Custom range (no cap)
+- **Filters**: member name/email search, decline code, billing type (dues / annual fee / initiation / café / shop / guest pass / manual), amount range, status (failed / past-due / unpaid / abandoned / recovered)
+- **Columns**: Date · Member · Email · Type · Amount · Decline reason · Attempt # · Next Stripe retry · Recovered? · Stripe link
+- **Summary strip**: total failed $, count, unique members affected, recovery rate %, top decline code
+- **Per-row actions**: View member · Open in Stripe · Retry now · Mark resolved · Send "update card" email
+- **Export to CSV** for the active filter
+- **Realtime**: subscribe to `payment_attempts` inserts so new failures appear immediately
 
-- **New**: `src/lib/clubTime.ts` (Chicago-tz helpers)
-- **Modified**:
-  - `src/pages/admin/Dashboard.tsx` — use `clubTodayStart/End`
-  - `src/hooks/useUnifiedAttendance.ts` — same
-  - `src/pages/admin/CheckIn.tsx` — same for monthly counter (use Chicago start-of-month)
-  - `src/hooks/useKioskAttendance.ts` — add realtime subscription on `check_ins`
-- **Migration**: rewrite `kiosk_todays_attendance()` to use America/Chicago bounds + add `< v_today_end` upper bound
+**D. New "Members not being billed" health check.** A second card on the same page that lists active members where one of these is true:
+- Not a founding member AND no `stripe_subscription_id`
+- No card on file
+- Subscription status is `canceled` / `unpaid` / `incomplete_expired`
+- Has a sub but last successful payment > 35 days ago (silent failure detection)
 
-### What you'll see after
+Each row gets quick actions: "Create subscription," "Request card update," "Sync from Stripe."
 
-- Open `/admin` on a Mac in California, a Windows laptop in Detroit, and the front desk iPad → all three show the **identical** "Today's Check-Ins" number
-- The number flips to the next day at midnight **Chicago time** everywhere (not at UTC midnight, not at each laptop's local midnight)
-- New check-ins appear on every open dashboard within ~1 second instead of up to a minute later
+**E. Wire into navigation.** Add a sidebar entry under **Payment Tracking** → "Failed History" so it's findable, and add a red badge with the count of unresolved failed payments on the existing Payment Tracking nav item.
+
+**F. Add monitoring so this can't silently break again.** Add a small daily cron `payment-tracking-health-check` that compares Stripe's count of failed charges in the last 24h vs `payment_attempts` rows inserted in the last 24h. If they diverge by more than 1, send an admin alert email — so if a webhook param ever drifts again, you find out the next morning, not 4 months later.
+
+---
+
+### Files & scope
+
+**Migrations**
+- Drop and recreate `log_payment_attempt(...)` with the full 21-param signature, returning the inserted row
+- Add index on `payment_attempts(status, created_at DESC)` and `(member_id, created_at DESC)` for the new page
+- Create `payment_tracking_health_log` table for the daily reconciliation cron
+
+**New edge functions**
+- `backfill-payment-history` — paginated Stripe → DB import with progress streaming
+- `payment-tracking-health-check` — cron-invoked, compares Stripe vs DB, alerts on drift
+
+**New frontend**
+- `src/pages/admin/FailedPaymentsHistory.tsx` — the real page
+- `src/components/admin/BackfillPaymentHistoryDialog.tsx` — date range + run button + progress
+- `src/components/admin/MembersNotBilledCard.tsx` — silent-leak detector
+- `src/hooks/useFailedPaymentsHistory.ts` — query + filters + realtime
+
+**Modified**
+- `src/pages/admin/PaymentTracking.tsx` — add "Failed History" tab linking to new page
+- `src/components/admin/AdminSidebar.tsx` — add nav entry + unresolved-count badge
+- `supabase/functions/stripe-webhook/index.ts` — no logic change (the RPC fix makes the existing calls succeed); add a defensive log when `log_payment_attempt` errors in the future
+
+**Schedule**
+- Cron: `payment-tracking-health-check` runs daily at 6am Chicago
+
+---
+
+### What you'll be able to do after
+
+- Pull up every failed payment for any member, going back to Jan 2025 (after backfill runs)
+- Filter by date range, decline code, billing type, amount — no cap
+- See the 5 members who aren't being billed and act on each one
+- Export any view to CSV
+- Get a daily email if the tracking ever silently breaks again
+- Trust the numbers in the dashboard
+
+After approval I'll run the migration first, then deploy the edge functions, then ship the UI, then trigger the backfill so by the time you open the page it's already populated.
 
