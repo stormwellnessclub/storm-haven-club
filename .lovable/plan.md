@@ -1,224 +1,114 @@
 
 
-## Fix cancellation logic and harden payment-failure reconciliation
+## Unify check-in eligibility + fix cafe-decline false flags + correct billing terminology
 
-You’re right: the cancellation rule needs to be explicit and narrowly scoped, and the current logic is too loose in a few places. I reviewed the UI, member portal, and backend paths that currently influence “cancelled” and found that the system is mixing together:
-- application-portal cancellation,
-- Stripe subscription cancellation,
-- member status,
-- and arrears reconciliation.
+Three connected fixes, all rooted in the same principle: **lifecycle status, billing health, and terminology must each mean exactly one thing, everywhere.**
 
-That is the source of the logic gaps.
+---
 
-### What is already true today
+### Part 1 — Stop blocking check-ins for non-membership declines (Khawla case)
 
-- In the **Applications** admin page, marking an application as `cancelled` or `rejected` already updates a matching `members` record to `status = 'cancelled'` when that member is still `pending_activation`.
-- The **member portal** already reads from `members.status`, so if the member row is correctly synced, the portal follows it.
-- But other backend paths still infer `members.status = 'cancelled'` from Stripe subscription state:
-  - `supabase/functions/sync-subscription-status/index.ts`
-  - `supabase/functions/stripe-payment/index.ts` (`sync_member_billing_data`)
-- That conflicts with your rule for this workflow.
+**Rule:** A check-in is denied only for a real membership-billing problem, never for a cafe/spa/shop/POS decline — and never for a decline that was successfully retried.
 
-## New rule to implement
-
-For the cancellation work we’re doing right now:
-
-- A membership is considered **Cancelled** only when **you mark the application cancelled in the application portal**.
-- Stripe subscription cancellation alone must **not** cause the member to be treated as “cancelled” for this workflow.
-- Activated-member cancellation will be handled under a separate protocol later and should not be mixed into this arrears logic now.
-
-## Implementation plan
-
-### 1. Make application-portal cancellation the only “cancelled” source for this flow
-
-I’ll preserve the existing application-portal sync, but formalize it so it becomes the authoritative source for this case.
-
-Changes:
-- Keep the existing sync in `src/pages/admin/Applications.tsx`, but narrow and document it:
-  - only sync `members.status = 'cancelled'` when the matching member is still `pending_activation`
-  - do not treat `rejected` as equivalent to `cancelled` for arrears classification unless you want that explicitly
-- Add a dedicated backend-safe helper/RPC for this sync instead of relying on page-level UI logic alone, so the rule is enforced consistently even if the app UI changes later.
-
-Result:
-- “Cancelled” for this current workflow will mean: cancelled in application portal, synced to pending-activation member record.
-
-### 2. Stop backend billing sync from auto-cancelling members in this workflow
-
-These are the main logic leaks I found:
-- `sync-subscription-status` sets `expectedStatus = 'cancelled'` for Stripe `canceled` / `incomplete_expired`
-- `stripe-payment` → `sync_member_billing_data` can set `updates.status = 'cancelled'` when Stripe says the subscription is canceled
-
-That is too aggressive for your rule.
-
-I’ll change those paths so they:
-- continue syncing `subscription_status`
-- continue syncing payment/card/subscription metadata
-- do **not** auto-set `members.status = 'cancelled'` just because Stripe says a subscription is canceled
-- use `past_due`, `incomplete`, `unpaid`, `no_subscription`, or leave the member lifecycle status alone instead
-
-Result:
-- Stripe billing state remains visible
-- but it no longer hijacks membership lifecycle state
-
-### 3. Rework failed-payment/arrears classification so “Cancelled” only uses application status for this audit
-
-The arrears and failed-payment audit will be updated to classify rows with a stricter decision tree:
+**New SQL helper `evaluate_member_check_in_eligibility(member_id)`** — single source of truth used by every check-in path:
 
 ```text
-If application is cancelled in application portal
-  and matching member is/was pending_activation
-    => Cancelled
-Else if Stripe is still retrying
-    => Retrying
-Else if there are later successful non-disputed collections covering later cycles
-    => Superseded
-Else if invoice is still unpaid and no later valid recovery
-    => Action needed
-Else
-    => Needs review
+DENY only if:
+  - blocked_persons match
+  - members.status IN ('cancelled','expired','suspended','frozen','pending_activation')
+  - subscription_status IN ('past_due','unpaid','canceled','incomplete_expired')
+      AND billing_type != 'cash'
+  - has UNRESOLVED billing_arrears row (amount_due > amount_paid, no resolved_at)
+      AND that arrears row is tied to a membership invoice (dues or annual fee)
+
+OTHERWISE ALLOW.
+
+Failed payment_attempts rows on their own NEVER deny check-in.
+Cafe / spa / shop / POS declines NEVER deny check-in, even if unresolved.
 ```
 
-Important correction:
-- I will remove Stripe subscription cancellation as a direct “Cancelled” signal from this reconciliation pass.
-- Sarah / Miriam / others will only show as cancelled if the application-side cancellation rule is satisfied.
-- Disputed charges will not count as valid “paid since” evidence.
+**Wire it into all three check-in paths:**
+- `process_member_scan` (Admin Scanner) — replace its 30-day failed-payment block with the helper
+- `kiosk_check_in_member` (Front Desk) — add the helper so it also denies real arrears
+- Admin Check-In page — already prefers backend verdict; the helper fixes it automatically
 
-### 4. Add dispute-aware payment validation
+**Result:** Khawla (1 cafe decline retried 8s later) → ✅ everywhere. Sherene ($250 unpaid dues arrears) → ❌ everywhere.
 
-You specifically called out Sarah being shown as succeeded when the charge was disputed. That means the current logic is counting raw success without checking what happened after settlement.
+---
 
-I’ll fix reconciliation so:
-- a charge that later became disputed is flagged separately
-- disputed-and-lost charges do not count as proof that the arrear was recovered
-- dispute state is shown alongside the row/drilldown
+### Part 2 — Stop marking a charge "declined" after it was successfully processed
 
-Result:
-- “succeeded” won’t falsely imply “good standing”
+Today `payment_attempts` keeps the original `failed` row forever, even after a successful retry of the same cart. Fix with a **retry-resolution sweep**:
 
-### 5. Make the member portal reflect the correct lifecycle source cleanly
+- Add `superseded_by_attempt_id` and `superseded_at` columns to `payment_attempts`.
+- New trigger on successful `payment_attempts` insert: if a prior `failed` attempt for the same `member_id` + `charge_type` + `amount` exists within 10 minutes and has no `resolved_at`, mark it `superseded_by_attempt_id = NEW.id` and stamp `resolved_at` with reason `superseded_by_retry`.
+- One-time backfill migration applies the same rule to historical rows (this clears Khawla's stale "Payment Failed" badge immediately).
+- New webhook handler in `stripe-webhook` for `charge.dispute.created` / `.closed` so a "succeeded" charge that later loses a dispute is automatically re-flagged as failed and the matching arrears row is reopened (fixes the Sarah Siddiqui case).
 
-The member portal already relies on `members.status`, which is good. The real problem is status corruption upstream.
+**Member profile billing panel — confirmed-failure section:**
+A new "Confirmed Payment Issues" card on the admin member detail page shows only:
+- Failed `payment_attempts` rows where `resolved_at IS NULL` and `superseded_by_attempt_id IS NULL`
+- Grouped by category: **Membership Dues**, **Annual Fee**, **Cafe**, **Spa**, **Shop**, **POS**
+- Each row shows: date, amount, decline reason, and an inline "Retry now" / "Mark resolved" / "View in Stripe" action
+- Disputed-but-succeeded charges appear here too with a ⚠️ Disputed pill
 
-I’ll still do a full portal-path audit across:
-- `useUserMembership`
-- `usePaymentStatus`
-- `useMemberBenefitsStatus`
-- `ProtectedPortalRoute`
-- `MemberLayout`
+So you get full visibility into real cafe/spa failures per member, without those failures gating access.
 
-and make sure:
-- application-cancelled pending-activation members are blocked/shown correctly
-- Stripe subscription cancellation alone does not incorrectly make someone “cancelled”
-- payment problems stay in payment/problem states, not lifecycle states
+---
 
-Result:
-- application portal and member portal will speak the same language for this rule
+### Part 3 — Correct billing terminology everywhere
 
-### 6. Tighten the billing health / issue widgets so they don’t over-report cancelled logic
+Standardize on these exact terms across UI, emails, receipts, invoices, and admin labels:
 
-I also found other admin health logic that can confuse lifecycle vs billing:
-- `useMembersBillingIssues`
-- `BillingHealthWidget`
-- `BillingHealthCard`
-- `EffectiveStatusBadge`
+| Concept | Correct term | Where it applies |
+|---|---|---|
+| Recurring monthly membership charge | **Monthly Dues** | Month-to-month members |
+| Recurring annual membership charge | **Annual Dues** | Founding members + anyone billed yearly |
+| The separate yearly facility fee | **Annual Fee** | All members (separate Stripe subscription) |
+| Next charge for a month-to-month member | **Upcoming Monthly Dues** | Member portal + admin |
+| Next charge for an annual member | **Upcoming Annual Dues** | Member portal + admin |
 
-I’ll update these so:
-- “subscription canceled” remains a billing issue
-- but does not automatically imply member lifecycle “cancelled”
-- lifecycle badges and billing issue badges stay separate
+**Files updated to enforce this vocabulary:**
+- `src/components/member/BillingSummary.tsx` — rename "Membership Rate" → "Monthly Dues" / "Annual Dues" based on billing type; "Annual Fee" stays as-is
+- `src/components/portal/PaymentInfo.tsx`, `UpcomingPayments.tsx`, member portal billing tab — "Next Payment" becomes "Upcoming Monthly Dues" or "Upcoming Annual Dues"
+- Admin billing widgets: `BillingHealthWidget`, `BillingHealthCard`, `MemberBillingDetail` — same vocabulary
+- Stripe product/price descriptions and `stripe-payment` invoice line descriptions — use the correct term per subscription
+- Webhook-triggered emails (`payment-succeeded`, `payment-failed`, `upcoming-invoice`) — same vocabulary
+- Receipts and PDF exports — same vocabulary
+- Founding-member detail view — explicitly labels their recurring charge "Annual Dues" and the separate yearly facility charge "Annual Fee" so the two are never conflated
 
-This prevents staff from seeing mixed signals like:
-- “cancelled member” when really it is
-- “subscription canceled / no active billing setup”
+A central constants file `src/lib/billingTerminology.ts` exports the canonical strings + a `getDuesLabel(billingType)` helper so future code can't drift.
 
-### 7. Add explicit audit fields and resolution reasons for failed-payment cleanup
+---
 
-To make this robust and reduce future ambiguity, I’ll extend resolution/reconciliation with structured reasons such as:
-- `application_cancelled`
-- `superseded_by_later_payment`
-- `stripe_retry_in_progress`
-- `disputed_charge`
-- `written_off_uncollectible`
-- `manual_resolution`
+### Part 4 — Audit + cleanup pass
 
-This will be used both in the failed-payments history workflow and any arrears cleanup actions, so later reviews don’t require re-investigating why something was resolved.
+Before calling this done I'll grep the codebase for every remaining use of "annual" to refer to monthly dues and every place that reads `payment_attempts.status = 'failed'` without checking `resolved_at` / `superseded_by_attempt_id`, and fix each one. Then I'll re-run the verification cases:
 
-### 8. Run a full logic-gap audit before implementation is considered done
+1. Khawla → ✅ check-in everywhere, no "Payment Failed" badge, cafe decline visible in Confirmed Issues panel as superseded
+2. Sherene → ❌ check-in everywhere, $250 dues arrears in Confirmed Issues
+3. Sarah (disputed succeeded charge) → ⚠️ Disputed pill, arrears reopened, denied if dispute lost
+4. Founding member view → "Annual Dues" + "Annual Fee" labeled distinctly, never conflated
+5. Month-to-month member view → "Upcoming Monthly Dues" everywhere, never "annual"
 
-Before calling this complete, I will re-audit all relevant paths end-to-end:
+### Files / objects touched
 
-**Admin / application layer**
-- `src/pages/admin/Applications.tsx`
-- failed payments / arrears UI
-- sidebar count logic
+**SQL migration**
+- New `evaluate_member_check_in_eligibility(uuid)` helper
+- New columns + trigger + backfill on `payment_attempts` for superseded retries
+- Rewrite of `process_member_scan` and `kiosk_check_in_member` eligibility blocks
 
-**Member portal layer**
-- `src/hooks/useUserMembership.ts`
-- `src/hooks/usePaymentStatus.ts`
-- `src/hooks/useMemberBenefitsStatus.ts`
-- `src/components/portal/ProtectedPortalRoute.tsx`
-- `src/components/member/MemberLayout.tsx`
+**Edge functions**
+- `stripe-webhook` — add `charge.dispute.created` / `.closed` handlers
+- `stripe-payment` — line-item descriptions use new terminology
 
-**Backend / billing sync**
-- `supabase/functions/stripe-payment/index.ts`
-- `supabase/functions/sync-subscription-status/index.ts`
-- `supabase/functions/stripe-webhook/index.ts`
+**Frontend**
+- `src/lib/billingTerminology.ts` (new)
+- `src/components/member/BillingSummary.tsx`
+- `src/components/admin/MemberDetail/ConfirmedPaymentIssues.tsx` (new)
+- `src/hooks/useMembersBillingIssues.ts` — only count unresolved + non-superseded membership-related failures
+- Portal billing components + admin billing widgets — terminology updates
 
-**Data model / arrears**
-- `billing_arrears`
-- `payment_attempts`
-- `membership_applications`
-- `application_status_history`
-- `members`
-
-## Robustness improvements to add next for payment failures / expired cards / past due
-
-After the cancellation rule is corrected, the next robustness pass should add:
-
-1. **Single source of truth reconciliation label**
-   - one computed status per arrears row:
-   - `cancelled`, `retrying`, `superseded`, `disputed`, `action_needed`, `resolved`
-
-2. **Dispute-aware recovery logic**
-   - no more counting disputed charges as successful recovery
-
-3. **Card-risk monitoring**
-   - separate buckets for:
-     - no card
-     - expired card
-     - expiring within 30 days
-     - card metadata stale/not synced
-
-4. **Retry-state visibility**
-   - show exact next retry date/time in Chicago time
-   - distinguish “Stripe still working” from “abandoned”
-
-5. **Current-cycle vs legacy-invoice separation**
-   - prevent old abandoned invoices from making a currently-paying member look delinquent
-
-6. **Bulk cleanup actions**
-   - resolve cancelled-app rows
-   - resolve superseded rows
-   - leave real collectible balances untouched
-
-7. **More defensive observability**
-   - structured log tags for reconciliation mismatches
-   - explicit drift reasons, not just generic failure counts
-
-## Timezone handling
-
-Michigan is Eastern Time, so any due/retry/reporting timestamps in this payment-failure workflow should use:
-- `America/Detroit`
-
-I will correct any “Chicago” assumptions in the payment-tracking/reconciliation presentation and scheduling logic for this reporting flow so due dates, retry dates, and audit displays align with your local operations.
-
-## Deliverable outcome
-
-After this revision is implemented:
-
-- “Cancelled” in this current audit will only mean what you want it to mean: cancelled in the application portal
-- subscription cancellation and billing failures will stay billing states, not lifecycle cancellation
-- disputed charges won’t be misread as valid recovery
-- the application portal and member portal will stay aligned
-- the failed-payments report will be much more trustworthy and less prone to the logic mistakes you’ve been catching
+**Email/receipt templates**
+- Payment success / failure / upcoming-invoice — terminology updates
 
