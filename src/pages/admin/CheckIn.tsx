@@ -38,6 +38,7 @@ import { useUnifiedAttendance, AttendanceType } from "@/hooks/useUnifiedAttendan
 import { useMemberScanner, ScanResult } from "@/hooks/useMemberScanner";
 import { useMemberArrears } from "@/hooks/useMemberArrears";
 import { formatSpaTime } from "@/lib/spaTime";
+import { clubMonthStart } from "@/lib/clubTime";
 
 // ─── Type badge config ───────────────────────────────────────────────
 const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
@@ -94,15 +95,12 @@ export default function CheckIn() {
     setMemberScanResult(null);
 
     if (result.type === "member") {
-      // Count check-ins this month
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+      // Count check-ins this month (America/Chicago month boundary)
       const { count } = await supabase
         .from("check_ins")
         .select("*", { count: "exact", head: true })
         .eq("member_id", result.data.id)
-        .gte("checked_in_at", startOfMonth.toISOString());
+        .gte("checked_in_at", clubMonthStart());
       setMemberCheckInCount(count || 0);
 
       // Pre-validate via backend RPC (dry-run, no actual check-in)

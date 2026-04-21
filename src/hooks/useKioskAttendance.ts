@@ -54,7 +54,32 @@ export function useKioskAttendance() {
   useEffect(() => {
     fetchAll();
     const interval = setInterval(fetchAll, 15000);
-    return () => clearInterval(interval);
+
+    // Realtime: refresh immediately when any check-in changes so all open
+    // dashboards/kiosks stay in sync within ~1s instead of the 15s poll window.
+    const channel = supabase
+      .channel("kiosk-attendance-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "check_ins" },
+        () => fetchAll()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "guest_passes" },
+        () => fetchAll()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "class_bookings" },
+        () => fetchAll()
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchAll]);
 
   return { entries, stats, refetch: fetchAll };

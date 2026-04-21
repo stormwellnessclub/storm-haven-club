@@ -36,6 +36,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow, subDays } from "date-fns";
+import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
 import { BillingHealthWidget } from "@/components/admin/BillingHealthWidget";
 import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
 import { SupportAlertCard } from "@/components/admin/SupportAlertCard";
@@ -55,12 +56,10 @@ export default function Dashboard() {
     day: 'numeric' 
   });
 
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const todayStartISO = todayStart.toISOString();
-  const todayEndISO = todayEnd.toISOString();
-  const today = now.toLocaleDateString('en-CA'); // YYYY-MM-DD in local tz
+  // Use America/Chicago day boundaries so every device sees the same counts
+  const todayStartISO = clubTodayStart();
+  const todayEndISO = clubTodayEnd();
+  const today = clubTodayDateStr(); // YYYY-MM-DD in club tz
 
   // Fetch dashboard stats
   const { data: stats, isLoading: statsLoading } = useQuery({
