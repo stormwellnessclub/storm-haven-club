@@ -1,112 +1,45 @@
 
 
-## Full audit: failed payment tracking is broken
+## Finish failed-payment tracking — gap closure
 
-You were right to push for a deep look. The failed-payment tracking has been **completely non-functional since it was built**. Here's exactly what I found and what I'll do to fix it.
+The big pieces from the prior plan are all built and wired up: migration ran, RPC fixed, edge functions exist, `/admin/payments/failed-history` page is live with filters/CSV/realtime, sidebar entry added, dialog and "members not billed" card embedded. **Three planned items were not finished.** I'll close them now plus a small webhook-side defensive fix.
 
----
+### Remaining gaps to close
 
-### What I found
+**1. Deploy the two new edge functions and run the initial backfill.**
+The functions exist as files but have not been deployed yet, so the backfill button currently has nothing to call. I will:
+- Deploy `backfill-payment-history` and `payment-tracking-health-check`
+- Trigger one initial backfill covering Jan 1, 2025 → today so the page is populated when you open it
+- Report charges inserted, invoices upserted, and any skipped (no-matching-member) so you can see exactly what landed
 
-**1. The `payment_attempts` table has never had a single row.**
-Confirmed by direct DB query: `0 rows, no earliest, no latest`. Same story for `billing_arrears`. So the "Failed Payments" tab in `/admin/payments` and the "Members with Billing Issues" widget have been empty the entire time — not because nothing failed, but because **nothing was ever written**.
+**2. Schedule the daily reconciliation cron — 6:00am Chicago.**
+Without the cron, the health-check function exists but never runs, so silent webhook drift in the future would not alert you. I will install a `pg_cron` job that calls `payment-tracking-health-check` once a day at 11:00 UTC (6am CST / 7am CDT — close enough; if you want it pinned to 6am year-round we can split into two jobs, but a single 6am-Chicago-ish slot is what the plan called for). Jobname: `payment-tracking-health-check-daily`.
 
-**2. The webhook silently fails to log every payment, every time.**
-The Stripe webhook calls `log_payment_attempt(...)` with these named params:
-`p_member_id, p_stripe_invoice_id, p_stripe_payment_intent_id, p_stripe_charge_id, p_stripe_subscription_id, p_invoice_number, p_amount, p_currency, p_status, p_attempt_number, p_payment_method_id, p_payment_method_type, p_failure_code, p_failure_message, p_decline_code, p_decline_reason, p_retry_attempted, p_next_retry_at, p_succeeded_at, p_failed_at, p_metadata`
+**3. Add the unresolved-failed-count badge to the sidebar.**
+The "Failed Payments History" sidebar item is currently a plain link. I'll add a small red badge showing the number of unresolved failed payment attempts (`status='failed' AND resolved_at IS NULL`), polled every 60 seconds with realtime invalidation when a new attempt lands. The query uses `head: true, count: 'exact'` so it stays cheap.
 
-But the **actual function in the database** only accepts 12 params:
-`p_member_id, p_invoice_id, p_invoice_number, p_amount, p_currency, p_status, p_attempt_number, p_failure_code, p_failure_message, p_decline_code, p_decline_reason, p_next_retry_at`
-
-Every call returns a Postgres "function does not exist" error. The webhook code logs that error and moves on — the payment is never recorded in `payment_attempts` and the arrears upsert never reaches the next code block. This affects **both** `invoice.payment_succeeded` AND `invoice.payment_failed` events.
-
-**3. Stripe shows the real damage.**
-Searching live Stripe data: 100+ failed charges since Jan 2026 alone (subscription updates, dues, café, initiation fees, guest passes). None visible in the app. There are also 10+ currently-open unpaid invoices (e.g. invoices `in_1TNm3PLyZrsSqLhsjPV8oLUF`, `in_1TLmuRLyZrsSqLhsruDUoHDT` and others) with money owed that the dashboard treats as "no problem."
-
-**4. Members who may not be billed at all.**
-177 total members, 108 active. Of the active members, 5 are NOT founding members AND have NO Stripe subscription:
-- Alise James (Silver, sponsored)
-- Duha Ahmed (Diamond)
-- Sara Ghamloush (Gold)
-- fatimah alshara (Silver)
-- Sahar Durant (Diamond)
-
-3 active members have NO card on file. These need a separate review — the "sponsored" one is probably intentional, the others may be silent revenue leaks.
-
----
-
-### What I'll fix (in order)
-
-**A. Fix the broken RPC — root cause.** Rewrite `log_payment_attempt` with the full 21-parameter signature the webhook actually calls. After this single migration, every new succeeded/failed/retried Stripe payment starts landing in `payment_attempts` automatically going forward.
-
-**B. Backfill last 12 months from Stripe.** Build a one-time backfill edge function `backfill-payment-history` that:
-- Pages through every Stripe charge + invoice from Jan 1, 2025 → today
-- Matches each to a member by `stripe_customer_id`
-- Inserts into `payment_attempts` (succeeded, failed, refunded) with full metadata
-- Upserts `billing_arrears` rows for unpaid invoices
-- Idempotent — safe to re-run, dedupes by `stripe_charge_id` / `stripe_invoice_id`
-- Streams progress so you can see it working
-- Triggered from a new admin button "Backfill from Stripe" with a date range picker (default last 12 months, max range 24 months)
-
-**C. New dedicated page: `/admin/payments/failed-history`.**
-A real audit-grade page (not the broken tab). Features:
-- **Date range picker** with presets: Last 7d / 30d / 90d / Year-to-date / **Last 12 months** / **All time** / Custom range (no cap)
-- **Filters**: member name/email search, decline code, billing type (dues / annual fee / initiation / café / shop / guest pass / manual), amount range, status (failed / past-due / unpaid / abandoned / recovered)
-- **Columns**: Date · Member · Email · Type · Amount · Decline reason · Attempt # · Next Stripe retry · Recovered? · Stripe link
-- **Summary strip**: total failed $, count, unique members affected, recovery rate %, top decline code
-- **Per-row actions**: View member · Open in Stripe · Retry now · Mark resolved · Send "update card" email
-- **Export to CSV** for the active filter
-- **Realtime**: subscribe to `payment_attempts` inserts so new failures appear immediately
-
-**D. New "Members not being billed" health check.** A second card on the same page that lists active members where one of these is true:
-- Not a founding member AND no `stripe_subscription_id`
-- No card on file
-- Subscription status is `canceled` / `unpaid` / `incomplete_expired`
-- Has a sub but last successful payment > 35 days ago (silent failure detection)
-
-Each row gets quick actions: "Create subscription," "Request card update," "Sync from Stripe."
-
-**E. Wire into navigation.** Add a sidebar entry under **Payment Tracking** → "Failed History" so it's findable, and add a red badge with the count of unresolved failed payments on the existing Payment Tracking nav item.
-
-**F. Add monitoring so this can't silently break again.** Add a small daily cron `payment-tracking-health-check` that compares Stripe's count of failed charges in the last 24h vs `payment_attempts` rows inserted in the last 24h. If they diverge by more than 1, send an admin alert email — so if a webhook param ever drifts again, you find out the next morning, not 4 months later.
-
----
+**4. Defensive logging on the webhook (small).**
+The plan also called for a "defensive log when `log_payment_attempt` errors in the future." The webhook already calls `logError(...)` on RPC failure at all 3 sites (lines 1813, 2486, 2725), but it currently swallows the error and continues. I'll add one extra console line per site that explicitly tags the failure as `[PAYMENT_TRACKING_DRIFT]` so the daily health-check edge function can grep for it in logs and the future-proofing is complete. No behavior change, just better observability.
 
 ### Files & scope
 
-**Migrations**
-- Drop and recreate `log_payment_attempt(...)` with the full 21-param signature, returning the inserted row
-- Add index on `payment_attempts(status, created_at DESC)` and `(member_id, created_at DESC)` for the new page
-- Create `payment_tracking_health_log` table for the daily reconciliation cron
+- **Deploy**: `backfill-payment-history`, `payment-tracking-health-check` edge functions
+- **One-shot run**: `backfill-payment-history` with `{ start: "2025-01-01", end: today }`
+- **Cron install** (via insert tool, not migration — contains project-specific URL/key):
+  ```
+  cron.schedule('payment-tracking-health-check-daily', '0 11 * * *', net.http_post(...))
+  ```
+- **Modified**:
+  - `src/components/admin/AdminSidebar.tsx` — render badge next to "Failed Payments History" entry; add small `useUnresolvedFailedCount` hook (inline or new file)
+  - `src/hooks/useUnresolvedFailedCount.ts` (new, ~25 lines) — count query + realtime subscription
+  - `supabase/functions/stripe-webhook/index.ts` — three one-line `console.error('[PAYMENT_TRACKING_DRIFT] ...', logAttemptError)` additions
 
-**New edge functions**
-- `backfill-payment-history` — paginated Stripe → DB import with progress streaming
-- `payment-tracking-health-check` — cron-invoked, compares Stripe vs DB, alerts on drift
+### What you'll have when this is done
 
-**New frontend**
-- `src/pages/admin/FailedPaymentsHistory.tsx` — the real page
-- `src/components/admin/BackfillPaymentHistoryDialog.tsx` — date range + run button + progress
-- `src/components/admin/MembersNotBilledCard.tsx` — silent-leak detector
-- `src/hooks/useFailedPaymentsHistory.ts` — query + filters + realtime
+- Open `/admin/payments/failed-history` and the page is **already populated** with every Stripe charge from Jan 2025 → today (instead of empty pending the first backfill click)
+- Sidebar shows a red badge like "Failed Payments History (4)" so unresolved issues are visible without opening the page
+- Tomorrow at 6am Chicago and every morning after, the system reconciles Stripe vs DB; if anything diverges by more than 1, admins get an email
+- If the webhook RPC ever silently breaks again, the failure is tagged `[PAYMENT_TRACKING_DRIFT]` in edge logs for fast diagnosis
 
-**Modified**
-- `src/pages/admin/PaymentTracking.tsx` — add "Failed History" tab linking to new page
-- `src/components/admin/AdminSidebar.tsx` — add nav entry + unresolved-count badge
-- `supabase/functions/stripe-webhook/index.ts` — no logic change (the RPC fix makes the existing calls succeed); add a defensive log when `log_payment_attempt` errors in the future
-
-**Schedule**
-- Cron: `payment-tracking-health-check` runs daily at 6am Chicago
-
----
-
-### What you'll be able to do after
-
-- Pull up every failed payment for any member, going back to Jan 2025 (after backfill runs)
-- Filter by date range, decline code, billing type, amount — no cap
-- See the 5 members who aren't being billed and act on each one
-- Export any view to CSV
-- Get a daily email if the tracking ever silently breaks again
-- Trust the numbers in the dashboard
-
-After approval I'll run the migration first, then deploy the edge functions, then ship the UI, then trigger the backfill so by the time you open the page it's already populated.
+After approval I'll deploy → backfill → install cron → ship the badge, in that order.
 
