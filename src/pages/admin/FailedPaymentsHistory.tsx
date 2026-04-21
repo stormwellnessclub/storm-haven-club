@@ -132,6 +132,11 @@ export default function FailedPaymentsHistory() {
   const [maxAmount, setMaxAmount] = useState<string>("");
   const [backfillOpen, setBackfillOpen] = useState(false);
 
+  // Resolution dialog state
+  const [resolveTarget, setResolveTarget] = useState<FailedHistoryRow | null>(null);
+  const [resolveReason, setResolveReason] = useState<string>("manual_resolution");
+  const [resolveNote, setResolveNote] = useState<string>("");
+
   const filters: FailedHistoryFilters = useMemo(() => ({
     from: range.from,
     to: range.to,
