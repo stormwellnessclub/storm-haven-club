@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 import {
-  XCircle, Download, ExternalLink, Loader2, RefreshCw, CheckCircle2, History, DollarSign, Users, TrendingUp,
+  XCircle, Download, ExternalLink, Loader2, RefreshCw, CheckCircle2, History, DollarSign, Users, TrendingUp, Wand2,
 } from "lucide-react";
 import { format, subDays, subMonths, startOfYear } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -216,6 +216,57 @@ export default function FailedPaymentsHistory() {
     }
   };
 
+  // Bulk auto-resolve rows classified as application_cancelled or superseded_by_later_payment
+  const autoResolvableRows = useMemo(() => {
+    const out: { row: FailedHistoryRow; classification: ArrearsClassification; reason: string }[] = [];
+    for (const row of rows ?? []) {
+      if (row.resolved_at) continue;
+      if (row.status !== "failed" && row.status !== "requires_action") continue;
+      const recon = reconcileResults.get(row.id);
+      if (!recon) continue;
+      if (recon.classification === "application_cancelled") {
+        out.push({ row, classification: recon.classification, reason: "application_cancelled" });
+      } else if (recon.classification === "superseded") {
+        out.push({ row, classification: recon.classification, reason: "superseded_by_later_payment" });
+      }
+    }
+    return out;
+  }, [rows, reconcileResults]);
+
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const runBulkAutoResolve = async () => {
+    if (autoResolvableRows.length === 0) {
+      toast.info("Nothing to auto-resolve");
+      return;
+    }
+    setBulkRunning(true);
+    let success = 0;
+    let failed = 0;
+    for (const { row, reason } of autoResolvableRows) {
+      const newMetadata = {
+        resolution: {
+          reason,
+          note: "Auto-resolved by bulk reconciliation",
+          resolved_at: new Date().toISOString(),
+          bulk: true,
+        },
+      };
+      const { error } = await supabase
+        .from("payment_attempts")
+        .update({ resolved_at: new Date().toISOString(), metadata: newMetadata as any })
+        .eq("id", row.id);
+      if (error) failed++;
+      else success++;
+    }
+    setBulkRunning(false);
+    if (failed === 0) {
+      toast.success(`Auto-resolved ${success} arrears`);
+    } else {
+      toast.warning(`Resolved ${success}, failed ${failed}`);
+    }
+    refetch();
+  };
+
   return (
     <AdminLayout title="Failed Payments History">
       <div className="space-y-4">
@@ -233,6 +284,20 @@ export default function FailedPaymentsHistory() {
             <Button variant="outline" size="sm" onClick={() => exportCsv(rows ?? [])} disabled={!rows?.length}>
               <Download className="h-4 w-4 mr-2" />
               Export CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={runBulkAutoResolve}
+              disabled={bulkRunning || autoResolvableRows.length === 0 || reconcileLoading}
+              title="Auto-resolves rows classified as Application Cancelled or Superseded"
+            >
+              {bulkRunning ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Wand2 className="h-4 w-4 mr-2" />
+              )}
+              Auto-resolve ({autoResolvableRows.length})
             </Button>
             <Button size="sm" onClick={() => setBackfillOpen(true)}>
               Backfill from Stripe
