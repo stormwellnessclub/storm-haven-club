@@ -8,6 +8,20 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function ok(payload: Record<string, unknown>) {
+  return new Response(JSON.stringify({ ok: true, ...payload }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function fail(error: string, extra: Record<string, unknown> = {}) {
+  return new Response(JSON.stringify({ ok: false, error, ...extra }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -15,29 +29,26 @@ serve(async (req) => {
 
   try {
     // Auth check — admin/manager only
-    const authHeader = req.headers.get("authorization");
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Not authenticated" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return fail("Missing authorization header. Please sign in again.");
+    }
+
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) {
+      return fail("Invalid authorization header. Please sign in again.");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Not authenticated" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user) {
+      console.error("auth.getUser failed:", userErr?.message);
+      return fail("Session expired, please sign in again.");
     }
+    const user = userData.user;
 
     // Check admin role
     const { data: roles } = await supabase
@@ -50,32 +61,26 @@ serve(async (req) => {
       allowedRoles.includes(r.role)
     );
     if (!hasRole) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return fail("Not authorized for this report.");
     }
 
     const { start_date, end_date } = await req.json();
     if (!start_date || !end_date) {
-      return new Response(
-        JSON.stringify({ error: "start_date and end_date required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return fail("start_date and end_date required");
+    }
+
+    const startTimestamp = Math.floor(new Date(start_date).getTime() / 1000);
+    const endTimestamp = Math.floor(new Date(end_date).getTime() / 1000);
+
+    // Cap range to 31 days to prevent timeouts
+    const MAX_RANGE_SECONDS = 31 * 24 * 60 * 60;
+    if (endTimestamp - startTimestamp > MAX_RANGE_SECONDS) {
+      return fail("Date range too large. Please select 31 days or fewer.");
     }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
-      return new Response(
-        JSON.stringify({ error: "Stripe not configured" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return fail("Stripe is not configured.");
     }
 
     const stripe = new Stripe(stripeKey, {
@@ -83,10 +88,6 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    const startTimestamp = Math.floor(new Date(start_date).getTime() / 1000);
-    const endTimestamp = Math.floor(new Date(end_date).getTime() / 1000);
-
-    // Fetch all successful charges in date range
     const items: Array<{
       date: string;
       description: string;
@@ -99,8 +100,16 @@ serve(async (req) => {
 
     let hasMore = true;
     let startingAfter: string | undefined;
+    let truncated = false;
+    const startedAt = Date.now();
+    const TIME_BUDGET_MS = 50_000;
 
-    while (hasMore) {
+    outer: while (hasMore) {
+      if (Date.now() - startedAt > TIME_BUDGET_MS) {
+        truncated = true;
+        break;
+      }
+
       const params: Stripe.ChargeListParams = {
         created: { gte: startTimestamp, lte: endTimestamp },
         limit: 100,
@@ -110,16 +119,17 @@ serve(async (req) => {
       const charges = await stripe.charges.list(params);
 
       for (const charge of charges.data) {
-        // Only successful charges
+        if (Date.now() - startedAt > TIME_BUDGET_MS) {
+          truncated = true;
+          break outer;
+        }
         if (charge.status !== "succeeded") continue;
-        // Skip refunded charges
         if (charge.refunded) continue;
 
         const metadata = charge.metadata || {};
         const chargeType = metadata.type || metadata.payment_type || "";
-        const amountTotal = charge.amount / 100; // cents to dollars
+        const amountTotal = charge.amount / 100;
 
-        // Determine source category from metadata
         let source = "Other";
         if (
           chargeType === "cafe_order" ||
@@ -153,13 +163,26 @@ serve(async (req) => {
           source = "Kids Care";
         }
 
-        // Try to get tax info from the invoice if available
         let taxAmount = 0;
         let subtotal = amountTotal;
         let description =
           charge.description || metadata.description || `${source} charge`;
 
-        if (charge.invoice) {
+        // FAST PATH: tax in metadata (POS, café, shop)
+        if (metadata.tax_amount) {
+          taxAmount = (parseFloat(metadata.tax_amount) || 0) / 100;
+          if (metadata.subtotal) {
+            subtotal = (parseFloat(metadata.subtotal) || 0) / 100;
+          } else {
+            subtotal = amountTotal - taxAmount;
+          }
+        } else if (metadata.subtotal) {
+          subtotal = (parseFloat(metadata.subtotal) || 0) / 100;
+          taxAmount = Math.max(0, amountTotal - subtotal);
+        }
+
+        // Only fetch invoice if we still don't have tax info AND there is one
+        if (taxAmount === 0 && charge.invoice) {
           try {
             const invoiceId =
               typeof charge.invoice === "string"
@@ -167,13 +190,11 @@ serve(async (req) => {
                 : charge.invoice.id;
             const invoice = await stripe.invoices.retrieve(invoiceId);
 
-            // Use invoice tax if available
             if (invoice.tax && invoice.tax > 0) {
               taxAmount = invoice.tax / 100;
               subtotal = (invoice.subtotal || 0) / 100;
             }
 
-            // Check line items for tax entries
             if (taxAmount === 0 && invoice.lines?.data) {
               for (const line of invoice.lines.data) {
                 const lineName = (line.description || "").toLowerCase();
@@ -189,7 +210,6 @@ serve(async (req) => {
               }
             }
 
-            // Use invoice description if better
             if (invoice.lines?.data?.length) {
               const mainLine = invoice.lines.data.find(
                 (l) =>
@@ -201,31 +221,18 @@ serve(async (req) => {
               }
             }
           } catch {
-            // Invoice retrieval failed, continue with charge data
+            // ignore
           }
         }
 
-        // Check metadata for tax
-        if (taxAmount === 0 && metadata.tax_amount) {
-          taxAmount = (parseFloat(metadata.tax_amount) || 0) / 100;
-          subtotal = amountTotal - taxAmount;
-        }
-
-        // Check metadata for subtotal
-        if (metadata.subtotal) {
-          subtotal = (parseFloat(metadata.subtotal) || 0) / 100;
-          if (taxAmount === 0) {
-            taxAmount = amountTotal - subtotal;
-            if (taxAmount < 0) taxAmount = 0;
-          }
-        }
-
-        // If still no tax found, check if description mentions MI 6% tax
-        // This covers historical charges and manual_charge types
+        // Fallback: description-embedded tax
         if (taxAmount === 0) {
           const desc = (charge.description || "").toLowerCase();
-          if (desc.includes("mi 6% tax") || desc.includes("mi sales tax") || desc.includes("incl. mi 6%")) {
-            // Tax is embedded; calculate: total = subtotal * 1.06
+          if (
+            desc.includes("mi 6% tax") ||
+            desc.includes("mi sales tax") ||
+            desc.includes("incl. mi 6%")
+          ) {
             subtotal = Math.round((amountTotal / 1.06) * 100) / 100;
             taxAmount = Math.round((amountTotal - subtotal) * 100) / 100;
           }
@@ -250,24 +257,13 @@ serve(async (req) => {
       }
     }
 
-    // Sort by date descending
     items.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 
-    return new Response(JSON.stringify({ items }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return ok({ items, truncated, count: items.length });
   } catch (error) {
     console.error("stripe-sales-tax error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return fail(error instanceof Error ? error.message : "Unknown error");
   }
 });

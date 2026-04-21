@@ -33,12 +33,17 @@ export function SalesTaxReport({ dateRange }: SalesTaxReportProps) {
         body: { start_date: startStr, end_date: endStr },
       });
       if (error) throw new Error(error.message || "Failed to fetch tax data");
+      if (data && data.ok === false) throw new Error(data.error || "Request failed");
       if (data?.error) throw new Error(data.error);
-      return (data?.items || []) as StripeTaxItem[];
+      return {
+        items: (data?.items || []) as StripeTaxItem[],
+        truncated: Boolean(data?.truncated),
+      };
     },
   });
 
-  const items = data || [];
+  const items = data?.items || [];
+  const truncated = data?.truncated;
 
   // Only show items that have tax collected
   const taxedItems = items.filter((i) => i.tax_amount > 0);
@@ -75,6 +80,14 @@ export function SalesTaxReport({ dateRange }: SalesTaxReportProps) {
 
   return (
     <div className="space-y-6">
+      {truncated && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Results truncated for performance — showing first {items.length} charges. Narrow the date range for complete data.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
