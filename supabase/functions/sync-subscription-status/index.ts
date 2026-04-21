@@ -233,7 +233,12 @@ serve(async (req) => {
             } else if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
               expectedStatus = 'past_due';
             } else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
-              expectedStatus = 'cancelled';
+              // POLICY: Stripe subscription cancellation must NOT auto-cancel the membership.
+              // Membership lifecycle "cancelled" is owned exclusively by the Application Portal
+              // (for pending_activation members) or the dedicated activated-member cancellation
+              // protocol. Here we only clear the dead subscription pointer and leave member.status
+              // alone so it stays visible as a billing issue, not a lifecycle terminal state.
+              expectedStatus = member.status; // no lifecycle change
               shouldClearSubscription = true;
             } else if (subscription.status === 'incomplete') {
               // Payment failed on initial subscription - keep subscription ID but mark status as incomplete
