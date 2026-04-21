@@ -357,6 +357,7 @@ export default function FailedPaymentsHistory() {
                       <TableHead>Type</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Classification</TableHead>
                       <TableHead>Decline</TableHead>
                       <TableHead>Attempt</TableHead>
                       <TableHead>Next retry</TableHead>
@@ -364,49 +365,62 @@ export default function FailedPaymentsHistory() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="text-sm whitespace-nowrap">{format(new Date(r.created_at), "MMM d, yyyy")}</TableCell>
-                        <TableCell>
-                          <p className="font-medium">{r.member_name}</p>
-                          <p className="text-xs text-muted-foreground">{r.member_email}</p>
-                        </TableCell>
-                        <TableCell><Badge variant="outline" className="capitalize">{r.billing_type.replace(/_/g, " ")}</Badge></TableCell>
-                        <TableCell className="font-medium">${r.amount.toFixed(2)}</TableCell>
-                        <TableCell>{statusBadge(r.status, r.recovered)}</TableCell>
-                        <TableCell className="text-sm">
-                          {r.decline_code ? (
-                            <div>
-                              <div>{r.decline_code}</div>
-                              {r.decline_reason && <div className="text-xs text-muted-foreground truncate max-w-[200px]">{r.decline_reason}</div>}
+                    {rows.map((r) => {
+                      const recon = reconcileResults.get(r.id);
+                      const isUnresolved = !r.resolved_at && (r.status === "failed" || r.status === "requires_action");
+                      return (
+                        <TableRow key={r.id}>
+                          <TableCell className="text-sm whitespace-nowrap">{format(new Date(r.created_at), "MMM d, yyyy")}</TableCell>
+                          <TableCell>
+                            <p className="font-medium">{r.member_name}</p>
+                            <p className="text-xs text-muted-foreground">{r.member_email}</p>
+                          </TableCell>
+                          <TableCell><Badge variant="outline" className="capitalize">{r.billing_type.replace(/_/g, " ")}</Badge></TableCell>
+                          <TableCell className="font-medium">${r.amount.toFixed(2)}</TableCell>
+                          <TableCell>{statusBadge(r.status, r.recovered)}</TableCell>
+                          <TableCell>
+                            {isUnresolved ? (
+                              <ArrearsClassificationBadge result={recon} loading={!recon && reconcileLoading} />
+                            ) : r.resolved_at ? (
+                              <ArrearsClassificationBadge classification="resolved" />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {r.decline_code ? (
+                              <div>
+                                <div>{r.decline_code}</div>
+                                {r.decline_reason && <div className="text-xs text-muted-foreground truncate max-w-[200px]">{r.decline_reason}</div>}
+                              </div>
+                            ) : "—"}
+                          </TableCell>
+                          <TableCell>{r.attempt_number ?? "—"}</TableCell>
+                          <TableCell className="text-sm">
+                            {r.next_retry_at ? format(new Date(r.next_retry_at), "MMM d") : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              {r.member_id && (
+                                <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/members/${r.member_id}`)}>View</Button>
+                              )}
+                              {r.stripe_charge_id && (
+                                <Button variant="ghost" size="icon" asChild>
+                                  <a href={`https://dashboard.stripe.com/payments/${r.stripe_charge_id}`} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                              {isUnresolved && (
+                                <Button variant="outline" size="sm" onClick={() => openResolveDialog(r)}>
+                                  <CheckCircle2 className="h-3 w-3 mr-1" /> Resolve
+                                </Button>
+                              )}
                             </div>
-                          ) : "—"}
-                        </TableCell>
-                        <TableCell>{r.attempt_number ?? "—"}</TableCell>
-                        <TableCell className="text-sm">
-                          {r.next_retry_at ? format(new Date(r.next_retry_at), "MMM d") : "—"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            {r.member_id && (
-                              <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/members/${r.member_id}`)}>View</Button>
-                            )}
-                            {r.stripe_charge_id && (
-                              <Button variant="ghost" size="icon" asChild>
-                                <a href={`https://dashboard.stripe.com/payments/${r.stripe_charge_id}`} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
-                            {!r.resolved_at && (r.status === "failed" || r.status === "requires_action") && (
-                              <Button variant="outline" size="sm" onClick={() => handleResolve(r)}>
-                                <CheckCircle2 className="h-3 w-3 mr-1" /> Resolve
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -415,6 +429,44 @@ export default function FailedPaymentsHistory() {
         </Card>
 
         <BackfillPaymentHistoryDialog open={backfillOpen} onOpenChange={setBackfillOpen} />
+
+        {/* Resolve Dialog */}
+        <Dialog open={!!resolveTarget} onOpenChange={(o) => !o && setResolveTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Mark payment attempt resolved</DialogTitle>
+              <DialogDescription>
+                Choose a structured reason for the audit trail. Suggested reason is pre-filled from reconciliation.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Resolution reason</Label>
+                <Select value={resolveReason} onValueChange={setResolveReason}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="application_cancelled">Application cancelled (pending activation)</SelectItem>
+                    <SelectItem value="superseded_by_later_payment">Superseded by later payment</SelectItem>
+                    <SelectItem value="stripe_retry_in_progress">Stripe retry in progress</SelectItem>
+                    <SelectItem value="disputed_charge">Disputed charge — see Stripe</SelectItem>
+                    <SelectItem value="written_off_uncollectible">Written off — uncollectible</SelectItem>
+                    <SelectItem value="manual_resolution">Manual resolution / paid offline</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Note (optional)</Label>
+                <Textarea value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} rows={3} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setResolveTarget(null)}>Cancel</Button>
+              <Button onClick={submitResolve}>
+                <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Resolved
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
