@@ -150,6 +150,16 @@ export default function FailedPaymentsHistory() {
 
   const { data: rows, isLoading, refetch, isFetching } = useFailedPaymentsHistory(filters);
 
+  const reconcileTargetIds = useMemo(
+    () =>
+      (rows ?? [])
+        .filter((r) => !r.resolved_at && (r.status === "failed" || r.status === "requires_action"))
+        .map((r) => r.id),
+    [rows],
+  );
+  const { results: reconcileResults, reconcile, isLoading: reconcileLoading } =
+    useArrearsReconciliation(reconcileTargetIds, { autoRun: true, batchSize: 8 });
+
   const summary = useMemo(() => {
     const list = rows ?? [];
     const failed = list.filter((r) => r.status === "failed" || r.status === "requires_action");
@@ -177,15 +187,31 @@ export default function FailedPaymentsHistory() {
     return Array.from(set).sort();
   }, [rows]);
 
-  const handleResolve = async (row: FailedHistoryRow) => {
+  const openResolveDialog = (row: FailedHistoryRow) => {
+    const r = reconcileResults.get(row.id);
+    setResolveReason(r?.suggested_resolution_reason ?? "manual_resolution");
+    setResolveNote("");
+    setResolveTarget(row);
+  };
+
+  const submitResolve = async () => {
+    if (!resolveTarget) return;
+    const newMetadata = {
+      resolution: {
+        reason: resolveReason,
+        note: resolveNote || null,
+        resolved_at: new Date().toISOString(),
+      },
+    };
     const { error } = await supabase
       .from("payment_attempts")
-      .update({ resolved_at: new Date().toISOString() })
-      .eq("id", row.id);
+      .update({ resolved_at: new Date().toISOString(), metadata: newMetadata as any })
+      .eq("id", resolveTarget.id);
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Marked resolved");
+      toast.success(`Marked resolved (${resolveReason.replace(/_/g, " ")})`);
+      setResolveTarget(null);
       refetch();
     }
   };
