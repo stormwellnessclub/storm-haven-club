@@ -5152,15 +5152,21 @@ serve(async (req) => {
         if (memberSync.stripe_subscription_id) {
           try {
             const sub = await stripe.subscriptions.retrieve(memberSync.stripe_subscription_id);
-            
-            // Update member status based on subscription
+
+            // Always reflect Stripe's subscription status into the dedicated column
+            updates.subscription_status = sub.status;
+
+            // Update member lifecycle status based on subscription — but DO NOT
+            // auto-cancel the membership here. Membership "cancelled" is owned
+            // by the Application Portal (pending_activation members) or by the
+            // separate activated-member cancellation protocol. Stripe sub cancel
+            // is a billing issue, not a lifecycle terminal state.
             if (sub.status === 'active' && memberSync.status !== 'active' && memberSync.status !== 'frozen') {
               updates.status = 'active';
             } else if (sub.status === 'past_due' && memberSync.status !== 'past_due') {
               updates.status = 'past_due';
-            } else if (sub.status === 'canceled' && memberSync.status === 'active') {
-              updates.status = 'cancelled';
             }
+            // sub.status === 'canceled'/'incomplete_expired' intentionally does NOT touch members.status
           } catch (e) {
             logStep("Could not sync subscription status", { error: String(e) });
           }
