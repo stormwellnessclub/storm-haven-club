@@ -37,6 +37,7 @@ import {
   MessagesSquare,
   Monitor,
   CalendarDays,
+  History,
 } from "lucide-react";
 import {
   Sidebar,
@@ -143,6 +144,7 @@ const departments: DepartmentSection[] = [
     items: [
       { title: "Payments", url: "/admin/payments", icon: CreditCard },
       { title: "Payment Tracking", url: "/admin/payment-tracking", icon: FileWarning },
+      { title: "Failed Payments History", url: "/admin/payments/failed-history", icon: History, highlight: true },
       { title: "Payment Reports", url: "/admin/payment-reports", icon: BarChart3 },
       { title: "Revenue Analytics", url: "/admin/revenue-analytics", icon: TrendingUp },
       { title: "Reports", url: "/admin/reports", icon: FileBarChart },
