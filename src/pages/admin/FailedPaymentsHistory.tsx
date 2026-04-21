@@ -21,6 +21,13 @@ import {
 } from "@/hooks/useFailedPaymentsHistory";
 import { BackfillPaymentHistoryDialog } from "@/components/admin/BackfillPaymentHistoryDialog";
 import { MembersNotBilledCard } from "@/components/admin/MembersNotBilledCard";
+import { ArrearsClassificationBadge } from "@/components/admin/ArrearsClassificationBadge";
+import { useArrearsReconciliation, type ArrearsClassification } from "@/hooks/useArrearsReconciliation";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
