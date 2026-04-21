@@ -39,6 +39,7 @@ import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth
 import { useAuth } from "@/contexts/AuthContext";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
 import { getAnnualFeeAmount, normalizeGender } from "@/lib/stripeProducts";
+import { getBillingCadenceLabel } from "@/lib/billingTerminology";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -838,7 +839,7 @@ export default function MemberDetail() {
       setSubscriptionResult({
         ...data,
         tier: normalizeTierDisplay(member.membership_type),
-        billingType: member.is_founding_member ? 'Annual (Founding)' : (member.billing_type === 'annual' ? 'Annual' : 'Monthly'),
+        billingType: getBillingCadenceLabel(member.billing_type, member.is_founding_member),
         price: getPriceDisplay(tier, billingType, gender),
         creditsAllocated: data.creditsAllocated || getCreditsForTier(tier),
         chargedImmediately: !isChargingLater,

@@ -41,19 +41,20 @@ export function useMembersBillingIssues() {
 
       if (membersError) throw membersError;
 
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Failed-payment detection now uses billing_arrears (membership invoices only).
+      // Standalone POS / cafe / spa declines that were retried successfully are
+      // tracked in payment_attempts but never block check-in or raise this flag.
+      const { data: arrears, error: arrearsError } = await supabase
+        .from("billing_arrears")
+        .select("member_id, amount_due_cents, amount_paid_cents, status")
+        .in("status", ["unpaid", "partial"]);
 
-      const { data: failedPayments, error: paymentsError } = await supabase
-        .from("payment_attempts")
-        .select("member_id")
-        .eq("status", "failed")
-        .gte("created_at", thirtyDaysAgo.toISOString());
-
-      if (paymentsError) throw paymentsError;
+      if (arrearsError) throw arrearsError;
 
       const membersWithFailedPayments = new Set(
-        failedPayments?.map((p) => p.member_id) || []
+        (arrears || [])
+          .filter((a) => (a.amount_due_cents ?? 0) > (a.amount_paid_cents ?? 0))
+          .map((a) => a.member_id)
       );
 
       const now = new Date();
@@ -112,9 +113,9 @@ export function useMembersBillingIssues() {
           }
         }
 
-        // Failed payments
+        // Failed payments — only counts unresolved membership-invoice arrears
         if (membersWithFailedPayments.has(member.id)) {
-          issues.push({ type: "error", code: "failed_payment", message: "Recent payment failure (last 30 days)", shortLabel: "Failed" });
+          issues.push({ type: "error", code: "failed_payment", message: "Unresolved membership invoice (dues or annual fee)", shortLabel: "Unpaid Dues" });
           failedPaymentsCount++;
         }
 

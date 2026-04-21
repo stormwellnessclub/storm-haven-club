@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, addYears, parseISO } from "date-fns";
 import { getMembershipPrice, getAnnualFeeAmount, normalizeTierName, normalizeGender, type MembershipTier, type BillingType, type Gender } from "@/lib/stripeProducts";
+import { getDuesLabel, getUpcomingDuesLabel, getBillingCadenceLabel, BILLING_TERMS } from "@/lib/billingTerminology";
 
 interface BillingSummaryProps {
   membershipType: string;
@@ -80,7 +81,7 @@ export function BillingSummary({
           {/* Membership Dues Section */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Membership Rate</span>
+              <span className="text-sm text-muted-foreground">{getDuesLabel(billing, isFoundingMember)}</span>
               {membershipPrice && (
                 <span className="text-sm font-medium">
                   ${membershipPrice.amount}/{membershipPrice.interval === 'year' ? 'year' : 'mo'}
@@ -88,21 +89,21 @@ export function BillingSummary({
               )}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Billing Type</span>
+              <span className="text-sm text-muted-foreground">Billing Cadence</span>
               <span className="text-sm">
-                {isFoundingMember ? 'Annual (Founding)' : billing === 'annual' ? 'Annual' : 'Monthly'}
+                {getBillingCadenceLabel(billing, isFoundingMember)}
               </span>
             </div>
             {isFrozen ? (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Next Payment</span>
+                <span className="text-sm text-muted-foreground">{getUpcomingDuesLabel(billing, isFoundingMember)}</span>
                 <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs">
                   Billing Paused
                 </Badge>
               </div>
             ) : nextBillingDate ? (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Next Payment</span>
+                <span className="text-sm text-muted-foreground">{getUpcomingDuesLabel(billing, isFoundingMember)}</span>
                 <span className="text-sm">{format(nextBillingDate, "MMM d, yyyy")}</span>
               </div>
             ) : null}

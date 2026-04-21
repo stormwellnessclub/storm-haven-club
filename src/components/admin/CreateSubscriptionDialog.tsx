@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CreditCard, Calendar, DollarSign, Loader2, Zap, Banknote } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { getBillingCadenceLabel } from "@/lib/billingTerminology";
 
 interface Member {
   first_name: string;
@@ -138,7 +139,7 @@ export function CreateSubscriptionDialog({
 
     return {
       tier: normalizeTierDisplay(member.membership_type),
-      billingType: member.is_founding_member ? "Annual (Founding)" : (billingType === "annual" ? "Annual" : "Monthly"),
+      billingType: getBillingCadenceLabel(billingType, member.is_founding_member),
       price: `$${price}${interval}`,
       credits,
       cardInfo:

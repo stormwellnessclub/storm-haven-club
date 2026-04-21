@@ -4155,6 +4155,8 @@ export type Database = {
           stripe_payment_intent_id: string | null
           stripe_subscription_id: string | null
           succeeded_at: string | null
+          superseded_at: string | null
+          superseded_by_attempt_id: string | null
         }
         Insert: {
           amount: number
@@ -4184,6 +4186,8 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_subscription_id?: string | null
           succeeded_at?: string | null
+          superseded_at?: string | null
+          superseded_by_attempt_id?: string | null
         }
         Update: {
           amount?: number
@@ -4213,6 +4217,8 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_subscription_id?: string | null
           succeeded_at?: string | null
+          superseded_at?: string | null
+          superseded_by_attempt_id?: string | null
         }
         Relationships: [
           {
@@ -4234,6 +4240,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_attempts_superseded_by_attempt_id_fkey"
+            columns: ["superseded_by_attempt_id"]
+            isOneToOne: false
+            referencedRelation: "payment_attempts"
             referencedColumns: ["id"]
           },
         ]
@@ -6539,6 +6552,10 @@ export type Database = {
       }
       current_user_email: { Args: never; Returns: string }
       current_user_email_lower: { Args: never; Returns: string }
+      evaluate_member_check_in_eligibility: {
+        Args: { p_member_id: string }
+        Returns: Json
+      }
       find_or_create_temp_class_session: {
         Args: {
           _class_name: string
