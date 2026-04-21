@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
 
 export type AttendanceType = "member" | "guest" | "class" | "spa";
 
@@ -30,10 +31,10 @@ export function useUnifiedAttendance() {
   });
 
   const fetchAll = useCallback(async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayIso = today.toISOString();
-    const todayStr = todayIso.split("T")[0];
+    // America/Chicago day boundaries — same for every device
+    const todayIso = clubTodayStart();
+    const tomorrowIso = clubTodayEnd();
+    const todayStr = clubTodayDateStr();
 
     const [checkInsRes, guestsRes, classRes, spaRes, currentlyInRes] = await Promise.all([
       // Member check-ins
@@ -44,6 +45,7 @@ export function useUnifiedAttendance() {
           members(id, member_id, first_name, last_name, membership_type, photo_url, status)
         `)
         .gte("checked_in_at", todayIso)
+        .lt("checked_in_at", tomorrowIso)
         .order("checked_in_at", { ascending: false }),
 
       // Guest passes used today
@@ -62,7 +64,8 @@ export function useUnifiedAttendance() {
           member:members(first_name, last_name, id)
         `)
         .not("checked_in_at", "is", null)
-        .gte("checked_in_at", todayIso),
+        .gte("checked_in_at", todayIso)
+        .lt("checked_in_at", tomorrowIso),
 
       // Spa appointments checked in today
       (supabase.from as any)("spa_appointments")
@@ -71,13 +74,15 @@ export function useUnifiedAttendance() {
           member:members(first_name, last_name, id)
         `)
         .not("checked_in_at", "is", null)
-        .gte("checked_in_at", todayIso),
+        .gte("checked_in_at", todayIso)
+        .lt("checked_in_at", tomorrowIso),
 
-      // Currently in (members only)
+      // Currently in (members only) — today's open check-ins
       supabase
         .from("check_ins")
         .select("*", { count: "exact", head: true })
         .gte("checked_in_at", todayIso)
+        .lt("checked_in_at", tomorrowIso)
         .is("checked_out_at", null),
     ]);
 
