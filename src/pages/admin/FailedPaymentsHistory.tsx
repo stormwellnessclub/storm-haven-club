@@ -216,18 +216,17 @@ export default function FailedPaymentsHistory() {
     }
   };
 
-  // Bulk auto-resolve rows classified as application_cancelled or superseded_by_later_payment
+  // Bulk auto-resolve rows whose reconciliation suggests application_cancelled or superseded_by_later_payment
   const autoResolvableRows = useMemo(() => {
-    const out: { row: FailedHistoryRow; classification: ArrearsClassification; reason: string }[] = [];
+    const out: { row: FailedHistoryRow; reason: string }[] = [];
     for (const row of rows ?? []) {
       if (row.resolved_at) continue;
       if (row.status !== "failed" && row.status !== "requires_action") continue;
       const recon = reconcileResults.get(row.id);
       if (!recon) continue;
-      if (recon.classification === "application_cancelled") {
-        out.push({ row, classification: recon.classification, reason: "application_cancelled" });
-      } else if (recon.classification === "superseded") {
-        out.push({ row, classification: recon.classification, reason: "superseded_by_later_payment" });
+      const reason = recon.suggested_resolution_reason;
+      if (reason === "application_cancelled" || reason === "superseded_by_later_payment") {
+        out.push({ row, reason });
       }
     }
     return out;
