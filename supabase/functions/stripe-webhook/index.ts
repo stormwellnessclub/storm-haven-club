@@ -1835,6 +1835,7 @@ serve(async (req) => {
 
             if (logAttemptError) {
               logError(logAttemptError, "INVOICE_PAYMENT_SUCCEEDED_LOG");
+              console.error("[PAYMENT_TRACKING_DRIFT] log_payment_attempt(succeeded) failed", logAttemptError);
             }
 
             // ── Upsert billing_arrears ledger: mark this period as paid ──
@@ -2512,6 +2513,7 @@ serve(async (req) => {
 
             if (logAttemptError) {
               logError(logAttemptError, "INVOICE_PAYMENT_FAILED_LOG");
+              console.error("[PAYMENT_TRACKING_DRIFT] log_payment_attempt(failed) failed", logAttemptError);
             }
 
             // ── Upsert billing_arrears ledger: mark this period as unpaid ──
@@ -2740,6 +2742,7 @@ serve(async (req) => {
 
             if (logAttemptError) {
               logError(logAttemptError, "INVOICE_PAYMENT_ACTION_REQUIRED_LOG");
+              console.error("[PAYMENT_TRACKING_DRIFT] log_payment_attempt(requires_action) failed", logAttemptError);
             }
           }
         } catch (invoiceError) {

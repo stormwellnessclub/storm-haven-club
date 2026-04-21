@@ -56,6 +56,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import stormLogo from "@/assets/storm-logo-gold.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { useUnresolvedFailedCount } from "@/hooks/useUnresolvedFailedCount";
 import { canAccessPage, type AppRole } from "@/lib/permissions";
 
 interface MenuItem {
@@ -171,6 +172,7 @@ export function AdminSidebar() {
   const isCollapsed = state === "collapsed";
   const [todaysGuestCount, setTodaysGuestCount] = useState(0);
   const [hasMembership, setHasMembership] = useState(false);
+  const unresolvedFailedCount = useUnresolvedFailedCount();
 
   useEffect(() => {
     if (!user) return;
@@ -280,6 +282,11 @@ export function AdminSidebar() {
                               {item.url === "/admin/guest-passes" && todaysGuestCount > 0 && !isCollapsed && (
                                 <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-accent text-accent-foreground text-xs font-medium">
                                   {todaysGuestCount}
+                                </span>
+                              )}
+                              {item.url === "/admin/payments/failed-history" && unresolvedFailedCount > 0 && !isCollapsed && (
+                                <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-medium">
+                                  {unresolvedFailedCount}
                                 </span>
                               )}
                             </NavLink>
