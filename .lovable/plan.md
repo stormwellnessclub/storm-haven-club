@@ -1,45 +1,224 @@
 
 
-## Finish failed-payment tracking — gap closure
+## Fix cancellation logic and harden payment-failure reconciliation
 
-The big pieces from the prior plan are all built and wired up: migration ran, RPC fixed, edge functions exist, `/admin/payments/failed-history` page is live with filters/CSV/realtime, sidebar entry added, dialog and "members not billed" card embedded. **Three planned items were not finished.** I'll close them now plus a small webhook-side defensive fix.
+You’re right: the cancellation rule needs to be explicit and narrowly scoped, and the current logic is too loose in a few places. I reviewed the UI, member portal, and backend paths that currently influence “cancelled” and found that the system is mixing together:
+- application-portal cancellation,
+- Stripe subscription cancellation,
+- member status,
+- and arrears reconciliation.
 
-### Remaining gaps to close
+That is the source of the logic gaps.
 
-**1. Deploy the two new edge functions and run the initial backfill.**
-The functions exist as files but have not been deployed yet, so the backfill button currently has nothing to call. I will:
-- Deploy `backfill-payment-history` and `payment-tracking-health-check`
-- Trigger one initial backfill covering Jan 1, 2025 → today so the page is populated when you open it
-- Report charges inserted, invoices upserted, and any skipped (no-matching-member) so you can see exactly what landed
+### What is already true today
 
-**2. Schedule the daily reconciliation cron — 6:00am Chicago.**
-Without the cron, the health-check function exists but never runs, so silent webhook drift in the future would not alert you. I will install a `pg_cron` job that calls `payment-tracking-health-check` once a day at 11:00 UTC (6am CST / 7am CDT — close enough; if you want it pinned to 6am year-round we can split into two jobs, but a single 6am-Chicago-ish slot is what the plan called for). Jobname: `payment-tracking-health-check-daily`.
+- In the **Applications** admin page, marking an application as `cancelled` or `rejected` already updates a matching `members` record to `status = 'cancelled'` when that member is still `pending_activation`.
+- The **member portal** already reads from `members.status`, so if the member row is correctly synced, the portal follows it.
+- But other backend paths still infer `members.status = 'cancelled'` from Stripe subscription state:
+  - `supabase/functions/sync-subscription-status/index.ts`
+  - `supabase/functions/stripe-payment/index.ts` (`sync_member_billing_data`)
+- That conflicts with your rule for this workflow.
 
-**3. Add the unresolved-failed-count badge to the sidebar.**
-The "Failed Payments History" sidebar item is currently a plain link. I'll add a small red badge showing the number of unresolved failed payment attempts (`status='failed' AND resolved_at IS NULL`), polled every 60 seconds with realtime invalidation when a new attempt lands. The query uses `head: true, count: 'exact'` so it stays cheap.
+## New rule to implement
 
-**4. Defensive logging on the webhook (small).**
-The plan also called for a "defensive log when `log_payment_attempt` errors in the future." The webhook already calls `logError(...)` on RPC failure at all 3 sites (lines 1813, 2486, 2725), but it currently swallows the error and continues. I'll add one extra console line per site that explicitly tags the failure as `[PAYMENT_TRACKING_DRIFT]` so the daily health-check edge function can grep for it in logs and the future-proofing is complete. No behavior change, just better observability.
+For the cancellation work we’re doing right now:
 
-### Files & scope
+- A membership is considered **Cancelled** only when **you mark the application cancelled in the application portal**.
+- Stripe subscription cancellation alone must **not** cause the member to be treated as “cancelled” for this workflow.
+- Activated-member cancellation will be handled under a separate protocol later and should not be mixed into this arrears logic now.
 
-- **Deploy**: `backfill-payment-history`, `payment-tracking-health-check` edge functions
-- **One-shot run**: `backfill-payment-history` with `{ start: "2025-01-01", end: today }`
-- **Cron install** (via insert tool, not migration — contains project-specific URL/key):
-  ```
-  cron.schedule('payment-tracking-health-check-daily', '0 11 * * *', net.http_post(...))
-  ```
-- **Modified**:
-  - `src/components/admin/AdminSidebar.tsx` — render badge next to "Failed Payments History" entry; add small `useUnresolvedFailedCount` hook (inline or new file)
-  - `src/hooks/useUnresolvedFailedCount.ts` (new, ~25 lines) — count query + realtime subscription
-  - `supabase/functions/stripe-webhook/index.ts` — three one-line `console.error('[PAYMENT_TRACKING_DRIFT] ...', logAttemptError)` additions
+## Implementation plan
 
-### What you'll have when this is done
+### 1. Make application-portal cancellation the only “cancelled” source for this flow
 
-- Open `/admin/payments/failed-history` and the page is **already populated** with every Stripe charge from Jan 2025 → today (instead of empty pending the first backfill click)
-- Sidebar shows a red badge like "Failed Payments History (4)" so unresolved issues are visible without opening the page
-- Tomorrow at 6am Chicago and every morning after, the system reconciles Stripe vs DB; if anything diverges by more than 1, admins get an email
-- If the webhook RPC ever silently breaks again, the failure is tagged `[PAYMENT_TRACKING_DRIFT]` in edge logs for fast diagnosis
+I’ll preserve the existing application-portal sync, but formalize it so it becomes the authoritative source for this case.
 
-After approval I'll deploy → backfill → install cron → ship the badge, in that order.
+Changes:
+- Keep the existing sync in `src/pages/admin/Applications.tsx`, but narrow and document it:
+  - only sync `members.status = 'cancelled'` when the matching member is still `pending_activation`
+  - do not treat `rejected` as equivalent to `cancelled` for arrears classification unless you want that explicitly
+- Add a dedicated backend-safe helper/RPC for this sync instead of relying on page-level UI logic alone, so the rule is enforced consistently even if the app UI changes later.
+
+Result:
+- “Cancelled” for this current workflow will mean: cancelled in application portal, synced to pending-activation member record.
+
+### 2. Stop backend billing sync from auto-cancelling members in this workflow
+
+These are the main logic leaks I found:
+- `sync-subscription-status` sets `expectedStatus = 'cancelled'` for Stripe `canceled` / `incomplete_expired`
+- `stripe-payment` → `sync_member_billing_data` can set `updates.status = 'cancelled'` when Stripe says the subscription is canceled
+
+That is too aggressive for your rule.
+
+I’ll change those paths so they:
+- continue syncing `subscription_status`
+- continue syncing payment/card/subscription metadata
+- do **not** auto-set `members.status = 'cancelled'` just because Stripe says a subscription is canceled
+- use `past_due`, `incomplete`, `unpaid`, `no_subscription`, or leave the member lifecycle status alone instead
+
+Result:
+- Stripe billing state remains visible
+- but it no longer hijacks membership lifecycle state
+
+### 3. Rework failed-payment/arrears classification so “Cancelled” only uses application status for this audit
+
+The arrears and failed-payment audit will be updated to classify rows with a stricter decision tree:
+
+```text
+If application is cancelled in application portal
+  and matching member is/was pending_activation
+    => Cancelled
+Else if Stripe is still retrying
+    => Retrying
+Else if there are later successful non-disputed collections covering later cycles
+    => Superseded
+Else if invoice is still unpaid and no later valid recovery
+    => Action needed
+Else
+    => Needs review
+```
+
+Important correction:
+- I will remove Stripe subscription cancellation as a direct “Cancelled” signal from this reconciliation pass.
+- Sarah / Miriam / others will only show as cancelled if the application-side cancellation rule is satisfied.
+- Disputed charges will not count as valid “paid since” evidence.
+
+### 4. Add dispute-aware payment validation
+
+You specifically called out Sarah being shown as succeeded when the charge was disputed. That means the current logic is counting raw success without checking what happened after settlement.
+
+I’ll fix reconciliation so:
+- a charge that later became disputed is flagged separately
+- disputed-and-lost charges do not count as proof that the arrear was recovered
+- dispute state is shown alongside the row/drilldown
+
+Result:
+- “succeeded” won’t falsely imply “good standing”
+
+### 5. Make the member portal reflect the correct lifecycle source cleanly
+
+The member portal already relies on `members.status`, which is good. The real problem is status corruption upstream.
+
+I’ll still do a full portal-path audit across:
+- `useUserMembership`
+- `usePaymentStatus`
+- `useMemberBenefitsStatus`
+- `ProtectedPortalRoute`
+- `MemberLayout`
+
+and make sure:
+- application-cancelled pending-activation members are blocked/shown correctly
+- Stripe subscription cancellation alone does not incorrectly make someone “cancelled”
+- payment problems stay in payment/problem states, not lifecycle states
+
+Result:
+- application portal and member portal will speak the same language for this rule
+
+### 6. Tighten the billing health / issue widgets so they don’t over-report cancelled logic
+
+I also found other admin health logic that can confuse lifecycle vs billing:
+- `useMembersBillingIssues`
+- `BillingHealthWidget`
+- `BillingHealthCard`
+- `EffectiveStatusBadge`
+
+I’ll update these so:
+- “subscription canceled” remains a billing issue
+- but does not automatically imply member lifecycle “cancelled”
+- lifecycle badges and billing issue badges stay separate
+
+This prevents staff from seeing mixed signals like:
+- “cancelled member” when really it is
+- “subscription canceled / no active billing setup”
+
+### 7. Add explicit audit fields and resolution reasons for failed-payment cleanup
+
+To make this robust and reduce future ambiguity, I’ll extend resolution/reconciliation with structured reasons such as:
+- `application_cancelled`
+- `superseded_by_later_payment`
+- `stripe_retry_in_progress`
+- `disputed_charge`
+- `written_off_uncollectible`
+- `manual_resolution`
+
+This will be used both in the failed-payments history workflow and any arrears cleanup actions, so later reviews don’t require re-investigating why something was resolved.
+
+### 8. Run a full logic-gap audit before implementation is considered done
+
+Before calling this complete, I will re-audit all relevant paths end-to-end:
+
+**Admin / application layer**
+- `src/pages/admin/Applications.tsx`
+- failed payments / arrears UI
+- sidebar count logic
+
+**Member portal layer**
+- `src/hooks/useUserMembership.ts`
+- `src/hooks/usePaymentStatus.ts`
+- `src/hooks/useMemberBenefitsStatus.ts`
+- `src/components/portal/ProtectedPortalRoute.tsx`
+- `src/components/member/MemberLayout.tsx`
+
+**Backend / billing sync**
+- `supabase/functions/stripe-payment/index.ts`
+- `supabase/functions/sync-subscription-status/index.ts`
+- `supabase/functions/stripe-webhook/index.ts`
+
+**Data model / arrears**
+- `billing_arrears`
+- `payment_attempts`
+- `membership_applications`
+- `application_status_history`
+- `members`
+
+## Robustness improvements to add next for payment failures / expired cards / past due
+
+After the cancellation rule is corrected, the next robustness pass should add:
+
+1. **Single source of truth reconciliation label**
+   - one computed status per arrears row:
+   - `cancelled`, `retrying`, `superseded`, `disputed`, `action_needed`, `resolved`
+
+2. **Dispute-aware recovery logic**
+   - no more counting disputed charges as successful recovery
+
+3. **Card-risk monitoring**
+   - separate buckets for:
+     - no card
+     - expired card
+     - expiring within 30 days
+     - card metadata stale/not synced
+
+4. **Retry-state visibility**
+   - show exact next retry date/time in Chicago time
+   - distinguish “Stripe still working” from “abandoned”
+
+5. **Current-cycle vs legacy-invoice separation**
+   - prevent old abandoned invoices from making a currently-paying member look delinquent
+
+6. **Bulk cleanup actions**
+   - resolve cancelled-app rows
+   - resolve superseded rows
+   - leave real collectible balances untouched
+
+7. **More defensive observability**
+   - structured log tags for reconciliation mismatches
+   - explicit drift reasons, not just generic failure counts
+
+## Timezone handling
+
+Michigan is Eastern Time, so any due/retry/reporting timestamps in this payment-failure workflow should use:
+- `America/Detroit`
+
+I will correct any “Chicago” assumptions in the payment-tracking/reconciliation presentation and scheduling logic for this reporting flow so due dates, retry dates, and audit displays align with your local operations.
+
+## Deliverable outcome
+
+After this revision is implemented:
+
+- “Cancelled” in this current audit will only mean what you want it to mean: cancelled in the application portal
+- subscription cancellation and billing failures will stay billing states, not lifecycle cancellation
+- disputed charges won’t be misread as valid recovery
+- the application portal and member portal will stay aligned
+- the failed-payments report will be much more trustworthy and less prone to the logic mistakes you’ve been catching
 
