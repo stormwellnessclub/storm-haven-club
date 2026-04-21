@@ -80,6 +80,14 @@ export function SalesTaxReport({ dateRange }: SalesTaxReportProps) {
 
   return (
     <div className="space-y-6">
+      {truncated && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Results truncated for performance — showing first {items.length} charges. Narrow the date range for complete data.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
