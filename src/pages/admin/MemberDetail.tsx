@@ -39,6 +39,7 @@ import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth
 import { useAuth } from "@/contexts/AuthContext";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
 import { getAnnualFeeAmount, normalizeGender } from "@/lib/stripeProducts";
+import { getBillingCadenceLabel } from "@/lib/billingTerminology";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
