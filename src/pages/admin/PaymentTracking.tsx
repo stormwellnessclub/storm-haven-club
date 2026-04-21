@@ -7,11 +7,21 @@ import { PaymentEmailsTab } from "@/components/admin/PaymentEmailsTab";
 import { StripeLivePaymentsTab } from "@/components/admin/StripeLivePaymentsTab";
 import { AutoPayProjectionsTab } from "@/components/admin/AutoPayProjectionsTab";
 import { AutopayScheduleTab } from "@/components/admin/AutopayScheduleTab";
-import { XCircle, Clock, CheckCircle, Mail, Zap, TrendingUp, CalendarClock } from "lucide-react";
+import { XCircle, Clock, CheckCircle, Mail, Zap, TrendingUp, CalendarClock, History } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 export default function PaymentTracking() {
   return (
     <AdminLayout title="Payment Tracking">
+      <div className="mb-4 flex justify-end">
+        <Button asChild variant="outline" size="sm">
+          <Link to="/admin/payments/failed-history">
+            <History className="h-4 w-4 mr-2" />
+            Failed Payments History (full audit)
+          </Link>
+        </Button>
+      </div>
       <Tabs defaultValue="stripe-live" className="space-y-4">
         <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
           <TabsTrigger value="stripe-live" className="gap-2">

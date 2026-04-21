@@ -4141,8 +4141,19 @@ export type Database = {
           invoice_id: string | null
           invoice_number: string | null
           member_id: string | null
+          metadata: Json | null
           next_retry_at: string | null
+          payment_method_id: string | null
+          payment_method_type: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          retry_attempted: boolean | null
           status: string
+          stripe_charge_id: string | null
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
           succeeded_at: string | null
         }
         Insert: {
@@ -4159,8 +4170,19 @@ export type Database = {
           invoice_id?: string | null
           invoice_number?: string | null
           member_id?: string | null
+          metadata?: Json | null
           next_retry_at?: string | null
+          payment_method_id?: string | null
+          payment_method_type?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retry_attempted?: boolean | null
           status: string
+          stripe_charge_id?: string | null
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
           succeeded_at?: string | null
         }
         Update: {
@@ -4177,8 +4199,19 @@ export type Database = {
           invoice_id?: string | null
           invoice_number?: string | null
           member_id?: string | null
+          metadata?: Json | null
           next_retry_at?: string | null
+          payment_method_id?: string | null
+          payment_method_type?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retry_attempted?: boolean | null
           status?: string
+          stripe_charge_id?: string | null
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
           succeeded_at?: string | null
         }
         Relationships: [
@@ -4265,6 +4298,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_tracking_health_log: {
+        Row: {
+          alert_sent: boolean
+          checked_at: string
+          created_at: string
+          db_failed_count: number
+          db_succeeded_count: number
+          drift: number
+          id: string
+          notes: string | null
+          stripe_failed_count: number
+          stripe_succeeded_count: number
+          window_end: string
+          window_start: string
+        }
+        Insert: {
+          alert_sent?: boolean
+          checked_at?: string
+          created_at?: string
+          db_failed_count?: number
+          db_succeeded_count?: number
+          drift?: number
+          id?: string
+          notes?: string | null
+          stripe_failed_count?: number
+          stripe_succeeded_count?: number
+          window_end: string
+          window_start: string
+        }
+        Update: {
+          alert_sent?: boolean
+          checked_at?: string
+          created_at?: string
+          db_failed_count?: number
+          db_succeeded_count?: number
+          drift?: number
+          id?: string
+          notes?: string | null
+          stripe_failed_count?: number
+          stripe_succeeded_count?: number
+          window_end?: string
+          window_start?: string
+        }
+        Relationships: []
       }
       pending_non_member_imports: {
         Row: {
@@ -6646,18 +6724,27 @@ export type Database = {
       }
       log_payment_attempt: {
         Args: {
-          p_amount: number
+          p_amount?: number
           p_attempt_number?: number
-          p_currency: string
+          p_currency?: string
           p_decline_code?: string
           p_decline_reason?: string
+          p_failed_at?: string
           p_failure_code?: string
           p_failure_message?: string
-          p_invoice_id: string
-          p_invoice_number: string
+          p_invoice_number?: string
           p_member_id: string
+          p_metadata?: Json
           p_next_retry_at?: string
-          p_status: string
+          p_payment_method_id?: string
+          p_payment_method_type?: string
+          p_retry_attempted?: boolean
+          p_status?: string
+          p_stripe_charge_id?: string
+          p_stripe_invoice_id?: string
+          p_stripe_payment_intent_id?: string
+          p_stripe_subscription_id?: string
+          p_succeeded_at?: string
         }
         Returns: string
       }
