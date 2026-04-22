@@ -2307,6 +2307,37 @@ serve(async (req) => {
           }
 
           if (memberData) {
+            // GUARD: If member is cancelled/expired/suspended, void this invoice and skip arrears mirror
+            if (['cancelled', 'expired', 'suspended'].includes(memberData.status)) {
+              try {
+                await stripe.invoices.voidInvoice(invoice.id);
+                logStep("Auto-voided invoice for cancelled member (payment_failed)", { 
+                  invoiceId: invoice.id, 
+                  memberId: memberData.id, 
+                  memberStatus: memberData.status 
+                });
+                await supabase.from('audit_logs').insert({
+                  action: 'invoice_received_for_cancelled_member',
+                  entity_type: 'invoice',
+                  entity_id: invoice.id,
+                  metadata: {
+                    member_id: memberData.id,
+                    member_status: memberData.status,
+                    member_email: memberData.email,
+                    stripe_subscription_id: invoice.subscription,
+                    action_taken: 'voided_open',
+                    triggered_by: 'invoice.payment_failed',
+                  },
+                });
+              } catch (autoVoidErr) {
+                logStep("Warning: failed to auto-void invoice for cancelled member", { 
+                  invoiceId: invoice.id, 
+                  error: String(autoVoidErr) 
+                });
+              }
+              break;
+            }
+
             // ── Apply pending tier downgrade immediately on failure ──
             // If member has a pending_tier_change (scheduled downgrade), apply it now
             // so the next Stripe retry uses the correct (lower) price.
