@@ -5975,10 +5975,10 @@ serve(async (req) => {
       }
 
       case 'deactivate_member': {
-        const { memberId } = body;
+        const { memberId, detachPaymentMethods = true } = body;
         if (!memberId) throw new Error("Missing memberId");
 
-        logStep("Deactivate member", { memberId });
+        logStep("Deactivate member", { memberId, detachPaymentMethods });
 
         const { data: memberData, error: memberErr } = await supabase
           .from('members')
@@ -5989,6 +5989,8 @@ serve(async (req) => {
         if (memberErr || !memberData) throw new Error("Member not found");
 
         const cancelledSubs: string[] = [];
+        const voidedInvoices: string[] = [];
+        const detachedPMs: string[] = [];
 
         // Cancel the known dues subscription
         if (memberData.stripe_subscription_id) {
