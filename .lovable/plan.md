@@ -1,61 +1,82 @@
 
 
-## Export payment-processing code as a downloadable ZIP of original source files
+## Storm Payment System — Full Audit Fixes (10 items)
 
-### What you'll get
+I've read the entire brief including the "Things Lovable Must NOT Do" rules, and verified each claim against the current codebase. Plan below follows the brief exactly — no inventions.
 
-A single ZIP archive — `payment-system-audit.zip` — containing every payment-related file in the project, preserved with their **original filenames and extensions** (`.ts`, `.tsx`, `.sql`) and their **original folder structure**. No Markdown wrapping, no concatenation. Drop it into Claude (or any tool) and it sees real source files.
+### Hard rules I will follow
+- Never use `billing_type` for projection amounts or notification copy
+- Never use the pricing matrix as the source for collected (actual) revenue — only for forward projections
+- Never skip non-subscription invoices in the webhook
+- Never mix member dues and non-member transactions in the same report table
+- Founding members DO have annual dues renewals AND annual initiation fee renewals
+- "Annual fee due" and "monthly dues due" are always two separate notifications
+- `get-autopay-dates` must write results back to `members.next_billing_date` and `members.next_annual_fee_date`
 
-### Archive layout
+### What gets built (in order)
 
-```text
-payment-system-audit.zip
-├── README.md                          ← flow map + file index (the only generated file)
-├── supabase/
-│   ├── functions/
-│   │   ├── stripe-payment/index.ts
-│   │   ├── stripe-webhook/index.ts
-│   │   ├── reconcile-arrear/index.ts
-│   │   ├── backfill-payment-history/index.ts
-│   │   ├── backfill-disputes/index.ts
-│   │   ├── stripe-failed-invoices/index.ts
-│   │   ├── payment-tracking-health-check/index.ts
-│   │   ├── sync-subscription-status/index.ts
-│   │   └── stripe-config/index.ts
-│   └── migrations/
-│       └── (all payment-related migrations, original filenames preserved)
-└── src/
-    ├── hooks/                         ← all 20 payment hooks
-    ├── components/admin/MemberDetail/ ← billing surface components
-    ├── components/admin/              ← charge/subscription/failed-payment components
-    ├── components/member/             ← member-facing billing components
-    ├── components/                    ← shared (StripeProvider, ChargeHistory, etc.)
-    ├── pages/admin/                   ← PaymentTracking, FailedPaymentsHistory, POS pages
-    ├── pages/member/                  ← Membership, PaymentHistory, PaymentMethods
-    ├── pages/portal/PaymentMethods.tsx
-    ├── pages/Apply.tsx
-    └── lib/                           ← billingTerminology, processingFee, stripeErrors, stripeProducts
-```
+**1. Database migration**
+- `ALTER TABLE members ADD COLUMN next_billing_date date, next_annual_fee_date date`
+- Rewrite `mark_superseded_failed_attempts` trigger: match by `stripe_invoice_id` first; keep amount+10min only as fallback when invoice id is null
+- Trigger also updates `billing_arrears` (`status='paid'`, `paid_at=now()`) for matching `stripe_invoice_id`+`member_id`
+- One-time backfill: re-run the new supersede logic across existing rows to clear stale failures
 
-The same file list from the previously approved bundle — only the packaging changes.
+**2. `get-autopay-dates` edge function (rewrite)**
+- Already exists; extend it to write `current_period_end` back to `members.next_billing_date` (when sub matches `stripe_subscription_id`) and `members.next_annual_fee_date` (when sub matches `annual_fee_subscription_id`)
 
-### The one generated file: `README.md`
+**3. `stripe-webhook/index.ts`**
+- In `customer.subscription.updated`: after status sync, update the matching `next_billing_date` or `next_annual_fee_date`
+- In all 3 `invoice.payment_succeeded` branches: stop early-returning on `!invoice.subscription`. Route non-subscription invoices to a new handler that:
+  - Looks up customer in `non_member_profiles`
+  - Inserts into `payment_attempts` with `member_id=null`, `non_member_profile_id` set, and `metadata.charge_type` of `class_pass` / `guest_pass` / `pos_other` derived from line item product metadata
 
-A short index at the root of the zip with:
-- The Stripe → webhook → DB → hook → UI flow map
-- The list of every Stripe event handled and what it triggers
-- A table of contents pointing to each included file by relative path
-- The audit goal framing (find every place a failure/retry/dispute/cancellation/arrear is created, resolved, displayed, or missed)
+**4. Hook fixes**
+- `useMemberConfirmedIssues.ts` — add `.is("resolved_at", null)` to the disputed query (line ~110)
+- `useAutopaySchedule.ts` — remove the `pa.amount >= 100 ? /100 : amount` heuristic; use `pa.amount` directly
+- New `useNextMemberPayment(memberId)` hook reading `next_billing_date`, `next_annual_fee_date`, card info, and unresolved failed-attempt count
 
-### Deliverable
+**5. Member Detail UI**
+- New `<NextPaymentCard />` widget showing: Next dues, Next annual fee, Open failed payments — with card brand/last4
 
-`/mnt/documents/payment-system-audit.zip` — a single downloadable archive containing real `.ts` / `.tsx` / `.sql` files in their original structure, plus a `README.md` index.
+**6. Reports — rebuild + add new ones**
+All reports get a date-range picker with presets (This Month / Last Month / Last 3 / Last 12 / Custom).
 
-### Technical details
+| Report | Source | Notes |
+|---|---|---|
+| **Autopay / Upcoming Charges** (rebuilt) | `next_billing_date`, `next_annual_fee_date` | Filter by charge type, tier |
+| **Failed Payments** (new) | `payment_attempts` failed + unresolved + non-superseded | Retry, mark resolved, view member actions |
+| **Collected Revenue** (new) | `payment_attempts` succeeded | Grouped: Dues / Annual Fee / Class Pass / Guest Pass / POS |
+| **Projected Revenue** (new) | `next_billing_date` + `next_annual_fee_date` | Projections >1mo labelled as estimates |
+| **Revenue Summary Dashboard** (rebuilt) | Both | Side-by-side Collected vs Projected; replace single "Annual Run Rate" card with **MRR**, **Annual Initiation Fee Revenue (next 12mo)**, **12-Month Total Projection** |
 
-- Script reads the same file list used for the Markdown bundle and copies each into a staging directory at its original repo-relative path.
-- Migrations are filtered to only those touching `payment_attempts`, `billing_arrears`, `card_sync_failures`, `webhook_events`, or related RPCs (already enumerated previously).
-- `README.md` is generated fresh from the flow-map content used in the prior bundle.
-- Final step: `zip -r /mnt/documents/payment-system-audit.zip .` from the staging dir.
-- No code changes to the project. No edge functions touched.
+- `CashFlowProjectionReport`: founding members contribute $0 unless their `next_billing_date` falls in that month; warning shown if null
+- All projections use pricing matrix; all actuals read `payment_attempts.amount` directly
+
+**7. Member portal notification logic**
+- Remove `billing_type` from notification decision
+- Show "Monthly dues due soon" when `stripe_subscription_id` `current_period_end` ≤ 7 days
+- Show "Annual initiation fee due soon" when `annual_fee_subscription_id` `current_period_end` ≤ 14 days
+- Always two separate banners, never combined
+
+### Files touched
+
+- 1 new migration (columns, trigger rewrite, backfill)
+- `supabase/functions/get-autopay-dates/index.ts` (extend)
+- `supabase/functions/stripe-webhook/index.ts` (3 branches + sub.updated handler)
+- `src/hooks/useMemberConfirmedIssues.ts` (1 line)
+- `src/hooks/useAutopaySchedule.ts` (heuristic removal)
+- `src/hooks/useNextMemberPayment.ts` (new)
+- `src/components/admin/MemberDetail/NextPaymentCard.tsx` (new) + wire into MemberDetail
+- `src/pages/admin/reports/...` — rebuild 2, add 3 reports
+- Member portal billing notification component (remove `billing_type` reads)
+
+### What I will NOT touch
+- Pricing matrix file — kept, used only for projections
+- `billing_type` column — left in DB, just unused in notification/projection logic
+- Existing successful charges — backfill only clears stale failure flags
+
+### Order of execution
+1. Migration → 2. Edge functions → 3. Hooks → 4. Member Detail widget → 5. Reports → 6. Portal notifications
+
+Approve and I'll execute end-to-end in one pass.
 
