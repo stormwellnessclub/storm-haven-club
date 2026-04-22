@@ -105,10 +105,10 @@ export function ConfirmedPaymentIssues({ memberId }: Props) {
             <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
           </div>
         ) : total === 0 ? (
-          <div className="flex items-center gap-3 rounded-md border border-success/30 bg-success/5 p-4">
-            <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+          <div className="flex items-center gap-3 rounded-md border border-accent/30 bg-accent/5 p-4">
+            <CheckCircle2 className="h-5 w-5 text-accent shrink-0" />
             <div>
-              <div className="font-medium text-success">
+              <div className="font-medium text-accent">
                 No outstanding payment issues
               </div>
               <div className="text-sm text-muted-foreground">
@@ -149,7 +149,7 @@ export function ConfirmedPaymentIssues({ memberId }: Props) {
                                 {formatAmount(issue.amount, issue.currency)}
                               </span>
                               {issue.is_disputed && (
-                                <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
+                                <Badge variant="outline" className="border-destructive/50 text-destructive">
                                   <AlertTriangle className="h-3 w-3 mr-1" />
                                   Disputed{issue.dispute_status ? ` · ${issue.dispute_status}` : ""}
                                 </Badge>
