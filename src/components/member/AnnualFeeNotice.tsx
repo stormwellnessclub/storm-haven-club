@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { differenceInCalendarDays } from "date-fns";
 import { AlertTriangle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
@@ -7,15 +8,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export function AnnualFeeNotice() {
-  const { isInitiationFeePaid, hasActiveSubscription, isDuesPastDue, hasPaymentIssues, isLoading: paymentLoading } = usePaymentStatus();
+  const { isLoading: paymentLoading } = usePaymentStatus();
   const { data: membership } = useUserMembership();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
 
   // This component now only shows for renewal notices (after first year)
   // Initial payment issues are handled by PaymentDueNotice
-  const isRenewalDue = isInitiationFeePaid && membership?.annual_fee_paid_at && 
-    new Date(membership.annual_fee_paid_at).getTime() < Date.now() - 365 * 24 * 60 * 60 * 1000;
+  const annualDaysUntilDue = membership?.next_annual_fee_date
+    ? differenceInCalendarDays(new Date(`${membership.next_annual_fee_date}T12:00:00`), new Date())
+    : null;
+  const isRenewalDue = annualDaysUntilDue !== null && annualDaysUntilDue >= 0 && annualDaysUntilDue <= 14;
 
   if (paymentLoading || !isRenewalDue || isDismissed) {
     return null;
