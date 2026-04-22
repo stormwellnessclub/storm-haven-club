@@ -5,9 +5,7 @@ import { AlertCircle, FileBarChart } from "lucide-react";
 import { type ReportDefinition } from "@/lib/reportDefinitions";
 
 // Report components
-import { RevenueSummaryReport } from "./reports/RevenueSummaryReport";
 import { RevenueByCategoryReport } from "./reports/RevenueByCategoryReport";
-import { CashFlowProjectionReport } from "./reports/CashFlowProjectionReport";
 import { ClassRevenueProjectionReport } from "./reports/ClassRevenueProjectionReport";
 import { MemberStatusReport } from "./reports/MemberStatusReport";
 import { TierDistributionReport } from "./reports/TierDistributionReport";
@@ -30,7 +28,6 @@ import { WorkoutActivityReport } from "./reports/WorkoutActivityReport";
 import { GoalsProgressReport } from "./reports/GoalsProgressReport";
 import { PaymentFollowUpReport } from "./reports/PaymentFollowUpReport";
 import { SalesSegmentationReport } from "./reports/SalesSegmentationReport";
-import { NextMonthProjectionReport } from "./reports/NextMonthProjectionReport";
 import { DailyRevenueReport } from "./reports/DailyRevenueReport";
 import { ClassPassSalesReport } from "./reports/ClassPassSalesReport";
 import { MemberEngagementReport } from "./reports/MemberEngagementReport";
@@ -122,13 +119,10 @@ interface ReportContentProps {
 function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
   const reportComponents: Record<string, React.ComponentType<{ dateRange: { start: Date; end: Date }; filters: Record<string, string | boolean> }>> = {
     'daily-sales-breakdown': DailySalesBreakdownReport,
-    'revenue-summary': RevenueSummaryReport,
     'revenue-summary-dashboard': RevenueSummaryDashboardReport,
     'daily-revenue': DailyRevenueReport,
     'revenue-by-category': RevenueByCategoryReport,
     'sales-segmentation': SalesSegmentationReport,
-    'next-month-projection': NextMonthProjectionReport,
-    'cash-flow-projection': CashFlowProjectionReport,
     'autopay-upcoming-charges': AutopayUpcomingChargesReport,
     'failed-payments': FailedPaymentsReport,
     'collected-revenue': CollectedRevenueReport,
