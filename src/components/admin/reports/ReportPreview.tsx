@@ -39,6 +39,11 @@ import { ClassEngagementReport } from "./reports/ClassEngagementReport";
 import { DailySalesBreakdownReport } from "./reports/DailySalesBreakdownReport";
 import { SalesTaxReport } from "./reports/SalesTaxReport";
 import { CafeSalesReport } from "./reports/CafeSalesReport";
+import { AutopayUpcomingChargesReport } from "./reports/AutopayUpcomingChargesReport";
+import { FailedPaymentsReport } from "./reports/FailedPaymentsReport";
+import { CollectedRevenueReport } from "./reports/CollectedRevenueReport";
+import { ProjectedRevenueReport } from "./reports/ProjectedRevenueReport";
+import { RevenueSummaryDashboardReport } from "./reports/RevenueSummaryDashboardReport";
 interface ReportPreviewProps {
   report: ReportDefinition | null;
   dateRange: { start: Date; end: Date };
@@ -118,11 +123,16 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
   const reportComponents: Record<string, React.ComponentType<{ dateRange: { start: Date; end: Date }; filters: Record<string, string | boolean> }>> = {
     'daily-sales-breakdown': DailySalesBreakdownReport,
     'revenue-summary': RevenueSummaryReport,
+    'revenue-summary-dashboard': RevenueSummaryDashboardReport,
     'daily-revenue': DailyRevenueReport,
     'revenue-by-category': RevenueByCategoryReport,
     'sales-segmentation': SalesSegmentationReport,
     'next-month-projection': NextMonthProjectionReport,
     'cash-flow-projection': CashFlowProjectionReport,
+    'autopay-upcoming-charges': AutopayUpcomingChargesReport,
+    'failed-payments': FailedPaymentsReport,
+    'collected-revenue': CollectedRevenueReport,
+    'projected-revenue': ProjectedRevenueReport,
     'class-revenue-projection': ClassRevenueProjectionReport,
     'payment-analysis': PaymentAnalysisReport,
     'payment-follow-up': PaymentFollowUpReport,

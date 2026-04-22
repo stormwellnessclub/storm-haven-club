@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, startOfYear } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, startOfYear, subMonths } from "date-fns";
 import { Calendar as CalendarIcon, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -54,31 +54,39 @@ export function ReportBuilder({
 
     switch (preset) {
       case 'today':
-        start = today;
+        start = startOfDay(today);
+        end = endOfDay(today);
         break;
       case 'yesterday':
-        start = subDays(today, 1);
-        end = subDays(today, 1);
+        start = startOfDay(subMonths(today, 0));
+        start = new Date(start.getFullYear(), start.getMonth(), start.getDate() - 1);
+        end = new Date(endOfDay(start));
         break;
       case 'last7days':
-        start = subDays(today, 7);
+        start = startOfDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7));
+        end = endOfDay(today);
         break;
       case 'last30days':
-        start = subDays(today, 30);
+        start = startOfDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30));
+        end = endOfDay(today);
         break;
       case 'thisMonth':
         start = startOfMonth(today);
         end = endOfMonth(today);
         break;
       case 'lastMonth':
-        start = startOfMonth(subDays(startOfMonth(today), 1));
-        end = endOfMonth(subDays(startOfMonth(today), 1));
+        start = startOfMonth(subMonths(today, 1));
+        end = endOfMonth(subMonths(today, 1));
         break;
+      case 'last3months':
       case 'thisQuarter':
-        start = startOfQuarter(today);
+        start = startOfDay(subMonths(today, 3));
+        end = endOfDay(today);
         break;
+      case 'last12months':
       case 'thisYear':
         start = startOfYear(today);
+        end = endOfDay(today);
         break;
       default:
         return;
@@ -123,6 +131,7 @@ export function ReportBuilder({
                   selected={dateRange.start}
                   onSelect={(date) => date && onDateRangeChange({ ...dateRange, start: date })}
                   initialFocus
+                  className={cn("p-3 pointer-events-auto")}
                 />
               </PopoverContent>
             </Popover>
@@ -140,6 +149,7 @@ export function ReportBuilder({
                   selected={dateRange.end}
                   onSelect={(date) => date && onDateRangeChange({ ...dateRange, end: date })}
                   initialFocus
+                  className={cn("p-3 pointer-events-auto")}
                 />
               </PopoverContent>
             </Popover>
