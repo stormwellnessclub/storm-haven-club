@@ -21,6 +21,7 @@ import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/Adm
 import { PaymentsTabContent } from "@/components/admin/PaymentsTabContent";
 import { BillingHealthCard } from "@/components/admin/BillingHealthCard";
 import { ArrearsCard } from "@/components/admin/ArrearsCard";
+import { ConfirmedPaymentIssues } from "@/components/admin/MemberDetail/ConfirmedPaymentIssues";
 import { MemberArrearsBanner } from "@/components/admin/MemberArrearsBanner";
 import { SubscriptionCard } from "@/components/admin/SubscriptionCard";
 import { PaymentTimeline } from "@/components/admin/PaymentTimeline";
@@ -1860,16 +1861,19 @@ export default function MemberDetail() {
 
           {/* Payments Tab */}
           <TabsContent value="payments">
-            <PaymentsTabContent 
-              member={member}
-              onAddCard={handleAddCard}
-              isCreatingSetupIntent={isCreatingSetupIntent}
-              onChargeCard={() => setShowChargeDialog(true)}
-              onRefundClick={(charge) => {
-                setSelectedChargeForRefund(charge);
-                setShowRefundDialog(true);
-              }}
-            />
+            <div className="space-y-6">
+              <ConfirmedPaymentIssues memberId={member.id} />
+              <PaymentsTabContent 
+                member={member}
+                onAddCard={handleAddCard}
+                isCreatingSetupIntent={isCreatingSetupIntent}
+                onChargeCard={() => setShowChargeDialog(true)}
+                onRefundClick={(charge) => {
+                  setSelectedChargeForRefund(charge);
+                  setShowRefundDialog(true);
+                }}
+              />
+            </div>
           </TabsContent>
 
           {/* Credits Tab */}
