@@ -1,82 +1,67 @@
 
+Remaining from the approved 10-item list:
 
-## Storm Payment System — Full Audit Fixes (10 items)
+1. Reports overhaul is still not built
+- The current financial report definitions still show the old reports (`revenue-summary`, `next-month-projection`, `cash-flow-projection`) instead of the planned set:
+  - Autopay / Upcoming Charges
+  - Failed Payments
+  - Collected Revenue
+  - Projected Revenue
+  - Revenue Summary Dashboard
+- `RevenueSummaryReport.tsx` still uses member records + pricing logic for revenue cards and still shows the old “Annual Run Rate” card.
+- `CashFlowProjectionReport.tsx` still treats founding members as upfront Month 1 revenue, which conflicts with the approved rule.
+- `NextMonthProjectionReport.tsx` is still an old mixed-category projection report, not the planned member billing projection view.
 
-I've read the entire brief including the "Things Lovable Must NOT Do" rules, and verified each claim against the current codebase. Plan below follows the brief exactly — no inventions.
+2. Report data rules still need to be enforced
+- Collected revenue must come from successful `payment_attempts.amount`.
+- Projected revenue must come from `next_billing_date`, `next_annual_fee_date`, and pricing rules only.
+- Member dues and non-member transactions must not be mixed in the same report table.
+- Founding members must be handled per the approved renewal rules, not the old one-time-upfront assumption.
 
-### Hard rules I will follow
-- Never use `billing_type` for projection amounts or notification copy
-- Never use the pricing matrix as the source for collected (actual) revenue — only for forward projections
-- Never skip non-subscription invoices in the webhook
-- Never mix member dues and non-member transactions in the same report table
-- Founding members DO have annual dues renewals AND annual initiation fee renewals
-- "Annual fee due" and "monthly dues due" are always two separate notifications
-- `get-autopay-dates` must write results back to `members.next_billing_date` and `members.next_annual_fee_date`
+3. Report UX still needs to be rebuilt
+- Add the planned date-range presets across the new/rebuilt reports:
+  - This Month
+  - Last Month
+  - Last 3
+  - Last 12
+  - Custom
+- Add the planned filters for charge type and tier where applicable.
+- Replace the old financial report lineup in the sidebar/preview mapping so the admin sees the new reports instead of the legacy ones.
 
-### What gets built (in order)
+4. Stripe subscription-updated sync likely still needs completion
+- The webhook has the `customer.subscription.updated` branch, but it still needs to fully write the next billing date fields during subscription updates:
+  - `members.next_billing_date`
+  - `members.next_annual_fee_date`
+- This is required so reports and member/payment UI stay current without depending only on the fetch function.
 
-**1. Database migration**
-- `ALTER TABLE members ADD COLUMN next_billing_date date, next_annual_fee_date date`
-- Rewrite `mark_superseded_failed_attempts` trigger: match by `stripe_invoice_id` first; keep amount+10min only as fallback when invoice id is null
-- Trigger also updates `billing_arrears` (`status='paid'`, `paid_at=now()`) for matching `stripe_invoice_id`+`member_id`
-- One-time backfill: re-run the new supersede logic across existing rows to clear stale failures
+5. Member/non-member reporting separation needs to be reflected in admin reporting screens
+- The non-subscription invoice handler is in place, but the reporting layer still does not expose:
+  - failed payments report
+  - collected revenue grouped by dues / annual fee / class pass / guest pass / POS
+  - separate member vs non-member treatment in tables
 
-**2. `get-autopay-dates` edge function (rewrite)**
-- Already exists; extend it to write `current_period_end` back to `members.next_billing_date` (when sub matches `stripe_subscription_id`) and `members.next_annual_fee_date` (when sub matches `annual_fee_subscription_id`)
+6. Final validation pass is still needed
+- Verify all successful invoice branches write `payment_attempts.metadata.charge_type` consistently.
+- Verify non-member invoices land with `non_member_profile_id`.
+- Verify the new next-payment dates drive:
+  - member detail card
+  - portal notices
+  - upcoming/projection reporting
 
-**3. `stripe-webhook/index.ts`**
-- In `customer.subscription.updated`: after status sync, update the matching `next_billing_date` or `next_annual_fee_date`
-- In all 3 `invoice.payment_succeeded` branches: stop early-returning on `!invoice.subscription`. Route non-subscription invoices to a new handler that:
-  - Looks up customer in `non_member_profiles`
-  - Inserts into `payment_attempts` with `member_id=null`, `non_member_profile_id` set, and `metadata.charge_type` of `class_pass` / `guest_pass` / `pos_other` derived from line item product metadata
+Already completed from the list:
+- Database migration for `next_billing_date`, `next_annual_fee_date`, `non_member_profile_id`, supersede trigger rewrite, and arrears sync
+- `get-autopay-dates` writes next dates back to members
+- Hook fixes in `useMemberConfirmedIssues` and `useAutopaySchedule`
+- `useNextMemberPayment` hook
+- `NextPaymentCard` in member detail
+- Member portal notices moved to separate dues vs annual-fee logic
+- Non-subscription `invoice.payment_succeeded` handler in `stripe-webhook`
 
-**4. Hook fixes**
-- `useMemberConfirmedIssues.ts` — add `.is("resolved_at", null)` to the disputed query (line ~110)
-- `useAutopaySchedule.ts` — remove the `pa.amount >= 100 ? /100 : amount` heuristic; use `pa.amount` directly
-- New `useNextMemberPayment(memberId)` hook reading `next_billing_date`, `next_annual_fee_date`, card info, and unresolved failed-attempt count
-
-**5. Member Detail UI**
-- New `<NextPaymentCard />` widget showing: Next dues, Next annual fee, Open failed payments — with card brand/last4
-
-**6. Reports — rebuild + add new ones**
-All reports get a date-range picker with presets (This Month / Last Month / Last 3 / Last 12 / Custom).
-
-| Report | Source | Notes |
-|---|---|---|
-| **Autopay / Upcoming Charges** (rebuilt) | `next_billing_date`, `next_annual_fee_date` | Filter by charge type, tier |
-| **Failed Payments** (new) | `payment_attempts` failed + unresolved + non-superseded | Retry, mark resolved, view member actions |
-| **Collected Revenue** (new) | `payment_attempts` succeeded | Grouped: Dues / Annual Fee / Class Pass / Guest Pass / POS |
-| **Projected Revenue** (new) | `next_billing_date` + `next_annual_fee_date` | Projections >1mo labelled as estimates |
-| **Revenue Summary Dashboard** (rebuilt) | Both | Side-by-side Collected vs Projected; replace single "Annual Run Rate" card with **MRR**, **Annual Initiation Fee Revenue (next 12mo)**, **12-Month Total Projection** |
-
-- `CashFlowProjectionReport`: founding members contribute $0 unless their `next_billing_date` falls in that month; warning shown if null
-- All projections use pricing matrix; all actuals read `payment_attempts.amount` directly
-
-**7. Member portal notification logic**
-- Remove `billing_type` from notification decision
-- Show "Monthly dues due soon" when `stripe_subscription_id` `current_period_end` ≤ 7 days
-- Show "Annual initiation fee due soon" when `annual_fee_subscription_id` `current_period_end` ≤ 14 days
-- Always two separate banners, never combined
-
-### Files touched
-
-- 1 new migration (columns, trigger rewrite, backfill)
-- `supabase/functions/get-autopay-dates/index.ts` (extend)
-- `supabase/functions/stripe-webhook/index.ts` (3 branches + sub.updated handler)
-- `src/hooks/useMemberConfirmedIssues.ts` (1 line)
-- `src/hooks/useAutopaySchedule.ts` (heuristic removal)
-- `src/hooks/useNextMemberPayment.ts` (new)
-- `src/components/admin/MemberDetail/NextPaymentCard.tsx` (new) + wire into MemberDetail
-- `src/pages/admin/reports/...` — rebuild 2, add 3 reports
-- Member portal billing notification component (remove `billing_type` reads)
-
-### What I will NOT touch
-- Pricing matrix file — kept, used only for projections
-- `billing_type` column — left in DB, just unused in notification/projection logic
-- Existing successful charges — backfill only clears stale failure flags
-
-### Order of execution
-1. Migration → 2. Edge functions → 3. Hooks → 4. Member Detail widget → 5. Reports → 6. Portal notifications
-
-Approve and I'll execute end-to-end in one pass.
-
+Recommended next build order:
+1. Finish `customer.subscription.updated` next-date syncing
+2. Rebuild financial report definitions/sidebar wiring
+3. Replace `RevenueSummaryReport`
+4. Replace `CashFlowProjectionReport`
+5. Replace `NextMonthProjectionReport` with the planned projection/collected views
+6. Add the new Failed Payments and Collected Revenue report surfaces
+7. Run a final audit against the original “Must NOT Do” rules
