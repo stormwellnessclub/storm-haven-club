@@ -53,6 +53,23 @@ export function ReportBuilder({
     let end: Date = today;
 
     switch (preset) {
+      case 'today':
+        start = startOfDay(today);
+        end = endOfDay(today);
+        break;
+      case 'yesterday':
+        start = startOfDay(subMonths(today, 0));
+        start = new Date(start.getFullYear(), start.getMonth(), start.getDate() - 1);
+        end = new Date(endOfDay(start));
+        break;
+      case 'last7days':
+        start = startOfDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7));
+        end = endOfDay(today);
+        break;
+      case 'last30days':
+        start = startOfDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30));
+        end = endOfDay(today);
+        break;
       case 'thisMonth':
         start = startOfMonth(today);
         end = endOfMonth(today);
@@ -62,10 +79,12 @@ export function ReportBuilder({
         end = endOfMonth(subMonths(today, 1));
         break;
       case 'last3months':
+      case 'thisQuarter':
         start = startOfDay(subMonths(today, 3));
         end = endOfDay(today);
         break;
       case 'last12months':
+      case 'thisYear':
         start = startOfYear(today);
         end = endOfDay(today);
         break;

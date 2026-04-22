@@ -44,11 +44,16 @@ export interface ReportFilter {
 }
 
 export type DateRangePreset = 
+  | 'today'
+  | 'yesterday'
+  | 'last7days'
+  | 'last30days'
   | 'thisMonth'
   | 'lastMonth'
   | 'last3months'
   | 'last12months'
-  | 'thisMonth'
+  | 'thisQuarter'
+  | 'thisYear'
   | 'custom';
 
 export const DATE_RANGE_PRESETS: { value: DateRangePreset; label: string }[] = [
@@ -56,6 +61,12 @@ export const DATE_RANGE_PRESETS: { value: DateRangePreset; label: string }[] = [
   { value: 'lastMonth', label: 'Last Month' },
   { value: 'last3months', label: 'Last 3 Months' },
   { value: 'last12months', label: 'Last 12 Months' },
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'last7days', label: 'Last 7 Days' },
+  { value: 'last30days', label: 'Last 30 Days' },
+  { value: 'thisQuarter', label: 'This Quarter' },
+  { value: 'thisYear', label: 'This Year' },
   { value: 'custom', label: 'Custom Range' },
 ];
 

@@ -19,9 +19,20 @@ function getDateRangeFromPreset(preset: DateRangePreset): { start: Date; end: Da
     case 'lastMonth':
       const lastMonth = subMonths(now, 1);
       return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+    case 'today':
+      return { start: startOfDay(now), end: endOfDay(now) };
+    case 'yesterday':
+      const yesterday = subDays(now, 1);
+      return { start: startOfDay(yesterday), end: endOfDay(yesterday) };
+    case 'last7days':
+      return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+    case 'last30days':
+      return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
     case 'last3months':
+    case 'thisQuarter':
       return { start: startOfDay(subMonths(now, 3)), end: endOfDay(now) };
     case 'last12months':
+    case 'thisYear':
       return { start: startOfYear(now), end: endOfDay(now) };
     default:
       return { start: startOfMonth(now), end: endOfMonth(now) };
