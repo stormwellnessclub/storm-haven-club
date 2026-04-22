@@ -1,9 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ReportSidebar } from "@/components/admin/reports/ReportSidebar";
 import { ReportBuilder } from "@/components/admin/reports/ReportBuilder";
 import { ReportPreview } from "@/components/admin/reports/ReportPreview";
-import { REPORTS, getReportById, type ReportCategory, type DateRangePreset } from "@/lib/reportDefinitions";
+import { getReportById, getReportsByCategory, type ReportCategory, type DateRangePreset } from "@/lib/reportDefinitions";
 import { startOfMonth, endOfMonth, startOfDay, endOfDay, subDays, startOfYear, subMonths } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
@@ -51,6 +51,20 @@ export default function Reports() {
   const [isExporting, setIsExporting] = useState(false);
 
   const selectedReport = selectedReportId ? getReportById(selectedReportId) || null : null;
+
+  useEffect(() => {
+    if (!selectedReportId || selectedReport) {
+      return;
+    }
+
+    const fallbackReport = getReportsByCategory(selectedCategory)[0] ?? null;
+    setSelectedReportId(fallbackReport?.id ?? null);
+
+    if (fallbackReport) {
+      setDateRange(getDateRangeFromPreset(fallbackReport.defaultDateRange));
+      setFilters({});
+    }
+  }, [selectedCategory, selectedReportId, selectedReport]);
 
   const handleCategoryChange = useCallback((category: ReportCategory) => {
     setSelectedCategory(category);
