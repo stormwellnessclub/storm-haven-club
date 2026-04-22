@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { addMonths, isBefore, isAfter, startOfDay, endOfDay, format, addDays } from "date-fns";
-import { extractTier, normalizeGender, getMonthlyPrice } from "@/lib/membershipPricing";
+import { extractTier, normalizeGender, getMonthlyPrice, getAnnualPrice } from "@/lib/membershipPricing";
 import type { DateRange } from "@/components/admin/DateRangePicker";
 
 export interface AutopayEntry {
@@ -92,7 +92,7 @@ export function useAutopaySchedule(
 
       for (const pa of paymentAttempts || []) {
         const member = pa.members as any;
-        const amountDollars = pa.amount >= 100 ? pa.amount / 100 : pa.amount;
+        const amountDollars = Number(pa.amount || 0);
 
         entries.push({
           id: pa.id,
@@ -112,13 +112,14 @@ export function useAutopaySchedule(
       }
 
       // 2. Fetch upcoming autopays from active members
-      const { data: activeMembers } = await supabase
+        const { data: activeMembers } = await supabase
         .from("members")
         .select(`
           id, first_name, last_name, email, phone, membership_type, gender,
           card_brand, card_last4, card_exp_month, card_exp_year,
           is_founding_member, stripe_subscription_id, subscription_status,
-          membership_start_date, billing_type, annual_fee_subscription_id
+            membership_start_date, billing_type, annual_fee_subscription_id,
+            next_billing_date, next_annual_fee_date
         `)
         .eq("status", "active")
         .not("stripe_subscription_id", "is", null);
@@ -154,11 +155,9 @@ export function useAutopaySchedule(
       }
 
       for (const m of activeMembers || []) {
-        if (m.is_founding_member) continue;
-
         const tier = extractTier(m.membership_type);
         const gender = normalizeGender(m.gender);
-        const monthlyPrice = getMonthlyPrice(tier, gender);
+        const monthlyPrice = m.is_founding_member ? getAnnualPrice(tier, gender) : getMonthlyPrice(tier, gender);
         const cardInfo = formatCardInfo(m.card_brand, m.card_last4, m.card_exp_month, m.card_exp_year);
 
         if (!monthlyPrice) continue;
@@ -167,7 +166,9 @@ export function useAutopaySchedule(
         const stripeAnchor = m.stripe_subscription_id ? billingAnchors[m.stripe_subscription_id] : null;
         let billingDate: Date;
 
-        if (stripeAnchor) {
+        if (m.next_billing_date) {
+          billingDate = new Date(`${m.next_billing_date}T12:00:00`);
+        } else if (stripeAnchor) {
           // current_period_end from Stripe = next billing date
           billingDate = new Date(stripeAnchor);
         } else {
@@ -204,7 +205,7 @@ export function useAutopaySchedule(
             });
           }
 
-          billingDate = addMonths(billingDate, 1);
+          billingDate = addMonths(billingDate, m.is_founding_member ? 12 : 1);
         }
 
         // Annual fee upcoming
@@ -213,7 +214,9 @@ export function useAutopaySchedule(
           const annualAnchor = billingAnchors[m.annual_fee_subscription_id];
           let nextAnnual: Date;
 
-          if (annualAnchor) {
+          if (m.next_annual_fee_date) {
+            nextAnnual = new Date(`${m.next_annual_fee_date}T12:00:00`);
+          } else if (annualAnchor) {
             nextAnnual = new Date(annualAnchor);
           } else {
             const startDate = new Date(m.membership_start_date);

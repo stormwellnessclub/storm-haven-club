@@ -61,6 +61,7 @@ import { useQuery } from "@tanstack/react-query";
 import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useRetryInvoice, useSyncMemberStatus, useDeactivateMember } from "@/hooks/usePaymentTracking";
+import { NextPaymentCard } from "./MemberDetail/NextPaymentCard";
 
 interface Member {
   id: string;
@@ -81,6 +82,8 @@ interface Member {
   stripe_subscription_id: string | null;
   annual_fee_paid_at: string | null;
   annual_fee_subscription_id: string | null;
+  next_billing_date?: string | null;
+  next_annual_fee_date?: string | null;
   created_at: string | null;
   card_brand: string | null;
   card_last4: string | null;
@@ -991,6 +994,8 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
             </TabsContent>
 
             <TabsContent value="membership" className="space-y-4 mt-4">
+              <NextPaymentCard memberId={member.id} />
+
               {/* Subscription Status Alert */}
               {member.subscription_status && ['incomplete', 'incomplete_expired', 'past_due', 'unpaid'].includes(member.subscription_status) && (
                 <Card className="border-destructive bg-destructive/10">

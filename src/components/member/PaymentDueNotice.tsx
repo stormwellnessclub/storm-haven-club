@@ -5,6 +5,7 @@ import { useUserMembership } from "@/hooks/useUserMembership";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { differenceInCalendarDays } from "date-fns";
 import { getAnnualFeeAmount, getMembershipPrice, normalizeTierName, normalizeGender, MembershipTier, BillingType, Gender } from "@/lib/stripeProducts";
 
 export function PaymentDueNotice() {
@@ -17,8 +18,13 @@ export function PaymentDueNotice() {
   const isSubscriptionIncomplete = membershipAny?.subscription_status === 'incomplete' || 
     membershipAny?.subscription_status === 'incomplete_expired';
 
-  // Show notice if there are payment issues OR if subscription is incomplete
-  if (isLoading || (!hasPaymentIssues && !isSubscriptionIncomplete) || !membership) {
+  const monthlyDueSoon = membership?.next_billing_date
+    ? differenceInCalendarDays(new Date(`${membership.next_billing_date}T12:00:00`), new Date()) <= 7 &&
+      differenceInCalendarDays(new Date(`${membership.next_billing_date}T12:00:00`), new Date()) >= 0
+    : false;
+
+  // Show notice only for blocking dues issues / setup, not for annual fee renewal timing
+  if (isLoading || (!hasPaymentIssues && !isSubscriptionIncomplete && !monthlyDueSoon) || !membership) {
     return null;
   }
 
@@ -109,6 +115,9 @@ export function PaymentDueNotice() {
     }
     if (isDuesPastDue) {
       issues.push("Past Due Payment");
+    }
+    if (monthlyDueSoon && !isDuesPastDue && hasActiveSubscription) {
+      issues.push("Monthly dues due soon");
     }
 
     return issues;

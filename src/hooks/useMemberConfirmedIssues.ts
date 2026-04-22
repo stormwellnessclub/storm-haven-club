@@ -106,6 +106,7 @@ export function useMemberConfirmedIssues(memberId: string | undefined) {
           "id, member_id, amount, currency, status, decline_reason, failure_message, created_at, failed_at, stripe_charge_id, stripe_invoice_id, stripe_subscription_id, stripe_payment_intent_id, invoice_number, metadata, disputed_at, dispute_id, dispute_status, dispute_reason"
         )
         .eq("member_id", memberId)
+        .is("resolved_at", null)
         .not("disputed_at", "is", null)
         .order("disputed_at", { ascending: false });
       if (dispErr) throw dispErr;

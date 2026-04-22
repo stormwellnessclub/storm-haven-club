@@ -1,4 +1,5 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,8 +13,13 @@ Deno.serve(async (req) => {
 
   try {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!stripeKey) {
       throw new Error('STRIPE_SECRET_KEY is not set');
+    }
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Supabase service credentials are not set');
     }
 
     const { subscription_ids } = await req.json();
@@ -24,6 +30,7 @@ Deno.serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2025-08-27.basil' });
+    const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
     // Batch fetch in parallel, with error handling per subscription
     const results: Record<string, string> = {};
@@ -33,7 +40,19 @@ Deno.serve(async (req) => {
         try {
           const subscription = await stripe.subscriptions.retrieve(subId);
           if (subscription.current_period_end) {
-            results[subId] = new Date(subscription.current_period_end * 1000).toISOString();
+            const nextDate = new Date(subscription.current_period_end * 1000).toISOString();
+            const nextDateOnly = nextDate.split('T')[0];
+            results[subId] = nextDate;
+
+            await supabase
+              .from('members')
+              .update({ next_billing_date: nextDateOnly })
+              .eq('stripe_subscription_id', subId);
+
+            await supabase
+              .from('members')
+              .update({ next_annual_fee_date: nextDateOnly })
+              .eq('annual_fee_subscription_id', subId);
           }
         } catch (err) {
           console.warn(`Failed to fetch subscription ${subId}:`, err.message);
