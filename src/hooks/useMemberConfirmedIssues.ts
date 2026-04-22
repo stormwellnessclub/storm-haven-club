@@ -47,10 +47,10 @@ export interface ConfirmedIssue {
 function categorize(row: {
   stripe_subscription_id: string | null;
   stripe_invoice_id: string | null;
-  metadata: Record<string, unknown> | null;
+  metadata: unknown;
   invoice_number: string | null;
 }): ConfirmedIssueCategory {
-  const meta = row.metadata ?? {};
+  const meta = (row.metadata && typeof row.metadata === "object" ? row.metadata : {}) as Record<string, unknown>;
   const explicit = (meta.charge_type as string | undefined) ?? (meta.category as string | undefined);
   if (explicit) {
     const v = explicit.toLowerCase();
