@@ -5975,10 +5975,10 @@ serve(async (req) => {
       }
 
       case 'deactivate_member': {
-        const { memberId } = body;
+        const { memberId, detachPaymentMethods = true } = body;
         if (!memberId) throw new Error("Missing memberId");
 
-        logStep("Deactivate member", { memberId });
+        logStep("Deactivate member", { memberId, detachPaymentMethods });
 
         const { data: memberData, error: memberErr } = await supabase
           .from('members')
@@ -5989,6 +5989,8 @@ serve(async (req) => {
         if (memberErr || !memberData) throw new Error("Member not found");
 
         const cancelledSubs: string[] = [];
+        const voidedInvoices: string[] = [];
+        const detachedPMs: string[] = [];
 
         // Cancel the known dues subscription
         if (memberData.stripe_subscription_id) {
@@ -6046,6 +6048,62 @@ serve(async (req) => {
           } catch (listErr) {
             logStep("Warning: Failed to list Stripe subscriptions for cleanup", { error: String(listErr) });
           }
+
+          // NEW: Void/delete open + draft subscription invoices so Stripe stops retrying
+          try {
+            const openInvoices = await stripe.invoices.list({ customer: customerId, status: 'open', limit: 100 });
+            const draftInvoices = await stripe.invoices.list({ customer: customerId, status: 'draft', limit: 100 });
+            const candidateInvoices = [...openInvoices.data, ...draftInvoices.data].filter((inv: any) => {
+              const reason = inv.billing_reason as string | undefined;
+              return !!inv.subscription || reason === 'subscription_cycle' || reason === 'subscription_create' || reason === 'subscription_update' || reason === 'subscription';
+            });
+
+            for (const inv of candidateInvoices) {
+              try {
+                if (inv.status === 'draft') {
+                  await stripe.invoices.del(inv.id);
+                } else {
+                  await stripe.invoices.voidInvoice(inv.id);
+                }
+                voidedInvoices.push(inv.id);
+                logStep("Voided/deleted invoice on cancellation", { invoiceId: inv.id, status: inv.status, billingReason: inv.billing_reason });
+
+                const { error: arrErr } = await supabase
+                  .from('billing_arrears')
+                  .update({
+                    status: 'voided',
+                    paid_at: new Date().toISOString(),
+                    failure_message: 'membership_cancelled',
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('member_id', memberId)
+                  .eq('stripe_invoice_id', inv.id);
+                if (arrErr) logStep("Warning: failed to mark arrears voided", { invoiceId: inv.id, error: arrErr.message });
+              } catch (voidErr) {
+                logStep("Warning: failed to void/delete invoice", { invoiceId: inv.id, error: String(voidErr) });
+              }
+            }
+          } catch (invListErr) {
+            logStep("Warning: failed to list invoices for cleanup", { error: String(invListErr) });
+          }
+
+          // NEW: Detach saved payment methods so nothing can be charged later by accident
+          if (detachPaymentMethods) {
+            try {
+              const pms = await stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 100 });
+              for (const pm of pms.data) {
+                try {
+                  await stripe.paymentMethods.detach(pm.id);
+                  detachedPMs.push(pm.id);
+                  logStep("Detached payment method", { paymentMethodId: pm.id });
+                } catch (pmErr) {
+                  logStep("Warning: failed to detach payment method", { paymentMethodId: pm.id, error: String(pmErr) });
+                }
+              }
+            } catch (pmListErr) {
+              logStep("Warning: failed to list payment methods", { error: String(pmListErr) });
+            }
+          }
         }
 
         // Update member status
@@ -6056,10 +6114,112 @@ serve(async (req) => {
           annual_fee_subscription_id: null,
         }).eq('id', memberId);
 
-        logStep("Member deactivated", { memberId, name: `${memberData.first_name} ${memberData.last_name}`, totalCancelled: cancelledSubs.length });
+        try {
+          await supabase.from('audit_logs').insert({
+            actor_id: user.id,
+            action: 'member_deactivated_with_billing_cleanup',
+            entity_type: 'member',
+            entity_id: memberId,
+            metadata: {
+              cancelled_subscriptions: cancelledSubs,
+              voided_invoices: voidedInvoices,
+              detached_payment_methods: detachedPMs,
+              member_email: memberData.email,
+            },
+          });
+        } catch (auditErr) {
+          logStep("Warning: failed to write audit log", { error: String(auditErr) });
+        }
+
+        logStep("Member deactivated", { memberId, name: `${memberData.first_name} ${memberData.last_name}`, totalCancelled: cancelledSubs.length, totalVoided: voidedInvoices.length, totalDetached: detachedPMs.length });
 
         return new Response(
-          JSON.stringify({ success: true, memberId, cancelledSubscriptions: cancelledSubs }),
+          JSON.stringify({ success: true, memberId, cancelledSubscriptions: cancelledSubs, voidedInvoices, detachedPaymentMethods: detachedPMs }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'cleanup_cancelled_member_billing': {
+        // One-shot cleanup for already-cancelled members with orphan invoices/PMs
+        const { memberId, detachPaymentMethods = true } = body;
+        if (!memberId) throw new Error("Missing memberId");
+
+        const { data: adminRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+        const isAdmin = adminRoles?.some(r => ['admin', 'super_admin'].includes(r.role));
+        if (!isAdmin) throw new Error("Admin access required");
+
+        const { data: memberData, error: memberErr } = await supabase
+          .from('members')
+          .select('stripe_customer_id, first_name, last_name, email')
+          .eq('id', memberId)
+          .single();
+        if (memberErr || !memberData?.stripe_customer_id) throw new Error("Member or Stripe customer not found");
+
+        const customerId = memberData.stripe_customer_id;
+        const voidedInvoices: string[] = [];
+        const detachedPMs: string[] = [];
+
+        const openInvoices = await stripe.invoices.list({ customer: customerId, status: 'open', limit: 100 });
+        const draftInvoices = await stripe.invoices.list({ customer: customerId, status: 'draft', limit: 100 });
+        const candidateInvoices = [...openInvoices.data, ...draftInvoices.data];
+
+        for (const inv of candidateInvoices) {
+          try {
+            if (inv.status === 'draft') {
+              await stripe.invoices.del(inv.id);
+            } else {
+              await stripe.invoices.voidInvoice(inv.id);
+            }
+            voidedInvoices.push(inv.id);
+
+            await supabase
+              .from('billing_arrears')
+              .update({
+                status: 'voided',
+                paid_at: new Date().toISOString(),
+                failure_message: 'membership_cancelled_post_invoice',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('member_id', memberId)
+              .eq('stripe_invoice_id', inv.id);
+          } catch (voidErr) {
+            logStep("Warning: failed to void invoice during cleanup", { invoiceId: inv.id, error: String(voidErr) });
+          }
+        }
+
+        if (detachPaymentMethods) {
+          const pms = await stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 100 });
+          for (const pm of pms.data) {
+            try {
+              await stripe.paymentMethods.detach(pm.id);
+              detachedPMs.push(pm.id);
+            } catch (pmErr) {
+              logStep("Warning: failed to detach payment method during cleanup", { paymentMethodId: pm.id, error: String(pmErr) });
+            }
+          }
+        }
+
+        try {
+          await supabase.from('audit_logs').insert({
+            actor_id: user.id,
+            action: 'cancelled_member_billing_cleanup',
+            entity_type: 'member',
+            entity_id: memberId,
+            metadata: {
+              voided_invoices: voidedInvoices,
+              detached_payment_methods: detachedPMs,
+              member_email: memberData.email,
+            },
+          });
+        } catch (auditErr) {
+          logStep("Warning: failed to write audit log", { error: String(auditErr) });
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, memberId, voidedInvoices, detachedPaymentMethods: detachedPMs }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
