@@ -1,67 +1,60 @@
 
-Remaining from the approved 10-item list:
+Replace the legacy financial report lineup so `/admin/reports` only exposes the new payment-audit reports and no longer references the retired IDs.
 
-1. Reports overhaul is still not built
-- The current financial report definitions still show the old reports (`revenue-summary`, `next-month-projection`, `cash-flow-projection`) instead of the planned set:
-  - Autopay / Upcoming Charges
-  - Failed Payments
-  - Collected Revenue
-  - Projected Revenue
-  - Revenue Summary Dashboard
-- `RevenueSummaryReport.tsx` still uses member records + pricing logic for revenue cards and still shows the old “Annual Run Rate” card.
-- `CashFlowProjectionReport.tsx` still treats founding members as upfront Month 1 revenue, which conflicts with the approved rule.
-- `NextMonthProjectionReport.tsx` is still an old mixed-category projection report, not the planned member billing projection view.
+1. Remove legacy financial report definitions
+- Delete the old financial report entries from `src/lib/reportDefinitions.ts`:
+  - `revenue-summary`
+  - `next-month-projection`
+  - `cash-flow-projection`
+- Keep the new lineup as the canonical financial set:
+  - `autopay-upcoming-charges`
+  - `failed-payments`
+  - `collected-revenue`
+  - `projected-revenue`
+  - `revenue-summary-dashboard`
+- Preserve other non-legacy financial reports already in use (`daily-sales-breakdown`, `daily-revenue`, `sales-segmentation`, `revenue-by-category`, `payment-analysis`, `payment-follow-up`, `class-revenue-projection`, `sales-tax-collected`, `cafe-sales`).
 
-2. Report data rules still need to be enforced
-- Collected revenue must come from successful `payment_attempts.amount`.
-- Projected revenue must come from `next_billing_date`, `next_annual_fee_date`, and pricing rules only.
-- Member dues and non-member transactions must not be mixed in the same report table.
-- Founding members must be handled per the approved renewal rules, not the old one-time-upfront assumption.
+2. Remove legacy report routing/mapping from the admin reports UI
+- Update `src/components/admin/reports/ReportPreview.tsx`:
+  - Remove imports for:
+    - `RevenueSummaryReport`
+    - `NextMonthProjectionReport`
+    - `CashFlowProjectionReport`
+  - Remove their entries from the `reportComponents` map.
+- This ensures selecting reports by old IDs can no longer render legacy components.
 
-3. Report UX still needs to be rebuilt
-- Add the planned date-range presets across the new/rebuilt reports:
-  - This Month
-  - Last Month
-  - Last 3
-  - Last 12
-  - Custom
-- Add the planned filters for charge type and tier where applicable.
-- Replace the old financial report lineup in the sidebar/preview mapping so the admin sees the new reports instead of the legacy ones.
+3. Prevent stale selections from pointing to removed report IDs
+- Update `src/pages/admin/Reports.tsx` to guard initial/active state:
+  - If `selectedReportId` is missing from `getReportById`, clear it or fall back to the first available report in the selected category.
+  - On category change, continue resetting the selection as it does now.
+- This avoids blank states if an old report ID survives in UI state or deep-link behavior later.
 
-4. Stripe subscription-updated sync likely still needs completion
-- The webhook has the `customer.subscription.updated` branch, but it still needs to fully write the next billing date fields during subscription updates:
-  - `members.next_billing_date`
-  - `members.next_annual_fee_date`
-- This is required so reports and member/payment UI stay current without depending only on the fetch function.
+4. Remove any remaining internal references to retired IDs
+- Search the app for:
+  - `revenue-summary`
+  - `next-month-projection`
+  - `cash-flow-projection`
+- Remove or update any leftover references in admin navigation helpers, report launch buttons, or report-related utilities so only the new IDs remain reachable.
 
-5. Member/non-member reporting separation needs to be reflected in admin reporting screens
-- The non-subscription invoice handler is in place, but the reporting layer still does not expose:
-  - failed payments report
-  - collected revenue grouped by dues / annual fee / class pass / guest pass / POS
-  - separate member vs non-member treatment in tables
+5. Keep legacy component files out of active use
+- Since the goal is to remove routes/references, first detach the old components from the active reports system.
+- If no other code imports them afterward, optionally remove:
+  - `src/components/admin/reports/reports/RevenueSummaryReport.tsx`
+  - `src/components/admin/reports/reports/NextMonthProjectionReport.tsx`
+  - `src/components/admin/reports/reports/CashFlowProjectionReport.tsx`
+- If deletion is deferred, they should remain fully orphaned and inaccessible from the UI.
 
-6. Final validation pass is still needed
-- Verify all successful invoice branches write `payment_attempts.metadata.charge_type` consistently.
-- Verify non-member invoices land with `non_member_profile_id`.
-- Verify the new next-payment dates drive:
-  - member detail card
-  - portal notices
-  - upcoming/projection reporting
+6. Validation pass
+- Verify the Financial category sidebar now shows the new lineup and no legacy items.
+- Verify selecting every financial report resolves to a live component in `ReportPreview`.
+- Verify no admin route, selector, or report map still points to the retired IDs.
+- Verify the fallback state for an invalid report ID behaves cleanly instead of showing an outdated report.
 
-Already completed from the list:
-- Database migration for `next_billing_date`, `next_annual_fee_date`, `non_member_profile_id`, supersede trigger rewrite, and arrears sync
-- `get-autopay-dates` writes next dates back to members
-- Hook fixes in `useMemberConfirmedIssues` and `useAutopaySchedule`
-- `useNextMemberPayment` hook
-- `NextPaymentCard` in member detail
-- Member portal notices moved to separate dues vs annual-fee logic
-- Non-subscription `invoice.payment_succeeded` handler in `stripe-webhook`
-
-Recommended next build order:
-1. Finish `customer.subscription.updated` next-date syncing
-2. Rebuild financial report definitions/sidebar wiring
-3. Replace `RevenueSummaryReport`
-4. Replace `CashFlowProjectionReport`
-5. Replace `NextMonthProjectionReport` with the planned projection/collected views
-6. Add the new Failed Payments and Collected Revenue report surfaces
-7. Run a final audit against the original “Must NOT Do” rules
+Technical notes
+- Files confirmed relevant:
+  - `src/lib/reportDefinitions.ts`
+  - `src/components/admin/reports/ReportPreview.tsx`
+  - `src/pages/admin/Reports.tsx`
+  - `src/components/admin/reports/ReportSidebar.tsx` (should update automatically from definitions)
+- Current legacy exposure is coming from `ReportPreview.tsx`, where the old IDs are still mapped even though the new definitions already exist.
+- `ReportSidebar.tsx` is definition-driven, so removing the old entries from `REPORTS` will automatically remove them from the visible report list.
