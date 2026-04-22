@@ -4,7 +4,7 @@ import { ReportSidebar } from "@/components/admin/reports/ReportSidebar";
 import { ReportBuilder } from "@/components/admin/reports/ReportBuilder";
 import { ReportPreview } from "@/components/admin/reports/ReportPreview";
 import { REPORTS, getReportById, type ReportCategory, type DateRangePreset } from "@/lib/reportDefinitions";
-import { startOfMonth, endOfMonth, startOfDay, endOfDay, subDays, startOfYear, subMonths, startOfQuarter } from "date-fns";
+import { startOfMonth, endOfMonth, startOfDay, endOfDay, subDays, startOfYear, subMonths } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -14,23 +14,14 @@ function getDateRangeFromPreset(preset: DateRangePreset): { start: Date; end: Da
   const now = new Date();
   
   switch (preset) {
-    case 'today':
-      return { start: startOfDay(now), end: endOfDay(now) };
-    case 'yesterday':
-      const yesterday = subDays(now, 1);
-      return { start: startOfDay(yesterday), end: endOfDay(yesterday) };
-    case 'last7days':
-      return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
-    case 'last30days':
-      return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
     case 'thisMonth':
       return { start: startOfMonth(now), end: endOfMonth(now) };
     case 'lastMonth':
       const lastMonth = subMonths(now, 1);
       return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
-    case 'thisQuarter':
-      return { start: startOfQuarter(now), end: endOfDay(now) };
-    case 'thisYear':
+    case 'last3months':
+      return { start: startOfDay(subMonths(now, 3)), end: endOfDay(now) };
+    case 'last12months':
       return { start: startOfYear(now), end: endOfDay(now) };
     default:
       return { start: startOfMonth(now), end: endOfMonth(now) };
