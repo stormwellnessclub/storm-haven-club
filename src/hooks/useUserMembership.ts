@@ -20,6 +20,8 @@ export interface UserMembership {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   annual_fee_subscription_id: string | null;
+  next_billing_date: string | null;
+  next_annual_fee_date: string | null;
   billing_type: string | null;
   is_founding_member: boolean | null;
   gender: string | null;

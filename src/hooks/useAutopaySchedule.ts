@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { addMonths, isBefore, isAfter, startOfDay, endOfDay, format, addDays } from "date-fns";
-import { extractTier, normalizeGender, getMonthlyPrice } from "@/lib/membershipPricing";
+import { extractTier, normalizeGender, getMonthlyPrice, getAnnualPrice } from "@/lib/membershipPricing";
 import type { DateRange } from "@/components/admin/DateRangePicker";
 
 export interface AutopayEntry {
