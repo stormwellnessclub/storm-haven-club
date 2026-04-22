@@ -163,6 +163,135 @@ const errorResponse = (error: unknown, context?: string) => {
   });
 };
 
+type InvoiceChargeType = 'membership_dues' | 'annual_fee' | 'class_pass' | 'guest_pass' | 'pos_other';
+
+function normalizeInvoiceChargeType(value: string | null | undefined): InvoiceChargeType | null {
+  if (!value) return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'membership_dues' || normalized === 'annual_fee' || normalized === 'class_pass' || normalized === 'guest_pass' || normalized === 'pos_other') {
+    return normalized;
+  }
+
+  if (normalized === 'guest_addon' || normalized.startsWith('pos')) return 'pos_other';
+  return null;
+}
+
+async function resolveNonSubscriptionChargeType(stripe: Stripe, invoice: Stripe.Invoice): Promise<'class_pass' | 'guest_pass' | 'pos_other'> {
+  const lines = invoice.lines?.data ?? [];
+
+  for (const line of lines) {
+    const description = line.description?.toLowerCase() ?? '';
+    if (description.includes('processing fee')) continue;
+
+    const mappedPrice = line.price?.id ? PRICE_ID_MAP[line.price.id] : undefined;
+    if (mappedPrice?.productType === 'class_pass') return 'class_pass';
+    if (mappedPrice?.productType === 'guest_pass') return 'guest_pass';
+
+    const priceMetadata = line.price?.metadata ?? {};
+    const directPriceType = normalizeInvoiceChargeType(priceMetadata.charge_type ?? priceMetadata.type ?? null);
+    if (directPriceType === 'class_pass' || directPriceType === 'guest_pass' || directPriceType === 'pos_other') {
+      return directPriceType;
+    }
+
+    const priceProduct = line.price?.product;
+    if (typeof priceProduct === 'string') {
+      try {
+        const product = await stripe.products.retrieve(priceProduct);
+        const productType = normalizeInvoiceChargeType(product.metadata?.charge_type ?? product.metadata?.type ?? null);
+        if (productType === 'class_pass' || productType === 'guest_pass' || productType === 'pos_other') {
+          return productType;
+        }
+        if (product.metadata?.type === 'processing_fee') continue;
+      } catch (productError) {
+        logError(productError, 'NON_SUBSCRIPTION_CHARGE_TYPE_PRODUCT_LOOKUP');
+      }
+    }
+
+    if (description.includes('guest pass')) return 'guest_pass';
+    if (description.includes('class pass')) return 'class_pass';
+  }
+
+  return 'pos_other';
+}
+
+async function upsertNonMemberPaymentAttempt(
+  supabase: ReturnType<typeof createClient>,
+  payload: {
+    amount: number;
+    attemptNumber: number;
+    chargeId: string | null;
+    currency: string;
+    invoiceId: string;
+    invoiceNumber: string | null;
+    metadata: Record<string, unknown>;
+    nonMemberProfileId: string;
+    paymentMethodId: string | null;
+    paymentMethodType: string | null;
+    stripePaymentIntentId: string | null;
+    succeededAt: string;
+  }
+) {
+  const dedupeQuery = payload.chargeId
+    ? supabase
+        .from('payment_attempts')
+        .select('id')
+        .eq('stripe_charge_id', payload.chargeId)
+        .limit(1)
+        .maybeSingle()
+    : supabase
+        .from('payment_attempts')
+        .select('id')
+        .eq('stripe_invoice_id', payload.invoiceId)
+        .eq('status', 'succeeded')
+        .eq('attempt_number', payload.attemptNumber)
+        .limit(1)
+        .maybeSingle();
+
+  const { data: existingAttempt, error: existingAttemptError } = await dedupeQuery;
+  if (existingAttemptError) {
+    throw existingAttemptError;
+  }
+
+  const basePayload = {
+    amount: payload.amount,
+    attempt_number: payload.attemptNumber,
+    currency: payload.currency,
+    invoice_id: payload.invoiceId,
+    invoice_number: payload.invoiceNumber,
+    member_id: null,
+    metadata: payload.metadata,
+    non_member_profile_id: payload.nonMemberProfileId,
+    payment_method_id: payload.paymentMethodId,
+    payment_method_type: payload.paymentMethodType,
+    status: 'succeeded',
+    stripe_charge_id: payload.chargeId,
+    stripe_invoice_id: payload.invoiceId,
+    stripe_payment_intent_id: payload.stripePaymentIntentId,
+    stripe_subscription_id: null,
+    succeeded_at: payload.succeededAt,
+  };
+
+  if (existingAttempt?.id) {
+    const { error } = await supabase
+      .from('payment_attempts')
+      .update(basePayload)
+      .eq('id', existingAttempt.id);
+
+    if (error) throw error;
+    return existingAttempt.id;
+  }
+
+  const { data: insertedAttempt, error } = await supabase
+    .from('payment_attempts')
+    .insert(basePayload)
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return insertedAttempt.id;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
