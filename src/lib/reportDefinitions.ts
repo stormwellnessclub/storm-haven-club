@@ -55,14 +55,12 @@ export type DateRangePreset =
   | 'custom';
 
 export const DATE_RANGE_PRESETS: { value: DateRangePreset; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: 'yesterday', label: 'Yesterday' },
-  { value: 'last7days', label: 'Last 7 Days' },
-  { value: 'last30days', label: 'Last 30 Days' },
   { value: 'thisMonth', label: 'This Month' },
   { value: 'lastMonth', label: 'Last Month' },
-  { value: 'thisQuarter', label: 'This Quarter' },
-  { value: 'thisYear', label: 'This Year' },
+  { value: 'thisQuarter', label: 'Last 3 Months' },
+  { value: 'thisYear', label: 'Last 12 Months' },
+  { value: 'thisMonth', label: 'This Month' },
+  { value: 'lastMonth', label: 'Last Month' },
   { value: 'custom', label: 'Custom Range' },
 ];
 
@@ -81,6 +79,15 @@ const TIER_OPTIONS = [
   { value: 'platinum', label: 'Platinum' },
   { value: 'gold', label: 'Gold' },
   { value: 'silver', label: 'Silver' },
+];
+
+const CHARGE_TYPE_OPTIONS = [
+  { value: 'all', label: 'All Charges' },
+  { value: 'membership_dues', label: 'Membership Dues' },
+  { value: 'annual_fee', label: 'Annual Fee' },
+  { value: 'class_pass', label: 'Class Pass' },
+  { value: 'guest_pass', label: 'Guest Pass' },
+  { value: 'pos_other', label: 'POS' },
 ];
 
 const STATUS_OPTIONS = [
