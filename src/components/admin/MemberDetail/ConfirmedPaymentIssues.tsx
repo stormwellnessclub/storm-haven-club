@@ -105,10 +105,10 @@ export function ConfirmedPaymentIssues({ memberId }: Props) {
             <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
           </div>
         ) : total === 0 ? (
-          <div className="flex items-center gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/5 p-4">
-            <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+          <div className="flex items-center gap-3 rounded-md border border-success/30 bg-success/5 p-4">
+            <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
             <div>
-              <div className="font-medium text-emerald-600 dark:text-emerald-400">
+              <div className="font-medium text-success">
                 No outstanding payment issues
               </div>
               <div className="text-sm text-muted-foreground">
