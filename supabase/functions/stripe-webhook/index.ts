@@ -1761,9 +1761,94 @@ serve(async (req) => {
             subscriptionId: invoice.subscription
           });
 
-          // Only process subscription invoices (skip one-time payments)
+          const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
+          const charge = invoice.charge as Stripe.Charge | string | null;
+          let paymentIntentId: string | null = null;
+          let chargeId: string | null = null;
+          let paymentMethodId: string | null = null;
+          let paymentMethodType: string | null = null;
+          let cardBrand: string | null = null;
+          let cardLast4: string | null = null;
+
+          if (typeof paymentIntent === 'object' && paymentIntent) {
+            paymentIntentId = paymentIntent.id;
+            paymentMethodId = paymentIntent.payment_method as string | null;
+
+            if (typeof charge === 'object' && charge && charge.payment_method_details) {
+              chargeId = charge.id;
+              if (charge.payment_method_details.type === 'card' && charge.payment_method_details.card) {
+                paymentMethodType = 'card';
+                cardBrand = charge.payment_method_details.card.brand || null;
+                cardLast4 = charge.payment_method_details.card.last4 || null;
+              }
+            }
+          } else if (typeof paymentIntent === 'string') {
+            paymentIntentId = paymentIntent;
+          }
+
+          if (typeof charge === 'string') {
+            chargeId = charge;
+          }
+
           if (!invoice.subscription) {
-            logStep("Skipping non-subscription invoice", { invoiceId: invoice.id });
+            try {
+              const nonMemberChargeType = await resolveNonSubscriptionChargeType(stripe, invoice);
+              const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null;
+
+              if (!customerId) {
+                logStep("Non-subscription invoice missing customer; skipping payment_attempt insert", { invoiceId: invoice.id });
+                break;
+              }
+
+              const { data: nonMemberProfile, error: nonMemberLookupError } = await supabase
+                .from('non_member_profiles')
+                .select('id, email, user_id')
+                .eq('stripe_customer_id', customerId)
+                .maybeSingle();
+
+              if (nonMemberLookupError) {
+                logError(nonMemberLookupError, 'INVOICE_PAYMENT_SUCCEEDED_NON_MEMBER_LOOKUP');
+                break;
+              }
+
+              if (!nonMemberProfile) {
+                logStep("Non-subscription invoice customer not found in non_member_profiles", { invoiceId: invoice.id, customerId });
+                break;
+              }
+
+              const attemptId = await upsertNonMemberPaymentAttempt(supabase, {
+                amount: (invoice.amount_paid || invoice.amount_due || 0) / 100,
+                attemptNumber: invoice.attempt_count || 1,
+                chargeId,
+                currency: invoice.currency || 'usd',
+                invoiceId: invoice.id,
+                invoiceNumber: invoice.number || null,
+                metadata: {
+                  billing_reason: invoice.billing_reason,
+                  card_brand: cardBrand,
+                  card_last4: cardLast4,
+                  charge_type: nonMemberChargeType,
+                  customer_id: customerId,
+                  line_item_count: invoice.lines?.data?.length || 0,
+                  non_member_user_id: nonMemberProfile.user_id,
+                },
+                nonMemberProfileId: nonMemberProfile.id,
+                paymentMethodId,
+                paymentMethodType,
+                stripePaymentIntentId: paymentIntentId,
+                succeededAt: new Date().toISOString(),
+              });
+
+              logStep("Non-subscription payment attempt recorded", {
+                attemptId,
+                chargeType: nonMemberChargeType,
+                customerId,
+                invoiceId: invoice.id,
+                nonMemberProfileId: nonMemberProfile.id,
+              });
+            } catch (nonSubscriptionError) {
+              logError(nonSubscriptionError, 'INVOICE_PAYMENT_SUCCEEDED_NON_SUBSCRIPTION');
+            }
             break;
           }
 
@@ -1907,36 +1992,7 @@ serve(async (req) => {
                 return successResponse({ blocked: true, memberId: memberData.id });
               }
             }
-            // Get payment intent and charge details
-            const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
-            const charge = invoice.charge as Stripe.Charge | string | null;
-            
-            let paymentIntentId: string | null = null;
-            let chargeId: string | null = null;
-            let paymentMethodId: string | null = null;
-            let paymentMethodType: string | null = null;
-            let cardBrand: string | null = null;
-            let cardLast4: string | null = null;
-
-            if (typeof paymentIntent === 'object' && paymentIntent) {
-              paymentIntentId = paymentIntent.id;
-              paymentMethodId = paymentIntent.payment_method as string | null;
-              
-              if (typeof charge === 'object' && charge && charge.payment_method_details) {
-                chargeId = charge.id;
-                if (charge.payment_method_details.type === 'card' && charge.payment_method_details.card) {
-                  paymentMethodType = 'card';
-                  cardBrand = charge.payment_method_details.card.brand || null;
-                  cardLast4 = charge.payment_method_details.card.last4 || null;
-                }
-              }
-            } else if (typeof paymentIntent === 'string') {
-              paymentIntentId = paymentIntent;
-            }
-
-            if (typeof charge === 'string') {
-              chargeId = charge;
-            }
+            const chargeType: InvoiceChargeType = isAnnualFeeInvoice ? 'annual_fee' : 'membership_dues';
 
             // Log successful payment attempt
             const { error: logAttemptError } = await supabase.rpc('log_payment_attempt', {
@@ -1954,6 +2010,7 @@ serve(async (req) => {
               p_payment_method_type: paymentMethodType,
               p_succeeded_at: new Date().toISOString(),
               p_metadata: {
+                charge_type: chargeType,
                 billing_reason: invoice.billing_reason,
                 period_start: invoice.period_start,
                 period_end: invoice.period_end,
