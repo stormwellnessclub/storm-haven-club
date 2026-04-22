@@ -3002,6 +3002,53 @@ serve(async (req) => {
             break;
           }
 
+          // GUARD: If this invoice is for a cancelled/expired member, void it immediately
+          // and skip all further processing (no fee, no arrears mirror).
+          try {
+            const customerId = invoice.customer as string | null;
+            if (customerId) {
+              const { data: cancelledMember } = await supabase
+                .from('members')
+                .select('id, status, email')
+                .eq('stripe_customer_id', customerId)
+                .in('status', ['cancelled', 'expired', 'suspended'])
+                .maybeSingle();
+
+              if (cancelledMember) {
+                try {
+                  await stripe.invoices.del(invoice.id); // draft → delete
+                  logStep("Auto-deleted draft invoice for cancelled member", { 
+                    invoiceId: invoice.id, 
+                    memberId: cancelledMember.id, 
+                    memberStatus: cancelledMember.status 
+                  });
+                  await supabase.from('audit_logs').insert({
+                    action: 'invoice_received_for_cancelled_member',
+                    entity_type: 'invoice',
+                    entity_id: invoice.id,
+                    metadata: {
+                      member_id: cancelledMember.id,
+                      member_status: cancelledMember.status,
+                      member_email: cancelledMember.email,
+                      stripe_customer_id: customerId,
+                      stripe_subscription_id: invoice.subscription,
+                      action_taken: 'deleted_draft',
+                    },
+                  });
+                } catch (autoVoidErr) {
+                  logStep("Warning: failed to auto-delete draft invoice for cancelled member", { 
+                    invoiceId: invoice.id, 
+                    error: String(autoVoidErr) 
+                  });
+                }
+                break; // do not add fee
+              }
+            }
+          } catch (guardErr) {
+            logStep("Warning: cancelled-member guard failed", { error: String(guardErr) });
+            // fall through to normal processing
+          }
+
           // Don't add fee if there's already a processing fee line item
           const existingFeeItem = invoice.lines?.data?.find(
             (line: any) => line.description?.toLowerCase().includes('processing fee')
