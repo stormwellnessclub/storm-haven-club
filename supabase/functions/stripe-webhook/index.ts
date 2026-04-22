@@ -1543,18 +1543,45 @@ serve(async (req) => {
           // Find member by subscription ID
           const { data: memberData, error: memberError } = await supabase
             .from('members')
-            .select('id, status')
-            .eq('stripe_subscription_id', subscription.id)
+            .select('id, status, stripe_subscription_id, annual_fee_subscription_id')
+            .or(`stripe_subscription_id.eq.${subscription.id},annual_fee_subscription_id.eq.${subscription.id}`)
             .maybeSingle();
 
           if (memberError) {
             logError(memberError, "SUBSCRIPTION_UPDATE_MEMBER_LOOKUP");
           } else if (memberData) {
+            const isAnnualFeeSubscription = memberData.annual_fee_subscription_id === subscription.id;
+            const periodEnd = subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000).toISOString().split('T')[0]
+              : null;
+
+            if (periodEnd) {
+              const nextDateUpdate = isAnnualFeeSubscription
+                ? { next_annual_fee_date: periodEnd, updated_at: new Date().toISOString() }
+                : { next_billing_date: periodEnd, updated_at: new Date().toISOString() };
+
+              const { error: nextDateError } = await supabase
+                .from('members')
+                .update(nextDateUpdate)
+                .eq('id', memberData.id);
+
+              if (nextDateError) {
+                logError(nextDateError, 'SUBSCRIPTION_UPDATE_NEXT_DATE_SYNC');
+              } else {
+                logStep('Synced next payment date from subscription update', {
+                  memberId: memberData.id,
+                  subscriptionId: subscription.id,
+                  isAnnualFeeSubscription,
+                  periodEnd,
+                });
+              }
+            }
+
             // Always sync the subscription_status column to match Stripe
             const { error: syncError } = await supabase
               .from('members')
               .update({ 
-                subscription_status: subscription.status,
+                subscription_status: isAnnualFeeSubscription ? memberData.status : subscription.status,
                 updated_at: new Date().toISOString()
               })
               .eq('id', memberData.id);
@@ -1568,6 +1595,10 @@ serve(async (req) => {
             // Map Stripe subscription status to member status
             let newStatus: string;
             let reason: string;
+
+            if (isAnnualFeeSubscription) {
+              break;
+            }
 
             if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
               newStatus = 'past_due';
