@@ -3662,6 +3662,8 @@ export type Database = {
           membership_end_date: string | null
           membership_start_date: string
           membership_type: string
+          next_annual_fee_date: string | null
+          next_billing_date: string | null
           original_tier_at_application: string | null
           pending_tier_change: string | null
           pending_tier_change_at: string | null
@@ -3709,6 +3711,8 @@ export type Database = {
           membership_end_date?: string | null
           membership_start_date?: string
           membership_type?: string
+          next_annual_fee_date?: string | null
+          next_billing_date?: string | null
           original_tier_at_application?: string | null
           pending_tier_change?: string | null
           pending_tier_change_at?: string | null
@@ -3756,6 +3760,8 @@ export type Database = {
           membership_end_date?: string | null
           membership_start_date?: string
           membership_type?: string
+          next_annual_fee_date?: string | null
+          next_billing_date?: string | null
           original_tier_at_application?: string | null
           pending_tier_change?: string | null
           pending_tier_change_at?: string | null
@@ -4153,6 +4159,7 @@ export type Database = {
           member_id: string | null
           metadata: Json | null
           next_retry_at: string | null
+          non_member_profile_id: string | null
           payment_method_id: string | null
           payment_method_type: string | null
           resolution_note: string | null
@@ -4188,6 +4195,7 @@ export type Database = {
           member_id?: string | null
           metadata?: Json | null
           next_retry_at?: string | null
+          non_member_profile_id?: string | null
           payment_method_id?: string | null
           payment_method_type?: string | null
           resolution_note?: string | null
@@ -4223,6 +4231,7 @@ export type Database = {
           member_id?: string | null
           metadata?: Json | null
           next_retry_at?: string | null
+          non_member_profile_id?: string | null
           payment_method_id?: string | null
           payment_method_type?: string | null
           resolution_note?: string | null
@@ -4258,6 +4267,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_attempts_non_member_profile_id_fkey"
+            columns: ["non_member_profile_id"]
+            isOneToOne: false
+            referencedRelation: "non_member_profiles"
             referencedColumns: ["id"]
           },
           {
