@@ -340,6 +340,8 @@ export type Database = {
           paid_at: string | null
           period_end: string
           period_start: string
+          reopened_at: string | null
+          reopened_reason: string | null
           status: string
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
@@ -362,6 +364,8 @@ export type Database = {
           paid_at?: string | null
           period_end: string
           period_start: string
+          reopened_at?: string | null
+          reopened_reason?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -384,6 +388,8 @@ export type Database = {
           paid_at?: string | null
           period_end?: string
           period_start?: string
+          reopened_at?: string | null
+          reopened_reason?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -4134,6 +4140,10 @@ export type Database = {
           currency: string | null
           decline_code: string | null
           decline_reason: string | null
+          dispute_id: string | null
+          dispute_reason: string | null
+          dispute_status: string | null
+          disputed_at: string | null
           failed_at: string | null
           failure_code: string | null
           failure_message: string | null
@@ -4165,6 +4175,10 @@ export type Database = {
           currency?: string | null
           decline_code?: string | null
           decline_reason?: string | null
+          dispute_id?: string | null
+          dispute_reason?: string | null
+          dispute_status?: string | null
+          disputed_at?: string | null
           failed_at?: string | null
           failure_code?: string | null
           failure_message?: string | null
@@ -4196,6 +4210,10 @@ export type Database = {
           currency?: string | null
           decline_code?: string | null
           decline_reason?: string | null
+          dispute_id?: string | null
+          dispute_reason?: string | null
+          dispute_status?: string | null
+          disputed_at?: string | null
           failed_at?: string | null
           failure_code?: string | null
           failure_message?: string | null

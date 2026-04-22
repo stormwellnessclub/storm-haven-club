@@ -3048,6 +3048,90 @@ serve(async (req) => {
         break;
       }
 
+      case 'charge.dispute.created':
+      case 'charge.dispute.updated':
+      case 'charge.dispute.closed': {
+        try {
+          const dispute = event.data.object as Stripe.Dispute;
+          const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id;
+          if (!chargeId) {
+            logStep('Dispute event missing charge id', { eventId: event.id, disputeId: dispute.id });
+            break;
+          }
+
+          // Find the matching payment_attempts row
+          const { data: attempt, error: attemptErr } = await supabase
+            .from('payment_attempts')
+            .select('id, member_id, stripe_invoice_id, stripe_subscription_id, amount, metadata')
+            .eq('stripe_charge_id', chargeId)
+            .maybeSingle();
+
+          if (attemptErr) logError(attemptErr, 'DISPUTE_LOOKUP_ATTEMPT');
+
+          const isClosed = event.type === 'charge.dispute.closed';
+          const isCreated = event.type === 'charge.dispute.created';
+          const disputeStatus = dispute.status; // needs_response | under_review | won | lost | warning_needs_response | warning_under_review | warning_closed | charge_refunded
+          const lostOrRefunded = disputeStatus === 'lost' || disputeStatus === 'charge_refunded';
+
+          if (attempt) {
+            const updates: Record<string, unknown> = {
+              dispute_id: dispute.id,
+              dispute_status: disputeStatus,
+              dispute_reason: dispute.reason,
+            };
+            if (isCreated) updates.disputed_at = new Date(dispute.created * 1000).toISOString();
+            if (isClosed && disputeStatus === 'won') {
+              // Dispute won — re-resolve any prior reopen flag
+              updates.disputed_at = null;
+            }
+
+            const { error: updErr } = await supabase
+              .from('payment_attempts')
+              .update(updates)
+              .eq('id', attempt.id);
+            if (updErr) logError(updErr, 'DISPUTE_UPDATE_ATTEMPT');
+
+            // Membership-related (had a subscription or invoice tied to membership): reopen arrears
+            const isMembershipCharge = !!attempt.stripe_subscription_id || !!attempt.stripe_invoice_id;
+            if (isMembershipCharge && attempt.stripe_invoice_id) {
+              if ((isCreated || (isClosed && lostOrRefunded)) && attempt.member_id) {
+                const { error: arrearsErr } = await supabase
+                  .from('billing_arrears')
+                  .update({
+                    status: 'unpaid',
+                    paid_at: null,
+                    reopened_reason: 'disputed_charge',
+                    reopened_at: new Date().toISOString(),
+                    failure_message: `Disputed (${dispute.reason}) — status: ${disputeStatus}`,
+                  })
+                  .eq('member_id', attempt.member_id)
+                  .eq('stripe_invoice_id', attempt.stripe_invoice_id);
+                if (arrearsErr) logError(arrearsErr, 'DISPUTE_REOPEN_ARREARS');
+              } else if (isClosed && disputeStatus === 'won' && attempt.member_id) {
+                // Won dispute — clear the reopen flag if it was set by this dispute
+                const { error: arrearsErr } = await supabase
+                  .from('billing_arrears')
+                  .update({
+                    reopened_reason: null,
+                    reopened_at: null,
+                  })
+                  .eq('member_id', attempt.member_id)
+                  .eq('stripe_invoice_id', attempt.stripe_invoice_id)
+                  .eq('reopened_reason', 'disputed_charge');
+                if (arrearsErr) logError(arrearsErr, 'DISPUTE_CLEAR_ARREARS');
+              }
+            }
+          } else {
+            logStep('Dispute event — no matching payment_attempts row', { chargeId, disputeId: dispute.id });
+          }
+
+          logStep(`Dispute ${event.type} processed`, { disputeId: dispute.id, status: disputeStatus });
+        } catch (disputeErr) {
+          logError(disputeErr, 'DISPUTE_HANDLER');
+        }
+        break;
+      }
+
       default:
         logStep(`Unhandled event type: ${event.type}`, { eventId: event.id });
     }
