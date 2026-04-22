@@ -1,57 +1,75 @@
 
 
-## Fully stop billing Sarah Siddiqui + prevent orphaned invoices on any future cancellation
+## Export all payment-processing code as a single Claude-readable audit bundle
 
-### Current state (verified just now)
+### What you'll get
 
-- DB: `members.status = 'cancelled'`, `stripe_subscription_id = NULL`, `subscription_status = 'none'` ✅
-- Stripe subs: both already `canceled` ✅
-- **Problem:** Stripe still has one **open $250 invoice** (`in_1T8xcJLyZrsSqLhsyNuB7rRg`, billing reason `subscription_cycle`) that was generated *before* the cancellation finalized. It's mirrored in `billing_arrears` (id `ca64de9b-7087-4a22-b5cd-c457cf28ba58`) as `unpaid`.
-- Stripe will keep retrying that open invoice and emailing her about it until it's voided. That's the active "billing" she's still seeing.
+One downloadable Markdown file — `payment-system-audit.md` — that contains every piece of code involved in payment processing across the system, organized so Claude (or any LLM) can ingest the whole flow in one paste and run a thorough audit.
 
-### Fix — three parts
+### What's included
 
-**Part 1: Clean up Sarah right now (one-time)**
+The bundle is grouped into seven sections, in flow order:
 
-1. Void the open Stripe invoice `in_1T8xcJLyZrsSqLhsyNuB7rRg` via Stripe API (no charge, no email retries).
-2. Update the matching `billing_arrears` row to `status = 'voided'`, set `resolved_at = now()` with reason `membership_cancelled_post_invoice`.
-3. Confirm no other open invoices, payment intents, or scheduled charges remain on `cus_TtKwAlQEoW88aj`.
-4. Detach her saved payment methods in Stripe so nothing can be charged manually by mistake.
+**1. Overview & flow map**
+- A written architecture summary: how a charge moves from Admin → Stripe → Webhook → Database → Application Portal → Member Portal.
+- A table of every Stripe event the system listens for and what it triggers.
+- The list of every database table involved (`payment_attempts`, `billing_arrears`, `card_sync_failures`, `members`, `applications`, `webhook_events`, `payment_method_audit`, etc.).
 
-**Part 2: Fix the cancellation flow so this never happens again**
+**2. Database layer (SQL)**
+- Schema and RPCs for: `payment_attempts`, `billing_arrears`, `card_sync_failures`, `webhook_events`.
+- Every payment-related RPC: `get_member_arrears_summary`, `reconcile_arrear`, `process_member_scan` (billing-block enforcement), `deactivate_member`, sync helpers, classification functions.
+- All migrations from `supabase/migrations/` that touched these tables/functions, in chronological order.
 
-Update the membership-cancellation code path (`cancel-membership` edge function + `MemberDetail` cancel action) to, in this order:
+**3. Edge functions (server-side Stripe logic)**
+Full source of:
+- `stripe-payment/index.ts` (~7,000 lines — the core charge engine: subscriptions, one-shots, POS, deactivation, card sync, manual charges)
+- `stripe-webhook/index.ts` (~3,200 lines — every event handler: `invoice.payment_succeeded`, `invoice.payment_failed`, `invoice.created`, `charge.dispute.*`, `customer.subscription.*`, `setup_intent.*`)
+- `reconcile-arrear/index.ts` (manual retry of an unpaid invoice)
+- `backfill-payment-history/index.ts` and `backfill-disputes/index.ts` (the importers that created the 118 historical rows)
+- `stripe-failed-invoices/index.ts`, `payment-tracking-health-check/index.ts`, `sync-subscription-status/index.ts`, `stripe-config/index.ts`
 
-1. Cancel both Stripe subscriptions (dues + annual fee) with `invoice_now: false, prorate: false` — already done.
-2. **NEW:** List all open invoices for that customer and `void` any whose `subscription` matches the just-cancelled subs OR whose `billing_reason` is `subscription_cycle` / `subscription_create`.
-3. **NEW:** For each voided invoice, mark the matching `billing_arrears` row as `voided` with `resolved_at = now()` and reason `membership_cancelled`.
-4. **NEW:** Detach saved payment methods (configurable — default on for cancellations, off for freezes).
-5. Log the cleanup actions to `audit_logs` so staff can see exactly what was voided.
+**4. Frontend hooks (data layer between UI and DB/edges)**
+- `useMemberConfirmedIssues.ts`, `useMemberArrears.ts`, `useMembersBillingIssues.ts`, `useUnresolvedFailedCount.ts`
+- `useAdminMemberBillingHealth.ts`, `useAdminMemberPaymentMethods.ts`, `useAdminPaymentTimeline.ts`, `useAdminPayments.ts`, `useAdminTransactions.ts`, `useAdminRefunds.ts`
+- `useArrearsReconciliation.ts`, `useCardSyncStatus.ts`, `useFailedPaymentsHistory.ts`
+- `usePaymentStatus.ts`, `usePaymentTracking.ts`, `useUserMembership.ts`, `useMemberBenefitsStatus.ts`, `useApplicationStatus.ts`, `useAutopaySchedule.ts`
 
-**Part 3: Stripe webhook hardening**
+**5. Admin UI components (where payments are managed)**
+- Member Detail billing surface: `ConfirmedPaymentIssues.tsx`, `ArrearsCard.tsx`, `MemberArrearsBanner.tsx`, `MemberArrearsIndicator.tsx`, `MemberIssuesBadges.tsx`, `BillingHealthCard.tsx`, `BillingHealthWidget.tsx`, `ArrearsClassificationBadge.tsx`
+- Charge actions: `ChargeItemSelector.tsx` (manual charge cart), `AdminChargeWith3DS.tsx`, `InitiationFeeChargeDialog.tsx`, `MarkPaidDialog.tsx`, `RefundDialog.tsx`, `AddProcessingFeesButton.tsx`
+- Subscriptions: `SubscriptionCard.tsx`, `CreateSubscriptionDialog.tsx`, `CreateInitiationFeeSubscriptionDialog.tsx`, `EditAnnualFeeSubscriptionDialog.tsx`, `TierChangeDialog.tsx`, `ChangeBillingDateDialog.tsx`
+- Failed-payments surfaces: `FailedPaymentsTab.tsx`, `FailedPaymentDetailSheet.tsx`, `FailedPaymentsHistory.tsx` (page), `PaymentTracking.tsx` (page), `SuccessfulPaymentsTab.tsx`, `StripeLivePaymentsTab.tsx`, `PaymentTimeline.tsx`, `PaymentsTabContent.tsx`
+- Admin reports tied to billing: `PaymentAnalysisReport.tsx`, `PaymentFollowUpReport.tsx`, `CashFlowProjectionReport.tsx`, `NextMonthProjectionReport.tsx`, `RevenueSummaryReport.tsx`
+- Card management: `AddApplicantCardModal.tsx`, `AdminAddCardForm.tsx`, `CardSyncFailuresWidget.tsx`, `BackfillPaymentHistoryDialog.tsx`, `NonMemberStripeImport.tsx`
+- POS: `CafePOSCart.tsx`, `POSCustomerSearch.tsx` and `pages/admin/CafePOS.tsx`, `pages/admin/FrontDeskPOS.tsx`
 
-In `stripe-webhook` `invoice.created` and `invoice.finalized` handlers:
-- Before mirroring a new arrears row, check if the member's `status` is `cancelled` or `expired`.
-- If yes: immediately void the invoice in Stripe and skip creating the arrears row. Log a warning to `audit_logs` with reason `invoice_received_for_cancelled_member`.
-- This catches any race condition where Stripe generates one more invoice between the cancel call and the subscription actually closing.
+**6. Application portal (apply → pay initiation → activate)**
+- `pages/Apply.tsx`, `components/ApplicationProgress.tsx`, `components/PaymentSectionEnhanced.tsx`, `components/StripeProvider.tsx`
+- `components/admin/Applications.tsx` (approval/cancel flow that creates the "applied but never charged" / "initiation only" buckets)
+- `components/admin/SingleActivationDialog.tsx`, `BatchActivationDialog.tsx`, `AbandonedApplicationsTab.tsx`
+- `components/admin/SellMembershipPackage.tsx`
 
-### Verification after deploy
+**7. Member & non-member portals (where members see their own billing)**
+- `components/member/`: `ActivationRequired.tsx`, `AddCardModal.tsx`, `AnnualFeeNotice.tsx`, `ApplicationUnderReview.tsx`, `BillingSummary.tsx`, `InlineBillingSection.tsx`, `MembershipActivationPayment.tsx`, `PaymentDueNotice.tsx`, `PaymentRequiredAlert.tsx`
+- `pages/member/`: `Membership.tsx`, `PaymentHistory.tsx`, `PaymentMethods.tsx`, `FreezeRequest.tsx`
+- `pages/portal/PaymentMethods.tsx`
+- `components/ChargeHistory.tsx`
+- Shared libs: `lib/billingTerminology.ts`, `lib/processingFee.ts`, `lib/stripeErrors.ts`, `lib/stripeProducts.ts`
 
-1. Sarah's Stripe customer page → no open invoices, no active subs, no saved cards
-2. Sarah's profile in admin → no arrears, no "Confirmed Payment Issues", check-in correctly denied because `status = cancelled`
-3. Cancel a test member with an open invoice → invoice voided automatically, arrears row marked voided, no further Stripe emails
+### Format
 
-### Files / objects touched
+Plain Markdown, one file. Each source file is preceded by a heading with its path and a one-line description, then fenced in a language-tagged code block (` ```typescript ` / ` ```sql `). Total file is expected to be ~1.5–2 MB of text — large but well within Claude's context window when pasted as an attachment.
 
-**One-time SQL + Stripe ops** (no code change, executed once)
-- Void `in_1T8xcJLyZrsSqLhsyNuB7rRg` via Stripe API
-- Update `billing_arrears` row `ca64de9b-7087-4a22-b5cd-c457cf28ba58` → `voided`
-- Detach Sarah's payment methods
+A short table of contents at the top lets Claude jump to any layer. The intro section frames the audit goal: *"Find every place where a payment failure, retry, dispute, cancellation, or arrear can be created, resolved, displayed, or missed — and identify gaps causing inaccurate 'Confirmed Payment Issues' rows."*
 
-**Edge functions**
-- `supabase/functions/cancel-membership/index.ts` — add open-invoice void sweep + payment-method detach + audit log
-- `supabase/functions/stripe-webhook/index.ts` — add guard in `invoice.created` / `invoice.finalized` to auto-void invoices for cancelled members
+### Deliverable
 
-**Frontend**
-- No UI changes needed; the existing cancel button will now produce a clean cancellation
+Single artifact written to `/mnt/documents/payment-system-audit.md`, downloadable from the chat. No code changes to the project.
+
+### Technical details
+
+- One-shot script reads each file listed above and concatenates them with headings + fenced blocks.
+- Migrations are filtered to only those touching payment tables/RPCs (already enumerated — 26 files).
+- A small generated "flow map" section at the top summarizes Stripe → webhook → DB → hook → UI relationships so Claude doesn't have to infer it.
+- File is plain UTF-8 Markdown, safe to paste or upload to any LLM.
 
