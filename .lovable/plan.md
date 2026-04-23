@@ -1,55 +1,73 @@
 
-Fix the admin sign-in regression and the false “0 checked in today” state by making authenticated queries wait until the session is truly ready, instead of running on the first auth event.
+Fix the admin login failure by treating role-loading failures as errors to recover from, not as “this user is not staff,” and by removing the duplicate post-login role check that can strand admins on the auth screen.
 
-1. Stabilize auth initialization in the app context
-- Update `src/contexts/AuthContext.tsx` so auth is considered ready only after the initialization pass completes, not immediately on the first `onAuthStateChange` event.
-- Keep the auth listener synchronous, but separate:
-  - live session/user updates
-  - “auth is fully initialized and safe for RLS queries”
-- Add an explicit readiness signal to the context, such as `authReady` or `initialized`.
+1. Confirm the real source of failure in the login flow
+- Keep the current backend/auth setup intact because the admin account and staff role already exist.
+- Treat this as a frontend session/role-resolution problem:
+  - login succeeds
+  - staff role exists
+  - frontend sometimes fails to route or denies access anyway
 
-2. Prevent early role checks from locking staff out
-- Update `src/hooks/useUserRoles.ts` to wait for the new auth-ready flag before querying `user_roles`.
-- While auth is not ready, keep the hook in a loading state instead of returning an empty role list.
-- Treat “not ready yet” differently from “user has no staff roles,” so staff are not mistakenly denied admin access.
-- Update `src/components/admin/ProtectedAdminRoute.tsx` to use the readiness flag and only evaluate role access after auth and roles are both truly ready.
+2. Make role loading authoritative and error-safe
+- Update `src/hooks/useUserRoles.ts` so it has three distinct states:
+  - loading
+  - loaded with roles
+  - failed to load roles
+- Do not convert a failed `user_roles` query into `roles: []`.
+- Preserve loading or expose an explicit `error`/`resolved` state so admin guards never confuse “query failed” with “user has no staff roles.”
 
-3. Fix post-login staff routing on the auth page
-- Update `src/pages/Auth.tsx` so the staff-role lookup and redirect logic runs only after auth readiness is confirmed.
-- Avoid interpreting a temporary empty `user_roles` response during session restoration as a real non-staff result.
-- Keep staff on a short “preparing/verifying” state until roles are confirmed, then route to their admin landing page.
+3. Stop the admin route from locking staff out on transient role errors
+- Update `src/components/admin/ProtectedAdminRoute.tsx` to handle:
+  - auth still restoring
+  - roles still loading
+  - role query failed
+  - confirmed non-staff user
+- Only show “Access Denied” after roles have successfully loaded and are truly empty.
+- If role loading fails, show a recoverable error state with retry instead of denying admin access.
 
-4. Gate admin attendance queries behind auth readiness
-- Update `src/hooks/useUnifiedAttendance.ts` so it does not fetch until auth is ready and a signed-in user exists.
-- Preserve the resilient partial-failure handling already added, but stop the initial unauthenticated fetch that can seed the UI with zero counts.
-- Trigger a clean refetch once auth becomes ready.
+4. Replace the duplicate ad hoc role query on the auth page
+- Refactor `src/pages/Auth.tsx` so the post-login redirect does not perform its own direct `user_roles` lookup with silent early return behavior.
+- Reuse the shared role-loading logic instead of duplicating it.
+- If staff roles are still resolving after sign-in, show a short “Signing you in…” state.
+- If role resolution fails, surface a clear error/retry path instead of leaving the user stuck on `/auth`.
 
-5. Gate dashboard counts behind auth readiness
-- Update `src/pages/admin/Dashboard.tsx` so the “Today’s Check-Ins” and related admin stats queries use the auth-ready signal before executing.
-- Keep the partial-failure behavior, but ensure zero is only shown after an authenticated query actually completes.
+5. Tighten session-repair behavior so it does not erase a fresh login too aggressively
+- Review the JWT/session recovery paths in:
+  - `src/contexts/AuthContext.tsx`
+  - `src/components/SessionMonitor.tsx`
+  - `src/components/member/ProtectedMemberRoute.tsx`
+- Prevent transient post-login validation issues from immediately collapsing into sign-out or bad local state.
+- Keep corrupted-token cleanup, but avoid clearing a freshly established session during normal login routing.
 
-6. Review related session-check logic for the same race
-- Check `src/components/SessionMonitor.tsx` and `src/components/member/ProtectedMemberRoute.tsx` for any logic that validates or refreshes too aggressively during startup.
-- Keep the JWT-repair safeguards, but avoid a startup race where session validation runs before the restored token is available.
+6. Make admin routing deterministic after successful sign-in
+- Ensure staff users are redirected from `/auth` to the correct admin landing page once:
+  - auth is ready
+  - session is valid
+  - staff roles are confirmed
+- Ensure non-staff users continue through the existing waiver/member flow without affecting staff login.
 
-7. Validate the fixed behavior
-- Confirm an admin can sign in and be routed back into the admin area without seeing a false access-denied state.
-- Confirm `useUserRoles()` resolves the real staff roles after login.
-- Confirm the dashboard and admin check-in page show the real non-zero today count instead of an initial zero caused by premature RLS queries.
-- Confirm loading states show while auth is restoring, rather than flashing bad zero/empty states.
+7. Validate the full admin login path
+- Verify the admin account can:
+  - submit email/password successfully
+  - leave `/auth`
+  - reach `/admin` (or its role-based default page)
+  - stay signed in without bouncing back or showing access denied
+- Verify failed role fetches now show a retry/error state rather than a false non-staff result.
+- Recheck the admin dashboard/check-in pages after login so the check-in count is evaluated only from a valid authenticated admin session.
 
 Technical details
-- Likely root cause: authenticated queries are firing during the small window where the app has a user/session event but the token is not yet fully restored for backend policy evaluation. In that state, role and attendance queries can return empty/zero results without obvious frontend errors.
-- Primary files to update:
-  - `src/contexts/AuthContext.tsx`
+- Backend data already confirms the admin user and `super_admin` role exist, so this should not require database changes.
+- Most likely frontend failure points:
   - `src/hooks/useUserRoles.ts`
   - `src/components/admin/ProtectedAdminRoute.tsx`
   - `src/pages/Auth.tsx`
-  - `src/hooks/useUnifiedAttendance.ts`
-  - `src/pages/admin/Dashboard.tsx`
-  - possibly `src/components/SessionMonitor.tsx`
-  - possibly `src/components/member/ProtectedMemberRoute.tsx`
-- Expected result:
-  - admin sign-in works again
-  - staff roles are not lost during startup
-  - today’s check-ins no longer show false zeroes caused by auth timing
+- Secondary session-hardening review:
+  - `src/contexts/AuthContext.tsx`
+  - `src/components/SessionMonitor.tsx`
+  - `src/components/member/ProtectedMemberRoute.tsx`
+
+Expected result
+- Admin login works again.
+- Staff are no longer treated as non-staff when role lookup briefly fails.
+- The auth page no longer gets stuck after a successful login.
+- Admin check-in/dashboard data can load from a real authenticated session instead of failing behind broken access flow.
