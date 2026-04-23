@@ -5,7 +5,12 @@ import { Link } from "react-router-dom";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 
 export function SupportAlertCard() {
-  const { data: notifications } = useAdminSupportNotifications();
+  const { data: notifications, error } = useAdminSupportNotifications();
+
+  if (error) {
+    console.error("Support alert card could not render notifications:", error);
+    return null;
+  }
 
   if (!notifications || (notifications.openCount === 0 && notifications.unreadCount === 0)) {
     return null;

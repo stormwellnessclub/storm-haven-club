@@ -41,6 +41,7 @@ import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
 import { BillingHealthWidget } from "@/components/admin/BillingHealthWidget";
 import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
 import { SupportAlertCard } from "@/components/admin/SupportAlertCard";
+import { AdminWidgetBoundary } from "@/components/admin/AdminWidgetBoundary";
 import { toast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
@@ -356,7 +357,9 @@ export default function Dashboard() {
         )}
 
         {/* Support Alert */}
-        <SupportAlertCard />
+        <AdminWidgetBoundary title="Support messages">
+          <SupportAlertCard />
+        </AdminWidgetBoundary>
 
         {/* Date and Quick Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -597,11 +600,19 @@ export default function Dashboard() {
           )}
 
           {/* Billing Health Widget (Admin only) */}
-          {showAdminOnly && <BillingHealthWidget />}
+          {showAdminOnly && (
+            <AdminWidgetBoundary title="Billing health">
+              <BillingHealthWidget />
+            </AdminWidgetBoundary>
+          )}
         </div>
 
         {/* Card Sync Failures Widget (Admin only) */}
-        {showAdminOnly && <CardSyncFailuresWidget />}
+        {showAdminOnly && (
+          <AdminWidgetBoundary title="Card sync failures">
+            <CardSyncFailuresWidget />
+          </AdminWidgetBoundary>
+        )}
 
         {/* Quick Stats Row */}
 
