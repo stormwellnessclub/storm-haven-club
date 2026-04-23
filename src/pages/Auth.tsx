@@ -359,8 +359,11 @@ export default function Auth() {
     }
   };
 
-  // Show loading while cleaning corrupted sessions or loading profile
-  if (isCleaningSession || !authReady || (user && (rolesLoading || (!rolesResolved && profileLoading) || (!hasAnyStaffRole() && profileLoading)))) {
+  const waitingForStaffRoles = !!user && rolesLoading;
+  const waitingForMemberProfile = !!user && rolesResolved && !hasAnyStaffRole() && profileLoading;
+
+  // Show loading while cleaning corrupted sessions or finishing the relevant post-login handoff
+  if (isCleaningSession || !authReady || waitingForStaffRoles || waitingForMemberProfile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Signing you in...</div>

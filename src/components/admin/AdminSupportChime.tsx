@@ -102,11 +102,29 @@ export async function playNotificationChime() {
 
 // ── Mute helpers ────────────────────────────────────────────────────
 const MUTE_KEY = "admin-chime-muted";
+let inMemoryMutePreference = false;
+
 export function getIsMuted(): boolean {
-  return localStorage.getItem(MUTE_KEY) === "true";
+  if (typeof window === "undefined") return inMemoryMutePreference;
+
+  try {
+    return window.localStorage.getItem(MUTE_KEY) === "true";
+  } catch (error) {
+    console.warn("Failed to read admin chime preference from storage:", error);
+    return inMemoryMutePreference;
+  }
 }
+
 export function setIsMuted(val: boolean) {
-  localStorage.setItem(MUTE_KEY, val ? "true" : "false");
+  inMemoryMutePreference = val;
+
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(MUTE_KEY, val ? "true" : "false");
+  } catch (error) {
+    console.warn("Failed to persist admin chime preference:", error);
+  }
 }
 
 // ── Component ───────────────────────────────────────────────────────
