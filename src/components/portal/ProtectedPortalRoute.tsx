@@ -11,7 +11,7 @@ interface ProtectedPortalRouteProps {
 }
 
 export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, authReady } = useAuth();
   const [checking, setChecking] = useState(true);
   const [isMember, setIsMember] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
@@ -19,47 +19,46 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
 
   const checkMembership = useCallback(async () => {
     if (!user) {
+      setIsMember(false);
+      setIsStaff(false);
       setChecking(false);
       return;
     }
 
     try {
-      const [memberResult, roleResult] = await Promise.all([
+      const [memberResult, staffRoleResult] = await Promise.all([
         supabase
           .from("members")
           .select("id, status")
           .eq("user_id", user.id)
           .maybeSingle(),
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .limit(1)
-          .maybeSingle(),
+        supabase.rpc("has_any_staff_role", { _user_id: user.id }),
       ]);
 
-      if (roleResult.data) {
-        setIsStaff(true);
-      } else if (
-        memberResult.data &&
-        ["active", "pending_activation", "frozen", "past_due"].includes(memberResult.data.status)
-      ) {
-        setIsMember(true);
-      }
+      setIsStaff(Boolean(staffRoleResult.data));
+      setIsMember(
+        Boolean(
+          memberResult.data &&
+            ["active", "pending_activation", "frozen", "past_due"].includes(memberResult.data.status)
+        )
+      );
     } catch (err) {
       console.error("[ProtectedPortalRoute] Error checking membership:", err);
+      setIsStaff(false);
+      setIsMember(false);
     } finally {
       setChecking(false);
     }
   }, [user]);
 
   useEffect(() => {
-    if (!authLoading) {
-      checkMembership();
+    if (!authLoading && authReady) {
+      setChecking(true);
+      void checkMembership();
     }
-  }, [authLoading, checkMembership]);
+  }, [authLoading, authReady, checkMembership]);
 
-  if (authLoading || checking || blockedLoading) {
+  if (authLoading || !authReady || checking || blockedLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -77,6 +76,10 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
 
   if (isMember && !isStaff) {
     return <Navigate to="/member" replace />;
+  }
+
+  if (isStaff) {
+    return <Navigate to="/admin" replace />;
   }
 
   return <>{children}</>;
