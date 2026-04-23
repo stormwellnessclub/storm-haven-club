@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState, useCallback } from "react";
+import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
@@ -6,129 +6,24 @@ import { useBlockedStatus } from "@/hooks/useBlockedStatus";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
 import { AccessRevoked } from "./AccessRevoked";
-import { SessionRepair } from "./SessionRepair";
 import { UnlinkedMemberFix } from "./UnlinkedMemberFix";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { clearAuthStorage } from "@/lib/authStorage";
-import { isJwtError, handleJwtError } from "@/lib/jwtErrorHandler";
 import { getDefaultAdminPage } from "@/lib/permissions";
 
 interface ProtectedMemberRouteProps {
   children: ReactNode;
 }
 
-type SessionState = "validating" | "valid" | "invalid" | "needs_repair";
-
 export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
-  const { user, session, loading: authLoading, authReady } = useAuth();
-  const [sessionState, setSessionState] = useState<SessionState>("validating");
+  const { user, loading: authLoading, authReady } = useAuth();
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
   const { data: isBlocked, isLoading: blockedLoading } = useBlockedStatus();
   const { roles, loading: rolesLoading, error: rolesError, refetch: refetchRoles, hasAnyStaffRole } = useUserRoles();
   const location = useLocation();
 
-  const validateSession = useCallback(async () => {
-    setSessionState("validating");
-    
-    try {
-      // Check if we have a session
-      if (!session) {
-        setSessionState("invalid");
-        return;
-      }
-
-      // Validate the session with the server
-      const { data: { user: validatedUser }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        // Check for JWT-specific errors
-        if (isJwtError(userError)) {
-          console.warn("[ProtectedMemberRoute] JWT error detected:", userError);
-
-          // Try to refresh
-          const { error: refreshError } = await supabase.auth.refreshSession();
-          
-          if (refreshError) {
-            console.warn("[ProtectedMemberRoute] Refresh failed after JWT error:", refreshError);
-            clearAuthStorage();
-            
-            // Handle the refresh error and redirect to auth
-            await handleJwtError(refreshError, { redirect: false });
-            setSessionState("invalid");
-            return;
-          }
-          
-          // Refresh succeeded - revalidate
-          const { data: { user: revalidatedUser }, error: revalidateError } = await supabase.auth.getUser();
-          
-          if (revalidateError || !revalidatedUser) {
-            setSessionState("invalid");
-            return;
-          }
-          
-          setSessionState("valid");
-          return;
-        }
-        
-        // Non-JWT error - try standard refresh
-        const { error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError) {
-          // Check if refresh error is JWT-related
-          if (isJwtError(refreshError)) {
-            await handleJwtError(refreshError, { redirect: false });
-            setSessionState("invalid");
-            return;
-          }
-          
-          // Show repair screen for recoverable errors
-          setSessionState("needs_repair");
-          return;
-        }
-        
-        // Re-validate after refresh
-        const { data: { user: revalidatedUser }, error: revalidateError } = await supabase.auth.getUser();
-        
-        if (revalidateError || !revalidatedUser) {
-          if (isJwtError(revalidateError)) {
-            await handleJwtError(revalidateError, { redirect: false });
-            setSessionState("invalid");
-            return;
-          }
-          setSessionState("needs_repair");
-          return;
-        }
-      } else if (!validatedUser) {
-        setSessionState("needs_repair");
-        return;
-      }
-      
-      setSessionState("valid");
-    } catch (error) {
-      console.error("[ProtectedMemberRoute] Session validation error:", error);
-      
-      // Handle JWT errors in catch block
-      if (isJwtError(error)) {
-        await handleJwtError(error, { redirect: false });
-        setSessionState("invalid");
-        return;
-      }
-      
-      setSessionState("needs_repair");
-    }
-  }, [session]);
-
-  // Validate session when auth loading completes
-  useEffect(() => {
-    if (!authLoading && authReady) {
-      validateSession();
-    }
-  }, [authLoading, authReady, validateSession]);
-
   // Show loading while auth is being determined
-  if (authLoading || !authReady || sessionState === "validating") {
+  if (authLoading || !authReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -136,14 +31,10 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
     );
   }
 
-  // Show session repair screen if session is broken but recoverable
-  if (sessionState === "needs_repair") {
-    return <SessionRepair onRetry={validateSession} />;
-  }
-
-  // Redirect to auth if not logged in or session invalid
-  if (!user || sessionState === "invalid") {
-    return <Navigate to="/auth" replace />;
+  // Redirect to auth if not logged in. Trust AuthContext as the single
+  // source of truth — no extra getUser/refreshSession dance here.
+  if (!user) {
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   // Show loading while checking application/member status or blocked status

@@ -10,9 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { z } from "zod";
 import logo from "@/assets/storm-logo.png";
-import { clearAuthStorage, hasAuthData } from "@/lib/authStorage";
+import { clearAuthStorage } from "@/lib/authStorage";
 import { supabase } from "@/integrations/supabase/client";
-import { isJwtError, forceAuthReset } from "@/lib/jwtErrorHandler";
 import { WaiverSigningStep } from "@/components/WaiverSigningStep";
 import { StaffWelcome } from "@/components/staff/StaffWelcome";
 import { getDefaultAdminPage } from "@/lib/permissions";
@@ -30,7 +29,6 @@ export default function Auth() {
   const [lastName, setLastName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCleaningSession, setIsCleaningSession] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showWaiverStep, setShowWaiverStep] = useState(false);
   const [showStaffWelcome, setShowStaffWelcome] = useState(false);
@@ -66,50 +64,13 @@ export default function Auth() {
     return "/member";
   }, [location.state]);
 
-  // Check for and clean corrupted sessions on mount
-  useEffect(() => {
-    const checkAndCleanSession = async () => {
-      try {
-        // Check if there's auth data in storage
-        if (hasAuthData()) {
-          // Try to validate the session
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          if (sessionError && isJwtError(sessionError)) {
-            console.warn("[Auth] Corrupted session detected, cleaning up");
-            await forceAuthReset();
-            setIsCleaningSession(false);
-            return;
-          }
-          
-          if (session) {
-            // Session exists, validate with server
-            const { error: userError } = await supabase.auth.getUser();
-            
-            if (userError && isJwtError(userError)) {
-              console.warn("[Auth] Invalid JWT detected, cleaning up");
-              await forceAuthReset();
-              setIsCleaningSession(false);
-              return;
-            }
-          }
-        }
-      } catch (error) {
-        // If any error occurs during validation, clean up to be safe
-        if (isJwtError(error)) {
-          await forceAuthReset();
-        }
-      }
-      
-      setIsCleaningSession(false);
-    };
-    
-    checkAndCleanSession();
-  }, []);
+  // NOTE: Mount-time session cleanup was REMOVED. It was wiping valid sessions
+  // during the post-login handoff. Users can still manually reset via the
+  // "Reset session" button below if they hit a stuck state.
 
   // Check staff roles and determine routing after login
   useEffect(() => {
-    if (isCleaningSession || !authReady || !user) return;
+    if (!authReady || !user) return;
     if (rolesLoading) return;
 
     if (rolesError) {
@@ -149,7 +110,7 @@ export default function Auth() {
     if (profile?.waiver_signed) {
       navigate(getRedirectTarget(), { replace: true });
     }
-  }, [authReady, user, profile, profileLoading, rolesLoading, rolesError, rolesResolved, hasAnyStaffRole, roles, navigate, isCleaningSession, getRedirectTarget, isStaffInvite]);
+  }, [authReady, user, profile, profileLoading, rolesLoading, rolesError, rolesResolved, hasAnyStaffRole, roles, navigate, getRedirectTarget, isStaffInvite, location.pathname]);
 
   useEffect(() => {
     if (!authReady || !user) {
@@ -365,11 +326,45 @@ export default function Auth() {
   const waitingForStaffRoles = !!user && rolesLoading;
   const waitingForMemberProfile = !!user && rolesResolved && !hasAnyStaffRole() && profileLoading;
 
-  // Show loading while cleaning corrupted sessions or finishing the relevant post-login handoff
-  if (isCleaningSession || !authReady || waitingForStaffRoles || waitingForMemberProfile) {
+  // Show loading while finishing the post-login handoff.
+  // If the user is signed in but roles are still resolving (or have errored without resolving),
+  // keep showing the handoff screen — DO NOT fall back to the sign-in form.
+  if (!authReady || waitingForStaffRoles || waitingForMemberProfile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Signing you in...</div>
+        <div className="animate-pulse text-muted-foreground">
+          {user ? "Finishing sign-in..." : "Loading..."}
+        </div>
+      </div>
+    );
+  }
+
+  // If signed in but role resolution failed, show retry UI instead of the login form.
+  if (user && rolesError && !rolesResolved) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center space-y-4">
+          <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
+          <h1 className="heading-section">Finishing sign-in</h1>
+          <p className="text-sm text-muted-foreground">
+            You're signed in, but we couldn't verify your access yet. This is usually temporary.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => refetchRoles()}>Retry access check</Button>
+            <button
+              type="button"
+              onClick={async () => {
+                clearAuthStorage();
+                await supabase.auth.signOut();
+                window.location.reload();
+              }}
+              className="text-muted-foreground text-xs hover:text-foreground transition-colors inline-flex items-center justify-center gap-1"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset session
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
