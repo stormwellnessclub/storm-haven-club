@@ -16,7 +16,7 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
   const location = useLocation();
 
   // Show loading while checking auth and roles
-  if (authLoading || !authReady || rolesLoading) {
+  if (authLoading || !authReady || rolesLoading || (user && !rolesResolved && !rolesError)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">

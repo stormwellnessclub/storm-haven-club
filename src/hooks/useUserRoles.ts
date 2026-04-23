@@ -3,6 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AppRole } from '@/lib/permissions';
 
+const STAFF_ROLE_PRIORITY: AppRole[] = [
+  'super_admin',
+  'admin',
+  'manager',
+  'front_desk',
+  'spa_staff',
+  'class_instructor',
+  'cafe_staff',
+  'childcare_staff',
+];
+
 // More tolerant retry schedule: total ~5s before giving up.
 // Early failures during the post-login handoff are common and should be retried,
 // not interpreted as "no access".
@@ -15,6 +26,32 @@ interface UserRolesState {
   error: string | null;
 }
 
+async function fetchRolesViaTable(userId: string): Promise<AppRole[]> {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  return (data || []).map((row) => row.role as AppRole);
+}
+
+async function fetchRolesViaRpc(userId: string): Promise<AppRole[]> {
+  const results = await Promise.all(
+    STAFF_ROLE_PRIORITY.map(async (role) => {
+      const { data, error } = await supabase.rpc('has_role', {
+        _user_id: userId,
+        _role: role,
+      });
+
+      if (error) throw error;
+      return data ? role : null;
+    })
+  );
+
+  return results.filter((role): role is AppRole => role !== null);
+}
+
 export function useUserRoles() {
   const { user, session, authReady } = useAuth();
   const [state, setState] = useState<UserRolesState>({
@@ -25,20 +62,18 @@ export function useUserRoles() {
   });
 
   const fetchRoles = useCallback(async () => {
-    // Wait for auth to be fully ready before attempting role fetch.
     if (!authReady) {
       setState((prev) => ({ ...prev, loading: true, resolved: false, error: null }));
       return;
     }
 
-    // No user = no roles (resolved cleanly).
     if (!user || !session) {
-      console.info("[useUserRoles] No user/session, resolving with empty roles");
+      console.info('[useUserRoles] No user/session, resolving with empty roles');
       setState({ roles: [], loading: false, resolved: true, error: null });
       return;
     }
 
-    console.info("[useUserRoles] Fetching roles for user:", user.id);
+    console.info('[useUserRoles] Fetching roles for user:', user.id);
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     let lastError: unknown = null;
@@ -53,34 +88,27 @@ export function useUserRoles() {
 
         if (!currentSession) {
           lastError = new Error('Session not ready yet');
-          console.info("[useUserRoles] Retry: session not ready");
+          console.info('[useUserRoles] Retry: session not ready');
           continue;
         }
 
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id);
+        let roles = await fetchRolesViaTable(user.id);
 
-        if (error) {
-          lastError = error;
-          console.info("[useUserRoles] Retry: query error", error.message);
-          continue;
+        if (roles.length === 0) {
+          console.info('[useUserRoles] Direct role query returned empty, checking helper RPC');
+          roles = await fetchRolesViaRpc(user.id);
         }
 
-        const roles = (data || []).map(r => r.role as AppRole);
-        console.info("[useUserRoles] Resolved roles:", roles);
+        console.info('[useUserRoles] Resolved roles:', roles);
         setState({ roles, loading: false, resolved: true, error: null });
         return;
       } catch (err) {
         lastError = err;
-        console.info("[useUserRoles] Retry: exception", err);
+        console.info('[useUserRoles] Retry: exception', err);
       }
     }
 
     console.warn('[useUserRoles] All retries failed:', lastError);
-    // CRITICAL: Do NOT clear auth state here. Failure to load roles must not
-    // sign the user out. Surface a retry-able error instead.
     setState((prev) => ({
       roles: prev.roles,
       loading: false,
