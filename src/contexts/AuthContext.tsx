@@ -8,6 +8,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  authReady: boolean;
   signUp: (email: string, password: string, metadata?: { first_name?: string; last_name?: string }) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -20,15 +21,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const finishInitialization = () => {
+      if (!isMounted) return;
+      setAuthReady(true);
+      setLoading(false);
+    };
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         // Synchronous state updates only
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
       }
     );
 
@@ -44,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await handleJwtError(sessionError, { redirect: false });
           setSession(null);
           setUser(null);
-          setLoading(false);
+          finishInitialization();
           return;
         }
 
@@ -52,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // No session in storage - user is logged out
           setSession(null);
           setUser(null);
-          setLoading(false);
+          finishInitialization();
           return;
         }
 
@@ -62,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.info("[AuthContext] On recovery route, trusting session from getSession()");
           setSession(existingSession);
           setUser(existingSession.user);
-          setLoading(false);
+          finishInitialization();
           return;
         }
 
@@ -76,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await handleJwtError(userError, { redirect: false });
             setSession(null);
             setUser(null);
-            setLoading(false);
+            finishInitialization();
             return;
           }
           
@@ -93,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             setSession(null);
             setUser(null);
-            setLoading(false);
+            finishInitialization();
             return;
           }
           
@@ -101,14 +110,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data: { session: refreshedSession } } = await supabase.auth.getSession();
           setSession(refreshedSession);
           setUser(refreshedSession?.user ?? null);
-          setLoading(false);
+          finishInitialization();
           return;
         }
         
         // Session is valid
         setSession(existingSession);
         setUser(validatedUser);
-        setLoading(false);
+        finishInitialization();
       } catch (error) {
         console.error("[AuthContext] Auth initialization error:", error);
         
@@ -122,13 +131,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setSession(null);
         setUser(null);
-        setLoading(false);
+        finishInitialization();
       }
     };
 
     initializeAuth();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (
@@ -171,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, authReady, signUp, signIn, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

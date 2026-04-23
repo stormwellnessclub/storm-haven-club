@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type AttendanceType = "member" | "guest" | "class" | "spa";
 
@@ -33,6 +34,7 @@ export interface AttendanceLoadErrors {
 }
 
 export function useUnifiedAttendance() {
+  const { user, authReady } = useAuth();
   const [entries, setEntries] = useState<AttendanceEntry[]>([]);
   const [stats, setStats] = useState<AttendanceStats>({
     total: 0, currentlyIn: 0, members: 0, guests: 0, classes: 0, spa: 0,
@@ -53,6 +55,8 @@ export function useUnifiedAttendance() {
   });
 
   const fetchAll = useCallback(async () => {
+    if (!authReady || !user) return;
+
     // America/Chicago day boundaries — same for every device
     const todayIso = clubTodayStart();
     const tomorrowIso = clubTodayEnd();
@@ -226,13 +230,15 @@ export function useUnifiedAttendance() {
       spa: spaCheckins.length,
     });
     setLoadErrors(nextErrors);
-  }, []);
+  }, [authReady, user]);
 
   useEffect(() => {
+    if (!authReady || !user) return;
+
     fetchAll();
     const interval = setInterval(fetchAll, 15000);
     return () => clearInterval(interval);
-  }, [fetchAll]);
+  }, [authReady, fetchAll, user]);
 
   return {
     entries,

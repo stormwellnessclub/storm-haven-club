@@ -21,7 +21,7 @@ interface ProtectedMemberRouteProps {
 type SessionState = "validating" | "valid" | "invalid" | "needs_repair";
 
 export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
-  const { user, session, loading: authLoading, signOut } = useAuth();
+  const { user, session, loading: authLoading, authReady } = useAuth();
   const [sessionState, setSessionState] = useState<SessionState>("validating");
   const [staffRedirect, setStaffRedirect] = useState<string | null>(null);
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
@@ -30,7 +30,7 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
 
   // Check if user has staff roles (for no_application fallback)
   useEffect(() => {
-    if (!user || statusLoading || !applicationStatus) return;
+    if (!authReady || !user || statusLoading || !applicationStatus) return;
     if (applicationStatus.status !== "no_application") return;
 
     const checkStaffRoles = async () => {
@@ -46,7 +46,7 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
     };
 
     checkStaffRoles();
-  }, [user, applicationStatus, statusLoading]);
+  }, [authReady, user, applicationStatus, statusLoading]);
 
   const validateSession = useCallback(async () => {
     setSessionState("validating");
@@ -143,13 +143,13 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
 
   // Validate session when auth loading completes
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && authReady) {
       validateSession();
     }
-  }, [authLoading, validateSession]);
+  }, [authLoading, authReady, validateSession]);
 
   // Show loading while auth is being determined
-  if (authLoading || sessionState === "validating") {
+  if (authLoading || !authReady || sessionState === "validating") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Loading...</div>

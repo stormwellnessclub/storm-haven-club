@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function useBlockedStatus() {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
 
   return useQuery({
     queryKey: ["blocked-status", user?.email],
@@ -16,7 +16,7 @@ export function useBlockedStatus() {
         .maybeSingle();
       return !!data;
     },
-    enabled: !!user?.email,
+    enabled: authReady && !!user?.email,
     staleTime: 1000 * 60 * 5,
   });
 }
