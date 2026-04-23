@@ -72,13 +72,13 @@ export interface UpdateProfileData {
 }
 
 export function useUserProfile() {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const queryClient = useQueryClient();
 
   const profileQuery = useQuery({
     queryKey: ["user-profile", user?.id],
     queryFn: async (): Promise<UserProfile | null> => {
-      if (!user) return null;
+      if (!authReady || !user) return null;
 
       const { data, error } = await supabase
         .from("profiles")
@@ -89,7 +89,7 @@ export function useUserProfile() {
       if (error) throw error;
       return data as UserProfile | null;
     },
-    enabled: !!user,
+    enabled: authReady && !!user,
   });
 
   const updateProfileMutation = useMutation({

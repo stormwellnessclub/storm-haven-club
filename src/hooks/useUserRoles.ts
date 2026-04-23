@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AppRole } from '@/lib/permissions';
 
+const ROLE_FETCH_RETRY_DELAYS_MS = [0, 300, 900];
+
 interface UserRolesState {
   roles: AppRole[];
   loading: boolean;
@@ -33,15 +35,36 @@ export function useUserRoles() {
     try {
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
+      let lastError: unknown = null;
 
-      if (error) throw error;
+      for (const delayMs of ROLE_FETCH_RETRY_DELAYS_MS) {
+        if (delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
 
-      const roles = (data || []).map(r => r.role as AppRole);
-      setState({ roles, loading: false, resolved: true, error: null });
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+          lastError = new Error('Session not ready yet');
+          continue;
+        }
+
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+
+        if (error) {
+          lastError = error;
+          continue;
+        }
+
+        const roles = (data || []).map(r => r.role as AppRole);
+        setState({ roles, loading: false, resolved: true, error: null });
+        return;
+      }
+
+      throw lastError ?? new Error('Failed to fetch roles');
     } catch (err) {
       console.error('Error fetching user roles:', err);
       setState((prev) => ({
