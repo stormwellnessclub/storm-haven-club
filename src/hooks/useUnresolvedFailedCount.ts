@@ -12,12 +12,19 @@ export function useUnresolvedFailedCount() {
     let cancelled = false;
 
     const fetchCount = async () => {
-      const { count: c } = await supabase
-        .from("payment_attempts" as any)
-        .select("id", { count: "exact", head: true })
-        .eq("status", "failed")
-        .is("resolved_at", null);
-      if (!cancelled) setCount(c ?? 0);
+      try {
+        const { count: c, error } = await supabase
+          .from("payment_attempts" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("status", "failed")
+          .is("resolved_at", null);
+
+        if (error) throw error;
+        if (!cancelled) setCount(c ?? 0);
+      } catch (error) {
+        console.error("Failed to load unresolved failed payment count:", error);
+        if (!cancelled) setCount(0);
+      }
     };
 
     fetchCount();
