@@ -182,7 +182,13 @@ export function AdminSidebar() {
       .eq("user_id", user.id)
       .in("status", ["active", "frozen", "past_due"])
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Failed to load sidebar membership status:", error);
+          setHasMembership(false);
+          return;
+        }
+
         setHasMembership(!!data);
       });
   }, [user]);
@@ -194,7 +200,13 @@ export function AdminSidebar() {
       .select("id", { count: "exact", head: true })
       .eq("valid_date", todayStr)
       .eq("status", "active")
-      .then(({ count }) => {
+      .then(({ count, error }) => {
+        if (error) {
+          console.error("Failed to load today's guest count:", error);
+          setTodaysGuestCount(0);
+          return;
+        }
+
         setTodaysGuestCount(count || 0);
       });
   }, []);

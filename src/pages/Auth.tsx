@@ -130,7 +130,10 @@ export default function Auth() {
         return;
       }
 
-      navigate(getDefaultAdminPage(roles), { replace: true });
+      const targetAdminPage = getDefaultAdminPage(roles);
+      if (location.pathname !== targetAdminPage) {
+        navigate(targetAdminPage, { replace: true });
+      }
       return;
     }
 

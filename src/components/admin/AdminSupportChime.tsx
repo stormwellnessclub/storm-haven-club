@@ -141,21 +141,26 @@ export function AdminSupportChime() {
 
   // Realtime: instant chime on new conversations / member messages
   useEffect(() => {
-    const channel = supabase
-      .channel("global-support-chime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "email_conversations" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
-        queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
-        chimeSafe();
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "email_messages", filter: "sender_type=eq.member" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
-        queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
-        chimeSafe();
-      })
-      .subscribe();
+    try {
+      const channel = supabase
+        .channel("global-support-chime")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "email_conversations" }, () => {
+          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
+          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
+          chimeSafe();
+        })
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "email_messages", filter: "sender_type=eq.member" }, () => {
+          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
+          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
+          chimeSafe();
+        })
+        .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+      return () => { supabase.removeChannel(channel); };
+    } catch (error) {
+      console.error("Failed to subscribe admin support chime:", error);
+      return undefined;
+    }
   }, [queryClient, chimeSafe]);
 
   // 5-minute recurring reminder while unread messages exist
