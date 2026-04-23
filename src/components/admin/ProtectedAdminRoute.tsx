@@ -12,7 +12,7 @@ interface ProtectedAdminRouteProps {
 
 export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
   const { user, loading: authLoading, authReady } = useAuth();
-  const { roles, loading: rolesLoading, hasAnyStaffRole } = useUserRoles();
+  const { roles, loading: rolesLoading, resolved: rolesResolved, error: rolesError, hasAnyStaffRole, refetch } = useUserRoles();
   const location = useLocation();
 
   // Show loading while checking auth and roles
@@ -32,8 +32,23 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
+  if (rolesError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-md mx-auto p-8">
+          <ShieldX className="w-16 h-16 mx-auto text-destructive mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Couldn&apos;t verify staff access</h1>
+          <p className="text-muted-foreground mb-6">
+            Your account signed in, but staff permissions could not be loaded yet. Try again without leaving the page.
+          </p>
+          <Button onClick={() => refetch()}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
+
   // Logged in but no staff roles
-  if (!hasAnyStaffRole()) {
+  if (rolesResolved && !hasAnyStaffRole()) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center max-w-md mx-auto p-8">
@@ -51,6 +66,10 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
   }
 
   // Check if user can access this specific page
+  if (!rolesResolved) {
+    return null;
+  }
+
   const currentPath = location.pathname;
   const canAccess = canAccessPage(roles, currentPath);
 

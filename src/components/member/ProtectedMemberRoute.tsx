@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
 import { useBlockedStatus } from "@/hooks/useBlockedStatus";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
 import { AccessRevoked } from "./AccessRevoked";
 import { SessionRepair } from "./SessionRepair";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { clearAuthStorage } from "@/lib/authStorage";
 import { isJwtError, handleJwtError } from "@/lib/jwtErrorHandler";
-import { getDefaultAdminPage, type AppRole } from "@/lib/permissions";
+import { getDefaultAdminPage } from "@/lib/permissions";
 
 interface ProtectedMemberRouteProps {
   children: ReactNode;
@@ -23,30 +24,10 @@ type SessionState = "validating" | "valid" | "invalid" | "needs_repair";
 export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   const { user, session, loading: authLoading, authReady } = useAuth();
   const [sessionState, setSessionState] = useState<SessionState>("validating");
-  const [staffRedirect, setStaffRedirect] = useState<string | null>(null);
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
   const { data: isBlocked, isLoading: blockedLoading } = useBlockedStatus();
+  const { roles, loading: rolesLoading, error: rolesError, refetch: refetchRoles, hasAnyStaffRole } = useUserRoles();
   const location = useLocation();
-
-  // Check if user has staff roles (for no_application fallback)
-  useEffect(() => {
-    if (!authReady || !user || statusLoading || !applicationStatus) return;
-    if (applicationStatus.status !== "no_application") return;
-
-    const checkStaffRoles = async () => {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-
-      if (data && data.length > 0) {
-        const roles = data.map((r) => r.role as AppRole);
-        setStaffRedirect(getDefaultAdminPage(roles));
-      }
-    };
-
-    checkStaffRoles();
-  }, [authReady, user, applicationStatus, statusLoading]);
 
   const validateSession = useCallback(async () => {
     setSessionState("validating");
@@ -65,15 +46,13 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
         // Check for JWT-specific errors
         if (isJwtError(userError)) {
           console.warn("[ProtectedMemberRoute] JWT error detected:", userError);
-          
-          // Clear storage BEFORE attempting refresh
-          clearAuthStorage();
-          
+
           // Try to refresh
           const { error: refreshError } = await supabase.auth.refreshSession();
           
           if (refreshError) {
             console.warn("[ProtectedMemberRoute] Refresh failed after JWT error:", refreshError);
+            clearAuthStorage();
             
             // Handle the refresh error and redirect to auth
             await handleJwtError(refreshError, { redirect: false });
@@ -177,6 +156,15 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
     );
   }
 
+  if (applicationStatus?.status === "no_application" && rolesLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+        <p className="text-muted-foreground">Verifying your access...</p>
+      </div>
+    );
+  }
+
   // Show Access Revoked if user is blocked
   if (isBlocked) {
     return <AccessRevoked />;
@@ -193,6 +181,21 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
           We couldn't load your membership information. Please try again.
         </p>
         <Button onClick={() => refetch()} variant="outline">
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
+  if (applicationStatus?.status === "no_application" && rolesError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <AlertCircle className="w-12 h-12 text-destructive" />
+        <h2 className="text-xl font-semibold">Couldn&apos;t verify your access</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          We signed you in, but we couldn&apos;t confirm whether this account should go to the admin area yet.
+        </p>
+        <Button onClick={() => refetchRoles()} variant="outline">
           Try Again
         </Button>
       </div>
@@ -219,8 +222,8 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   // Non-members: check if they're staff before sending to /portal
   if (applicationStatus?.status === "no_application") {
     // Staff without a member record should go to admin, not portal
-    if (staffRedirect) {
-      return <Navigate to={staffRedirect} replace />;
+    if (hasAnyStaffRole()) {
+      return <Navigate to={getDefaultAdminPage(roles)} replace />;
     }
     return <Navigate to="/portal" replace />;
   }
