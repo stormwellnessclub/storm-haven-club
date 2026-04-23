@@ -323,7 +323,7 @@ export default function Auth() {
     }
   };
 
-  const waitingForStaffRoles = !!user && rolesLoading;
+  const waitingForStaffRoles = !!user && (!rolesResolved || rolesLoading);
   const waitingForMemberProfile = !!user && rolesResolved && !hasAnyStaffRole() && profileLoading;
 
   // Show loading while finishing the post-login handoff.
