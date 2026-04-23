@@ -1,8 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { clearAuthStorage } from "@/lib/authStorage";
-import { isJwtError, handleJwtError } from "@/lib/jwtErrorHandler";
 
 interface AuthContextType {
   user: User | null;
@@ -26,121 +24,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    const finishInitialization = () => {
-      if (!isMounted) return;
-      setAuthReady(true);
-      setLoading(false);
-    };
+    console.info("[AuthContext] Initializing");
 
-    // Set up auth state listener FIRST
+    // Set up auth state listener FIRST (synchronous handlers only)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        // Synchronous state updates only
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, nextSession) => {
+        if (!isMounted) return;
+        console.info("[AuthContext] Auth event:", event, "hasSession:", !!nextSession);
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+
+        // Once we receive any auth event, we're ready
+        if (!authReady) {
+          setAuthReady(true);
+          setLoading(false);
+        }
       }
     );
 
-    // Initialize auth state
-    const initializeAuth = async () => {
-      try {
-        // First try to get existing session from storage
-        const { data: { session: existingSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        // Check for JWT errors in getSession
-        if (sessionError && isJwtError(sessionError)) {
-          console.warn("[AuthContext] JWT error in getSession, clearing auth:", sessionError);
-          await handleJwtError(sessionError, { redirect: false });
-          setSession(null);
-          setUser(null);
-          finishInitialization();
-          return;
-        }
-
-        if (!existingSession) {
-          // No session in storage - user is logged out
-          setSession(null);
-          setUser(null);
-          finishInitialization();
-          return;
-        }
-
-        // Skip aggressive validation on password recovery route
-        const isRecoveryRoute = window.location.pathname === '/update-password';
-        if (isRecoveryRoute) {
-          console.info("[AuthContext] On recovery route, trusting session from getSession()");
-          setSession(existingSession);
-          setUser(existingSession.user);
-          finishInitialization();
-          return;
-        }
-
-        // Session exists - validate it with the server
-        const { data: { user: validatedUser }, error: userError } = await supabase.auth.getUser();
-        
-        // Check for JWT errors in getUser
-        if (userError) {
-          if (isJwtError(userError)) {
-            console.warn("[AuthContext] JWT error in getUser, clearing auth:", userError);
-            await handleJwtError(userError, { redirect: false });
-            setSession(null);
-            setUser(null);
-            finishInitialization();
-            return;
-          }
-          
-          // Non-JWT error - try to refresh
-          console.warn("[AuthContext] Session validation failed, attempting refresh:", userError);
-          const { error: refreshError } = await supabase.auth.refreshSession();
-          
-          if (refreshError) {
-            if (isJwtError(refreshError)) {
-              await handleJwtError(refreshError, { redirect: false });
-            } else {
-              clearAuthStorage();
-              await supabase.auth.signOut();
-            }
-            setSession(null);
-            setUser(null);
-            finishInitialization();
-            return;
-          }
-          
-          // Refresh succeeded - get the new session
-          const { data: { session: refreshedSession } } = await supabase.auth.getSession();
-          setSession(refreshedSession);
-          setUser(refreshedSession?.user ?? null);
-          finishInitialization();
-          return;
-        }
-        
-        // Session is valid
+    // THEN restore the existing session (single source of truth, no aggressive validation)
+    supabase.auth.getSession()
+      .then(({ data: { session: existingSession } }) => {
+        if (!isMounted) return;
+        console.info("[AuthContext] Restored session:", !!existingSession);
         setSession(existingSession);
-        setUser(validatedUser);
-        finishInitialization();
-      } catch (error) {
-        console.error("[AuthContext] Auth initialization error:", error);
-        
-        // Check if it's a JWT error
-        if (isJwtError(error)) {
-          await handleJwtError(error, { redirect: false });
-        } else {
-          // On any other error, clear and reset
-          clearAuthStorage();
-        }
-        
-        setSession(null);
-        setUser(null);
-        finishInitialization();
-      }
-    };
-
-    initializeAuth();
+        setUser(existingSession?.user ?? null);
+        setAuthReady(true);
+        setLoading(false);
+      })
+      .catch((error) => {
+        // Do NOT clear storage here. Transient JWT/refresh errors during
+        // startup must not wipe a valid session — they will be retried by
+        // Supabase's own background refresh logic.
+        console.warn("[AuthContext] getSession failed, leaving auth state alone:", error);
+        if (!isMounted) return;
+        setAuthReady(true);
+        setLoading(false);
+      });
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signUp = async (
