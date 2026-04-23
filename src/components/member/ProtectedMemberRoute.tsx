@@ -15,8 +15,6 @@ interface ProtectedMemberRouteProps {
   children: ReactNode;
 }
 
-type SessionState = "validating" | "valid" | "invalid" | "needs_repair";
-
 export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   const { user, loading: authLoading, authReady } = useAuth();
   const { data: applicationStatus, isLoading: statusLoading, error, refetch } = useApplicationStatus();
