@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState, useCallback } from "react";
+import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplicationStatus } from "@/hooks/useApplicationStatus";
@@ -6,13 +6,9 @@ import { useBlockedStatus } from "@/hooks/useBlockedStatus";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ApplicationUnderReview } from "./ApplicationUnderReview";
 import { AccessRevoked } from "./AccessRevoked";
-import { SessionRepair } from "./SessionRepair";
 import { UnlinkedMemberFix } from "./UnlinkedMemberFix";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { clearAuthStorage } from "@/lib/authStorage";
-import { isJwtError, handleJwtError } from "@/lib/jwtErrorHandler";
 import { getDefaultAdminPage } from "@/lib/permissions";
 
 interface ProtectedMemberRouteProps {
