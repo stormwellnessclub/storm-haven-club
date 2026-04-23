@@ -4,6 +4,7 @@ import { clearAuthStorage } from "@/lib/authStorage";
 import { isJwtError, handleJwtError } from "@/lib/jwtErrorHandler";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Global session health monitor that runs at the app level.
@@ -11,6 +12,7 @@ import { useNavigate } from "react-router-dom";
  */
 export function SessionMonitor() {
   const navigate = useNavigate();
+  const { authReady } = useAuth();
   const hasShownExpiredToast = useRef(false);
   const isCheckingSession = useRef(false);
 
@@ -36,6 +38,8 @@ export function SessionMonitor() {
   // Periodic session health check (every 5 minutes)
   useEffect(() => {
     const checkSessionHealth = async () => {
+      if (!authReady) return;
+
       // Prevent concurrent checks
       if (isCheckingSession.current) return;
       isCheckingSession.current = true;
@@ -150,7 +154,7 @@ export function SessionMonitor() {
       clearTimeout(initialCheck);
       clearInterval(interval);
     };
-  }, [navigate]);
+  }, [authReady, navigate]);
 
   // Cross-tab session sync
   useEffect(() => {

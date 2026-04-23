@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ export default function Dashboard() {
   const [sendingEmails, setSendingEmails] = useState(false);
   const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
   const navigate = useNavigate();
+  const { user, authReady } = useAuth();
   const { isAdmin } = useUserRoles();
   const showAdminOnly = isAdmin();
 
@@ -128,6 +130,7 @@ export default function Dashboard() {
         hasPartialFailure: Object.values(queryErrors).some(Boolean),
       };
     },
+    enabled: authReady && !!user,
   });
 
   // Fetch failed payments in last 7 days (urgent attention)
@@ -164,6 +167,7 @@ export default function Dashboard() {
         date: p.created_at,
       }));
     },
+    enabled: authReady && !!user,
   });
 
   // Fetch recent check-ins
@@ -193,6 +197,7 @@ export default function Dashboard() {
         status: 'success'
       }));
     },
+    enabled: authReady && !!user,
   });
 
   // Fetch upcoming appointments
@@ -223,6 +228,7 @@ export default function Dashboard() {
         time: apt.appointment_time ? format(new Date(`2000-01-01T${apt.appointment_time}`), 'h:mm a') : 'TBD',
       }));
     },
+    enabled: authReady && !!user,
   });
 
   // Fetch pending applications
@@ -244,6 +250,7 @@ export default function Dashboard() {
         status: 'pending'
       }));
     },
+    enabled: authReady && !!user,
   });
 
   const handleSendHoursEmail = async () => {
