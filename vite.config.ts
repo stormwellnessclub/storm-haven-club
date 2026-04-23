@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
+      selfDestroying: true,
       registerType: "autoUpdate",
       devOptions: {
         enabled: false,
