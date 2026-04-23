@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -35,6 +35,7 @@ export default function Auth() {
   const [showWaiverStep, setShowWaiverStep] = useState(false);
   const [showStaffWelcome, setShowStaffWelcome] = useState(false);
   const [routingError, setRoutingError] = useState<string | null>(null);
+  const autoRetriedRoleCheckFor = useRef<string | null>(null);
 
   const { user, authReady, signUp, signIn } = useAuth();
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -108,7 +109,7 @@ export default function Auth() {
 
   // Check staff roles and determine routing after login
   useEffect(() => {
-    if (isCleaningSession || !authReady || !user || profileLoading) return;
+    if (isCleaningSession || !authReady || !user) return;
     if (rolesLoading) return;
 
     if (rolesError) {
@@ -122,11 +123,7 @@ export default function Auth() {
     setRoutingError(null);
 
     if (hasAnyStaffRole()) {
-      setShowWaiverStep(Boolean(profile && !profile.waiver_signed));
-
-      if (profile && !profile.waiver_signed) {
-        return;
-      }
+      setShowWaiverStep(false);
 
       if (isStaffInvite) {
         setShowStaffWelcome(true);
@@ -139,6 +136,8 @@ export default function Auth() {
 
     setShowStaffWelcome(false);
 
+    if (profileLoading) return;
+
     if (profile && !profile.waiver_signed) {
       setShowWaiverStep(true);
       return;
@@ -148,6 +147,23 @@ export default function Auth() {
       navigate(getRedirectTarget(), { replace: true });
     }
   }, [authReady, user, profile, profileLoading, rolesLoading, rolesError, rolesResolved, hasAnyStaffRole, roles, navigate, isCleaningSession, getRedirectTarget, isStaffInvite]);
+
+  useEffect(() => {
+    if (!authReady || !user) {
+      autoRetriedRoleCheckFor.current = null;
+      return;
+    }
+
+    if (!rolesError || autoRetriedRoleCheckFor.current === user.id) return;
+
+    autoRetriedRoleCheckFor.current = user.id;
+
+    const timer = window.setTimeout(() => {
+      refetchRoles();
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [authReady, user, rolesError, refetchRoles]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -344,7 +360,7 @@ export default function Auth() {
   };
 
   // Show loading while cleaning corrupted sessions or loading profile
-  if (isCleaningSession || !authReady || (user && (profileLoading || rolesLoading))) {
+  if (isCleaningSession || !authReady || (user && (rolesLoading || (!rolesResolved && profileLoading) || (!hasAnyStaffRole() && profileLoading)))) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Signing you in...</div>
