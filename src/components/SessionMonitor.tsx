@@ -15,10 +15,13 @@ export function SessionMonitor() {
   const { authReady } = useAuth();
   const hasShownExpiredToast = useRef(false);
   const isCheckingSession = useRef(false);
+  const lastAuthTransitionAt = useRef(Date.now());
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        lastAuthTransitionAt.current = Date.now();
+
         if (event === "TOKEN_REFRESHED") {
           // Session was successfully refreshed - reset toast flag
           hasShownExpiredToast.current = false;
@@ -39,6 +42,7 @@ export function SessionMonitor() {
   useEffect(() => {
     const checkSessionHealth = async () => {
       if (!authReady) return;
+      if (Date.now() - lastAuthTransitionAt.current < 15000) return;
 
       // Prevent concurrent checks
       if (isCheckingSession.current) return;
@@ -72,15 +76,13 @@ export function SessionMonitor() {
           // Check if it's a JWT-specific error
           if (isJwtError(userError)) {
             console.warn("[SessionMonitor] JWT error detected:", userError);
-            
-            // Clear storage BEFORE attempting refresh to prevent stale token reuse
-            clearAuthStorage();
-            
+
             // Try to refresh the session
             const { error: refreshError } = await supabase.auth.refreshSession();
             
             if (refreshError) {
               console.warn("[SessionMonitor] Session refresh failed:", refreshError);
+              clearAuthStorage();
               
               // Handle the refresh error
               if (isJwtError(refreshError)) {
