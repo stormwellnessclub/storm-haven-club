@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
 
@@ -24,10 +24,32 @@ export interface AttendanceStats {
   spa: number;
 }
 
+export interface AttendanceLoadErrors {
+  members: boolean;
+  guests: boolean;
+  classes: boolean;
+  spa: boolean;
+  currentlyIn: boolean;
+}
+
 export function useUnifiedAttendance() {
   const [entries, setEntries] = useState<AttendanceEntry[]>([]);
   const [stats, setStats] = useState<AttendanceStats>({
     total: 0, currentlyIn: 0, members: 0, guests: 0, classes: 0, spa: 0,
+  });
+  const [loadErrors, setLoadErrors] = useState<AttendanceLoadErrors>({
+    members: false,
+    guests: false,
+    classes: false,
+    spa: false,
+    currentlyIn: false,
+  });
+  const cacheRef = useRef({
+    memberCheckIns: [] as any[],
+    guestCheckins: [] as any[],
+    classCheckins: [] as any[],
+    spaCheckins: [] as any[],
+    currentlyInCount: 0,
   });
 
   const fetchAll = useCallback(async () => {
@@ -36,7 +58,7 @@ export function useUnifiedAttendance() {
     const tomorrowIso = clubTodayEnd();
     const todayStr = clubTodayDateStr();
 
-    const [checkInsRes, guestsRes, classRes, spaRes, currentlyInRes] = await Promise.all([
+    const [checkInsRes, guestsRes, classRes, spaRes, currentlyInRes] = await Promise.allSettled([
       // Member check-ins
       supabase
         .from("check_ins")
@@ -86,10 +108,52 @@ export function useUnifiedAttendance() {
         .is("checked_out_at", null),
     ]);
 
+    const nextErrors: AttendanceLoadErrors = {
+      members: false,
+      guests: false,
+      classes: false,
+      spa: false,
+      currentlyIn: false,
+    };
+
+    const resolveQuery = <T,>(
+      result: PromiseSettledResult<{ data: T | null; error: any; count?: number | null }>,
+      key: keyof AttendanceLoadErrors,
+      label: string,
+    ) => {
+      if (result.status === "rejected") {
+        nextErrors[key] = true;
+        console.error(`Attendance ${label} request failed:`, result.reason);
+        return null;
+      }
+
+      if (result.value.error) {
+        nextErrors[key] = true;
+        console.error(`Attendance ${label} query failed:`, result.value.error);
+        return null;
+      }
+
+      return result.value;
+    };
+
+    const memberResult = resolveQuery(checkInsRes as any, "members", "members");
+    const guestResult = resolveQuery(guestsRes as any, "guests", "guests");
+    const classResult = resolveQuery(classRes as any, "classes", "classes");
+    const spaResult = resolveQuery(spaRes as any, "spa", "spa");
+    const currentlyInResult = resolveQuery(currentlyInRes as any, "currentlyIn", "currently-in count");
+
+    if (memberResult?.data) cacheRef.current.memberCheckIns = memberResult.data as any[];
+    if (guestResult?.data) cacheRef.current.guestCheckins = guestResult.data as any[];
+    if (classResult?.data) cacheRef.current.classCheckins = classResult.data as any[];
+    if (spaResult?.data) cacheRef.current.spaCheckins = spaResult.data as any[];
+    if (currentlyInResult?.count !== undefined && currentlyInResult?.count !== null) {
+      cacheRef.current.currentlyInCount = currentlyInResult.count;
+    }
+
     const all: AttendanceEntry[] = [];
 
     // Members
-    const memberCheckIns = checkInsRes.data || [];
+    const memberCheckIns = cacheRef.current.memberCheckIns;
     memberCheckIns.forEach((ci: any) => {
       all.push({
         id: `member-${ci.id}`,
@@ -104,7 +168,7 @@ export function useUnifiedAttendance() {
     });
 
     // Guests
-    const guestCheckins = guestsRes.data || [];
+    const guestCheckins = cacheRef.current.guestCheckins;
     guestCheckins.forEach((g: any) => {
       if (!g.used_at) return;
       all.push({
@@ -117,7 +181,7 @@ export function useUnifiedAttendance() {
     });
 
     // Classes
-    const classCheckins = classRes.data || [];
+    const classCheckins = cacheRef.current.classCheckins;
     classCheckins.forEach((cb: any) => {
       const name = cb.member
         ? `${cb.member.first_name} ${cb.member.last_name}`
@@ -134,7 +198,7 @@ export function useUnifiedAttendance() {
     });
 
     // Spa
-    const spaCheckins = spaRes.data || [];
+    const spaCheckins = cacheRef.current.spaCheckins;
     spaCheckins.forEach((sa: any) => {
       const name = sa.member
         ? `${sa.member.first_name} ${sa.member.last_name}`
@@ -155,12 +219,13 @@ export function useUnifiedAttendance() {
     setEntries(all);
     setStats({
       total: all.length,
-      currentlyIn: currentlyInRes.count || 0,
+      currentlyIn: cacheRef.current.currentlyInCount || 0,
       members: memberCheckIns.length,
       guests: guestCheckins.filter((g: any) => g.used_at).length,
       classes: classCheckins.length,
       spa: spaCheckins.length,
     });
+    setLoadErrors(nextErrors);
   }, []);
 
   useEffect(() => {
@@ -169,5 +234,11 @@ export function useUnifiedAttendance() {
     return () => clearInterval(interval);
   }, [fetchAll]);
 
-  return { entries, stats, refetch: fetchAll };
+  return {
+    entries,
+    stats,
+    refetch: fetchAll,
+    loadErrors,
+    hasPartialFailure: Object.values(loadErrors).some(Boolean),
+  };
 }

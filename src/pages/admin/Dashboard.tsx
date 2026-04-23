@@ -66,13 +66,13 @@ export default function Dashboard() {
     queryKey: ['admin-dashboard-stats', today],
     queryFn: async () => {
       const [
-        { count: activeMembers },
-        { count: foundingMembers },
-        { count: pendingApps },
-        { count: todayAppointments },
-        { count: todayClasses },
-        { count: todayCheckins }
-      ] = await Promise.all([
+        activeMembersRes,
+        foundingMembersRes,
+        pendingAppsRes,
+        todayAppointmentsRes,
+        todayClassesRes,
+        todayCheckinsRes,
+      ] = await Promise.allSettled([
         supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('members').select('*', { count: 'exact', head: true }).eq('is_founding_member', true),
         supabase.from('membership_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
@@ -81,13 +81,51 @@ export default function Dashboard() {
         supabase.from('check_ins').select('*', { count: 'exact', head: true }).gte('checked_in_at', todayStartISO).lt('checked_in_at', todayEndISO)
       ]);
 
+      const queryErrors = {
+        activeMembers: false,
+        foundingMembers: false,
+        pendingApps: false,
+        todayAppointments: false,
+        todayClasses: false,
+        todayCheckins: false,
+      };
+
+      const resolveCount = (
+        result: PromiseSettledResult<{ count: number | null; error: any }>,
+        key: keyof typeof queryErrors,
+        label: string,
+      ) => {
+        if (result.status === 'rejected') {
+          queryErrors[key] = true;
+          console.error(`Dashboard ${label} request failed:`, result.reason);
+          return 0;
+        }
+
+        if (result.value.error) {
+          queryErrors[key] = true;
+          console.error(`Dashboard ${label} query failed:`, result.value.error);
+          return 0;
+        }
+
+        return result.value.count || 0;
+      };
+
+      const activeMembers = resolveCount(activeMembersRes as any, 'activeMembers', 'active members');
+      const foundingMembers = resolveCount(foundingMembersRes as any, 'foundingMembers', 'founding members');
+      const pendingApps = resolveCount(pendingAppsRes as any, 'pendingApps', 'pending applications');
+      const todayAppointments = resolveCount(todayAppointmentsRes as any, 'todayAppointments', 'appointments');
+      const todayClasses = resolveCount(todayClassesRes as any, 'todayClasses', 'classes');
+      const todayCheckins = resolveCount(todayCheckinsRes as any, 'todayCheckins', 'check-ins');
+
       return {
-        activeMembers: activeMembers || 0,
-        foundingMembers: foundingMembers || 0,
-        pendingApps: pendingApps || 0,
-        todayAppointments: todayAppointments || 0,
-        todayClasses: todayClasses || 0,
-        todayCheckins: todayCheckins || 0,
+        activeMembers,
+        foundingMembers,
+        pendingApps,
+        todayAppointments,
+        todayClasses,
+        todayCheckins,
+        queryErrors,
+        hasPartialFailure: Object.values(queryErrors).some(Boolean),
       };
     },
   });
@@ -387,6 +425,15 @@ export default function Dashboard() {
             ))
           )}
         </div>
+
+        {stats?.hasPartialFailure ? (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Some dashboard counts could not load right now. Today&apos;s member check-ins still load independently, so a zero here only reflects check-ins when that specific query succeeds.
+            </span>
+          </div>
+        ) : null}
 
         {/* Main Content Grid */}
         <div className="grid gap-6 lg:grid-cols-4">

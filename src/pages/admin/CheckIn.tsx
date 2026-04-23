@@ -66,7 +66,7 @@ export default function CheckIn() {
   const [memberScanResult, setMemberScanResult] = useState<ScanResult | null>(null);
 
   const { results, isSearching, search, clearResults } = useUnifiedCheckInSearch();
-  const { entries, stats, refetch } = useUnifiedAttendance();
+  const { entries, stats, refetch, loadErrors, hasPartialFailure } = useUnifiedAttendance();
   const { data: billingIssues } = useMembersBillingIssues();
   const { scanMemberAsync } = useMemberScanner();
 
@@ -616,6 +616,16 @@ export default function CheckIn() {
           </div>
         </div>
 
+        {hasPartialFailure ? (
+          <div className="flex max-w-2xl items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Some attendance sources could not load, so this view is showing the data that did succeed.
+              {loadErrors.members ? ' Member check-ins are temporarily unavailable.' : ' Member check-ins remain visible.'}
+            </span>
+          </div>
+        ) : null}
+
         {/* Today's Attendance Feed */}
         <Card>
           <CardHeader className="pb-2">
@@ -672,6 +682,11 @@ export default function CheckIn() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
+            ) : hasPartialFailure ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Attendance data is partially unavailable right now</p>
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
