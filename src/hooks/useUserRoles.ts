@@ -6,6 +6,7 @@ import type { AppRole } from '@/lib/permissions';
 interface UserRolesState {
   roles: AppRole[];
   loading: boolean;
+  resolved: boolean;
   error: string | null;
 }
 
@@ -14,21 +15,24 @@ export function useUserRoles() {
   const [state, setState] = useState<UserRolesState>({
     roles: [],
     loading: true,
+    resolved: false,
     error: null,
   });
 
   const fetchRoles = useCallback(async () => {
     if (!authReady) {
-      setState((prev) => ({ ...prev, loading: true, error: null }));
+      setState((prev) => ({ ...prev, loading: true, resolved: false, error: null }));
       return;
     }
 
     if (!user) {
-      setState({ roles: [], loading: false, error: null });
+      setState({ roles: [], loading: false, resolved: true, error: null });
       return;
     }
 
     try {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -37,10 +41,15 @@ export function useUserRoles() {
       if (error) throw error;
 
       const roles = (data || []).map(r => r.role as AppRole);
-      setState({ roles, loading: false, error: null });
+      setState({ roles, loading: false, resolved: true, error: null });
     } catch (err) {
       console.error('Error fetching user roles:', err);
-      setState({ roles: [], loading: false, error: 'Failed to fetch roles' });
+      setState((prev) => ({
+        roles: prev.roles,
+        loading: false,
+        resolved: false,
+        error: 'Failed to fetch roles',
+      }));
     }
   }, [authReady, user]);
 
