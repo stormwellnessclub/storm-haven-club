@@ -10,7 +10,7 @@ interface UserRolesState {
 }
 
 export function useUserRoles() {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const [state, setState] = useState<UserRolesState>({
     roles: [],
     loading: true,
@@ -18,6 +18,11 @@ export function useUserRoles() {
   });
 
   const fetchRoles = useCallback(async () => {
+    if (!authReady) {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+      return;
+    }
+
     if (!user) {
       setState({ roles: [], loading: false, error: null });
       return;
@@ -37,7 +42,7 @@ export function useUserRoles() {
       console.error('Error fetching user roles:', err);
       setState({ roles: [], loading: false, error: 'Failed to fetch roles' });
     }
-  }, [user]);
+  }, [authReady, user]);
 
   useEffect(() => {
     fetchRoles();

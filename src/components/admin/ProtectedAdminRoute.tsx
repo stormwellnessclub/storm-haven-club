@@ -11,12 +11,12 @@ interface ProtectedAdminRouteProps {
 }
 
 export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, authReady } = useAuth();
   const { roles, loading: rolesLoading, hasAnyStaffRole } = useUserRoles();
   const location = useLocation();
 
   // Show loading while checking auth and roles
-  if (authLoading || rolesLoading) {
+  if (authLoading || !authReady || rolesLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
