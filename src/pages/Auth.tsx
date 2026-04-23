@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { isJwtError, forceAuthReset } from "@/lib/jwtErrorHandler";
 import { WaiverSigningStep } from "@/components/WaiverSigningStep";
 import { StaffWelcome } from "@/components/staff/StaffWelcome";
-import { getDefaultAdminPage, type AppRole } from "@/lib/permissions";
-import { Shield } from "lucide-react";
+import { getDefaultAdminPage } from "@/lib/permissions";
+import { Shield, AlertCircle } from "lucide-react";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -32,11 +33,12 @@ export default function Auth() {
   const [isCleaningSession, setIsCleaningSession] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showWaiverStep, setShowWaiverStep] = useState(false);
-  const [staffRoles, setStaffRoles] = useState<AppRole[] | null>(null);
   const [showStaffWelcome, setShowStaffWelcome] = useState(false);
+  const [routingError, setRoutingError] = useState<string | null>(null);
 
   const { user, authReady, signUp, signIn } = useAuth();
   const { profile, isLoading: profileLoading } = useUserProfile();
+  const { roles, loading: rolesLoading, error: rolesError, resolved: rolesResolved, hasAnyStaffRole, refetch: refetchRoles } = useUserRoles();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -107,53 +109,45 @@ export default function Auth() {
   // Check staff roles and determine routing after login
   useEffect(() => {
     if (isCleaningSession || !authReady || !user || profileLoading) return;
+    if (rolesLoading) return;
 
-    const checkStaffAndRoute = async () => {
-      // Check for staff roles
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
+    if (rolesError) {
+      console.error("[Auth] Failed to resolve roles during routing:", rolesError);
+      setRoutingError("We signed you in, but couldn’t verify where to send this account yet.");
+      return;
+    }
 
-      if (rolesError) {
-        console.error("[Auth] Failed to load staff roles during routing:", rolesError);
-        return;
-      }
+    if (!rolesResolved) return;
 
-      if (rolesData && rolesData.length > 0) {
-        const roles = rolesData.map((r) => r.role as AppRole);
-        setStaffRoles(roles);
+    setRoutingError(null);
 
-        // If waiver not signed, show waiver step first (staff still need waivers)
-        if (profile && !profile.waiver_signed) {
-          setShowWaiverStep(true);
-          return;
-        }
+    if (hasAnyStaffRole()) {
+      setShowWaiverStep(Boolean(profile && !profile.waiver_signed));
 
-        // Check if this is a first-time staff login (staff_invite param present)
-        if (isStaffInvite) {
-          setShowStaffWelcome(true);
-          return;
-        }
-
-        // Staff with waiver signed → go directly to admin
-        navigate(getDefaultAdminPage(roles));
-        return;
-      }
-
-      // Non-staff flow: waiver check then redirect
       if (profile && !profile.waiver_signed) {
-        setShowWaiverStep(true);
         return;
       }
 
-      if (profile?.waiver_signed) {
-        navigate(getRedirectTarget());
+      if (isStaffInvite) {
+        setShowStaffWelcome(true);
+        return;
       }
-    };
 
-    checkStaffAndRoute();
-  }, [authReady, user, profile, profileLoading, navigate, isCleaningSession, getRedirectTarget, isStaffInvite]);
+      navigate(getDefaultAdminPage(roles), { replace: true });
+      return;
+    }
+
+    setShowStaffWelcome(false);
+
+    if (profile && !profile.waiver_signed) {
+      setShowWaiverStep(true);
+      return;
+    }
+
+    if (profile?.waiver_signed) {
+      navigate(getRedirectTarget(), { replace: true });
+    }
+  }, [authReady, user, profile, profileLoading, rolesLoading, rolesError, rolesResolved, hasAnyStaffRole, roles, navigate, isCleaningSession, getRedirectTarget, isStaffInvite]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -332,6 +326,7 @@ export default function Auth() {
             });
           }
         } else {
+          setRoutingError(null);
           // Attempt member link after sign-in
           await attemptMemberLink();
           // Don't navigate here - let useEffect handle navigation to ensure waiver step is shown
@@ -349,19 +344,19 @@ export default function Auth() {
   };
 
   // Show loading while cleaning corrupted sessions or loading profile
-  if (isCleaningSession || !authReady || (user && profileLoading)) {
+  if (isCleaningSession || !authReady || (user && (profileLoading || rolesLoading))) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Preparing...</div>
+        <div className="animate-pulse text-muted-foreground">Signing you in...</div>
       </div>
     );
   }
 
   // Show staff welcome screen for first-time staff login
-  if (showStaffWelcome && user && staffRoles && staffRoles.length > 0) {
+  if (showStaffWelcome && user && hasAnyStaffRole()) {
     return (
       <StaffWelcome
-        roles={staffRoles}
+        roles={roles}
         onContinue={() => setShowStaffWelcome(false)}
       />
     );
@@ -370,8 +365,8 @@ export default function Auth() {
   // Show waiver signing step if user is logged in but hasn't signed liability waiver
   if (showWaiverStep && user) {
     // For staff, redirect to admin after waiver
-    const waiverRedirect = staffRoles && staffRoles.length > 0
-      ? getDefaultAdminPage(staffRoles)
+    const waiverRedirect = hasAnyStaffRole()
+      ? getDefaultAdminPage(roles)
       : getRedirectTarget();
     return <WaiverSigningStep redirectTo={waiverRedirect} />;
   }
@@ -402,6 +397,20 @@ export default function Auth() {
                 : "Sign in to continue your wellness journey."}
             </p>
           </div>
+
+          {routingError && (
+            <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
+                <div className="space-y-3">
+                  <p className="text-sm text-foreground">{routingError}</p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => refetchRoles()}>
+                    Retry access check
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
