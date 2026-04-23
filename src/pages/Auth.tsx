@@ -35,7 +35,7 @@ export default function Auth() {
   const [staffRoles, setStaffRoles] = useState<AppRole[] | null>(null);
   const [showStaffWelcome, setShowStaffWelcome] = useState(false);
 
-  const { user, signUp, signIn } = useAuth();
+  const { user, authReady, signUp, signIn } = useAuth();
   const { profile, isLoading: profileLoading } = useUserProfile();
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,14 +106,19 @@ export default function Auth() {
 
   // Check staff roles and determine routing after login
   useEffect(() => {
-    if (isCleaningSession || !user || profileLoading) return;
+    if (isCleaningSession || !authReady || !user || profileLoading) return;
 
     const checkStaffAndRoute = async () => {
       // Check for staff roles
-      const { data: rolesData } = await supabase
+      const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id);
+
+      if (rolesError) {
+        console.error("[Auth] Failed to load staff roles during routing:", rolesError);
+        return;
+      }
 
       if (rolesData && rolesData.length > 0) {
         const roles = rolesData.map((r) => r.role as AppRole);
@@ -148,7 +153,7 @@ export default function Auth() {
     };
 
     checkStaffAndRoute();
-  }, [user, profile, profileLoading, navigate, isCleaningSession, getRedirectTarget, isStaffInvite]);
+  }, [authReady, user, profile, profileLoading, navigate, isCleaningSession, getRedirectTarget, isStaffInvite]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -344,7 +349,7 @@ export default function Auth() {
   };
 
   // Show loading while cleaning corrupted sessions or loading profile
-  if (isCleaningSession || (user && profileLoading)) {
+  if (isCleaningSession || !authReady || (user && profileLoading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Preparing...</div>

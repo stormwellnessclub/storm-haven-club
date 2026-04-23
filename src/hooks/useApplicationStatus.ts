@@ -93,7 +93,7 @@ async function attemptMemberLink(maxRetries: number = 3): Promise<{
 }
 
 export function useApplicationStatus() {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
 
   return useQuery({
     queryKey: ["application-status", user?.id],
@@ -206,7 +206,7 @@ export function useApplicationStatus() {
       // No member record or pending application found
       return { status: "no_application" };
     },
-    enabled: !!user,
+    enabled: authReady && !!user,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     retry: 2,
   });
