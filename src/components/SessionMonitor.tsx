@@ -42,25 +42,28 @@ export function SessionMonitor() {
   useEffect(() => {
     const checkSessionHealth = async () => {
       if (!authReady) return;
-      if (Date.now() - lastAuthTransitionAt.current < 15000) return;
+
+      // Skip checks while on the auth page — login is in progress.
+      if (window.location.pathname === '/auth' || window.location.pathname === '/update-password') {
+        return;
+      }
+
+      // Extended grace window: do not validate within 60s of any auth transition.
+      // This prevents background validators from killing a fresh login.
+      if (Date.now() - lastAuthTransitionAt.current < 60000) return;
 
       // Prevent concurrent checks
       if (isCheckingSession.current) return;
       isCheckingSession.current = true;
 
       try {
-        // Skip health check on password recovery route
-        if (window.location.pathname === '/update-password') {
-          return;
-        }
-
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        // Check for JWT error in getSession
+
+        // Only act on persistent JWT errors — never on the first transient one.
         if (sessionError && isJwtError(sessionError)) {
-          console.warn("[SessionMonitor] JWT error in getSession:", sessionError);
-          await handleJwtError(sessionError, { redirect: false });
-          showSessionExpiredToast();
+          console.warn("[SessionMonitor] JWT error in getSession (not auto-clearing):", sessionError);
+          // Do not clear storage automatically — let the user stay signed in
+          // and let Supabase's own refresh logic recover.
           return;
         }
 
@@ -69,63 +72,29 @@ export function SessionMonitor() {
           return;
         }
 
-        // Validate the session with the server
+        // Validate the session with the server, but be conservative about cleanup.
         const { error: userError } = await supabase.auth.getUser();
-        
-        if (userError) {
-          // Check if it's a JWT-specific error
-          if (isJwtError(userError)) {
-            console.warn("[SessionMonitor] JWT error detected:", userError);
 
-            // Try to refresh the session
+        if (userError) {
+          if (isJwtError(userError)) {
+            console.warn("[SessionMonitor] JWT error from getUser, attempting silent refresh:", userError);
             const { error: refreshError } = await supabase.auth.refreshSession();
-            
+
             if (refreshError) {
-              console.warn("[SessionMonitor] Session refresh failed:", refreshError);
-              clearAuthStorage();
-              
-              // Handle the refresh error
-              if (isJwtError(refreshError)) {
-                await handleJwtError(refreshError, { redirect: false });
-              } else {
-                await supabase.auth.signOut();
-              }
-              
+              // Persistent failure: only NOW prompt the user. Do not silently clear storage.
+              console.warn("[SessionMonitor] Refresh failed after JWT error:", refreshError);
               showSessionExpiredToast();
-              return;
+            } else {
+              console.info("[SessionMonitor] Session refreshed successfully");
+              hasShownExpiredToast.current = false;
             }
-            
-            // Refresh succeeded
-            console.info("[SessionMonitor] Session refreshed successfully after JWT error");
-            hasShownExpiredToast.current = false;
           } else {
-            // Non-JWT error - try standard refresh
-            console.warn("[SessionMonitor] Session validation failed:", userError.message);
-            
-            const { error: refreshError } = await supabase.auth.refreshSession();
-            
-            if (refreshError) {
-              console.warn("[SessionMonitor] Session refresh failed:", refreshError.message);
-              
-              if (isJwtError(refreshError)) {
-                await handleJwtError(refreshError, { redirect: false });
-              } else {
-                clearAuthStorage();
-                await supabase.auth.signOut();
-              }
-              
-              showSessionExpiredToast();
-            }
+            console.warn("[SessionMonitor] Non-JWT validation issue (ignored):", userError.message);
           }
         }
       } catch (error) {
         console.error("[SessionMonitor] Error during session check:", error);
-        
-        // Handle unexpected JWT errors
-        if (isJwtError(error)) {
-          await handleJwtError(error, { redirect: false });
-          showSessionExpiredToast();
-        }
+        // Do not clear auth on unexpected errors — they're usually transient.
       } finally {
         isCheckingSession.current = false;
       }
@@ -146,8 +115,8 @@ export function SessionMonitor() {
       }
     };
 
-    // Check immediately on mount (deferred to avoid blocking)
-    const initialCheck = setTimeout(checkSessionHealth, 1000);
+    // First check delayed by 60s to avoid the post-login handoff window.
+    const initialCheck = setTimeout(checkSessionHealth, 60000);
     
     // Then check every 5 minutes
     const interval = setInterval(checkSessionHealth, 5 * 60 * 1000);
