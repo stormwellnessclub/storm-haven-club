@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { isJwtError } from '@/lib/jwtErrorHandler';
 import type { AppRole } from '@/lib/permissions';
 
 const STAFF_ROLE_PRIORITY: AppRole[] = [
@@ -24,6 +25,9 @@ interface UserRolesState {
   loading: boolean;
   resolved: boolean;
   error: string | null;
+  // Distinguishes "the JWT itself is bad" from "lookup failed for some other reason".
+  // When true, the auth page should trigger a hard reset instead of just retrying.
+  jwtError: boolean;
 }
 
 // Primary path: security-definer RPCs (immune to RLS / session timing edges).
@@ -70,6 +74,7 @@ export function useUserRoles() {
     loading: true,
     resolved: false,
     error: null,
+    jwtError: false,
   });
   // Preserve last successful roles so a transient refresh failure doesn't
   // cause a UI lockout for already-confirmed staff.
@@ -77,40 +82,31 @@ export function useUserRoles() {
 
   const fetchRoles = useCallback(async () => {
     if (!authReady) {
-      setState((prev) => ({ ...prev, loading: true, resolved: false, error: null }));
+      setState((prev) => ({ ...prev, loading: true, resolved: false, error: null, jwtError: false }));
       return;
     }
 
     if (!user || !session) {
       console.info('[useUserRoles] No user/session, resolving with empty roles');
       lastGoodRolesRef.current = [];
-      setState({ roles: [], loading: false, resolved: true, error: null });
+      setState({ roles: [], loading: false, resolved: true, error: null, jwtError: false });
       return;
     }
 
     console.info('[useUserRoles] Fetching roles for user:', user.id);
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+    setState((prev) => ({ ...prev, loading: true, error: null, jwtError: false }));
 
     let lastError: unknown = null;
+    let sawJwtError = false;
 
+    // NOTE: We deliberately do NOT call supabase.auth.getSession() inside this
+    // loop. The session was already validated by AuthContext before this hook
+    // ran. Re-checking here amplifies bad-token states (the very thing we're
+    // trying to recover from) and adds latency. If the JWT is bad, the RPC
+    // call itself will surface the error and we handle it explicitly.
     for (const delayMs of ROLE_FETCH_RETRY_DELAYS_MS) {
       if (delayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, delayMs));
-      }
-
-      // Don't treat a transient "session not ready" as a terminal failure —
-      // just keep retrying within the loop.
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (!currentSession) {
-          lastError = new Error('Session not ready yet');
-          console.info('[useUserRoles] Retry: session not ready');
-          continue;
-        }
-      } catch (err) {
-        lastError = err;
-        console.info('[useUserRoles] Retry: getSession threw', err);
-        continue;
       }
 
       // Primary: RPC path
@@ -118,10 +114,16 @@ export function useUserRoles() {
         const roles = await fetchRolesViaRpc(user.id);
         console.info('[useUserRoles] Resolved roles via RPC:', roles);
         lastGoodRolesRef.current = roles;
-        setState({ roles, loading: false, resolved: true, error: null });
+        setState({ roles, loading: false, resolved: true, error: null, jwtError: false });
         return;
       } catch (rpcErr) {
         lastError = rpcErr;
+        if (isJwtError(rpcErr)) {
+          sawJwtError = true;
+          console.warn('[useUserRoles] RPC path hit JWT error — token is bad', rpcErr);
+          // No point retrying with a bad token. Break out and report.
+          break;
+        }
         console.info('[useUserRoles] RPC path failed, trying table fallback', rpcErr);
       }
 
@@ -130,15 +132,20 @@ export function useUserRoles() {
         const roles = await fetchRolesViaTable(user.id);
         console.info('[useUserRoles] Resolved roles via table:', roles);
         lastGoodRolesRef.current = roles;
-        setState({ roles, loading: false, resolved: true, error: null });
+        setState({ roles, loading: false, resolved: true, error: null, jwtError: false });
         return;
       } catch (tableErr) {
         lastError = tableErr;
+        if (isJwtError(tableErr)) {
+          sawJwtError = true;
+          console.warn('[useUserRoles] Table path hit JWT error — token is bad', tableErr);
+          break;
+        }
         console.info('[useUserRoles] Table path failed, will retry', tableErr);
       }
     }
 
-    console.warn('[useUserRoles] All retries failed:', lastError);
+    console.warn('[useUserRoles] All retries failed:', lastError, 'jwtError=', sawJwtError);
     // Preserve last good roles if we ever had them — don't lock the user out
     // because a refresh hiccupped.
     const preserved = lastGoodRolesRef.current;
@@ -146,7 +153,8 @@ export function useUserRoles() {
       roles: preserved,
       loading: false,
       resolved: preserved.length > 0,
-      error: 'Failed to fetch roles',
+      error: sawJwtError ? 'Session token is invalid' : 'Failed to fetch roles',
+      jwtError: sawJwtError,
     });
   }, [authReady, user, session]);
 
