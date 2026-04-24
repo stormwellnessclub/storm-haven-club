@@ -86,7 +86,10 @@ export function SpaCompletionDialog({
       : 0;
   const totalAmount = servicePrice + tipAmount;
 
-  const memberName = appointment.member
+  const customer = appointment.customer ?? null;
+  const memberName = customer
+    ? `${customer.first_name} ${customer.last_name}`.trim() || customer.email || "Guest"
+    : appointment.member
     ? `${appointment.member.first_name} ${appointment.member.last_name}`
     : appointment.user?.email || "Guest";
 
@@ -109,7 +112,11 @@ export function SpaCompletionDialog({
     try {
       let paymentIntentId: string | null = null;
 
-      if (paymentMethod === "card" && appointment.member?.stripe_customer_id) {
+      const stripeCustomerId =
+        customer?.stripe_customer_id || appointment.member?.stripe_customer_id || null;
+      const isMemberCharge = customer?.type === "member" && !!appointment.member_id;
+
+      if (paymentMethod === "card" && stripeCustomerId) {
         // Charge saved card via stripe-payment edge function
         const amountCents = Math.round(totalAmount * 100);
         if (amountCents < 50) {
@@ -118,17 +125,21 @@ export function SpaCompletionDialog({
           return;
         }
 
+        const chargeBody: Record<string, any> = {
+          action: "charge_saved_card",
+          amount: amountCents,
+          description: `Spa: ${appointment.service_name}${tipAmount > 0 ? ` + $${tipAmount.toFixed(2)} tip` : ""}`,
+          payment_type: "spa_service",
+        };
+        if (isMemberCharge) {
+          chargeBody.memberId = appointment.member_id;
+        } else {
+          chargeBody.stripeCustomerId = stripeCustomerId;
+        }
+
         const { data: chargeResult, error: chargeError } = await supabase.functions.invoke(
           "stripe-payment",
-          {
-            body: {
-              action: "charge_saved_card",
-              memberId: appointment.member_id,
-              amount: amountCents,
-              description: `Spa: ${appointment.service_name}${tipAmount > 0 ? ` + $${tipAmount.toFixed(2)} tip` : ""}`,
-              payment_type: "spa_service",
-            },
-          }
+          { body: chargeBody }
         );
 
         if (chargeError) throw new Error(chargeError.message || "Payment failed");
@@ -184,9 +195,10 @@ export function SpaCompletionDialog({
     }
   };
 
-  const hasCardOnFile = !!(appointment.member?.stripe_customer_id && appointment.member?.card_last4);
+  const cardSource = customer ?? appointment.member;
+  const hasCardOnFile = !!(cardSource?.stripe_customer_id && cardSource?.card_last4);
   const cardLabel = hasCardOnFile
-    ? `${appointment.member?.card_brand || "Card"} •••• ${appointment.member?.card_last4}`
+    ? `${cardSource?.card_brand || "Card"} •••• ${cardSource?.card_last4}`
     : null;
 
   return (
@@ -320,7 +332,7 @@ export function SpaCompletionDialog({
           {paymentMethod === "card" && !hasCardOnFile && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-              <p>This member has no card on file. Select a different payment method.</p>
+              <p>This customer has no card on file. Select a different payment method.</p>
             </div>
           )}
         </div>

@@ -4,6 +4,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { SpaAppointment } from "./useSpaBooking";
 
+export interface SpaCustomer {
+  type: "member" | "non_member" | "guest";
+  id: string | null;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  stripe_customer_id?: string | null;
+  card_last4?: string | null;
+  card_brand?: string | null;
+}
+
 export interface AdminSpaAppointment extends SpaAppointment {
   member?: {
     id: string;
@@ -22,6 +33,8 @@ export interface AdminSpaAppointment extends SpaAppointment {
     id: string;
     full_name: string;
   } | null;
+  /** Unified customer info — works for members, non-members, and walk-in guests */
+  customer?: SpaCustomer | null;
 }
 
 interface AdminSpaAppointmentsFilters {
@@ -91,12 +104,79 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
           throw error;
         }
 
-        return (data || []).map((apt: any) => ({
+        const rawRows = (data || []).map((apt: any) => ({
           ...apt,
           member: apt.member ? (Array.isArray(apt.member) ? apt.member[0] : apt.member) : null,
           user: null,
           staff: apt.staff ? (Array.isArray(apt.staff) ? apt.staff[0] : apt.staff) : null,
-        })) as AdminSpaAppointment[];
+        }));
+
+        // For appointments without a member but with a user_id, fetch non_member_profiles
+        const nonMemberUserIds = Array.from(
+          new Set(
+            rawRows
+              .filter((r: any) => !r.member && r.user_id)
+              .map((r: any) => r.user_id)
+          )
+        );
+
+        let nonMemberMap: Record<string, any> = {};
+        if (nonMemberUserIds.length > 0) {
+          try {
+            const { data: nmData } = await (supabase.from as any)("non_member_profiles")
+              .select("user_id, first_name, last_name, email, stripe_customer_id, card_brand, card_last4")
+              .in("user_id", nonMemberUserIds);
+            (nmData || []).forEach((nm: any) => {
+              nonMemberMap[nm.user_id] = nm;
+            });
+          } catch (e) {
+            console.warn("Failed to fetch non_member_profiles fallback", e);
+          }
+        }
+
+        return rawRows.map((apt: any): AdminSpaAppointment => {
+          let customer: SpaCustomer | null = null;
+          if (apt.member) {
+            customer = {
+              type: "member",
+              id: apt.member.id,
+              first_name: apt.member.first_name,
+              last_name: apt.member.last_name,
+              email: apt.member.email,
+              stripe_customer_id: apt.member.stripe_customer_id ?? null,
+              card_brand: apt.member.card_brand ?? null,
+              card_last4: apt.member.card_last4 ?? null,
+            };
+          } else if (apt.user_id && nonMemberMap[apt.user_id]) {
+            const nm = nonMemberMap[apt.user_id];
+            customer = {
+              type: "non_member",
+              id: nm.user_id,
+              first_name: nm.first_name || "",
+              last_name: nm.last_name || "",
+              email: nm.email || null,
+              stripe_customer_id: nm.stripe_customer_id ?? null,
+              card_brand: nm.card_brand ?? null,
+              card_last4: nm.card_last4 ?? null,
+            };
+          } else {
+            // Walk-in guest — try to extract from staff_notes header line "Guest: Name <email>"
+            const notes: string = apt.staff_notes || "";
+            const match = notes.match(/^Guest:\s*([^<\n]+?)(?:\s*<([^>]+)>)?\s*$/m);
+            if (match) {
+              const fullName = match[1].trim();
+              const parts = fullName.split(" ");
+              customer = {
+                type: "guest",
+                id: null,
+                first_name: parts[0] || "Guest",
+                last_name: parts.slice(1).join(" ") || "",
+                email: match[2] || null,
+              };
+            }
+          }
+          return { ...apt, customer };
+        }) as AdminSpaAppointment[];
       } catch (error: any) {
         if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
           console.warn("spa_appointments table not found, returning empty array");
@@ -174,4 +254,3 @@ export function useUpdateSpaAppointmentStatus() {
     },
   });
 }
-
