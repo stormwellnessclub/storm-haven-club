@@ -378,6 +378,7 @@ export function useCancelSpaAppointment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
       toast.success("Appointment cancelled successfully");
     },
     onError: (error: Error) => {
