@@ -33,6 +33,7 @@ export default function Auth() {
   const [showWaiverStep, setShowWaiverStep] = useState(false);
   const [showStaffWelcome, setShowStaffWelcome] = useState(false);
   const [routingError, setRoutingError] = useState<string | null>(null);
+  const [handoffStuck, setHandoffStuck] = useState(false);
   const autoRetriedRoleCheckFor = useRef<string | null>(null);
 
   const { user, authReady, signUp, signIn } = useAuth();
@@ -128,6 +129,22 @@ export default function Auth() {
 
     return () => window.clearTimeout(timer);
   }, [authReady, user, rolesError, refetchRoles]);
+
+  // Watchdog: if we've been signed in but spinning on role resolution for
+  // more than 12s with no error surfaced yet, treat it as a stuck handoff
+  // so the user can manually reset rather than stare at a spinner forever.
+  useEffect(() => {
+    if (!authReady || !user) {
+      setHandoffStuck(false);
+      return;
+    }
+    if (rolesResolved || rolesError) {
+      setHandoffStuck(false);
+      return;
+    }
+    const t = window.setTimeout(() => setHandoffStuck(true), 12000);
+    return () => window.clearTimeout(t);
+  }, [authReady, user, rolesResolved, rolesError]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
