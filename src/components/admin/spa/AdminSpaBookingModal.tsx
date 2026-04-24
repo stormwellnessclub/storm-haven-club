@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info } from "lucide-react";
+import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info, CreditCard } from "lucide-react";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability, useSpaBookedSlots } from "@/hooks/useSpaBooking";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,9 +38,21 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const { data: rooms } = useSpaRooms();
   const { data: availability } = useSpaServiceAvailability();
 
-  const [memberSearch, setMemberSearch] = useState("");
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [selectedMemberName, setSelectedMemberName] = useState("");
+  type CustomerType = "member" | "non_member" | "guest";
+  interface SelectedCustomer {
+    type: CustomerType;
+    memberId: string | null;
+    userId: string | null;
+    stripeCustomerId: string | null;
+    name: string;
+    email: string | null;
+    waiverSigned: boolean;
+    cardBrand: string | null;
+    cardLast4: string | null;
+  }
+
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [serviceId, setServiceId] = useState("");
   const [appointmentDate, setAppointmentDate] = useState(
     defaultDate ? format(defaultDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")
@@ -56,44 +68,146 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const [resolvedTherapistId, setResolvedTherapistId] = useState<string | null>(null);
   const [resolvedRoomId, setResolvedRoomId] = useState<string | null>(null);
 
-  // Search members
-  const { data: memberResults } = useQuery({
-    queryKey: ["member-search-spa", memberSearch],
+  // Unified customer search across members, non-members, and saved guests
+  const { data: customerResults } = useQuery({
+    queryKey: ["spa-customer-search", customerSearch],
     queryFn: async () => {
-      if (memberSearch.length < 2) return [];
-      const { data, error } = await supabase
-        .from("members")
-        .select("id, first_name, last_name, email, membership_type, user_id")
-        .or(`first_name.ilike.%${memberSearch}%,last_name.ilike.%${memberSearch}%,email.ilike.%${memberSearch}%`)
-        .limit(10);
-      if (error) throw error;
-      return data;
+      if (customerSearch.length < 2) return [];
+      const term = `%${customerSearch}%`;
+
+      const [membersRes, nonMembersRes, guestsRes] = await Promise.all([
+        supabase
+          .from("members")
+          .select("id, first_name, last_name, email, membership_type, user_id, stripe_customer_id, card_brand, card_last4")
+          .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term}`)
+          .limit(8),
+        (supabase.from as any)("non_member_profiles")
+          .select("user_id, first_name, last_name, email, stripe_customer_id, card_brand, card_last4, waiver_signed")
+          .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term}`)
+          .limit(8),
+        supabase
+          .from("guest_passes")
+          .select("id, guest_name, guest_email, user_id, stripe_customer_id, card_brand, card_last4")
+          .not("stripe_customer_id", "is", null)
+          .or(`guest_name.ilike.${term},guest_email.ilike.${term}`)
+          .limit(8),
+      ]);
+
+      const results: Array<{
+        key: string;
+        type: CustomerType;
+        memberId: string | null;
+        userId: string | null;
+        stripeCustomerId: string | null;
+        name: string;
+        email: string | null;
+        cardBrand: string | null;
+        cardLast4: string | null;
+        waiverSigned: boolean | null;
+        badgeLabel: string;
+      }> = [];
+
+      (membersRes.data || []).forEach((m: any) => {
+        results.push({
+          key: `m-${m.id}`,
+          type: "member",
+          memberId: m.id,
+          userId: m.user_id || null,
+          stripeCustomerId: m.stripe_customer_id || null,
+          name: `${m.first_name} ${m.last_name}`.trim(),
+          email: m.email || null,
+          cardBrand: m.card_brand || null,
+          cardLast4: m.card_last4 || null,
+          waiverSigned: null,
+          badgeLabel: m.membership_type || "Member",
+        });
+      });
+
+      const seenUserIds = new Set(
+        (membersRes.data || []).map((m: any) => m.user_id).filter(Boolean)
+      );
+
+      (nonMembersRes.data || []).forEach((nm: any) => {
+        if (nm.user_id && seenUserIds.has(nm.user_id)) return; // de-dupe
+        results.push({
+          key: `nm-${nm.user_id}`,
+          type: "non_member",
+          memberId: null,
+          userId: nm.user_id,
+          stripeCustomerId: nm.stripe_customer_id || null,
+          name: `${nm.first_name || ""} ${nm.last_name || ""}`.trim() || nm.email || "Non-member",
+          email: nm.email || null,
+          cardBrand: nm.card_brand || null,
+          cardLast4: nm.card_last4 || null,
+          waiverSigned: nm.waiver_signed === true,
+          badgeLabel: "Non-Member",
+        });
+      });
+
+      const seenGuestEmails = new Set(
+        results.map((r) => (r.email || "").toLowerCase()).filter(Boolean)
+      );
+
+      (guestsRes.data || []).forEach((g: any) => {
+        const email = (g.guest_email || "").toLowerCase();
+        if (email && seenGuestEmails.has(email)) return; // already covered as member/non-member
+        results.push({
+          key: `g-${g.id}`,
+          type: "guest",
+          memberId: null,
+          userId: g.user_id || null,
+          stripeCustomerId: g.stripe_customer_id || null,
+          name: g.guest_name || g.guest_email || "Guest",
+          email: g.guest_email || null,
+          cardBrand: g.card_brand || null,
+          cardLast4: g.card_last4 || null,
+          waiverSigned: null,
+          badgeLabel: "Guest",
+        });
+      });
+
+      return results.slice(0, 15);
     },
-    enabled: memberSearch.length >= 2,
+    enabled: customerSearch.length >= 2,
   });
 
-  const [selectedMemberWaiverSigned, setSelectedMemberWaiverSigned] = useState(false);
-
-  const checkMemberWaiver = async (userId: string | null) => {
-    if (!userId) {
-      setSelectedMemberWaiverSigned(false);
-      return;
-    }
+  const checkCustomerWaiver = async (
+    type: CustomerType,
+    userId: string | null,
+    knownWaiver: boolean | null
+  ): Promise<boolean> => {
+    if (type === "guest") return false; // walk-in guest, no portal account
+    if (knownWaiver === true) return true;
+    if (!userId) return false;
     const { data: profileData } = await supabase
       .from("profiles")
       .select("waiver_signed")
       .eq("user_id", userId)
       .maybeSingle();
-    if (profileData?.waiver_signed) {
-      setSelectedMemberWaiverSigned(true);
-      return;
-    }
-    const { data: nonMemberData } = await supabase
-      .from("non_member_profiles")
+    if (profileData?.waiver_signed) return true;
+    const { data: nonMemberData } = await (supabase.from as any)("non_member_profiles")
       .select("waiver_signed")
       .eq("user_id", userId)
       .maybeSingle();
-    setSelectedMemberWaiverSigned(nonMemberData?.waiver_signed === true);
+    return nonMemberData?.waiver_signed === true;
+  };
+
+  const handleSelectCustomer = async (
+    candidate: NonNullable<typeof customerResults>[number]
+  ) => {
+    const waiver = await checkCustomerWaiver(candidate.type, candidate.userId, candidate.waiverSigned);
+    setSelectedCustomer({
+      type: candidate.type,
+      memberId: candidate.memberId,
+      userId: candidate.userId,
+      stripeCustomerId: candidate.stripeCustomerId,
+      name: candidate.name,
+      email: candidate.email,
+      waiverSigned: waiver,
+      cardBrand: candidate.cardBrand,
+      cardLast4: candidate.cardLast4,
+    });
+    setCustomerSearch("");
   };
 
   const selectedService = useMemo(
