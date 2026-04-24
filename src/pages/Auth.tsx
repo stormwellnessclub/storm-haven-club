@@ -370,6 +370,20 @@ export default function Auth() {
     );
   }
 
+  // Signed in + roles still loading (no error yet) → handoff spinner.
+  // Also handles non-staff member waiting on profile load.
+  const waitingForStaffRoles = !!user && !rolesError && (!rolesResolved || rolesLoading);
+  const waitingForMemberProfile =
+    !!user && rolesResolved && !hasAnyStaffRole() && profileLoading;
+
+  if (waitingForStaffRoles || waitingForMemberProfile) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Finishing sign-in...</div>
+      </div>
+    );
+  }
+
   // Show staff welcome screen for first-time staff login
   if (showStaffWelcome && user && hasAnyStaffRole()) {
     return (
