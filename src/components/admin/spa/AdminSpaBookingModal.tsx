@@ -398,19 +398,26 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         throw new Error("That therapist or room is already blocked for the full service plus cleanup time.");
       }
 
-      let memberUserId: string | null = null;
-      if (selectedMemberId) {
-        const { data: memberRow } = await supabase
-          .from("members")
-          .select("user_id")
-          .eq("id", selectedMemberId)
-          .maybeSingle();
-        memberUserId = memberRow?.user_id || null;
+      // Block massage bookings for guests with no portal account / signed waiver
+      if (selectedCustomer && !selectedCustomer.waiverSigned) {
+        if ((selectedService.category || "").toLowerCase().includes("massage")) {
+          throw new Error("This customer must sign the liability waiver before booking a massage.");
+        }
+      }
+
+      const memberIdToInsert = selectedCustomer?.type === "member" ? selectedCustomer.memberId : null;
+      const userIdToInsert = selectedCustomer?.userId || null;
+
+      // For walk-in guests with no user account, store name/email in staff_notes header line
+      let finalNotes = staffNotes || "";
+      if (selectedCustomer && selectedCustomer.type === "guest" && !selectedCustomer.userId) {
+        const header = `Guest: ${selectedCustomer.name}${selectedCustomer.email ? ` <${selectedCustomer.email}>` : ""}`;
+        finalNotes = finalNotes ? `${header}\n${finalNotes}` : header;
       }
 
       const { error } = await (supabase.from as any)("spa_appointments").insert({
-        member_id: selectedMemberId,
-        user_id: memberUserId,
+        member_id: memberIdToInsert,
+        user_id: userIdToInsert,
         service_id: selectedService.id,
         service_name: selectedService.name,
         service_category: selectedService.category,
@@ -423,7 +430,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         status: "confirmed",
         staff_id: resolvedTherapist,
         room_id: resolvedRoom,
-        staff_notes: staffNotes || null,
+        staff_notes: finalNotes || null,
         payment_method: paymentMethod === "comp" ? "comp" : null,
         amount_paid: paymentMethod === "comp" ? 0 : null,
       });
@@ -440,9 +447,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   });
 
   const resetForm = () => {
-    setMemberSearch("");
-    setSelectedMemberId(null);
-    setSelectedMemberName("");
+    setCustomerSearch("");
+    setSelectedCustomer(null);
     setServiceId("");
     setAppointmentTime("");
     setTimeInputDisplay("");
@@ -454,7 +460,6 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setStaffNotes("");
     setPaymentMethod("in_person");
     setConflict(null);
-    setSelectedMemberWaiverSigned(false);
   };
 
   const activeServices = services?.filter((s) => s.is_active) || [];
