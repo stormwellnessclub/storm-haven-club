@@ -1,134 +1,176 @@
 
 ## Goal
-Restore reliable admin sign-in so your admin account can always reach the admin area after a successful login.
+Give you a complete map of the admin login logic and a concrete fix plan for why your admin login is failing.
+
+## What the admin login logic currently consists of
+Your admin access is not controlled by one file. It is split across these files:
+
+1. `src/contexts/AuthContext.tsx`
+- Restores session with `supabase.auth.getSession()`
+- Subscribes to `supabase.auth.onAuthStateChange(...)`
+- Exposes `user`, `session`, `loading`, `authReady`
+- `signIn()` calls `supabase.auth.signInWithPassword({ email, password })`
+
+2. `src/pages/Auth.tsx`
+- Calls `signIn(email, password)`
+- After sign-in, waits for:
+  - auth to become ready
+  - roles to load from `useUserRoles()`
+  - profile to load for non-staff users
+- If staff roles resolve, it redirects to `getDefaultAdminPage(roles)`
+
+3. `src/hooks/useUserRoles.ts`
+- Reads `user`, `session`, `authReady` from `useAuth()`
+- Tries RPCs first:
+  - `has_any_staff_role`
+  - `has_role`
+- Falls back to reading `user_roles`
+- Decides whether the signed-in user is staff/admin
+
+4. `src/components/admin/ProtectedAdminRoute.tsx`
+- Protects all `/admin...` routes
+- If not logged in: redirects to `/auth`
+- If roles fail to resolve: shows retry UI
+- If no staff roles: shows “Access Denied”
+- If roles exist: allows route or redirects to allowed admin page
+
+5. `src/lib/permissions.ts`
+- Defines which roles can access which admin pages
+- `super_admin` can access everything
+- `getDefaultAdminPage(['super_admin'])` returns `/admin`
+
+6. `src/App.tsx`
+- Every `/admin...` route is wrapped in `ProtectedAdminRoute`
+
+7. Session cleanup / token handling files
+- `src/components/SessionMonitor.tsx`
+- `src/lib/jwtErrorHandler.ts`
+- `src/lib/authStorage.ts`
+These handle stale or corrupted auth tokens and can sign the user out / clear storage.
 
 ## Confirmed facts
-- Your admin account `storm@stormwellnessclub.com` still exists in the backend.
-- That account still has the `super_admin` role in `user_roles`.
-- The backend role helpers also return `true` for that account.
-- Recent auth logs show the login itself succeeds (`/token` 200, `/user` 200).
+- Your account `storm@stormwellnessclub.com` still exists.
+- It still has `super_admin`.
+- The backend role record is correct for user `6d30811c-7e66-4ea9-b135-f5c340bf78fc`.
+- Recent backend auth logs show:
+  - successful login on `/token` with status `200`
+  - successful `/user` checks on the live domain
+  - but also a `/user` failure with `403: invalid claim: missing sub claim` from preview
 
-This means the damage is not “you lost admin rights.” The break is in the frontend handoff after login.
+## Most likely actual failure
+This does not look like “you lost admin.” It looks like a client-side bad session/token state.
 
-## What is actually broken
-There is a real logic flaw in the current auth flow:
+The strongest evidence is:
+- login succeeds
+- your admin role is intact
+- preview later sends `/user` with `bad_jwt / missing sub claim`
 
-### 1. The auth page can trap a signed-in admin in an infinite “Finishing sign-in…” state
-File: `src/pages/Auth.tsx`
+That usually means the browser is holding a corrupted or mismatched stored session token, so the frontend believes it is authenticated at one step and then fails when protected queries run.
 
-Right now:
-- `waitingForStaffRoles` is `true` whenever `!rolesResolved`
-- that loading screen renders before the `rolesError` recovery UI
-- so if role loading fails even once, the retry/error state becomes unreachable
+## Why the current code is fragile
+1. `AuthContext.tsx` marks auth state from `onAuthStateChange` plus `getSession()`, but the app still has multiple places that independently probe auth/session.
+2. `useUserRoles.ts` re-calls `supabase.auth.getSession()` inside the retry loop, which can amplify a bad-token state instead of isolating it.
+3. `SessionMonitor.tsx` and manual reset paths clear auth storage, but the app does not have one single authoritative “session invalid => hard reset once” flow.
+4. Admin routing depends on both auth restoration and role resolution completing cleanly; when token state is corrupted, the handoff becomes inconsistent.
+5. The preview and live domain can hold different storage/session states, so preview can fail while live still authenticates correctly.
 
-That means a successful admin login can get stranded on `/auth` forever.
+## Implementation plan
 
-### 2. Role loading is still too fragile during the post-login handoff
-File: `src/hooks/useUserRoles.ts`
+### 1. Make auth restoration the single source of truth
+Update `src/contexts/AuthContext.tsx` so:
+- `getSession()` is the only restore gate
+- `authReady` means restore is finished
+- subsequent auth events only update user/session, not readiness semantics
+- expose one derived state for “authenticated and usable”
 
-The hook:
-- depends on a short retry window
-- uses `getSession()` inside the retry loop
-- marks the role load as failed after a few transient misses
+### 2. Simplify role loading so it depends only on restored auth
+Update `src/hooks/useUserRoles.ts` so:
+- it only runs when `authReady && user`
+- it stops re-checking `supabase.auth.getSession()` inside the retry loop
+- it treats JWT/session failures differently from “no roles”
+- it surfaces a specific auth/session error vs a role lookup error
 
-Because your backend role is valid, any failure here should be treated as a temporary loading problem, not as a final access decision.
+### 3. Add explicit bad-token recovery
+Update:
+- `src/lib/jwtErrorHandler.ts`
+- `src/components/SessionMonitor.tsx`
+- possibly `src/pages/Auth.tsx`
 
-### 3. Admin route protection is safe-er than before, but still depends on the fragile role hook
-File: `src/components/admin/ProtectedAdminRoute.tsx`
+So that:
+- if `/user` or role fetch hits `bad_jwt` / `missing sub claim`
+- the app performs one controlled local sign-out + auth storage purge
+- then returns the user to `/auth` with a clear message instead of spinning or half-routing
 
-The guard correctly avoids false “Access Denied” once roles resolve, but it can only work if the role hook eventually resolves. If the hook fails during login and the auth page never exits, the route guard never gets a chance to recover.
+### 4. Separate “cannot authenticate” from “not authorized”
+Update:
+- `src/pages/Auth.tsx`
+- `src/components/admin/ProtectedAdminRoute.tsx`
 
-## Plan
+So the UI distinguishes:
+- auth/session invalid
+- signed in but roles still loading
+- signed in but role lookup failed
+- signed in with no staff role
+- signed in with staff role
 
-### 1. Fix the auth page state order so signed-in staff can recover
-Update `src/pages/Auth.tsx` to separate these states explicitly:
-- auth not ready
-- signed in + roles still loading
-- signed in + roles failed to load
-- signed in + staff confirmed
-- signed in + non-staff confirmed
+Right now those states are too tightly coupled.
 
-Implementation changes:
-- change `waitingForStaffRoles` so it does not swallow `rolesError`
-- render the retry/reset-session UI before the generic loading branch when `user && rolesError && !rolesResolved`
-- keep the loading screen only for true in-progress states
+### 5. Add temporary diagnostics around the admin handoff
+Add focused console logging in:
+- `AuthContext.tsx`
+- `useUserRoles.ts`
+- `ProtectedAdminRoute.tsx`
+- `SessionMonitor.tsx`
 
-Expected result:
-- a signed-in admin will no longer get stuck forever on “Finishing sign-in…”
-- if role lookup hiccups, the page will show a recoverable retry state instead of hanging
+Log:
+- auth event
+- whether session exists
+- whether JWT error occurred
+- whether roles RPC/table lookup was attempted
+- final redirect decision
 
-### 2. Make role resolution more deterministic
-Update `src/hooks/useUserRoles.ts`.
+This will make the next failure attributable instead of guesswork.
 
-Implementation changes:
-- keep `authReady && !!user && !!session` as the gate
-- stop treating a transient session miss inside the retry loop as a terminal failure
-- prefer one authoritative role fetch path first, then one fallback path:
-  - primary: `has_any_staff_role` / `has_role` RPC path
-  - fallback: direct `user_roles` table query for the specific user
-- only set `error` after both paths fail consistently
-- preserve the last successful roles if a later refresh fails
+### 6. Validate in both environments
+After changes:
+- test sign-in on preview
+- test sign-in on `stormwellnessclub.com`
+- hard refresh
+- close/reopen browser
+- confirm `/admin` loads directly for `super_admin`
+- confirm corrupted token path forces a clean reset instead of trapping the session
 
-Why this helps:
-- your backend role helpers are already correct
-- relying more on security-definer RPCs reduces sensitivity to RLS/session timing edge cases during startup
-
-### 3. Simplify the post-login redirect on the auth page
-Still in `src/pages/Auth.tsx`:
-- once staff roles are confirmed, navigate immediately to `getDefaultAdminPage(roles)`
-- do not leave the page in a mixed “signed in but still rendering login shell” state
-- keep member/non-member routing separate from staff routing
-
-Expected result:
-- staff accounts go straight to admin once roles resolve
-- non-staff accounts continue to member/portal logic without interfering with staff login
-
-### 4. Harden the admin guard for one more failure mode
-Update `src/components/admin/ProtectedAdminRoute.tsx`.
-
-Implementation changes:
-- keep the current loading and retry UI
-- if `user` exists and a role refresh is already underway after an earlier failure, continue showing “Verifying access…” rather than flipping states
-- make retry call the shared role hook only, not any ad hoc auth reset logic
-
-Expected result:
-- once the user reaches `/admin`, the guard remains stable instead of bouncing between states
-
-### 5. Review auth initialization for the remaining race edge
-Update `src/contexts/AuthContext.tsx`.
-
-Implementation changes:
-- keep `onAuthStateChange` synchronous
-- make `authReady` reflect completion of the initial restore path, not just the first event that arrives
-- avoid any ambiguity between “auth event fired” and “safe to evaluate protected routes”
-
-This is a smaller cleanup than the auth-page fix, but it removes one remaining source of timing inconsistency.
-
-### 6. Validate against the real admin account
-After implementation:
-- sign in with `storm@stormwellnessclub.com`
-- confirm `/auth` is left after successful login
-- confirm `/admin` loads without spinner lock or false denial
-- confirm refresh/reopen still preserves admin access
-- confirm the retry UI appears only on genuine temporary failures
-
-## Files to update
+## Files to review first
+- `src/contexts/AuthContext.tsx`
 - `src/pages/Auth.tsx`
 - `src/hooks/useUserRoles.ts`
 - `src/components/admin/ProtectedAdminRoute.tsx`
-- `src/contexts/AuthContext.tsx`
+- `src/components/SessionMonitor.tsx`
+- `src/lib/jwtErrorHandler.ts`
+- `src/lib/authStorage.ts`
+- `src/lib/permissions.ts`
+- `src/App.tsx`
 
-## Technical details
-- Backend state is healthy for the admin account:
-  - member record exists
-  - profile exists
-  - `user_roles` contains `super_admin`
-  - `has_role(user_id, 'super_admin') = true`
-- The current failure is frontend-only.
-- Most likely direct cause: unreachable error recovery in `Auth.tsx` due to state-ordering logic.
-- Secondary cause: role resolution remains too brittle during session restoration.
+## Technical takeaway
+Your admin login path is:
 
-## Expected result
-- Your admin login works again without getting stranded on the auth screen.
-- A temporary role lookup hiccup no longer acts like a lockout.
-- Your account retains full admin access exactly as the backend already says it should.
+```text
+submit email/password
+-> AuthContext.signIn()
+-> Supabase password login
+-> AuthContext restores session
+-> Auth page waits for roles
+-> useUserRoles resolves super_admin
+-> Auth page redirects to /admin
+-> ProtectedAdminRoute verifies role access
+-> admin page renders
+```
+
+The backend portion is currently healthy.
+The failure point is most likely the client session becoming invalid after login in preview (`bad_jwt: missing sub claim`), which then breaks the role/admin handoff.
+
+## Expected result after implementation
+- you can log in as `storm@stormwellnessclub.com`
+- you are routed directly into `/admin`
+- a corrupted token no longer leaves you in a broken half-signed-in state
+- auth failures and role failures become visibly different and debuggable
