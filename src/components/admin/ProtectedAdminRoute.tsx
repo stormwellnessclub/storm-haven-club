@@ -15,8 +15,13 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
   const { roles, loading: rolesLoading, resolved: rolesResolved, error: rolesError, hasAnyStaffRole, refetch } = useUserRoles();
   const location = useLocation();
 
-  // Show loading while checking auth and roles
-  if (authLoading || !authReady || rolesLoading || (user && !rolesResolved && !rolesError)) {
+  // Stable loading state: show spinner while auth or roles are actively
+  // resolving. If a refetch is in progress after a previous error, keep
+  // showing "Verifying access..." rather than flipping to the error UI.
+  const stillResolvingRoles =
+    !!user && (rolesLoading || (!rolesResolved && !rolesError));
+
+  if (authLoading || !authReady || stillResolvingRoles) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -32,7 +37,10 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  if (rolesError) {
+  // Role lookup failed AND we don't have any preserved roles to fall back on.
+  // (If roles were preserved from a previous successful load, `rolesResolved`
+  // is true and we proceed to normal access checks below.)
+  if (rolesError && !rolesResolved) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center max-w-md mx-auto p-8">
@@ -63,11 +71,6 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
         </div>
       </div>
     );
-  }
-
-  // Check if user can access this specific page
-  if (!rolesResolved) {
-    return null;
   }
 
   const currentPath = location.pathname;
