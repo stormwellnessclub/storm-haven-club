@@ -1,78 +1,134 @@
 
-
 ## Goal
-Make Kids Care subscription renewals reliably grant the next month's pass — so when the parent's card is charged, their child's 16 sessions are restored automatically. Also fix Summer Haidous's missed April 20 renewal.
+Restore reliable admin sign-in so your admin account can always reach the admin area after a successful login.
 
-## Root cause (confirmed)
-Summer's April 20 charge of $77.55 ($75 Kids Care + $2.55 fee) on subscription `sub_1TDA1TLyZrsSqLhstugJs3t2` succeeded in Stripe. The webhook in `supabase/functions/stripe-webhook/index.ts` correctly detects the Kids Care line item, but the renewal handler depends on `subscription.metadata.user_id` / `member_id`. Her subscription has **no metadata** (likely created before metadata was added, or via a different path). The handler's `if (subUserId)` check silently fails, so no pass is created and no error is raised.
+## Confirmed facts
+- Your admin account `storm@stormwellnessclub.com` still exists in the backend.
+- That account still has the `super_admin` role in `user_roles`.
+- The backend role helpers also return `true` for that account.
+- Recent auth logs show the login itself succeeds (`/token` 200, `/user` 200).
 
-Her last pass (`8b7e8014`) expired April 19 with 7 of 16 remaining and was never replaced — that's why she can't book Kids Care.
+This means the damage is not “you lost admin rights.” The break is in the frontend handoff after login.
+
+## What is actually broken
+There is a real logic flaw in the current auth flow:
+
+### 1. The auth page can trap a signed-in admin in an infinite “Finishing sign-in…” state
+File: `src/pages/Auth.tsx`
+
+Right now:
+- `waitingForStaffRoles` is `true` whenever `!rolesResolved`
+- that loading screen renders before the `rolesError` recovery UI
+- so if role loading fails even once, the retry/error state becomes unreachable
+
+That means a successful admin login can get stranded on `/auth` forever.
+
+### 2. Role loading is still too fragile during the post-login handoff
+File: `src/hooks/useUserRoles.ts`
+
+The hook:
+- depends on a short retry window
+- uses `getSession()` inside the retry loop
+- marks the role load as failed after a few transient misses
+
+Because your backend role is valid, any failure here should be treated as a temporary loading problem, not as a final access decision.
+
+### 3. Admin route protection is safe-er than before, but still depends on the fragile role hook
+File: `src/components/admin/ProtectedAdminRoute.tsx`
+
+The guard correctly avoids false “Access Denied” once roles resolve, but it can only work if the role hook eventually resolves. If the hook fails during login and the auth page never exits, the route guard never gets a chance to recover.
 
 ## Plan
 
-### 1. Make the webhook resilient when subscription metadata is missing
-File: `supabase/functions/stripe-webhook/index.ts` (around lines 1886–1952)
+### 1. Fix the auth page state order so signed-in staff can recover
+Update `src/pages/Auth.tsx` to separate these states explicitly:
+- auth not ready
+- signed in + roles still loading
+- signed in + roles failed to load
+- signed in + staff confirmed
+- signed in + non-staff confirmed
 
-Change the Kids Care renewal block so it can still resolve the user even when `subscription.metadata.user_id` is missing:
-- If `subscription.metadata.user_id` exists → use it (current behavior).
-- Otherwise, fall back to looking up the customer by `subscription.customer` (Stripe customer id) against `members.stripe_customer_id`, then fall back to `non_member_profiles.stripe_customer_id`.
-- If found, derive `subUserId` (and `subMemberId` when from `members`).
-- If still no match, `logError` with the subscription id, customer id, and invoice id (instead of silently skipping) so future failures show up.
+Implementation changes:
+- change `waitingForStaffRoles` so it does not swallow `rolesError`
+- render the retry/reset-session UI before the generic loading branch when `user && rolesError && !rolesResolved`
+- keep the loading screen only for true in-progress states
 
-Also: if the existing-pass lookup misses but we successfully resolve a user, also look for the most recent kids_care pass regardless of `status` (active/expired/exhausted) and reset it instead of always creating a new one when one is recent — prevents duplicate kids_care rows on accounts where the previous pass already flipped to `expired`.
+Expected result:
+- a signed-in admin will no longer get stuck forever on “Finishing sign-in…”
+- if role lookup hiccups, the page will show a recoverable retry state instead of hanging
 
-### 2. Backfill metadata onto Summer's subscription so future renewals self-heal
-Use Stripe to update `sub_1TDA1TLyZrsSqLhstugJs3t2` and add:
-- `metadata.type = "kids_care_pass"`
-- `metadata.user_id = f865462f-ba02-4d00-86ea-5475add08cd9`
-- `metadata.member_id = 3c7f0bfc-d7ca-46bf-a62a-0903444e3012`
+### 2. Make role resolution more deterministic
+Update `src/hooks/useUserRoles.ts`.
 
-This is a one-time fix so that even before the code change ships, her next May 19 renewal would have processed correctly.
+Implementation changes:
+- keep `authReady && !!user && !!session` as the gate
+- stop treating a transient session miss inside the retry loop as a terminal failure
+- prefer one authoritative role fetch path first, then one fallback path:
+  - primary: `has_any_staff_role` / `has_role` RPC path
+  - fallback: direct `user_roles` table query for the specific user
+- only set `error` after both paths fail consistently
+- preserve the last successful roles if a later refresh fails
 
-### 3. One-time backfill for the missed April 20 renewal
-Insert a fresh kids_care pass for Summer matching what the renewal should have produced:
-- `user_id = f865462f-ba02-4d00-86ea-5475add08cd9`
-- `member_id = 3c7f0bfc-d7ca-46bf-a62a-0903444e3012`
-- `category = 'other'`, `pass_type = 'kids_care'`
-- `classes_total = 16`, `classes_remaining = 16`
-- `price_paid = 75`, `is_member_price = true`
-- `expires_at` = May 19, 2026 23:59:59 (matches Stripe `current_period_end` 1779310315)
-- `status = 'active'`
+Why this helps:
+- your backend role helpers are already correct
+- relying more on security-definer RPCs reduces sensitivity to RLS/session timing edge cases during startup
 
-Mark her old pass `8b7e8014` as `status = 'expired'` (it already passed its `expires_at`) so the UI shows only one active Kids Care pass.
+### 3. Simplify the post-login redirect on the auth page
+Still in `src/pages/Auth.tsx`:
+- once staff roles are confirmed, navigate immediately to `getDefaultAdminPage(roles)`
+- do not leave the page in a mixed “signed in but still rendering login shell” state
+- keep member/non-member routing separate from staff routing
 
-### 4. Audit and backfill any other Kids Care subscriptions missing metadata
-Iterate over the active Kids Care subscriptions (price `price_1TCEyxLyZrsSqLhsHLRDNixO`):
-- For each, check if `metadata.user_id` is present.
-- If not, look up the customer via `members.stripe_customer_id` (then `non_member_profiles.stripe_customer_id`), backfill the same three metadata fields on Stripe, and verify they have a current active `class_passes` row matching the subscription's current period; if not, insert one (same shape as step 3) using the subscription's `current_period_end` for `expires_at`.
+Expected result:
+- staff accounts go straight to admin once roles resolve
+- non-staff accounts continue to member/portal logic without interfering with staff login
 
-This is a read-and-fix sweep so we don't rediscover the same problem next month for other parents. Uses the existing `stripe-payment` connection — no new infrastructure.
+### 4. Harden the admin guard for one more failure mode
+Update `src/components/admin/ProtectedAdminRoute.tsx`.
 
-### 5. Light operational logging
-In the renewal block, change the silent skip at the missing-metadata path into:
-- `logError(new Error("Kids Care renewal: subscription missing user_id metadata"), "KIDS_CARE_RENEWAL_NO_USER")` with `{ subscriptionId, customerId, invoiceId }`.
+Implementation changes:
+- keep the current loading and retry UI
+- if `user` exists and a role refresh is already underway after an earlier failure, continue showing “Verifying access…” rather than flipping states
+- make retry call the shared role hook only, not any ad hoc auth reset logic
 
-So if anything new ever lands in this state, it shows up in logs immediately instead of going silent.
+Expected result:
+- once the user reaches `/admin`, the guard remains stable instead of bouncing between states
+
+### 5. Review auth initialization for the remaining race edge
+Update `src/contexts/AuthContext.tsx`.
+
+Implementation changes:
+- keep `onAuthStateChange` synchronous
+- make `authReady` reflect completion of the initial restore path, not just the first event that arrives
+- avoid any ambiguity between “auth event fired” and “safe to evaluate protected routes”
+
+This is a smaller cleanup than the auth-page fix, but it removes one remaining source of timing inconsistency.
+
+### 6. Validate against the real admin account
+After implementation:
+- sign in with `storm@stormwellnessclub.com`
+- confirm `/auth` is left after successful login
+- confirm `/admin` loads without spinner lock or false denial
+- confirm refresh/reopen still preserves admin access
+- confirm the retry UI appears only on genuine temporary failures
 
 ## Files to update
-- `supabase/functions/stripe-webhook/index.ts` — resilient user resolution + better logging in the Kids Care renewal handler
+- `src/pages/Auth.tsx`
+- `src/hooks/useUserRoles.ts`
+- `src/components/admin/ProtectedAdminRoute.tsx`
+- `src/contexts/AuthContext.tsx`
 
-## Database / data fixes (one-time)
-- Insert one new `class_passes` row for Summer (April 20 → May 19 cycle)
-- Update old pass `8b7e8014` → `status = 'expired'`
-- Run the audit + backfill sweep for other Kids Care subscriptions
-
-## Stripe-side fixes (one-time)
-- Add `type` / `user_id` / `member_id` metadata to Summer's Kids Care subscription
-- Add the same metadata to any other Kids Care subscriptions found missing it
-
-## Out of scope
-- No schema changes
-- No change to how new Kids Care subscriptions are created (they already include metadata)
-- No change to non-Kids-Care renewal paths
+## Technical details
+- Backend state is healthy for the admin account:
+  - member record exists
+  - profile exists
+  - `user_roles` contains `super_admin`
+  - `has_role(user_id, 'super_admin') = true`
+- The current failure is frontend-only.
+- Most likely direct cause: unreachable error recovery in `Auth.tsx` due to state-ordering logic.
+- Secondary cause: role resolution remains too brittle during session restoration.
 
 ## Expected result
-- Summer Haidous immediately has a fresh 16-session Kids Care pass valid through May 19, 2026 and can book her child.
-- Future Kids Care renewals work for her and any other previously-affected parent without manual intervention.
-- If a Kids Care subscription ever lacks metadata again, the webhook resolves the user via Stripe customer id and still grants the pass — and if it can't, it logs a clear error instead of silently dropping the renewal.
-
+- Your admin login works again without getting stranded on the auth screen.
+- A temporary role lookup hiccup no longer acts like a lockout.
+- Your account retains full admin access exactly as the backend already says it should.
