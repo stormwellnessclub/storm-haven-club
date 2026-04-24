@@ -1892,10 +1892,9 @@ serve(async (req) => {
           if (isKidsCareInvoice) {
             logStep("Kids Care Pass renewal detected", { subscriptionId: invoice.subscription });
 
-            // Find the subscription to get user_id from metadata
             try {
               const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-              const subUserId = subscription.metadata?.user_id;
+              let subUserId: string | undefined = subscription.metadata?.user_id;
               const subMemberId = subscription.metadata?.member_id;
 
               if (subUserId) {
