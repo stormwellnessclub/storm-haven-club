@@ -1892,30 +1892,75 @@ serve(async (req) => {
           if (isKidsCareInvoice) {
             logStep("Kids Care Pass renewal detected", { subscriptionId: invoice.subscription });
 
-            // Find the subscription to get user_id from metadata
             try {
               const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-              const subUserId = subscription.metadata?.user_id;
-              const subMemberId = subscription.metadata?.member_id;
+              let subUserId: string | undefined = subscription.metadata?.user_id;
+              let subMemberId: string | undefined = subscription.metadata?.member_id;
+
+              const subscriptionCustomerId = typeof subscription.customer === 'string'
+                ? subscription.customer
+                : subscription.customer?.id;
+
+              // Fallback: resolve user via Stripe customer id when metadata is missing.
+              // Some legacy Kids Care subscriptions were created without metadata, which
+              // previously caused the renewal to be silently skipped.
+              if (!subUserId && subscriptionCustomerId) {
+                const { data: memberByCustomer } = await supabase
+                  .from('members')
+                  .select('id, user_id')
+                  .eq('stripe_customer_id', subscriptionCustomerId)
+                  .maybeSingle();
+
+                if (memberByCustomer?.user_id) {
+                  subUserId = memberByCustomer.user_id;
+                  subMemberId = subMemberId || memberByCustomer.id;
+                  logStep("Kids Care renewal: resolved user via members.stripe_customer_id", {
+                    subscriptionId: subscription.id,
+                    customerId: subscriptionCustomerId,
+                    userId: subUserId,
+                    memberId: subMemberId,
+                  });
+                } else {
+                  const { data: nonMemberByCustomer } = await supabase
+                    .from('non_member_profiles')
+                    .select('id, user_id')
+                    .eq('stripe_customer_id', subscriptionCustomerId)
+                    .maybeSingle();
+
+                  if (nonMemberByCustomer?.user_id) {
+                    subUserId = nonMemberByCustomer.user_id;
+                    logStep("Kids Care renewal: resolved user via non_member_profiles.stripe_customer_id", {
+                      subscriptionId: subscription.id,
+                      customerId: subscriptionCustomerId,
+                      userId: subUserId,
+                    });
+                  }
+                }
+              }
 
               if (subUserId) {
-                // Reset or create kids care pass: 4 sessions, 30-day expiry
-                const expiresAt = new Date();
-                expiresAt.setDate(expiresAt.getDate() + 30);
+                // Use Stripe's authoritative current_period_end so the pass window matches
+                // the subscription cycle exactly. Fall back to +30 days if unavailable.
+                const periodEndUnix = (subscription as unknown as { current_period_end?: number })
+                  .current_period_end
+                  ?? subscription.items?.data?.[0]?.current_period_end;
+                const expiresAt = periodEndUnix
+                  ? new Date(periodEndUnix * 1000)
+                  : (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d; })();
 
-                // Try to find existing active kids_care pass and reset it
+                // Look up the most recent kids_care pass for this user regardless of status
+                // and reset it. Prevents duplicate rows when the previous pass already
+                // flipped to 'expired' before the renewal landed.
                 const { data: existingPass } = await supabase
                   .from('class_passes')
-                  .select('id')
+                  .select('id, status')
                   .eq('user_id', subUserId)
                   .eq('pass_type', 'kids_care')
-                  .eq('status', 'active')
                   .order('created_at', { ascending: false })
                   .limit(1)
                   .maybeSingle();
 
                 if (existingPass) {
-                  // Reset existing pass
                   await supabase
                     .from('class_passes')
                     .update({
@@ -1925,9 +1970,12 @@ serve(async (req) => {
                       status: 'active',
                     })
                     .eq('id', existingPass.id);
-                  logStep("Kids Care Pass renewed (reset existing)", { passId: existingPass.id });
+                  logStep("Kids Care Pass renewed (reset existing)", {
+                    passId: existingPass.id,
+                    previousStatus: existingPass.status,
+                    expiresAt: expiresAt.toISOString(),
+                  });
                 } else {
-                  // Create new pass
                   await supabase
                     .from('class_passes')
                     .insert({
@@ -1942,8 +1990,20 @@ serve(async (req) => {
                       expires_at: expiresAt.toISOString(),
                       status: 'active',
                     });
-                  logStep("Kids Care Pass renewed (created new)", { userId: subUserId });
+                  logStep("Kids Care Pass renewed (created new)", {
+                    userId: subUserId,
+                    expiresAt: expiresAt.toISOString(),
+                  });
                 }
+              } else {
+                // Could not resolve a user from metadata or customer — surface as an error
+                // so the missed renewal shows up in logs instead of silently dropping.
+                logError(
+                  new Error(
+                    `Kids Care renewal: could not resolve user. subscriptionId=${subscription.id}, customerId=${subscriptionCustomerId ?? 'unknown'}, invoiceId=${invoice.id}`
+                  ),
+                  "KIDS_CARE_RENEWAL_NO_USER"
+                );
               }
             } catch (renewError) {
               logError(renewError, "KIDS_CARE_RENEWAL");
