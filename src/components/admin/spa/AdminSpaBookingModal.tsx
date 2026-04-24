@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info } from "lucide-react";
+import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info, CreditCard } from "lucide-react";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability, useSpaBookedSlots } from "@/hooks/useSpaBooking";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,9 +38,21 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const { data: rooms } = useSpaRooms();
   const { data: availability } = useSpaServiceAvailability();
 
-  const [memberSearch, setMemberSearch] = useState("");
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [selectedMemberName, setSelectedMemberName] = useState("");
+  type CustomerType = "member" | "non_member" | "guest";
+  interface SelectedCustomer {
+    type: CustomerType;
+    memberId: string | null;
+    userId: string | null;
+    stripeCustomerId: string | null;
+    name: string;
+    email: string | null;
+    waiverSigned: boolean;
+    cardBrand: string | null;
+    cardLast4: string | null;
+  }
+
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [serviceId, setServiceId] = useState("");
   const [appointmentDate, setAppointmentDate] = useState(
     defaultDate ? format(defaultDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")
@@ -56,44 +68,146 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const [resolvedTherapistId, setResolvedTherapistId] = useState<string | null>(null);
   const [resolvedRoomId, setResolvedRoomId] = useState<string | null>(null);
 
-  // Search members
-  const { data: memberResults } = useQuery({
-    queryKey: ["member-search-spa", memberSearch],
+  // Unified customer search across members, non-members, and saved guests
+  const { data: customerResults } = useQuery({
+    queryKey: ["spa-customer-search", customerSearch],
     queryFn: async () => {
-      if (memberSearch.length < 2) return [];
-      const { data, error } = await supabase
-        .from("members")
-        .select("id, first_name, last_name, email, membership_type, user_id")
-        .or(`first_name.ilike.%${memberSearch}%,last_name.ilike.%${memberSearch}%,email.ilike.%${memberSearch}%`)
-        .limit(10);
-      if (error) throw error;
-      return data;
+      if (customerSearch.length < 2) return [];
+      const term = `%${customerSearch}%`;
+
+      const [membersRes, nonMembersRes, guestsRes] = await Promise.all([
+        supabase
+          .from("members")
+          .select("id, first_name, last_name, email, membership_type, user_id, stripe_customer_id, card_brand, card_last4")
+          .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term}`)
+          .limit(8),
+        (supabase.from as any)("non_member_profiles")
+          .select("user_id, first_name, last_name, email, stripe_customer_id, card_brand, card_last4, waiver_signed")
+          .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term}`)
+          .limit(8),
+        supabase
+          .from("guest_passes")
+          .select("id, guest_name, guest_email, user_id, stripe_customer_id, card_brand, card_last4")
+          .not("stripe_customer_id", "is", null)
+          .or(`guest_name.ilike.${term},guest_email.ilike.${term}`)
+          .limit(8),
+      ]);
+
+      const results: Array<{
+        key: string;
+        type: CustomerType;
+        memberId: string | null;
+        userId: string | null;
+        stripeCustomerId: string | null;
+        name: string;
+        email: string | null;
+        cardBrand: string | null;
+        cardLast4: string | null;
+        waiverSigned: boolean | null;
+        badgeLabel: string;
+      }> = [];
+
+      (membersRes.data || []).forEach((m: any) => {
+        results.push({
+          key: `m-${m.id}`,
+          type: "member",
+          memberId: m.id,
+          userId: m.user_id || null,
+          stripeCustomerId: m.stripe_customer_id || null,
+          name: `${m.first_name} ${m.last_name}`.trim(),
+          email: m.email || null,
+          cardBrand: m.card_brand || null,
+          cardLast4: m.card_last4 || null,
+          waiverSigned: null,
+          badgeLabel: m.membership_type || "Member",
+        });
+      });
+
+      const seenUserIds = new Set(
+        (membersRes.data || []).map((m: any) => m.user_id).filter(Boolean)
+      );
+
+      (nonMembersRes.data || []).forEach((nm: any) => {
+        if (nm.user_id && seenUserIds.has(nm.user_id)) return; // de-dupe
+        results.push({
+          key: `nm-${nm.user_id}`,
+          type: "non_member",
+          memberId: null,
+          userId: nm.user_id,
+          stripeCustomerId: nm.stripe_customer_id || null,
+          name: `${nm.first_name || ""} ${nm.last_name || ""}`.trim() || nm.email || "Non-member",
+          email: nm.email || null,
+          cardBrand: nm.card_brand || null,
+          cardLast4: nm.card_last4 || null,
+          waiverSigned: nm.waiver_signed === true,
+          badgeLabel: "Non-Member",
+        });
+      });
+
+      const seenGuestEmails = new Set(
+        results.map((r) => (r.email || "").toLowerCase()).filter(Boolean)
+      );
+
+      (guestsRes.data || []).forEach((g: any) => {
+        const email = (g.guest_email || "").toLowerCase();
+        if (email && seenGuestEmails.has(email)) return; // already covered as member/non-member
+        results.push({
+          key: `g-${g.id}`,
+          type: "guest",
+          memberId: null,
+          userId: g.user_id || null,
+          stripeCustomerId: g.stripe_customer_id || null,
+          name: g.guest_name || g.guest_email || "Guest",
+          email: g.guest_email || null,
+          cardBrand: g.card_brand || null,
+          cardLast4: g.card_last4 || null,
+          waiverSigned: null,
+          badgeLabel: "Guest",
+        });
+      });
+
+      return results.slice(0, 15);
     },
-    enabled: memberSearch.length >= 2,
+    enabled: customerSearch.length >= 2,
   });
 
-  const [selectedMemberWaiverSigned, setSelectedMemberWaiverSigned] = useState(false);
-
-  const checkMemberWaiver = async (userId: string | null) => {
-    if (!userId) {
-      setSelectedMemberWaiverSigned(false);
-      return;
-    }
+  const checkCustomerWaiver = async (
+    type: CustomerType,
+    userId: string | null,
+    knownWaiver: boolean | null
+  ): Promise<boolean> => {
+    if (type === "guest") return false; // walk-in guest, no portal account
+    if (knownWaiver === true) return true;
+    if (!userId) return false;
     const { data: profileData } = await supabase
       .from("profiles")
       .select("waiver_signed")
       .eq("user_id", userId)
       .maybeSingle();
-    if (profileData?.waiver_signed) {
-      setSelectedMemberWaiverSigned(true);
-      return;
-    }
-    const { data: nonMemberData } = await supabase
-      .from("non_member_profiles")
+    if (profileData?.waiver_signed) return true;
+    const { data: nonMemberData } = await (supabase.from as any)("non_member_profiles")
       .select("waiver_signed")
       .eq("user_id", userId)
       .maybeSingle();
-    setSelectedMemberWaiverSigned(nonMemberData?.waiver_signed === true);
+    return nonMemberData?.waiver_signed === true;
+  };
+
+  const handleSelectCustomer = async (
+    candidate: NonNullable<typeof customerResults>[number]
+  ) => {
+    const waiver = await checkCustomerWaiver(candidate.type, candidate.userId, candidate.waiverSigned);
+    setSelectedCustomer({
+      type: candidate.type,
+      memberId: candidate.memberId,
+      userId: candidate.userId,
+      stripeCustomerId: candidate.stripeCustomerId,
+      name: candidate.name,
+      email: candidate.email,
+      waiverSigned: waiver,
+      cardBrand: candidate.cardBrand,
+      cardLast4: candidate.cardLast4,
+    });
+    setCustomerSearch("");
   };
 
   const selectedService = useMemo(
@@ -284,19 +398,26 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         throw new Error("That therapist or room is already blocked for the full service plus cleanup time.");
       }
 
-      let memberUserId: string | null = null;
-      if (selectedMemberId) {
-        const { data: memberRow } = await supabase
-          .from("members")
-          .select("user_id")
-          .eq("id", selectedMemberId)
-          .maybeSingle();
-        memberUserId = memberRow?.user_id || null;
+      // Block massage bookings for guests with no portal account / signed waiver
+      if (selectedCustomer && !selectedCustomer.waiverSigned) {
+        if ((selectedService.category || "").toLowerCase().includes("massage")) {
+          throw new Error("This customer must sign the liability waiver before booking a massage.");
+        }
+      }
+
+      const memberIdToInsert = selectedCustomer?.type === "member" ? selectedCustomer.memberId : null;
+      const userIdToInsert = selectedCustomer?.userId || null;
+
+      // For walk-in guests with no user account, store name/email in staff_notes header line
+      let finalNotes = staffNotes || "";
+      if (selectedCustomer && selectedCustomer.type === "guest" && !selectedCustomer.userId) {
+        const header = `Guest: ${selectedCustomer.name}${selectedCustomer.email ? ` <${selectedCustomer.email}>` : ""}`;
+        finalNotes = finalNotes ? `${header}\n${finalNotes}` : header;
       }
 
       const { error } = await (supabase.from as any)("spa_appointments").insert({
-        member_id: selectedMemberId,
-        user_id: memberUserId,
+        member_id: memberIdToInsert,
+        user_id: userIdToInsert,
         service_id: selectedService.id,
         service_name: selectedService.name,
         service_category: selectedService.category,
@@ -309,7 +430,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         status: "confirmed",
         staff_id: resolvedTherapist,
         room_id: resolvedRoom,
-        staff_notes: staffNotes || null,
+        staff_notes: finalNotes || null,
         payment_method: paymentMethod === "comp" ? "comp" : null,
         amount_paid: paymentMethod === "comp" ? 0 : null,
       });
@@ -326,9 +447,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   });
 
   const resetForm = () => {
-    setMemberSearch("");
-    setSelectedMemberId(null);
-    setSelectedMemberName("");
+    setCustomerSearch("");
+    setSelectedCustomer(null);
     setServiceId("");
     setAppointmentTime("");
     setTimeInputDisplay("");
@@ -340,7 +460,6 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setStaffNotes("");
     setPaymentMethod("in_person");
     setConflict(null);
-    setSelectedMemberWaiverSigned(false);
   };
 
   const activeServices = services?.filter((s) => s.is_active) || [];
@@ -354,13 +473,28 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           <DialogTitle>Book Spa Appointment</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {/* Member Search */}
+          {/* Customer Search */}
           <div>
-            <Label>Member</Label>
-            {selectedMemberId ? (
+            <Label>Customer</Label>
+            {selectedCustomer ? (
               <div className="flex items-center justify-between p-2 border rounded-md bg-secondary/30">
-                <span className="text-sm font-medium">{selectedMemberName}</span>
-                <Button size="sm" variant="ghost" onClick={() => { setSelectedMemberId(null); setSelectedMemberName(""); setSelectedMemberWaiverSigned(false); }}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-medium truncate">{selectedCustomer.name}</span>
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {selectedCustomer.type === "member"
+                      ? "Member"
+                      : selectedCustomer.type === "non_member"
+                      ? "Non-Member"
+                      : "Guest"}
+                  </Badge>
+                  {selectedCustomer.cardLast4 && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+                      <CreditCard className="h-3 w-3" />
+                      {selectedCustomer.cardBrand || "Card"} ••{selectedCustomer.cardLast4}
+                    </span>
+                  )}
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedCustomer(null)}>
                   Change
                 </Button>
               </div>
@@ -369,25 +503,30 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Search member by name or email..."
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
+                  placeholder="Search by name or email — members, non-members, and saved guests"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
                 />
-                {memberResults && memberResults.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto">
-                    {memberResults.map((m) => (
+                {customerResults && customerResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-64 overflow-y-auto">
+                    {customerResults.map((c) => (
                       <button
-                        key={m.id}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex justify-between"
-                        onClick={() => {
-                          setSelectedMemberId(m.id);
-                          setSelectedMemberName(`${m.first_name} ${m.last_name}`);
-                          setMemberSearch("");
-                          checkMemberWaiver(m.user_id);
-                        }}
+                        key={c.key}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center justify-between gap-2"
+                        onClick={() => handleSelectCustomer(c)}
                       >
-                        <span>{m.first_name} {m.last_name}</span>
-                        <Badge variant="outline" className="text-xs">{m.membership_type}</Badge>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{c.name}</div>
+                          {c.email && (
+                            <div className="text-xs text-muted-foreground truncate">{c.email}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {c.cardLast4 && (
+                            <CreditCard className="h-3 w-3 text-muted-foreground" />
+                          )}
+                          <Badge variant="outline" className="text-xs">{c.badgeLabel}</Badge>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -396,12 +535,22 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             )}
           </div>
 
-          {selectedMemberId && !selectedMemberWaiverSigned && (
+          {selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest" && (
             <Alert className="bg-destructive/10 border-destructive/30">
               <FileCheck className="h-4 w-4 text-destructive" />
               <AlertTitle className="text-destructive">Liability Waiver Not Signed</AlertTitle>
               <AlertDescription className="mt-1">
-                This member has not signed the liability waiver. They must sign it via the member portal before a spa appointment can be booked.
+                This customer has not signed the liability waiver. They must sign it via the portal before a spa appointment can be booked.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {selectedCustomer && selectedCustomer.type === "guest" && (
+            <Alert className="bg-amber-500/10 border-amber-500/30">
+              <FileCheck className="h-4 w-4" />
+              <AlertTitle>Walk-in guest — no portal account</AlertTitle>
+              <AlertDescription className="mt-1">
+                Massage services require a signed waiver. Have the guest sign in person before booking a massage. Other services are allowed.
               </AlertDescription>
             </Alert>
           )}
@@ -574,7 +723,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={() => bookMutation.mutate()}
-            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (!!selectedMemberId && !selectedMemberWaiverSigned)}
+            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (!!selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest")}
           >
             {bookMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Book Appointment
