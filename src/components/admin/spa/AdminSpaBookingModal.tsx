@@ -473,13 +473,28 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           <DialogTitle>Book Spa Appointment</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {/* Member Search */}
+          {/* Customer Search */}
           <div>
-            <Label>Member</Label>
-            {selectedMemberId ? (
+            <Label>Customer</Label>
+            {selectedCustomer ? (
               <div className="flex items-center justify-between p-2 border rounded-md bg-secondary/30">
-                <span className="text-sm font-medium">{selectedMemberName}</span>
-                <Button size="sm" variant="ghost" onClick={() => { setSelectedMemberId(null); setSelectedMemberName(""); setSelectedMemberWaiverSigned(false); }}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-medium truncate">{selectedCustomer.name}</span>
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {selectedCustomer.type === "member"
+                      ? "Member"
+                      : selectedCustomer.type === "non_member"
+                      ? "Non-Member"
+                      : "Guest"}
+                  </Badge>
+                  {selectedCustomer.cardLast4 && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+                      <CreditCard className="h-3 w-3" />
+                      {selectedCustomer.cardBrand || "Card"} ••{selectedCustomer.cardLast4}
+                    </span>
+                  )}
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedCustomer(null)}>
                   Change
                 </Button>
               </div>
@@ -488,25 +503,30 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Search member by name or email..."
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
+                  placeholder="Search by name or email — members, non-members, and saved guests"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
                 />
-                {memberResults && memberResults.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto">
-                    {memberResults.map((m) => (
+                {customerResults && customerResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-64 overflow-y-auto">
+                    {customerResults.map((c) => (
                       <button
-                        key={m.id}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex justify-between"
-                        onClick={() => {
-                          setSelectedMemberId(m.id);
-                          setSelectedMemberName(`${m.first_name} ${m.last_name}`);
-                          setMemberSearch("");
-                          checkMemberWaiver(m.user_id);
-                        }}
+                        key={c.key}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center justify-between gap-2"
+                        onClick={() => handleSelectCustomer(c)}
                       >
-                        <span>{m.first_name} {m.last_name}</span>
-                        <Badge variant="outline" className="text-xs">{m.membership_type}</Badge>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{c.name}</div>
+                          {c.email && (
+                            <div className="text-xs text-muted-foreground truncate">{c.email}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {c.cardLast4 && (
+                            <CreditCard className="h-3 w-3 text-muted-foreground" />
+                          )}
+                          <Badge variant="outline" className="text-xs">{c.badgeLabel}</Badge>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -515,12 +535,22 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             )}
           </div>
 
-          {selectedMemberId && !selectedMemberWaiverSigned && (
+          {selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest" && (
             <Alert className="bg-destructive/10 border-destructive/30">
               <FileCheck className="h-4 w-4 text-destructive" />
               <AlertTitle className="text-destructive">Liability Waiver Not Signed</AlertTitle>
               <AlertDescription className="mt-1">
-                This member has not signed the liability waiver. They must sign it via the member portal before a spa appointment can be booked.
+                This customer has not signed the liability waiver. They must sign it via the portal before a spa appointment can be booked.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {selectedCustomer && selectedCustomer.type === "guest" && (
+            <Alert className="bg-amber-500/10 border-amber-500/30">
+              <FileCheck className="h-4 w-4" />
+              <AlertTitle>Walk-in guest — no portal account</AlertTitle>
+              <AlertDescription className="mt-1">
+                Massage services require a signed waiver. Have the guest sign in person before booking a massage. Other services are allowed.
               </AlertDescription>
             </Alert>
           )}
