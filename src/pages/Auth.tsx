@@ -401,6 +401,34 @@ export default function Auth() {
     !!user && rolesResolved && !hasAnyStaffRole() && profileLoading;
 
   if (waitingForStaffRoles || waitingForMemberProfile) {
+    if (handoffStuck) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-6">
+          <div className="max-w-md w-full text-center space-y-4">
+            <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
+            <h1 className="heading-section">Sign-in is taking too long</h1>
+            <p className="text-sm text-muted-foreground">
+              Your account signed in, but verifying it in this browser is stuck. This is almost always a stale token in local storage.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => refetchRoles()}>Try again</Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  clearAuthStorage();
+                  try { await supabase.auth.signOut({ scope: "local" }); } catch { /* ignore */ }
+                  window.location.replace("/auth");
+                }}
+                className="inline-flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reset session and sign in again
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Finishing sign-in...</div>
