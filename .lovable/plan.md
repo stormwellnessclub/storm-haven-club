@@ -1,86 +1,78 @@
 
 
 ## Goal
-Let admins look up and book non-members (and walk-in guests with a card on file) into spa appointments — and charge them the same way members are charged.
+Make Kids Care subscription renewals reliably grant the next month's pass — so when the parent's card is charged, their child's 16 sessions are restored automatically. Also fix Summer Haidous's missed April 20 renewal.
 
-## What's broken today
-In `src/components/admin/spa/AdminSpaBookingModal.tsx` the "Member" search only queries the `members` table. Non-members in `non_member_profiles` (and existing guest customers in `guest_passes`) never show up, so staff can't select them and can't book them.
+## Root cause (confirmed)
+Summer's April 20 charge of $77.55 ($75 Kids Care + $2.55 fee) on subscription `sub_1TDA1TLyZrsSqLhstugJs3t2` succeeded in Stripe. The webhook in `supabase/functions/stripe-webhook/index.ts` correctly detects the Kids Care line item, but the renewal handler depends on `subscription.metadata.user_id` / `member_id`. Her subscription has **no metadata** (likely created before metadata was added, or via a different path). The handler's `if (subUserId)` check silently fails, so no pass is created and no error is raised.
 
-The downstream pieces already support non-members:
-- `spa_appointments.member_id` is nullable; `user_id` can be set instead
-- `useAdminSpaAppointments` already joins to a member, but `SpaCompletionDialog` needs the same card-on-file fields for non-members
-- `stripe-payment` edge function `charge_saved_card` already accepts `stripeCustomerId` directly (no member required)
+Her last pass (`8b7e8014`) expired April 19 with 7 of 16 remaining and was never replaced — that's why she can't book Kids Care.
 
 ## Plan
 
-### 1. Replace the member-only search with a unified customer search
-In `AdminSpaBookingModal.tsx`, replace the current `member-search-spa` query with a parallel search across:
-- `members` (active/frozen) → returns `member_id` + `user_id` + card fields
-- `non_member_profiles` → returns `user_id` + `stripe_customer_id` + card fields + `waiver_signed`
-- `guest_passes` (with `stripe_customer_id`) → walk-in guests who already have a card on file
+### 1. Make the webhook resilient when subscription metadata is missing
+File: `supabase/functions/stripe-webhook/index.ts` (around lines 1886–1952)
 
-Each result row in the dropdown shows:
-- Name + email
-- Type badge: Member / Non-Member / Guest
-- Small "card on file" indicator when present
+Change the Kids Care renewal block so it can still resolve the user even when `subscription.metadata.user_id` is missing:
+- If `subscription.metadata.user_id` exists → use it (current behavior).
+- Otherwise, fall back to looking up the customer by `subscription.customer` (Stripe customer id) against `members.stripe_customer_id`, then fall back to `non_member_profiles.stripe_customer_id`.
+- If found, derive `subUserId` (and `subMemberId` when from `members`).
+- If still no match, `logError` with the subscription id, customer id, and invoice id (instead of silently skipping) so future failures show up.
 
-Selected customer state changes from `selectedMemberId / selectedMemberName` to a single `selectedCustomer` object holding:
-- `type: "member" | "non_member" | "guest"`
-- `memberId` (nullable)
-- `userId` (nullable)
-- `stripeCustomerId` (nullable)
-- `name`, `email`
-- `waiverSigned`
-- `cardBrand`, `cardLast4`
+Also: if the existing-pass lookup misses but we successfully resolve a user, also look for the most recent kids_care pass regardless of `status` (active/expired/exhausted) and reset it instead of always creating a new one when one is recent — prevents duplicate kids_care rows on accounts where the previous pass already flipped to `expired`.
 
-### 2. Keep waiver enforcement working for both member types
-The existing `checkMemberWaiver` already checks both `profiles.waiver_signed` and `non_member_profiles.waiver_signed` — keep that, but drive it off `selectedCustomer.userId`. The "Liability Waiver Not Signed" alert and the disabled Book button stay the same.
+### 2. Backfill metadata onto Summer's subscription so future renewals self-heal
+Use Stripe to update `sub_1TDA1TLyZrsSqLhstugJs3t2` and add:
+- `metadata.type = "kids_care_pass"`
+- `metadata.user_id = f865462f-ba02-4d00-86ea-5475add08cd9`
+- `metadata.member_id = 3c7f0bfc-d7ca-46bf-a62a-0903444e3012`
 
-For walk-in guests selected from `guest_passes` with no `user_id`, treat them as "no portal account → waiver must be signed in person before booking massage." Show a clear inline notice and block massage bookings; allow other categories.
+This is a one-time fix so that even before the code change ships, her next May 19 renewal would have processed correctly.
 
-### 3. Save the appointment with the right identifier
-In the `bookMutation`, when inserting into `spa_appointments`:
-- If member → set `member_id` and `user_id` (current behavior)
-- If non-member → set `member_id = null`, set `user_id = selectedCustomer.userId`
-- If guest with no user account → set both to null and store name/email in `staff_notes` header line so the admin grid still shows who it's for
+### 3. One-time backfill for the missed April 20 renewal
+Insert a fresh kids_care pass for Summer matching what the renewal should have produced:
+- `user_id = f865462f-ba02-4d00-86ea-5475add08cd9`
+- `member_id = 3c7f0bfc-d7ca-46bf-a62a-0903444e3012`
+- `category = 'other'`, `pass_type = 'kids_care'`
+- `classes_total = 16`, `classes_remaining = 16`
+- `price_paid = 75`, `is_member_price = true`
+- `expires_at` = May 19, 2026 23:59:59 (matches Stripe `current_period_end` 1779310315)
+- `status = 'active'`
 
-No schema change required.
+Mark her old pass `8b7e8014` as `status = 'expired'` (it already passed its `expires_at`) so the UI shows only one active Kids Care pass.
 
-### 4. Surface non-member info in the admin appointments list and completion dialog
-- Update `useAdminSpaAppointments` so each appointment also resolves a non-member fallback when `member` is null. Add a parallel fetch of `non_member_profiles` keyed on `user_id` and merge it into a unified `customer` field with the same shape the dialog already reads (`first_name`, `last_name`, `email`, `stripe_customer_id`, `card_brand`, `card_last4`).
-- Update `SpaCompletionDialog.tsx`:
-  - `memberName` falls back to the non-member name
-  - `hasCardOnFile` / `cardLabel` use the unified customer data
-  - Keep the existing "Charge card on file" radio enabled for non-members with a saved card
+### 4. Audit and backfill any other Kids Care subscriptions missing metadata
+Iterate over the active Kids Care subscriptions (price `price_1TCEyxLyZrsSqLhsHLRDNixO`):
+- For each, check if `metadata.user_id` is present.
+- If not, look up the customer via `members.stripe_customer_id` (then `non_member_profiles.stripe_customer_id`), backfill the same three metadata fields on Stripe, and verify they have a current active `class_passes` row matching the subscription's current period; if not, insert one (same shape as step 3) using the subscription's `current_period_end` for `expires_at`.
 
-### 5. Charge non-members through the existing edge function
-In `SpaCompletionDialog.handleSubmit`, when paying by card:
-- For members → keep the current `memberId` payload
-- For non-members / guests → pass `stripeCustomerId` instead (the edge function already supports this branch)
-- `description` stays the same: `Spa: <service>` + tip
-- `payment_type: "spa_service"` stays the same
+This is a read-and-fix sweep so we don't rediscover the same problem next month for other parents. Uses the existing `stripe-payment` connection — no new infrastructure.
 
-No edge function changes are required.
+### 5. Light operational logging
+In the renewal block, change the silent skip at the missing-metadata path into:
+- `logError(new Error("Kids Care renewal: subscription missing user_id metadata"), "KIDS_CARE_RENEWAL_NO_USER")` with `{ subscriptionId, customerId, invoiceId }`.
 
-### 6. Light cleanup
-- Rename the "Member" label in the modal to "Customer" so staff understand non-members are also valid.
-- Update the empty-state placeholder to "Search by name or email — members, non-members, and saved guests."
-- Keep the existing service / date / time / therapist / room / payment logic untouched.
+So if anything new ever lands in this state, it shows up in logs immediately instead of going silent.
 
 ## Files to update
-- `src/components/admin/spa/AdminSpaBookingModal.tsx` — unified search, selected customer state, insert payload
-- `src/hooks/useAdminSpaAppointments.ts` — non-member fallback join and unified `customer` shape
-- `src/components/admin/spa/SpaCompletionDialog.tsx` — read unified customer, charge by `stripeCustomerId` for non-members
-- (Optional) extract the unified customer search into a small reusable `SpaCustomerSearch` component if it cleans up the modal
+- `supabase/functions/stripe-webhook/index.ts` — resilient user resolution + better logging in the Kids Care renewal handler
+
+## Database / data fixes (one-time)
+- Insert one new `class_passes` row for Summer (April 20 → May 19 cycle)
+- Update old pass `8b7e8014` → `status = 'expired'`
+- Run the audit + backfill sweep for other Kids Care subscriptions
+
+## Stripe-side fixes (one-time)
+- Add `type` / `user_id` / `member_id` metadata to Summer's Kids Care subscription
+- Add the same metadata to any other Kids Care subscriptions found missing it
 
 ## Out of scope
-- No database schema changes
-- No edge function changes
-- No changes to public `/spa` booking flow — this is admin-side only
+- No schema changes
+- No change to how new Kids Care subscriptions are created (they already include metadata)
+- No change to non-Kids-Care renewal paths
 
 ## Expected result
-- Admins can search by name or email and pick a member, non-member, or saved guest from one dropdown.
-- Non-members with a signed waiver and a card on file can be booked into any spa service.
-- The completion dialog can charge non-members' cards on file the same way it charges members.
-- The appointments grid still shows the correct customer name regardless of member type.
+- Summer Haidous immediately has a fresh 16-session Kids Care pass valid through May 19, 2026 and can book her child.
+- Future Kids Care renewals work for her and any other previously-affected parent without manual intervention.
+- If a Kids Care subscription ever lacks metadata again, the webhook resolves the user via Stripe customer id and still grants the pass — and if it can't, it logs a clear error instead of silently dropping the renewal.
 
