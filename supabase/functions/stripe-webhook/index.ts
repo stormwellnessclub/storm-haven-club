@@ -1895,7 +1895,48 @@ serve(async (req) => {
             try {
               const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
               let subUserId: string | undefined = subscription.metadata?.user_id;
-              const subMemberId = subscription.metadata?.member_id;
+              let subMemberId: string | undefined = subscription.metadata?.member_id;
+
+              const subscriptionCustomerId = typeof subscription.customer === 'string'
+                ? subscription.customer
+                : subscription.customer?.id;
+
+              // Fallback: resolve user via Stripe customer id when metadata is missing.
+              // Some legacy Kids Care subscriptions were created without metadata, which
+              // previously caused the renewal to be silently skipped.
+              if (!subUserId && subscriptionCustomerId) {
+                const { data: memberByCustomer } = await supabase
+                  .from('members')
+                  .select('id, user_id')
+                  .eq('stripe_customer_id', subscriptionCustomerId)
+                  .maybeSingle();
+
+                if (memberByCustomer?.user_id) {
+                  subUserId = memberByCustomer.user_id;
+                  subMemberId = subMemberId || memberByCustomer.id;
+                  logStep("Kids Care renewal: resolved user via members.stripe_customer_id", {
+                    subscriptionId: subscription.id,
+                    customerId: subscriptionCustomerId,
+                    userId: subUserId,
+                    memberId: subMemberId,
+                  });
+                } else {
+                  const { data: nonMemberByCustomer } = await supabase
+                    .from('non_member_profiles')
+                    .select('id, user_id')
+                    .eq('stripe_customer_id', subscriptionCustomerId)
+                    .maybeSingle();
+
+                  if (nonMemberByCustomer?.user_id) {
+                    subUserId = nonMemberByCustomer.user_id;
+                    logStep("Kids Care renewal: resolved user via non_member_profiles.stripe_customer_id", {
+                      subscriptionId: subscription.id,
+                      customerId: subscriptionCustomerId,
+                      userId: subUserId,
+                    });
+                  }
+                }
+              }
 
               if (subUserId) {
                 // Reset or create kids care pass: 4 sessions, 30-day expiry
