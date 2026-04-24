@@ -323,23 +323,24 @@ export default function Auth() {
     }
   };
 
-  const waitingForStaffRoles = !!user && (!rolesResolved || rolesLoading);
-  const waitingForMemberProfile = !!user && rolesResolved && !hasAnyStaffRole() && profileLoading;
+  // CRITICAL state-ordering rule:
+  // 1) auth not ready → generic loading
+  // 2) signed in + roles errored (and not yet resolved) → recoverable retry UI
+  // 3) signed in + roles still loading → "Finishing sign-in..."
+  // 4) signed in + non-staff + profile still loading → "Finishing sign-in..."
+  // This order MUST put the error state BEFORE the loading state so an admin
+  // can never get stranded on a perpetual spinner after a transient hiccup.
 
-  // Show loading while finishing the post-login handoff.
-  // If the user is signed in but roles are still resolving (or have errored without resolving),
-  // keep showing the handoff screen — DO NOT fall back to the sign-in form.
-  if (!authReady || waitingForStaffRoles || waitingForMemberProfile) {
+  if (!authReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">
-          {user ? "Finishing sign-in..." : "Loading..."}
-        </div>
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
 
-  // If signed in but role resolution failed, show retry UI instead of the login form.
+  // Signed in but role resolution failed — show retry UI BEFORE the loading branch
+  // so the user can recover. (`resolved` may be false here.)
   if (user && rolesError && !rolesResolved) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
