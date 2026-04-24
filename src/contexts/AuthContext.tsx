@@ -23,10 +23,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    let initialRestoreDone = false;
 
     console.info("[AuthContext] Initializing");
 
-    // Set up auth state listener FIRST (synchronous handlers only)
+    // Set up auth state listener FIRST (synchronous handlers only).
+    // Do NOT mark authReady here — only the initial getSession() result is
+    // authoritative for "we have finished restoring whatever session exists".
+    // Later auth events (TOKEN_REFRESHED, SIGNED_IN, SIGNED_OUT) update state
+    // but never flip authReady on their own.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, nextSession) => {
         if (!isMounted) return;
@@ -34,21 +39,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
 
-        // Once we receive any auth event, we're ready
-        if (!authReady) {
-          setAuthReady(true);
+        // Once initial restore is complete, any subsequent auth event keeps
+        // us ready. Before initial restore, we wait for getSession().
+        if (initialRestoreDone) {
           setLoading(false);
         }
       }
     );
 
-    // THEN restore the existing session (single source of truth, no aggressive validation)
+    // THEN restore the existing session (single source of truth).
+    // Only this path is allowed to flip authReady from false → true.
     supabase.auth.getSession()
       .then(({ data: { session: existingSession } }) => {
         if (!isMounted) return;
         console.info("[AuthContext] Restored session:", !!existingSession);
         setSession(existingSession);
         setUser(existingSession?.user ?? null);
+        initialRestoreDone = true;
         setAuthReady(true);
         setLoading(false);
       })
@@ -58,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Supabase's own background refresh logic.
         console.warn("[AuthContext] getSession failed, leaving auth state alone:", error);
         if (!isMounted) return;
+        initialRestoreDone = true;
         setAuthReady(true);
         setLoading(false);
       });
@@ -66,7 +74,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isMounted = false;
       subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signUp = async (
