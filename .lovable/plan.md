@@ -1,111 +1,86 @@
 
-Fix the admin lockout as a client-side auth handoff failure, not a credential or role-assignment problem.
 
-Root cause
-- The admin role still exists in the database (`super_admin` is present in `user_roles`).
-- Recent auth logs show both:
-  - successful authenticated `/user` responses (`200`)
-  - transient `bad_jwt` / `missing sub claim` failures (`403`)
-- The code currently treats those transient startup failures as corrupted auth and clears storage/signs the user out from multiple places during the same login handoff.
-- The fresh session is being wiped or stranded before staff routing can complete.
+## Goal
+Let admins look up and book non-members (and walk-in guests with a card on file) into spa appointments — and charge them the same way members are charged.
 
-What is actually breaking
-- `src/contexts/AuthContext.tsx`
-  - startup does `getSession()` and then immediately `getUser()`
-  - on transient `bad_jwt` it calls `handleJwtError()` and clears auth
-- `src/pages/Auth.tsx`
-  - mount-time `checkAndCleanSession()` does its own `getSession()` / `getUser()` / `forceAuthReset()`
-  - this duplicates auth cleanup on the login page itself
-- `src/components/SessionMonitor.tsx`
-  - runs another background `getSession()` / `getUser()` validation path and can clear auth
-- `src/components/member/ProtectedMemberRoute.tsx`
-  - does yet another aggressive `getUser()` / `refreshSession()` cycle
-- `src/hooks/useUserRoles.ts`
-  - role lookup retries are too short and still depend on a session that may be mid-restore
+## What's broken today
+In `src/components/admin/spa/AdminSpaBookingModal.tsx` the "Member" search only queries the `members` table. Non-members in `non_member_profiles` (and existing guest customers in `guest_passes`) never show up, so staff can't select them and can't book them.
 
-Implementation plan
+The downstream pieces already support non-members:
+- `spa_appointments.member_id` is nullable; `user_id` can be set instead
+- `useAdminSpaAppointments` already joins to a member, but `SpaCompletionDialog` needs the same card-on-file fields for non-members
+- `stripe-payment` edge function `charge_saved_card` already accepts `stripeCustomerId` directly (no member required)
 
-1. Make `AuthContext` the only source of truth for auth startup
-- Refactor `src/contexts/AuthContext.tsx` so initialization does:
-  - subscribe to `onAuthStateChange`
-  - restore with `getSession()`
-  - set `user`, `session`, and `authReady` from that restore
-- Remove aggressive startup `getUser()` validation from the critical login path.
-- Do not clear storage during initial session restore unless there is a confirmed persistent failure outside the handoff window.
-- Keep auth event callbacks synchronous only.
+## Plan
 
-2. Remove duplicate session-cleanup logic from the auth page
-- Delete the mount-time `checkAndCleanSession()` flow from `src/pages/Auth.tsx`.
-- Stop using `hasAuthData()`, `supabase.auth.getSession()`, `supabase.auth.getUser()`, and `forceAuthReset()` automatically on page load.
-- Keep only an explicit manual “Reset session” action for users to trigger themselves.
-- The auth page should submit credentials and then wait for shared auth state + roles to resolve.
+### 1. Replace the member-only search with a unified customer search
+In `AdminSpaBookingModal.tsx`, replace the current `member-search-spa` query with a parallel search across:
+- `members` (active/frozen) → returns `member_id` + `user_id` + card fields
+- `non_member_profiles` → returns `user_id` + `stripe_customer_id` + card fields + `waiver_signed`
+- `guest_passes` (with `stripe_customer_id`) → walk-in guests who already have a card on file
 
-3. Make staff routing wait for confirmed auth readiness only
-- Update `src/hooks/useUserRoles.ts` so it runs only after:
-  - `authReady === true`
-  - a real restored session/user exists
-- Increase retry tolerance for post-login role fetches and treat early auth failures as retryable, not fatal.
-- Keep explicit states:
-  - loading
-  - resolved
-  - failed
-- Never clear auth because role loading failed.
+Each result row in the dropdown shows:
+- Name + email
+- Type badge: Member / Non-Member / Guest
+- Small "card on file" indicator when present
 
-4. Keep signed-in staff on the handoff path instead of dropping them back onto the form
-- Update `src/pages/Auth.tsx` so once `user` exists, the screen becomes a post-login handoff state:
-  - “Finishing sign-in…”
-  - or a staff access retry state if roles fail
-- Do not fall back to the normal sign-in form while a valid signed-in user is waiting on role resolution.
-- Preserve the rule that staff should never wait on `useUserProfile()` to reach admin.
+Selected customer state changes from `selectedMemberId / selectedMemberName` to a single `selectedCustomer` object holding:
+- `type: "member" | "non_member" | "guest"`
+- `memberId` (nullable)
+- `userId` (nullable)
+- `stripeCustomerId` (nullable)
+- `name`, `email`
+- `waiverSigned`
+- `cardBrand`, `cardLast4`
 
-5. Stop background validators from killing a fresh login
-- Tighten `src/components/SessionMonitor.tsx`:
-  - skip checks on `/auth`
-  - extend the auth-transition grace window
-  - do not clear storage on the first transient `/user` JWT failure after sign-in
-- Tighten `src/components/member/ProtectedMemberRoute.tsx`:
-  - stop doing its own aggressive session validation on mount
-  - trust `AuthContext` for whether the user is authenticated
-  - keep repair UI only for true downstream member-data problems, not auth bootstrap
+### 2. Keep waiver enforcement working for both member types
+The existing `checkMemberWaiver` already checks both `profiles.waiver_signed` and `non_member_profiles.waiver_signed` — keep that, but drive it off `selectedCustomer.userId`. The "Liability Waiver Not Signed" alert and the disabled Book button stay the same.
 
-6. Keep admin protection strict, but non-destructive
-- Leave `src/components/admin/ProtectedAdminRoute.tsx` as the gate for staff access.
-- Ensure it only decides among:
-  - loading
-  - retry access check
-  - access denied
-  - redirect to allowed admin page
-- It should not indirectly trigger session cleanup through upstream auth regressions.
+For walk-in guests selected from `guest_passes` with no `user_id`, treat them as "no portal account → waiver must be signed in person before booking massage." Show a clear inline notice and block massage bookings; allow other categories.
 
-7. Add focused auth-sequence instrumentation while fixing
-- Add temporary console breadcrumbs in:
-  - `src/contexts/AuthContext.tsx`
-  - `src/pages/Auth.tsx`
-  - `src/hooks/useUserRoles.ts`
-  - `src/components/SessionMonitor.tsx`
-- Log:
-  - auth event names
-  - when `authReady` flips
-  - when a session is restored
-  - when cleanup/sign-out paths run
-  - when role fetch starts/succeeds/fails
-- This will confirm the exact point the session is being cleared if anything still survives after the refactor.
+### 3. Save the appointment with the right identifier
+In the `bookMutation`, when inserting into `spa_appointments`:
+- If member → set `member_id` and `user_id` (current behavior)
+- If non-member → set `member_id = null`, set `user_id = selectedCustomer.userId`
+- If guest with no user account → set both to null and store name/email in `staff_notes` header line so the admin grid still shows who it's for
 
-Files to update
-- `src/contexts/AuthContext.tsx`
-- `src/pages/Auth.tsx`
-- `src/hooks/useUserRoles.ts`
-- `src/components/SessionMonitor.tsx`
-- `src/components/member/ProtectedMemberRoute.tsx`
-- `src/components/admin/ProtectedAdminRoute.tsx` if minor routing-state cleanup is needed
+No schema change required.
 
-No backend/database change required
-- No schema or policy change is needed for this fix.
-- The role row exists already; the blocker is client auth lifecycle, not missing permissions data.
+### 4. Surface non-member info in the admin appointments list and completion dialog
+- Update `useAdminSpaAppointments` so each appointment also resolves a non-member fallback when `member` is null. Add a parallel fetch of `non_member_profiles` keyed on `user_id` and merge it into a unified `customer` field with the same shape the dialog already reads (`first_name`, `last_name`, `email`, `stripe_customer_id`, `card_brand`, `card_last4`).
+- Update `SpaCompletionDialog.tsx`:
+  - `memberName` falls back to the non-member name
+  - `hasCardOnFile` / `cardLabel` use the unified customer data
+  - Keep the existing "Charge card on file" radio enabled for non-members with a saved card
 
-Expected result
-- Admin credentials sign in successfully.
-- The app stops clearing the fresh session during the post-login handoff.
-- Staff accounts route into admin reliably.
-- Admin access no longer depends on member-profile loading.
-- The admin side becomes reachable again from the laptop instead of bouncing or stalling during sign-in.
+### 5. Charge non-members through the existing edge function
+In `SpaCompletionDialog.handleSubmit`, when paying by card:
+- For members → keep the current `memberId` payload
+- For non-members / guests → pass `stripeCustomerId` instead (the edge function already supports this branch)
+- `description` stays the same: `Spa: <service>` + tip
+- `payment_type: "spa_service"` stays the same
+
+No edge function changes are required.
+
+### 6. Light cleanup
+- Rename the "Member" label in the modal to "Customer" so staff understand non-members are also valid.
+- Update the empty-state placeholder to "Search by name or email — members, non-members, and saved guests."
+- Keep the existing service / date / time / therapist / room / payment logic untouched.
+
+## Files to update
+- `src/components/admin/spa/AdminSpaBookingModal.tsx` — unified search, selected customer state, insert payload
+- `src/hooks/useAdminSpaAppointments.ts` — non-member fallback join and unified `customer` shape
+- `src/components/admin/spa/SpaCompletionDialog.tsx` — read unified customer, charge by `stripeCustomerId` for non-members
+- (Optional) extract the unified customer search into a small reusable `SpaCustomerSearch` component if it cleans up the modal
+
+## Out of scope
+- No database schema changes
+- No edge function changes
+- No changes to public `/spa` booking flow — this is admin-side only
+
+## Expected result
+- Admins can search by name or email and pick a member, non-member, or saved guest from one dropdown.
+- Non-members with a signed waiver and a card on file can be booked into any spa service.
+- The completion dialog can charge non-members' cards on file the same way it charges members.
+- The appointments grid still shows the correct customer name regardless of member type.
+
