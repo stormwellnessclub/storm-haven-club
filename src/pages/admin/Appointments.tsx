@@ -131,9 +131,17 @@ export default function Appointments() {
     >
       <div className="flex-1">
         <p className="font-medium">
-          {appointment.member 
-            ? `${appointment.member.first_name} ${appointment.member.last_name}`
-            : appointment.user?.email || 'Guest'}
+          {appointment.customer
+            ? `${appointment.customer.first_name} ${appointment.customer.last_name}`.trim() || appointment.customer.email || 'Guest'
+            : appointment.member
+              ? `${appointment.member.first_name} ${appointment.member.last_name}`
+              : appointment.user?.email || 'Guest'}
+          {appointment.customer?.type === 'non_member' && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">(Non-Member)</span>
+          )}
+          {appointment.customer?.type === 'guest' && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">(Guest)</span>
+          )}
         </p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <Badge className={getServiceColor(appointment.service_category)}>
