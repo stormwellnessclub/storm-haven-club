@@ -1,43 +1,56 @@
 
-
 ## Goal
-When a spa appointment is cancelled (admin or member), free up that time slot immediately so it can be re-booked.
+Every spa appointment should display the customer's real name (member, non-member, or walk-in guest) — never a bare "Guest" — and we should always know **who created the booking**: the customer themselves, or which admin booked it on their behalf.
 
-## What's actually wrong
-The booking grid hides time slots based on a cached query called `spa-booked-slots`. That query already correctly filters out `cancelled` appointments — it only includes statuses `confirmed`, `pending`, `checked_in`, `in_progress`.
+## What's wrong today
+1. **Display fallback to "Guest"**: When name resolution fails (RLS hides `non_member_profiles`, or a walk-in row has no `staff_notes` header), the admin appointment cards collapse to the literal word "Guest" — which is what you saw on Rola's row even though she's a real account holder in `non_member_profiles`.
+2. **No booking attribution**: `spa_appointments` does not store who performed the insert. Both the member self-booking flow (`useSpaBooking.ts`) and the admin-on-behalf flow (`AdminSpaBookingModal.tsx`) write the *customer's* `user_id` and nothing about the actor. There is no `admin_action_log` entry either. Result: when a customer says "I didn't book this," we have no way to prove who did.
 
-The bug is that **neither cancel path invalidates that cache**:
+## Fix — Part A: Booking attribution (database + both insert paths)
 
-- `useCancelSpaAppointment` (member cancel, in `src/hooks/useSpaBooking.ts`) invalidates `spa-appointments` and `admin-spa-appointments` but **not** `spa-booked-slots`.
-- `useUpdateSpaAppointmentStatus` (admin cancel/status change, in `src/hooks/useAdminSpaAppointments.ts`) does the same — also missing `spa-booked-slots`.
+### Schema (migration)
+Add to `spa_appointments`:
+- `created_by_user_id UUID NULL` — `auth.uid()` of whoever ran the insert
+- `created_via TEXT NULL` — one of `'member_portal'`, `'non_member_portal'`, `'admin_booking'`, `'walk_in_guest'`
+- `created_by_admin_name TEXT NULL` — denormalized snapshot ("Bridget S.") so old admin labels survive even if staff later leave
 
-Result: after you cancel, the database is correct, but the booking modal keeps showing the old slot as taken until the cache naturally expires (30s stale time) or the page is hard-refreshed.
+Backfill is optional — leave existing rows NULL; they'll display "Source unknown" in the UI.
 
-For comparison, the booking mutation at line 180 of `useSpaBooking.ts` correctly invalidates all three queries — that's why new bookings show up immediately but cancellations don't free up.
+### Insert paths
+- **`src/hooks/useSpaBooking.ts`** (member/non-member self-service): set `created_by_user_id = user.id`, `created_via = 'member_portal'` (or `'non_member_portal'` based on whether a `members` row exists for the user).
+- **`src/components/admin/spa/AdminSpaBookingModal.tsx`** (admin on behalf): set `created_by_user_id = currentAdmin.id`, `created_via = 'admin_booking'` (or `'walk_in_guest'` when no `userIdToInsert`), and `created_by_admin_name` from the current admin's profile.
 
-## Implementation plan
+## Fix — Part B: Always-resolves name + visible source label
 
-### 1. Fix member cancel path
-File: `src/hooks/useSpaBooking.ts` — `useCancelSpaAppointment` `onSuccess`
+### `src/hooks/useAdminSpaAppointments.ts`
+- When the `non_member_profiles` fallback returns nothing for a `user_id`, also try a direct `auth.users` email lookup via an existing SECURITY DEFINER RPC (or fall back to `profiles` if available) so we never lose the name to RLS.
+- Join `created_by_user_id` against members/non_member_profiles/profiles to build a `bookedBy` field: `{ name, role: 'self' | 'admin' | 'unknown' }`.
 
-Add the missing invalidation so the booking grid refetches:
-- invalidate `["spa-booked-slots"]` alongside the existing two invalidations.
+### `src/pages/admin/Appointments.tsx` and `src/components/admin/spa/SpaAvailabilityTab.tsx`
+- Replace the `|| 'Guest'` fallback with `|| 'Name unavailable'` (only ever shown if every lookup fails — should be rare).
+- Under each appointment card, add a small muted line:
+  - `Booked by member` (when `created_by_user_id == user_id`)
+  - `Booked by Bridget S. (admin)` (when admin booked on behalf)
+  - `Booked by walk-in / front desk` (no user_id)
+  - `Source unknown` (legacy rows pre-migration)
 
-### 2. Fix admin cancel / status-change path
-File: `src/hooks/useAdminSpaAppointments.ts` — `useUpdateSpaAppointmentStatus` `onSuccess`
+### `src/components/admin/spa/SpaCompletionDialog.tsx`
+- Same `'Guest'` → `'Name unavailable'` change for consistency.
 
-Same fix: add `queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] })`. This also covers admin marking an appointment as `no_show`, which should likewise free the slot (the booked-slots query already excludes `no_show`).
-
-### 3. Verify
-- Open an existing booking, cancel it from the admin Appointments page.
-- Immediately open "New Spa Appointment" for the same date and service.
-- The previously-blocked time should now appear as a selectable start time without a page refresh.
-- Repeat from the member portal cancel flow.
+## Out of scope (intentionally not doing)
+- No cancellations, no refunds — per your instruction, both Rola appointments stay as-is.
+- No duplicate-prevention guard right now (the same-minute double-booking pattern is suspicious but you didn't ask for that — happy to add it in a follow-up if you want).
 
 ## Files touched
+- New migration: `spa_appointments` columns
 - `src/hooks/useSpaBooking.ts`
+- `src/components/admin/spa/AdminSpaBookingModal.tsx`
 - `src/hooks/useAdminSpaAppointments.ts`
+- `src/pages/admin/Appointments.tsx`
+- `src/components/admin/spa/SpaAvailabilityTab.tsx`
+- `src/components/admin/spa/SpaCompletionDialog.tsx`
 
-## Expected result
-Cancelling a spa appointment immediately frees the time slot in the booking grid — no refresh, no waiting for cache expiry. No database or RLS changes required; the query that controls slot blocking already excludes cancelled rows correctly.
-
+## How to verify
+1. Book a spa appointment from the member portal as a non-member account → admin Appointments shows real name + "Booked by member."
+2. Book a spa appointment from `AdminSpaBookingModal` for that same account → admin Appointments shows real name + "Booked by [your admin name] (admin)."
+3. Existing rows (Rola's two appointments) continue to display her name correctly and show "Source unknown" until one of them is touched.

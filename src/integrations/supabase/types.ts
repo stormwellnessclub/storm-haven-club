@@ -5094,6 +5094,9 @@ export type Database = {
           cleanup_minutes: number
           completed_at: string | null
           created_at: string
+          created_by_admin_name: string | null
+          created_by_user_id: string | null
+          created_via: string | null
           credit_id: string | null
           credit_type: Database["public"]["Enums"]["credit_type"] | null
           duration_minutes: number
@@ -5125,6 +5128,9 @@ export type Database = {
           cleanup_minutes?: number
           completed_at?: string | null
           created_at?: string
+          created_by_admin_name?: string | null
+          created_by_user_id?: string | null
+          created_via?: string | null
           credit_id?: string | null
           credit_type?: Database["public"]["Enums"]["credit_type"] | null
           duration_minutes: number
@@ -5156,6 +5162,9 @@ export type Database = {
           cleanup_minutes?: number
           completed_at?: string | null
           created_at?: string
+          created_by_admin_name?: string | null
+          created_by_user_id?: string | null
+          created_via?: string | null
           credit_id?: string | null
           credit_type?: Database["public"]["Enums"]["credit_type"] | null
           duration_minutes?: number
