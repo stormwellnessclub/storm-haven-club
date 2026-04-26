@@ -139,6 +139,51 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
           }
         }
 
+        // Last-resort fallback: any user_id still unresolved → look up profiles table
+        const stillUnresolvedUserIds = nonMemberUserIds.filter(
+          (uid: string) => !nonMemberMap[uid]
+        );
+        let profilesMap: Record<string, any> = {};
+        if (stillUnresolvedUserIds.length > 0) {
+          try {
+            const { data: profData } = await supabase
+              .from("profiles")
+              .select("user_id, first_name, last_name, email")
+              .in("user_id", stillUnresolvedUserIds);
+            (profData || []).forEach((p: any) => {
+              profilesMap[p.user_id] = p;
+            });
+          } catch (e) {
+            console.warn("Failed to fetch profiles fallback for spa appointments", e);
+          }
+        }
+
+        // Resolve booking attribution: created_by_user_id → display name
+        const creatorUserIds = Array.from(
+          new Set(
+            rawRows
+              .map((r: any) => r.created_by_user_id)
+              .filter(Boolean)
+          )
+        );
+        let creatorMap: Record<string, string> = {};
+        if (creatorUserIds.length > 0) {
+          try {
+            const { data: creatorProfiles } = await supabase
+              .from("profiles")
+              .select("user_id, first_name, last_name, email")
+              .in("user_id", creatorUserIds);
+            (creatorProfiles || []).forEach((p: any) => {
+              const fn = p.first_name || "";
+              const ln = p.last_name || "";
+              const composed = `${fn} ${ln}`.trim();
+              creatorMap[p.user_id] = composed || p.email || "Unknown";
+            });
+          } catch (e) {
+            console.warn("Failed to fetch creator profiles", e);
+          }
+        }
+
         return rawRows.map((apt: any): AdminSpaAppointment => {
           let customer: SpaCustomer | null = null;
           if (apt.member) {
@@ -164,6 +209,16 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
               card_brand: nm.card_brand ?? null,
               card_last4: nm.card_last4 ?? null,
             };
+          } else if (apt.user_id && profilesMap[apt.user_id]) {
+            // Last-resort: profiles table fallback so we never show "Guest" for a real account
+            const p = profilesMap[apt.user_id];
+            customer = {
+              type: "non_member",
+              id: p.user_id,
+              first_name: p.first_name || "",
+              last_name: p.last_name || "",
+              email: p.email || null,
+            };
           } else {
             // Walk-in guest — try to extract from staff_notes header line "Guest: Name <email>"
             const notes: string = apt.staff_notes || "";
@@ -180,7 +235,29 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
               };
             }
           }
-          return { ...apt, customer };
+
+          // Build bookedBy attribution
+          let bookedBy: AdminSpaAppointment["bookedBy"] = null;
+          if (apt.created_via === "member_portal" || apt.created_via === "non_member_portal") {
+            bookedBy = { name: "Customer (self-booked)", role: "self" };
+          } else if (apt.created_via === "admin_booking") {
+            const adminName =
+              apt.created_by_admin_name ||
+              (apt.created_by_user_id ? creatorMap[apt.created_by_user_id] : null) ||
+              "Admin";
+            bookedBy = { name: adminName, role: "admin" };
+          } else if (apt.created_via === "walk_in_guest") {
+            const adminName =
+              apt.created_by_admin_name ||
+              (apt.created_by_user_id ? creatorMap[apt.created_by_user_id] : null) ||
+              "Front desk";
+            bookedBy = { name: `Walk-in (booked by ${adminName})`, role: "walk_in" };
+          } else if (apt.created_by_user_id && creatorMap[apt.created_by_user_id]) {
+            // Legacy row that happens to have a creator id but no created_via
+            bookedBy = { name: creatorMap[apt.created_by_user_id], role: "unknown" };
+          }
+
+          return { ...apt, customer, bookedBy };
         }) as AdminSpaAppointment[];
       } catch (error: any) {
         if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
