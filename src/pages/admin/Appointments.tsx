@@ -132,10 +132,10 @@ export default function Appointments() {
       <div className="flex-1">
         <p className="font-medium">
           {appointment.customer
-            ? `${appointment.customer.first_name} ${appointment.customer.last_name}`.trim() || appointment.customer.email || 'Guest'
+            ? `${appointment.customer.first_name} ${appointment.customer.last_name}`.trim() || appointment.customer.email || 'Name unavailable'
             : appointment.member
               ? `${appointment.member.first_name} ${appointment.member.last_name}`
-              : appointment.user?.email || 'Guest'}
+              : appointment.user?.email || 'Name unavailable'}
           {appointment.customer?.type === 'non_member' && (
             <span className="ml-2 text-xs font-normal text-muted-foreground">(Non-Member)</span>
           )}
@@ -154,6 +154,13 @@ export default function Appointments() {
             {appointment.status}
           </Badge>
         </div>
+        {appointment.bookedBy ? (
+          <p className="text-xs text-muted-foreground mt-1">
+            Booked by: <span className="font-medium">{appointment.bookedBy.name}</span>
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground/70 mt-1 italic">Source unknown</p>
+        )}
         {appointment.member_notes && (
           <p className="text-xs text-muted-foreground mt-1 italic">
             {appointment.member_notes}
