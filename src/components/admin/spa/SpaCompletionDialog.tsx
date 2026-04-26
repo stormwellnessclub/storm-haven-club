@@ -88,10 +88,10 @@ export function SpaCompletionDialog({
 
   const customer = appointment.customer ?? null;
   const memberName = customer
-    ? `${customer.first_name} ${customer.last_name}`.trim() || customer.email || "Guest"
+    ? `${customer.first_name} ${customer.last_name}`.trim() || customer.email || "Name unavailable"
     : appointment.member
     ? `${appointment.member.first_name} ${appointment.member.last_name}`
-    : appointment.user?.email || "Guest";
+    : appointment.user?.email || "Name unavailable";
 
   const handleSelectTipPreset = (pct: number) => {
     if (tipPreset === pct) {
