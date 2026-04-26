@@ -172,7 +172,7 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
             const { data: creatorProfiles } = await supabase
               .from("profiles")
               .select("user_id, first_name, last_name, email")
-              .in("user_id", creatorUserIds);
+              .in("user_id", creatorUserIds as string[]);
             (creatorProfiles || []).forEach((p: any) => {
               const fn = p.first_name || "";
               const ln = p.last_name || "";
