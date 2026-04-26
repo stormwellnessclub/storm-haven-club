@@ -328,7 +328,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                             >
                               <Badge className="text-xs">{timeStr}</Badge>
                               <span className="text-xs font-medium">
-                                {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Guest") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest")}
+                                {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Name unavailable") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Name unavailable")}
                                 {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                               </span>
                               <span className="text-xs">{apt.service_name}</span>
@@ -379,7 +379,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                           >
                             <Badge className="text-xs">{timeStr}</Badge>
                             <span className="text-xs font-medium">
-                              {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Guest") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest")}
+                              {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Name unavailable") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Name unavailable")}
                               {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                             </span>
                             <span className="text-xs">{apt.service_name}</span>
@@ -430,7 +430,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                           >
                             <Badge className="text-xs">{timeStr}</Badge>
                             <span className="text-xs font-medium">
-                              {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Guest") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest")}
+                              {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Name unavailable") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Name unavailable")}
                               {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                             </span>
                             <span className="text-xs">{apt.service_name}</span>
