@@ -11,6 +11,7 @@ import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info, CreditCard
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability, useSpaBookedSlots } from "@/hooks/useSpaBooking";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, addDays } from "date-fns";
