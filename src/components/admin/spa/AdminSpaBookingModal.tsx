@@ -34,6 +34,7 @@ interface AdminSpaBookingModalProps {
 
 export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminSpaBookingModalProps) {
   const queryClient = useQueryClient();
+  const { user: adminUser } = useAuth();
   const { data: services } = useSpaServices();
   const { data: therapists } = useSpaTherapists();
   const { data: rooms } = useSpaRooms();
