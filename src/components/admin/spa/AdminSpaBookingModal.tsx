@@ -11,6 +11,7 @@ import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info, CreditCard
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability, useSpaBookedSlots } from "@/hooks/useSpaBooking";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, addDays } from "date-fns";
@@ -33,6 +34,7 @@ interface AdminSpaBookingModalProps {
 
 export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminSpaBookingModalProps) {
   const queryClient = useQueryClient();
+  const { user: adminUser } = useAuth();
   const { data: services } = useSpaServices();
   const { data: therapists } = useSpaTherapists();
   const { data: rooms } = useSpaRooms();
@@ -415,6 +417,26 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         finalNotes = finalNotes ? `${header}\n${finalNotes}` : header;
       }
 
+      // Resolve current admin's display name for booking attribution snapshot
+      let adminDisplayName: string | null = null;
+      if (adminUser?.id) {
+        const { data: adminProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, email")
+          .eq("user_id", adminUser.id)
+          .maybeSingle();
+        if (adminProfile) {
+          const fn = (adminProfile as any).first_name || "";
+          const ln = (adminProfile as any).last_name || "";
+          const composed = `${fn} ${ln}`.trim();
+          adminDisplayName = composed || (adminProfile as any).email || adminUser.email || null;
+        } else {
+          adminDisplayName = adminUser.email || null;
+        }
+      }
+
+      const isWalkIn = !userIdToInsert;
+
       const { error } = await (supabase.from as any)("spa_appointments").insert({
         member_id: memberIdToInsert,
         user_id: userIdToInsert,
@@ -433,6 +455,10 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         staff_notes: finalNotes || null,
         payment_method: paymentMethod === "comp" ? "comp" : null,
         amount_paid: paymentMethod === "comp" ? 0 : null,
+        // Booking attribution: admin booked on behalf
+        created_by_user_id: adminUser?.id || null,
+        created_via: isWalkIn ? "walk_in_guest" : "admin_booking",
+        created_by_admin_name: adminDisplayName,
       });
       if (error) throw error;
     },

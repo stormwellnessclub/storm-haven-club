@@ -328,11 +328,16 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                             >
                               <Badge className="text-xs">{timeStr}</Badge>
                               <span className="text-xs font-medium">
-                                {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Guest") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest")}
+                                {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Name unavailable") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Name unavailable")}
                                 {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                               </span>
                               <span className="text-xs">{apt.service_name}</span>
                               <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
+                              {apt.bookedBy && (
+                                <span className="text-[10px] text-muted-foreground italic" title={`Booked by: ${apt.bookedBy.name}`}>
+                                  · {apt.bookedBy.role === "self" ? "self-booked" : apt.bookedBy.role === "admin" ? `by ${apt.bookedBy.name}` : apt.bookedBy.role === "walk_in" ? "walk-in" : ""}
+                                </span>
+                              )}
                               {isActionable && (
                                 <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(false); }}>
                                   <CheckCircle2 className="h-3 w-3 mr-1" />Complete
@@ -379,11 +384,16 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                           >
                             <Badge className="text-xs">{timeStr}</Badge>
                             <span className="text-xs font-medium">
-                              {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Guest") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest")}
+                              {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Name unavailable") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Name unavailable")}
                               {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                             </span>
                             <span className="text-xs">{apt.service_name}</span>
                             <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
+                            {apt.bookedBy && (
+                              <span className="text-[10px] text-muted-foreground italic" title={`Booked by: ${apt.bookedBy.name}`}>
+                                · {apt.bookedBy.role === "self" ? "self-booked" : apt.bookedBy.role === "admin" ? `by ${apt.bookedBy.name}` : apt.bookedBy.role === "walk_in" ? "walk-in" : ""}
+                              </span>
+                            )}
                             {isActionable && (
                               <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(false); }}>
                                 <CheckCircle2 className="h-3 w-3 mr-1" />Complete
@@ -430,11 +440,16 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                           >
                             <Badge className="text-xs">{timeStr}</Badge>
                             <span className="text-xs font-medium">
-                              {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Guest") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Guest")}
+                              {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Name unavailable") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Name unavailable")}
                               {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                             </span>
                             <span className="text-xs">{apt.service_name}</span>
                             <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
+                            {apt.bookedBy && (
+                              <span className="text-[10px] text-muted-foreground italic" title={`Booked by: ${apt.bookedBy.name}`}>
+                                · {apt.bookedBy.role === "self" ? "self-booked" : apt.bookedBy.role === "admin" ? `by ${apt.bookedBy.name}` : apt.bookedBy.role === "walk_in" ? "walk-in" : ""}
+                              </span>
+                            )}
                             {isActionable && (
                               <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(false); }}>
                                 <CheckCircle2 className="h-3 w-3 mr-1" />Complete

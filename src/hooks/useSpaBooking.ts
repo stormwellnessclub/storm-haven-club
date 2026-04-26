@@ -155,6 +155,9 @@ export function useSpaBookAppointment() {
             amount_paid: finalPrice,
             staff_id: params.staffId || null,
             room_id: params.roomId || null,
+            // Booking attribution: customer self-booked via portal
+            created_by_user_id: user.id,
+            created_via: memberData ? "member_portal" : "non_member_portal",
           })
           .select()
           .single();
