@@ -35,6 +35,11 @@ export interface AdminSpaAppointment extends SpaAppointment {
   } | null;
   /** Unified customer info — works for members, non-members, and walk-in guests */
   customer?: SpaCustomer | null;
+  /** Who actually performed the booking (member self-serve vs admin on behalf) */
+  bookedBy?: {
+    name: string;
+    role: "self" | "admin" | "walk_in" | "unknown";
+  } | null;
 }
 
 interface AdminSpaAppointmentsFilters {
