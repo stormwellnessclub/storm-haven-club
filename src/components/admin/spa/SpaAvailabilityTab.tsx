@@ -389,6 +389,11 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                             </span>
                             <span className="text-xs">{apt.service_name}</span>
                             <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
+                            {apt.bookedBy && (
+                              <span className="text-[10px] text-muted-foreground italic" title={`Booked by: ${apt.bookedBy.name}`}>
+                                · {apt.bookedBy.role === "self" ? "self-booked" : apt.bookedBy.role === "admin" ? `by ${apt.bookedBy.name}` : apt.bookedBy.role === "walk_in" ? "walk-in" : ""}
+                              </span>
+                            )}
                             {isActionable && (
                               <Button size="sm" variant="outline" className="h-6 text-xs" onClick={e => { e.stopPropagation(); setCompletionAppointment(apt); setIsRetroactive(false); }}>
                                 <CheckCircle2 className="h-3 w-3 mr-1" />Complete
