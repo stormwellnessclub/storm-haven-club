@@ -149,7 +149,7 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
             const { data: profData } = await supabase
               .from("profiles")
               .select("user_id, first_name, last_name, email")
-              .in("user_id", stillUnresolvedUserIds);
+              .in("user_id", stillUnresolvedUserIds as string[]);
             (profData || []).forEach((p: any) => {
               profilesMap[p.user_id] = p;
             });
