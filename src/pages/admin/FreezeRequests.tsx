@@ -285,6 +285,15 @@ export default function FreezeRequests() {
             </div>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 rounded-md border border-accent/30 bg-accent/5 p-3 text-sm">
+              <p className="font-medium">Branded rejection templates are ready.</p>
+              <p className="text-muted-foreground">
+                Click the red <strong>Reject</strong> button on a pending request to open the email
+                editor. Choose <em>Membership Not Yet Active</em> (Brea) or{" "}
+                <em>Membership in Arrears</em> (Mariam) — the email is pre-filled and editable
+                before you send.
+              </p>
+            </div>
             <Tabs value={statusFilter} onValueChange={setStatusFilter}>
               <TabsList>
                 <TabsTrigger value="pending">Pending</TabsTrigger>
