@@ -161,10 +161,12 @@ export function getStepCompletion(
     holisticWellness: string;
     referredByMember: string;
     foundingMember: string;
-    membershipAgreementSigned: boolean;
-    oneYearCommitment: boolean;
-    skipTourActivateImmediately: boolean;
-    liabilityWaiverSigned: boolean;
+    ackOneYearCommitment: boolean;
+    ackInitiationFee: boolean;
+    ackMembershipAgreement: boolean;
+    ackLiabilityWaiver: boolean;
+    ackCardOnFile: boolean;
+    ackFinalReadiness: boolean;
     addCardOnFile?: boolean;
   },
   stripeCustomerId?: string | null,
@@ -198,24 +200,24 @@ export function getStepCompletion(
         isComplete = !!formData.previousMember;
         break;
       case "motivation":
-        isComplete = formData.motivations.length > 0 || !!formData.referredByMember;
+        // Motivations or referral name (both optional now); mark complete if user supplied either, or treat as always complete
+        isComplete = true;
         break;
       case "lifestyle":
         isComplete = !!formData.foundingMember;
         break;
       case "payment":
-        // Required when immediate activation is selected OR when addCardOnFile is checked
-        if (formData.skipTourActivateImmediately) {
-          isComplete = !!isCardConfirmed;
-        } else {
-          isComplete = !formData.addCardOnFile || !!isCardConfirmed;
-        }
+        // Payment method is fully optional at the application stage
+        isComplete = !formData.addCardOnFile || !!isCardConfirmed;
         break;
       case "agreements":
         isComplete = !!(
-          formData.membershipAgreementSigned &&
-          formData.oneYearCommitment &&
-          (!formData.skipTourActivateImmediately || formData.liabilityWaiverSigned)
+          formData.ackOneYearCommitment &&
+          formData.ackInitiationFee &&
+          formData.ackMembershipAgreement &&
+          formData.ackLiabilityWaiver &&
+          formData.ackCardOnFile &&
+          formData.ackFinalReadiness
         );
         break;
     }

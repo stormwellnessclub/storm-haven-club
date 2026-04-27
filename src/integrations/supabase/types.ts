@@ -3783,6 +3783,9 @@ export type Database = {
       }
       membership_applications: {
         Row: {
+          ack_card_on_file: boolean
+          ack_final_readiness: boolean
+          ack_initiation_fee: boolean
           address: string
           annual_fee_status: string
           auth_acknowledgment: boolean
@@ -3830,6 +3833,9 @@ export type Database = {
           zip_code: string
         }
         Insert: {
+          ack_card_on_file?: boolean
+          ack_final_readiness?: boolean
+          ack_initiation_fee?: boolean
           address: string
           annual_fee_status?: string
           auth_acknowledgment?: boolean
@@ -3877,6 +3883,9 @@ export type Database = {
           zip_code: string
         }
         Update: {
+          ack_card_on_file?: boolean
+          ack_final_readiness?: boolean
+          ack_initiation_fee?: boolean
           address?: string
           annual_fee_status?: string
           auth_acknowledgment?: boolean

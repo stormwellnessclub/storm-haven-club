@@ -57,10 +57,12 @@ const initialFormData = {
   holisticWellness: "",
   referredByMember: "",
   foundingMember: "",
-  membershipAgreementSigned: false,
-  oneYearCommitment: false,
-  skipTourActivateImmediately: false,
-  liabilityWaiverSigned: false,
+  ackOneYearCommitment: false,
+  ackInitiationFee: false,
+  ackMembershipAgreement: false,
+  ackLiabilityWaiver: false,
+  ackCardOnFile: false,
+  ackFinalReadiness: false,
   addCardOnFile: false,
 };
 
@@ -703,21 +705,18 @@ export default function Apply() {
         !formData.address || !formData.city || !formData.state || !formData.zipCode || !formData.country ||
         !formData.email || !formData.phone || !formData.membershipPlan ||
         formData.wellnessGoals.length === 0 || formData.servicesInterested.length === 0 ||
-        !formData.referredByMember || !formData.foundingMember ||
-        !formData.membershipAgreementSigned || !formData.oneYearCommitment) {
+        !formData.foundingMember) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    if (formData.skipTourActivateImmediately && !formData.liabilityWaiverSigned) {
-      toast.error("Please sign the liability waiver to proceed with immediate activation.");
+    if (!formData.ackOneYearCommitment || !formData.ackInitiationFee ||
+        !formData.ackMembershipAgreement || !formData.ackLiabilityWaiver ||
+        !formData.ackCardOnFile || !formData.ackFinalReadiness) {
+      toast.error("Please review and check each acknowledgment before submitting.");
       return;
     }
 
-    if (formData.skipTourActivateImmediately && !cardSetupComplete) {
-      toast.error("A payment method is required for immediate activation. Please add a card on file.");
-      return;
-    }
 
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
@@ -787,7 +786,7 @@ export default function Apply() {
         other_motivation: formData.otherMotivation || null,
         lifestyle_integration: formData.lifestyleIntegration || null,
         holistic_wellness: formData.holisticWellness || null,
-        referred_by_member: formData.referredByMember,
+        referred_by_member: formData.referredByMember?.trim() || null,
         founding_member: formData.foundingMember,
         payment_info_provided: cardSetupComplete,
         stripe_customer_id: cardCustomerId || null,
@@ -795,10 +794,12 @@ export default function Apply() {
         card_last4: cardLast4 || null,
         card_exp_month: cardExpMonth || null,
         card_exp_year: cardExpYear || null,
-        one_year_commitment: formData.oneYearCommitment,
-        membership_agreement_signed: formData.membershipAgreementSigned,
-        skip_tour_activate_immediately: formData.skipTourActivateImmediately,
-        liability_waiver_signed: formData.liabilityWaiverSigned,
+        one_year_commitment: formData.ackOneYearCommitment,
+        membership_agreement_signed: formData.ackMembershipAgreement,
+        liability_waiver_signed: formData.ackLiabilityWaiver,
+        ack_initiation_fee: formData.ackInitiationFee,
+        ack_card_on_file: formData.ackCardOnFile,
+        ack_final_readiness: formData.ackFinalReadiness,
         status: "pending",
       };
 
@@ -1150,17 +1151,19 @@ export default function Apply() {
                 </div>
 
                 <div>
-                  <Label className="mb-3 block">Were you referred by a current member? *</Label>
-                  <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
-                      <input type="radio" id="referredByMember-yes" name="referredByMember" value="yes" checked={formData.referredByMember === "yes"} onChange={handleInputChange} className="w-4 h-4" required />
-                      <Label htmlFor="referredByMember-yes" className="font-normal cursor-pointer">Yes</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input type="radio" id="referredByMember-no" name="referredByMember" value="no" checked={formData.referredByMember === "no"} onChange={handleInputChange} className="w-4 h-4" required />
-                      <Label htmlFor="referredByMember-no" className="font-normal cursor-pointer">No</Label>
-                    </div>
-                  </div>
+                  <Label htmlFor="referredByMember" className="mb-2 block">Member Referral</Label>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Do you know a current Storm Wellness Club member? If so, include their name. A referral is not required, but it is considered as part of your application review.
+                  </p>
+                  <Input
+                    id="referredByMember"
+                    name="referredByMember"
+                    type="text"
+                    value={formData.referredByMember}
+                    onChange={handleInputChange}
+                    maxLength={100}
+                    placeholder="Member's full name (optional)"
+                  />
                 </div>
               </div>
             </div>
@@ -1229,31 +1232,17 @@ export default function Apply() {
             {/* Step 7 — Payment Method */}
             <div ref={(el) => sectionRefs.current["payment"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
               <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">
-                Payment Method {formData.skipTourActivateImmediately ? "(Required)" : "(Optional)"}
+                Payment Method (Optional)
               </h2>
               <p className="text-sm text-muted-foreground mb-6">
-                {formData.skipTourActivateImmediately 
-                  ? "A payment method is required for immediate activation. Your card will be charged upon approval."
-                  : "Adding a payment method now helps expedite your activation if approved. No charges will be made until your membership is activated."
-                }
+                Adding a payment method now helps expedite your activation if approved. No charges will be made until your membership is activated.
               </p>
-
-              {formData.skipTourActivateImmediately && !cardSetupComplete && (
-                <div className="flex items-start gap-3 p-3 mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
-                    You selected immediate activation — a payment method must be saved before you can submit.
-                  </p>
-                </div>
-              )}
 
               <div className="flex items-start gap-3 mb-4">
                 <Checkbox
                   id="addCardOnFile"
                   checked={formData.addCardOnFile}
-                  disabled={formData.skipTourActivateImmediately}
                   onCheckedChange={(checked) => {
-                    if (formData.skipTourActivateImmediately && !checked) return;
                     handleCheckboxChange("addCardOnFile", checked as boolean);
                     if (!checked) {
                       setShowCardForm(false);
@@ -1263,10 +1252,7 @@ export default function Apply() {
                   }}
                 />
                 <Label htmlFor="addCardOnFile" className="font-medium cursor-pointer text-sm">
-                  {formData.skipTourActivateImmediately
-                    ? "Payment method required for immediate activation."
-                    : "I'd like to add a payment method now to expedite activation if approved."
-                  }
+                  I'd like to add a payment method now to expedite activation if approved.
                 </Label>
               </div>
 
@@ -1361,100 +1347,99 @@ export default function Apply() {
                 </div>
               )}
 
-              {!formData.addCardOnFile && !formData.skipTourActivateImmediately && (
+              {!formData.addCardOnFile && (
                 <p className="text-xs text-muted-foreground ml-6 italic">
                   You can always add a payment method later after your application is submitted.
                 </p>
               )}
             </div>
 
-            {/* Step 8 — Agreements */}
+            {/* Step 8 — Acknowledgments */}
             <div ref={(el) => sectionRefs.current["agreements"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
-              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">Agreements</h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                A few things to acknowledge before you submit. Full membership terms, commitment details, and payment setup will be completed after your application is approved.
+              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">Acknowledgments</h2>
+              <p className="text-sm text-muted-foreground mb-8">
+                Please review and acknowledge each of the following before submitting your application.
               </p>
 
-              <div className="space-y-6">
-                {/* Membership Agreement */}
-                <MembershipAgreementSection
-                  isSigned={formData.membershipAgreementSigned}
-                  onCheckboxChange={(checked) => handleCheckboxChange("membershipAgreementSigned", checked as boolean)}
-                />
-                <div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    <strong className="text-foreground">One-Year Membership Commitment</strong>
-                    <br /><br />
-                    Please note that all memberships at Storm Wellness Club require a minimum 
-                    commitment of one year. This commitment ensures that members fully experience the transformative 
-                    benefits of our wellness community. Your membership will commence upon the opening of our new 
-                    facility and extend for at least one year, providing you with continuous access to our exclusive 
-                    amenities and services.
-                  </p>
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id="oneYearCommitment"
-                      checked={formData.oneYearCommitment}
-                      onCheckedChange={(checked) => handleCheckboxChange("oneYearCommitment", checked as boolean)}
-                      required
-                    />
-                    <Label htmlFor="oneYearCommitment" className="font-normal cursor-pointer text-sm">
-                      I understand this is a minimum 1-year membership commitment. *
-                    </Label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Skip Tour / Activate Immediately Option */}
-              <div className="mt-6 pt-6 border-t border-border">
-                <div className="flex items-start gap-3 mb-3">
+              <div className="space-y-8">
+                {/* 1 — One-year commitment */}
+                <div className="flex items-start gap-3">
                   <Checkbox
-                    id="skipTourActivateImmediately"
-                    checked={formData.skipTourActivateImmediately}
-                    onCheckedChange={(checked) => {
-                      handleCheckboxChange("skipTourActivateImmediately", checked as boolean);
-                      // Auto-enable addCardOnFile when immediate activation is selected
-                      if (checked) {
-                        handleCheckboxChange("addCardOnFile", true);
-                      }
-                    }}
+                    id="ackOneYearCommitment"
+                    checked={formData.ackOneYearCommitment}
+                    onCheckedChange={(checked) => handleCheckboxChange("ackOneYearCommitment", checked as boolean)}
+                    required
+                    className="mt-1"
                   />
-                  <Label htmlFor="skipTourActivateImmediately" className="font-medium cursor-pointer text-sm">
-                    I do not need a tour scheduled and would like my membership activated upon approval.
+                  <Label htmlFor="ackOneYearCommitment" className="font-normal cursor-pointer text-sm leading-relaxed text-foreground">
+                    I understand that Storm Wellness Club membership requires a one-year commitment. By submitting this application, I acknowledge that I am ready to commit to a full year of membership upon approval.
                   </Label>
                 </div>
 
-                {formData.skipTourActivateImmediately && (
-                  <Card className="ml-6 border-accent/30 bg-accent/5">
-                    <CardContent className="pt-4 space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        By selecting this option, you are confirming that you are ready to begin your membership immediately upon approval without a private walkthrough. This means:
-                      </p>
-                      <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5">
-                        <li>Your <strong className="text-foreground">initiation fee</strong> will be charged upon activation (non-refundable).</li>
-                        <li>Your <strong className="text-foreground">monthly dues</strong> will begin immediately based on your selected membership tier.</li>
-                        <li>You acknowledge the <strong className="text-foreground">minimum one-year commitment</strong> and understand that early cancellation is subject to the terms outlined in the Membership Agreement.</li>
-                        <li>You agree to the <strong className="text-foreground">Membership Agreement</strong> and <strong className="text-foreground">Liability Waiver</strong> terms as provided.</li>
-                      </ul>
+                {/* 2 — Initiation fee */}
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="ackInitiationFee"
+                    checked={formData.ackInitiationFee}
+                    onCheckedChange={(checked) => handleCheckboxChange("ackInitiationFee", checked as boolean)}
+                    required
+                    className="mt-1"
+                  />
+                  <Label htmlFor="ackInitiationFee" className="font-normal cursor-pointer text-sm leading-relaxed text-foreground">
+                    I understand that a $300 initiation fee is due upon approval of my application. This fee is non-refundable under any circumstances.
+                  </Label>
+                </div>
 
-                      {/* Liability Waiver Acknowledgment */}
-                      <div className="pt-2 border-t border-border">
-                        <LiabilityWaiverSection
-                          isSigned={formData.liabilityWaiverSigned}
-                          onCheckboxChange={(checked) => handleCheckboxChange("liabilityWaiverSigned", checked as boolean)}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                {/* 3 — Membership Agreement (paired with the document) */}
+                <div className="space-y-3">
+                  <MembershipAgreementSection
+                    isSigned={formData.ackMembershipAgreement}
+                    onCheckboxChange={(checked) => handleCheckboxChange("ackMembershipAgreement", checked as boolean)}
+                  />
+                </div>
 
-                {!formData.skipTourActivateImmediately && (
-                  <p className="text-xs text-muted-foreground ml-6 italic">
-                    If you prefer a tour first, simply leave this unchecked — we'll reach out to schedule one after approval.
-                  </p>
-                )}
+                {/* 4 — Liability Waiver (paired with the document) */}
+                <div className="space-y-3">
+                  <LiabilityWaiverSection
+                    isSigned={formData.ackLiabilityWaiver}
+                    onCheckboxChange={(checked) => handleCheckboxChange("ackLiabilityWaiver", checked as boolean)}
+                  />
+                </div>
+
+                {/* 5 — Card on file */}
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="ackCardOnFile"
+                    checked={formData.ackCardOnFile}
+                    onCheckedChange={(checked) => handleCheckboxChange("ackCardOnFile", checked as boolean)}
+                    required
+                    className="mt-1"
+                  />
+                  <Label htmlFor="ackCardOnFile" className="font-normal cursor-pointer text-sm leading-relaxed text-foreground">
+                    I understand that a valid credit or debit card is required on file upon membership activation. My card will be kept securely on file for recurring monthly dues.
+                  </Label>
+                </div>
+
+                {/* 6 — Final readiness */}
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="ackFinalReadiness"
+                    checked={formData.ackFinalReadiness}
+                    onCheckedChange={(checked) => handleCheckboxChange("ackFinalReadiness", checked as boolean)}
+                    required
+                    className="mt-1"
+                  />
+                  <Label htmlFor="ackFinalReadiness" className="font-normal cursor-pointer text-sm leading-relaxed text-foreground">
+                    I confirm that I have fully read this application, understand all terms and commitments, and am ready to move forward as a Storm Wellness Club member upon approval.
+                  </Label>
+                </div>
               </div>
             </div>
+
+            {/* Application notice */}
+            <p className="text-sm text-muted-foreground text-center max-w-2xl mx-auto mb-6 leading-relaxed">
+              Storm Wellness Club reviews each application personally. In some cases, our team may reach out before a final decision is made. This is part of our process — and a sign of genuine interest.
+            </p>
 
             {/* Validation Summary with Submit */}
             <ApplicationValidationSummary
