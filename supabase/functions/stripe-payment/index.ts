@@ -75,7 +75,7 @@ async function getOrCreateRecurringProcessingFeePrice(
     limit: 100,
   });
   
-  const matchingPrice = existingPrices.data.find(p => 
+  const matchingPrice = existingPrices.data.find((p: Stripe.Price) => 
     p.unit_amount === feeCents && 
     p.recurring?.interval === interval
   );
@@ -546,7 +546,7 @@ serve(async (req) => {
         logStep("Membership verified server-side", { userId: user.id, isVerifiedMember });
 
         const memberStatus = isVerifiedMember ? 'member' : 'nonMember';
-        const priceId = STRIPE_PRODUCTS.classPasses[category][passType][memberStatus];
+        const priceId = (STRIPE_PRODUCTS.classPasses as any)[category as string]?.[passType as string]?.[memberStatus];
 
         if (!priceId) {
           throw new Error(`Invalid class pass configuration: ${category}/${passType}/${memberStatus}`);
@@ -2274,7 +2274,7 @@ serve(async (req) => {
           throw new Error(`Invalid category: ${category}`);
         }
 
-        const priceId = passConfig[passType]?.[isMember ? 'member' : 'nonMember'];
+        const priceId = (passConfig as any)[passType as string]?.[isMember ? 'member' : 'nonMember'];
         if (!priceId) {
           throw new Error(`Price not found for ${category} ${passType} ${isMember ? 'member' : 'non-member'}`);
         }
@@ -2931,10 +2931,10 @@ serve(async (req) => {
               limit: 20,
             });
             
-            const existingAnnualFeeSub = existingSubs.data.find(sub => {
+            const existingAnnualFeeSub = existingSubs.data.find((sub: Stripe.Subscription) => {
               const isActiveOrTrialing = ['active', 'trialing'].includes(sub.status);
               const isAnnualFeeByMetadata = sub.metadata.type === 'annual_fee';
-              const isAnnualFeeByPrice = sub.items.data.some(item => 
+              const isAnnualFeeByPrice = sub.items.data.some((item: Stripe.SubscriptionItem) => 
                 Object.values(STRIPE_PRODUCTS.annualFee).includes(item.price.id)
               );
               return isActiveOrTrialing && (isAnnualFeeByMetadata || isAnnualFeeByPrice);
@@ -4574,7 +4574,7 @@ serve(async (req) => {
       case 'admin_create_initiation_fee_subscription_no_charge': {
         // Admin creates subscription for member who already paid (no immediate charge)
         // Uses billing_cycle_anchor to delay first charge to 1 year from now
-        const { memberId, originalPaymentMethod, originalPaymentDate, note } = body as { 
+        const { memberId, originalPaymentMethod, originalPaymentDate, note } = body as unknown as { 
           memberId: string; 
           originalPaymentMethod: string; 
           originalPaymentDate?: string;
@@ -5318,7 +5318,7 @@ serve(async (req) => {
             if (stripeCustomers.data.length > 1 || members.length > 1) {
               // We have potential duplicates
               const customerDetails = await Promise.all(
-                stripeCustomers.data.map(async (customer) => {
+                stripeCustomers.data.map(async (customer: Stripe.Customer) => {
                   // Check for payment methods
                   const pms = await stripe.paymentMethods.list({
                     customer: customer.id,
@@ -5378,7 +5378,7 @@ serve(async (req) => {
 
       // ==================== CONSOLIDATE CUSTOMER ====================
       case 'consolidate_customer': {
-        const { memberId } = body as { memberId: string };
+        const { memberId } = body as unknown as { memberId: string };
 
         // Admin only
         const { data: adminRoleConsolidate } = await supabase
@@ -5490,8 +5490,8 @@ serve(async (req) => {
         }
 
         const otherCustomerIds = allCustomers.data
-          .filter(c => c.id !== primaryCustomer!.id)
-          .map(c => c.id);
+          .filter((c: Stripe.Customer) => c.id !== primaryCustomer!.id)
+          .map((c: Stripe.Customer) => c.id);
 
         logStep("Customer consolidated", { 
           memberId, 
@@ -5643,8 +5643,8 @@ serve(async (req) => {
             });
 
             // Filter to only annual fee subscriptions
-            const annualFeeSubs = subs.data.filter(sub =>
-              sub.items.data.some(item => annualFeePriceIds.includes(item.price.id)) ||
+            const annualFeeSubs = subs.data.filter((sub: Stripe.Subscription) =>
+              sub.items.data.some((item: Stripe.SubscriptionItem) => annualFeePriceIds.includes(item.price.id)) ||
               sub.metadata?.type === 'annual_fee' ||
               sub.metadata?.type === 'initiation_fee'
             );
@@ -5652,8 +5652,8 @@ serve(async (req) => {
             // If more than one, we have duplicates
             if (annualFeeSubs.length > 1) {
               const orphans = annualFeeSubs
-                .filter(sub => sub.id !== member.annual_fee_subscription_id)
-                .map(sub => {
+                .filter((sub: Stripe.Subscription) => sub.id !== member.annual_fee_subscription_id)
+                .map((sub: Stripe.Subscription) => {
                   const latestInvoice = sub.latest_invoice as { amount_paid?: number } | null;
                   return {
                     id: sub.id,
@@ -6866,7 +6866,7 @@ serve(async (req) => {
         const existingSub = await stripe.subscriptions.retrieve(subscriptionId);
         
         // Check if processing fees already exist
-        const hasProcessingFee = existingSub.items.data.some(item => {
+        const hasProcessingFee = existingSub.items.data.some((item: Stripe.SubscriptionItem) => {
           const productId = typeof item.price.product === 'string' ? item.price.product : (item.price.product as any)?.id;
           return item.price.metadata?.type === 'processing_fee' || false;
         });
@@ -6879,7 +6879,7 @@ serve(async (req) => {
         }
 
         // Find the base price items (non-fee items)
-        const baseItems = existingSub.items.data.filter(item => {
+        const baseItems = existingSub.items.data.filter((item: Stripe.SubscriptionItem) => {
           return !item.price.metadata?.type || item.price.metadata.type !== 'processing_fee';
         });
 
