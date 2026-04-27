@@ -174,7 +174,7 @@ async function encryptPayload(
   // Import subscriber public key
   const subPubKey = await crypto.subtle.importKey(
     "raw",
-    subscriberPublicKey,
+    subscriberPublicKey as BufferSource,
     { name: "ECDH", namedCurve: "P-256" },
     false,
     []
@@ -218,7 +218,7 @@ async function encryptPayload(
   // AES-128-GCM encryption
   const key = await crypto.subtle.importKey(
     "raw",
-    contentKey,
+    contentKey as BufferSource,
     { name: "AES-GCM" },
     false,
     ["encrypt"]
@@ -228,7 +228,7 @@ async function encryptPayload(
   const padded = concatBuffers(plaintext, new Uint8Array([2]));
 
   const encrypted = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, key, padded)
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce as BufferSource }, key, padded as BufferSource)
   );
 
   // Build aes128gcm record: salt(16) + rs(4) + idlen(1) + keyid(65) + encrypted
@@ -266,12 +266,12 @@ async function hkdfExtract(
 ): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
-    salt,
+    salt as BufferSource,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
-  return new Uint8Array(await crypto.subtle.sign("HMAC", key, ikm));
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, ikm as BufferSource));
 }
 
 async function hkdfExpand(
@@ -281,13 +281,13 @@ async function hkdfExpand(
 ): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
-    prk,
+    prk as BufferSource,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
   const input = concatBuffers(info, new Uint8Array([1]));
-  const output = new Uint8Array(await crypto.subtle.sign("HMAC", key, input));
+  const output = new Uint8Array(await crypto.subtle.sign("HMAC", key, input as BufferSource));
   return output.slice(0, length);
 }
 
@@ -410,9 +410,10 @@ Deno.serve(async (req) => {
           sent++;
         } catch (err) {
           failed++;
-          errors.push(`${sub.endpoint}: ${err.message}`);
+          const errMsg = (err as Error).message;
+          errors.push(`${sub.endpoint}: ${errMsg}`);
           // Remove invalid subscriptions (410 Gone)
-          if (err.message.includes("410")) {
+          if (errMsg.includes("410")) {
             await supabase
               .from("push_subscriptions")
               .delete()
@@ -434,7 +435,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("Push notification error:", err);
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: (err as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
