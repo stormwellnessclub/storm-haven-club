@@ -1,67 +1,54 @@
-## Clarifying Freeze Semantics
+# Frozen Member Scanner Behavior
 
-You want a **membership freeze** to mean exactly two things:
+## Goal
+When a frozen member is scanned, the scanner should clearly display **"Membership Frozen"** (not allow auto-entry), but front desk staff should be able to **manually check them in** for a class or spa appointment they already have today — without needing a generic "override" reason.
 
-1. **Stripe billing is paused** — no monthly dues or annual fee charged during the freeze.
-2. **Membership-only benefits are paused** — no monthly class credits, no Red Light/Cryo credits, no member pricing, no QR check-in as a member.
+## Current Behavior
+- Scanner currently shows red **"Access Denied — Membership Frozen"**.
+- Generic "Override Access (Staff Only)" button is available, but it just records a free-text reason and grants entry — it doesn't surface their actual class/spa bookings, so staff have no easy way to verify what they're checking in for.
 
-It should **NOT** affect:
-- Logging into the site
-- Accessing their member dashboard / portal
-- Browsing the schedule, shop, cafe, etc.
-- Buying class passes, booking spa appointments, or paying as a guest/non-member at non-member pricing
-- Using class passes they already own (e.g., a 10-pack they bought separately)
+## Proposed Changes
 
----
+### 1. `process_member_scan` RPC (database migration)
+- Keep returning `access_granted: false` and `denial_reason: 'membership_frozen'` so the scanner still loudly displays the frozen status.
+- Add new fields to the response when the member is frozen:
+  - `todays_class_bookings`: array of today's class session bookings (id, class name, start time, status)
+  - `todays_spa_bookings`: array of today's spa appointments (id, service name, start time, therapist)
+  - `valid_class_passes`: count of remaining class passes (so staff know if a drop-in pass is available)
+- This lets the scanner UI show staff exactly what the frozen member is here for.
 
-## Current State (What I Found)
+### 2. `src/pages/admin/Scanner.tsx`
+When `denial_reason === 'membership_frozen'`:
+- Keep the **amber/yellow "Membership Frozen"** banner (member name + photo still shown).
+- Replace the generic "Override Access" button with a contextual **"Manual Check-In"** section that lists:
+  - Today's class bookings → each with a **"Check In to Class"** button (calls existing `kiosk_check_in_class` RPC by `booking_id`).
+  - Today's spa appointments → each with a **"Check In to Spa"** button (calls `kiosk_check_in_spa` RPC).
+  - If they have remaining class passes but no booking today → show **"Use Class Pass for Drop-In"** (records check-in + notes pass usage).
+  - If none of the above → show **"No paid bookings today — collect payment before entry"** with a small ghost "Override (Staff)" link as last resort.
+- The amber "Membership Frozen" badge stays visible the entire time so staff are never confused about the member's billing state.
 
-### ✅ Already correct
-- **Stripe billing is paused on freeze activation** — `useAdminFreezeRequests.ts` calls `stripe-payment` with `pause_subscription` for both the monthly dues sub and annual fee sub.
-- **Billing resumes automatically** — the `process-freeze-expirations` edge function (now scheduled daily via cron) un-pauses Stripe and flips the member back to `active`.
-- **Portal access is NOT blocked** — `ProtectedMemberRoute.tsx` lets `frozen` members into `/member` with no restriction. They see an "AccessRevoked" screen only if they're on the `blocked_persons` list, which is separate.
-- **Frozen members keep their already-purchased class passes** — `useUserCredits.ts` queries members with status `IN ('active', 'frozen')`, and the booking RPC `book_class_session` accepts both statuses.
-- **Member monthly class credits are correctly hidden** when frozen — `useAvailableCreditsForCategory` only exposes `classCredits` when `memberStatus === 'active'`.
+### 3. ScanResult type (`src/hooks/useMemberScanner.ts`)
+Add the new optional fields to the `ScanResult` interface:
+```ts
+todays_class_bookings?: Array<{ id: string; class_name: string; start_time: string; status: string }>;
+todays_spa_bookings?: Array<{ id: string; service_name: string; start_time: string; therapist?: string }>;
+valid_class_passes?: number;
+```
 
-### ⚠️ Gaps vs. your stated intent
+### 4. No changes to portal/dashboard access
+Frozen members continue to log in normally and use the portal (already working — `ProtectedMemberRoute` allows frozen).
 
-1. **QR scanner / front-desk check-in denies frozen members entirely.**
-   `process_member_scan` returns `denial_reason = 'membership_frozen'` and blocks entry. If a frozen member walks in to take a class they paid for with a class pass (or a single drop-in), the scanner won't let them in. This contradicts "they can still do non-member things."
-   - **Fix:** Allow scanner entry for frozen members but display a clear banner ("Membership Frozen — non-member rates apply") so front desk knows to charge a guest rate or verify a valid class pass / spa booking before allowing the activity. Booking RPCs already enforce credit/pass validity, so the scanner doesn't need to be the sole gate.
+## Files to Edit
+- `supabase/migrations/<timestamp>_scanner_frozen_bookings.sql` — update `process_member_scan` to include today's bookings + pass count for frozen members
+- `src/hooks/useMemberScanner.ts` — extend `ScanResult` type
+- `src/pages/admin/Scanner.tsx` — replace generic override with contextual "Manual Check-In" panel for frozen scans
 
-2. **Portal UI may still feel "frozen" / restrictive.**
-   `useMemberBenefitsStatus` returns `hasFrozenBenefits = true` and `canCheckIn = false` for frozen members. Several Dashboard sections key off this and likely show big "Your membership is frozen" warnings everywhere instead of just on membership-specific cards.
-   - **Fix:** Audit the Dashboard so the frozen banner is informational (one place at the top), and non-membership tiles (Class Passes, Spa, Shop, Schedule) remain fully usable without warning overlays.
+## Out of Scope
+- Dashboard tile graying (already functional for frozen)
+- Kiosk (`/front-desk`) — separate flow, not part of this request
 
-3. **Booking flows treat frozen members as members for class-credit lookup.**
-   The class-booking RPC accepts `frozen` status — which is good for using a pre-paid class pass — but we should confirm it does NOT silently let them spend a member monthly class credit. (Quick re-read of the RPC will confirm; the front-end already hides them.)
-
-4. **Spa/Wellness booking parity.**
-   Need to verify a frozen member can still book Red Light / Cryo / Massage **at non-member pricing** by paying directly, even if their membership-included credits are paused. Current behavior in `book_wellness_appointment` may simply error out instead of falling back to "pay as guest."
-
----
-
-## Proposed Changes (once you approve)
-
-| # | File | Change |
-|---|------|--------|
-| 1 | `supabase/migrations/<new>` | Update `process_member_scan` to return `access_granted = true` for `frozen` members with a new `warning_reason = 'membership_frozen_non_member_access'` field — front desk sees a yellow banner instead of a red denial. |
-| 2 | `src/pages/admin/Scanner.tsx` | Render the warning banner ("Frozen — verify pass/booking or charge non-member rate") instead of the current red "Membership Frozen" denial. |
-| 3 | `src/pages/member/Dashboard.tsx` | Reduce the frozen-state UI to a single top-of-page informational banner. Stop graying out tiles for non-membership features (Class Passes, Spa booking, Shop, Schedule). |
-| 4 | `src/hooks/useMemberBenefitsStatus.ts` | Add a new flag `canActAsNonMember` (always true unless cancelled/blocked) so components can distinguish "membership benefits paused" from "all access revoked." |
-| 5 | `supabase/functions/book-spa-appointment` (or RPC) | Verify frozen members can book any spa service by paying upfront at non-member rates. If not, add a fall-through path. |
-| 6 | Verify `book_class_session` RPC | Confirm it never debits `member_credits` when `members.status = 'frozen'` (only allows pass-based or paid bookings). Add an explicit guard if missing. |
-
----
-
-## What I will NOT change
-
-- The Stripe pause/resume flow — already working correctly per your intent.
-- The "frozen" status itself or the freeze fee ($30/mo).
-- The blocked-persons system — that's a separate, harder revocation.
-
----
-
-## Question before I proceed
-
-**Should a frozen member who walks in be able to check in for a class they already paid for with a pre-purchased class pass without any front-desk intervention** — or do you want the front desk to manually verify them every time during a freeze? This determines whether item #1 above is a soft warning (auto-allow) or a manual override (block + admin override button).
+## Acceptance
+- Scan a frozen member → scanner shows amber "Membership Frozen" with member name/photo.
+- If they have a class today → staff sees a "Check In to Class: [Name @ Time]" button and one tap checks them in.
+- If they have a spa appointment today → same for spa.
+- No auto-entry; staff always confirm what the frozen member is here for.
