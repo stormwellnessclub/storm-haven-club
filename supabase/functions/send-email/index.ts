@@ -439,24 +439,40 @@ serve(async (req) => {
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
               <h2 style="${emailStyles.heading}">Booking Cancelled</h2>
-              <p>Your booking has been cancelled:</p>
-              <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <table style="width: 100%; border-collapse: collapse;">
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Hi ${data.name || 'there'}, your class booking has been cancelled. Here are the details:
+              </p>
+              <div style="${emailStyles.warningBox}">
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Class</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.className}</td>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Class</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.className}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Date</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.date}</td>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.date}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; color: #6b7280;">Time</td>
-                    <td style="padding: 8px 0; font-weight: 600;">${data.time}</td>
+                    <td style="padding: 8px 0; color: #6C5D3E;">Time</td>
+                    <td style="padding: 8px 0; font-weight: 600; color: #1C170F;">${data.time}</td>
                   </tr>
                 </table>
               </div>
-              ${data.creditRefunded ? '<p style="color: #10b981; font-weight: 500;">✓ Your class credit has been refunded.</p>' : ''}
+              ${data.creditRefunded
+                ? `<div style="${emailStyles.successBox}">
+                    <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
+                      ✓ Your class credit has been refunded to your account.
+                    </p>
+                  </div>`
+                : `<div style="background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                    <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
+                      ⚠ Because this was cancelled less than 24 hours before class, your credit has been forfeited per our cancellation policy.
+                    </p>
+                  </div>`
+              }
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We hope to see you in another class soon.
+              </p>
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/schedule" style="${emailStyles.button}">Book Another Class</a>
               </div>
