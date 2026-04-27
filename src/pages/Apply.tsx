@@ -57,10 +57,12 @@ const initialFormData = {
   holisticWellness: "",
   referredByMember: "",
   foundingMember: "",
-  membershipAgreementSigned: false,
-  oneYearCommitment: false,
-  skipTourActivateImmediately: false,
-  liabilityWaiverSigned: false,
+  ackOneYearCommitment: false,
+  ackInitiationFee: false,
+  ackMembershipAgreement: false,
+  ackLiabilityWaiver: false,
+  ackCardOnFile: false,
+  ackFinalReadiness: false,
   addCardOnFile: false,
 };
 
