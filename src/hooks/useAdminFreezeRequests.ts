@@ -88,12 +88,32 @@ export function useApproveFreezeRequest() {
   });
 }
 
+interface RejectFreezeArgs {
+  freezeId: string;
+  /** Internal audit-only reason stored on the freeze record. Not sent to the member. */
+  reason: string;
+  /** When true, send a branded rejection email to the member with the edited subject + body. */
+  sendEmail: boolean;
+  emailSubject?: string;
+  emailBody?: string;
+  recipientEmail?: string;
+  recipientFirstName?: string;
+}
+
 export function useRejectFreezeRequest() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ freezeId, reason }: { freezeId: string; reason: string }) => {
+    mutationFn: async ({
+      freezeId,
+      reason,
+      sendEmail,
+      emailSubject,
+      emailBody,
+      recipientEmail,
+      recipientFirstName,
+    }: RejectFreezeArgs) => {
       if (!user) throw new Error("Not authenticated");
 
       const { error } = await supabase
@@ -108,10 +128,46 @@ export function useRejectFreezeRequest() {
         .eq("id", freezeId);
 
       if (error) throw error;
+
+      // Email send is best-effort — never block the rejection itself.
+      let emailDelivered = false;
+      let emailError: string | null = null;
+      if (sendEmail && recipientEmail && emailBody?.trim()) {
+        try {
+          const { error: emailErr } = await supabase.functions.invoke("send-email", {
+            body: {
+              type: "freeze_request_rejected",
+              to: recipientEmail,
+              data: {
+                subject: emailSubject?.trim() || "Regarding Your Freeze Request",
+                bodyText: emailBody.trim(),
+                memberFirstName: recipientFirstName ?? "",
+              },
+            },
+          });
+          if (emailErr) {
+            emailError = emailErr.message;
+          } else {
+            emailDelivered = true;
+          }
+        } catch (err) {
+          emailError = err instanceof Error ? err.message : String(err);
+        }
+      }
+
+      return { emailRequested: sendEmail, emailDelivered, emailError };
     },
-    onSuccess: () => {
+    onSuccess: ({ emailRequested, emailDelivered, emailError }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });
-      toast.success("Freeze request rejected");
+      if (emailRequested) {
+        if (emailDelivered) {
+          toast.success("Freeze rejected — email sent to member");
+        } else {
+          toast.warning(`Freeze rejected — email failed to send${emailError ? `: ${emailError}` : ""}`);
+        }
+      } else {
+        toast.success("Freeze request rejected");
+      }
     },
     onError: (error) => {
       console.error("Error rejecting freeze request:", error);
