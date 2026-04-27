@@ -25,8 +25,65 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck, StopCircle } from "lucide-react";
+import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck, StopCircle, ExternalLink } from "lucide-react";
 import { format, isBefore, startOfToday } from "date-fns";
+import { Link } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type RejectionScenario = "membership_not_active" | "membership_in_arrears" | "custom";
+
+const FREEZE_REJECTION_PRESETS: Record<
+  RejectionScenario,
+  { label: string; subject: string; body: (firstName: string) => string }
+> = {
+  membership_not_active: {
+    label: "Membership Not Yet Active",
+    subject: "Regarding Your Freeze Request",
+    body: (firstName) =>
+      `Hi ${firstName || "there"},
+
+Thank you for reaching out. After reviewing your account, we are unable to approve your freeze request at this time.
+
+A membership freeze is a benefit reserved for members whose dues are active and current. Our records show that while your initiation fee was processed, your monthly dues have not yet been collected, meaning your membership has not been formally activated.
+
+Because there is no active billing to pause, a freeze is not applicable to your account in its current state.
+
+If you would like to discuss the status of your membership directly, please reach out to us.
+
+The Storm Wellness Club Team`,
+  },
+  membership_in_arrears: {
+    label: "Membership in Arrears",
+    subject: "Regarding Your Freeze Request",
+    body: (firstName) =>
+      `Hi ${firstName || "there"},
+
+Thank you for reaching out. After reviewing your account, we are unable to approve your freeze request at this time.
+
+A membership freeze is a courtesy extended to members in good standing. Our records show that your monthly dues have been declined for the past two billing cycles, leaving a significant balance outstanding on your account.
+
+Per the terms of your one-year membership agreement, you have until May 9, 2026 to bring all outstanding dues current. If the balance is not settled in full by that date, your account will be referred to collections in accordance with the agreement you signed at enrollment.
+
+Once your account is current and in good standing, we would be glad to revisit a freeze request.
+
+If you'd like to settle your balance or discuss a path forward, please reach out to us directly.
+
+The Storm Wellness Club Team`,
+  },
+  custom: {
+    label: "Custom",
+    subject: "",
+    body: () => "",
+  },
+};
+
 import { cn } from "@/lib/utils";
 import {
   useAdminFreezeRequests,
