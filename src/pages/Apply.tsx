@@ -705,21 +705,18 @@ export default function Apply() {
         !formData.address || !formData.city || !formData.state || !formData.zipCode || !formData.country ||
         !formData.email || !formData.phone || !formData.membershipPlan ||
         formData.wellnessGoals.length === 0 || formData.servicesInterested.length === 0 ||
-        !formData.referredByMember || !formData.foundingMember ||
-        !formData.membershipAgreementSigned || !formData.oneYearCommitment) {
+        !formData.foundingMember) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    if (formData.skipTourActivateImmediately && !formData.liabilityWaiverSigned) {
-      toast.error("Please sign the liability waiver to proceed with immediate activation.");
+    if (!formData.ackOneYearCommitment || !formData.ackInitiationFee ||
+        !formData.ackMembershipAgreement || !formData.ackLiabilityWaiver ||
+        !formData.ackCardOnFile || !formData.ackFinalReadiness) {
+      toast.error("Please review and check each acknowledgment before submitting.");
       return;
     }
 
-    if (formData.skipTourActivateImmediately && !cardSetupComplete) {
-      toast.error("A payment method is required for immediate activation. Please add a card on file.");
-      return;
-    }
 
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
