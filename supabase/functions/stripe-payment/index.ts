@@ -28,7 +28,7 @@ async function getOrCreateProcessingFeeProduct(stripe: Stripe): Promise<string> 
   
   if (products.data.length > 0) {
     processingFeeProductId = products.data[0].id;
-    return processingFeeProductId;
+    return processingFeeProductId!;
   }
   
   // Create new product
@@ -38,7 +38,7 @@ async function getOrCreateProcessingFeeProduct(stripe: Stripe): Promise<string> 
     metadata: { type: 'processing_fee' },
   });
   processingFeeProductId = product.id;
-  return processingFeeProductId;
+  return processingFeeProductId!;
 }
 
 async function createProcessingFeeLineItem(stripe: Stripe, baseAmountCents: number): Promise<{ price: string; quantity: number } | null> {
