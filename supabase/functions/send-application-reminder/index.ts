@@ -89,24 +89,7 @@ serve(async (req) => {
 
     // Update card_setup_attempts with reminder tracking
     if (cardSetupAttemptId) {
-      const { error: updateError } = await supabase
-        .from('card_setup_attempts')
-        .update({
-          reminder_sent_at: new Date().toISOString(),
-          reminder_count: supabase.rpc ? undefined : 1, // Will use raw increment below
-        })
-        .eq('id', cardSetupAttemptId);
-
-      // Increment reminder_count
-      await supabase.rpc('increment_reminder_count_noop', { attempt_id: cardSetupAttemptId }).catch(() => {
-        // Fallback: direct update
-        supabase
-          .from('card_setup_attempts')
-          .update({ reminder_sent_at: new Date().toISOString() })
-          .eq('id', cardSetupAttemptId);
-      });
-
-      // Simple approach: fetch current count and increment
+      // Fetch current count and increment
       const { data: current } = await supabase
         .from('card_setup_attempts')
         .select('reminder_count')
@@ -143,7 +126,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('send-application-reminder error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }

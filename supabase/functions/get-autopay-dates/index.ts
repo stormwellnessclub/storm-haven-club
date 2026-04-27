@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
               .eq('annual_fee_subscription_id', subId);
           }
         } catch (err) {
-          console.warn(`Failed to fetch subscription ${subId}:`, err.message);
+          console.warn(`Failed to fetch subscription ${subId}:`, (err as Error).message);
         }
       })
     );
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('get-autopay-dates error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });
