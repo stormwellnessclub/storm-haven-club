@@ -6754,12 +6754,24 @@ export type Database = {
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
       kiosk_check_in_class: { Args: { p_booking_id: string }; Returns: Json }
       kiosk_check_in_guest: { Args: { p_guest_pass_id: string }; Returns: Json }
+      kiosk_check_in_kids_care: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
       kiosk_check_in_member: {
         Args: { p_member_id_text: string }
         Returns: Json
       }
       kiosk_check_in_spa: { Args: { p_spa_id: string }; Returns: Json }
+      kiosk_check_out_kids_care: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
       kiosk_class_roster: { Args: { p_session_id: string }; Returns: Json }
+      kiosk_kids_care_roster: {
+        Args: { p_booking_date: string }
+        Returns: Json
+      }
       kiosk_search_visitors: { Args: { p_query: string }; Returns: Json }
       kiosk_todays_attendance: { Args: never; Returns: Json }
       link_member_by_email: {
