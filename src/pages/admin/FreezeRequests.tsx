@@ -488,24 +488,115 @@ export default function FreezeRequests() {
 
       {/* Reject Dialog */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Reject Freeze Request</DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this request
+              {selectedRequest && (
+                <>Decline {selectedRequest.members.first_name} {selectedRequest.members.last_name}'s freeze request. Choose a scenario to pre-fill a branded email — you can edit before sending.</>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <Label htmlFor="reject-reason">Reason for Rejection</Label>
-              <Textarea
+              <Label>Scenario</Label>
+              <Select
+                value={rejectScenario}
+                onValueChange={(value) =>
+                  applyRejectionScenario(value as RejectionScenario, selectedRequest)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a scenario" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="membership_not_active">
+                    Membership Not Yet Active
+                  </SelectItem>
+                  <SelectItem value="membership_in_arrears">
+                    Membership in Arrears
+                  </SelectItem>
+                  <SelectItem value="custom">Custom (write your own)</SelectItem>
+                </SelectContent>
+              </Select>
+              {rejectScenario === "membership_not_active" && (
+                <p className="text-xs text-muted-foreground">
+                  This email speaks <strong>only</strong> to the freeze decision. To rescind the
+                  membership approval entirely, open the member's profile and use Cancel
+                  Membership separately — that flow sends its own email.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reject-reason">Internal Reason (audit only — not emailed)</Label>
+              <Input
                 id="reject-reason"
-                placeholder="Enter the reason for rejecting this request..."
+                placeholder="e.g. Member's dues are past due — not eligible for freeze"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                rows={3}
               />
             </div>
+
+            <div className="flex items-center gap-2 rounded-md border p-3">
+              <Checkbox
+                id="reject-send-email"
+                checked={rejectSendEmail}
+                onCheckedChange={(checked) => setRejectSendEmail(checked === true)}
+              />
+              <Label htmlFor="reject-send-email" className="cursor-pointer text-sm font-normal">
+                Send rejection email to member
+                {selectedRequest && (
+                  <span className="text-muted-foreground"> ({selectedRequest.members.email})</span>
+                )}
+              </Label>
+            </div>
+
+            {rejectSendEmail && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="reject-email-subject">Email Subject</Label>
+                  <Input
+                    id="reject-email-subject"
+                    value={rejectEmailSubject}
+                    onChange={(e) => setRejectEmailSubject(e.target.value)}
+                    placeholder="Regarding Your Freeze Request"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reject-email-body">Email Message</Label>
+                  <Textarea
+                    id="reject-email-body"
+                    value={rejectEmailBody}
+                    onChange={(e) => setRejectEmailBody(e.target.value)}
+                    rows={14}
+                    className="font-serif text-sm leading-relaxed"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The message will be wrapped in the standard branded email layout when sent.
+                    Edit freely before sending.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {selectedRequest && rejectScenario === "membership_not_active" && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 p-3 text-sm">
+                <p className="font-medium text-amber-900 dark:text-amber-200 mb-1">
+                  Need to also rescind {selectedRequest.members.first_name}'s membership?
+                </p>
+                <Link
+                  to={`/admin/members/${selectedRequest.members.id}`}
+                  className="inline-flex items-center gap-1 text-amber-900 dark:text-amber-200 underline underline-offset-2"
+                >
+                  Open member profile <ExternalLink className="h-3 w-3" />
+                </Link>
+                <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
+                  Use the Cancel Membership action there — it auto-sends a separate
+                  cancellation email.
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
@@ -514,10 +605,14 @@ export default function FreezeRequests() {
             <Button
               variant="destructive"
               onClick={confirmReject}
-              disabled={!rejectReason.trim() || rejectRequest.isPending}
+              disabled={
+                !rejectReason.trim() ||
+                (rejectSendEmail && !rejectEmailBody.trim()) ||
+                rejectRequest.isPending
+              }
             >
               {rejectRequest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Reject
+              {rejectSendEmail ? "Reject & Send Email" : "Reject (no email)"}
             </Button>
           </DialogFooter>
         </DialogContent>
