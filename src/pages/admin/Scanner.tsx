@@ -507,8 +507,8 @@ export default function Scanner() {
                             )}
                             {scanResult.denial_reason === "membership_frozen" && (
                               <div className="flex items-center gap-2 text-amber-600">
-                                <AlertTriangle className="h-4 w-4" />
-                                Membership is frozen
+                                <Snowflake className="h-4 w-4" />
+                                Membership is frozen — billing paused
                               </div>
                             )}
                             {(scanResult.denial_reason === "membership_expired" ||
@@ -532,15 +532,112 @@ export default function Scanner() {
                               Billing issue must be resolved before entry. Override is not available.
                             </p>
                           )}
-                        </div>
-                      )}
 
-                      {/* Override button — only for non-billing, non-terminal denials */}
+                          {/* Frozen-member: contextual manual check-in for paid bookings */}
+                          {scanResult.denial_reason === "membership_frozen" && (
+                            <div className="mt-4 space-y-3 border-t pt-4">
+                              <p className="text-sm font-medium text-foreground">
+                                Manual Check-In (membership-only benefits paused)
+                              </p>
+
+                              {/* Today's class bookings */}
+                              {scanResult.todays_class_bookings && scanResult.todays_class_bookings.length > 0 && (
+                                <div className="space-y-2">
+                                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Today's classes</p>
+                                  {scanResult.todays_class_bookings.map((b) => (
+                                    <Button
+                                      key={b.id}
+                                      variant={b.already_checked_in ? "ghost" : "default"}
+                                      className="w-full justify-between h-auto py-3"
+                                      disabled={b.already_checked_in || isCheckingIn}
+                                      onClick={() => handleFrozenClassCheckIn(b.id, `${b.class_name} @ ${formatTime(b.start_time)}`)}
+                                    >
+                                      <span className="flex items-center gap-2 text-left">
+                                        <Calendar className="h-4 w-4 shrink-0" />
+                                        <span className="flex flex-col">
+                                          <span className="font-medium">{b.class_name}</span>
+                                          <span className="text-xs opacity-80">
+                                            {formatTime(b.start_time)}{b.room ? ` · ${b.room}` : ""}
+                                          </span>
+                                        </span>
+                                      </span>
+                                      <span className="text-xs">
+                                        {b.already_checked_in ? "Already checked in" : "Check In"}
+                                      </span>
+                                    </Button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Today's spa appointments */}
+                              {scanResult.todays_spa_bookings && scanResult.todays_spa_bookings.length > 0 && (
+                                <div className="space-y-2">
+                                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Today's spa</p>
+                                  {scanResult.todays_spa_bookings.map((s) => (
+                                    <Button
+                                      key={s.id}
+                                      variant={s.already_checked_in ? "ghost" : "default"}
+                                      className="w-full justify-between h-auto py-3"
+                                      disabled={s.already_checked_in || isCheckingIn}
+                                      onClick={() => handleFrozenSpaCheckIn(s.id, `${s.service_name} @ ${formatTime(s.appointment_time)}`)}
+                                    >
+                                      <span className="flex items-center gap-2 text-left">
+                                        <Clock className="h-4 w-4 shrink-0" />
+                                        <span className="flex flex-col">
+                                          <span className="font-medium">{s.service_name}</span>
+                                          <span className="text-xs opacity-80">
+                                            {formatTime(s.appointment_time)}{s.therapist ? ` · ${s.therapist}` : ""}
+                                          </span>
+                                        </span>
+                                      </span>
+                                      <span className="text-xs">
+                                        {s.already_checked_in ? "Already checked in" : "Check In"}
+                                      </span>
+                                    </Button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* No bookings today */}
+                              {(!scanResult.todays_class_bookings || scanResult.todays_class_bookings.length === 0) &&
+                               (!scanResult.todays_spa_bookings || scanResult.todays_spa_bookings.length === 0) && (
+                                <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  <AlertDescription className="text-xs">
+                                    No paid class or spa booking for today.
+                                    {typeof scanResult.valid_class_passes === "number" && scanResult.valid_class_passes > 0
+                                      ? ` Member has ${scanResult.valid_class_passes} class pass${scanResult.valid_class_passes === 1 ? "" : "es"} remaining — book them into a class first, or collect non-member payment before entry.`
+                                      : " Collect non-member payment before entry."}
+                                  </AlertDescription>
+                                </Alert>
+                              )}
+
+                              {/* Last-resort override link */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full text-muted-foreground hover:text-foreground"
+                                onClick={() => {
+                                  setPendingScan({
+                                    memberId: scanResult.member!.member_id,
+                                    deviceType: "manual_entry",
+                                  });
+                                  setShowOverrideDialog(true);
+                                }}
+                              >
+                                <ShieldAlert className="h-3 w-3 mr-2" />
+                                Override entry (last resort)
+                              </Button>
+                            </div>
+                          )}
+
+                      {/* Override button — only for non-billing, non-terminal, non-frozen denials */}
                       {scanResult.member &&
                         !scanResult.is_billing_block &&
                         scanResult.denial_reason !== "membership_expired" &&
                         scanResult.denial_reason !== "membership_cancelled" &&
-                        scanResult.denial_reason !== "access_revoked" && (
+                        scanResult.denial_reason !== "access_revoked" &&
+                        scanResult.denial_reason !== "membership_frozen" && (
                           <Button
                             variant="outline"
                             className="w-full"
