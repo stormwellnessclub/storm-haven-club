@@ -138,5 +138,5 @@ export function useKioskCheckIn() {
     }
   };
 
-  return { checkInMember, checkInGuest, checkInClass, checkInSpa, isCheckingIn };
+  return { checkInMember, checkInGuest, checkInClass, checkInSpa, checkInKidsCare, checkOutKidsCare, isCheckingIn };
 }
