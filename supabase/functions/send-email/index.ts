@@ -492,13 +492,6 @@ serve(async (req) => {
                   </tr>
                 </table>
               </div>
-              ${data.reason ? `
-              <div style="${emailStyles.infoBox}">
-                <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
-                  <strong>Reason:</strong> ${data.reason}
-                </p>
-              </div>
-              ` : ''}
               <div style="${emailStyles.successBox}">
                 <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
                   ✓ Your class credit has been automatically refunded to your account.

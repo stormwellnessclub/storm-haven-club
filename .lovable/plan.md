@@ -1,55 +1,19 @@
-## Goal
+# Hide cancellation reason from admin-cancellation emails
 
-Whenever a class booking is cancelled — by a member, by a non-member, or by us — the affected person gets a confirmation email. Credit refund happens automatically when **we** cancel; when **they** cancel, refund is conditional on the existing 24-hour rule (already enforced at the DB level — no change needed).
+When an admin cancels a class (or removes a single attendee), the email to the member should no longer display a "Reason" line. The reason will continue to be stored internally on the booking record (`cancellation_reason`) for admin/audit purposes — only the member-facing email is affected.
 
-## Current state (verified in code)
+## Changes
 
-| Cancel path | Refund? | Email sent? | Notes |
-|---|---|---|---|
-| Member/non-member self-cancel (`useBooking.ts` → `cancel_class_booking` RPC) | ✅ Yes if ≥24hr, forfeited if <24hr | ✅ Yes (`booking_cancellation` template, with `credit_refunded` flag) | Working correctly |
-| Admin cancels entire class session (`Classes.tsx` → `admin_cancel_class_session` RPC) | ✅ Always | ⚠️ Yes, but to wrong people | **Filter bug** — also emails people who self-cancelled earlier |
-| Admin removes a single attendee from roster (`ClassRoster.tsx` "Remove" button) | ✅ Yes | ❌ **No email at all** | Member shows up to a class they're no longer booked into |
+### 1. `supabase/functions/send-email/index.ts`
+In the `class_cancelled_by_admin` template (around lines 469–520), remove the conditional `${data.reason ? ... : ''}` block that renders the "Reason:" info box. The template will simply show the class/date/time, the credit-refunded confirmation, and the "Book Another Class" CTA — no reason field, regardless of what callers pass.
 
-## Plan
+### 2. `src/pages/admin/Classes.tsx` (whole-session cancel)
+Stop forwarding the reason to the email payload. In the `send-email` invocation around line 195, drop `reason: cancellationReason || null`. The admin's typed reason still gets saved to `class_bookings.cancellation_reason` via the RPC — it just won't appear in the outgoing email.
 
-### 1. Fix admin "cancel entire class" email recipient filter — `src/pages/admin/Classes.tsx`
+### 3. `src/pages/admin/ClassRoster.tsx` (single attendee removal)
+Already passes `reason: null`, but for consistency remove the field entirely from the email payload (line 275).
 
-The current code fetches `status === 'cancelled'` bookings *after* the RPC runs, which sweeps in anyone who cancelled themselves earlier. Change the filter to only include bookings cancelled by this admin action:
-
-```ts
-.eq('session_id', selectedSession.id)
-.eq('status', 'cancelled')
-.eq('cancellation_reason', 'Class cancelled by admin')   // ← new
-```
-
-The `admin_cancel_class_session` RPC already stamps exactly this reason on every booking it cancels (verified in migration `20260226024407`), so this is a clean filter with no risk of a race.
-
-### 2. Send a cancellation email when admin removes a single attendee — `src/pages/admin/ClassRoster.tsx`
-
-In the `removeMutation` (lines 200–246), after the booking is updated to `cancelled`:
-- Fetch the member's email + name (already partially loaded into the roster) and the class name/date/time/instructor (already loaded for the page header).
-- Invoke `send-email` with `type: 'class_cancelled_by_admin'` and the same data shape used in `Classes.tsx`. The template already says credits were restored, which matches what this action does.
-- Best-effort send: don't block the cancellation toast if email fails (same pattern as elsewhere).
-
-Also stamp the cancellation reason as `'Removed by admin'` on the booking update so it's distinguishable in audit/reports from a full-class cancellation.
-
-### 3. (Small polish) Walk-in attendee fallback for the email name
-
-The current admin cancel code falls back to `walk_in_email` / `walk_in_name`, which is correct. Verify the same resolution exists in the new ClassRoster path so guests with no `member_id` still get notified.
-
-### 4. No changes to:
-- `cancel_class_booking` RPC — 24-hr forfeit policy works as designed.
-- `admin_cancel_class_session` RPC — already restores credits/passes correctly.
-- `useBooking.ts` self-cancel email send — already correct.
-- The `class_cancelled_by_admin` and `booking_cancellation` email templates — already exist and already convey refund status.
-
-## What this does NOT cover (call out for your decision)
-
-- **Waitlisted users with prepaid holds** when an admin cancels a session: I didn't see logic in `admin_cancel_class_session` to release/refund those holds or notify the waitlist. Per project memory, waitlist payment is held immediately and refunded if not cleared. Want me to also (a) refund prepaid waitlist holds and (b) email waitlisted users when the whole class is cancelled? I'd recommend yes but it adds scope — confirm before I include it.
-
-## Files I'll edit
-
-- `src/pages/admin/Classes.tsx` — add `cancellation_reason` filter to the email recipient query.
-- `src/pages/admin/ClassRoster.tsx` — send `class_cancelled_by_admin` email after admin removes an attendee; stamp `cancellation_reason = 'Removed by admin'`.
-
-No DB migration, no new edge function, no template changes.
+## Out of scope / unchanged
+- Member self-cancellation emails (`booking_cancellation`) — unaffected.
+- Internal storage of `cancellation_reason` on bookings — unchanged, still recorded for admin visibility.
+- Refund/credit-restoration logic — unchanged.
