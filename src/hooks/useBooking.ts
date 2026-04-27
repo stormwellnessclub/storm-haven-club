@@ -400,11 +400,13 @@ export function useCancelBooking() {
         const { data: { user: currentUser } } = await supabase.auth.getUser();
 
         if (currentUser?.email && cancelResult.session_date) {
+          const firstName = (currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || '').split(' ')[0] || 'there';
           await supabase.functions.invoke("send-email", {
             body: {
               type: "booking_cancellation",
               to: currentUser.email,
               data: {
+                name: firstName,
                 className: cancelResult.class_name || "Class",
                 date: format(parseISO(cancelResult.session_date), "EEEE, MMMM d, yyyy"),
                 time: format(parse(cancelResult.start_time || "00:00:00", "HH:mm:ss", new Date()), "h:mm a"),

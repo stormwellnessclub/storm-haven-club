@@ -1,51 +1,43 @@
-## Problem
+## What you saw vs. what I described
 
-The booking cancellation email is showing **"undefined"** for the class name (and the credit refund line is missing) because of a **field-name mismatch** between the sender and the template.
+The two cancellation emails currently look **completely different** in code:
 
-### Root cause
+| Template | Visual style |
+|---|---|
+| `class_cancelled_by_admin` (admin-triggered) | Branded — Georgia serif, gold `#6C5D3E` text, `warningBox` / `successBox`, "Hi {name}" greeting |
+| `booking_cancellation` (member self-cancel — **what you received**) | Generic — system sans-serif, red `#fef2f2` box, no greeting, no "credit forfeited" message at all when you lose your credit |
 
-In `src/hooks/useBooking.ts` (member self-cancellation), the payload uses **snake_case**:
-```ts
-data: {
-  class_name: cancelResult.class_name || "Class",
-  date: ...,
-  time: ...,
-  credit_refunded: !cancelResult.forfeit_credit,
-}
-```
+That mismatch is why the inbox didn't look like what I showed you earlier. The admin template I quoted is real; the member template is the older one and was never restyled.
 
-But in `supabase/functions/send-email/index.ts` the `booking_cancellation` template reads **camelCase**:
-```ts
-${data.className}        // ← undefined
-${data.creditRefunded ? ... : ''}   // ← always falsy → no refund line
-```
-
-That's why your inbox shows `Booking Cancelled - undefined` and the Class row says `undefined`.
-
-The admin cancellation (`class_cancelled_by_admin`) doesn't have this issue because `Classes.tsx` already sends `className` in camelCase — so admin emails render correctly.
+The "undefined" was a separate bug (snake_case payload), already fixed in the last change. Any cancellation you do **after** the deploy will render the class name correctly.
 
 ## Fix
 
-Update `src/hooks/useBooking.ts` to send the keys the template expects:
+Rewrite the `booking_cancellation` template in `supabase/functions/send-email/index.ts` (lines ~435–467) to match the admin template's branded style, and explicitly handle BOTH outcomes:
 
+1. **On-time cancel (≥ 24h)** — green successBox: "✓ Your class credit has been refunded to your account."
+2. **Late cancel (< 24h)** — amber/red warningBox: "Because this was cancelled less than 24 hours before class, your credit has been forfeited per our cancellation policy."
+
+Use the same building blocks already in the admin template:
+- `emailStyles.warningBox` for the class details
+- `emailStyles.successBox` for the refund confirmation
+- Georgia serif typography, `#6C5D3E` / `#1C170F` palette
+- Personalized "Hi {name}" greeting (pass `name` from `useBooking.ts` alongside the existing fields)
+
+Also update `src/hooks/useBooking.ts` (~line 407) to include `name`:
 ```ts
 data: {
+  name: currentUser.user_metadata?.full_name?.split(' ')[0] || 'there',
   className: cancelResult.class_name || "Class",
-  date: format(parseISO(cancelResult.session_date), "EEEE, MMMM d, yyyy"),
-  time: format(parse(cancelResult.start_time || "00:00:00", "HH:mm:ss", new Date()), "h:mm a"),
+  date: ...,
+  time: ...,
   creditRefunded: !cancelResult.forfeit_credit,
 }
 ```
 
-No changes to the email template or RPCs are needed — just the field names in the invoke call.
+## Files changed
 
-## Verification
+- `supabase/functions/send-email/index.ts` — restyle `booking_cancellation` case
+- `src/hooks/useBooking.ts` — pass `name` in the email data payload
 
-After the fix, re-test:
-1. **Cancel ≥ 24h out** → email shows correct class name + green "✓ Your class credit has been refunded."
-2. **Cancel < 24h out** → email shows correct class name, no refund line (credit forfeited as expected).
-3. **Admin cancel** → unchanged, already working.
-
-## Files to change
-
-- `src/hooks/useBooking.ts` (one object, ~lines 407–412)
+No DB / RPC / cron changes. After deploy, re-test one on-time cancel and one late cancel — both should look identical in style to the admin email, just with different status messaging.
