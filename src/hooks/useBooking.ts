@@ -405,10 +405,10 @@ export function useCancelBooking() {
               type: "booking_cancellation",
               to: currentUser.email,
               data: {
-                class_name: cancelResult.class_name || "Class",
+                className: cancelResult.class_name || "Class",
                 date: format(parseISO(cancelResult.session_date), "EEEE, MMMM d, yyyy"),
                 time: format(parse(cancelResult.start_time || "00:00:00", "HH:mm:ss", new Date()), "h:mm a"),
-                credit_refunded: !cancelResult.forfeit_credit,
+                creditRefunded: !cancelResult.forfeit_credit,
               },
             },
           });

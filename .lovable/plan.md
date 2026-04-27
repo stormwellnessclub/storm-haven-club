@@ -1,19 +1,51 @@
-# Hide cancellation reason from admin-cancellation emails
+## Problem
 
-When an admin cancels a class (or removes a single attendee), the email to the member should no longer display a "Reason" line. The reason will continue to be stored internally on the booking record (`cancellation_reason`) for admin/audit purposes — only the member-facing email is affected.
+The booking cancellation email is showing **"undefined"** for the class name (and the credit refund line is missing) because of a **field-name mismatch** between the sender and the template.
 
-## Changes
+### Root cause
 
-### 1. `supabase/functions/send-email/index.ts`
-In the `class_cancelled_by_admin` template (around lines 469–520), remove the conditional `${data.reason ? ... : ''}` block that renders the "Reason:" info box. The template will simply show the class/date/time, the credit-refunded confirmation, and the "Book Another Class" CTA — no reason field, regardless of what callers pass.
+In `src/hooks/useBooking.ts` (member self-cancellation), the payload uses **snake_case**:
+```ts
+data: {
+  class_name: cancelResult.class_name || "Class",
+  date: ...,
+  time: ...,
+  credit_refunded: !cancelResult.forfeit_credit,
+}
+```
 
-### 2. `src/pages/admin/Classes.tsx` (whole-session cancel)
-Stop forwarding the reason to the email payload. In the `send-email` invocation around line 195, drop `reason: cancellationReason || null`. The admin's typed reason still gets saved to `class_bookings.cancellation_reason` via the RPC — it just won't appear in the outgoing email.
+But in `supabase/functions/send-email/index.ts` the `booking_cancellation` template reads **camelCase**:
+```ts
+${data.className}        // ← undefined
+${data.creditRefunded ? ... : ''}   // ← always falsy → no refund line
+```
 
-### 3. `src/pages/admin/ClassRoster.tsx` (single attendee removal)
-Already passes `reason: null`, but for consistency remove the field entirely from the email payload (line 275).
+That's why your inbox shows `Booking Cancelled - undefined` and the Class row says `undefined`.
 
-## Out of scope / unchanged
-- Member self-cancellation emails (`booking_cancellation`) — unaffected.
-- Internal storage of `cancellation_reason` on bookings — unchanged, still recorded for admin visibility.
-- Refund/credit-restoration logic — unchanged.
+The admin cancellation (`class_cancelled_by_admin`) doesn't have this issue because `Classes.tsx` already sends `className` in camelCase — so admin emails render correctly.
+
+## Fix
+
+Update `src/hooks/useBooking.ts` to send the keys the template expects:
+
+```ts
+data: {
+  className: cancelResult.class_name || "Class",
+  date: format(parseISO(cancelResult.session_date), "EEEE, MMMM d, yyyy"),
+  time: format(parse(cancelResult.start_time || "00:00:00", "HH:mm:ss", new Date()), "h:mm a"),
+  creditRefunded: !cancelResult.forfeit_credit,
+}
+```
+
+No changes to the email template or RPCs are needed — just the field names in the invoke call.
+
+## Verification
+
+After the fix, re-test:
+1. **Cancel ≥ 24h out** → email shows correct class name + green "✓ Your class credit has been refunded."
+2. **Cancel < 24h out** → email shows correct class name, no refund line (credit forfeited as expected).
+3. **Admin cancel** → unchanged, already working.
+
+## Files to change
+
+- `src/hooks/useBooking.ts` (one object, ~lines 407–412)
