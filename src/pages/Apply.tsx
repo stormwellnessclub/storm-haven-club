@@ -1151,17 +1151,19 @@ export default function Apply() {
                 </div>
 
                 <div>
-                  <Label className="mb-3 block">Were you referred by a current member? *</Label>
-                  <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
-                      <input type="radio" id="referredByMember-yes" name="referredByMember" value="yes" checked={formData.referredByMember === "yes"} onChange={handleInputChange} className="w-4 h-4" required />
-                      <Label htmlFor="referredByMember-yes" className="font-normal cursor-pointer">Yes</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input type="radio" id="referredByMember-no" name="referredByMember" value="no" checked={formData.referredByMember === "no"} onChange={handleInputChange} className="w-4 h-4" required />
-                      <Label htmlFor="referredByMember-no" className="font-normal cursor-pointer">No</Label>
-                    </div>
-                  </div>
+                  <Label htmlFor="referredByMember" className="mb-2 block">Member Referral</Label>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Do you know a current Storm Wellness Club member? If so, include their name. A referral is not required, but it is considered as part of your application review.
+                  </p>
+                  <Input
+                    id="referredByMember"
+                    name="referredByMember"
+                    type="text"
+                    value={formData.referredByMember}
+                    onChange={handleInputChange}
+                    maxLength={100}
+                    placeholder="Member's full name (optional)"
+                  />
                 </div>
               </div>
             </div>
