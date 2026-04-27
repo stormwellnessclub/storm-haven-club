@@ -5,6 +5,27 @@ import { toast } from "sonner";
 
 export type DeviceType = "physical_scanner" | "camera" | "manual_entry";
 
+export interface FrozenClassBooking {
+  id: string;
+  class_name: string;
+  start_time: string;
+  session_date: string;
+  status: string;
+  already_checked_in: boolean;
+  room?: string | null;
+}
+
+export interface FrozenSpaBooking {
+  id: string;
+  service_name: string;
+  service_category?: string | null;
+  appointment_time: string;
+  duration_minutes?: number | null;
+  status: string;
+  already_checked_in: boolean;
+  therapist?: string | null;
+}
+
 export interface ScanResult {
   success: boolean;
   access_granted: boolean;
@@ -31,6 +52,10 @@ export interface ScanResult {
   log_id?: string;
   error?: string;
   message?: string;
+  /** Frozen-member helpers: only populated when denial_reason === 'membership_frozen' */
+  todays_class_bookings?: FrozenClassBooking[];
+  todays_spa_bookings?: FrozenSpaBooking[];
+  valid_class_passes?: number;
 }
 
 export interface ScannerAccessLog {
