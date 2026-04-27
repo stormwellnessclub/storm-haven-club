@@ -212,7 +212,7 @@ serve(async (req) => {
 
             if (invoice.lines?.data?.length) {
               const mainLine = invoice.lines.data.find(
-                (l) =>
+                (l: { description?: string | null }) =>
                   !(l.description || "").toLowerCase().includes("tax") &&
                   !(l.description || "").toLowerCase().includes("processing fee")
               );

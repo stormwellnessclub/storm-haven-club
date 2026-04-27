@@ -43,7 +43,7 @@ async function getOrCreateProcessingFeeProduct(stripe: Stripe): Promise<string> 
   const products = await stripe.products.search({ query: "name:'Processing Fee'", limit: 1 });
   if (products.data.length > 0) {
     processingFeeProductId = products.data[0].id;
-    return processingFeeProductId;
+    return processingFeeProductId!;
   }
   const product = await stripe.products.create({
     name: 'Processing Fee',
@@ -51,7 +51,7 @@ async function getOrCreateProcessingFeeProduct(stripe: Stripe): Promise<string> 
     metadata: { type: 'processing_fee' },
   });
   processingFeeProductId = product.id;
-  return processingFeeProductId;
+  return processingFeeProductId!;
 }
 
 async function getOrCreateRecurringProcessingFeePrice(
@@ -63,7 +63,7 @@ async function getOrCreateRecurringProcessingFeePrice(
   if (feeCents <= 0) return null;
   const productId = await getOrCreateProcessingFeeProduct(stripe);
   const existingPrices = await stripe.prices.list({ product: productId, type: 'recurring', active: true, limit: 100 });
-  const matchingPrice = existingPrices.data.find(p => p.unit_amount === feeCents && p.recurring?.interval === interval);
+  const matchingPrice = existingPrices.data.find((p: Stripe.Price) => p.unit_amount === feeCents && p.recurring?.interval === interval);
   if (matchingPrice) return matchingPrice.id;
   const price = await stripe.prices.create({
     product: productId,
@@ -216,7 +216,8 @@ async function resolveNonSubscriptionChargeType(stripe: Stripe, invoice: Stripe.
 }
 
 async function upsertNonMemberPaymentAttempt(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   payload: {
     amount: number;
     attemptNumber: number;
@@ -1685,12 +1686,12 @@ serve(async (req) => {
           logStep("Subscription deleted", { subscriptionId: subscription.id });
 
           // Find member by membership subscription ID first
-          let memberData: { id: string } | null = null;
+          let memberData: { id: string; stripe_subscription_id?: string | null } | null = null;
           let isAnnualFeeSubscription = false;
           
           const { data: memberByDues, error: duesError } = await supabase
             .from('members')
-            .select('id')
+            .select('id, stripe_subscription_id')
             .eq('stripe_subscription_id', subscription.id)
             .maybeSingle();
 
