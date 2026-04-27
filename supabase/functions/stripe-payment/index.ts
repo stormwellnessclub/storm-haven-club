@@ -179,71 +179,12 @@ const STRIPE_PRODUCTS = {
   },
 };
 
+// Open-ended request shape: many actions accept dynamic fields, so we allow
+// arbitrary properties while still documenting common ones.
+// deno-lint-ignore no-explicit-any
 interface PaymentRequest {
-  action: 'create_activation_checkout' | 'create_class_pass_checkout' | 'create_freeze_fee_checkout' | 'pay_annual_fee' | 'customer_portal' | 'get_subscription' | 'cancel_subscription' | 'charge_saved_card' | 'charge_saved_card_with_3ds' | 'list_payment_methods' | 'list_application_payment_methods' | 'create_application_setup' | 'create_admin_setup_intent' | 'refund_charge' | 'create_setup_intent' | 'detach_payment_method' | 'list_invoices' | 'set_default_payment_method' | 'update_payment_method_nickname' | 'create_membership_payment_link' | 'process_membership_payment' | 'create_class_pass_link' | 'process_class_pass' | 'charge_annual_fee' | 'pause_subscription' | 'resume_subscription' | 'update_subscription_billing' | 'create_subscription_payment_intent' | 'create_class_pass_payment_intent' | 'create_subscription_from_payment' | 'create_guest_pass_checkout' | 'create_guest_pass_experience_checkout' | 'admin_create_member_subscription' | 'cancel_annual_fee_subscription' | 'create_member_dues_checkout' | 'sync_member_card_metadata' | 'admin_update_member_tier' | 'create_annual_fee_payment_link' | 'process_admin_refund' | 'undo_admin_action' | 'log_card_setup_failure' | 'admin_list_member_payment_methods' | 'admin_create_initiation_fee_subscription' | 'admin_create_initiation_fee_subscription_no_charge' | 'get_member_billing_health' | 'sync_member_billing_data' | 'sync_member_arrears' | 'detect_duplicate_customers' | 'consolidate_customer' | 'audit_duplicate_annual_fees' | 'cancel_orphan_subscription' | 'retry_subscription_invoice' | 'sync_member_subscription_status' | 'deactivate_member' | 'create_guest_payment_link' | 'create_guest_setup_intent' | 'create_nonmember_setup_intent' | 'sync_nonmember_card_metadata' | 'list_nonmember_payment_methods' | 'create_recovery_checkout' | 'create_wellness_credit_checkout' | 'admin_import_stripe_class_passes' | 'admin_refresh_nonmember_card' | 'update_billing_anchor' | 'add_processing_fees_to_subscription' | 'create_kids_care_checkout';
-  // For non-member recovery checkout
-  serviceName?: string;
-  embedded?: boolean; // For embedded checkout mode
-  // For wellness credit checkout
-  creditType?: string;
-  quantity?: number;
-  // For detach_payment_method, set_default_payment_method, update_payment_method_nickname
-  paymentMethodId?: string;
-  nickname?: string;
-  // For activation checkout
-  tier?: string;
-  gender?: string;
-  isFoundingMember?: boolean;
-  startDate?: string;
-  memberId?: string;
-  skipAnnualFee?: boolean; // Skip annual fee if already paid
-  // For class pass - only support pilatesCycling and otherClasses
-  category?: 'pilatesCycling' | 'otherClasses';
-  passType?: 'single' | 'tenPack';
-  isMember?: boolean;
-  userId?: string;
-  // For guest pass
-  guestName?: string;
-  guestEmail?: string;
-  guestGender?: 'male' | 'female';
-  phoneNumber?: string;
-  validDate?: string;
-  memberReferral?: string | null;
-  visitInterests?: string[];
-  visitNotes?: string | null;
-  addons?: Array<{ id: string; label: string; price: number }>;
-  // For freeze fee
-  freezeId?: string;
-  freezeFeeAmount?: number;
-  // For charge_saved_card (either memberId OR stripeCustomerId required)
-  amount?: number;
-  description?: string;
-  stripeCustomerId?: string; // Direct customer ID for applications
-  applicationId?: string; // For tracking application charges
-  chargeType?: string; // 'pos' for POS charges — skips backend fee recalculation
-  processingFee?: number; // Processing fee in cents (used when chargeType === 'pos')
-  // For application setup (unauthenticated)
-  applicantEmail?: string;
-  applicantName?: string;
-  // For refund_charge
-  chargeId?: string;
-  paymentIntentId?: string;
-  refundAmount?: number;
-  refundNotes?: string;
-  refundMethodType?: string;
-  // General
-  subscriptionId?: string;
-  successUrl?: string;
-  cancelUrl?: string;
-  // For create_subscription_from_payment
-  billingType?: 'monthly' | 'annual';
-  customerId?: string;
-  // For admin_update_member_tier
-  newTier?: 'silver' | 'gold' | 'platinum' | 'diamond';
-  prorationBehavior?: 'create_prorations' | 'none' | 'always_invoice';
-  // For admin_create_member_subscription
-  chargeImmediately?: boolean; // Legacy - will be deprecated
-  firstChargeDate?: string; // NEW: Explicit charge date (null = charge now)
+  action: string;
+  [key: string]: any;
 }
 
 const logStep = (step: string, details?: unknown) => {
