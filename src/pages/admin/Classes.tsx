@@ -162,11 +162,16 @@ export default function Classes() {
       // Send cancellation emails to all booked members
       if (selectedSession) {
         try {
+          // Only notify people whose booking was cancelled by THIS admin action.
+          // Without this filter, anyone who self-cancelled earlier would also get
+          // a misleading "Class Cancelled by Admin" email. The admin_cancel_class_session
+          // RPC stamps exactly this reason on every booking it touches.
           const { data: bookings } = await supabase
             .from('class_bookings')
             .select('id, member_id, walk_in_email, walk_in_name, members(first_name, last_name, email)')
             .eq('session_id', selectedSession.id)
-            .eq('status', 'cancelled');
+            .eq('status', 'cancelled')
+            .eq('cancellation_reason', 'Class cancelled by admin');
           
           if (bookings && bookings.length > 0) {
             const sessionDate = format(parseISO(selectedSession.session_date), 'MMMM d, yyyy');

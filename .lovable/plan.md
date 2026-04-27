@@ -1,56 +1,55 @@
-
 ## Goal
-Every spa appointment should display the customer's real name (member, non-member, or walk-in guest) — never a bare "Guest" — and we should always know **who created the booking**: the customer themselves, or which admin booked it on their behalf.
 
-## What's wrong today
-1. **Display fallback to "Guest"**: When name resolution fails (RLS hides `non_member_profiles`, or a walk-in row has no `staff_notes` header), the admin appointment cards collapse to the literal word "Guest" — which is what you saw on Rola's row even though she's a real account holder in `non_member_profiles`.
-2. **No booking attribution**: `spa_appointments` does not store who performed the insert. Both the member self-booking flow (`useSpaBooking.ts`) and the admin-on-behalf flow (`AdminSpaBookingModal.tsx`) write the *customer's* `user_id` and nothing about the actor. There is no `admin_action_log` entry either. Result: when a customer says "I didn't book this," we have no way to prove who did.
+Whenever a class booking is cancelled — by a member, by a non-member, or by us — the affected person gets a confirmation email. Credit refund happens automatically when **we** cancel; when **they** cancel, refund is conditional on the existing 24-hour rule (already enforced at the DB level — no change needed).
 
-## Fix — Part A: Booking attribution (database + both insert paths)
+## Current state (verified in code)
 
-### Schema (migration)
-Add to `spa_appointments`:
-- `created_by_user_id UUID NULL` — `auth.uid()` of whoever ran the insert
-- `created_via TEXT NULL` — one of `'member_portal'`, `'non_member_portal'`, `'admin_booking'`, `'walk_in_guest'`
-- `created_by_admin_name TEXT NULL` — denormalized snapshot ("Bridget S.") so old admin labels survive even if staff later leave
+| Cancel path | Refund? | Email sent? | Notes |
+|---|---|---|---|
+| Member/non-member self-cancel (`useBooking.ts` → `cancel_class_booking` RPC) | ✅ Yes if ≥24hr, forfeited if <24hr | ✅ Yes (`booking_cancellation` template, with `credit_refunded` flag) | Working correctly |
+| Admin cancels entire class session (`Classes.tsx` → `admin_cancel_class_session` RPC) | ✅ Always | ⚠️ Yes, but to wrong people | **Filter bug** — also emails people who self-cancelled earlier |
+| Admin removes a single attendee from roster (`ClassRoster.tsx` "Remove" button) | ✅ Yes | ❌ **No email at all** | Member shows up to a class they're no longer booked into |
 
-Backfill is optional — leave existing rows NULL; they'll display "Source unknown" in the UI.
+## Plan
 
-### Insert paths
-- **`src/hooks/useSpaBooking.ts`** (member/non-member self-service): set `created_by_user_id = user.id`, `created_via = 'member_portal'` (or `'non_member_portal'` based on whether a `members` row exists for the user).
-- **`src/components/admin/spa/AdminSpaBookingModal.tsx`** (admin on behalf): set `created_by_user_id = currentAdmin.id`, `created_via = 'admin_booking'` (or `'walk_in_guest'` when no `userIdToInsert`), and `created_by_admin_name` from the current admin's profile.
+### 1. Fix admin "cancel entire class" email recipient filter — `src/pages/admin/Classes.tsx`
 
-## Fix — Part B: Always-resolves name + visible source label
+The current code fetches `status === 'cancelled'` bookings *after* the RPC runs, which sweeps in anyone who cancelled themselves earlier. Change the filter to only include bookings cancelled by this admin action:
 
-### `src/hooks/useAdminSpaAppointments.ts`
-- When the `non_member_profiles` fallback returns nothing for a `user_id`, also try a direct `auth.users` email lookup via an existing SECURITY DEFINER RPC (or fall back to `profiles` if available) so we never lose the name to RLS.
-- Join `created_by_user_id` against members/non_member_profiles/profiles to build a `bookedBy` field: `{ name, role: 'self' | 'admin' | 'unknown' }`.
+```ts
+.eq('session_id', selectedSession.id)
+.eq('status', 'cancelled')
+.eq('cancellation_reason', 'Class cancelled by admin')   // ← new
+```
 
-### `src/pages/admin/Appointments.tsx` and `src/components/admin/spa/SpaAvailabilityTab.tsx`
-- Replace the `|| 'Guest'` fallback with `|| 'Name unavailable'` (only ever shown if every lookup fails — should be rare).
-- Under each appointment card, add a small muted line:
-  - `Booked by member` (when `created_by_user_id == user_id`)
-  - `Booked by Bridget S. (admin)` (when admin booked on behalf)
-  - `Booked by walk-in / front desk` (no user_id)
-  - `Source unknown` (legacy rows pre-migration)
+The `admin_cancel_class_session` RPC already stamps exactly this reason on every booking it cancels (verified in migration `20260226024407`), so this is a clean filter with no risk of a race.
 
-### `src/components/admin/spa/SpaCompletionDialog.tsx`
-- Same `'Guest'` → `'Name unavailable'` change for consistency.
+### 2. Send a cancellation email when admin removes a single attendee — `src/pages/admin/ClassRoster.tsx`
 
-## Out of scope (intentionally not doing)
-- No cancellations, no refunds — per your instruction, both Rola appointments stay as-is.
-- No duplicate-prevention guard right now (the same-minute double-booking pattern is suspicious but you didn't ask for that — happy to add it in a follow-up if you want).
+In the `removeMutation` (lines 200–246), after the booking is updated to `cancelled`:
+- Fetch the member's email + name (already partially loaded into the roster) and the class name/date/time/instructor (already loaded for the page header).
+- Invoke `send-email` with `type: 'class_cancelled_by_admin'` and the same data shape used in `Classes.tsx`. The template already says credits were restored, which matches what this action does.
+- Best-effort send: don't block the cancellation toast if email fails (same pattern as elsewhere).
 
-## Files touched
-- New migration: `spa_appointments` columns
-- `src/hooks/useSpaBooking.ts`
-- `src/components/admin/spa/AdminSpaBookingModal.tsx`
-- `src/hooks/useAdminSpaAppointments.ts`
-- `src/pages/admin/Appointments.tsx`
-- `src/components/admin/spa/SpaAvailabilityTab.tsx`
-- `src/components/admin/spa/SpaCompletionDialog.tsx`
+Also stamp the cancellation reason as `'Removed by admin'` on the booking update so it's distinguishable in audit/reports from a full-class cancellation.
 
-## How to verify
-1. Book a spa appointment from the member portal as a non-member account → admin Appointments shows real name + "Booked by member."
-2. Book a spa appointment from `AdminSpaBookingModal` for that same account → admin Appointments shows real name + "Booked by [your admin name] (admin)."
-3. Existing rows (Rola's two appointments) continue to display her name correctly and show "Source unknown" until one of them is touched.
+### 3. (Small polish) Walk-in attendee fallback for the email name
+
+The current admin cancel code falls back to `walk_in_email` / `walk_in_name`, which is correct. Verify the same resolution exists in the new ClassRoster path so guests with no `member_id` still get notified.
+
+### 4. No changes to:
+- `cancel_class_booking` RPC — 24-hr forfeit policy works as designed.
+- `admin_cancel_class_session` RPC — already restores credits/passes correctly.
+- `useBooking.ts` self-cancel email send — already correct.
+- The `class_cancelled_by_admin` and `booking_cancellation` email templates — already exist and already convey refund status.
+
+## What this does NOT cover (call out for your decision)
+
+- **Waitlisted users with prepaid holds** when an admin cancels a session: I didn't see logic in `admin_cancel_class_session` to release/refund those holds or notify the waitlist. Per project memory, waitlist payment is held immediately and refunded if not cleared. Want me to also (a) refund prepaid waitlist holds and (b) email waitlisted users when the whole class is cancelled? I'd recommend yes but it adds scope — confirm before I include it.
+
+## Files I'll edit
+
+- `src/pages/admin/Classes.tsx` — add `cancellation_reason` filter to the email recipient query.
+- `src/pages/admin/ClassRoster.tsx` — send `class_cancelled_by_admin` email after admin removes an attendee; stamp `cancellation_reason = 'Removed by admin'`.
+
+No DB migration, no new edge function, no template changes.

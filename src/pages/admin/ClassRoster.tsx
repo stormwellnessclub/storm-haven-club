@@ -197,12 +197,13 @@ export default function ClassRoster() {
     onError: () => toast.error("Failed to check in"),
   });
 
-  // Remove booking mutation with credit/pass refund
+  // Remove booking mutation with credit/pass refund + cancellation email
   const removeMutation = useMutation({
     mutationFn: async (bookingId: string) => {
+      // Pull everything we need for the email BEFORE we cancel.
       const { data: booking, error: fetchErr } = await supabase
         .from("class_bookings")
-        .select("id, payment_method, pass_id, member_credit_id, credits_used")
+        .select("id, payment_method, pass_id, member_credit_id, credits_used, walk_in_email, walk_in_name, member_id, user_id, members(first_name, last_name, email), profiles:user_id(first_name, last_name, email)")
         .eq("id", bookingId)
         .single();
       if (fetchErr || !booking) throw new Error("Booking not found");
@@ -237,11 +238,50 @@ export default function ClassRoster() {
 
       const { error } = await supabase
         .from("class_bookings")
-        .update({ status: "cancelled" as const, cancelled_at: new Date().toISOString() })
+        .update({
+          status: "cancelled" as const,
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: "Removed by admin",
+        })
         .eq("id", bookingId);
       if (error) throw error;
+
+      // Send cancellation email (best-effort — don't block on failure).
+      // Resolve recipient: member > linked profile > walk-in fallback.
+      try {
+        const member = booking.members as any;
+        const profile = booking.profiles as any;
+        const email = member?.email || profile?.email || booking.walk_in_email;
+        const firstName = member?.first_name || profile?.first_name || booking.walk_in_name?.split(" ")[0];
+        const lastName = member?.last_name || profile?.last_name;
+        const name = [firstName, lastName].filter(Boolean).join(" ") || booking.walk_in_name || "Guest";
+
+        if (email && session) {
+          const formattedDate = format(sessionDate, "MMMM d, yyyy");
+          const [h, m] = (session.start_time || "00:00:00").split(":").map(Number);
+          const timeDate = new Date();
+          timeDate.setHours(h, m, 0, 0);
+          const formattedTime = format(timeDate, "h:mm a");
+
+          supabase.functions.invoke("send-email", {
+            body: {
+              type: "class_cancelled_by_admin",
+              to: email,
+              data: {
+                name,
+                className: className || "Class",
+                date: formattedDate,
+                time: formattedTime,
+                reason: null,
+              },
+            },
+          }).catch((err) => console.error("Failed to send removal email:", err));
+        }
+      } catch (err) {
+        console.error("Failed to prepare removal email:", err);
+      }
     },
-    onSuccess: () => { invalidateAll(); toast.success("Removed from class — credit/pass restored"); },
+    onSuccess: () => { invalidateAll(); toast.success("Removed from class — credit/pass restored, member notified"); },
     onError: () => toast.error("Failed to remove"),
   });
 
