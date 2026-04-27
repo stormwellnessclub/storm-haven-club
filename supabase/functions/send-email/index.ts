@@ -1261,7 +1261,42 @@ serve(async (req) => {
         `;
         break;
 
-      case 'member_activation_setup':
+      case 'freeze_request_rejected': {
+        // Admin-composed freeze rejection email. Subject + body are passed in
+        // (and edited in the admin UI before send). Body is plain text — we
+        // escape it and convert line breaks into paragraphs so the message
+        // renders cleanly inside the standard branded shell.
+        subject = (data.subject && String(data.subject).trim()) || 'Regarding Your Freeze Request';
+
+        const rawBody = String(data.bodyText ?? '').trim();
+        const escapeHtml = (s: string) =>
+          s.replace(/&/g, '&amp;')
+           .replace(/</g, '&lt;')
+           .replace(/>/g, '&gt;')
+           .replace(/"/g, '&quot;')
+           .replace(/'/g, '&#39;');
+
+        const paragraphs = rawBody
+          .split(/\n{2,}/)
+          .map((para) => {
+            const inner = escapeHtml(para).replace(/\n/g, '<br />');
+            return `<p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin: 0 0 18px 0; font-family: Georgia, serif;">${inner}</p>`;
+          })
+          .join('\n');
+
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              ${paragraphs}
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+
       case 'setup_instructions':
         subject = 'Welcome to Storm Wellness Club — Complete Your Membership Setup';
         html = `
