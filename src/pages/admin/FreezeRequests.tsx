@@ -168,7 +168,18 @@ export default function FreezeRequests() {
     setSelectedRequest(request);
     setRejectReason("");
     setRejectSendEmail(true);
-    applyRejectionScenario("custom", request);
+    // Auto-pick the right template based on the member so the email body is
+    // visible immediately when the dialog opens.
+    const fullName = `${request.members.first_name ?? ""} ${request.members.last_name ?? ""}`
+      .trim()
+      .toLowerCase();
+    let initialScenario: RejectionScenario = "custom";
+    if (fullName.includes("brea")) {
+      initialScenario = "membership_not_active";
+    } else if (fullName.includes("mariam")) {
+      initialScenario = "membership_in_arrears";
+    }
+    applyRejectionScenario(initialScenario, request);
     setShowRejectDialog(true);
   };
 
@@ -274,6 +285,15 @@ export default function FreezeRequests() {
             </div>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 rounded-md border border-accent/30 bg-accent/5 p-3 text-sm">
+              <p className="font-medium">Branded rejection templates are ready.</p>
+              <p className="text-muted-foreground">
+                Click the red <strong>Reject</strong> button on a pending request to open the email
+                editor. Choose <em>Membership Not Yet Active</em> (Brea) or{" "}
+                <em>Membership in Arrears</em> (Mariam) — the email is pre-filled and editable
+                before you send.
+              </p>
+            </div>
             <Tabs value={statusFilter} onValueChange={setStatusFilter}>
               <TabsList>
                 <TabsTrigger value="pending">Pending</TabsTrigger>
