@@ -124,6 +124,10 @@ export default function FreezeRequests() {
   const [selectedRequest, setSelectedRequest] = useState<FreezeRequestWithMember | null>(null);
   const [approveStartDate, setApproveStartDate] = useState<Date>();
   const [rejectReason, setRejectReason] = useState("");
+  const [rejectScenario, setRejectScenario] = useState<RejectionScenario>("custom");
+  const [rejectEmailSubject, setRejectEmailSubject] = useState("");
+  const [rejectEmailBody, setRejectEmailBody] = useState("");
+  const [rejectSendEmail, setRejectSendEmail] = useState(true);
   const { isAdmin, isSuperAdmin } = useUserRoles();
 
   const { data: requests, isLoading } = useAdminFreezeRequests(statusFilter);
