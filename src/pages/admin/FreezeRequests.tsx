@@ -25,8 +25,65 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck, StopCircle } from "lucide-react";
+import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck, StopCircle, ExternalLink } from "lucide-react";
 import { format, isBefore, startOfToday } from "date-fns";
+import { Link } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type RejectionScenario = "membership_not_active" | "membership_in_arrears" | "custom";
+
+const FREEZE_REJECTION_PRESETS: Record<
+  RejectionScenario,
+  { label: string; subject: string; body: (firstName: string) => string }
+> = {
+  membership_not_active: {
+    label: "Membership Not Yet Active",
+    subject: "Regarding Your Freeze Request",
+    body: (firstName) =>
+      `Hi ${firstName || "there"},
+
+Thank you for reaching out. After reviewing your account, we are unable to approve your freeze request at this time.
+
+A membership freeze is a benefit reserved for members whose dues are active and current. Our records show that while your initiation fee was processed, your monthly dues have not yet been collected, meaning your membership has not been formally activated.
+
+Because there is no active billing to pause, a freeze is not applicable to your account in its current state.
+
+If you would like to discuss the status of your membership directly, please reach out to us.
+
+The Storm Wellness Club Team`,
+  },
+  membership_in_arrears: {
+    label: "Membership in Arrears",
+    subject: "Regarding Your Freeze Request",
+    body: (firstName) =>
+      `Hi ${firstName || "there"},
+
+Thank you for reaching out. After reviewing your account, we are unable to approve your freeze request at this time.
+
+A membership freeze is a courtesy extended to members in good standing. Our records show that your monthly dues have been declined for the past two billing cycles, leaving a significant balance outstanding on your account.
+
+Per the terms of your one-year membership agreement, you have until May 9, 2026 to bring all outstanding dues current. If the balance is not settled in full by that date, your account will be referred to collections in accordance with the agreement you signed at enrollment.
+
+Once your account is current and in good standing, we would be glad to revisit a freeze request.
+
+If you'd like to settle your balance or discuss a path forward, please reach out to us directly.
+
+The Storm Wellness Club Team`,
+  },
+  custom: {
+    label: "Custom",
+    subject: "",
+    body: () => "",
+  },
+};
+
 import { cn } from "@/lib/utils";
 import {
   useAdminFreezeRequests,
@@ -67,6 +124,10 @@ export default function FreezeRequests() {
   const [selectedRequest, setSelectedRequest] = useState<FreezeRequestWithMember | null>(null);
   const [approveStartDate, setApproveStartDate] = useState<Date>();
   const [rejectReason, setRejectReason] = useState("");
+  const [rejectScenario, setRejectScenario] = useState<RejectionScenario>("custom");
+  const [rejectEmailSubject, setRejectEmailSubject] = useState("");
+  const [rejectEmailBody, setRejectEmailBody] = useState("");
+  const [rejectSendEmail, setRejectSendEmail] = useState(true);
   const { isAdmin, isSuperAdmin } = useUserRoles();
 
   const { data: requests, isLoading } = useAdminFreezeRequests(statusFilter);
@@ -92,9 +153,22 @@ export default function FreezeRequests() {
     setShowApproveDialog(true);
   };
 
+  const applyRejectionScenario = (
+    scenario: RejectionScenario,
+    request: FreezeRequestWithMember | null,
+  ) => {
+    setRejectScenario(scenario);
+    const preset = FREEZE_REJECTION_PRESETS[scenario];
+    const firstName = request?.members.first_name ?? "";
+    setRejectEmailSubject(preset.subject);
+    setRejectEmailBody(preset.body(firstName));
+  };
+
   const handleReject = (request: FreezeRequestWithMember) => {
     setSelectedRequest(request);
     setRejectReason("");
+    setRejectSendEmail(true);
+    applyRejectionScenario("custom", request);
     setShowRejectDialog(true);
   };
 
@@ -114,9 +188,18 @@ export default function FreezeRequests() {
 
   const confirmReject = () => {
     if (!selectedRequest || !rejectReason.trim()) return;
-    
+    if (rejectSendEmail && !rejectEmailBody.trim()) return;
+
     rejectRequest.mutate(
-      { freezeId: selectedRequest.id, reason: rejectReason },
+      {
+        freezeId: selectedRequest.id,
+        reason: rejectReason,
+        sendEmail: rejectSendEmail,
+        emailSubject: rejectEmailSubject,
+        emailBody: rejectEmailBody,
+        recipientEmail: selectedRequest.members.email,
+        recipientFirstName: selectedRequest.members.first_name,
+      },
       {
         onSuccess: () => {
           setShowRejectDialog(false);
@@ -405,24 +488,115 @@ export default function FreezeRequests() {
 
       {/* Reject Dialog */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Reject Freeze Request</DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this request
+              {selectedRequest && (
+                <>Decline {selectedRequest.members.first_name} {selectedRequest.members.last_name}'s freeze request. Choose a scenario to pre-fill a branded email — you can edit before sending.</>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <Label htmlFor="reject-reason">Reason for Rejection</Label>
-              <Textarea
+              <Label>Scenario</Label>
+              <Select
+                value={rejectScenario}
+                onValueChange={(value) =>
+                  applyRejectionScenario(value as RejectionScenario, selectedRequest)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a scenario" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="membership_not_active">
+                    Membership Not Yet Active
+                  </SelectItem>
+                  <SelectItem value="membership_in_arrears">
+                    Membership in Arrears
+                  </SelectItem>
+                  <SelectItem value="custom">Custom (write your own)</SelectItem>
+                </SelectContent>
+              </Select>
+              {rejectScenario === "membership_not_active" && (
+                <p className="text-xs text-muted-foreground">
+                  This email speaks <strong>only</strong> to the freeze decision. To rescind the
+                  membership approval entirely, open the member's profile and use Cancel
+                  Membership separately — that flow sends its own email.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reject-reason">Internal Reason (audit only — not emailed)</Label>
+              <Input
                 id="reject-reason"
-                placeholder="Enter the reason for rejecting this request..."
+                placeholder="e.g. Member's dues are past due — not eligible for freeze"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                rows={3}
               />
             </div>
+
+            <div className="flex items-center gap-2 rounded-md border p-3">
+              <Checkbox
+                id="reject-send-email"
+                checked={rejectSendEmail}
+                onCheckedChange={(checked) => setRejectSendEmail(checked === true)}
+              />
+              <Label htmlFor="reject-send-email" className="cursor-pointer text-sm font-normal">
+                Send rejection email to member
+                {selectedRequest && (
+                  <span className="text-muted-foreground"> ({selectedRequest.members.email})</span>
+                )}
+              </Label>
+            </div>
+
+            {rejectSendEmail && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="reject-email-subject">Email Subject</Label>
+                  <Input
+                    id="reject-email-subject"
+                    value={rejectEmailSubject}
+                    onChange={(e) => setRejectEmailSubject(e.target.value)}
+                    placeholder="Regarding Your Freeze Request"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reject-email-body">Email Message</Label>
+                  <Textarea
+                    id="reject-email-body"
+                    value={rejectEmailBody}
+                    onChange={(e) => setRejectEmailBody(e.target.value)}
+                    rows={14}
+                    className="font-serif text-sm leading-relaxed"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The message will be wrapped in the standard branded email layout when sent.
+                    Edit freely before sending.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {selectedRequest && rejectScenario === "membership_not_active" && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 p-3 text-sm">
+                <p className="font-medium text-amber-900 dark:text-amber-200 mb-1">
+                  Need to also rescind {selectedRequest.members.first_name}'s membership?
+                </p>
+                <Link
+                  to={`/admin/members/${selectedRequest.members.id}`}
+                  className="inline-flex items-center gap-1 text-amber-900 dark:text-amber-200 underline underline-offset-2"
+                >
+                  Open member profile <ExternalLink className="h-3 w-3" />
+                </Link>
+                <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
+                  Use the Cancel Membership action there — it auto-sends a separate
+                  cancellation email.
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
@@ -431,10 +605,14 @@ export default function FreezeRequests() {
             <Button
               variant="destructive"
               onClick={confirmReject}
-              disabled={!rejectReason.trim() || rejectRequest.isPending}
+              disabled={
+                !rejectReason.trim() ||
+                (rejectSendEmail && !rejectEmailBody.trim()) ||
+                rejectRequest.isPending
+              }
             >
               {rejectRequest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Reject
+              {rejectSendEmail ? "Reject & Send Email" : "Reject (no email)"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'freeze_request_rejected' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification';
   to: string;
   data: Record<string, any>;
 }
@@ -1261,7 +1261,42 @@ serve(async (req) => {
         `;
         break;
 
-      case 'member_activation_setup':
+      case 'freeze_request_rejected': {
+        // Admin-composed freeze rejection email. Subject + body are passed in
+        // (and edited in the admin UI before send). Body is plain text — we
+        // escape it and convert line breaks into paragraphs so the message
+        // renders cleanly inside the standard branded shell.
+        subject = (data.subject && String(data.subject).trim()) || 'Regarding Your Freeze Request';
+
+        const rawBody = String(data.bodyText ?? '').trim();
+        const escapeHtml = (s: string) =>
+          s.replace(/&/g, '&amp;')
+           .replace(/</g, '&lt;')
+           .replace(/>/g, '&gt;')
+           .replace(/"/g, '&quot;')
+           .replace(/'/g, '&#39;');
+
+        const paragraphs = rawBody
+          .split(/\n{2,}/)
+          .map((para) => {
+            const inner = escapeHtml(para).replace(/\n/g, '<br />');
+            return `<p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin: 0 0 18px 0; font-family: Georgia, serif;">${inner}</p>`;
+          })
+          .join('\n');
+
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              ${paragraphs}
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+
       case 'setup_instructions':
         subject = 'Welcome to Storm Wellness Club — Complete Your Membership Setup';
         html = `
