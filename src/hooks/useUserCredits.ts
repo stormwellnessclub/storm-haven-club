@@ -197,9 +197,14 @@ export function useUserCredits() {
 export function useAvailableCreditsForCategory(classCategory: string) {
   const { data: creditsData, ...rest } = useUserCredits();
 
-  // Filter passes using the category mapping - a pass is valid if isPassValidForClass returns true
+  // Filter passes using the category mapping - a pass is valid if isPassValidForClass returns true.
+  // Also exclude Kids Care passes — they should ONLY be redeemable through the Kids Care booking flow,
+  // never appear as an option for regular adult class bookings.
   const availablePasses = creditsData?.classPasses.filter(
-    (pass) => pass.classes_remaining > 0 && isPassValidForClass(pass.category, classCategory)
+    (pass) =>
+      pass.classes_remaining > 0 &&
+      !pass.pass_type?.toLowerCase().startsWith("kids_care") &&
+      isPassValidForClass(pass.category, classCategory)
   ) || [];
 
   // Only active (non-frozen) members can use membership class credits
