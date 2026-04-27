@@ -427,6 +427,74 @@ export function ChargeItemSelector({
     queryClient.invalidateQueries({ queryKey: ["class-passes"] });
   };
 
+  // Auto-create Class Passes (singles + 10-packs) after successful charge
+  const createClassPassesFromCart = async (items: CartEntry[]) => {
+    const classPassItems = items.filter((item) => item.chargeType === "class_pass");
+    if (classPassItems.length === 0) return;
+
+    // Resolve user_id (mirrors Kids Care helper)
+    let userId = nonMember?.userId;
+    if (!userId) {
+      const { data: memberData } = await supabase
+        .from("members")
+        .select("user_id")
+        .eq("id", member.id)
+        .single();
+      userId = memberData?.user_id ?? undefined;
+    }
+    if (!userId) {
+      console.error("Could not resolve user_id for Class Pass creation");
+      toast.error("Pass charged but could not link to user account — please grant manually");
+      return;
+    }
+
+    // Map cart item key -> pass spec
+    const PASS_SPEC: Record<string, { category: "pilates_cycling" | "other"; pass_type: string; classes_total: number; expiry_days: number; is_member_price: boolean }> = {
+      single_member_pilates:    { category: "pilates_cycling", pass_type: "single",  classes_total: 1,  expiry_days: 30,  is_member_price: true  },
+      single_member_other:      { category: "other",           pass_type: "single",  classes_total: 1,  expiry_days: 30,  is_member_price: true  },
+      single_nonmember_pilates: { category: "pilates_cycling", pass_type: "single",  classes_total: 1,  expiry_days: 30,  is_member_price: false },
+      single_nonmember_other:   { category: "other",           pass_type: "single",  classes_total: 1,  expiry_days: 30,  is_member_price: false },
+      "10pack_member_pilates":    { category: "pilates_cycling", pass_type: "10-pack", classes_total: 10, expiry_days: 180, is_member_price: true  },
+      "10pack_member_other":      { category: "other",           pass_type: "10-pack", classes_total: 10, expiry_days: 180, is_member_price: true  },
+      "10pack_nonmember_pilates": { category: "pilates_cycling", pass_type: "10-pack", classes_total: 10, expiry_days: 180, is_member_price: false },
+      "10pack_nonmember_other":   { category: "other",           pass_type: "10-pack", classes_total: 10, expiry_days: 180, is_member_price: false },
+    };
+
+    for (const item of classPassItems) {
+      const spec = PASS_SPEC[item.key];
+      if (!spec) {
+        console.warn("Unknown class_pass cart key, skipping fulfillment:", item.key);
+        continue;
+      }
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + spec.expiry_days * 24 * 60 * 60 * 1000);
+
+      for (let q = 0; q < item.quantity; q++) {
+        const { error } = await supabase.from("class_passes").insert({
+          user_id: userId,
+          member_id: nonMember ? null : member.id,
+          category: spec.category as any,
+          pass_type: spec.pass_type,
+          classes_total: spec.classes_total,
+          classes_remaining: spec.classes_total,
+          price_paid: item.unitAmount,
+          is_member_price: spec.is_member_price,
+          purchased_at: now.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          status: "active" as any,
+        });
+        if (error) {
+          console.error("Failed to create Class Pass:", error);
+          toast.error("Payment succeeded but failed to create class pass. Please grant manually.");
+        } else {
+          toast.success(`${spec.pass_type === "10-pack" ? "10-Pack" : "Single"} class pass created (${spec.classes_total} classes)`);
+        }
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ["class-passes"] });
+    queryClient.invalidateQueries({ queryKey: ["user-credits"] });
+  };
+
   const handleCharge = async () => {
     if (cartItems.length === 0) {
       toast.error("Add at least one item to the cart");
