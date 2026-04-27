@@ -78,6 +78,46 @@ export function useKioskCheckIn() {
     }
   };
 
+  const checkInKidsCare = async (bookingId: string): Promise<boolean> => {
+    setIsCheckingIn(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("kiosk_check_in_kids_care", {
+        p_booking_id: bookingId,
+      });
+      if (error) throw error;
+      if (!data?.success) {
+        toast.error(data?.error || "Kids Care check-in failed");
+        return false;
+      }
+      return true;
+    } catch (err: any) {
+      toast.error(err?.message || "Kids Care check-in failed");
+      return false;
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  const checkOutKidsCare = async (bookingId: string): Promise<boolean> => {
+    setIsCheckingIn(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("kiosk_check_out_kids_care", {
+        p_booking_id: bookingId,
+      });
+      if (error) throw error;
+      if (!data?.success) {
+        toast.error(data?.error || "Kids Care check-out failed");
+        return false;
+      }
+      return true;
+    } catch (err: any) {
+      toast.error(err?.message || "Kids Care check-out failed");
+      return false;
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
   const checkInSpa = async (spaId: string): Promise<boolean> => {
     setIsCheckingIn(true);
     try {
