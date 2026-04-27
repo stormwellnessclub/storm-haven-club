@@ -592,6 +592,8 @@ export function ChargeItemSelector({
 
       // Auto-create Kids Care passes for any kids_care items in cart
       await createKidsCarePassesFromCart(cartItems);
+      // Auto-create Class Passes for any class_pass items in cart
+      await createClassPassesFromCart(cartItems);
 
       onChargeSuccess?.();
       resetAndClose();
