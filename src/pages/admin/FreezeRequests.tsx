@@ -153,9 +153,22 @@ export default function FreezeRequests() {
     setShowApproveDialog(true);
   };
 
+  const applyRejectionScenario = (
+    scenario: RejectionScenario,
+    request: FreezeRequestWithMember | null,
+  ) => {
+    setRejectScenario(scenario);
+    const preset = FREEZE_REJECTION_PRESETS[scenario];
+    const firstName = request?.members.first_name ?? "";
+    setRejectEmailSubject(preset.subject);
+    setRejectEmailBody(preset.body(firstName));
+  };
+
   const handleReject = (request: FreezeRequestWithMember) => {
     setSelectedRequest(request);
     setRejectReason("");
+    setRejectSendEmail(true);
+    applyRejectionScenario("custom", request);
     setShowRejectDialog(true);
   };
 
@@ -175,9 +188,18 @@ export default function FreezeRequests() {
 
   const confirmReject = () => {
     if (!selectedRequest || !rejectReason.trim()) return;
-    
+    if (rejectSendEmail && !rejectEmailBody.trim()) return;
+
     rejectRequest.mutate(
-      { freezeId: selectedRequest.id, reason: rejectReason },
+      {
+        freezeId: selectedRequest.id,
+        reason: rejectReason,
+        sendEmail: rejectSendEmail,
+        emailSubject: rejectEmailSubject,
+        emailBody: rejectEmailBody,
+        recipientEmail: selectedRequest.members.email,
+        recipientFirstName: selectedRequest.members.first_name,
+      },
       {
         onSuccess: () => {
           setShowRejectDialog(false);
