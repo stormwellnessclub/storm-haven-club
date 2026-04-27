@@ -289,15 +289,41 @@ function TodaysClasses() {
 // ─── Today's Kids Care ──────────────────────────────────────────────
 function TodaysKidsCare() {
   const today = format(new Date(), "yyyy-MM-dd");
+  const queryClient = useQueryClient();
+  const { checkInKidsCare, checkOutKidsCare, isCheckingIn } = useKioskCheckIn();
+  const [busyId, setBusyId] = useState<string | null>(null);
+
   const { data: bookings } = useQuery({
     queryKey: ["kiosk-todays-kidscare", today],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_admin_kids_care_bookings", { p_booking_date: today });
+      const { data, error } = await (supabase.rpc as any)("kiosk_kids_care_roster", {
+        p_booking_date: today,
+      });
       if (error) throw error;
-      return data || [];
+      return (data || []) as any[];
     },
     refetchInterval: 30000,
   });
+
+  const handleCheckIn = async (id: string) => {
+    setBusyId(id);
+    const ok = await checkInKidsCare(id);
+    if (ok) {
+      toast.success("Child checked in");
+      queryClient.invalidateQueries({ queryKey: ["kiosk-todays-kidscare", today] });
+    }
+    setBusyId(null);
+  };
+
+  const handleCheckOut = async (id: string) => {
+    setBusyId(id);
+    const ok = await checkOutKidsCare(id);
+    if (ok) {
+      toast.success("Child checked out");
+      queryClient.invalidateQueries({ queryKey: ["kiosk-todays-kidscare", today] });
+    }
+    setBusyId(null);
+  };
 
   return (
     <Card>
@@ -311,19 +337,60 @@ function TodaysKidsCare() {
         {bookings && bookings.length > 0 ? (
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Child</TableHead><TableHead>Parent</TableHead><TableHead>Time</TableHead><TableHead>Status</TableHead>
+              <TableHead>Child</TableHead>
+              <TableHead>Parent</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {bookings.map((b: any) => (
-                <TableRow key={b.id}>
-                  <TableCell className="font-medium">{b.child_name}</TableCell>
-                  <TableCell className="text-muted-foreground">{b.parent_first_name} {b.parent_last_name}</TableCell>
-                  <TableCell className="text-muted-foreground">{b.start_time?.slice(0, 5)} – {b.end_time?.slice(0, 5)}</TableCell>
-                  <TableCell>
-                    <Badge variant={b.status === "checked_in" ? "default" : "secondary"}>{b.status?.replace(/_/g, " ")}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {bookings.map((b: any) => {
+                const status = b.status as string;
+                const isBusy = busyId === b.id && isCheckingIn;
+                const parentName = [b.parent_first_name, b.parent_last_name].filter(Boolean).join(" ") || "—";
+                return (
+                  <TableRow key={b.id}>
+                    <TableCell className="font-medium">{b.child_name}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <div>{parentName}</div>
+                      {b.parent_phone && <div className="text-xs text-muted-foreground/70">{b.parent_phone}</div>}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{b.start_time?.slice(0, 5)} – {b.end_time?.slice(0, 5)}</TableCell>
+                    <TableCell>
+                      {status === "checked_in" ? (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> In
+                        </Badge>
+                      ) : status === "checked_out" ? (
+                        <Badge variant="secondary">Checked out</Badge>
+                      ) : (
+                        <Badge variant="secondary">{status?.replace(/_/g, " ")}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {(status === "confirmed" || status === "pending") && (
+                        <Button
+                          size="sm"
+                          disabled={isBusy}
+                          onClick={() => handleCheckIn(b.id)}
+                        >
+                          {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Check In"}
+                        </Button>
+                      )}
+                      {status === "checked_in" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isBusy}
+                          onClick={() => handleCheckOut(b.id)}
+                        >
+                          {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Check Out"}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         ) : (
