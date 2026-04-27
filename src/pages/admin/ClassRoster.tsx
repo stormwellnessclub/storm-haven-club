@@ -272,7 +272,6 @@ export default function ClassRoster() {
                 className: className || "Class",
                 date: formattedDate,
                 time: formattedTime,
-                reason: null,
               },
             },
           }).catch((err) => console.error("Failed to send removal email:", err));

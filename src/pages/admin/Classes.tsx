@@ -192,7 +192,6 @@ export default function Classes() {
                       className: selectedSession.class_types?.name || 'Class',
                       date: sessionDate,
                       time: sessionTime,
-                      reason: cancellationReason || null,
                     },
                   },
                 }).catch(err => console.error('Failed to send cancellation email:', err));
