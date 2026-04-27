@@ -630,6 +630,8 @@ export default function Scanner() {
                               </Button>
                             </div>
                           )}
+                        </div>
+                      )}
 
                       {/* Override button — only for non-billing, non-terminal, non-frozen denials */}
                       {scanResult.member &&
