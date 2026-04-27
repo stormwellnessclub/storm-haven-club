@@ -1,54 +1,114 @@
-# Frozen Member Scanner Behavior
+# Freeze Rejection Emails — Scoped & Premium Tone
 
-## Goal
-When a frozen member is scanned, the scanner should clearly display **"Membership Frozen"** (not allow auto-entry), but front desk staff should be able to **manually check them in** for a class or spa appointment they already have today — without needing a generic "override" reason.
+## Scope clarification (per your direction)
 
-## Current Behavior
-- Scanner currently shows red **"Access Denied — Membership Frozen"**.
-- Generic "Override Access (Staff Only)" button is available, but it just records a free-text reason and grants entry — it doesn't surface their actual class/spa bookings, so staff have no easy way to verify what they're checking in for.
+- The **freeze rejection email** speaks **only to the freeze decision** — never about rescinding/cancelling the membership.
+- **Rescinding Brea's membership approval** is a **separate action** handled through the existing **Cancel Membership** flow on her Member Detail page, which already auto-sends the correct `application_cancelled` email. No new code needed for that — I'll just make sure you know exactly where to click.
+- **Mariam's rejection email** includes the firm **May 9, 2026 deadline** and the **collections** consequence per her one-year membership agreement.
 
-## Proposed Changes
+---
 
-### 1. `process_member_scan` RPC (database migration)
-- Keep returning `access_granted: false` and `denial_reason: 'membership_frozen'` so the scanner still loudly displays the frozen status.
-- Add new fields to the response when the member is frozen:
-  - `todays_class_bookings`: array of today's class session bookings (id, class name, start time, status)
-  - `todays_spa_bookings`: array of today's spa appointments (id, service name, start time, therapist)
-  - `valid_class_passes`: count of remaining class passes (so staff know if a drop-in pass is available)
-- This lets the scanner UI show staff exactly what the frozen member is here for.
+## 1. New email template: `freeze_request_rejected`
 
-### 2. `src/pages/admin/Scanner.tsx`
-When `denial_reason === 'membership_frozen'`:
-- Keep the **amber/yellow "Membership Frozen"** banner (member name + photo still shown).
-- Replace the generic "Override Access" button with a contextual **"Manual Check-In"** section that lists:
-  - Today's class bookings → each with a **"Check In to Class"** button (calls existing `kiosk_check_in_class` RPC by `booking_id`).
-  - Today's spa appointments → each with a **"Check In to Spa"** button (calls `kiosk_check_in_spa` RPC).
-  - If they have remaining class passes but no booking today → show **"Use Class Pass for Drop-In"** (records check-in + notes pass usage).
-  - If none of the above → show **"No paid bookings today — collect payment before entry"** with a small ghost "Override (Staff)" link as last resort.
-- The amber "Membership Frozen" badge stays visible the entire time so staff are never confused about the member's billing state.
+**File:** `supabase/functions/send-email/index.ts`
 
-### 3. ScanResult type (`src/hooks/useMemberScanner.ts`)
-Add the new optional fields to the `ScanResult` interface:
+Add a new template type that accepts an admin-edited subject and body, wraps the body in the standard branded layout (logo, footer, signature: *The Storm Wellness Club Team*), and sends. The body is rendered with paragraph breaks preserved — the admin types in plain text, the function escapes + wraps it in branded HTML.
+
+Payload shape:
 ```ts
-todays_class_bookings?: Array<{ id: string; class_name: string; start_time: string; status: string }>;
-todays_spa_bookings?: Array<{ id: string; service_name: string; start_time: string; therapist?: string }>;
-valid_class_passes?: number;
+{
+  type: 'freeze_request_rejected',
+  to: string,
+  subject: string,        // admin-editable
+  bodyText: string,       // admin-editable, plain text with line breaks
+  memberFirstName: string
+}
 ```
 
-### 4. No changes to portal/dashboard access
-Frozen members continue to log in normally and use the portal (already working — `ProtectedMemberRoute` allows frozen).
+---
 
-## Files to Edit
-- `supabase/migrations/<timestamp>_scanner_frozen_bookings.sql` — update `process_member_scan` to include today's bookings + pass count for frozen members
-- `src/hooks/useMemberScanner.ts` — extend `ScanResult` type
-- `src/pages/admin/Scanner.tsx` — replace generic override with contextual "Manual Check-In" panel for frozen scans
+## 2. Two preset templates (admin can edit before sending)
 
-## Out of Scope
-- Dashboard tile graying (already functional for frozen)
-- Kiosk (`/front-desk`) — separate flow, not part of this request
+### Preset A — "Membership Not Yet Active" (Brea's case)
+**Subject:** `Regarding Your Freeze Request`
 
-## Acceptance
-- Scan a frozen member → scanner shows amber "Membership Frozen" with member name/photo.
-- If they have a class today → staff sees a "Check In to Class: [Name @ Time]" button and one tap checks them in.
-- If they have a spa appointment today → same for spa.
-- No auto-entry; staff always confirm what the frozen member is here for.
+**Body (pre-filled, editable):**
+> Hi Brea,
+>
+> Thank you for reaching out. After reviewing your account, we are unable to approve your freeze request at this time.
+>
+> A membership freeze is a benefit reserved for members whose dues are active and current. Our records show that while your initiation fee was processed, your monthly dues have not yet been collected, meaning your membership has not been formally activated.
+>
+> Because there is no active billing to pause, a freeze is not applicable to your account in its current state.
+>
+> If you would like to discuss the status of your membership directly, please reach out to us.
+>
+> The Storm Wellness Club Team
+
+> **Note:** This email intentionally says nothing about rescission. After sending it, you'll separately go to Brea's **Member Detail → Cancel Membership** to rescind the approval — that triggers its own dedicated email automatically.
+
+### Preset B — "Membership in Arrears" (Mariam's case)
+**Subject:** `Regarding Your Freeze Request`
+
+**Body (pre-filled, editable):**
+> Hi Mariam,
+>
+> Thank you for reaching out. After reviewing your account, we are unable to approve your freeze request at this time.
+>
+> A membership freeze is a courtesy extended to members in good standing. Our records show that your monthly dues have been declined for the past two billing cycles, leaving a significant balance outstanding on your account.
+>
+> Per the terms of your one-year membership agreement, you have until **May 9, 2026** to bring all outstanding dues current. If the balance is not settled in full by that date, your account will be referred to collections in accordance with the agreement you signed at enrollment.
+>
+> Once your account is current and in good standing, we would be glad to revisit a freeze request.
+>
+> If you'd like to settle your balance or discuss a path forward, please reach out to us directly.
+>
+> The Storm Wellness Club Team
+
+### Preset C — "Custom"
+Blank subject and body for any other case.
+
+---
+
+## 3. Admin UI changes
+
+**File:** `src/pages/admin/FreezeRequests.tsx`
+
+In the existing **Reject** dialog, replace the single "Reason" textarea with:
+
+1. **Scenario picker** (dropdown): `Membership Not Yet Active` · `Membership in Arrears` · `Custom`
+2. **Subject** input — pre-filled by scenario, editable
+3. **Message Body** textarea (10+ rows) — pre-filled by scenario, editable, the member's first name auto-injected on scenario change
+4. **Internal rejection reason** — short input, stored on the freeze record only (not emailed)
+5. **"Send rejection email to member"** checkbox (default: ✅ checked)
+
+Switching scenarios swaps the subject + body to that preset (with a confirm if the admin has already typed custom edits).
+
+---
+
+## 4. Logic update
+
+**File:** `src/hooks/useAdminFreezeRequests.ts`
+
+Update `useRejectFreezeRequest` to:
+1. Update the freeze record with `status: 'rejected'`, `reviewed_by`, `reviewed_at`, and the **internal** `rejection_reason`
+2. If "Send email" is checked, invoke `send-email` with `type: 'freeze_request_rejected'` plus the admin's edited subject + body
+3. Toast: `"Freeze rejected — email sent to {member name}"`
+
+---
+
+## 5. Brea's rescission (no new code)
+
+After you send Brea's freeze rejection, on her Member Detail page click **Cancel Membership**. That flow already exists and auto-detects her state as "never paid dues" → sends the `application_cancelled` email. I'll just add a small inline note on the **rejected** freeze card linking directly to her Member Detail to make the two-step workflow obvious.
+
+---
+
+## Files to be edited
+- `supabase/functions/send-email/index.ts` — add `freeze_request_rejected` template
+- `src/hooks/useAdminFreezeRequests.ts` — wire email send into rejection
+- `src/pages/admin/FreezeRequests.tsx` — scenario picker + editable subject/body + "Open member profile to rescind" link on rejected cards
+
+## What does NOT change
+- The existing freeze approval / activation / early-end flows
+- The existing membership cancellation flow (already perfect for Brea's rescission)
+- The QR scanner frozen-member changes shipped earlier
