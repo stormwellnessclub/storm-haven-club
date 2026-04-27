@@ -1,56 +1,41 @@
-## Diagnosis
+# Why Asmaa can't access her account
 
-There are **two distinct bugs** at play here.
+Looked up her account in the database:
 
-### Bug 1: Ayana's 10-class pass was charged but never created
-- On 2026-04-08 18:52 UTC, manual charge `pi_3TK1DSLyZrsSqLhs13yRlD31` for **$175.39** went through with description `"10-pack class pass - Pilates/Cycling"`. The Stripe charge succeeded, but `class_passes` only contains her two **Kids Care** passes from 12 minutes earlier — no 10-pack row exists.
-- **Root cause:** `src/components/admin/ChargeItemSelector.tsx` has an auto-fulfillment step `createKidsCarePassesFromCart()` that runs after `handleCharge` and inserts `class_passes` rows for `chargeType: "kids_care"` items. **There is no equivalent fulfillment for `chargeType: "class_pass"` items** (singles or 10-packs). Stripe captures money, but no pass row is ever created — staff have to grant it manually and may not realize.
+- **Member**: Asmaa Abdel-Salam (`drasmaa@pfdentalinc.com`) — status: **`frozen`**, subscription_status: `active`, Silver tier
+- **Auth**: Last sign-in **yesterday (2026-04-26)** — so she actually CAN log in. No block, no ban.
+- **Freeze record**: ended **2026-03-20** (37 days ago) but is still marked `status='active'`, and her member status is still `frozen`
 
-### Bug 2: Kids Care passes show up when booking adult "other" classes
-- Kids Care passes are stored as `category: "other"`, `pass_type: "kids_care_monthly"`.
-- `useAvailableCreditsForCategory` filters via `isPassValidForClass(pass.category, classCategory)`. For an "other" class, the valid pass categories are `['aerobics', 'other', 'pilates_cycling']`.
-- Since Kids Care passes have `category: "other"`, they pass the filter and appear in the BookingModal's pass dropdown for regular adult classes — exactly what Ayana saw.
-- Kids Care passes should **only** be redeemable through the Kids Care booking flow, never adult classes.
+## Root cause
 
-## Fix Plan
+The `process-freeze-expirations` Edge Function exists and has the correct logic (mark freeze `completed`, set member `status='active'`, resume Stripe sub, realign billing anchor) — but **it's never being called automatically**. Checked `cron.job` and there is no scheduled job for it. So when her freeze ended on March 20, nothing flipped her back to active.
 
-### 1. Backfill Ayana's missing 10-pack class pass
-Insert the missing `class_passes` row matching the paid charge:
-- `user_id`: `112b680c-6530-4d7a-b88b-05c9d545d9cc`
-- `member_id`: her active member id
-- `category`: `pilates_cycling`
-- `pass_type`: `10-pack`
-- `classes_total`: 10, `classes_remaining`: 10
-- `is_member_price`: true
-- `price_paid`: 170 (the line item)
-- `purchased_at`: 2026-04-08 18:52:43 UTC (charge timestamp)
-- `expires_at`: ~6 months from purchase (matching standard 10-pack policy — will confirm against existing 10-packs)
-- `status`: `active`
+Result: she can sign in, but the portal shows the frozen banner, her booking RPCs reject her ("benefits frozen"), and the page can feel stuck/broken because actions silently fail. She perceives this as "can't log in / freezing."
 
-### 2. Add auto-fulfillment for `class_pass` charges in `ChargeItemSelector.tsx`
-Mirror `createKidsCarePassesFromCart` with a new `createClassPassesFromCart` helper that:
-- Filters `cartItems` for `chargeType === "class_pass"`.
-- Maps each item key to its category, pass_type, classes_total, expiration:
-  - `single_member_pilates` / `single_nonmember_pilates` → `pilates_cycling`, `single`, 1 class, 30-day exp
-  - `single_member_other` / `single_nonmember_other` → `other`, `single`, 1 class, 30-day exp
-  - `10pack_member_pilates` / `10pack_nonmember_pilates` → `pilates_cycling`, `10-pack`, 10 classes, 6-month exp
-  - `10pack_member_other` / `10pack_nonmember_other` → `other`, `10-pack`, 10 classes, 6-month exp
-- Inserts `class_passes` rows after a successful charge (called right after `createKidsCarePassesFromCart` in `handleCharge`).
-- Invalidates `class-passes` query so the UI refreshes immediately.
-- Toasts a confirmation per pass created.
+She's the only member currently stuck — confirmed with a query for any active freeze with `actual_end_date <= today`.
 
-This guarantees that any future `ChargeItemSelector` class-pass sale (whether saved-card or manual payment) creates the pass row atomically with the charge.
+## Fix plan
 
-### 3. Exclude Kids Care passes from adult class booking
-Update `src/hooks/useUserCredits.ts` → `useAvailableCreditsForCategory`:
-- After `isPassValidForClass(pass.category, classCategory)`, also exclude any pass whose `pass_type` starts with `kids_care` (e.g. `kids_care_monthly`, `kids_care_single`).
-- Net effect: Kids Care passes still appear in the Kids Care booking flow (which queries them separately), but are hidden from the regular `BookingModal` pass dropdown.
+### 1. Manually resume Asmaa right now (one-off)
+Call the existing `process-freeze-expirations` edge function (it will pick her up since her actual_end_date is in the past) — this will:
+- Set her freeze record to `completed`
+- Flip her member status to `active`
+- Resume her Stripe membership subscription
+- Realign her Stripe billing cycle anchor to her freeze end date
 
-### Files touched
-- `src/components/admin/ChargeItemSelector.tsx` — add `createClassPassesFromCart` helper and call it in `handleCharge`.
-- `src/hooks/useUserCredits.ts` — filter out `kids_care*` pass_types in `useAvailableCreditsForCategory`.
-- Database migration — backfill Ayana's 10-pack `class_passes` row.
+If the Stripe resume fails for any reason (e.g. anchor in past), I'll fall back to a direct DB update for the freeze + member status and resume the Stripe sub manually.
 
-### Out of scope (not changing now)
-- The single-pass and 10-pack logic in the public `/class-passes` Stripe Checkout flow — that path uses `stripe-payment` edge function with its own webhook fulfillment and was working correctly before; only the admin `ChargeItemSelector` saved-card path was missing fulfillment.
-- A historical sweep of other members who may have been charged for class passes via `ChargeItemSelector` without receiving them. Happy to run an audit query as a follow-up if you want — would search `manual_charges` for `class pass` descriptions and cross-reference against `class_passes` rows.
+### 2. Add a daily cron job so this never happens again
+Add a `pg_cron` job (in a new migration) that calls `process-freeze-expirations` once daily — matching the pattern already used for `process-monthly-credits-daily`, `process-guest-feedback-emails`, etc. Schedule: `0 7 * * *` (2am Central, after monthly credits at 1am).
+
+### 3. Verify
+After running, re-query her `members` row to confirm `status='active'` and her `member_freezes` row is `completed`. Tell her to refresh the app.
+
+## Files to change
+
+- **New migration**: `supabase/migrations/<timestamp>_schedule_freeze_expirations.sql` — `cron.schedule(...)` for `process-freeze-expirations`
+- **No app code changes needed** — the edge function logic is already correct; it just wasn't being triggered
+
+## Out of scope (flagging for awareness)
+
+While checking, I also noticed `process-freeze-expirations` is the only scheduled-style function missing from `cron.job` of the freeze/billing functions I'd expect — worth a quick audit later, but for this ticket I'm only adding the freeze cron to keep the change tight.
