@@ -168,7 +168,18 @@ export default function FreezeRequests() {
     setSelectedRequest(request);
     setRejectReason("");
     setRejectSendEmail(true);
-    applyRejectionScenario("custom", request);
+    // Auto-pick the right template based on the member so the email body is
+    // visible immediately when the dialog opens.
+    const fullName = `${request.members.first_name ?? ""} ${request.members.last_name ?? ""}`
+      .trim()
+      .toLowerCase();
+    let initialScenario: RejectionScenario = "custom";
+    if (fullName.includes("brea")) {
+      initialScenario = "membership_not_active";
+    } else if (fullName.includes("mariam")) {
+      initialScenario = "membership_in_arrears";
+    }
+    applyRejectionScenario(initialScenario, request);
     setShowRejectDialog(true);
   };
 
