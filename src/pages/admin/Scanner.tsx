@@ -59,6 +59,35 @@ export default function Scanner() {
   const { data: recentScans } = useRecentScans(10);
   const { data: settings } = useScannerSettings("front_desk");
   const updateSettings = useUpdateScannerSettings();
+  const { checkInClass, checkInSpa, isCheckingIn } = useKioskCheckIn();
+
+  const handleFrozenClassCheckIn = async (bookingId: string, label: string) => {
+    const ok = await checkInClass(bookingId);
+    if (ok) {
+      toast.success(`Checked in for ${label}`);
+      setScanResult(null);
+      setMemberIdInput("");
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
+  const handleFrozenSpaCheckIn = async (spaId: string, label: string) => {
+    const ok = await checkInSpa(spaId);
+    if (ok) {
+      toast.success(`Checked in for ${label}`);
+      setScanResult(null);
+      setMemberIdInput("");
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
+  const formatTime = (t: string) => {
+    try {
+      return format(parse(t.slice(0, 8), "HH:mm:ss", new Date()), "h:mm a");
+    } catch {
+      return t;
+    }
+  };
 
   // Load settings on mount
   useEffect(() => {
