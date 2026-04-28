@@ -41,6 +41,7 @@ import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
 import { BillingHealthWidget } from "@/components/admin/BillingHealthWidget";
 import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
 import { SupportAlertCard } from "@/components/admin/SupportAlertCard";
+import { CafeAlertCard } from "@/components/admin/CafeAlertCard";
 import { AdminWidgetBoundary } from "@/components/admin/AdminWidgetBoundary";
 import { toast } from "@/hooks/use-toast";
 
@@ -359,6 +360,11 @@ export default function Dashboard() {
         {/* Support Alert */}
         <AdminWidgetBoundary title="Support messages">
           <SupportAlertCard />
+        </AdminWidgetBoundary>
+
+        {/* Cafe Orders Alert */}
+        <AdminWidgetBoundary title="Cafe orders">
+          <CafeAlertCard />
         </AdminWidgetBoundary>
 
         {/* Date and Quick Actions */}

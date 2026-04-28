@@ -1,10 +1,12 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
-import { Bell, User, Volume2, VolumeX, Play } from "lucide-react";
+import { Bell, Coffee, User, Volume2, VolumeX, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
+import { useAdminCafeNotifications } from "@/hooks/useAdminCafeNotifications";
 import { AdminSupportChime, getIsMuted, setIsMuted, playNotificationChime } from "./AdminSupportChime";
+import { AdminCafeChime } from "./AdminCafeChime";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -16,9 +18,11 @@ interface AdminLayoutProps {
 export function AdminLayout({ children, title }: AdminLayoutProps) {
   const navigate = useNavigate();
   const { data: notifications } = useAdminSupportNotifications();
+  const { data: cafeNotifications } = useAdminCafeNotifications();
   const [muted, setMuted] = useState(getIsMuted);
-  
+
   const notificationCount = notifications?.openCount || 0;
+  const cafeCount = cafeNotifications?.totalActiveCount || 0;
 
   const toggleMute = () => {
     const next = !muted;
@@ -29,6 +33,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   return (
     <SidebarProvider>
       <AdminSupportChime />
+      <AdminCafeChime />
       <div className="min-h-screen flex flex-col md:flex-row w-full bg-background">
         <AdminSidebar />
         <SidebarInset className="flex-1 min-w-0">
@@ -60,6 +65,20 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                 title={muted ? "Unmute notifications" : "Mute notifications"}
               >
                 {muted ? <VolumeX className="h-5 w-5 text-muted-foreground" /> : <Volume2 className="h-5 w-5" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative touch-target"
+                onClick={() => navigate('/admin/cafe')}
+                title="Cafe Orders"
+              >
+                <Coffee className="h-5 w-5" />
+                {cafeCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center">
+                    {cafeCount > 9 ? '9+' : cafeCount}
+                  </span>
+                )}
               </Button>
               <Button 
                 variant="ghost" 
