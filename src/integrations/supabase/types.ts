@@ -6694,6 +6694,17 @@ export type Database = {
           review_count: number
         }[]
       }
+      get_class_reviews_with_names: {
+        Args: { _class_type_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_visible: boolean
+          rating: number
+          review_text: string
+          reviewer_name: string
+        }[]
+      }
       get_class_type_ratings: {
         Args: { _class_type_id: string }
         Returns: {
