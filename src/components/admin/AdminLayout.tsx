@@ -18,9 +18,11 @@ interface AdminLayoutProps {
 export function AdminLayout({ children, title }: AdminLayoutProps) {
   const navigate = useNavigate();
   const { data: notifications } = useAdminSupportNotifications();
+  const { data: cafeNotifications } = useAdminCafeNotifications();
   const [muted, setMuted] = useState(getIsMuted);
-  
+
   const notificationCount = notifications?.openCount || 0;
+  const cafeCount = cafeNotifications?.totalActiveCount || 0;
 
   const toggleMute = () => {
     const next = !muted;
@@ -31,6 +33,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   return (
     <SidebarProvider>
       <AdminSupportChime />
+      <AdminCafeChime />
       <div className="min-h-screen flex flex-col md:flex-row w-full bg-background">
         <AdminSidebar />
         <SidebarInset className="flex-1 min-w-0">
