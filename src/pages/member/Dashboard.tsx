@@ -20,6 +20,7 @@ import { useMemberGoals } from "@/hooks/useMemberGoals";
 import { useMemberBenefitsStatus } from "@/hooks/useMemberBenefitsStatus";
 import { Progress } from "@/components/ui/progress";
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
+import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 import {
   CreditCard,
   Calendar,
@@ -134,6 +135,9 @@ export default function MemberDashboard() {
   return (
     <MemberLayout title="Dashboard">
       <div className="space-y-8">
+        {/* Live cafe order tracker */}
+        <MyCafeOrdersCard />
+
         {/* Frozen Benefits Notice */}
         {hasFrozenBenefits && (
           <AnimatedSection animation="fade-in">
