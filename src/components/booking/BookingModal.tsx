@@ -70,6 +70,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const { data: waitlistCounts } = useWaitlistCounts(session ? [session.id] : []);
   const waitlistCount = session ? (waitlistCounts?.[session.id] || 0) : 0;
   const { data: agreements } = useAllAgreements();
+  const { data: ratingsMap } = useClassTypeRatings();
+  const classTypeRating = session ? ratingsMap?.[session.class_type.id] : undefined;
 
   // Liability waiver PDF URL from agreements
   const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
