@@ -626,6 +626,31 @@ export default function ClassTypeDetail() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Member Reviews */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Member Reviews</CardTitle>
+                <CardDescription>
+                  All ratings and reviews submitted for this class. Hide a review to remove it from public view.
+                </CardDescription>
+              </div>
+              {ratingSummary && ratingSummary.review_count > 0 && (
+                <div className="text-right">
+                  <div className="text-2xl font-bold">{ratingSummary.average_rating.toFixed(1)} ★</div>
+                  <div className="text-xs text-muted-foreground">
+                    {ratingSummary.review_count} review{ratingSummary.review_count !== 1 ? "s" : ""}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ClassReviewsList classTypeId={classType.id} isAdmin />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Edit Class Type Dialog */}
