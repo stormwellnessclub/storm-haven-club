@@ -64,6 +64,7 @@ export default function ClassTypeDetail() {
       <SEOHead
         title={`${ct.name} – Storm Wellness Club`}
         description={ct.description?.slice(0, 155) || `Reviews and details for ${ct.name} at Storm Wellness Club.`}
+        path={`/classes/${ct.id}`}
       />
       <section className="container max-w-3xl py-10 sm:py-14">
         <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
