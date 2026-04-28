@@ -40,6 +40,9 @@ import { format, parse, parseISO } from "date-fns";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolvePdfUrl } from "@/lib/pdfAssets";
+import { ClassReviewsList } from "@/components/reviews/ClassReviewsList";
+import { useClassTypeRatings } from "@/hooks/useClassReviews";
+import { StarRating } from "@/components/reviews/StarRating";
 
 interface BookingModalProps {
   session: ClassSession | null;
@@ -67,6 +70,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const { data: waitlistCounts } = useWaitlistCounts(session ? [session.id] : []);
   const waitlistCount = session ? (waitlistCounts?.[session.id] || 0) : 0;
   const { data: agreements } = useAllAgreements();
+  const { data: ratingsMap } = useClassTypeRatings();
+  const classTypeRating = session ? ratingsMap?.[session.class_type.id] : undefined;
 
   // Liability waiver PDF URL from agreements
   const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
@@ -428,6 +433,22 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Member Reviews */}
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Member Reviews</h3>
+              {classTypeRating && classTypeRating.review_count > 0 && (
+                <StarRating
+                  rating={classTypeRating.average_rating}
+                  size="sm"
+                  showValue
+                  count={classTypeRating.review_count}
+                />
+              )}
+            </div>
+            <ClassReviewsList classTypeId={session.class_type.id} initialLimit={3} />
+          </div>
         </div>
 
         <DialogFooter>

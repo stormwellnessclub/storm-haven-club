@@ -51,21 +51,84 @@ export function useClassTypeRatings() {
   });
 }
 
-export function useClassReviewsForType(classTypeId: string | null) {
+export interface ClassReviewWithReviewer extends ClassReview {
+  reviewer_name: string;
+}
+
+function formatReviewerName(first?: string | null, last?: string | null): string {
+  const f = (first || "").trim();
+  const l = (last || "").trim();
+  if (!f && !l) return "Member";
+  if (!l) return f;
+  return `${f} ${l.charAt(0).toUpperCase()}.`;
+}
+
+async function attachReviewerNames(reviews: ClassReview[]): Promise<ClassReviewWithReviewer[]> {
+  if (reviews.length === 0) return [];
+  const userIds = Array.from(new Set(reviews.map((r) => r.user_id).filter(Boolean)));
+  if (userIds.length === 0) {
+    return reviews.map((r) => ({ ...r, reviewer_name: "Member" }));
+  }
+
+  const [membersRes, profilesRes, nonMembersRes] = await Promise.all([
+    supabase.from("members").select("user_id, first_name, last_name").in("user_id", userIds),
+    supabase.from("profiles").select("id, first_name, last_name").in("id", userIds),
+    supabase.from("non_member_profiles").select("user_id, first_name, last_name").in("user_id", userIds),
+  ]);
+
+  const nameMap = new Map<string, { first_name?: string | null; last_name?: string | null }>();
+  for (const m of membersRes.data || []) {
+    if (m.user_id) nameMap.set(m.user_id, { first_name: m.first_name, last_name: m.last_name });
+  }
+  for (const p of profilesRes.data || []) {
+    if (p.id && !nameMap.has(p.id)) nameMap.set(p.id, { first_name: p.first_name, last_name: p.last_name });
+  }
+  for (const n of nonMembersRes.data || []) {
+    if (n.user_id && !nameMap.has(n.user_id)) nameMap.set(n.user_id, { first_name: n.first_name, last_name: n.last_name });
+  }
+
+  return reviews.map((r) => {
+    const info = nameMap.get(r.user_id);
+    return { ...r, reviewer_name: formatReviewerName(info?.first_name, info?.last_name) };
+  });
+}
+
+export function useClassReviewsForType(classTypeId: string | null, opts?: { includeHidden?: boolean }) {
+  const includeHidden = !!opts?.includeHidden;
   return useQuery({
-    queryKey: ["class-reviews", classTypeId],
+    queryKey: ["class-reviews", classTypeId, includeHidden],
     queryFn: async () => {
-      if (!classTypeId) return [];
-      const { data, error } = await supabase
+      if (!classTypeId) return [] as ClassReviewWithReviewer[];
+      let query = supabase
         .from("class_reviews")
         .select("*")
         .eq("class_type_id", classTypeId)
-        .eq("is_visible", true)
         .order("created_at", { ascending: false });
+      if (!includeHidden) query = query.eq("is_visible", true);
+      const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as ClassReview[];
+      return await attachReviewerNames((data || []) as ClassReview[]);
     },
     enabled: !!classTypeId,
+  });
+}
+
+export function useAdminUpdateReviewVisibility() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ reviewId, isVisible }: { reviewId: string; isVisible: boolean }) => {
+      const { error } = await supabase
+        .from("class_reviews")
+        .update({ is_visible: isVisible })
+        .eq("id", reviewId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Review updated");
+      queryClient.invalidateQueries({ queryKey: ["class-reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["class-type-ratings"] });
+    },
+    onError: () => toast.error("Failed to update review visibility"),
   });
 }
 

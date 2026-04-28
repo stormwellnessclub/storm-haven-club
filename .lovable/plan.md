@@ -1,43 +1,61 @@
+# Surface Class Reviews
+
 ## Problem
 
-When you cancelled **Buns of Steel** today, two attendees (`lettagj@gmail.com`, `monabeydoun.mb@gmail.com`) showed up because they never received the cancellation email.
+Members are leaving class reviews (8 visible reviews exist in the database), but they are **never displayed anywhere** except as an aggregate star rating on each class card. The full `ClassReviewsList` component exists but is not imported by any page. There is also no admin view to monitor reviews.
 
-## Root Cause
+## What Users See Today
 
-In `src/pages/admin/Classes.tsx` (lines 162–204), after the admin cancel RPC runs, the email blast resolves recipients only via:
+- `ClassCard` shows aggregate stars + count (e.g. "★ 4.6 (8)").
+- Tapping a class opens the booking modal — no reviews shown.
+- Admin has zero visibility into review content.
 
-```ts
-.select('id, member_id, walk_in_email, walk_in_name, members(first_name, last_name, email)')
-// recipient = member?.email || walk_in_email
+## What We'll Build
+
+### 1. Member-facing: View reviews per class type
+
+Add a "Reviews" section to the **Class Booking Modal** (`src/components/booking/BookingModal.tsx`):
+- Show aggregate rating header (avg + count) using existing `useClassTypeRatings`.
+- Render existing `<ClassReviewsList classTypeId={...} />` below class details.
+- Show "No reviews yet" gracefully when empty.
+- Limit to most recent 5 with a "Show all" expand toggle.
+
+Also add the same compact reviews block to the **Class Type detail page on the public schedule** if the class title is tappable; otherwise the modal coverage is sufficient.
+
+### 2. Admin-facing: Review management
+
+On `src/pages/admin/ClassTypeDetail.tsx`, add a new **"Reviews" tab/section** showing:
+- Aggregate rating + total count.
+- List of all reviews (rating, text, reviewer name, date).
+- Per-row action: **Hide** / **Unhide** (toggles `is_visible`) so admins can suppress inappropriate reviews from public view.
+
+Add a global **"Recent Reviews"** card to `src/pages/admin/Dashboard.tsx` showing the latest 5 reviews across all classes with a link into each class type's detail page.
+
+### 3. Reviewer name display
+
+`class_reviews` only stores `user_id`. Display the reviewer's first name + last initial (e.g. "Sarah K.") by joining to `members` / `profiles` / `non_member_profiles` via the same fallback chain used elsewhere. Implement this in `useClassReviewsForType` (extend the hook to return `reviewer_name`) using a single batched lookup.
+
+### 4. RLS check
+
+Verify `class_reviews` SELECT policy allows anonymous/member reads of `is_visible = true` rows. If not, add a policy:
 ```
+CREATE POLICY "Anyone can read visible reviews"
+  ON public.class_reviews FOR SELECT
+  USING (is_visible = true);
+```
+And a staff-can-read-all + staff-can-update policy for the admin hide/unhide action.
 
-Both affected bookings had **`member_id = null`** AND **`walk_in_email = null`** — they were booked through `user_id` (the auth account) with no link to a `members` row. The lookup returned no email, the send was silently skipped, no error logged.
+## Files Changed
 
-This same gap affects every booking made by a logged-in user whose account isn't tagged with `member_id` (non-members, recently signed-up users, members not yet linked).
+- `src/hooks/useClassReviews.ts` — extend `useClassReviewsForType` to include reviewer name; add `useAdminUpdateReviewVisibility` mutation.
+- `src/components/reviews/ClassReviewsList.tsx` — show reviewer name; optional admin "Hide" button when prop `isAdmin` is true.
+- `src/components/booking/BookingModal.tsx` — embed reviews section.
+- `src/pages/admin/ClassTypeDetail.tsx` — add Reviews tab/section.
+- `src/pages/admin/Dashboard.tsx` — add Recent Reviews card (respect role filtering).
+- New migration — RLS policies on `class_reviews` if missing.
 
-## Fix
+## Out of Scope
 
-Rewrite the recipient resolution in `src/pages/admin/Classes.tsx` to walk the **same priority chain the rest of the app uses** for attendee identity (matches `useRosterIdentity` / `resolveAttendeePreviewsForSessions`). For each cancelled booking, resolve email/name in this order:
-
-1. `members.email` (when `member_id` is set)
-2. `non_member_profiles.email` (lookup by `user_id`)
-3. `profiles.email` (lookup by `user_id` — mirrors auth.users)
-4. `walk_in_email`
-
-Implementation steps:
-
-- **Expand the bookings query** to also pull `user_id`.
-- **Collect every `user_id`** from bookings that came back without a `members.email`.
-- **Batch one query** to `non_member_profiles` (`.in('user_id', userIds)`) and one to `profiles` (`.in('id', userIds)`) to build a `userId → {email, name}` map.
-- **Loop and send** `class_cancelled_by_admin` to each resolved email; only skip when truly nothing resolves, and `console.warn` with the booking id so future gaps are visible in logs.
-- **Use the same name fallback chain** so the email greeting is correct.
-
-## Files changed
-
-- `src/pages/admin/Classes.tsx` — cancellation email block only.
-
-No DB migrations, no edge function changes, no schema changes. The `send-email` function already handles `class_cancelled_by_admin` correctly — the bug is purely on the client side that decides who to email.
-
-## Verification
-
-After the next admin cancellation, `email_send_log` will show one row per booked attendee (member or `user_id`-only), and the `console.warn` makes any remaining unresolvable bookings visible in browser logs.
+- Editing/deleting other users' reviews (admins only hide).
+- Email notifications when new reviews arrive.
+- Replying to reviews.
