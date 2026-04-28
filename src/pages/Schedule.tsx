@@ -76,6 +76,39 @@ export default function Schedule() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsData, setDetailsData] = useState<ClassDetailsData | null>(null);
+  // Map from sessionId -> the BookableSession we'd hand to BookingModal
+  const sessionMapRef = useRef<Map<string, BookableSession>>(new Map());
+
+  const buildBookable = (session: ClassSession): BookableSession => {
+    const ct = session.class_types;
+    return {
+      id: session.id,
+      session_date: session.session_date,
+      start_time: session.start_time,
+      end_time: session.end_time,
+      max_capacity: session.max_capacity,
+      current_enrollment: session.current_enrollment,
+      room: session.room,
+      is_cancelled: session.is_cancelled,
+      class_type: {
+        id: ct.id,
+        name: ct.name,
+        category: ct.category,
+        description: ct.description,
+        duration_minutes: ct.duration_minutes,
+        is_heated: ct.is_heated,
+        image_url: ct.image_url,
+      },
+      instructor: session.instructors
+        ? {
+            id: session.instructors.id,
+            first_name: session.instructors.first_name,
+            last_name: session.instructors.last_name,
+            photo_url: null,
+          }
+        : null,
+    };
+  };
 
   const openDetailsFor = (
     session: ClassSession,
@@ -83,6 +116,7 @@ export default function Schedule() {
   ) => {
     const ct = session.class_types;
     const spotsLeft = session.max_capacity - session.current_enrollment;
+    sessionMapRef.current.set(session.id, buildBookable(session));
     setDetailsData({
       sessionId: session.id,
       sessionDate: session.session_date,
@@ -114,28 +148,8 @@ export default function Schedule() {
       navigate("/auth?redirect=/schedule");
       return;
     }
-    const bookable: BookableSession = {
-      id: d.sessionId,
-      session_date: d.sessionDate,
-      start_time: d.startTime,
-      end_time: d.endTime,
-      max_capacity: d.spotsLeft + (d.isFull ? 0 : 0) + 0, // not used downstream for capacity gating
-      current_enrollment: 0,
-      room: d.room,
-      is_cancelled: false,
-      class_type: {
-        id: d.classType.id,
-        name: d.classType.name,
-        category: d.classType.category,
-        description: d.classType.description,
-        duration_minutes: d.classType.duration_minutes,
-        is_heated: d.classType.is_heated,
-        image_url: null,
-      },
-      instructor: d.instructor
-        ? { id: "", first_name: d.instructor.first_name, last_name: d.instructor.last_name, photo_url: null }
-        : null,
-    };
+    const bookable = sessionMapRef.current.get(d.sessionId);
+    if (!bookable) return;
     setDetailsOpen(false);
     setSelectedSession(bookable);
     setBookingOpen(true);
