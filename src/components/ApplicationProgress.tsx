@@ -207,8 +207,8 @@ export function getStepCompletion(
         isComplete = !!formData.foundingMember;
         break;
       case "payment":
-        // Payment method is fully optional at the application stage
-        isComplete = !formData.addCardOnFile || !!isCardConfirmed;
+        // Payment method is required at the application stage
+        isComplete = !!isCardConfirmed;
         break;
       case "agreements":
         isComplete = !!(

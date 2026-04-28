@@ -717,6 +717,12 @@ export default function Apply() {
       return;
     }
 
+    if (!cardSetupComplete || !cardCustomerId) {
+      toast.error("Please add a payment method before submitting your application.");
+      sectionRefs.current["payment"]?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
 
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
@@ -1229,128 +1235,112 @@ export default function Apply() {
               </div>
             </div>
 
-            {/* Step 7 — Payment Method */}
+            {/* Step 7 — Payment Method (REQUIRED) */}
             <div ref={(el) => sectionRefs.current["payment"] = el} className="card-luxury p-4 sm:p-8 mb-6 sm:mb-8">
-              <h2 className="font-serif text-xl sm:text-2xl mb-2 sm:mb-3 text-gold">
-                Payment Method (Optional)
-              </h2>
+              <div className="flex items-center gap-2 mb-2 sm:mb-3 flex-wrap">
+                <h2 className="font-serif text-xl sm:text-2xl text-gold">
+                  Payment Method
+                </h2>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-destructive/15 text-destructive text-xs font-medium">
+                  Required
+                </span>
+              </div>
               <p className="text-sm text-muted-foreground mb-6">
-                Adding a payment method now helps expedite your activation if approved. No charges will be made until your membership is activated.
+                A valid payment method is required to submit your application. Your card is saved securely — no charges are made until your membership is approved and activated.
               </p>
 
-              <div className="flex items-start gap-3 mb-4">
-                <Checkbox
-                  id="addCardOnFile"
-                  checked={formData.addCardOnFile}
-                  onCheckedChange={(checked) => {
-                    handleCheckboxChange("addCardOnFile", checked as boolean);
-                    if (!checked) {
-                      setShowCardForm(false);
-                      setCardClientSecret(null);
-                      setStripeRemountKey(prev => prev + 1);
+              {cardSetupComplete ? (
+                <div className="flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="font-medium text-foreground">Payment method saved</p>
+                    {cardBrand && cardLast4 && (
+                      <p className="text-sm text-muted-foreground">
+                        {cardBrand.charAt(0).toUpperCase() + cardBrand.slice(1)} •••• {cardLast4}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : !formData.email ? (
+                <div className="flex items-start gap-3 p-4 bg-muted/40 border border-border rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <p className="text-muted-foreground">
+                    Enter your email address in the Personal Information section above to load the secure payment form.
+                  </p>
+                </div>
+              ) : showCardForm && cardClientSecret ? (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg text-sm">
+                    <AlertCircle className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <p className="text-muted-foreground">
+                      Your card will be saved securely for future billing. No charges will be made until your membership is approved and activated.
+                    </p>
+                  </div>
+                  <StripeProvider key={`stripe-applicant-${stripeRemountKey}`} clientSecret={cardClientSecret}>
+                    <ApplicantPaymentFormInner
+                      clientSecret={cardClientSecret}
+                      customerId={cardCustomerId}
+                      onSuccess={(brand, last4, expMonth, expYear, custId) => {
+                        setCardBrand(brand);
+                        setCardLast4(last4);
+                        setCardExpMonth(expMonth);
+                        setCardExpYear(expYear);
+                        if (custId) setCardCustomerId(custId);
+                        setCardSetupComplete(true);
+                        setShowCardForm(false);
+                      }}
+                      onCancel={() => {
+                        setShowCardForm(false);
+                        setCardClientSecret(null);
+                        setStripeRemountKey(prev => prev + 1);
+                      }}
+                    />
+                  </StripeProvider>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    setIsLoadingCardSetup(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+                        body: {
+                          action: "create_application_setup",
+                          applicantEmail: formData.email,
+                          applicantName: `${formData.firstName} ${formData.lastName}`,
+                        },
+                      });
+                      if (error) throw error;
+                      if (data?.clientSecret) {
+                        setCardClientSecret(data.clientSecret);
+                        setCardCustomerId(data.customerId || null);
+                        setStripeRemountKey(prev => prev + 1);
+                        setShowCardForm(true);
+                      } else {
+                        throw new Error("No client secret returned");
+                      }
+                    } catch (err) {
+                      console.error("Error creating setup intent:", err);
+                      toast.error("Failed to initialize payment form. Please ensure your email is filled in above.");
+                    } finally {
+                      setIsLoadingCardSetup(false);
                     }
                   }}
-                />
-                <Label htmlFor="addCardOnFile" className="font-medium cursor-pointer text-sm">
-                  I'd like to add a payment method now to expedite activation if approved.
-                </Label>
-              </div>
-
-              {formData.addCardOnFile && (
-                <div className="ml-6">
-                  {cardSetupComplete ? (
-                    <div className="flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-lg">
-                      <CheckCircle className="w-5 h-5 text-primary" />
-                      <div>
-                        <p className="font-medium text-foreground">Payment method saved</p>
-                        {cardBrand && cardLast4 && (
-                          <p className="text-sm text-muted-foreground">
-                            {cardBrand.charAt(0).toUpperCase() + cardBrand.slice(1)} •••• {cardLast4}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ) : showCardForm && cardClientSecret ? (
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg text-sm">
-                        <AlertCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
-                        <p className="text-muted-foreground">
-                          Your card will be saved securely for future billing. No charges will be made until your membership is activated.
-                        </p>
-                      </div>
-                      <StripeProvider key={`stripe-applicant-${stripeRemountKey}`} clientSecret={cardClientSecret}>
-                        <ApplicantPaymentFormInner
-                          clientSecret={cardClientSecret}
-                          customerId={cardCustomerId}
-                          onSuccess={(brand, last4, expMonth, expYear, custId) => {
-                            setCardBrand(brand);
-                            setCardLast4(last4);
-                            setCardExpMonth(expMonth);
-                            setCardExpYear(expYear);
-                            if (custId) setCardCustomerId(custId);
-                            setCardSetupComplete(true);
-                            setShowCardForm(false);
-                          }}
-                          onCancel={() => {
-                            setShowCardForm(false);
-                            setCardClientSecret(null);
-                            setStripeRemountKey(prev => prev + 1);
-                          }}
-                        />
-                      </StripeProvider>
-                    </div>
+                  disabled={isLoadingCardSetup || !formData.email}
+                  className="w-full"
+                >
+                  {isLoadingCardSetup ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Loading secure payment form...
+                    </>
                   ) : (
-                    <Button
-                      type="button"
-                      onClick={async () => {
-                        setIsLoadingCardSetup(true);
-                        try {
-                          const { data, error } = await supabase.functions.invoke("stripe-payment", {
-                            body: {
-                              action: "create_application_setup",
-                              applicantEmail: formData.email,
-                              applicantName: `${formData.firstName} ${formData.lastName}`,
-                            },
-                          });
-                          if (error) throw error;
-                          if (data?.clientSecret) {
-                            setCardClientSecret(data.clientSecret);
-                            setCardCustomerId(data.customerId || null);
-                            setStripeRemountKey(prev => prev + 1);
-                            setShowCardForm(true);
-                          } else {
-                            throw new Error("No client secret returned");
-                          }
-                        } catch (err) {
-                          console.error("Error creating setup intent:", err);
-                          toast.error("Failed to initialize payment form. Please ensure your email is filled in above.");
-                        } finally {
-                          setIsLoadingCardSetup(false);
-                        }
-                      }}
-                      disabled={isLoadingCardSetup || !formData.email}
-                      className="w-full"
-                    >
-                      {isLoadingCardSetup ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          Add Payment Method
-                        </>
-                      )}
-                    </Button>
+                    <>
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Add Payment Method
+                    </>
                   )}
-                </div>
-              )}
-
-              {!formData.addCardOnFile && (
-                <p className="text-xs text-muted-foreground ml-6 italic">
-                  You can always add a payment method later after your application is submitted.
-                </p>
+                </Button>
               )}
             </div>
 
