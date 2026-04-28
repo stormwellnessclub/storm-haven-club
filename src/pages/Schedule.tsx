@@ -526,6 +526,13 @@ export default function Schedule() {
         open={bookingOpen}
         onOpenChange={setBookingOpen}
       />
+
+      <ClassDetailsSheet
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        details={detailsData}
+        onBook={handleBookFromDetails}
+      />
     </Layout>
   );
 }
