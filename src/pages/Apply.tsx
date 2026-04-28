@@ -717,6 +717,12 @@ export default function Apply() {
       return;
     }
 
+    if (!cardSetupComplete || !cardCustomerId) {
+      toast.error("Please add a payment method before submitting your application.");
+      sectionRefs.current["payment"]?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
 
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
