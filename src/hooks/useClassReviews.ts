@@ -99,13 +99,33 @@ export function useClassReviewsForType(classTypeId: string | null, opts?: { incl
     queryKey: ["class-reviews", classTypeId, includeHidden],
     queryFn: async () => {
       if (!classTypeId) return [] as ClassReviewWithReviewer[];
-      let query = supabase
+
+      // Public path: use SECURITY DEFINER RPC so anonymous visitors can see reviewer names.
+      if (!includeHidden) {
+        const { data, error } = await supabase.rpc("get_class_reviews_with_names", {
+          _class_type_id: classTypeId,
+        });
+        if (error) throw error;
+        return (data || []).map((r: any) => ({
+          id: r.id,
+          user_id: "",
+          booking_id: "",
+          class_type_id: classTypeId,
+          session_id: "",
+          rating: r.rating,
+          review_text: r.review_text,
+          is_visible: r.is_visible,
+          created_at: r.created_at,
+          reviewer_name: r.reviewer_name || "Member",
+        })) as ClassReviewWithReviewer[];
+      }
+
+      // Admin path: direct query so hidden reviews are included; requires authenticated staff.
+      const { data, error } = await supabase
         .from("class_reviews")
         .select("*")
         .eq("class_type_id", classTypeId)
         .order("created_at", { ascending: false });
-      if (!includeHidden) query = query.eq("is_visible", true);
-      const { data, error } = await query;
       if (error) throw error;
       return await attachReviewerNames((data || []) as ClassReview[]);
     },
