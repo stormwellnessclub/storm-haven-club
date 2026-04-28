@@ -12,6 +12,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import type { RealtimeStatus } from "@/hooks/useReliableRealtime";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useBareAdminLayout } from "./BareAdminLayoutContext";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -39,12 +40,20 @@ function statusLabel(s: RealtimeStatus) {
 }
 
 export function AdminLayout({ children, title }: AdminLayoutProps) {
+  const bare = useBareAdminLayout();
   const navigate = useNavigate();
   const { data: notifications } = useAdminSupportNotifications();
   const { data: cafeNotifications } = useAdminCafeNotifications();
   const [muted, setMuted] = useState(getIsMuted);
   const [supportStatus, setSupportStatus] = useState<RealtimeStatus>("idle");
   const [cafeStatus, setCafeStatus] = useState<RealtimeStatus>("idle");
+
+  // When embedded inside a kiosk shell, render the page body only.
+  // The shell already provides chrome, chimes, and audio unlock.
+  if (bare) {
+    return <div className="p-4 sm:p-6 safe-area-bottom">{children}</div>;
+  }
+
 
   const notificationCount = notifications?.openCount || 0;
   const cafeCount = cafeNotifications?.totalActiveCount || 0;
