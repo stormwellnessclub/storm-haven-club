@@ -66,6 +66,20 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               >
                 {muted ? <VolumeX className="h-5 w-5 text-muted-foreground" /> : <Volume2 className="h-5 w-5" />}
               </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative touch-target"
+                onClick={() => navigate('/admin/cafe')}
+                title="Cafe Orders"
+              >
+                <Coffee className="h-5 w-5" />
+                {cafeCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center">
+                    {cafeCount > 9 ? '9+' : cafeCount}
+                  </span>
+                )}
+              </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
