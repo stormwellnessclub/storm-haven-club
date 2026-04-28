@@ -7,12 +7,35 @@ import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotificatio
 import { useAdminCafeNotifications } from "@/hooks/useAdminCafeNotifications";
 import { AdminSupportChime, getIsMuted, setIsMuted, playNotificationChime } from "./AdminSupportChime";
 import { AdminCafeChime } from "./AdminCafeChime";
+import { AudioUnlocker } from "./AudioUnlocker";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { RealtimeStatus } from "@/hooks/useReliableRealtime";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
   title?: string;
+}
+
+function statusColor(s: RealtimeStatus) {
+  switch (s) {
+    case "connected": return "bg-emerald-500";
+    case "connecting": return "bg-amber-400 animate-pulse";
+    case "error":
+    case "closed": return "bg-destructive";
+    default: return "bg-muted-foreground";
+  }
+}
+
+function statusLabel(s: RealtimeStatus) {
+  switch (s) {
+    case "connected": return "Live notifications connected";
+    case "connecting": return "Connecting…";
+    case "error": return "Notification connection error — retrying";
+    case "closed": return "Notification connection closed — retrying";
+    default: return "Idle";
+  }
 }
 
 export function AdminLayout({ children, title }: AdminLayoutProps) {
@@ -20,9 +43,19 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   const { data: notifications } = useAdminSupportNotifications();
   const { data: cafeNotifications } = useAdminCafeNotifications();
   const [muted, setMuted] = useState(getIsMuted);
+  const [supportStatus, setSupportStatus] = useState<RealtimeStatus>("idle");
+  const [cafeStatus, setCafeStatus] = useState<RealtimeStatus>("idle");
 
   const notificationCount = notifications?.openCount || 0;
   const cafeCount = cafeNotifications?.totalActiveCount || 0;
+
+  // Worst of the two states drives the indicator
+  const worstStatus: RealtimeStatus =
+    supportStatus === "error" || cafeStatus === "error" ? "error" :
+    supportStatus === "closed" || cafeStatus === "closed" ? "closed" :
+    supportStatus === "connecting" || cafeStatus === "connecting" ? "connecting" :
+    supportStatus === "connected" && cafeStatus === "connected" ? "connected" :
+    "idle";
 
   const toggleMute = () => {
     const next = !muted;
@@ -32,8 +65,9 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
   return (
     <SidebarProvider>
-      <AdminSupportChime />
-      <AdminCafeChime />
+      <AudioUnlocker />
+      <AdminSupportChime onStatusChange={setSupportStatus} />
+      <AdminCafeChime onStatusChange={setCafeStatus} />
       <div className="min-h-screen flex flex-col md:flex-row w-full bg-background">
         <AdminSidebar />
         <SidebarInset className="flex-1 min-w-0">
@@ -45,6 +79,24 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               )}
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      className={`inline-block h-2.5 w-2.5 rounded-full ${statusColor(worstStatus)}`}
+                      aria-label={statusLabel(worstStatus)}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <div className="text-xs">
+                      <div>{statusLabel(worstStatus)}</div>
+                      <div className="text-muted-foreground mt-1">
+                        Support: {supportStatus} · Cafe: {cafeStatus}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <Button
                 variant="ghost"
                 size="icon"
@@ -75,7 +127,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               >
                 <Coffee className="h-5 w-5" />
                 {cafeCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center animate-pulse">
                     {cafeCount > 9 ? '9+' : cafeCount}
                   </span>
                 )}
@@ -89,7 +141,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               >
                 <Bell className="h-5 w-5" />
                 {notificationCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center animate-pulse">
                     {notificationCount > 9 ? '9+' : notificationCount}
                   </span>
                 )}
