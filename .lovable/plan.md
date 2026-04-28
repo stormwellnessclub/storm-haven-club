@@ -1,34 +1,63 @@
-# Public Class Reviews
+## Problem
 
-## Goal
-Make class reviews visible on a public-facing class type page so prospective members and members can read them outside the booking flow. Improve the empty state to encourage first reviews.
+In Front Desk mode, expanding a class row shows nothing under the roster — only the `8/10` enrollment badge on the parent row is visible. So it looks like "I just see how many people are booked."
 
-## What you'll see
-- New public route: `/classes/:classTypeId` — a class type detail page showing the class info, average rating, and full reviews list.
-- On `/schedule`, each class card gets a small "View class" link/icon in addition to the existing click-to-open details panel, linking to the new public page.
-- Empty state on every reviews list changes from "No reviews yet." to a friendlier "Be the first to review this class" message (with a CTA to book if not already booked).
+Root cause: the `kiosk_class_roster(p_session_id uuid)` RPC references `p.avatar_url` from the `profiles` table, but that column does not exist. Calling the function throws:
 
-## Pages / components changed
+```
+ERROR: 42703: column p.avatar_url does not exist
+```
 
-1. **New** `src/pages/ClassTypeDetail.tsx` (public)
-   - Fetches the `class_types` row by `:classTypeId`.
-   - Shows: name, category badge, hot/cool, description, duration, average rating, total reviews.
-   - Renders `<ClassReviewsList classTypeId={id} initialLimit={10} />`.
-   - "Book a session" CTA → links to `/schedule?type={id}`.
-   - SEO title/description via existing pattern.
+`KioskClassRoster` catches the error in React Query and renders nothing useful, while the parent card keeps showing the enrollment count. This affects every place that uses this RPC (Front Desk, Reception kiosk, Classes kiosk).
 
-2. **Edit** `src/App.tsx`
-   - Add public route `/classes/:classTypeId` → `ClassTypeDetail`.
+## Fix
 
-3. **Edit** `src/components/reviews/ClassReviewsList.tsx`
-   - Replace empty state with "Be the first to review this class" copy. If `isAdmin` keep current behavior.
+Single migration to recreate `public.kiosk_class_roster` without the bad column reference. Use only `members.photo_url` for the avatar (the `profiles` table has no avatar column). Logic and return shape are otherwise unchanged.
 
-4. **Edit** `src/pages/Schedule.tsx`
-   - Add a small "ⓘ View class" link on each card linking to `/classes/{ct.id}` (stopPropagation so it doesn't trigger the side sheet).
+```sql
+CREATE OR REPLACE FUNCTION public.kiosk_class_roster(p_session_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_result jsonb;
+BEGIN
+  SELECT coalesce(jsonb_agg(row_to_json(r.*) ORDER BY r.name), '[]'::jsonb)
+  INTO v_result
+  FROM (
+    SELECT
+      cb.id AS booking_id,
+      COALESCE(
+        NULLIF(TRIM(COALESCE(m.first_name,'') || ' ' || COALESCE(m.last_name,'')), ''),
+        NULLIF(TRIM(COALESCE(p.first_name,'') || ' ' || COALESCE(p.last_name,'')), ''),
+        NULLIF(TRIM(COALESCE(nmp.first_name,'') || ' ' || COALESCE(nmp.last_name,'')), ''),
+        NULLIF(cb.walk_in_name, ''),
+        CASE
+          WHEN cb.walk_in_email <> '' THEN 'Guest – ' || cb.walk_in_email
+          WHEN p.email <> ''          THEN 'Guest – ' || p.email
+          WHEN nmp.email <> ''        THEN 'Guest – ' || nmp.email
+          ELSE 'Unknown'
+        END
+      ) AS name,
+      cb.status,
+      cb.checked_in_at,
+      m.photo_url AS photo_url
+    FROM class_bookings cb
+    LEFT JOIN members m              ON m.id = cb.member_id
+    LEFT JOIN profiles p             ON p.user_id = cb.user_id
+    LEFT JOIN non_member_profiles nmp ON nmp.user_id = cb.user_id
+    WHERE cb.session_id = p_session_id
+      AND cb.status IN ('confirmed','completed')
+  ) r;
+  RETURN v_result;
+END;
+$$;
+```
 
-5. **Edit** `src/components/booking/ClassDetailsSheet.tsx`
-   - Add a "View full class page" link under the title pointing to `/classes/{classType.id}`.
+No frontend changes needed — `KioskClassRoster` already renders names, photos, and per-attendee Check In buttons as soon as the RPC returns data.
 
-## Out of scope
-- No DB or RPC changes — `get_class_reviews_with_names` and `get_all_class_type_ratings` already exist and contain 8 visible reviews.
-- No changes to the rating/submit flow.
+## Verification
+
+After the migration, expanding a class in Front Desk → Today's Classes will show each booked attendee with name, avatar (members only), and an inline Check In button, matching the existing Kids Care / Spa kiosk patterns.
