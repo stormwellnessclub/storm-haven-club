@@ -17,6 +17,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { BookingModal } from "@/components/booking/BookingModal";
+import { ClassDetailsSheet, ClassDetailsData } from "@/components/booking/ClassDetailsSheet";
 import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
