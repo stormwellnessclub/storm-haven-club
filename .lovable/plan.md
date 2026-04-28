@@ -1,61 +1,52 @@
-# Surface Class Reviews
+# Make Class Reviews Publicly Visible
 
-## Problem
+## Goal
 
-Members are leaving class reviews (8 visible reviews exist in the database), but they are **never displayed anywhere** except as an aggregate star rating on each class card. The full `ClassReviewsList` component exists but is not imported by any page. There is also no admin view to monitor reviews.
+Anyone browsing `/schedule` (logged in or not) should be able to see the reviews for a class **before** deciding to book. Right now reviews only appear inside the Booking Modal, which a logged-out visitor can't even open.
 
-## What Users See Today
+## What Changes
 
-- `ClassCard` shows aggregate stars + count (e.g. "★ 4.6 (8)").
-- Tapping a class opens the booking modal — no reviews shown.
-- Admin has zero visibility into review content.
+### 1. Tap a class card → open a public "Class Details" sheet (no login required)
 
-## What We'll Build
+Currently, tapping a class card calls `onBook(session)`, which opens the `BookingModal` — a flow that requires authentication. We'll change the tap behavior so the **card itself** opens a lightweight public details panel showing:
 
-### 1. Member-facing: View reviews per class type
+- Class name, instructor, time, room, capacity, heated badge
+- Aggregate star rating + review count
+- The full `<ClassReviewsList classTypeId={...} />` (5 most recent + "Show all")
+- A primary CTA at the bottom:
+  - Logged-in member → **"Book Class"** (opens the existing `BookingModal`, preserving today's flow)
+  - Logged-out visitor → **"Sign in to Book"** (links to `/auth`)
 
-Add a "Reviews" section to the **Class Booking Modal** (`src/components/booking/BookingModal.tsx`):
-- Show aggregate rating header (avg + count) using existing `useClassTypeRatings`.
-- Render existing `<ClassReviewsList classTypeId={...} />` below class details.
-- Show "No reviews yet" gracefully when empty.
-- Limit to most recent 5 with a "Show all" expand toggle.
+The existing **"Book Class" button on the card** stays for one-tap booking by logged-in members. New behavior: tapping anywhere else on the card (the title/info area) opens the details sheet.
 
-Also add the same compact reviews block to the **Class Type detail page on the public schedule** if the class title is tappable; otherwise the modal coverage is sufficient.
+### 2. Reviewer name resolution for anonymous visitors
 
-### 2. Admin-facing: Review management
+The reviews table itself is already readable by anon (RLS policy `Anon can read visible reviews` exists). But `useClassReviewsForType` enriches reviews with reviewer names by querying `members` / `profiles` / `non_member_profiles` — those tables block anon, so logged-out visitors would see every review as just "Member".
 
-On `src/pages/admin/ClassTypeDetail.tsx`, add a new **"Reviews" tab/section** showing:
-- Aggregate rating + total count.
-- List of all reviews (rating, text, reviewer name, date).
-- Per-row action: **Hide** / **Unhide** (toggles `is_visible`) so admins can suppress inappropriate reviews from public view.
+Fix: add a SECURITY DEFINER RPC `get_class_reviews_with_names(_class_type_id uuid)` that returns visible reviews already joined to first name + last initial. Update `useClassReviewsForType` (non-admin path only) to call this RPC. Admin path keeps the current direct query so it can see hidden reviews.
 
-Add a global **"Recent Reviews"** card to `src/pages/admin/Dashboard.tsx` showing the latest 5 reviews across all classes with a link into each class type's detail page.
+### 3. Where this shows up
 
-### 3. Reviewer name display
-
-`class_reviews` only stores `user_id`. Display the reviewer's first name + last initial (e.g. "Sarah K.") by joining to `members` / `profiles` / `non_member_profiles` via the same fallback chain used elsewhere. Implement this in `useClassReviewsForType` (extend the hook to return `reviewer_name`) using a single batched lookup.
-
-### 4. RLS check
-
-Verify `class_reviews` SELECT policy allows anonymous/member reads of `is_visible = true` rows. If not, add a policy:
-```
-CREATE POLICY "Anyone can read visible reviews"
-  ON public.class_reviews FOR SELECT
-  USING (is_visible = true);
-```
-And a staff-can-read-all + staff-can-update policy for the admin hide/unhide action.
-
-## Files Changed
-
-- `src/hooks/useClassReviews.ts` — extend `useClassReviewsForType` to include reviewer name; add `useAdminUpdateReviewVisibility` mutation.
-- `src/components/reviews/ClassReviewsList.tsx` — show reviewer name; optional admin "Hide" button when prop `isAdmin` is true.
-- `src/components/booking/BookingModal.tsx` — embed reviews section.
-- `src/pages/admin/ClassTypeDetail.tsx` — add Reviews tab/section.
-- `src/pages/admin/Dashboard.tsx` — add Recent Reviews card (respect role filtering).
-- New migration — RLS policies on `class_reviews` if missing.
+- **Public `/schedule` page** — main use case. Tap any class card → see reviews.
+- **Member portal schedule** — same component, same behavior.
+- The existing in-modal review section stays as-is (no harm in showing it twice; members who skip the details sheet still see them in the booking flow).
 
 ## Out of Scope
 
-- Editing/deleting other users' reviews (admins only hide).
-- Email notifications when new reviews arrive.
-- Replying to reviews.
+- Showing individual reviewer photos.
+- Filtering/sorting reviews (newest-first only, same as today).
+- Admin Dashboard "Recent Reviews" card (still pending from the prior plan — can be added separately if you want).
+
+## Files Changed
+
+- **New migration** — add `get_class_reviews_with_names(uuid)` SECURITY DEFINER RPC returning rating, text, created_at, is_visible, and pre-formatted `reviewer_name` resolved from members → profiles → non_member_profiles.
+- `src/hooks/useClassReviews.ts` — switch `useClassReviewsForType` (non-admin) to the new RPC; admin path unchanged.
+- `src/components/booking/ClassCard.tsx` — make the card body tappable (opens details), keep the action button as direct Book/Waitlist.
+- **New** `src/components/booking/ClassDetailsSheet.tsx` — public details panel with class info, aggregate rating, `ClassReviewsList`, and login-aware CTA.
+- `src/pages/Schedule.tsx` — wire the new sheet, manage its open state alongside the existing `BookingModal`.
+
+## Technical Notes
+
+- RLS on `class_reviews` already allows anon SELECT of `is_visible = true` rows — no policy change needed.
+- The new RPC is the cleanest way to expose reviewer names publicly without weakening RLS on `members` / `profiles` / `non_member_profiles`.
+- Reviewer name format stays "First L." (e.g. "Sarah K."), falling back to "Member" when no name is found.
