@@ -216,6 +216,7 @@ export default function ClassTypeDetail() {
   const { data: ratingsMap } = useClassTypeRatings();
   const ratingSummary = id ? ratingsMap?.[id] : undefined;
 
+  // Update class type mutation
 
   const updateTypeMutation = useMutation({
     mutationFn: async () => {
