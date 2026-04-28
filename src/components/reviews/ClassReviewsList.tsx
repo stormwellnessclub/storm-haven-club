@@ -20,7 +20,15 @@ export function ClassReviewsList({ classTypeId, isAdmin = false, initialLimit = 
   const [showAll, setShowAll] = useState(false);
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading reviews...</p>;
-  if (reviews.length === 0) return <p className="text-sm text-muted-foreground">No reviews yet.</p>;
+  if (reviews.length === 0) {
+    if (isAdmin) return <p className="text-sm text-muted-foreground">No reviews yet.</p>;
+    return (
+      <div className="border border-dashed border-border rounded-md p-4 text-center space-y-1">
+        <p className="text-sm font-medium">Be the first to review this class</p>
+        <p className="text-xs text-muted-foreground">Book and attend, then share your experience.</p>
+      </div>
+    );
+  }
 
   const visibleReviews = isAdmin || showAll ? reviews : reviews.slice(0, initialLimit);
   const hiddenCount = reviews.length - visibleReviews.length;
