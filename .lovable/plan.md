@@ -1,44 +1,43 @@
-# Make Payment Method Required at Application Time
+## Problem
 
-Today the payment step on `/apply` is optional behind a checkbox. You want it **required** to submit, **collected inline without leaving the page**, and **linked to the applicant's profile** so it's ready the moment you approve them.
+When you cancelled **Buns of Steel** today, two attendees (`lettagj@gmail.com`, `monabeydoun.mb@gmail.com`) showed up because they never received the cancellation email.
 
-## What changes (`src/pages/Apply.tsx`)
+## Root Cause
 
-### 1. Payment section becomes required and always-visible
-- Rename heading from **"Payment Method (Optional)"** to **"Payment Method"** with a small red "Required" pill (matching Step 8 Acknowledgments style).
-- Replace the subhead with:
-  > A valid payment method is required to submit your application. Your card is saved securely — no charges are made until your membership is approved and activated.
-- **Remove** the "I'd like to add a payment method now…" opt-in checkbox (lines 1241–1257).
-- **Remove** the "You can always add a payment method later…" italic note (lines 1350–1354).
-- The Stripe `PaymentElement` form (already inline via `StripeProvider` + `ApplicantPaymentFormInner`) becomes the default UI for this step. **No popup, no redirect, no new tab** — the user stays on `/apply` the entire time. This is already how `confirmSetup({ redirect: "if_required" })` is wired today; we're simply removing the gate around it.
-- Auto-trigger the SetupIntent creation as soon as the user has filled in their email (so the card form is ready when they scroll to it), with a graceful "Enter your email above to continue" placeholder if email is empty.
+In `src/pages/admin/Classes.tsx` (lines 162–204), after the admin cancel RPC runs, the email blast resolves recipients only via:
 
-### 2. Block submission without a saved card
-In `handleSubmit` (currently lines 701–718), add a guard right after the acknowledgments check:
 ```ts
-if (!cardSetupComplete || !cardCustomerId) {
-  toast.error("Please add a payment method before submitting your application.");
-  sectionRefs.current["payment"]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  return;
-}
+.select('id, member_id, walk_in_email, walk_in_name, members(first_name, last_name, email)')
+// recipient = member?.email || walk_in_email
 ```
-Also disable the **Submit Application** button when `!cardSetupComplete`, with hover text "Add a payment method to continue."
 
-### 3. Link the saved card to the applicant's future profile
-The card is already saved to a Stripe **Customer** (created by the `create_application_setup` action) and the `customerId` + payment method id are written to the `membership_applications` row at submit (lines 791–796). To guarantee it follows them into the member record on approval, we need to verify the approval path.
+Both affected bookings had **`member_id = null`** AND **`walk_in_email = null`** — they were booked through `user_id` (the auth account) with no link to a `members` row. The lookup returned no email, the send was silently skipped, no error logged.
 
-**Verification step during implementation:** open `src/pages/admin/Applications.tsx` (and the `approve_application` RPC / handler) and confirm that on approval it copies `stripe_customer_id` + `stripe_payment_method_id` from `membership_applications` onto the new `members` / `profiles` row and sets it as the customer's default payment method in Stripe. If that wiring is missing, add it in the same change so:
-- The card-on-file is automatically the default for the dual subscriptions (monthly dues + annual fee).
-- No "add a payment method" step is needed in the member portal post-approval.
+This same gap affects every booking made by a logged-in user whose account isn't tagged with `member_id` (non-members, recently signed-up users, members not yet linked).
 
-### 4. Progress rail
-`getStepCompletion(...)` already accepts `cardSetupComplete` — confirm the "Payment" step in the left-side checklist only marks complete when the card is saved (no-op if already correct).
+## Fix
 
-## What does NOT change
-- Stripe SetupIntent flow (`stripe-payment` edge function, `create_application_setup` action) — unchanged.
-- `stripeRemountKey` stability pattern — unchanged.
-- `ApplicationUnderReview.tsx` (post-submit screen) keeps its "add/replace card" affordance as a safety net for legacy applications.
-- Database schema — no migration needed; `stripe_customer_id`, `stripe_payment_method_id`, `card_brand`, `card_last4`, `card_exp_month`, `card_exp_year` already exist on `membership_applications`.
+Rewrite the recipient resolution in `src/pages/admin/Classes.tsx` to walk the **same priority chain the rest of the app uses** for attendee identity (matches `useRosterIdentity` / `resolveAttendeePreviewsForSessions`). For each cancelled booking, resolve email/name in this order:
 
-## Result
-Every new applicant must enter a valid card inline on `/apply` before **Submit Application** works. The card is stored on a Stripe Customer tied to their email and carried directly onto their member profile at approval — so when you approve them, dues and the annual fee can be charged immediately with zero extra steps for the member.
+1. `members.email` (when `member_id` is set)
+2. `non_member_profiles.email` (lookup by `user_id`)
+3. `profiles.email` (lookup by `user_id` — mirrors auth.users)
+4. `walk_in_email`
+
+Implementation steps:
+
+- **Expand the bookings query** to also pull `user_id`.
+- **Collect every `user_id`** from bookings that came back without a `members.email`.
+- **Batch one query** to `non_member_profiles` (`.in('user_id', userIds)`) and one to `profiles` (`.in('id', userIds)`) to build a `userId → {email, name}` map.
+- **Loop and send** `class_cancelled_by_admin` to each resolved email; only skip when truly nothing resolves, and `console.warn` with the booking id so future gaps are visible in logs.
+- **Use the same name fallback chain** so the email greeting is correct.
+
+## Files changed
+
+- `src/pages/admin/Classes.tsx` — cancellation email block only.
+
+No DB migrations, no edge function changes, no schema changes. The `send-email` function already handles `class_cancelled_by_admin` correctly — the bug is purely on the client side that decides who to email.
+
+## Verification
+
+After the next admin cancellation, `email_send_log` will show one row per booked attendee (member or `user_id`-only), and the `console.warn` makes any remaining unresolvable bookings visible in browser logs.
