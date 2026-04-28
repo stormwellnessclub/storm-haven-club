@@ -1,6 +1,6 @@
 import { KioskShell } from "@/components/kiosk/KioskShell";
 import { BareAdminLayoutProvider } from "@/components/admin/BareAdminLayoutContext";
-import FrontDeskKioskInner from "./FrontDesk";
+import FrontDeskKioskInner from "@/pages/FrontDesk";
 
 /**
  * Reception kiosk mode — mirrors the existing /front-desk check-in interface
