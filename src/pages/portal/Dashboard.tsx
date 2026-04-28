@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { getCategoryDisplayName } from "@/lib/classCategories";
+import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 
 export default function PortalDashboard() {
   const { user } = useAuth();
