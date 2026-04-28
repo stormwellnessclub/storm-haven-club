@@ -1,52 +1,45 @@
-# Make Class Reviews Publicly Visible
+## Problem
 
-## Goal
+In Front Desk mode, expanding a class shows the enrollment count but never loads the list of names — so staff can't check anyone in. Same expand-but-blank pattern appears for Kids Care.
 
-Anyone browsing `/schedule` (logged in or not) should be able to see the reviews for a class **before** deciding to book. Right now reviews only appear inside the Booking Modal, which a logged-out visitor can't even open.
+## Root cause
 
-## What Changes
+The `kiosk_class_roster` RPC (migration `20260427064109`) filters with:
 
-### 1. Tap a class card → open a public "Class Details" sheet (no login required)
+```sql
+AND cb.status IN ('confirmed', 'checked_in', 'completed')
+```
 
-Currently, tapping a class card calls `onBook(session)`, which opens the `BookingModal` — a flow that requires authentication. We'll change the tap behavior so the **card itself** opens a lightweight public details panel showing:
+But the `booking_status` enum in the database only has `{confirmed, cancelled, no_show, completed}`. There is no `'checked_in'` value. Postgres throws:
 
-- Class name, instructor, time, room, capacity, heated badge
-- Aggregate star rating + review count
-- The full `<ClassReviewsList classTypeId={...} />` (5 most recent + "Show all")
-- A primary CTA at the bottom:
-  - Logged-in member → **"Book Class"** (opens the existing `BookingModal`, preserving today's flow)
-  - Logged-out visitor → **"Sign in to Book"** (links to `/auth`)
+```
+invalid input value for enum booking_status: "checked_in"
+```
 
-The existing **"Book Class" button on the card** stays for one-tap booking by logged-in members. New behavior: tapping anywhere else on the card (the title/info area) opens the details sheet.
+The RPC errors out → `KioskClassRoster` falls back to "No bookings yet". Verified against the live DB — today's 10am Reformer Sculpt has 3 confirmed bookings that should be visible.
 
-### 2. Reviewer name resolution for anonymous visitors
+The actual class check-in flow uses `status = 'completed'` to mark a booking checked in (it tracks the actual check-in via `checked_in_at`), so the roster just needs to use the real enum values.
 
-The reviews table itself is already readable by anon (RLS policy `Anon can read visible reviews` exists). But `useClassReviewsForType` enriches reviews with reviewer names by querying `members` / `profiles` / `non_member_profiles` — those tables block anon, so logged-out visitors would see every review as just "Member".
+Kids Care uses a `text` status column (not the enum), so its RPC works as written. The blank Kids Care list staff are seeing is because there's only one booking today and it's already `checked_out`. Once the class fix lands and we verify, Kids Care behavior will be the expected one — but I'll also tighten the kiosk's UI so checked-out children stay clearly visible with a "Checked out" badge (already implemented) and not hidden.
 
-Fix: add a SECURITY DEFINER RPC `get_class_reviews_with_names(_class_type_id uuid)` that returns visible reviews already joined to first name + last initial. Update `useClassReviewsForType` (non-admin path only) to call this RPC. Admin path keeps the current direct query so it can see hidden reviews.
+## Fix
 
-### 3. Where this shows up
+New migration that recreates `public.kiosk_class_roster(uuid)` with the valid filter:
 
-- **Public `/schedule` page** — main use case. Tap any class card → see reviews.
-- **Member portal schedule** — same component, same behavior.
-- The existing in-modal review section stays as-is (no harm in showing it twice; members who skip the details sheet still see them in the booking flow).
+```sql
+AND cb.status IN ('confirmed', 'completed')
+```
 
-## Out of Scope
+Everything else (joins to `members` for name + photo, status, `checked_in_at`, ordering) stays identical. Re-grant EXECUTE to `anon` and `authenticated`.
 
-- Showing individual reviewer photos.
-- Filtering/sorting reviews (newest-first only, same as today).
-- Admin Dashboard "Recent Reviews" card (still pending from the prior plan — can be added separately if you want).
+No frontend changes needed — `KioskClassRoster.tsx` and `useKioskCheckIn.ts` already work correctly; they were just never receiving rows.
 
-## Files Changed
+## Verification after deploy
 
-- **New migration** — add `get_class_reviews_with_names(uuid)` SECURITY DEFINER RPC returning rating, text, created_at, is_visible, and pre-formatted `reviewer_name` resolved from members → profiles → non_member_profiles.
-- `src/hooks/useClassReviews.ts` — switch `useClassReviewsForType` (non-admin) to the new RPC; admin path unchanged.
-- `src/components/booking/ClassCard.tsx` — make the card body tappable (opens details), keep the action button as direct Book/Waitlist.
-- **New** `src/components/booking/ClassDetailsSheet.tsx` — public details panel with class info, aggregate rating, `ClassReviewsList`, and login-aware CTA.
-- `src/pages/Schedule.tsx` — wire the new sheet, manage its open state alongside the existing `BookingModal`.
+1. Open `/front-desk`, expand the 10am Reformer Sculpt class → 3 names should render with avatars and a "Check In" button each.
+2. Tap Check In → name flips to a green "In" badge (status moves to `completed`, `checked_in_at` set).
+3. Confirm Today's Kids Care still shows the existing checked-out booking.
 
-## Technical Notes
+## Files changed
 
-- RLS on `class_reviews` already allows anon SELECT of `is_visible = true` rows — no policy change needed.
-- The new RPC is the cleanest way to expose reviewer names publicly without weakening RLS on `members` / `profiles` / `non_member_profiles`.
-- Reviewer name format stays "First L." (e.g. "Sarah K."), falling back to "Member" when no name is found.
+- New migration: `supabase/migrations/<timestamp>_fix_kiosk_class_roster_enum.sql`
