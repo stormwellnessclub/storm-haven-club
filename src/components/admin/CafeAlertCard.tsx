@@ -42,7 +42,7 @@ export function CafeAlertCard() {
             asChild
             className="border-amber-500/50 hover:bg-amber-500/10"
           >
-            <Link to="/admin/cafe-pos">
+            <Link to="/admin/cafe">
               View Orders
               <ArrowRight className="h-4 w-4 ml-2" />
             </Link>
