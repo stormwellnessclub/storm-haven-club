@@ -168,7 +168,7 @@ export default function Classes() {
           // RPC stamps exactly this reason on every booking it touches.
           const { data: bookings } = await supabase
             .from('class_bookings')
-            .select('id, member_id, walk_in_email, walk_in_name, members(first_name, last_name, email)')
+            .select('id, member_id, user_id, walk_in_email, walk_in_name, members(first_name, last_name, email)')
             .eq('session_id', selectedSession.id)
             .eq('status', 'cancelled')
             .eq('cancellation_reason', 'Class cancelled by admin');
@@ -176,12 +176,48 @@ export default function Classes() {
           if (bookings && bookings.length > 0) {
             const sessionDate = format(parseISO(selectedSession.session_date), 'MMMM d, yyyy');
             const sessionTime = formatTime(selectedSession.start_time);
-            
+
+            // Build a userId -> {email, name} map for bookings without a linked member.
+            // Some attendees book via their auth account (user_id) without a members row,
+            // so we must fall back through non_member_profiles and profiles to find them.
+            const unresolvedUserIds = Array.from(new Set(
+              bookings
+                .filter(b => {
+                  const m = b.members as any;
+                  return !(m?.email) && !b.walk_in_email && b.user_id;
+                })
+                .map(b => b.user_id as string)
+            ));
+
+            const userIdContact: Record<string, { email?: string; name?: string }> = {};
+            if (unresolvedUserIds.length > 0) {
+              const [nmpRes, profRes] = await Promise.all([
+                supabase
+                  .from('non_member_profiles')
+                  .select('user_id, email, first_name, last_name')
+                  .in('user_id', unresolvedUserIds),
+                supabase
+                  .from('profiles')
+                  .select('id, email, full_name')
+                  .in('id', unresolvedUserIds),
+              ]);
+              for (const p of profRes.data || []) {
+                if (p.email) userIdContact[p.id] = { email: p.email, name: p.full_name || undefined };
+              }
+              for (const nmp of nmpRes.data || []) {
+                const name = [nmp.first_name, nmp.last_name].filter(Boolean).join(' ').trim() || undefined;
+                if (nmp.email) userIdContact[nmp.user_id] = { email: nmp.email, name };
+              }
+            }
+
             for (const booking of bookings) {
               const member = booking.members as any;
-              const email = member?.email || booking.walk_in_email;
-              const name = member ? `${member.first_name} ${member.last_name}` : booking.walk_in_name;
-              
+              const userContact = booking.user_id ? userIdContact[booking.user_id] : undefined;
+              const email = member?.email || userContact?.email || booking.walk_in_email;
+              const name = member
+                ? `${member.first_name} ${member.last_name}`
+                : (userContact?.name || booking.walk_in_name);
+
               if (email) {
                 supabase.functions.invoke('send-email', {
                   body: {
@@ -195,6 +231,11 @@ export default function Classes() {
                     },
                   },
                 }).catch(err => console.error('Failed to send cancellation email:', err));
+              } else {
+                console.warn('[class-cancel] Could not resolve email for booking', booking.id, {
+                  member_id: booking.member_id,
+                  user_id: booking.user_id,
+                });
               }
             }
           }
