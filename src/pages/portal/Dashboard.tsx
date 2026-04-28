@@ -94,7 +94,10 @@ export default function PortalDashboard() {
           <p className="text-muted-foreground mt-1">Manage your classes, passes, and bookings.</p>
         </div>
 
-        {/* Card on file prompt */}
+        {/* Live cafe order tracker */}
+        <MyCafeOrdersCard />
+
+
         {!profileLoading && !hasCard && (
           <Card className="border-destructive/30 bg-destructive/5">
             <CardContent className="flex items-center gap-4 py-4">
