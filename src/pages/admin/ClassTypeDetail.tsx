@@ -213,7 +213,10 @@ export default function ClassTypeDetail() {
     enabled: !!id,
   });
 
-  // Update class type mutation
+  const { data: ratingsMap } = useClassTypeRatings();
+  const ratingSummary = id ? ratingsMap?.[id] : undefined;
+
+
   const updateTypeMutation = useMutation({
     mutationFn: async () => {
       if (!id) throw new Error("No ID");
