@@ -40,6 +40,9 @@ import { format, parse, parseISO } from "date-fns";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolvePdfUrl } from "@/lib/pdfAssets";
+import { ClassReviewsList } from "@/components/reviews/ClassReviewsList";
+import { useClassTypeRatings } from "@/hooks/useClassReviews";
+import { StarRating } from "@/components/reviews/StarRating";
 
 interface BookingModalProps {
   session: ClassSession | null;
