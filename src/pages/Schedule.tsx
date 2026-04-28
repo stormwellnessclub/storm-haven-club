@@ -74,6 +74,72 @@ export default function Schedule() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsData, setDetailsData] = useState<ClassDetailsData | null>(null);
+
+  const openDetailsFor = (
+    session: ClassSession,
+    extras: { isBooked: boolean; isOnWaitlist: boolean; waitlistCount?: number }
+  ) => {
+    const ct = session.class_types;
+    const spotsLeft = session.max_capacity - session.current_enrollment;
+    setDetailsData({
+      sessionId: session.id,
+      sessionDate: session.session_date,
+      startTime: session.start_time,
+      endTime: session.end_time,
+      spotsLeft,
+      isFull: spotsLeft <= 0,
+      waitlistCount: extras.waitlistCount,
+      room: session.room,
+      classType: {
+        id: ct.id,
+        name: ct.name,
+        category: ct.category,
+        description: ct.description,
+        duration_minutes: ct.duration_minutes,
+        is_heated: ct.is_heated,
+      },
+      instructor: session.instructors
+        ? { first_name: session.instructors.first_name, last_name: session.instructors.last_name }
+        : null,
+      isBooked: extras.isBooked,
+      isOnWaitlist: extras.isOnWaitlist,
+    });
+    setDetailsOpen(true);
+  };
+
+  const handleBookFromDetails = (d: ClassDetailsData) => {
+    if (!user) {
+      navigate("/auth?redirect=/schedule");
+      return;
+    }
+    const bookable: BookableSession = {
+      id: d.sessionId,
+      session_date: d.sessionDate,
+      start_time: d.startTime,
+      end_time: d.endTime,
+      max_capacity: d.spotsLeft + (d.isFull ? 0 : 0) + 0, // not used downstream for capacity gating
+      current_enrollment: 0,
+      room: d.room,
+      is_cancelled: false,
+      class_type: {
+        id: d.classType.id,
+        name: d.classType.name,
+        category: d.classType.category,
+        description: d.classType.description,
+        duration_minutes: d.classType.duration_minutes,
+        is_heated: d.classType.is_heated,
+        image_url: null,
+      },
+      instructor: d.instructor
+        ? { id: "", first_name: d.instructor.first_name, last_name: d.instructor.last_name, photo_url: null }
+        : null,
+    };
+    setDetailsOpen(false);
+    setSelectedSession(bookable);
+    setBookingOpen(true);
+  };
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
