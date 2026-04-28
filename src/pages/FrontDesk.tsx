@@ -21,6 +21,9 @@ import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import { Textarea } from "@/components/ui/textarea";
 import { KioskClassRoster } from "@/components/kiosk/KioskClassRoster";
+import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
+import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
+import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
 
 // ─── Type badge config ───────────────────────────────────────────────
 type AnyType = KioskVisitorType | KioskAttendanceType;
@@ -411,7 +414,14 @@ export default function FrontDeskPage() {
     return <KioskPinGate onUnlock={() => setIsUnlocked(true)} />;
   }
 
-  return <FrontDeskKiosk />;
+  return (
+    <>
+      <AudioUnlocker />
+      <AdminSupportChime />
+      <AdminCafeChime />
+      <FrontDeskKiosk />
+    </>
+  );
 }
 
 function FrontDeskKiosk() {
