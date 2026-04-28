@@ -413,7 +413,26 @@ export default function Schedule() {
                           return (
                             <div
                               key={session.id}
-                              className="card-luxury p-4 flex gap-3"
+                              className="card-luxury p-4 flex gap-3 cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() =>
+                                openDetailsFor(session, {
+                                  isBooked: bookedSessionIds.has(session.id),
+                                  isOnWaitlist: !!waitlistStatus?.[session.id],
+                                  waitlistCount: waitlistCounts?.[session.id],
+                                })
+                              }
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  openDetailsFor(session, {
+                                    isBooked: bookedSessionIds.has(session.id),
+                                    isOnWaitlist: !!waitlistStatus?.[session.id],
+                                    waitlistCount: waitlistCounts?.[session.id],
+                                  });
+                                }
+                              }}
                             >
                               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${config.color.split(" ")[0]}`}>
                                 <Icon className={`w-5 h-5 ${config.color.split(" ")[1]}`} />
@@ -460,7 +479,7 @@ export default function Schedule() {
                                 )}
 
                                 {(
-                                  <div className="mt-2">
+                                  <div className="mt-2" onClick={(e) => e.stopPropagation()}>
                                     {bookedSessionIds.has(session.id) ? (
                                       <Badge variant="outline" className="text-xs border-primary/50 text-primary">
                                         Booked
@@ -479,32 +498,7 @@ export default function Schedule() {
                                             navigate("/auth?redirect=/schedule");
                                             return;
                                           }
-                                          const bookable: BookableSession = {
-                                            id: session.id,
-                                            session_date: session.session_date,
-                                            start_time: session.start_time,
-                                            end_time: session.end_time,
-                                            max_capacity: session.max_capacity,
-                                            current_enrollment: session.current_enrollment,
-                                            room: session.room,
-                                            is_cancelled: session.is_cancelled,
-                                            class_type: {
-                                              id: ct.id,
-                                              name: ct.name,
-                                              category: ct.category,
-                                              description: ct.description,
-                                              duration_minutes: ct.duration_minutes,
-                                              is_heated: ct.is_heated,
-                                              image_url: ct.image_url,
-                                            },
-                                            instructor: instructor ? {
-                                              id: instructor.id,
-                                              first_name: instructor.first_name,
-                                              last_name: instructor.last_name,
-                                              photo_url: null,
-                                            } : null,
-                                          };
-                                          setSelectedSession(bookable);
+                                          setSelectedSession(buildBookable(session));
                                           setBookingOpen(true);
                                         }}
                                       >
