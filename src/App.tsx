@@ -103,6 +103,10 @@ import DesignSystem from "./pages/DesignSystem";
 import SiteAudit from "./pages/SiteAudit";
 import GuestFeedback from "./pages/GuestFeedback";
 import FrontDeskKiosk from "./pages/FrontDesk";
+import KioskReception from "./pages/kiosk/Reception";
+import KioskCafe from "./pages/kiosk/Cafe";
+import KioskSpa from "./pages/kiosk/Spa";
+import KioskClasses from "./pages/kiosk/Classes";
 import { SitemapRedirect, RobotsRedirect } from "@/components/StaticFileRedirect";
 import { ProtectedPortalRoute } from "@/components/portal/ProtectedPortalRoute";
 import PortalDashboard from "@/pages/portal/Dashboard";
@@ -159,6 +163,11 @@ const App = () => (
               <Route path="/merch" element={<Merch />} />
               <Route path="/shop" element={<Merch />} />
               <Route path="/front-desk" element={<FrontDeskKiosk />} />
+              <Route path="/kiosk" element={<KioskReception />} />
+              <Route path="/kiosk/reception" element={<KioskReception />} />
+              <Route path="/kiosk/cafe" element={<KioskCafe />} />
+              <Route path="/kiosk/spa" element={<KioskSpa />} />
+              <Route path="/kiosk/classes" element={<KioskClasses />} />
               
               {/* Member Portal Routes - Protected */}
               <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
