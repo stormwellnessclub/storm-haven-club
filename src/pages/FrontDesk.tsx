@@ -24,6 +24,7 @@ import { KioskClassRoster } from "@/components/kiosk/KioskClassRoster";
 import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
 import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
+import { formatTime12h } from "@/lib/timeFormat";
 
 // ─── Type badge config ───────────────────────────────────────────────
 type AnyType = KioskVisitorType | KioskAttendanceType;
