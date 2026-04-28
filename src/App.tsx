@@ -37,6 +37,7 @@ import MemberReferrals from "@/pages/member/Referrals";
 import Index from "./pages/Index";
 import Classes from "./pages/Classes";
 import Schedule from "./pages/Schedule";
+import PublicClassTypeDetail from "./pages/ClassTypeDetail";
 import Spa from "./pages/Spa";
 import Cafe from "./pages/Cafe";
 import Amenities from "./pages/Amenities";
@@ -139,6 +140,7 @@ const App = () => (
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/classes" element={<Classes />} />
+              <Route path="/classes/:classTypeId" element={<PublicClassTypeDetail />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/book" element={<Schedule />} />
               <Route path="/spa" element={<Spa />} />

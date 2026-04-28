@@ -111,6 +111,13 @@ export function ClassDetailsSheet({ open, onOpenChange, details, onBook }: Props
             <Clock className="w-4 h-4" />
             <span>{fmtTime(details.startTime)} – {fmtTime(details.endTime)} · {details.classType.duration_minutes} min</span>
           </div>
+          <Link
+            to={`/classes/${details.classType.id}`}
+            onClick={() => onOpenChange(false)}
+            className="text-xs text-primary hover:underline inline-block"
+          >
+            View full class page →
+          </Link>
           {details.instructor && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <User className="w-4 h-4" />

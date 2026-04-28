@@ -20,7 +20,7 @@ import { BookingModal } from "@/components/booking/BookingModal";
 import { ClassDetailsSheet, ClassDetailsData } from "@/components/booking/ClassDetailsSheet";
 import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useMyBookings } from "@/hooks/useBooking";
 import { useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
 
@@ -477,6 +477,14 @@ export default function Schedule() {
                                 {session.room && (
                                   <p className="text-xs text-muted-foreground/70 mt-0.5">{session.room}</p>
                                 )}
+
+                                <Link
+                                  to={`/classes/${ct.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-block mt-1 text-[11px] text-primary hover:underline"
+                                >
+                                  View class & reviews
+                                </Link>
 
                                 {(
                                   <div className="mt-2" onClick={(e) => e.stopPropagation()}>

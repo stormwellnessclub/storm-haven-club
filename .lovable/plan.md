@@ -1,35 +1,34 @@
-## Two issues, both confirmed in code/data
+# Public Class Reviews
 
-### 1. "Unknown" non-members in class roster
+## Goal
+Make class reviews visible on a public-facing class type page so prospective members and members can read them outside the booking flow. Improve the empty state to encourage first reviews.
 
-The `kiosk_class_roster` RPC only resolves names from `members.first_name + last_name` or `class_bookings.walk_in_name`. Non-member bookings have `member_id = NULL` and an empty `walk_in_name` — their identity lives in the `profiles` table keyed by `user_id`. Verified live: e.g. booking by user `6f02a967…` is "Samar Hannawi / shannawi@outlook.com" in `profiles`, but the RPC returns `Unknown`.
+## What you'll see
+- New public route: `/classes/:classTypeId` — a class type detail page showing the class info, average rating, and full reviews list.
+- On `/schedule`, each class card gets a small "View class" link/icon in addition to the existing click-to-open details panel, linking to the new public page.
+- Empty state on every reviews list changes from "No reviews yet." to a friendlier "Be the first to review this class" message (with a CTA to book if not already booked).
 
-**Fix:** Extend the RPC's `COALESCE` chain to fall back to `profiles` (joined on `user_id`), then `non_member_profiles` (also on `user_id`), then `walk_in_name`, then a synthesized "Guest – {email}" if we only have an email, then `Unknown` as a true last resort.
+## Pages / components changed
 
-```sql
-COALESCE(
-  NULLIF(TRIM(m.first_name || ' ' || m.last_name), ''),
-  NULLIF(TRIM(p.first_name || ' ' || p.last_name), ''),
-  NULLIF(TRIM(nmp.first_name || ' ' || nmp.last_name), ''),
-  NULLIF(cb.walk_in_name, ''),
-  CASE WHEN cb.walk_in_email IS NOT NULL THEN 'Guest – ' || cb.walk_in_email
-       WHEN p.email IS NOT NULL THEN 'Guest – ' || p.email
-       ELSO 'Unknown' END
-)
-```
+1. **New** `src/pages/ClassTypeDetail.tsx` (public)
+   - Fetches the `class_types` row by `:classTypeId`.
+   - Shows: name, category badge, hot/cool, description, duration, average rating, total reviews.
+   - Renders `<ClassReviewsList classTypeId={id} initialLimit={10} />`.
+   - "Book a session" CTA → links to `/schedule?type={id}`.
+   - SEO title/description via existing pattern.
 
-Also widen `photo_url` to fall back to the profile's `avatar_url` when there's no member record. Re-grant EXECUTE to `anon` and `authenticated`.
+2. **Edit** `src/App.tsx`
+   - Add public route `/classes/:classTypeId` → `ClassTypeDetail`.
 
-### 2. Military time on the kiosk class lists
+3. **Edit** `src/components/reviews/ClassReviewsList.tsx`
+   - Replace empty state with "Be the first to review this class" copy. If `isAdmin` keep current behavior.
 
-Two spots in `src/pages/FrontDesk.tsx` use `s.start_time?.slice(0, 5)` which renders `"14:30"`:
-- **Line 270** — Today's classes list
-- **Line 361** — Bookings table
+4. **Edit** `src/pages/Schedule.tsx`
+   - Add a small "ⓘ View class" link on each card linking to `/classes/{ct.id}` (stopPropagation so it doesn't trigger the side sheet).
 
-**Fix:** Use the existing `formatTime12h` helper from `src/lib/timeFormat.ts` so they render `"2:30 PM"` instead.
+5. **Edit** `src/components/booking/ClassDetailsSheet.tsx`
+   - Add a "View full class page" link under the title pointing to `/classes/{classType.id}`.
 
-## Technical details
-
-- New migration: `CREATE OR REPLACE FUNCTION public.kiosk_class_roster(uuid)` with the expanded `COALESCE` and the `LEFT JOIN profiles p ON p.user_id = cb.user_id` + `LEFT JOIN non_member_profiles nmp ON nmp.user_id = cb.user_id`. Re-grants execute to `anon` + `authenticated`. `SECURITY DEFINER` stays — kiosk runs anonymously.
-- Edit `src/pages/FrontDesk.tsx` lines 270 and 361 to use `formatTime12h(s.start_time)` / `formatTime12h(b.start_time)` and add the import.
-- No frontend changes needed for issue #1 — the roster component already renders whatever name the RPC returns.
+## Out of scope
+- No DB or RPC changes — `get_class_reviews_with_names` and `get_all_class_type_ratings` already exist and contain 8 visible reviews.
+- No changes to the rating/submit flow.
