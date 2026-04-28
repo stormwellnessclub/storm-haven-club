@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
+import { useReliableRealtime, type RealtimeStatus } from "@/hooks/useReliableRealtime";
 
 // ── Chime player (HTML Audio + embedded WAV) ────────────────────────
 const CHIME_DATA_URI = "data:audio/wav;base64," + "UklGRuqnAQBXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YcanAQAA";
@@ -130,38 +130,73 @@ export function setIsMuted(val: boolean) {
 // ── Component ───────────────────────────────────────────────────────
 const FIVE_MINUTES = 5 * 60 * 1000;
 
-export function AdminSupportChime() {
+interface Props {
+  onStatusChange?: (s: RealtimeStatus) => void;
+}
+
+export function AdminSupportChime({ onStatusChange }: Props = {}) {
   const queryClient = useQueryClient();
   const { data: notifications } = useAdminSupportNotifications();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSeenUnreadRef = useRef<number | null>(null);
+  const lastSeenOpenRef = useRef<number | null>(null);
+  const justChimedViaRealtimeRef = useRef(false);
 
   const chimeSafe = useCallback(() => {
     if (!getIsMuted()) playNotificationChime();
   }, []);
 
-  // Realtime: instant chime on new conversations / member messages
-  useEffect(() => {
-    try {
-      const channel = supabase
-        .channel("global-support-chime")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "email_conversations" }, () => {
-          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
-          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
-          chimeSafe();
-        })
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "email_messages", filter: "sender_type=eq.member" }, () => {
-          queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
-          queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
-          chimeSafe();
-        })
-        .subscribe();
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
+  }, [queryClient]);
 
-      return () => { supabase.removeChannel(channel); };
-    } catch (error) {
-      console.error("Failed to subscribe admin support chime:", error);
-      return undefined;
+  const { status } = useReliableRealtime({
+    channelName: "global-support-chime",
+    listeners: [
+      {
+        event: "INSERT",
+        table: "email_conversations",
+        callback: () => {
+          invalidate();
+          justChimedViaRealtimeRef.current = true;
+          chimeSafe();
+          setTimeout(() => { justChimedViaRealtimeRef.current = false; }, 35_000);
+        },
+      },
+      {
+        event: "INSERT",
+        table: "email_messages",
+        filter: "sender_type=eq.member",
+        callback: () => {
+          invalidate();
+          justChimedViaRealtimeRef.current = true;
+          chimeSafe();
+          setTimeout(() => { justChimedViaRealtimeRef.current = false; }, 35_000);
+        },
+      },
+    ],
+  });
+
+  useEffect(() => { onStatusChange?.(status); }, [status, onStatusChange]);
+
+  // Polling fallback: chime if unread/open grew without a realtime event
+  useEffect(() => {
+    const unread = notifications?.unreadCount ?? 0;
+    const open = notifications?.openCount ?? 0;
+    const prevUnread = lastSeenUnreadRef.current;
+    const prevOpen = lastSeenOpenRef.current;
+    if (
+      prevUnread !== null && prevOpen !== null &&
+      (unread > prevUnread || open > prevOpen) &&
+      !justChimedViaRealtimeRef.current
+    ) {
+      console.log("[support chime] polling fallback triggered");
+      chimeSafe();
     }
-  }, [queryClient, chimeSafe]);
+    lastSeenUnreadRef.current = unread;
+    lastSeenOpenRef.current = open;
+  }, [notifications?.unreadCount, notifications?.openCount, chimeSafe]);
 
   // 5-minute recurring reminder while unread messages exist
   useEffect(() => {
