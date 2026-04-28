@@ -198,11 +198,12 @@ export default function Classes() {
                   .in('user_id', unresolvedUserIds),
                 supabase
                   .from('profiles')
-                  .select('id, email, full_name')
-                  .in('id', unresolvedUserIds),
+                  .select('user_id, email, first_name, last_name')
+                  .in('user_id', unresolvedUserIds),
               ]);
               for (const p of profRes.data || []) {
-                if (p.email) userIdContact[p.id] = { email: p.email, name: p.full_name || undefined };
+                const name = [p.first_name, p.last_name].filter(Boolean).join(' ').trim() || undefined;
+                if (p.email && p.user_id) userIdContact[p.user_id] = { email: p.email, name };
               }
               for (const nmp of nmpRes.data || []) {
                 const name = [nmp.first_name, nmp.last_name].filter(Boolean).join(' ').trim() || undefined;
