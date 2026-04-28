@@ -268,7 +268,7 @@ function TodaysClasses() {
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     )}
                     <span className="font-medium text-sm flex-1 truncate">{s.class_types?.name || "Unknown"}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">{s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{formatTime12h(s.start_time)} – {formatTime12h(s.end_time)}</span>
                     <Badge variant={s.current_enrollment >= s.max_capacity ? "destructive" : "secondary"} className="shrink-0">
                       {s.current_enrollment}/{s.max_capacity}
                     </Badge>
@@ -359,7 +359,7 @@ function TodaysKidsCare() {
                       <div>{parentName}</div>
                       {b.parent_phone && <div className="text-xs text-muted-foreground/70">{b.parent_phone}</div>}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{b.start_time?.slice(0, 5)} – {b.end_time?.slice(0, 5)}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatTime12h(b.start_time)} – {formatTime12h(b.end_time)}</TableCell>
                     <TableCell>
                       {status === "checked_in" ? (
                         <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 gap-1">
