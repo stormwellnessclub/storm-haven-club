@@ -433,6 +433,22 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Member Reviews */}
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Member Reviews</h3>
+              {classTypeRating && classTypeRating.review_count > 0 && (
+                <StarRating
+                  rating={classTypeRating.average_rating}
+                  size="sm"
+                  showValue
+                  count={classTypeRating.review_count}
+                />
+              )}
+            </div>
+            <ClassReviewsList classTypeId={session.class_type.id} initialLimit={3} />
+          </div>
         </div>
 
         <DialogFooter>
