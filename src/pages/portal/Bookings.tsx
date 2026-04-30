@@ -14,6 +14,7 @@ import { useCancelBooking } from "@/hooks/useBooking";
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { StarRating } from "@/components/reviews/StarRating";
+import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
