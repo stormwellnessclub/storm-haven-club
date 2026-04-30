@@ -442,19 +442,34 @@ export function GenerateProgramModal({
             )}
 
             {/* Navigation buttons */}
-            <div className="flex justify-between pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-4 sticky bottom-0 bg-background pb-[env(safe-area-inset-bottom)]">
               <Button
                 variant="ghost"
                 onClick={handleBack}
                 disabled={step === 1}
+                className="min-h-[44px]"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
-              <Button
-                onClick={handleNext}
-                disabled={!canProceed()}
-              >
+              <div className="flex items-center gap-2 ml-auto">
+                {(step > 1 || preferences.programType !== "") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetWizard}
+                    className="min-h-[44px]"
+                    title="Start over"
+                  >
+                    <RotateCcw className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Start over</span>
+                  </Button>
+                )}
+                <Button
+                  onClick={handleNext}
+                  disabled={!canProceed()}
+                  className="min-h-[44px]"
+                >
                 {step === totalSteps ? (
                   <>
                     <Sparkles className="h-4 w-4 mr-2" />
