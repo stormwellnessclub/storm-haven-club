@@ -84,15 +84,23 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
     enabled: !!user,
   });
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate || new Date());
-  const [selectedStartTime, setSelectedStartTime] = useState<string>("");
+  // Initialize from persisted draft if present.
+  const initialDraft = (() => readKidsCareDraft())();
+
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
+    if (initialDraft?.date) {
+      try { return parseISO(initialDraft.date); } catch { /* ignore */ }
+    }
+    return defaultDate || new Date();
+  });
+  const [selectedStartTime, setSelectedStartTime] = useState<string>(initialDraft?.startTime || "");
   const [selectedEndTime, setSelectedEndTime] = useState<string>("");
-  const [selectedChildId, setSelectedChildId] = useState<string>("");
+  const [selectedChildId, setSelectedChildId] = useState<string>(initialDraft?.childId || "");
   const [childName, setChildName] = useState("");
   const [childAge, setChildAge] = useState<string>("");
   const [selectedPassId, setSelectedPassId] = useState<string>("");
   const [specialInstructions, setSpecialInstructions] = useState("");
-  const [parentNotes, setParentNotes] = useState("");
+  const [parentNotes, setParentNotes] = useState(initialDraft?.notes || "");
   const [confirmedBooking, setConfirmedBooking] = useState<{
     childName: string;
     date: string;
@@ -100,6 +108,18 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
     endTime: string;
     room: string;
   } | null>(null);
+
+  // Persist key fields as a draft so users can resume after dismissing.
+  useEffect(() => {
+    if (!open || confirmedBooking) return;
+    writeKidsCareDraft({
+      childId: selectedChildId || null,
+      date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : null,
+      startTime: selectedStartTime || null,
+      notes: parentNotes,
+    });
+  }, [open, confirmedBooking, selectedChildId, selectedDate, selectedStartTime, parentNotes]);
+
 
   // Fetch hour slots for the selected date (now returns array of slots)
   const { data: daySlots, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
