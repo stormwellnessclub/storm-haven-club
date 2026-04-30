@@ -391,6 +391,7 @@ export default function Schedule() {
       {/* Schedule Grid */}
       <section className="py-12 bg-background">
         <div className="container mx-auto px-6">
+          <ResumeBookingBanner kind="class" onResume={handleResumeBooking} />
           {error ? (
             <div className="text-center py-16">
               <p className="text-destructive">Failed to load schedule. Please try again later.</p>
