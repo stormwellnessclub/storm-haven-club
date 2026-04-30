@@ -322,6 +322,17 @@ export default function PortalDashboard() {
           </div>
         </div>
       </div>
+
+      {reviewTarget && (
+        <ReviewDialog
+          open={!!reviewTarget}
+          onOpenChange={(open) => !open && setReviewTarget(null)}
+          bookingId={reviewTarget.bookingId}
+          classTypeId={reviewTarget.classTypeId}
+          sessionId={reviewTarget.sessionId}
+          className={reviewTarget.className}
+        />
+      )}
     </PortalLayout>
   );
 }
