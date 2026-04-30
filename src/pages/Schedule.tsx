@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
-  startOfWeek, addDays, addWeeks, format, isBefore, startOfDay, isToday,
+  startOfWeek, addDays, addWeeks, format, isBefore, startOfDay, isToday, parseISO,
 } from "date-fns";
 import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
