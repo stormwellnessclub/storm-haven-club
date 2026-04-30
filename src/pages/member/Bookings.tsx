@@ -63,6 +63,7 @@ export default function MemberBookings() {
         <LeaveReviewBanner
           count={unreviewedPast.length}
           onLeaveReview={handleLeaveReviewFromBanner}
+          dismissible
         />
 
         <Tabs defaultValue="upcoming" className="w-full">
