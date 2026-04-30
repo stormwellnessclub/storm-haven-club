@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PortalLayout } from "@/components/portal/PortalLayout";
+import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
