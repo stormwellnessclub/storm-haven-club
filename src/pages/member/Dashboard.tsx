@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useUserCredits } from "@/hooks/useUserCredits";
-import { useUpcomingBookings, Booking } from "@/hooks/useBooking";
+import { useUpcomingBookings, usePastBookings, Booking } from "@/hooks/useBooking";
+import { useMyReviews } from "@/hooks/useClassReviews";
+import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
+import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { useHealthScore, useHealthScoreHistory } from "@/hooks/useHealthScore";
 import { useMemberPoints } from "@/hooks/useMemberPoints";
 import { useAchievements, useMemberAchievements, useCheckAchievements } from "@/hooks/useAchievements";
@@ -61,7 +64,31 @@ export default function MemberDashboard() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { data: credits, isLoading: creditsLoading } = useUserCredits();
   const { data: upcomingBookings, isLoading: bookingsLoading } = useUpcomingBookings();
+  const { data: pastBookings } = usePastBookings();
+  const { data: myReviews = [] } = useMyReviews();
   const { hasFrozenBenefits, frozenReason } = useMemberBenefitsStatus();
+
+  // Unreviewed past classes (for the "Leave a Review" banner)
+  const reviewByBooking = Object.fromEntries(myReviews.map((r) => [r.booking_id, r]));
+  const unreviewedPast = (pastBookings || []).filter(
+    (b: any) =>
+      b?.status !== "cancelled" &&
+      b?.session?.class_type?.id &&
+      !reviewByBooking[b.id]
+  );
+  const [reviewTarget, setReviewTarget] = useState<{
+    bookingId: string; classTypeId: string; sessionId: string; className: string;
+  } | null>(null);
+  const handleLeaveReviewFromBanner = () => {
+    const next = unreviewedPast[0];
+    if (!next) return;
+    setReviewTarget({
+      bookingId: next.id,
+      classTypeId: next.session.class_type.id,
+      sessionId: next.session_id,
+      className: next.session.class_type.name || "Class",
+    });
+  };
   
   // Health & Wellness Data
   const { data: healthScore, isLoading: healthScoreLoading } = useHealthScore(undefined, 30);
