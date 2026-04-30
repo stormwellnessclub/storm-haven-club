@@ -267,7 +267,8 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
         room: booking?.room || (["Infants", "Toddlers"].includes(booking?.age_group || "") ? "Little Stars" : "Big Stars"),
       });
 
-      // Reset form
+      // Reset form + clear persisted draft
+      clearKidsCareDraft();
       setSelectedChildId("");
       setChildName("");
       setChildAge("");
