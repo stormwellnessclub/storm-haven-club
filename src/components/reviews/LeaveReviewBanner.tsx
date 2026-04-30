@@ -1,18 +1,53 @@
-import { Sparkles, ArrowRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Sparkles, ArrowRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface LeaveReviewBannerProps {
   count: number;
   onLeaveReview: () => void;
+  /**
+   * When provided, renders a dismiss (X) button. The banner persists dismissal
+   * in localStorage keyed by `storm.reviewBanner.dismissedCount` — it re-appears
+   * automatically when a NEW unreviewed class accumulates beyond the dismissed
+   * count, so we surface fresh prompts without nagging.
+   */
+  dismissible?: boolean;
+}
+
+const DISMISS_KEY = "storm.reviewBanner.dismissedCount";
+
+function readDismissedCount(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = window.localStorage.getItem(DISMISS_KEY);
+  const n = raw ? parseInt(raw, 10) : 0;
+  return Number.isFinite(n) ? n : 0;
 }
 
 /**
- * Premium banner shown above the bookings tabs when the member or non-member
- * has at least one past class they haven't reviewed yet. Uses the deep
- * smoked-umber gradient with cream typography and a soft gold accent.
+ * Premium banner shown above the bookings tabs / dashboards when the member or
+ * non-member has at least one past class they haven't reviewed yet. Uses the
+ * deep smoked-umber gradient with cream typography and a soft gold accent.
  */
-export function LeaveReviewBanner({ count, onLeaveReview }: LeaveReviewBannerProps) {
+export function LeaveReviewBanner({ count, onLeaveReview, dismissible = false }: LeaveReviewBannerProps) {
+  const [dismissedCount, setDismissedCount] = useState<number>(() => readDismissedCount());
+
+  // Re-read on mount in case it changed in another tab.
+  useEffect(() => {
+    setDismissedCount(readDismissedCount());
+  }, []);
+
   if (count <= 0) return null;
+  // If user has dismissed when count was N, hide until count grows past N.
+  if (dismissible && count <= dismissedCount) return null;
+
+  const handleDismiss = () => {
+    try {
+      window.localStorage.setItem(DISMISS_KEY, String(count));
+    } catch {
+      /* ignore storage errors */
+    }
+    setDismissedCount(count);
+  };
 
   const subhead =
     count === 1
@@ -29,6 +64,17 @@ export function LeaveReviewBanner({ count, onLeaveReview }: LeaveReviewBannerPro
         className="absolute -right-6 -top-6 h-32 w-32 text-[hsl(var(--gold-light))] opacity-[0.10] rotate-12 pointer-events-none"
         aria-hidden
       />
+
+      {dismissible && (
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label="Dismiss review reminder"
+          className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-[hsl(var(--cream)/0.55)] hover:text-[hsl(var(--cream))] hover:bg-[hsl(var(--cream)/0.08)] transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
 
       <div className="relative flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between md:gap-8 md:p-7">
         <div className="flex-1 min-w-0">
