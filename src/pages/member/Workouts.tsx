@@ -505,18 +505,20 @@ export default function Workouts() {
         </div>
 
         <Tabs defaultValue={activeProgram ? "programs" : "logged"} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="programs" className="gap-1.5">
-              <Calendar className="h-4 w-4" />
-              Programs {activeProgram && <Badge variant="secondary" className="ml-1 text-xs">Active</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="gap-1.5">
-              <LayoutTemplate className="h-4 w-4" />
-              Templates ({templates?.length || 0})
-            </TabsTrigger>
-            <TabsTrigger value="logged">Logged ({workouts?.length || 0})</TabsTrigger>
-            <TabsTrigger value="ai">AI Workouts ({aiWorkouts?.length || 0})</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
+            <TabsList className="w-max sm:w-auto">
+              <TabsTrigger value="programs" className="gap-1.5 whitespace-nowrap">
+                <Calendar className="h-4 w-4" />
+                Programs {activeProgram && <Badge variant="secondary" className="ml-1 text-xs">Active</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="templates" className="gap-1.5 whitespace-nowrap">
+                <LayoutTemplate className="h-4 w-4" />
+                Templates ({templates?.length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="logged" className="whitespace-nowrap">Logged ({workouts?.length || 0})</TabsTrigger>
+              <TabsTrigger value="ai" className="whitespace-nowrap">AI Workouts ({aiWorkouts?.length || 0})</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="programs">
             {programsLoading ? (
