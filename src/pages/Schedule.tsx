@@ -247,6 +247,30 @@ export default function Schedule() {
     }
   }, [weekStart]);
 
+  const handleResumeBooking = (draft: ClassBookingDraft) => {
+    if (!draft?.sessionId) return;
+    // 1) Try to find the session in the currently-loaded week.
+    const found = sessions.find((s) => s.id === draft.sessionId);
+    if (found) {
+      const bookable = buildBookable(found);
+      sessionMapRef.current.set(found.id, bookable);
+      setSelectedSession(bookable);
+      setBookingOpen(true);
+      return;
+    }
+    // 2) Otherwise, jump the calendar to the draft's session date so the
+    //    next render loads it; the user can tap Resume again.
+    if (draft.sessionDate) {
+      try {
+        const d = startOfDay(parseISO(draft.sessionDate));
+        setSelectedDate(d);
+        setWeekStart(startOfWeek(d, { weekStartsOn: 0 }));
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
   return (
     <Layout>
       <SEOHead
