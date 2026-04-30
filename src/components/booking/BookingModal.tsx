@@ -88,8 +88,19 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const canUsePass = creditsData?.availablePasses && creditsData.availablePasses.length > 0;
   const hasNoPaymentOptions = !canUseMemberCredits && !canUsePass;
 
-  // Set default payment method based on availability
+  // Restore from persisted draft when this session matches the saved draft.
+  // Otherwise set default payment method based on availability.
   useEffect(() => {
+    if (!session) return;
+    const draft = readClassDraft();
+    if (draft && draft.sessionId === session.id) {
+      if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+      if (typeof draft.selectedPassId !== "undefined") setSelectedPassId(draft.selectedPassId ?? null);
+      if (typeof draft.selectedPassType !== "undefined") setSelectedPassType(draft.selectedPassType ?? null);
+      if (typeof draft.showWaiverInline === "boolean") setShowWaiverInline(draft.showWaiverInline);
+      if (typeof draft.waiverAcknowledged === "boolean") setWaiverAcknowledged(draft.waiverAcknowledged);
+      return;
+    }
     if (canUseMemberCredits) {
       setPaymentMethod("credits");
       setSelectedPassId(null);
@@ -99,15 +110,31 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       setSelectedPassId(creditsData.availablePasses[0].id);
       setSelectedPassType(creditsData.availablePasses[0].pass_type);
     }
-  }, [canUseMemberCredits, canUsePass, creditsData?.availablePasses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, canUseMemberCredits, canUsePass, creditsData?.availablePasses]);
 
-  // Reset inline waiver state when modal closes
+  // Persist draft as user changes selections — keyed by session id.
+  // Note: do NOT reset on dismiss; users can resume.
   useEffect(() => {
-    if (!open) {
-      setShowWaiverInline(false);
-      setWaiverAcknowledged(false);
-    }
-  }, [open]);
+    if (!session || !open) return;
+    writeClassDraft({
+      sessionId: session.id,
+      sessionDate: session.session_date,
+      paymentMethod,
+      selectedPassId,
+      selectedPassType,
+      showWaiverInline,
+      waiverAcknowledged,
+    });
+  }, [
+    session,
+    open,
+    paymentMethod,
+    selectedPassId,
+    selectedPassType,
+    showWaiverInline,
+    waiverAcknowledged,
+  ]);
 
   // Check liability waiver — check member profile first, fall back to non-member profile
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
