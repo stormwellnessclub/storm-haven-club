@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import {
   Dumbbell,
   Heart,
@@ -18,7 +19,20 @@ import {
   ChevronRight,
   ChevronLeft,
   Sparkles,
+  RotateCcw,
 } from "lucide-react";
+
+const PROGRAM_GEN_STEP_KEY = "swc:program-gen:step";
+const PROGRAM_GEN_PREFS_KEY = "swc:program-gen:preferences";
+
+const DEFAULT_PREFS: ProgramPreferences = {
+  programType: "",
+  daysPerWeek: 4,
+  durationWeeks: 4,
+  splitType: "",
+  targetBodyParts: [],
+  customSplit: [],
+};
 
 interface GenerateProgramModalProps {
   open: boolean;
