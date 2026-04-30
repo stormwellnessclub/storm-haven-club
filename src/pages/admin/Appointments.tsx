@@ -409,19 +409,22 @@ export default function Appointments() {
                 <div className="space-y-2">
                   {timeSlots.map((slot) => {
                     const slotAppointments = appointmentsBySlot[slot] || [];
+                    const ongoing = ongoingBySlot[slot] || [];
+                    const hasContent = slotAppointments.length > 0 || ongoing.length > 0;
                     return (
                       <div
                         key={slot}
                         className={`flex items-stretch gap-4 p-3 rounded-lg border ${
-                          slotAppointments.length > 0 ? "bg-card" : "bg-secondary/30"
+                          hasContent ? "bg-card" : "bg-secondary/30"
                         }`}
                       >
                         <div className="w-20 text-sm font-medium text-muted-foreground pt-2">
                           {formatTime(slot + ":00")}
                         </div>
-                        {slotAppointments.length > 0 ? (
+                        {hasContent ? (
                           <div className="flex-1 space-y-2">
                             {slotAppointments.map(apt => renderAppointmentCard(apt))}
+                            {ongoing.map(({ apt, phase }) => renderOngoingStrip(apt, phase))}
                           </div>
                         ) : (
                           <div className="flex-1 flex items-center">
