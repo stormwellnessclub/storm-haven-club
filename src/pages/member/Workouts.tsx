@@ -63,10 +63,19 @@ import {
   LayoutTemplate,
   History,
   RotateCcw,
+  MoreHorizontal,
+  Flame,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { clearPersisted } from "@/hooks/usePersistedState";
 
 const WORKOUT_TYPES = [
   "Strength Training",
@@ -216,6 +225,9 @@ export default function Workouts() {
   const handleGenerateAIWorkout = async (preferences: WorkoutPreferences) => {
     try {
       await generateAIWorkout.mutateAsync(preferences);
+      // Clear persisted modal state so the next visit starts fresh.
+      clearPersisted("workouts.generate.step.v1");
+      clearPersisted("workouts.generate.prefs.v1");
       setShowGenerateModal(false);
     } catch (error) {
       // Error handled by hook
@@ -225,6 +237,8 @@ export default function Workouts() {
   const handleGenerateProgram = async (preferences: ProgramPreferences) => {
     try {
       await generateProgram.mutateAsync(preferences);
+      clearPersisted("workouts.generateProgram.step.v1");
+      clearPersisted("workouts.generateProgram.prefs.v1");
       setShowProgramModal(false);
     } catch (error) {
       // Error handled by hook
@@ -250,22 +264,27 @@ export default function Workouts() {
     <MemberLayout title="Workouts">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <h2 className="heading-section">Workout Log</h2>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Track your workouts and build your fitness journey
             </p>
           </div>
-          <div className="flex gap-2">
+
+          {/* Action buttons — wrap on small screens, dropdown for secondary on mobile */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <Dialog open={showLogDialog} onOpenChange={setShowLogDialog}>
               <DialogTrigger asChild>
-                <Button onClick={() => { setEditingWorkout(null); resetForm(); }}>
+                <Button
+                  onClick={() => { setEditingWorkout(null); resetForm(); }}
+                  className="flex-1 sm:flex-none"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Log Workout
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-2xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingWorkout ? "Edit Workout" : "Log New Workout"}</DialogTitle>
                   <DialogDescription>
@@ -273,7 +292,7 @@ export default function Workouts() {
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="workout_type">Workout Type *</Label>
                       <Select
@@ -303,7 +322,7 @@ export default function Workouts() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="duration">Duration (minutes)</Label>
                       <Input
@@ -344,7 +363,7 @@ export default function Workouts() {
                       rows={3}
                     />
                   </div>
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                     <Button
                       type="button"
                       variant="outline"
@@ -373,18 +392,57 @@ export default function Workouts() {
               </DialogContent>
             </Dialog>
 
-            <Button variant="gold" onClick={() => { setEditingTemplate(null); setShowBuilder(true); }}>
+            {/* Mobile: secondary actions in a dropdown */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" aria-label="More workout options">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => { setEditingTemplate(null); setShowBuilder(true); }}>
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Build Custom Workout
+                  </DropdownMenuItem>
+                  {fitnessProfile ? (
+                    <DropdownMenuItem onClick={() => setShowGenerateModal(true)}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate AI Workout
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem asChild>
+                      <Link to="/member/fitness-profile">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Create Fitness Profile
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Desktop: full button row */}
+            <Button
+              variant="gold"
+              onClick={() => { setEditingTemplate(null); setShowBuilder(true); }}
+              className="hidden sm:inline-flex"
+            >
               <Wrench className="h-4 w-4 mr-2" />
               Build Custom Workout
             </Button>
 
             {fitnessProfile ? (
-              <Button variant="outline" onClick={() => setShowGenerateModal(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowGenerateModal(true)}
+                className="hidden sm:inline-flex"
+              >
                 <Sparkles className="h-4 w-4 mr-2" />
                 Generate AI Workout
               </Button>
             ) : (
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild className="hidden sm:inline-flex">
                 <Link to="/member/fitness-profile">
                   <Settings className="h-4 w-4 mr-2" />
                   Create Fitness Profile
@@ -453,18 +511,20 @@ export default function Workouts() {
         </div>
 
         <Tabs defaultValue={activeProgram ? "programs" : "logged"} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="programs" className="gap-1.5">
-              <Calendar className="h-4 w-4" />
-              Programs {activeProgram && <Badge variant="secondary" className="ml-1 text-xs">Active</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="gap-1.5">
-              <LayoutTemplate className="h-4 w-4" />
-              Templates ({templates?.length || 0})
-            </TabsTrigger>
-            <TabsTrigger value="logged">Logged ({workouts?.length || 0})</TabsTrigger>
-            <TabsTrigger value="ai">AI Workouts ({aiWorkouts?.length || 0})</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
+            <TabsList className="w-max sm:w-auto">
+              <TabsTrigger value="programs" className="gap-1.5 whitespace-nowrap">
+                <Calendar className="h-4 w-4" />
+                Programs {activeProgram && <Badge variant="secondary" className="ml-1 text-xs">Active</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="templates" className="gap-1.5 whitespace-nowrap">
+                <LayoutTemplate className="h-4 w-4" />
+                Templates ({templates?.length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="logged" className="whitespace-nowrap">Logged ({workouts?.length || 0})</TabsTrigger>
+              <TabsTrigger value="ai" className="whitespace-nowrap">AI Workouts ({aiWorkouts?.length || 0})</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="programs">
             {programsLoading ? (
@@ -639,74 +699,138 @@ export default function Workouts() {
                 ))}
               </div>
             ) : workouts && workouts.length > 0 ? (
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Calories</TableHead>
-                      <TableHead>Exercises</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {workouts.map((workout) => (
-                      <TableRow key={workout.id}>
-                        <TableCell>
-                          {format(new Date(workout.performed_at), "MMM d, yyyy")}
-                          <br />
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(workout.performed_at), "h:mm a")}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{workout.workout_type}</div>
+              <>
+                {/* Desktop: dense table */}
+                <Card className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Calories</TableHead>
+                        <TableHead>Exercises</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {workouts.map((workout) => (
+                        <TableRow key={workout.id}>
+                          <TableCell>
+                            {format(new Date(workout.performed_at), "MMM d, yyyy")}
+                            <br />
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(workout.performed_at), "h:mm a")}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{workout.workout_type}</div>
+                              {workout.workout_name && (
+                                <div className="text-xs text-muted-foreground">{workout.workout_name}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {workout.duration_minutes ? `${workout.duration_minutes} min` : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {workout.calories_burned ? `${workout.calories_burned} cal` : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {workout.exercises && workout.exercises.length > 0 ? (
+                              <div className="text-sm">
+                                {workout.exercises.length} exercise{workout.exercises.length !== 1 ? "s" : ""}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(workout)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(workout.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+
+                {/* Mobile: stacked cards — no horizontal scroll */}
+                <div className="md:hidden space-y-2">
+                  {workouts.map((workout) => (
+                    <Card key={workout.id} className="p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm">{workout.workout_type}</span>
                             {workout.workout_name && (
-                              <div className="text-xs text-muted-foreground">{workout.workout_name}</div>
+                              <span className="text-xs text-muted-foreground truncate">
+                                · {workout.workout_name}
+                              </span>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          {workout.duration_minutes ? `${workout.duration_minutes} min` : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {workout.calories_burned ? `${workout.calories_burned} cal` : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {workout.exercises && workout.exercises.length > 0 ? (
-                            <div className="text-sm">
-                              {workout.exercises.length} exercise{workout.exercises.length !== 1 ? "s" : ""}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(workout)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(workout.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {format(new Date(workout.performed_at), "MMM d, yyyy")} · {format(new Date(workout.performed_at), "h:mm a")}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-muted-foreground">
+                            {workout.duration_minutes != null && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {workout.duration_minutes} min
+                              </span>
+                            )}
+                            {workout.calories_burned != null && (
+                              <span className="flex items-center gap-1">
+                                <Flame className="h-3 w-3" />
+                                {workout.calories_burned} cal
+                              </span>
+                            )}
+                            {workout.exercises && workout.exercises.length > 0 && (
+                              <span className="flex items-center gap-1">
+                                <Dumbbell className="h-3 w-3" />
+                                {workout.exercises.length} exercise{workout.exercises.length !== 1 ? "s" : ""}
+                              </span>
+                            )}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
+                        </div>
+                        <div className="flex flex-col gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleEdit(workout)}
+                            aria-label="Edit workout"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleDelete(workout.id)}
+                            aria-label="Delete workout"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
             ) : (
               <Card>
                 <CardContent className="py-12 text-center">

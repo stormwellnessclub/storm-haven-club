@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import {
   Dialog,
   DialogContent,
@@ -80,13 +81,16 @@ export function GenerateWorkoutModal({
   onGenerate,
   isGenerating,
 }: GenerateWorkoutModalProps) {
-  const [step, setStep] = useState(1);
-  const [preferences, setPreferences] = useState<WorkoutPreferences>({
-    workoutType: "",
-    targetBodyParts: [],
-    duration: 35,
-    intensity: "moderate",
-  });
+  const [step, setStep, clearStep] = usePersistedState<number>("workouts.generate.step.v1", 1);
+  const [preferences, setPreferences, clearPrefs] = usePersistedState<WorkoutPreferences>(
+    "workouts.generate.prefs.v1",
+    {
+      workoutType: "",
+      targetBodyParts: [],
+      duration: 35,
+      intensity: "moderate",
+    }
+  );
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
 
   // Cycle through loading messages
@@ -141,20 +145,24 @@ export function GenerateWorkoutModal({
     }
   };
 
-  const resetAndClose = () => {
-    setStep(1);
-    setPreferences({
-      workoutType: "",
-      targetBodyParts: [],
-      duration: 35,
-      intensity: "moderate",
-    });
-    onOpenChange(false);
+  const clearAll = () => {
+    clearStep();
+    clearPrefs();
   };
 
+  // Clear persisted state once generation completes successfully.
+  // (parent closes the modal once the mutation resolves)
+  useEffect(() => {
+    // when modal becomes hidden AFTER a successful generation, isGenerating
+    // will be false and the parent will have closed it. We rely on the parent
+    // to close on success — clearing here would wipe state even on accidental
+    // dismissal, which is exactly what we want to avoid.
+  }, [open, isGenerating]);
+
   return (
-    <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="sm:max-w-lg">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto">
+
         {isGenerating ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <div className="relative mb-6">
@@ -372,18 +380,32 @@ export function GenerateWorkoutModal({
             )}
 
             {/* Navigation buttons */}
-            <div className="flex justify-between pt-4">
-              <Button
-                variant="ghost"
-                onClick={handleBack}
-                disabled={step === 1}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Back
-              </Button>
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={handleBack}
+                  disabled={step === 1}
+                  className="flex-1 sm:flex-none"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+                {(step > 1 || preferences.workoutType) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAll}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Start over
+                  </Button>
+                )}
+              </div>
               <Button
                 onClick={handleNext}
                 disabled={!canProceed()}
+                className="w-full sm:w-auto"
               >
                 {step === totalSteps ? (
                   <>
