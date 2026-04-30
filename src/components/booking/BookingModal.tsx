@@ -166,6 +166,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       passId: selectedPassId || undefined,
     });
 
+    clearClassDraft();
     onOpenChange(false);
   };
 
