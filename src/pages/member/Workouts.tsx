@@ -693,74 +693,138 @@ export default function Workouts() {
                 ))}
               </div>
             ) : workouts && workouts.length > 0 ? (
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Calories</TableHead>
-                      <TableHead>Exercises</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {workouts.map((workout) => (
-                      <TableRow key={workout.id}>
-                        <TableCell>
-                          {format(new Date(workout.performed_at), "MMM d, yyyy")}
-                          <br />
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(workout.performed_at), "h:mm a")}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{workout.workout_type}</div>
+              <>
+                {/* Desktop: dense table */}
+                <Card className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Calories</TableHead>
+                        <TableHead>Exercises</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {workouts.map((workout) => (
+                        <TableRow key={workout.id}>
+                          <TableCell>
+                            {format(new Date(workout.performed_at), "MMM d, yyyy")}
+                            <br />
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(workout.performed_at), "h:mm a")}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{workout.workout_type}</div>
+                              {workout.workout_name && (
+                                <div className="text-xs text-muted-foreground">{workout.workout_name}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {workout.duration_minutes ? `${workout.duration_minutes} min` : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {workout.calories_burned ? `${workout.calories_burned} cal` : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {workout.exercises && workout.exercises.length > 0 ? (
+                              <div className="text-sm">
+                                {workout.exercises.length} exercise{workout.exercises.length !== 1 ? "s" : ""}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(workout)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(workout.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+
+                {/* Mobile: stacked cards — no horizontal scroll */}
+                <div className="md:hidden space-y-2">
+                  {workouts.map((workout) => (
+                    <Card key={workout.id} className="p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm">{workout.workout_type}</span>
                             {workout.workout_name && (
-                              <div className="text-xs text-muted-foreground">{workout.workout_name}</div>
+                              <span className="text-xs text-muted-foreground truncate">
+                                · {workout.workout_name}
+                              </span>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          {workout.duration_minutes ? `${workout.duration_minutes} min` : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {workout.calories_burned ? `${workout.calories_burned} cal` : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {workout.exercises && workout.exercises.length > 0 ? (
-                            <div className="text-sm">
-                              {workout.exercises.length} exercise{workout.exercises.length !== 1 ? "s" : ""}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(workout)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(workout.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {format(new Date(workout.performed_at), "MMM d, yyyy")} · {format(new Date(workout.performed_at), "h:mm a")}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-muted-foreground">
+                            {workout.duration_minutes != null && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {workout.duration_minutes} min
+                              </span>
+                            )}
+                            {workout.calories_burned != null && (
+                              <span className="flex items-center gap-1">
+                                <Flame className="h-3 w-3" />
+                                {workout.calories_burned} cal
+                              </span>
+                            )}
+                            {workout.exercises && workout.exercises.length > 0 && (
+                              <span className="flex items-center gap-1">
+                                <Dumbbell className="h-3 w-3" />
+                                {workout.exercises.length} exercise{workout.exercises.length !== 1 ? "s" : ""}
+                              </span>
+                            )}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
+                        </div>
+                        <div className="flex flex-col gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleEdit(workout)}
+                            aria-label="Edit workout"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleDelete(workout.id)}
+                            aria-label="Delete workout"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
             ) : (
               <Card>
                 <CardContent className="py-12 text-center">
