@@ -484,15 +484,30 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sticky bottom-0 bg-background pt-3 pb-[env(safe-area-inset-bottom)]">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              clearClassDraft();
+              onOpenChange(false);
+            }}
+            className="min-h-[44px] sm:mr-auto"
+          >
+            Discard
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="min-h-[44px]"
+          >
+            Save &amp; Close
           </Button>
           {/* Waitlist join button when class is full */}
           {user && isClassFull && !isOnWaitlist && (
             <Button
               onClick={handleJoinWaitlist}
               disabled={joinWaitlist.isPending}
+              className="min-h-[44px]"
             >
               {joinWaitlist.isPending ? (
                 <>
@@ -512,6 +527,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             <Button
               onClick={handleBook}
               disabled={bookClass.isPending || (user && (hasNoPaymentOptions || !hasLiabilityWaiver))}
+              className="min-h-[44px]"
             >
               {bookClass.isPending
                 ? "Booking..."
