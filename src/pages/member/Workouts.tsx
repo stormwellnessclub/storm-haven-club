@@ -225,6 +225,9 @@ export default function Workouts() {
   const handleGenerateAIWorkout = async (preferences: WorkoutPreferences) => {
     try {
       await generateAIWorkout.mutateAsync(preferences);
+      // Clear persisted modal state so the next visit starts fresh.
+      clearPersisted("workouts.generate.step.v1");
+      clearPersisted("workouts.generate.prefs.v1");
       setShowGenerateModal(false);
     } catch (error) {
       // Error handled by hook
@@ -234,6 +237,8 @@ export default function Workouts() {
   const handleGenerateProgram = async (preferences: ProgramPreferences) => {
     try {
       await generateProgram.mutateAsync(preferences);
+      clearPersisted("workouts.generateProgram.step.v1");
+      clearPersisted("workouts.generateProgram.prefs.v1");
       setShowProgramModal(false);
     } catch (error) {
       // Error handled by hook
