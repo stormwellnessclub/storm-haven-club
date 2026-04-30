@@ -291,7 +291,62 @@ export default function Appointments() {
     </div>
   );
 
-  return (
+  const renderOngoingStrip = (
+    appointment: AdminSpaAppointment,
+    phase: 'service' | 'cleanup'
+  ) => {
+    const start = appointment.appointment_time?.split(':').slice(0, 2).join(':') || '';
+    const startMin = toMinutes(start);
+    const serviceEndMin = startMin + (appointment.duration_minutes || 0);
+    const fullEndMin = serviceEndMin + (appointment.cleanup_minutes || 0);
+    const customerName = appointment.customer
+      ? `${appointment.customer.first_name} ${appointment.customer.last_name}`.trim() ||
+        appointment.customer.email ||
+        'Name unavailable'
+      : appointment.member
+        ? `${appointment.member.first_name} ${appointment.member.last_name}`
+        : appointment.user?.email || 'Name unavailable';
+    const label =
+      phase === 'service'
+        ? `In progress · ends ${formatTime(formatHHMM(serviceEndMin) + ':00')}`
+        : `Cleanup · room free at ${formatTime(formatHHMM(fullEndMin) + ':00')}`;
+    return (
+      <div
+        key={`ongoing-${appointment.id}`}
+        className={`flex-1 flex items-center justify-between gap-2 px-3 py-1.5 rounded-md border border-dashed ${
+          isClickable(appointment) ? 'cursor-pointer hover:bg-accent/40 transition-colors' : ''
+        } ${phase === 'cleanup' ? 'bg-muted/40 opacity-70' : 'bg-muted/30 opacity-80'}`}
+        onClick={() => handleAppointmentClick(appointment)}
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            {formatTime(start + ':00')}
+          </span>
+          <span className="text-sm truncate">
+            <span className="font-medium">{customerName}</span>
+            <span className="text-muted-foreground"> · {appointment.service_name}</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {appointment.staff?.full_name && (
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              {appointment.staff.full_name}
+            </span>
+          )}
+          <Badge
+            variant="outline"
+            className={
+              phase === 'cleanup'
+                ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px]'
+                : 'bg-blue-500/10 text-blue-600 border-blue-500/30 text-[10px]'
+            }
+          >
+            {label}
+          </Badge>
+        </div>
+      </div>
+    );
+  };
     <AdminLayout title="Appointments">
       <div className="space-y-6">
         {/* Quick Actions */}
