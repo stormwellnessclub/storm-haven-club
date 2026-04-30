@@ -406,6 +406,13 @@ export default function Appointments() {
         appointment={completionAppointment}
         retroactive={isRetroactive}
       />
+      <SpaAppointmentEditModal
+        appointment={editAppointment}
+        open={!!editAppointment}
+        onOpenChange={(open) => {
+          if (!open) setEditAppointment(null);
+        }}
+      />
     </AdminLayout>
   );
 }
