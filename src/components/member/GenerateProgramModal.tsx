@@ -156,6 +156,8 @@ export function GenerateProgramModal({
       setStep(step + 1);
     } else {
       onGenerate(preferences);
+      // Clear persisted draft once the user has submitted; parent closes the modal.
+      resetWizard();
     }
   };
 
