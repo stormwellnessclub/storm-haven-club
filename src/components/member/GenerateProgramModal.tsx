@@ -482,6 +482,7 @@ export function GenerateProgramModal({
                   </>
                 )}
               </Button>
+              </div>
             </div>
           </>
         )}
