@@ -58,6 +58,7 @@ interface CheckAvailabilityParams {
   cleanupMinutes?: number;
   staffId?: string;
   roomId?: string;
+  excludeAppointmentId?: string;
 }
 
 export function useSpaBookAppointment() {
