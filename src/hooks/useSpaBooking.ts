@@ -199,6 +199,7 @@ export function useCheckSpaAvailability() {
       cleanupMinutes,
       staffId,
       roomId,
+      excludeAppointmentId,
     }: CheckAvailabilityParams) => {
       // Without resource constraints, treat as available — resource conflicts
       // are enforced at booking time by the database.
@@ -218,7 +219,7 @@ export function useCheckSpaAvailability() {
           p_cleanup_minutes: cleanup,
           p_staff_id: staffId || null,
           p_room_id: roomId || null,
-          p_exclude_appointment_id: null,
+          p_exclude_appointment_id: excludeAppointmentId || null,
         });
         if (!error && data && data.length > 0) {
           if (data[0].has_conflict) {
