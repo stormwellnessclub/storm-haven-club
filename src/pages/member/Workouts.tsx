@@ -258,22 +258,27 @@ export default function Workouts() {
     <MemberLayout title="Workouts">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <h2 className="heading-section">Workout Log</h2>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Track your workouts and build your fitness journey
             </p>
           </div>
-          <div className="flex gap-2">
+
+          {/* Action buttons — wrap on small screens, dropdown for secondary on mobile */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <Dialog open={showLogDialog} onOpenChange={setShowLogDialog}>
               <DialogTrigger asChild>
-                <Button onClick={() => { setEditingWorkout(null); resetForm(); }}>
+                <Button
+                  onClick={() => { setEditingWorkout(null); resetForm(); }}
+                  className="flex-1 sm:flex-none"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Log Workout
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-2xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingWorkout ? "Edit Workout" : "Log New Workout"}</DialogTitle>
                   <DialogDescription>
@@ -281,7 +286,7 @@ export default function Workouts() {
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="workout_type">Workout Type *</Label>
                       <Select
@@ -311,7 +316,7 @@ export default function Workouts() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="duration">Duration (minutes)</Label>
                       <Input
@@ -352,7 +357,7 @@ export default function Workouts() {
                       rows={3}
                     />
                   </div>
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                     <Button
                       type="button"
                       variant="outline"
@@ -381,18 +386,57 @@ export default function Workouts() {
               </DialogContent>
             </Dialog>
 
-            <Button variant="gold" onClick={() => { setEditingTemplate(null); setShowBuilder(true); }}>
+            {/* Mobile: secondary actions in a dropdown */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" aria-label="More workout options">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => { setEditingTemplate(null); setShowBuilder(true); }}>
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Build Custom Workout
+                  </DropdownMenuItem>
+                  {fitnessProfile ? (
+                    <DropdownMenuItem onClick={() => setShowGenerateModal(true)}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate AI Workout
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem asChild>
+                      <Link to="/member/fitness-profile">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Create Fitness Profile
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Desktop: full button row */}
+            <Button
+              variant="gold"
+              onClick={() => { setEditingTemplate(null); setShowBuilder(true); }}
+              className="hidden sm:inline-flex"
+            >
               <Wrench className="h-4 w-4 mr-2" />
               Build Custom Workout
             </Button>
 
             {fitnessProfile ? (
-              <Button variant="outline" onClick={() => setShowGenerateModal(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowGenerateModal(true)}
+                className="hidden sm:inline-flex"
+              >
                 <Sparkles className="h-4 w-4 mr-2" />
                 Generate AI Workout
               </Button>
             ) : (
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild className="hidden sm:inline-flex">
                 <Link to="/member/fitness-profile">
                   <Settings className="h-4 w-4 mr-2" />
                   Create Fitness Profile
