@@ -109,16 +109,17 @@ export function GenerateProgramModal({
   onGenerate,
   isGenerating,
 }: GenerateProgramModalProps) {
-  const [step, setStep] = useState(1);
-  const [preferences, setPreferences] = useState<ProgramPreferences>({
-    programType: "",
-    daysPerWeek: 4,
-    durationWeeks: 4,
-    splitType: "",
-    targetBodyParts: [],
-    customSplit: [],
-  });
+  const [step, setStep, clearStep] = usePersistedState<number>(PROGRAM_GEN_STEP_KEY, 1);
+  const [preferences, setPreferences, clearPrefs] = usePersistedState<ProgramPreferences>(
+    PROGRAM_GEN_PREFS_KEY,
+    DEFAULT_PREFS
+  );
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+
+  const resetWizard = () => {
+    clearStep();
+    clearPrefs();
+  };
 
   const isCustomSplit = preferences.splitType === "custom" || preferences.splitType === "bro_split";
 
