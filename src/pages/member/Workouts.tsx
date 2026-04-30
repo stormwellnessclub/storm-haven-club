@@ -75,6 +75,7 @@ import {
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { clearPersisted } from "@/hooks/usePersistedState";
 
 const WORKOUT_TYPES = [
   "Strength Training",
