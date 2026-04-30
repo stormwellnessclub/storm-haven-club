@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function MemberBookings() {
+  const navigate = useNavigate();
   const { data: upcomingBookings, isLoading: upcomingLoading } = useUpcomingBookings();
   const { data: pastBookings, isLoading: pastLoading } = usePastBookings();
   const { data: myReviews = [] } = useMyReviews();
@@ -59,6 +61,11 @@ export default function MemberBookings() {
           <p className="text-muted-foreground">View and manage your class bookings</p>
           <Button asChild><Link to="/schedule">Book a Class</Link></Button>
         </div>
+
+        <ResumeBookingBanner
+          kind="class"
+          onResume={() => navigate("/schedule")}
+        />
 
         <LeaveReviewBanner
           count={unreviewedPast.length}

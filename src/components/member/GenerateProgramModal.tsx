@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import {
   Dumbbell,
   Heart,
@@ -18,7 +19,20 @@ import {
   ChevronRight,
   ChevronLeft,
   Sparkles,
+  RotateCcw,
 } from "lucide-react";
+
+const PROGRAM_GEN_STEP_KEY = "swc:program-gen:step";
+const PROGRAM_GEN_PREFS_KEY = "swc:program-gen:preferences";
+
+const DEFAULT_PREFS: ProgramPreferences = {
+  programType: "",
+  daysPerWeek: 4,
+  durationWeeks: 4,
+  splitType: "",
+  targetBodyParts: [],
+  customSplit: [],
+};
 
 interface GenerateProgramModalProps {
   open: boolean;
@@ -95,16 +109,17 @@ export function GenerateProgramModal({
   onGenerate,
   isGenerating,
 }: GenerateProgramModalProps) {
-  const [step, setStep] = useState(1);
-  const [preferences, setPreferences] = useState<ProgramPreferences>({
-    programType: "",
-    daysPerWeek: 4,
-    durationWeeks: 4,
-    splitType: "",
-    targetBodyParts: [],
-    customSplit: [],
-  });
+  const [step, setStep, clearStep] = usePersistedState<number>(PROGRAM_GEN_STEP_KEY, 1);
+  const [preferences, setPreferences, clearPrefs] = usePersistedState<ProgramPreferences>(
+    PROGRAM_GEN_PREFS_KEY,
+    DEFAULT_PREFS
+  );
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+
+  const resetWizard = () => {
+    clearStep();
+    clearPrefs();
+  };
 
   const isCustomSplit = preferences.splitType === "custom" || preferences.splitType === "bro_split";
 
@@ -141,6 +156,8 @@ export function GenerateProgramModal({
       setStep(step + 1);
     } else {
       onGenerate(preferences);
+      // Clear persisted draft once the user has submitted; parent closes the modal.
+      resetWizard();
     }
   };
 
@@ -190,22 +207,11 @@ export function GenerateProgramModal({
     }
   };
 
-  const resetAndClose = () => {
-    setStep(1);
-    setPreferences({
-      programType: "",
-      daysPerWeek: 4,
-      durationWeeks: 4,
-      splitType: "",
-      targetBodyParts: [],
-      customSplit: [],
-    });
-    onOpenChange(false);
-  };
+  // Dismissing preserves progress so users can resume. Use "Start over" to reset.
 
   return (
-    <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-lg max-h-[100dvh] sm:max-h-[85vh] overflow-y-auto">
         {isGenerating ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <div className="relative mb-6">
@@ -436,19 +442,34 @@ export function GenerateProgramModal({
             )}
 
             {/* Navigation buttons */}
-            <div className="flex justify-between pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-4 sticky bottom-0 bg-background pb-[env(safe-area-inset-bottom)]">
               <Button
                 variant="ghost"
                 onClick={handleBack}
                 disabled={step === 1}
+                className="min-h-[44px]"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
-              <Button
-                onClick={handleNext}
-                disabled={!canProceed()}
-              >
+              <div className="flex items-center gap-2 ml-auto">
+                {(step > 1 || preferences.programType !== "") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetWizard}
+                    className="min-h-[44px]"
+                    title="Start over"
+                  >
+                    <RotateCcw className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Start over</span>
+                  </Button>
+                )}
+                <Button
+                  onClick={handleNext}
+                  disabled={!canProceed()}
+                  className="min-h-[44px]"
+                >
                 {step === totalSteps ? (
                   <>
                     <Sparkles className="h-4 w-4 mr-2" />
@@ -461,6 +482,7 @@ export function GenerateProgramModal({
                   </>
                 )}
               </Button>
+              </div>
             </div>
           </>
         )}

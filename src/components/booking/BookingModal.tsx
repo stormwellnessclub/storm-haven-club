@@ -43,6 +43,11 @@ import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { ClassReviewsList } from "@/components/reviews/ClassReviewsList";
 import { useClassTypeRatings } from "@/hooks/useClassReviews";
 import { StarRating } from "@/components/reviews/StarRating";
+import {
+  readClassDraft,
+  writeClassDraft,
+  clearClassDraft,
+} from "@/lib/bookingDraft";
 
 interface BookingModalProps {
   session: ClassSession | null;
@@ -83,8 +88,19 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const canUsePass = creditsData?.availablePasses && creditsData.availablePasses.length > 0;
   const hasNoPaymentOptions = !canUseMemberCredits && !canUsePass;
 
-  // Set default payment method based on availability
+  // Restore from persisted draft when this session matches the saved draft.
+  // Otherwise set default payment method based on availability.
   useEffect(() => {
+    if (!session) return;
+    const draft = readClassDraft();
+    if (draft && draft.sessionId === session.id) {
+      if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+      if (typeof draft.selectedPassId !== "undefined") setSelectedPassId(draft.selectedPassId ?? null);
+      if (typeof draft.selectedPassType !== "undefined") setSelectedPassType(draft.selectedPassType ?? null);
+      if (typeof draft.showWaiverInline === "boolean") setShowWaiverInline(draft.showWaiverInline);
+      if (typeof draft.waiverAcknowledged === "boolean") setWaiverAcknowledged(draft.waiverAcknowledged);
+      return;
+    }
     if (canUseMemberCredits) {
       setPaymentMethod("credits");
       setSelectedPassId(null);
@@ -94,15 +110,31 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       setSelectedPassId(creditsData.availablePasses[0].id);
       setSelectedPassType(creditsData.availablePasses[0].pass_type);
     }
-  }, [canUseMemberCredits, canUsePass, creditsData?.availablePasses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, canUseMemberCredits, canUsePass, creditsData?.availablePasses]);
 
-  // Reset inline waiver state when modal closes
+  // Persist draft as user changes selections — keyed by session id.
+  // Note: do NOT reset on dismiss; users can resume.
   useEffect(() => {
-    if (!open) {
-      setShowWaiverInline(false);
-      setWaiverAcknowledged(false);
-    }
-  }, [open]);
+    if (!session || !open) return;
+    writeClassDraft({
+      sessionId: session.id,
+      sessionDate: session.session_date,
+      paymentMethod,
+      selectedPassId,
+      selectedPassType,
+      showWaiverInline,
+      waiverAcknowledged,
+    });
+  }, [
+    session,
+    open,
+    paymentMethod,
+    selectedPassId,
+    selectedPassType,
+    showWaiverInline,
+    waiverAcknowledged,
+  ]);
 
   // Check liability waiver — check member profile first, fall back to non-member profile
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
@@ -134,6 +166,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       passId: selectedPassId || undefined,
     });
 
+    clearClassDraft();
     onOpenChange(false);
   };
 
@@ -160,7 +193,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-[500px] max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {session.class_type.name}
@@ -451,15 +484,30 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sticky bottom-0 bg-background pt-3 pb-[env(safe-area-inset-bottom)]">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              clearClassDraft();
+              onOpenChange(false);
+            }}
+            className="min-h-[44px] sm:mr-auto"
+          >
+            Discard
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="min-h-[44px]"
+          >
+            Save &amp; Close
           </Button>
           {/* Waitlist join button when class is full */}
           {user && isClassFull && !isOnWaitlist && (
             <Button
               onClick={handleJoinWaitlist}
               disabled={joinWaitlist.isPending}
+              className="min-h-[44px]"
             >
               {joinWaitlist.isPending ? (
                 <>
@@ -479,6 +527,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             <Button
               onClick={handleBook}
               disabled={bookClass.isPending || (user && (hasNoPaymentOptions || !hasLiabilityWaiver))}
+              className="min-h-[44px]"
             >
               {bookClass.isPending
                 ? "Booking..."

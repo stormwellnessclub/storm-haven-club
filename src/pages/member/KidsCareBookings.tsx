@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar, Info, Plus } from "lucide-react";
 import { HourRequestForm } from "@/components/kids-care/HourRequestForm";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
+import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { useMyKidsCareBookings, useCancelKidsCareBooking } from "@/hooks/useKidsCareBooking";
 import { useConfirmPickup, useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
 import { format, parseISO } from "date-fns";
@@ -89,6 +90,7 @@ export default function KidsCareBookings() {
   return (
     <MemberLayout title="Kids Care Bookings">
       <div className="space-y-8 max-w-3xl">
+        <ResumeBookingBanner kind="kids-care" onResume={() => setBookingModalOpen(true)} />
 
         {/* Book a Session CTA */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
-  startOfWeek, addDays, addWeeks, format, isBefore, startOfDay, isToday,
+  startOfWeek, addDays, addWeeks, format, isBefore, startOfDay, isToday, parseISO,
 } from "date-fns";
 import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
@@ -17,8 +17,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { BookingModal } from "@/components/booking/BookingModal";
+import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { ClassDetailsSheet, ClassDetailsData } from "@/components/booking/ClassDetailsSheet";
 import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
+import type { ClassBookingDraft } from "@/lib/bookingDraft";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { useMyBookings } from "@/hooks/useBooking";
@@ -245,6 +247,30 @@ export default function Schedule() {
     }
   }, [weekStart]);
 
+  const handleResumeBooking = (draft: ClassBookingDraft) => {
+    if (!draft?.sessionId) return;
+    // 1) Try to find the session in the currently-loaded week.
+    const found = sessions.find((s) => s.id === draft.sessionId);
+    if (found) {
+      const bookable = buildBookable(found);
+      sessionMapRef.current.set(found.id, bookable);
+      setSelectedSession(bookable);
+      setBookingOpen(true);
+      return;
+    }
+    // 2) Otherwise, jump the calendar to the draft's session date so the
+    //    next render loads it; the user can tap Resume again.
+    if (draft.sessionDate) {
+      try {
+        const d = startOfDay(parseISO(draft.sessionDate));
+        setSelectedDate(d);
+        setWeekStart(startOfWeek(d, { weekStartsOn: 0 }));
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
   return (
     <Layout>
       <SEOHead
@@ -365,6 +391,7 @@ export default function Schedule() {
       {/* Schedule Grid */}
       <section className="py-12 bg-background">
         <div className="container mx-auto px-6">
+          <ResumeBookingBanner kind="class" onResume={handleResumeBooking} />
           {error ? (
             <div className="text-center py-16">
               <p className="text-destructive">Failed to load schedule. Please try again later.</p>

@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PortalLayout } from "@/components/portal/PortalLayout";
+import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +25,7 @@ import {
 
 export default function PortalBookings() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const cancelBooking = useCancelBooking();
   const { data: myReviews = [] } = useMyReviews();
 
@@ -180,6 +183,10 @@ export default function PortalBookings() {
   return (
     <PortalLayout title="My Bookings">
       <div className="max-w-3xl space-y-4">
+        <ResumeBookingBanner
+          kind="class"
+          onResume={() => navigate("/schedule")}
+        />
         <LeaveReviewBanner
           count={unreviewedPast.length}
           onLeaveReview={handleLeaveReviewFromBanner}
