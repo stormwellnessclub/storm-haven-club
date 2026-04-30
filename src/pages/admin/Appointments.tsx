@@ -53,6 +53,7 @@ export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
+  const [editAppointment, setEditAppointment] = useState<AdminSpaAppointment | null>(null);
   const [isRetroactive, setIsRetroactive] = useState(false);
   const navigate = useNavigate();
 
