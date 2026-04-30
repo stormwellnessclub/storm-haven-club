@@ -183,6 +183,10 @@ export default function PortalBookings() {
   return (
     <PortalLayout title="My Bookings">
       <div className="max-w-3xl space-y-4">
+        <ResumeBookingBanner
+          kind="class"
+          onResume={() => navigate("/schedule")}
+        />
         <LeaveReviewBanner
           count={unreviewedPast.length}
           onLeaveReview={handleLeaveReviewFromBanner}
