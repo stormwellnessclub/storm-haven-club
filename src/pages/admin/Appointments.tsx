@@ -347,6 +347,8 @@ export default function Appointments() {
       </div>
     );
   };
+
+  return (
     <AdminLayout title="Appointments">
       <div className="space-y-6">
         {/* Quick Actions */}
