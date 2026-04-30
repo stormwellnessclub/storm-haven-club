@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
@@ -14,6 +15,9 @@ import { format, parseISO, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { getCategoryDisplayName } from "@/lib/classCategories";
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
+import { useMyReviews } from "@/hooks/useClassReviews";
+import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
+import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 
 export default function PortalDashboard() {
   const { user } = useAuth();
@@ -85,6 +89,49 @@ export default function PortalDashboard() {
   const hasCard = profile?.card_last4;
   const firstName = profile?.first_name || user?.user_metadata?.first_name || "there";
 
+  // Past bookings for the "Leave a Review" banner
+  const { data: pastBookings = [] } = useQuery({
+    queryKey: ["portal-past-bookings", user?.id],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data, error } = await supabase
+        .from("class_bookings")
+        .select(`
+          id, status, session_id,
+          class_sessions (
+            session_date, start_time,
+            class_types ( id, name )
+          )
+        `)
+        .eq("user_id", user!.id)
+        .order("booked_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).filter((b: any) => b.class_sessions?.session_date < today);
+    },
+    enabled: !!user,
+  });
+  const { data: myReviews = [] } = useMyReviews();
+  const reviewByBooking = Object.fromEntries(myReviews.map((r) => [r.booking_id, r]));
+  const unreviewedPast = pastBookings.filter(
+    (b: any) =>
+      b?.status !== "cancelled" &&
+      b?.class_sessions?.class_types?.id &&
+      !reviewByBooking[b.id]
+  );
+  const [reviewTarget, setReviewTarget] = useState<{
+    bookingId: string; classTypeId: string; sessionId: string; className: string;
+  } | null>(null);
+  const handleLeaveReviewFromBanner = () => {
+    const next = unreviewedPast[0];
+    if (!next) return;
+    setReviewTarget({
+      bookingId: next.id,
+      classTypeId: next.class_sessions.class_types.id,
+      sessionId: next.session_id,
+      className: next.class_sessions.class_types.name || "Class",
+    });
+  };
+
   return (
     <PortalLayout title="Dashboard">
       <div className="space-y-6 max-w-4xl">
@@ -97,6 +144,12 @@ export default function PortalDashboard() {
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />
 
+        {/* Leave a review prompt — premium nudge for unreviewed past classes */}
+        <LeaveReviewBanner
+          count={unreviewedPast.length}
+          onLeaveReview={handleLeaveReviewFromBanner}
+          dismissible
+        />
 
         {!profileLoading && !hasCard && (
           <Card className="border-destructive/30 bg-destructive/5">
@@ -269,6 +322,17 @@ export default function PortalDashboard() {
           </div>
         </div>
       </div>
+
+      {reviewTarget && (
+        <ReviewDialog
+          open={!!reviewTarget}
+          onOpenChange={(open) => !open && setReviewTarget(null)}
+          bookingId={reviewTarget.bookingId}
+          classTypeId={reviewTarget.classTypeId}
+          sessionId={reviewTarget.sessionId}
+          className={reviewTarget.className}
+        />
+      )}
     </PortalLayout>
   );
 }

@@ -183,6 +183,7 @@ export default function PortalBookings() {
         <LeaveReviewBanner
           count={unreviewedPast.length}
           onLeaveReview={handleLeaveReviewFromBanner}
+          dismissible
         />
         <Tabs defaultValue="upcoming">
           <TabsList>
