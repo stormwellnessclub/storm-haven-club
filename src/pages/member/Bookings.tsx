@@ -10,6 +10,7 @@ import { useUpcomingBookings, usePastBookings, useCancelBooking } from "@/hooks/
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { StarRating } from "@/components/reviews/StarRating";
+import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { Calendar, Clock, MapPin, User, X, AlertTriangle, Star } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
@@ -31,6 +32,26 @@ export default function MemberBookings() {
     existing?: { id: string; rating: number; review_text: string | null };
   } | null>(null);
 
+  // Past bookings the user attended but hasn't reviewed yet
+  const unreviewedPast = (pastBookings || []).filter(
+    (b: any) =>
+      b?.status !== "cancelled" &&
+      b?.session?.class_type?.id &&
+      !reviewByBooking[b.id]
+  );
+
+  const handleLeaveReviewFromBanner = () => {
+    const next = unreviewedPast[0];
+    if (!next) return;
+    setReviewTarget({
+      bookingId: next.id,
+      classTypeId: next.session.class_type.id,
+      sessionId: next.session_id,
+      className: next.session.class_type.name || "Class",
+      existing: undefined,
+    });
+  };
+
   return (
     <MemberLayout title="My Bookings">
       <div className="space-y-6">
@@ -38,6 +59,11 @@ export default function MemberBookings() {
           <p className="text-muted-foreground">View and manage your class bookings</p>
           <Button asChild><Link to="/schedule">Book a Class</Link></Button>
         </div>
+
+        <LeaveReviewBanner
+          count={unreviewedPast.length}
+          onLeaveReview={handleLeaveReviewFromBanner}
+        />
 
         <Tabs defaultValue="upcoming" className="w-full">
           <TabsList>
