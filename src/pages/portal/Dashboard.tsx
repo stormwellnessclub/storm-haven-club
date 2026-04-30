@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
@@ -14,6 +15,9 @@ import { format, parseISO, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { getCategoryDisplayName } from "@/lib/classCategories";
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
+import { useMyReviews } from "@/hooks/useClassReviews";
+import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
+import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 
 export default function PortalDashboard() {
   const { user } = useAuth();
