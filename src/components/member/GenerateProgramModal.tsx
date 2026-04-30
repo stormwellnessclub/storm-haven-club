@@ -205,22 +205,11 @@ export function GenerateProgramModal({
     }
   };
 
-  const resetAndClose = () => {
-    setStep(1);
-    setPreferences({
-      programType: "",
-      daysPerWeek: 4,
-      durationWeeks: 4,
-      splitType: "",
-      targetBodyParts: [],
-      customSplit: [],
-    });
-    onOpenChange(false);
-  };
+  // Dismissing preserves progress so users can resume. Use "Start over" to reset.
 
   return (
-    <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-lg max-h-[100dvh] sm:max-h-[85vh] overflow-y-auto">
         {isGenerating ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <div className="relative mb-6">
