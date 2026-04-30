@@ -193,7 +193,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-[500px] max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {session.class_type.name}
