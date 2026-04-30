@@ -3,11 +3,12 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, CreditCard, Sparkles, LayoutGrid } from "lucide-react";
+import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, CreditCard, Sparkles, LayoutGrid, Pencil } from "lucide-react";
 import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus } from "@/hooks/useAdminSpaAppointments";
 import { format, parse } from "date-fns";
 import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModal";
 import { SpaCompletionDialog } from "@/components/admin/spa/SpaCompletionDialog";
+import { SpaAppointmentEditModal } from "@/components/admin/spa/SpaAppointmentEditModal";
 import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { useNavigate } from "react-router-dom";
 
@@ -52,6 +53,7 @@ export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
+  const [editAppointment, setEditAppointment] = useState<AdminSpaAppointment | null>(null);
   const [isRetroactive, setIsRetroactive] = useState(false);
   const navigate = useNavigate();
 
@@ -175,6 +177,17 @@ export default function Appointments() {
       )}
       {['confirmed'].includes(appointment.status) && (
         <div className="flex gap-2 ml-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditAppointment(appointment);
+            }}
+          >
+            <Pencil className="h-3 w-3 mr-1" />
+            Edit
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -392,6 +405,13 @@ export default function Appointments() {
         }}
         appointment={completionAppointment}
         retroactive={isRetroactive}
+      />
+      <SpaAppointmentEditModal
+        appointment={editAppointment}
+        open={!!editAppointment}
+        onOpenChange={(open) => {
+          if (!open) setEditAppointment(null);
+        }}
       />
     </AdminLayout>
   );

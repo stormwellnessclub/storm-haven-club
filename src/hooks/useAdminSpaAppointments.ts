@@ -337,3 +337,52 @@ export function useUpdateSpaAppointmentStatus() {
     },
   });
 }
+
+export interface UpdateSpaAppointmentInput {
+  appointmentId: string;
+  service_id: string;
+  service_name: string;
+  service_category: string | null;
+  service_price: number;
+  member_price: number | null;
+  duration_minutes: number;
+  cleanup_minutes: number;
+  appointment_date: string; // yyyy-MM-dd
+  appointment_time: string; // HH:mm:ss
+  staff_id: string | null;
+  room_id: string | null;
+  staff_notes?: string | null;
+}
+
+export function useUpdateSpaAppointment() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (input: UpdateSpaAppointmentInput) => {
+      if (!user) throw new Error("You must be signed in");
+      const { appointmentId, ...rest } = input;
+
+      const { data, error } = await (supabase.from as any)("spa_appointments")
+        .update({
+          ...rest,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", appointmentId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
+      toast.success("Appointment updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update appointment");
+    },
+  });
+}
