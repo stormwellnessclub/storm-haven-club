@@ -299,7 +299,7 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
       if (!o) setConfirmedBooking(null);
       onOpenChange(o);
     }}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-2xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto">
         {confirmedBooking ? (
           // ✅ Booking Confirmation Screen
           <div className="text-center py-6 space-y-6">
