@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import {
   Dialog,
   DialogContent,
@@ -80,13 +81,16 @@ export function GenerateWorkoutModal({
   onGenerate,
   isGenerating,
 }: GenerateWorkoutModalProps) {
-  const [step, setStep] = useState(1);
-  const [preferences, setPreferences] = useState<WorkoutPreferences>({
-    workoutType: "",
-    targetBodyParts: [],
-    duration: 35,
-    intensity: "moderate",
-  });
+  const [step, setStep, clearStep] = usePersistedState<number>("workouts.generate.step.v1", 1);
+  const [preferences, setPreferences, clearPrefs] = usePersistedState<WorkoutPreferences>(
+    "workouts.generate.prefs.v1",
+    {
+      workoutType: "",
+      targetBodyParts: [],
+      duration: 35,
+      intensity: "moderate",
+    }
+  );
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
 
   // Cycle through loading messages
