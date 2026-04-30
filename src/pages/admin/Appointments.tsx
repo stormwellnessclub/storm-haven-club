@@ -84,7 +84,26 @@ export default function Appointments() {
     return (appointments || []).filter(apt => apt.appointment_date === selectedDateStr);
   }, [appointments, selectedDateStr]);
 
-  // Group appointments by time slot so we show ALL bookings per slot
+  // Helper: convert "HH:mm" or "HH:mm:ss" to minutes since midnight
+  const toMinutes = (t: string): number => {
+    if (!t) return 0;
+    const [h, m] = t.split(':').map((n) => parseInt(n, 10) || 0);
+    return h * 60 + m;
+  };
+
+  const formatHHMM = (mins: number): string => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  // Active (non-cancelled / non-no-show) appointments treated as occupying time.
+  const activeForDate = useMemo(
+    () => appointmentsForDate.filter(a => a.status !== 'cancelled' && a.status !== 'no_show'),
+    [appointmentsForDate]
+  );
+
+  // Group appointments by their START time slot (HH:mm)
   const appointmentsBySlot = useMemo(() => {
     const map: Record<string, AdminSpaAppointment[]> = {};
     for (const apt of appointmentsForDate) {
@@ -95,12 +114,49 @@ export default function Appointments() {
     return map;
   }, [appointmentsForDate]);
 
-  // Build dynamic time slots that include any booked times outside default range
+  // Build dynamic time slots: defaults + any appointment start time + any
+  // appointment "free again" boundary (start + duration + cleanup) so staff
+  // can clearly see the next bookable moment when it falls off the hour.
   const timeSlots = useMemo(() => {
     const allSlots = new Set(DEFAULT_SLOTS);
     Object.keys(appointmentsBySlot).forEach(slot => allSlots.add(slot));
+    for (const apt of activeForDate) {
+      const start = toMinutes(apt.appointment_time || '');
+      const end = start + (apt.duration_minutes || 0) + (apt.cleanup_minutes || 0);
+      // Only add the "free again" boundary if it lands within the visible range.
+      if (end > 0 && end < 24 * 60) {
+        allSlots.add(formatHHMM(end));
+      }
+    }
     return Array.from(allSlots).sort();
-  }, [appointmentsBySlot]);
+  }, [appointmentsBySlot, activeForDate]);
+
+  // For each row, determine which appointments are still ongoing (started in
+  // an earlier row and either still in service time or cleanup time).
+  // Row span is from this slot's start to the NEXT slot's start (so rows that
+  // sit on 15-min boundaries don't double-show busy strips).
+  const ongoingBySlot = useMemo(() => {
+    const map: Record<string, Array<{ apt: AdminSpaAppointment; phase: 'service' | 'cleanup' }>> = {};
+    for (let i = 0; i < timeSlots.length; i++) {
+      const rowStart = toMinutes(timeSlots[i]);
+      const rowEnd = i + 1 < timeSlots.length ? toMinutes(timeSlots[i + 1]) : rowStart + 60;
+      const slot = timeSlots[i];
+      map[slot] = [];
+      for (const apt of activeForDate) {
+        const aptStart = toMinutes(apt.appointment_time || '');
+        const serviceEnd = aptStart + (apt.duration_minutes || 0);
+        const fullEnd = serviceEnd + (apt.cleanup_minutes || 0);
+        // Skip the row where the appointment starts (rendered as full card).
+        if (aptStart >= rowStart && aptStart < rowEnd) continue;
+        // Overlaps this row?
+        if (aptStart < rowEnd && fullEnd > rowStart) {
+          const phase: 'service' | 'cleanup' = rowStart < serviceEnd ? 'service' : 'cleanup';
+          map[slot].push({ apt, phase });
+        }
+      }
+    }
+    return map;
+  }, [timeSlots, activeForDate]);
 
   const stats = {
     total: appointmentsForDate.length,
