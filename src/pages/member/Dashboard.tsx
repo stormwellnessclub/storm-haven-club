@@ -165,6 +165,13 @@ export default function MemberDashboard() {
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />
 
+        {/* Leave a review prompt — premium nudge for unreviewed past classes */}
+        <LeaveReviewBanner
+          count={unreviewedPast.length}
+          onLeaveReview={handleLeaveReviewFromBanner}
+          dismissible
+        />
+
         {/* Frozen Benefits Notice */}
         {hasFrozenBenefits && (
           <AnimatedSection animation="fade-in">
@@ -797,6 +804,17 @@ export default function MemberDashboard() {
           </Card>
         </StaggerContainer>
       </div>
+
+      {reviewTarget && (
+        <ReviewDialog
+          open={!!reviewTarget}
+          onOpenChange={(open) => !open && setReviewTarget(null)}
+          bookingId={reviewTarget.bookingId}
+          classTypeId={reviewTarget.classTypeId}
+          sessionId={reviewTarget.sessionId}
+          className={reviewTarget.className}
+        />
+      )}
     </MemberLayout>
   );
 }
