@@ -157,9 +157,33 @@ export default function PortalBookings() {
     );
   };
 
+  // Past bookings the non-member attended but hasn't reviewed yet
+  const unreviewedPast = past.filter(
+    (b: any) =>
+      b?.status !== "cancelled" &&
+      b?.class_sessions?.class_types?.id &&
+      !reviewByBooking[b.id]
+  );
+
+  const handleLeaveReviewFromBanner = () => {
+    const next = unreviewedPast[0];
+    if (!next) return;
+    setReviewTarget({
+      bookingId: next.id,
+      classTypeId: next.class_sessions.class_types.id,
+      sessionId: next.session_id,
+      className: next.class_sessions.class_types.name || "Class",
+      existing: undefined,
+    });
+  };
+
   return (
     <PortalLayout title="My Bookings">
       <div className="max-w-3xl space-y-4">
+        <LeaveReviewBanner
+          count={unreviewedPast.length}
+          onLeaveReview={handleLeaveReviewFromBanner}
+        />
         <Tabs defaultValue="upcoming">
           <TabsList>
             <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
