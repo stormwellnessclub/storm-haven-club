@@ -380,18 +380,32 @@ export function GenerateWorkoutModal({
             )}
 
             {/* Navigation buttons */}
-            <div className="flex justify-between pt-4">
-              <Button
-                variant="ghost"
-                onClick={handleBack}
-                disabled={step === 1}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Back
-              </Button>
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={handleBack}
+                  disabled={step === 1}
+                  className="flex-1 sm:flex-none"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+                {(step > 1 || preferences.workoutType) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAll}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Start over
+                  </Button>
+                )}
+              </div>
               <Button
                 onClick={handleNext}
                 disabled={!canProceed()}
+                className="w-full sm:w-auto"
               >
                 {step === totalSteps ? (
                   <>
