@@ -25,6 +25,7 @@ import {
 
 export default function PortalBookings() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const cancelBooking = useCancelBooking();
   const { data: myReviews = [] } = useMyReviews();
 
