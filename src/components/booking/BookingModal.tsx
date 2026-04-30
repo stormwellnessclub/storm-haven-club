@@ -43,6 +43,11 @@ import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { ClassReviewsList } from "@/components/reviews/ClassReviewsList";
 import { useClassTypeRatings } from "@/hooks/useClassReviews";
 import { StarRating } from "@/components/reviews/StarRating";
+import {
+  readClassDraft,
+  writeClassDraft,
+  clearClassDraft,
+} from "@/lib/bookingDraft";
 
 interface BookingModalProps {
   session: ClassSession | null;
