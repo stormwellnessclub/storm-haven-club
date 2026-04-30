@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function MemberBookings() {
+  const navigate = useNavigate();
   const { data: upcomingBookings, isLoading: upcomingLoading } = useUpcomingBookings();
   const { data: pastBookings, isLoading: pastLoading } = usePastBookings();
   const { data: myReviews = [] } = useMyReviews();
