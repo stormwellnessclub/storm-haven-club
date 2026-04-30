@@ -1,40 +1,64 @@
+## Problem
+
+On the admin Appointments page, the day timeline is a fixed list of hourly rows (06:00 → 20:00). Each appointment is placed only in the row matching its start time. A 90-min massage booked at 10:00 (which actually runs until 11:30, plus 15 min cleanup → blocked until 11:45) appears only in the 10:00 row. The 11:00 row therefore looks empty, even though that hour is fully occupied. Same for the next-available logic — visually, 11:00 and 11:45 look identical to staff.
+
+The booking modals (member and admin) already prevent double-booking via `generateAvailableStartTimes` + the `check_spa_appointment_conflict` RPC, so this is purely an admin-calendar display problem.
+
 ## Goal
-Let admins edit a confirmed spa appointment in place — change the time/date, service, therapist, or room — without cancelling and rebooking. Notes already editable via the completion dialog.
 
-## Where it appears
-On `/admin/appointments`, each appointment card and slot will get an **Edit** (pencil) button beside the existing click-to-complete area. Clicking it opens a new `SpaAppointmentEditModal`, pre-populated with the appointment's current values.
+On the admin Appointments timeline, every hour row that an in-progress appointment overlaps should clearly show that the room/therapist is occupied — not appear empty. Cleanup time should be visualized too.
 
-## What can be edited
-- Service (auto-updates duration, cleanup, price, category, name snapshots)
-- Date
-- Time (free-form input parsed like booking modal)
-- Therapist (or "auto" via availability)
-- Room (or "auto" via availability)
-- Staff notes
+## Changes
 
-Status, customer, and payment are NOT changed here (use existing flows).
+### 1. Compute occupancy per hour row (`src/pages/admin/Appointments.tsx`)
 
-## How it works
-1. New component `src/components/admin/spa/SpaAppointmentEditModal.tsx`, modeled on `AdminSpaBookingModal`'s scheduling section (service/date/time/therapist/room/notes), minus customer search and payment.
-2. Pre-populates from the passed `AdminSpaAppointment`.
-3. Reuses `useCheckSpaAvailability` to validate the new slot, **excluding the current appointment id** so it doesn't conflict with itself. The existing RPC already supports this, but we'll verify and pass `excludeAppointmentId` if available; if not, we filter out self in the client-side conflict result.
-4. New mutation hook `useUpdateSpaAppointment` in `src/hooks/useAdminSpaAppointments.ts` that updates: `service_id`, `service_name`, `service_category`, `service_price`, `member_price`, `appointment_date`, `appointment_time`, `duration_minutes`, `cleanup_minutes`, `staff_id`, `room_id`, `staff_notes`, `updated_at`. Invalidates `admin-spa-appointments`, `spa-appointments`, `spa-booked-slots`.
-5. On success, toast "Appointment updated" and close.
+Replace the simple "group by start time" map with a richer model:
 
-## Guardrails
-- Disabled for `cancelled` / `completed` / `no_show` appointments — show button only when status is `confirmed` or `checked_in`.
-- Reuses the same conflict messaging from booking modal (instructor/room overlap, outside availability window).
-- If the appointment was paid (`payment_intent_id` present) and the new service has a different price, show an info banner: "Pricing changed — collect/refund difference at checkout." No automatic Stripe action.
+- For each non-cancelled appointment, compute `[startMin, endMin)` where `endMin = start + duration_minutes + cleanup_minutes`.
+- For each hour row in `timeSlots`, derive two lists:
+  - `startsHere`: appointments whose start time falls in `[hour, hour+60)` — rendered as full cards (current behavior).
+  - `ongoingHere`: appointments that started in an earlier hour but are still running (or in cleanup) during this hour — rendered as a compact "busy" strip.
 
-## RPC self-exclusion check
-Quick check of `check_spa_availability` RPC signature; if it accepts `p_exclude_appointment_id`, pass it. Otherwise filter the returned `conflictingAppointments` array to drop the current `appointment.id` before deciding `available`.
+Cancelled and no-show appointments are excluded from `ongoingHere` so they don't visually block the room.
 
-## Files
-- **New**: `src/components/admin/spa/SpaAppointmentEditModal.tsx`
-- **Edit**: `src/hooks/useAdminSpaAppointments.ts` — add `useUpdateSpaAppointment`
-- **Edit**: `src/pages/admin/Appointments.tsx` — add Edit pencil button + modal mount; same wiring also reaches Spa kiosk mode since it reuses this page
+### 2. New compact "ongoing" strip in each row
+
+For each entry in `ongoingHere`, render a slim, muted bar inside the slot row showing:
+
+- Service name + customer name (truncated)
+- Therapist initial / room name
+- A label like "in progress · ends 11:30" or "cleanup · until 11:45"
+  - "in progress" when current row's start ≤ `start + duration`
+  - "cleanup" when current row's start is in the cleanup window
+- Same status color as the original card but at lower opacity / dashed border, so it visually reads as "still busy, don't book here"
+
+Clicking the strip opens the same appointment dialog as the full card.
+
+### 3. Visual treatment of fully-occupied rows
+
+If an hour row has no `startsHere` but has `ongoingHere` entries, do NOT render the "Available" placeholder. Instead, render only the ongoing strips so staff immediately see the row is busy.
+
+### 4. Optional: span-aware time grid (15-min)
+
+Keep the default rows hourly, but additionally add any appointment start time (e.g. 11:50) to `timeSlots` (already done today via `appointmentsBySlot` keys). Extend the same logic to add the appointment's `end + cleanup` boundary so the next bookable moment is visible as its own row when it falls off the hour (e.g. 11:45). This makes "next bookable" obvious to staff.
+
+### 5. Edit modal — already correct
+
+`SpaAppointmentEditModal` already passes `excludeAppointmentId`, and the booking RPC honors it, so rescheduling an appointment to its current slot works. No change needed there.
 
 ## Out of scope
-- Changing the customer
-- Refund/charge automation for price changes
-- Bulk reschedule
+
+- No change to booking conflict logic — the booking modals already block 11:00 correctly.
+- No change to the database. This is a UI-only improvement on `src/pages/admin/Appointments.tsx`.
+- No change to the member-facing portal.
+
+## Files touched
+
+- `src/pages/admin/Appointments.tsx` — occupancy computation + render ongoing strips + cleanup labels.
+
+## Technical notes
+
+- Time math uses minutes-since-midnight on `appointment_time` ("HH:mm:ss"), `duration_minutes`, and `cleanup_minutes` from `AdminSpaAppointment`.
+- Hour rows are 60-min wide; an appointment overlaps a row if `apt.startMin < rowEnd && apt.endMin > rowStart`.
+- The strip's "ends at" uses `start + duration` (service end), and "until" uses `start + duration + cleanup` (room free).
+- All filtering excludes statuses `cancelled` and `no_show`.

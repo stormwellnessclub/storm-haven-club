@@ -84,7 +84,26 @@ export default function Appointments() {
     return (appointments || []).filter(apt => apt.appointment_date === selectedDateStr);
   }, [appointments, selectedDateStr]);
 
-  // Group appointments by time slot so we show ALL bookings per slot
+  // Helper: convert "HH:mm" or "HH:mm:ss" to minutes since midnight
+  const toMinutes = (t: string): number => {
+    if (!t) return 0;
+    const [h, m] = t.split(':').map((n) => parseInt(n, 10) || 0);
+    return h * 60 + m;
+  };
+
+  const formatHHMM = (mins: number): string => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  // Active (non-cancelled / non-no-show) appointments treated as occupying time.
+  const activeForDate = useMemo(
+    () => appointmentsForDate.filter(a => a.status !== 'cancelled' && a.status !== 'no_show'),
+    [appointmentsForDate]
+  );
+
+  // Group appointments by their START time slot (HH:mm)
   const appointmentsBySlot = useMemo(() => {
     const map: Record<string, AdminSpaAppointment[]> = {};
     for (const apt of appointmentsForDate) {
@@ -95,12 +114,49 @@ export default function Appointments() {
     return map;
   }, [appointmentsForDate]);
 
-  // Build dynamic time slots that include any booked times outside default range
+  // Build dynamic time slots: defaults + any appointment start time + any
+  // appointment "free again" boundary (start + duration + cleanup) so staff
+  // can clearly see the next bookable moment when it falls off the hour.
   const timeSlots = useMemo(() => {
     const allSlots = new Set(DEFAULT_SLOTS);
     Object.keys(appointmentsBySlot).forEach(slot => allSlots.add(slot));
+    for (const apt of activeForDate) {
+      const start = toMinutes(apt.appointment_time || '');
+      const end = start + (apt.duration_minutes || 0) + (apt.cleanup_minutes || 0);
+      // Only add the "free again" boundary if it lands within the visible range.
+      if (end > 0 && end < 24 * 60) {
+        allSlots.add(formatHHMM(end));
+      }
+    }
     return Array.from(allSlots).sort();
-  }, [appointmentsBySlot]);
+  }, [appointmentsBySlot, activeForDate]);
+
+  // For each row, determine which appointments are still ongoing (started in
+  // an earlier row and either still in service time or cleanup time).
+  // Row span is from this slot's start to the NEXT slot's start (so rows that
+  // sit on 15-min boundaries don't double-show busy strips).
+  const ongoingBySlot = useMemo(() => {
+    const map: Record<string, Array<{ apt: AdminSpaAppointment; phase: 'service' | 'cleanup' }>> = {};
+    for (let i = 0; i < timeSlots.length; i++) {
+      const rowStart = toMinutes(timeSlots[i]);
+      const rowEnd = i + 1 < timeSlots.length ? toMinutes(timeSlots[i + 1]) : rowStart + 60;
+      const slot = timeSlots[i];
+      map[slot] = [];
+      for (const apt of activeForDate) {
+        const aptStart = toMinutes(apt.appointment_time || '');
+        const serviceEnd = aptStart + (apt.duration_minutes || 0);
+        const fullEnd = serviceEnd + (apt.cleanup_minutes || 0);
+        // Skip the row where the appointment starts (rendered as full card).
+        if (aptStart >= rowStart && aptStart < rowEnd) continue;
+        // Overlaps this row?
+        if (aptStart < rowEnd && fullEnd > rowStart) {
+          const phase: 'service' | 'cleanup' = rowStart < serviceEnd ? 'service' : 'cleanup';
+          map[slot].push({ apt, phase });
+        }
+      }
+    }
+    return map;
+  }, [timeSlots, activeForDate]);
 
   const stats = {
     total: appointmentsForDate.length,
@@ -235,6 +291,63 @@ export default function Appointments() {
     </div>
   );
 
+  const renderOngoingStrip = (
+    appointment: AdminSpaAppointment,
+    phase: 'service' | 'cleanup'
+  ) => {
+    const start = appointment.appointment_time?.split(':').slice(0, 2).join(':') || '';
+    const startMin = toMinutes(start);
+    const serviceEndMin = startMin + (appointment.duration_minutes || 0);
+    const fullEndMin = serviceEndMin + (appointment.cleanup_minutes || 0);
+    const customerName = appointment.customer
+      ? `${appointment.customer.first_name} ${appointment.customer.last_name}`.trim() ||
+        appointment.customer.email ||
+        'Name unavailable'
+      : appointment.member
+        ? `${appointment.member.first_name} ${appointment.member.last_name}`
+        : appointment.user?.email || 'Name unavailable';
+    const label =
+      phase === 'service'
+        ? `In progress · ends ${formatTime(formatHHMM(serviceEndMin) + ':00')}`
+        : `Cleanup · room free at ${formatTime(formatHHMM(fullEndMin) + ':00')}`;
+    return (
+      <div
+        key={`ongoing-${appointment.id}`}
+        className={`flex-1 flex items-center justify-between gap-2 px-3 py-1.5 rounded-md border border-dashed ${
+          isClickable(appointment) ? 'cursor-pointer hover:bg-accent/40 transition-colors' : ''
+        } ${phase === 'cleanup' ? 'bg-muted/40 opacity-70' : 'bg-muted/30 opacity-80'}`}
+        onClick={() => handleAppointmentClick(appointment)}
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            {formatTime(start + ':00')}
+          </span>
+          <span className="text-sm truncate">
+            <span className="font-medium">{customerName}</span>
+            <span className="text-muted-foreground"> · {appointment.service_name}</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {appointment.staff?.full_name && (
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              {appointment.staff.full_name}
+            </span>
+          )}
+          <Badge
+            variant="outline"
+            className={
+              phase === 'cleanup'
+                ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px]'
+                : 'bg-blue-500/10 text-blue-600 border-blue-500/30 text-[10px]'
+            }
+          >
+            {label}
+          </Badge>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <AdminLayout title="Appointments">
       <div className="space-y-6">
@@ -296,19 +409,22 @@ export default function Appointments() {
                 <div className="space-y-2">
                   {timeSlots.map((slot) => {
                     const slotAppointments = appointmentsBySlot[slot] || [];
+                    const ongoing = ongoingBySlot[slot] || [];
+                    const hasContent = slotAppointments.length > 0 || ongoing.length > 0;
                     return (
                       <div
                         key={slot}
                         className={`flex items-stretch gap-4 p-3 rounded-lg border ${
-                          slotAppointments.length > 0 ? "bg-card" : "bg-secondary/30"
+                          hasContent ? "bg-card" : "bg-secondary/30"
                         }`}
                       >
                         <div className="w-20 text-sm font-medium text-muted-foreground pt-2">
                           {formatTime(slot + ":00")}
                         </div>
-                        {slotAppointments.length > 0 ? (
+                        {hasContent ? (
                           <div className="flex-1 space-y-2">
                             {slotAppointments.map(apt => renderAppointmentCard(apt))}
+                            {ongoing.map(({ apt, phase }) => renderOngoingStrip(apt, phase))}
                           </div>
                         ) : (
                           <div className="flex-1 flex items-center">
