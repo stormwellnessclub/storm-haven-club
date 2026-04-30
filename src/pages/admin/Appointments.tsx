@@ -182,6 +182,17 @@ export default function Appointments() {
             variant="outline"
             onClick={(e) => {
               e.stopPropagation();
+              setEditAppointment(appointment);
+            }}
+          >
+            <Pencil className="h-3 w-3 mr-1" />
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
               setCompletionAppointment(appointment);
               setIsRetroactive(false);
             }}
