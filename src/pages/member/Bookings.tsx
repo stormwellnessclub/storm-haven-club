@@ -62,6 +62,11 @@ export default function MemberBookings() {
           <Button asChild><Link to="/schedule">Book a Class</Link></Button>
         </div>
 
+        <ResumeBookingBanner
+          kind="class"
+          onResume={() => navigate("/schedule")}
+        />
+
         <LeaveReviewBanner
           count={unreviewedPast.length}
           onLeaveReview={handleLeaveReviewFromBanner}
