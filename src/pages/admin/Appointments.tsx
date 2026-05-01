@@ -67,6 +67,7 @@ export default function Appointments() {
   const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
   const [editAppointment, setEditAppointment] = useState<AdminSpaAppointment | null>(null);
   const [isRetroactive, setIsRetroactive] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
   const navigate = useNavigate();
 
   const formatDate = (date: Date) => {
@@ -88,13 +89,26 @@ export default function Appointments() {
     appointmentDate: selectedDate 
   });
   const updateStatus = useUpdateSpaAppointmentStatus();
+  const deleteAppointment = useDeleteSpaAppointment();
 
   // Use the date string directly instead of re-parsing with new Date()
   const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
 
-  const appointmentsForDate = useMemo(() => {
+  const allAppointmentsForDate = useMemo(() => {
     return (appointments || []).filter(apt => apt.appointment_date === selectedDateStr);
   }, [appointments, selectedDateStr]);
+
+  const cancelledForDate = useMemo(
+    () => allAppointmentsForDate.filter(a => a.status === 'cancelled' || a.status === 'no_show'),
+    [allAppointmentsForDate]
+  );
+
+  // The visible list excludes cancelled/no-show by default to keep the daily
+  // schedule clean. Toggle "Show cancelled" to bring them back in.
+  const appointmentsForDate = useMemo(() => {
+    if (showCancelled) return allAppointmentsForDate;
+    return allAppointmentsForDate.filter(a => a.status !== 'cancelled' && a.status !== 'no_show');
+  }, [allAppointmentsForDate, showCancelled]);
 
   // Helper: convert "HH:mm" or "HH:mm:ss" to minutes since midnight
   const toMinutes = (t: string): number => {
