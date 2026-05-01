@@ -426,21 +426,32 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          {conflict && !timeError && serviceId && appointmentTime && appointmentDate && (
+            <Button
+              variant="destructive"
+              onClick={() => handleSave(true)}
+              disabled={saving || updateAppt.isPending}
+            >
+              {(saving || updateAppt.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Override & Save
+            </Button>
+          )}
           <Button
-            onClick={handleSave}
+            onClick={() => handleSave(false)}
             disabled={
               !serviceId ||
               !appointmentTime ||
               !appointmentDate ||
               !!conflict ||
               !!timeError ||
+              saving ||
               updateAppt.isPending ||
               checkAvail.isPending
             }
           >
-            {(updateAppt.isPending || checkAvail.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {(saving || updateAppt.isPending || checkAvail.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Save Changes
           </Button>
         </DialogFooter>
