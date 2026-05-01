@@ -439,7 +439,6 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
               !serviceId ||
               !appointmentTime ||
               !appointmentDate ||
-              !!conflict ||
               !!timeError ||
               saving ||
               updateAppt.isPending ||
