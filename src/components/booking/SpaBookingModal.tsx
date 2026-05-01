@@ -355,7 +355,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
     }
   };
 
-  const minDate = addDays(new Date(), 1);
+  const minDate = isSameDayEligible ? startOfDay(new Date()) : addDays(new Date(), 1);
   const maxDate = addMonths(new Date(), 3);
 
   return (
