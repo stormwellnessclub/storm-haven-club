@@ -69,8 +69,15 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const { data: agreements } = useAllAgreements();
   const { data: availability } = useSpaServiceAvailability();
   const bookAppointment = useSpaBookAppointment();
+  const queryClient = useQueryClient();
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
+  // Wellness services (red light / dry cryo) allow same-day booking with 20-min notice
+  const creditTypeForService = service ? getWellnessCreditType(service.name) : null;
+  const isSameDayEligible = creditTypeForService !== null;
+
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    isSameDayEligible ? startOfDay(new Date()) : addDays(new Date(), 1)
+  );
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [memberNotes, setMemberNotes] = useState("");
   const [showWaiverInline, setShowWaiverInline] = useState(false);
