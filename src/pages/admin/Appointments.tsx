@@ -184,8 +184,13 @@ export default function Appointments() {
     return map;
   }, [timeSlots, activeForDate]);
 
+  const activeAppointmentsForDate = useMemo(
+    () => allAppointmentsForDate.filter(a => a.status !== 'cancelled' && a.status !== 'no_show'),
+    [allAppointmentsForDate]
+  );
+
   const stats = {
-    total: allAppointmentsForDate.length,
+    total: activeAppointmentsForDate.length,
     completed: allAppointmentsForDate.filter(a => a.status === 'completed').length,
     upcoming: allAppointmentsForDate.filter(a => ['confirmed'].includes(a.status)).length,
     cancelled: cancelledForDate.length,
