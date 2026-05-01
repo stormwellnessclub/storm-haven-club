@@ -420,6 +420,12 @@ export default function Appointments() {
             <Sparkles className="h-4 w-4 mr-2" />
             Spa Management
           </Button>
+          {cancelledForDate.length > 0 && (
+            <Button variant="outline" onClick={() => setShowCancelled(v => !v)}>
+              {showCancelled ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+              {showCancelled ? "Hide" : "Show"} cancelled ({cancelledForDate.length})
+            </Button>
+          )}
         </div>
 
         {/* Date Navigation */}
