@@ -121,7 +121,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-3xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{editingTemplate ? "Edit Workout Template" : "Build Custom Workout"}</DialogTitle>
             <DialogDescription>
