@@ -4,7 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, CreditCard, Sparkles, LayoutGrid, Pencil } from "lucide-react";
-import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus } from "@/hooks/useAdminSpaAppointments";
+import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus, useDeleteSpaAppointment } from "@/hooks/useAdminSpaAppointments";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2, Eye, EyeOff } from "lucide-react";
 import { format, parse } from "date-fns";
 import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModal";
 import { SpaCompletionDialog } from "@/components/admin/spa/SpaCompletionDialog";
