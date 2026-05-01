@@ -295,13 +295,25 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         }
       } else {
         if (paymentMethod === "card" && selectedPaymentMethodId) {
+          // Find a Stripe customer — member first, fall back to non-member profile
           const { data: memberData } = await supabase
             .from("members")
             .select("id, stripe_customer_id")
             .eq("user_id", user.id)
             .maybeSingle();
 
-          if (!memberData?.stripe_customer_id) {
+          let stripeCustomerId: string | null = memberData?.stripe_customer_id ?? null;
+
+          if (!stripeCustomerId) {
+            const { data: nonMember } = await supabase
+              .from("non_member_profiles")
+              .select("stripe_customer_id")
+              .eq("user_id", user.id)
+              .maybeSingle();
+            stripeCustomerId = nonMember?.stripe_customer_id ?? null;
+          }
+
+          if (!stripeCustomerId) {
             throw new Error("No payment method on file. Please add a payment method first.");
           }
 
@@ -312,7 +324,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
               action: "charge_saved_card",
               amount: totalAmountCents,
               description: `Spa Service: ${service.name}`,
-              stripeCustomerId: memberData.stripe_customer_id,
+              stripeCustomerId,
               paymentMethodId: selectedPaymentMethodId,
             },
           });
