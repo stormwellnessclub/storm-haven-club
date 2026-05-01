@@ -1,42 +1,40 @@
-I checked the current code and backend function. The backend RPC now excludes the appointment correctly, but the edit modal can still reintroduce the same failure in the UI because it relies on cached auto-assignment state and the existing start time / cleanup window. I’ll tighten the edit path so edits are treated differently from new bookings and the current appointment can never be counted as its own blocker.
+I found the reason this can still happen: the database conflict function now excludes the current appointment correctly, but the edit modal is still doing client-side pre-checks and then updating `spa_appointments` directly. That means stale auto-assignment or the old warning state can still block Save before the actual update gets a chance to happen. Also, the planned backend update RPC was not implemented yet.
 
 Plan:
 
-1. Make edit saves compute therapist/room fresh every time
-- In `SpaAppointmentEditModal`, replace the save-time reliance on `resolvedTherapistId` / `resolvedRoomId` state with a fresh resolver based on the current form values.
-- If therapist/room are set to `auto`, prefer the appointment’s current therapist and room first, then fall back to the matching availability window.
-- This prevents stale “auto-assigned” state from saving/checking against the wrong resource after changing service, date, duration, or time.
+1. Add an authoritative admin edit function
+- Create a backend RPC `update_spa_appointment_admin(...)`.
+- It will load the appointment being edited, verify the caller is staff/admin/front desk, and run the conflict check while excluding that same appointment ID.
+- It will update the appointment in one atomic operation.
+- It will accept `override_conflict`; when true, it will save anyway so staff can reshuffle schedules.
 
-2. Prevent the current appointment from appearing as a conflict in every path
-- Add a defensive client-side filter after `useCheckSpaAvailability` returns results: if the only returned conflict ID is the appointment being edited, treat it as available.
-- Keep real conflicts blocked if a different appointment overlaps the new time/duration/resource.
-- Improve conflict messages to include whether the blocking appointment is another booking, not just “therapist is booked.”
+2. Make the frontend use the admin edit function instead of direct table update
+- Update `useUpdateSpaAppointment` to call the new RPC.
+- Add an `overrideConflict` parameter to the hook input.
+- Preserve the same cache invalidations and success/error toasts.
 
-3. Make time changes re-check immediately and reliably
-- Re-run the edit conflict check when `appointmentTime` changes, not only on blur and some field changes.
-- Clear old conflict messages when the user changes service, date, time, therapist, or room so a previous false conflict cannot keep the Save button disabled.
+3. Stop stale conflict warnings from blocking normal edits
+- In `SpaAppointmentEditModal`, remove the hard block where an old `conflict` state prevents saving.
+- On normal Save, send the current form values to the RPC with `overrideConflict: false` and let the backend return the real answer.
+- If the backend says there is a real conflict, show the warning and enable `Override & Save`.
 
-4. Add an admin override path for legitimate schedule reshuffling
-- Add a clearly labeled “Save anyway / Override conflict” option in the edit modal for admin/staff users when a conflict is detected.
-- This will allow your real workflow: move one client, then move the other clients afterward, instead of being trapped by the first blocked edit.
-- It will still show the conflict warning before override so accidental double-booking is visible.
+4. Make auto assignment less likely to pick the blocked resource
+- For edits, if therapist or room is set to Auto, resolve fresh at save time.
+- Prefer the existing therapist/room only when keeping the same appointment’s resources makes sense.
+- If a user manually picks another therapist/room, use that exact resource.
 
-5. Use a backend edit RPC to avoid race conditions and RLS/update inconsistencies
-- Add a `update_spa_appointment_admin(...)` backend function that performs the appointment update in one place.
-- It will accept the appointment ID, new service/time/duration/staff/room/notes, and an `override_conflict` flag.
-- By default it runs the same conflict check excluding the appointment itself; with override enabled it updates anyway.
-- It will be restricted to existing staff/admin/front desk roles.
+5. Improve the error message so it’s actionable
+- If a real conflict exists, show whether it is therapist or room related and include the blocking appointment ID internally from the RPC result.
+- Keep `Override & Save` visible so staff can move the first appointment even before moving other appointments.
 
-6. Clean up cancelled/no-show visibility completely
-- Keep cancelled/no-show hidden by default in the schedule timeline.
-- Make the daily total reflect active appointments, with cancelled shown separately, so hidden cancelled appointments do not make the day look booked.
-- Keep the “Show cancelled” toggle and remove button for cleanup.
+6. Keep cancellation cleanup behavior
+- Keep cancelled/no-show hidden by default from the admin day view and stats.
+- Keep the permanent Remove option for cancelled/no-show rows.
 
 Technical details:
-- Update:
-  - `src/components/admin/spa/SpaAppointmentEditModal.tsx`
+- New migration: create `public.update_spa_appointment_admin(...)` with `SECURITY DEFINER`, `search_path = public`, and role checks using existing role functions.
+- Update files:
   - `src/hooks/useAdminSpaAppointments.ts`
-  - `src/pages/admin/Appointments.tsx`
-  - likely a new database migration for the admin update RPC
+  - `src/components/admin/spa/SpaAppointmentEditModal.tsx`
 - Do not edit generated backend client/type files.
-- Preserve the existing conflict rules for normal new bookings; the override applies only to admin appointment edits.
+- Existing `check_spa_appointment_conflict` will remain as the shared conflict detector; the new RPC will be the authoritative edit path.

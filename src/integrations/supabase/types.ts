@@ -6884,6 +6884,25 @@ export type Database = {
         }
         Returns: string
       }
+      update_spa_appointment_admin: {
+        Args: {
+          p_appointment_date: string
+          p_appointment_id: string
+          p_appointment_time: string
+          p_cleanup_minutes: number
+          p_duration_minutes: number
+          p_member_price: number
+          p_override_conflict?: boolean
+          p_room_id: string
+          p_service_category: string
+          p_service_id: string
+          p_service_name: string
+          p_service_price: number
+          p_staff_id: string
+          p_staff_notes: string
+        }
+        Returns: Json
+      }
       update_subscription_status_with_history: {
         Args: {
           p_change_reason?: string

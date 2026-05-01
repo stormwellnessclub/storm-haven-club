@@ -352,6 +352,18 @@ export interface UpdateSpaAppointmentInput {
   staff_id: string | null;
   room_id: string | null;
   staff_notes?: string | null;
+  override_conflict?: boolean;
+}
+
+export class SpaAppointmentConflictError extends Error {
+  conflict_type: string | null;
+  conflicting_appointment_id: string | null;
+  constructor(message: string, conflict_type: string | null, conflicting_appointment_id: string | null) {
+    super(message);
+    this.name = "SpaAppointmentConflictError";
+    this.conflict_type = conflict_type;
+    this.conflicting_appointment_id = conflicting_appointment_id;
+  }
 }
 
 export function useUpdateSpaAppointment() {
@@ -361,19 +373,45 @@ export function useUpdateSpaAppointment() {
   return useMutation({
     mutationFn: async (input: UpdateSpaAppointmentInput) => {
       if (!user) throw new Error("You must be signed in");
-      const { appointmentId, ...rest } = input;
 
-      const { data, error } = await (supabase.from as any)("spa_appointments")
-        .update({
-          ...rest,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", appointmentId)
-        .select()
-        .single();
+      // Strip trailing seconds if caller passed HH:mm:ss
+      const timeForRpc = input.appointment_time.length > 5
+        ? input.appointment_time.slice(0, 8)
+        : `${input.appointment_time}:00`;
+
+      const { data, error } = await (supabase.rpc as any)(
+        "update_spa_appointment_admin",
+        {
+          p_appointment_id: input.appointmentId,
+          p_service_id: input.service_id,
+          p_service_name: input.service_name,
+          p_service_category: input.service_category,
+          p_service_price: input.service_price,
+          p_member_price: input.member_price,
+          p_duration_minutes: input.duration_minutes,
+          p_cleanup_minutes: input.cleanup_minutes,
+          p_appointment_date: input.appointment_date,
+          p_appointment_time: timeForRpc,
+          p_staff_id: input.staff_id,
+          p_room_id: input.room_id,
+          p_staff_notes: input.staff_notes ?? null,
+          p_override_conflict: input.override_conflict ?? false,
+        }
+      );
 
       if (error) throw error;
-      return data;
+      const result = data as any;
+      if (!result?.success) {
+        if (result?.conflict) {
+          throw new SpaAppointmentConflictError(
+            result.error || "Scheduling conflict",
+            result.conflict_type ?? null,
+            result.conflicting_appointment_id ?? null
+          );
+        }
+        throw new Error(result?.error || "Failed to update appointment");
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });

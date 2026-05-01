@@ -18,7 +18,7 @@ import {
   getServiceWindowForDate,
   latestStartTime,
 } from "@/lib/spaAvailability";
-import { AdminSpaAppointment, useUpdateSpaAppointment } from "@/hooks/useAdminSpaAppointments";
+import { AdminSpaAppointment, useUpdateSpaAppointment, SpaAppointmentConflictError } from "@/hooks/useAdminSpaAppointments";
 
 interface Props {
   appointment: AdminSpaAppointment | null;
@@ -216,7 +216,6 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
 
   const handleSave = async (override = false) => {
     if (!selectedService || !appointmentTime || !appointmentDate) return;
-    if (conflict && !override) return;
 
     // Compute fresh resolution at save time so we never rely on stale state.
     const slot = findCoveringSlot(
@@ -241,27 +240,6 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
       return;
     }
 
-    if (!override) {
-      // Final server-side check excluding self
-      const result = await checkAvail.mutateAsync({
-        appointmentDate: dateObj,
-        appointmentTime,
-        durationMinutes: selectedService.duration_minutes,
-        cleanupMinutes: selectedService.cleanup_minutes,
-        staffId: resolvedTherapist || undefined,
-        roomId: resolvedRoom || undefined,
-        excludeAppointmentId: appointment.id,
-      });
-      const realConflicts = (result.conflictingAppointments || []).filter(
-        (c: any) => c.id !== appointment.id
-      );
-      if (realConflicts.length > 0) {
-        setConflict("That therapist or room is already booked for the full service plus cleanup time.");
-        setConflictDetail("You can override and save anyway if you’re reshuffling the schedule.");
-        return;
-      }
-    }
-
     setSaving(true);
     try {
       await updateAppt.mutateAsync({
@@ -278,8 +256,25 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
         staff_id: resolvedTherapist,
         room_id: resolvedRoom,
         staff_notes: staffNotes || null,
+        override_conflict: override,
       });
+      setConflict(null);
+      setConflictDetail(null);
       onOpenChange(false);
+    } catch (err: any) {
+      if (err instanceof SpaAppointmentConflictError) {
+        setConflict(
+          err.conflict_type === "room"
+            ? "This room is already booked at that time."
+            : err.conflict_type === "staff"
+              ? "This therapist already has a booking at that time."
+              : err.message
+        );
+        setConflictDetail(
+          "You can override and save anyway if you’re reshuffling the schedule."
+        );
+      }
+      // toast already shown by the mutation's onError
     } finally {
       setSaving(false);
     }
@@ -444,7 +439,6 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
               !serviceId ||
               !appointmentTime ||
               !appointmentDate ||
-              !!conflict ||
               !!timeError ||
               saving ||
               updateAppt.isPending ||
