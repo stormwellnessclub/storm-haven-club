@@ -264,21 +264,25 @@ export function useCheckSpaAvailability() {
       const allConflicting: any[] = [];
       try {
         if (staffId) {
-          const { data } = await (supabase.from as any)("spa_appointments")
+          let q = (supabase.from as any)("spa_appointments")
             .select("id, appointment_time, duration_minutes, cleanup_minutes, service_name, staff_id, room_id")
             .eq("appointment_date", format(appointmentDate, "yyyy-MM-dd"))
-            .in("status", ["confirmed", "pending"])
+            .in("status", ["confirmed", "pending", "checked_in", "in_progress"])
             .eq("staff_id", staffId);
+          if (excludeAppointmentId) q = q.neq("id", excludeAppointmentId);
+          const { data } = await q;
           for (const apt of checkOverlap(data || [])) {
             allConflicting.push({ ...apt, _conflictType: "staff" });
           }
         }
         if (roomId) {
-          const { data } = await (supabase.from as any)("spa_appointments")
+          let q = (supabase.from as any)("spa_appointments")
             .select("id, appointment_time, duration_minutes, cleanup_minutes, service_name, staff_id, room_id")
             .eq("appointment_date", format(appointmentDate, "yyyy-MM-dd"))
-            .in("status", ["confirmed", "pending"])
+            .in("status", ["confirmed", "pending", "checked_in", "in_progress"])
             .eq("room_id", roomId);
+          if (excludeAppointmentId) q = q.neq("id", excludeAppointmentId);
+          const { data } = await q;
           const seen = new Set(allConflicting.map((c: any) => c.id));
           for (const apt of checkOverlap(data || [])) {
             if (!seen.has(apt.id)) allConflicting.push({ ...apt, _conflictType: "room" });
