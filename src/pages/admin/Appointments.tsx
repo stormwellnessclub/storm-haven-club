@@ -314,6 +314,35 @@ export default function Appointments() {
           </Button>
         </div>
       )}
+      {(appointment.status === 'cancelled' || appointment.status === 'no_show') && (
+        <div className="ml-2" onClick={(e) => e.stopPropagation()}>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10">
+                <Trash2 className="h-3 w-3 mr-1" />
+                Remove
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove this appointment?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently removes the cancelled appointment from the schedule. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteAppointment.mutate(appointment.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Remove
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
     </div>
   );
 
