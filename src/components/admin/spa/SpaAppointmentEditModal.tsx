@@ -61,6 +61,7 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
     setRoomId(appointment.room_id || "auto");
     setStaffNotes((appointment as any).staff_notes || "");
     setConflict(null);
+    setConflictDetail(null);
     setResolvedTherapistId(null);
     setResolvedRoomId(null);
   }, [appointment?.id]);
