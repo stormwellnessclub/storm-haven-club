@@ -191,7 +191,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                           <div>
                             <Label className="text-xs">Sets</Label>
                             <Input
