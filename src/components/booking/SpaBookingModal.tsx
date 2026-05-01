@@ -38,7 +38,8 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, addDays, addMonths } from "date-fns";
+import { format, addDays, addMonths, startOfDay, isSameDay, addMinutes as addMinutesFn } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles, FileCheck, ExternalLink, Check, ArrowRight } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
