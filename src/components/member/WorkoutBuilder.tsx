@@ -199,7 +199,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                               min={1}
                               value={ex.sets}
                               onChange={(e) => updateExercise(idx, "sets", parseInt(e.target.value) || 1)}
-                              className="h-8 text-sm"
+                              className="h-10 text-sm"
                             />
                           </div>
                           <div>
@@ -209,7 +209,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                               min={1}
                               value={ex.reps}
                               onChange={(e) => updateExercise(idx, "reps", parseInt(e.target.value) || 1)}
-                              className="h-8 text-sm"
+                              className="h-10 text-sm"
                             />
                           </div>
                           <div>
@@ -220,7 +220,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                               value={ex.weight || ""}
                               onChange={(e) => updateExercise(idx, "weight", e.target.value ? parseInt(e.target.value) : undefined)}
                               placeholder="lbs"
-                              className="h-8 text-sm"
+                              className="h-10 text-sm"
                             />
                           </div>
                           <div>
@@ -230,7 +230,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                               min={0}
                               value={ex.rest}
                               onChange={(e) => updateExercise(idx, "rest", parseInt(e.target.value) || 0)}
-                              className="h-8 text-sm"
+                              className="h-10 text-sm"
                             />
                           </div>
                         </div>
