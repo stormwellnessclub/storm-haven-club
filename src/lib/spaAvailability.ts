@@ -114,7 +114,8 @@ export function generateAvailableStartTimes(
   durationMinutes: number,
   cleanupMinutes: number,
   bookedSlots?: BookedSlot[],
-  resourceFilter?: { therapistId?: string | null; roomId?: string | null }
+  resourceFilter?: { therapistId?: string | null; roomId?: string | null },
+  minStartTime?: string // "HH:mm" — drop slots earlier than this (used for same-day notice)
 ): string[] {
   if (!availability) return [];
   const dow = getDay(date);
@@ -125,6 +126,7 @@ export function generateAvailableStartTimes(
 
   const slots = new Set<string>();
   for (const t of TIME_GRID) {
+    if (minStartTime && t < minStartTime) continue;
     const endT = addMinutesToTime(t, durationMinutes + cleanupMinutes);
     const fits = windows.some((w) => t >= trim(w.start_time) && endT <= trim(w.end_time));
     if (!fits) continue;
