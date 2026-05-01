@@ -185,10 +185,10 @@ export default function Appointments() {
   }, [timeSlots, activeForDate]);
 
   const stats = {
-    total: appointmentsForDate.length,
-    completed: appointmentsForDate.filter(a => a.status === 'completed').length,
-    upcoming: appointmentsForDate.filter(a => ['confirmed'].includes(a.status)).length,
-    cancelled: appointmentsForDate.filter(a => a.status === 'cancelled').length,
+    total: allAppointmentsForDate.length,
+    completed: allAppointmentsForDate.filter(a => a.status === 'completed').length,
+    upcoming: allAppointmentsForDate.filter(a => ['confirmed'].includes(a.status)).length,
+    cancelled: cancelledForDate.length,
   };
 
   const handleAppointmentClick = (appointment: AdminSpaAppointment) => {
