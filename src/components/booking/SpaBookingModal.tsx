@@ -149,15 +149,23 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   // filtering out slots already booked (including 15-min cleanup buffer).
   const availableStartTimes = useMemo(() => {
     if (!service || !selectedDate) return [];
+    // For same-day wellness bookings, require ≥ 20 min notice from now
+    let minStartTime: string | undefined;
+    if (isSameDayEligible && isSameDay(selectedDate, new Date())) {
+      const cutoff = addMinutesFn(new Date(), 20);
+      minStartTime = format(cutoff, "HH:mm");
+    }
     return generateAvailableStartTimes(
       availability,
       service.id,
       selectedDate,
       service.duration_minutes,
       service.cleanup_minutes,
-      bookedSlots
+      bookedSlots,
+      undefined,
+      minStartTime
     );
-  }, [availability, service, selectedDate, bookedSlots]);
+  }, [availability, service, selectedDate, bookedSlots, isSameDayEligible]);
 
   const coverageOnDate = useMemo(() => {
     if (!service || !selectedDate) return false;
