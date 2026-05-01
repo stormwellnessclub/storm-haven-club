@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { SimpleAgreementCard } from "@/components/SimpleAgreementCard";
+import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
