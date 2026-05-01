@@ -96,6 +96,7 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
   const runConflictCheck = useCallback(
     async (time: string) => {
       setConflict(null);
+      setConflictDetail(null);
       setResolvedTherapistId(null);
       setResolvedRoomId(null);
       if (!selectedService || !appointment) return;
@@ -112,22 +113,24 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
       const hasManualTherapist = therapistId !== "auto";
       const hasManualRoom = roomId !== "auto";
 
-      if (!slot && (!hasManualTherapist || !hasManualRoom)) {
+      // Edits don't require a covering availability window if the appointment
+      // already has a therapist or room — admins routinely move appointments
+      // outside default windows. Only warn, don't block.
+      if (!slot && !hasManualTherapist && !hasManualRoom && !appointment.staff_id && !appointment.room_id) {
         setConflict(
-          "That time is outside the configured therapist or room availability for this service. Pick another time, or assign a therapist and room manually to override."
+          "That time is outside the configured therapist or room availability for this service. Pick another time, or assign a therapist and room manually."
         );
         return;
       }
 
       // For edits: if user left "auto", prefer the appointment's current therapist/room
-      // when the covering window doesn't otherwise assign one. This keeps simple time
-      // moves working without forcing a re-pick.
+      // first, then fall back to the slot's auto-assigned resource.
       const resolvedTherapist = hasManualTherapist
         ? therapistId
-        : slot?.therapist_id || appointment.staff_id || null;
+        : appointment.staff_id || slot?.therapist_id || null;
       const resolvedRoom = hasManualRoom
         ? roomId
-        : slot?.room_id || appointment.room_id || null;
+        : appointment.room_id || slot?.room_id || null;
       setResolvedTherapistId(resolvedTherapist);
       setResolvedRoomId(resolvedRoom);
 
@@ -146,8 +149,14 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           roomId: resolvedRoom || undefined,
           excludeAppointmentId: appointment.id,
         });
-        if (!result.available) {
-          const types = new Set(result.conflictingAppointments.map((c: any) => c._conflictType));
+
+        // Defensive: drop any conflict that points back at this same appointment.
+        const realConflicts = (result.conflictingAppointments || []).filter(
+          (c: any) => c.id !== appointment.id
+        );
+
+        if (realConflicts.length > 0) {
+          const types = new Set(realConflicts.map((c: any) => c._conflictType));
           if (types.has("staff") && types.has("room")) {
             setConflict("Both the therapist and treatment room are already booked at this time.");
           } else if (types.has("room")) {
@@ -155,6 +164,9 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           } else {
             setConflict("This therapist already has a booking at this time.");
           }
+          setConflictDetail(
+            "You can override and save anyway if you’re reshuffling the schedule."
+          );
         }
       } catch {
         // fail-soft
