@@ -143,6 +143,7 @@ export default function MemberKidsCare() {
   return (
     <MemberLayout title="Kids Care">
       <div className="max-w-2xl mx-auto space-y-6">
+        <ResumeBookingBanner kind="kids-care" onResume={() => navigate("/member/kids-care-bookings")} />
         {/* Success Message */}
         {showSuccess && (
           <Card className="border-primary/30 bg-primary/5">
