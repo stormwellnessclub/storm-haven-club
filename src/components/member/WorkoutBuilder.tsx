@@ -121,7 +121,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-3xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{editingTemplate ? "Edit Workout Template" : "Build Custom Workout"}</DialogTitle>
             <DialogDescription>
@@ -191,7 +191,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                           <div>
                             <Label className="text-xs">Sets</Label>
                             <Input
@@ -199,7 +199,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                               min={1}
                               value={ex.sets}
                               onChange={(e) => updateExercise(idx, "sets", parseInt(e.target.value) || 1)}
-                              className="h-8 text-sm"
+                              className="h-10 text-sm"
                             />
                           </div>
                           <div>
@@ -209,7 +209,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                               min={1}
                               value={ex.reps}
                               onChange={(e) => updateExercise(idx, "reps", parseInt(e.target.value) || 1)}
-                              className="h-8 text-sm"
+                              className="h-10 text-sm"
                             />
                           </div>
                           <div>
@@ -220,7 +220,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                               value={ex.weight || ""}
                               onChange={(e) => updateExercise(idx, "weight", e.target.value ? parseInt(e.target.value) : undefined)}
                               placeholder="lbs"
-                              className="h-8 text-sm"
+                              className="h-10 text-sm"
                             />
                           </div>
                           <div>
@@ -230,7 +230,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                               min={0}
                               value={ex.rest}
                               onChange={(e) => updateExercise(idx, "rest", parseInt(e.target.value) || 0)}
-                              className="h-8 text-sm"
+                              className="h-10 text-sm"
                             />
                           </div>
                         </div>
@@ -248,12 +248,12 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
             </Button>
 
             {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 -mx-4 sm:mx-0 px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] bg-background border-t sm:border-0 sm:static">
               <Button
                 onClick={handleSaveTemplate}
                 disabled={!name.trim() || exercises.length === 0 || isSaving}
                 loading={isSaving}
-                className="flex-1"
+                className="flex-1 min-h-[44px]"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {editingTemplate ? "Update Template" : "Save as Template"}
@@ -263,7 +263,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                 onClick={handleLogWorkout}
                 disabled={exercises.length === 0 || isLogging}
                 loading={isLogging}
-                className="flex-1"
+                className="flex-1 min-h-[44px]"
               >
                 <Play className="h-4 w-4 mr-2" />
                 Log Workout Now

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { SimpleAgreementCard } from "@/components/SimpleAgreementCard";
+import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -142,6 +143,7 @@ export default function MemberKidsCare() {
   return (
     <MemberLayout title="Kids Care">
       <div className="max-w-2xl mx-auto space-y-6">
+        <ResumeBookingBanner kind="kids-care" onResume={() => navigate("/member/kids-care-bookings")} />
         {/* Success Message */}
         {showSuccess && (
           <Card className="border-primary/30 bg-primary/5">
