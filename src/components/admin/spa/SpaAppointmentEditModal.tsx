@@ -43,8 +43,10 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
   const [roomId, setRoomId] = useState<string>("auto");
   const [staffNotes, setStaffNotes] = useState("");
   const [conflict, setConflict] = useState<string | null>(null);
+  const [conflictDetail, setConflictDetail] = useState<string | null>(null);
   const [resolvedTherapistId, setResolvedTherapistId] = useState<string | null>(null);
   const [resolvedRoomId, setResolvedRoomId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Pre-populate when appointment changes
   useEffect(() => {
