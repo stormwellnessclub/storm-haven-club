@@ -1,43 +1,32 @@
-# Resume Mobile UX & Persistence Overhaul
+# Finish Mobile UX & Persistence Overhaul — Phases 5 & 6
 
-Phases 1 and 2a are done (Workouts page mobile-optimized, AI Generator persists across dismissals). This plan covers the remaining phases.
+Phases 1–4 are done. This plan closes out the remaining work.
 
-## Phase 2b — Persist Program Generator
-**File:** `src/components/member/GenerateProgramModal.tsx`
-- Replace `useState` for `step` and `preferences` with `usePersistedState` (key: `program-gen`).
-- Remove auto-reset on dismiss; add explicit "Start over" button.
-- Clear persisted state only on successful program creation.
+## Phase 5 — Mobile sizing pass for WorkoutBuilder
 
-## Phase 3 — Class Booking Flow Persistence + Resume
-**Files:** `src/pages/Schedule.tsx`, `src/pages/Classes.tsx`, booking modal/sheet components, `src/pages/member/Bookings.tsx`, `src/pages/portal/Bookings.tsx`
-- Persist class booking draft (selected session id, attendee info, waiver state, payment step) in `sessionStorage` keyed by user.
-- If user dismisses the booking sheet mid-flow, do **not** reset — re-opening any class returns to the same step for that session.
-- Add a dismissible **"Resume booking"** banner at top of `/schedule`, member Bookings, and portal Bookings when a draft exists. Tapping it reopens the sheet at the saved step.
-- Auto-clear draft on successful booking, explicit cancel, or after 60 minutes.
+**File:** `src/components/member/WorkoutBuilder.tsx`
 
-## Phase 4 — Kids Care Booking Flow Persistence + Resume
-**Files:** `src/pages/member/KidsCare.tsx`, `src/pages/member/KidsCareServiceForm.tsx`, `src/pages/member/KidsCareBookings.tsx`
-- Same pattern as Phase 3: persist child selection, date/time, hours, payment step.
-- Resume CTA on `/member/kids-care` and `/member/kids-care/bookings`.
-- Clear on success or explicit cancel.
+- `DialogContent`: change `sm:max-w-3xl max-h-[90vh]` → `w-[calc(100vw-1rem)] sm:max-w-3xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6`.
+- Per-exercise `grid grid-cols-4 gap-2` (Sets/Reps/Weight/Rest) → `grid grid-cols-2 md:grid-cols-4 gap-2` so the four numeric inputs don't get squashed on mobile.
+- Bump exercise number inputs from `h-8` → `h-10` and Save/Log action buttons to `min-h-[44px]` for proper touch targets.
+- Make the action row sticky on mobile: wrap the Save/Log buttons in `sticky bottom-0 -mx-4 sm:mx-0 px-4 sm:px-0 pt-3 pb-[env(safe-area-inset-bottom)] bg-background border-t sm:border-0 sm:static`.
 
-## Phase 5 — Mobile Sizing Pass for Heavy Modals
-**Files:** `src/components/member/WorkoutBuilder.tsx`, class booking sheet, kids-care service form, any 4-column grid modals
-- Convert `DialogContent` to use `w-[calc(100vw-1rem)] max-w-[640px] max-h-[100dvh] overflow-y-auto` on mobile.
-- Replace 4-column exercise/option grids with 2-column on mobile, 4 on `md:`.
-- Ensure all primary CTAs are sticky-bottom on mobile (`sticky bottom-0 bg-background pt-3 pb-[env(safe-area-inset-bottom)]`).
-- Bump touch targets to `min-h-[44px]`.
-- Wrap any horizontal tab/filter rows in `overflow-x-auto` with hidden scrollbar.
+## Phase 6 — Kids Care resume banner + QA
 
-## Phase 6 — Verification
-- Manually QA on iPhone Safari at 390x844: open each flow, dismiss mid-step, reopen → confirm step is preserved and Resume banner appears.
-- Confirm modals fit viewport without horizontal scrolling.
+**File:** `src/pages/member/KidsCare.tsx`
+- Add `<ResumeBookingBanner kind="kids-care" onResume={...} />` near the top of the page content.
+- On resume, navigate to `/member/kids-care/service` (or whichever entry the existing flow uses) — the form already reads its draft from `bookingDraft.ts` and will rehydrate.
 
-## Technical Notes
-- Reuse existing `src/hooks/usePersistedState.ts`. For booking drafts that need a TTL, add a sibling `usePersistedDraft<T>(key, ttlMs)` that stores `{value, savedAt}` and auto-expires.
-- Resume banner = small shared component `<ResumeBookingBanner kind="class" | "kids-care" />` reading from the same storage keys.
-- All keys namespaced per-user: `swc:${userId}:class-booking-draft`, etc., to avoid cross-account leakage.
+**File:** `src/pages/member/KidsCareServiceForm.tsx` (verify only)
+- Confirm it reads from `readKidsCareDraft()` on mount and calls `clearKidsCareDraft()` on successful submit. If not already wired (Phase 4 covered the modal, not the standalone form), add the same persistence hooks here using `usePersistedState` keyed off `swc:booking-draft:kids-care`.
 
-## Out of Scope
-- No changes to backend RPCs or RLS.
-- No new Stripe flows; existing payment steps are simply re-entered at the saved index.
+**Verification at 390x844 (iPhone 12/13/14):**
+- Workouts → AI Generator → set goal → close sheet → reopen: state preserved.
+- Programs → AI Generator → close mid-step → reopen: state preserved, "Start over" works.
+- Schedule → tap a class → pick payment → close sheet → schedule shows Resume banner → tap Resume → returns to same step.
+- Kids Care → start booking → close → Resume banner shows on `/member/kids-care` and `/member/kids-care/bookings`.
+- WorkoutBuilder: open on mobile, scroll, verify Save/Log buttons remain reachable, no horizontal overflow.
+
+## Out of scope
+- No backend, RPC, or RLS changes.
+- No new payment flows — only re-entry into existing steps.
