@@ -1,40 +1,54 @@
-I found the reason this can still happen: the database conflict function now excludes the current appointment correctly, but the edit modal is still doing client-side pre-checks and then updating `spa_appointments` directly. That means stale auto-assignment or the old warning state can still block Save before the actual update gets a chance to happen. Also, the planned backend update RPC was not implemented yet.
+## Goal
 
-Plan:
+Allow members **and** non-members to book Red Light Therapy and Dry Cryotherapy on the same day, with a 20-minute minimum notice. Members with available wellness credits use a credit (deducted atomically and shown in their account + credit history); everyone else pays as today.
 
-1. Add an authoritative admin edit function
-- Create a backend RPC `update_spa_appointment_admin(...)`.
-- It will load the appointment being edited, verify the caller is staff/admin/front desk, and run the conflict check while excluding that same appointment ID.
-- It will update the appointment in one atomic operation.
-- It will accept `override_conflict`; when true, it will save anyway so staff can reshuffle schedules.
+## Current behavior (why it's broken)
 
-2. Make the frontend use the admin edit function instead of direct table update
-- Update `useUpdateSpaAppointment` to call the new RPC.
-- Add an `overrideConflict` parameter to the hook input.
-- Preserve the same cache invalidations and success/error toasts.
+- `SpaBookingModal` hard-codes the earliest selectable date to **tomorrow** (`addDays(new Date(), 1)`) for every spa service.
+- The time grid does not filter past times for "today", so even if the calendar allowed today, the user could pick a time in the past.
+- The `book_wellness_appointment` RPC works correctly for members — it locks `member_credits`, decrements `credits_remaining`, and writes `credit_id` + `credit_type` onto `spa_appointments`. The member's Credit History page (`/member/credits`) already reads usage from `spa_appointments` by `credit_type`, so the deduction is already visible there. No schema change needed for history.
 
-3. Stop stale conflict warnings from blocking normal edits
-- In `SpaAppointmentEditModal`, remove the hard block where an old `conflict` state prevents saving.
-- On normal Save, send the current form values to the RPC with `overrideConflict: false` and let the backend return the real answer.
-- If the backend says there is a real conflict, show the warning and enable `Override & Save`.
+## Plan
 
-4. Make auto assignment less likely to pick the blocked resource
-- For edits, if therapist or room is set to Auto, resolve fresh at save time.
-- Prefer the existing therapist/room only when keeping the same appointment’s resources makes sense.
-- If a user manually picks another therapist/room, use that exact resource.
+### 1. Same-day booking + 20-minute notice (frontend only for Red Light / Dry Cryo)
 
-5. Improve the error message so it’s actionable
-- If a real conflict exists, show whether it is therapist or room related and include the blocking appointment ID internally from the RPC result.
-- Keep `Override & Save` visible so staff can move the first appointment even before moving other appointments.
+In `src/components/booking/SpaBookingModal.tsx`:
 
-6. Keep cancellation cleanup behavior
-- Keep cancelled/no-show hidden by default from the admin day view and stats.
-- Keep the permanent Remove option for cancelled/no-show rows.
+- Detect "wellness" services using `getWellnessCreditType(service.name)` (already imported). When non-null (red light or dry cryo), treat the service as **same-day eligible**.
+- Replace the single `minDate` constant with a service-aware value:
+  - Wellness service → `minDate = startOfDay(today)`
+  - All other spa services → keep current `addDays(today, 1)` (next-day rule).
+- Default `selectedDate` becomes today for wellness services, tomorrow for others.
+- Filter `availableStartTimes` for "today" so only slots whose start is **≥ now + 20 minutes** remain. Implement in `src/lib/spaAvailability.ts` by accepting an optional `minStartTime` ("HH:mm") in `generateAvailableStartTimes` and dropping earlier slots; pass it from the modal only when the selected date is today and the service is a wellness service.
+- If the user picks today and no slots remain after the 20-min cutoff, show the existing "no slots" message and the next-available helper.
 
-Technical details:
-- New migration: create `public.update_spa_appointment_admin(...)` with `SECURITY DEFINER`, `search_path = public`, and role checks using existing role functions.
-- Update files:
-  - `src/hooks/useAdminSpaAppointments.ts`
-  - `src/components/admin/spa/SpaAppointmentEditModal.tsx`
-- Do not edit generated backend client/type files.
-- Existing `check_spa_appointment_conflict` will remain as the shared conflict detector; the new RPC will be the authoritative edit path.
+### 2. Non-members can use the same path
+
+Non-members currently fall through to the `paymentMethod === "card"` branch which calls `charge_saved_card` and requires `members.stripe_customer_id`. For non-members:
+
+- The booking modal already supports `useNonMemberProfile`. We will allow non-members to book wellness same-day by routing them through the existing **`stripe-payment` charge_saved_card** flow against their non-member Stripe customer (already used elsewhere in the portal — we'll mirror what `src/pages/portal/Recovery.tsx` / non-member checkout does). Specifically, when the user has no `members` row, look up `non_member_profiles.stripe_customer_id` and use that. If neither exists, fall back to embedded checkout (the existing non-member flow).
+- No DB change needed — `spa_appointments` already accepts `member_id IS NULL` rows.
+
+### 3. Members with credits — credit deduction visibility
+
+Already wired: `book_wellness_appointment` decrements `member_credits.credits_remaining` atomically and stamps `credit_id` + `credit_type` on `spa_appointments`. The member portal's Credit History (`src/pages/member/Credits.tsx` line 71) lists those rows. No code change required, but we will:
+
+- After booking via credit, call `refetchCredits()` (already done) **and** invalidate the `["member-credit-history", memberId]` query so the History page updates immediately.
+- Add a small "Used 1 credit · X remaining" toast on success when `paymentMethod === "credit"`.
+
+### 4. Acceptance checks
+
+- Member with red_light credits opens Wellness page → Book → today appears in calendar → only times ≥ now+20min are listed → booking succeeds → `member_credits.credits_remaining` decreases by 1 → appointment shows in `/member/credits` history with "Red Light Therapy" + date.
+- Member without credits → same-day still bookable, charged to saved card.
+- Non-member → same-day red light/cryo bookable via saved card or embedded checkout.
+- Other spa services (massage, facial, etc.) → still require next-day booking (unchanged).
+
+## Files to change
+
+- `src/lib/spaAvailability.ts` — add optional `minStartTime` param to `generateAvailableStartTimes`.
+- `src/components/booking/SpaBookingModal.tsx` — service-aware `minDate`, default date, today's 20-min cutoff, non-member same-day card path, query invalidation on credit booking.
+
+## Out of scope
+
+- No DB migration. No changes to `book_wellness_appointment` RPC or to spa_appointments schema.
+- Admin-side booking unchanged.

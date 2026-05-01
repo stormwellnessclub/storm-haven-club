@@ -38,7 +38,8 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, addDays, addMonths } from "date-fns";
+import { format, addDays, addMonths, startOfDay, isSameDay, addMinutes as addMinutesFn } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles, FileCheck, ExternalLink, Check, ArrowRight } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -68,8 +69,15 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const { data: agreements } = useAllAgreements();
   const { data: availability } = useSpaServiceAvailability();
   const bookAppointment = useSpaBookAppointment();
+  const queryClient = useQueryClient();
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(addDays(new Date(), 1));
+  // Wellness services (red light / dry cryo) allow same-day booking with 20-min notice
+  const creditTypeForService = service ? getWellnessCreditType(service.name) : null;
+  const isSameDayEligible = creditTypeForService !== null;
+
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    isSameDayEligible ? startOfDay(new Date()) : addDays(new Date(), 1)
+  );
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [memberNotes, setMemberNotes] = useState("");
   const [showWaiverInline, setShowWaiverInline] = useState(false);
@@ -141,15 +149,23 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   // filtering out slots already booked (including 15-min cleanup buffer).
   const availableStartTimes = useMemo(() => {
     if (!service || !selectedDate) return [];
+    // For same-day wellness bookings, require ≥ 20 min notice from now
+    let minStartTime: string | undefined;
+    if (isSameDayEligible && isSameDay(selectedDate, new Date())) {
+      const cutoff = addMinutesFn(new Date(), 20);
+      minStartTime = format(cutoff, "HH:mm");
+    }
     return generateAvailableStartTimes(
       availability,
       service.id,
       selectedDate,
       service.duration_minutes,
       service.cleanup_minutes,
-      bookedSlots
+      bookedSlots,
+      undefined,
+      minStartTime
     );
-  }, [availability, service, selectedDate, bookedSlots]);
+  }, [availability, service, selectedDate, bookedSlots, isSameDayEligible]);
 
   const coverageOnDate = useMemo(() => {
     if (!service || !selectedDate) return false;
@@ -258,6 +274,12 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         if (!result?.success) throw new Error(result?.error || "Failed to book with wellness credit");
 
         refetchCredits();
+        // Refresh credit history list immediately
+        queryClient.invalidateQueries({ queryKey: ["member-credit-history"] });
+        queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
+        toast.success(
+          `Booked! 1 ${getCreditTypeDisplayName(creditType)} credit used · ${result?.credits_remaining ?? "—"} remaining`
+        );
 
         // Capture appointment id for intake follow-up (RPC returns it as appointment_id)
         const newAppointmentId = result?.appointment_id || result?.id || null;
@@ -273,13 +295,25 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         }
       } else {
         if (paymentMethod === "card" && selectedPaymentMethodId) {
+          // Find a Stripe customer — member first, fall back to non-member profile
           const { data: memberData } = await supabase
             .from("members")
             .select("id, stripe_customer_id")
             .eq("user_id", user.id)
             .maybeSingle();
 
-          if (!memberData?.stripe_customer_id) {
+          let stripeCustomerId: string | null = memberData?.stripe_customer_id ?? null;
+
+          if (!stripeCustomerId) {
+            const { data: nonMember } = await supabase
+              .from("non_member_profiles")
+              .select("stripe_customer_id")
+              .eq("user_id", user.id)
+              .maybeSingle();
+            stripeCustomerId = nonMember?.stripe_customer_id ?? null;
+          }
+
+          if (!stripeCustomerId) {
             throw new Error("No payment method on file. Please add a payment method first.");
           }
 
@@ -290,7 +324,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
               action: "charge_saved_card",
               amount: totalAmountCents,
               description: `Spa Service: ${service.name}`,
-              stripeCustomerId: memberData.stripe_customer_id,
+              stripeCustomerId,
               paymentMethodId: selectedPaymentMethodId,
             },
           });
@@ -339,7 +373,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
     }
   };
 
-  const minDate = addDays(new Date(), 1);
+  const minDate = isSameDayEligible ? startOfDay(new Date()) : addDays(new Date(), 1);
   const maxDate = addMonths(new Date(), 3);
 
   return (
