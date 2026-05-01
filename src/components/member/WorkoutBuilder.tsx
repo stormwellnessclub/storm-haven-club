@@ -248,12 +248,12 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
             </Button>
 
             {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 -mx-4 sm:mx-0 px-4 sm:px-0 pb-[env(safe-area-inset-bottom)] bg-background border-t sm:border-0 sm:static">
               <Button
                 onClick={handleSaveTemplate}
                 disabled={!name.trim() || exercises.length === 0 || isSaving}
                 loading={isSaving}
-                className="flex-1"
+                className="flex-1 min-h-[44px]"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {editingTemplate ? "Update Template" : "Save as Template"}
@@ -263,7 +263,7 @@ export function WorkoutBuilder({ open, onOpenChange, editingTemplate }: WorkoutB
                 onClick={handleLogWorkout}
                 disabled={exercises.length === 0 || isLogging}
                 loading={isLogging}
-                className="flex-1"
+                className="flex-1 min-h-[44px]"
               >
                 <Play className="h-4 w-4 mr-2" />
                 Log Workout Now
