@@ -274,6 +274,12 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
         if (!result?.success) throw new Error(result?.error || "Failed to book with wellness credit");
 
         refetchCredits();
+        // Refresh credit history list immediately
+        queryClient.invalidateQueries({ queryKey: ["member-credit-history"] });
+        queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
+        toast.success(
+          `Booked! 1 ${getCreditTypeDisplayName(creditType)} credit used · ${result?.credits_remaining ?? "—"} remaining`
+        );
 
         // Capture appointment id for intake follow-up (RPC returns it as appointment_id)
         const newAppointmentId = result?.appointment_id || result?.id || null;
