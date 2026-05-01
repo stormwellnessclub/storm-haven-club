@@ -116,8 +116,15 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
         return;
       }
 
-      const resolvedTherapist = hasManualTherapist ? therapistId : slot?.therapist_id || null;
-      const resolvedRoom = hasManualRoom ? roomId : slot?.room_id || null;
+      // For edits: if user left "auto", prefer the appointment's current therapist/room
+      // when the covering window doesn't otherwise assign one. This keeps simple time
+      // moves working without forcing a re-pick.
+      const resolvedTherapist = hasManualTherapist
+        ? therapistId
+        : slot?.therapist_id || appointment.staff_id || null;
+      const resolvedRoom = hasManualRoom
+        ? roomId
+        : slot?.room_id || appointment.room_id || null;
       setResolvedTherapistId(resolvedTherapist);
       setResolvedRoomId(resolvedRoom);
 
