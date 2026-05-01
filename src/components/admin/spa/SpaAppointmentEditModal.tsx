@@ -175,11 +175,11 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
     [selectedService, dateObj, availability, serviceId, therapistId, roomId, checkAvail, appointment]
   );
 
-  // Re-run check when fields change
+  // Re-run check when fields change (including appointmentTime)
   useEffect(() => {
     if (appointmentTime) void runConflictCheck(appointmentTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [therapistId, roomId, appointmentDate, serviceId]);
+  }, [therapistId, roomId, appointmentDate, serviceId, appointmentTime]);
 
   const handleTimeBlur = () => {
     if (!timeInputDisplay.trim()) {
