@@ -43,8 +43,10 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
   const [roomId, setRoomId] = useState<string>("auto");
   const [staffNotes, setStaffNotes] = useState("");
   const [conflict, setConflict] = useState<string | null>(null);
+  const [conflictDetail, setConflictDetail] = useState<string | null>(null);
   const [resolvedTherapistId, setResolvedTherapistId] = useState<string | null>(null);
   const [resolvedRoomId, setResolvedRoomId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Pre-populate when appointment changes
   useEffect(() => {
@@ -59,6 +61,7 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
     setRoomId(appointment.room_id || "auto");
     setStaffNotes((appointment as any).staff_notes || "");
     setConflict(null);
+    setConflictDetail(null);
     setResolvedTherapistId(null);
     setResolvedRoomId(null);
   }, [appointment?.id]);
@@ -93,6 +96,7 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
   const runConflictCheck = useCallback(
     async (time: string) => {
       setConflict(null);
+      setConflictDetail(null);
       setResolvedTherapistId(null);
       setResolvedRoomId(null);
       if (!selectedService || !appointment) return;
@@ -109,22 +113,24 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
       const hasManualTherapist = therapistId !== "auto";
       const hasManualRoom = roomId !== "auto";
 
-      if (!slot && (!hasManualTherapist || !hasManualRoom)) {
+      // Edits don't require a covering availability window if the appointment
+      // already has a therapist or room — admins routinely move appointments
+      // outside default windows. Only warn, don't block.
+      if (!slot && !hasManualTherapist && !hasManualRoom && !appointment.staff_id && !appointment.room_id) {
         setConflict(
-          "That time is outside the configured therapist or room availability for this service. Pick another time, or assign a therapist and room manually to override."
+          "That time is outside the configured therapist or room availability for this service. Pick another time, or assign a therapist and room manually."
         );
         return;
       }
 
       // For edits: if user left "auto", prefer the appointment's current therapist/room
-      // when the covering window doesn't otherwise assign one. This keeps simple time
-      // moves working without forcing a re-pick.
+      // first, then fall back to the slot's auto-assigned resource.
       const resolvedTherapist = hasManualTherapist
         ? therapistId
-        : slot?.therapist_id || appointment.staff_id || null;
+        : appointment.staff_id || slot?.therapist_id || null;
       const resolvedRoom = hasManualRoom
         ? roomId
-        : slot?.room_id || appointment.room_id || null;
+        : appointment.room_id || slot?.room_id || null;
       setResolvedTherapistId(resolvedTherapist);
       setResolvedRoomId(resolvedRoom);
 
@@ -143,8 +149,14 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           roomId: resolvedRoom || undefined,
           excludeAppointmentId: appointment.id,
         });
-        if (!result.available) {
-          const types = new Set(result.conflictingAppointments.map((c: any) => c._conflictType));
+
+        // Defensive: drop any conflict that points back at this same appointment.
+        const realConflicts = (result.conflictingAppointments || []).filter(
+          (c: any) => c.id !== appointment.id
+        );
+
+        if (realConflicts.length > 0) {
+          const types = new Set(realConflicts.map((c: any) => c._conflictType));
           if (types.has("staff") && types.has("room")) {
             setConflict("Both the therapist and treatment room are already booked at this time.");
           } else if (types.has("room")) {
@@ -152,6 +164,9 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           } else {
             setConflict("This therapist already has a booking at this time.");
           }
+          setConflictDetail(
+            "You can override and save anyway if you’re reshuffling the schedule."
+          );
         }
       } catch {
         // fail-soft
@@ -160,11 +175,11 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
     [selectedService, dateObj, availability, serviceId, therapistId, roomId, checkAvail, appointment]
   );
 
-  // Re-run check when fields change
+  // Re-run check when fields change (including appointmentTime)
   useEffect(() => {
     if (appointmentTime) void runConflictCheck(appointmentTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [therapistId, roomId, appointmentDate, serviceId]);
+  }, [therapistId, roomId, appointmentDate, serviceId, appointmentTime]);
 
   const handleTimeBlur = () => {
     if (!timeInputDisplay.trim()) {
@@ -199,49 +214,75 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
     (selectedService.price !== appointment.service_price ||
       (selectedService.member_price ?? null) !== (appointment.member_price ?? null));
 
-  const handleSave = async () => {
+  const handleSave = async (override = false) => {
     if (!selectedService || !appointmentTime || !appointmentDate) return;
-    if (conflict) return;
+    if (conflict && !override) return;
 
-    const resolvedTherapist = therapistId !== "auto" ? therapistId : resolvedTherapistId || null;
-    const resolvedRoom = roomId !== "auto" ? roomId : resolvedRoomId || null;
+    // Compute fresh resolution at save time so we never rely on stale state.
+    const slot = findCoveringSlot(
+      availability,
+      serviceId,
+      dateObj,
+      appointmentTime,
+      selectedService.duration_minutes,
+      selectedService.cleanup_minutes
+    );
+    const hasManualTherapist = therapistId !== "auto";
+    const hasManualRoom = roomId !== "auto";
+    const resolvedTherapist = hasManualTherapist
+      ? therapistId
+      : appointment.staff_id || slot?.therapist_id || null;
+    const resolvedRoom = hasManualRoom
+      ? roomId
+      : appointment.room_id || slot?.room_id || null;
 
     if (!resolvedTherapist && !resolvedRoom) {
       setConflict("Please assign a therapist or room.");
       return;
     }
 
-    // Final server-side check excluding self
-    const result = await checkAvail.mutateAsync({
-      appointmentDate: dateObj,
-      appointmentTime,
-      durationMinutes: selectedService.duration_minutes,
-      cleanupMinutes: selectedService.cleanup_minutes,
-      staffId: resolvedTherapist || undefined,
-      roomId: resolvedRoom || undefined,
-      excludeAppointmentId: appointment.id,
-    });
-    if (!result.available) {
-      setConflict("That therapist or room is already booked for the full service plus cleanup time.");
-      return;
+    if (!override) {
+      // Final server-side check excluding self
+      const result = await checkAvail.mutateAsync({
+        appointmentDate: dateObj,
+        appointmentTime,
+        durationMinutes: selectedService.duration_minutes,
+        cleanupMinutes: selectedService.cleanup_minutes,
+        staffId: resolvedTherapist || undefined,
+        roomId: resolvedRoom || undefined,
+        excludeAppointmentId: appointment.id,
+      });
+      const realConflicts = (result.conflictingAppointments || []).filter(
+        (c: any) => c.id !== appointment.id
+      );
+      if (realConflicts.length > 0) {
+        setConflict("That therapist or room is already booked for the full service plus cleanup time.");
+        setConflictDetail("You can override and save anyway if you’re reshuffling the schedule.");
+        return;
+      }
     }
 
-    await updateAppt.mutateAsync({
-      appointmentId: appointment.id,
-      service_id: selectedService.id,
-      service_name: selectedService.name,
-      service_category: selectedService.category,
-      service_price: selectedService.price,
-      member_price: selectedService.member_price ?? null,
-      duration_minutes: selectedService.duration_minutes,
-      cleanup_minutes: selectedService.cleanup_minutes,
-      appointment_date: appointmentDate,
-      appointment_time: appointmentTime + ":00",
-      staff_id: resolvedTherapist,
-      room_id: resolvedRoom,
-      staff_notes: staffNotes || null,
-    });
-    onOpenChange(false);
+    setSaving(true);
+    try {
+      await updateAppt.mutateAsync({
+        appointmentId: appointment.id,
+        service_id: selectedService.id,
+        service_name: selectedService.name,
+        service_category: selectedService.category,
+        service_price: selectedService.price,
+        member_price: selectedService.member_price ?? null,
+        duration_minutes: selectedService.duration_minutes,
+        cleanup_minutes: selectedService.cleanup_minutes,
+        appointment_date: appointmentDate,
+        appointment_time: appointmentTime + ":00",
+        staff_id: resolvedTherapist,
+        room_id: resolvedRoom,
+        staff_notes: staffNotes || null,
+      });
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -311,9 +352,14 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           </div>
 
           {conflict && (
-            <div className="flex items-center gap-2 p-3 border border-destructive/30 bg-destructive/5 rounded-md">
-              <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-              <p className="text-sm text-destructive">{conflict}</p>
+            <div className="p-3 border border-destructive/30 bg-destructive/5 rounded-md space-y-1">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                <p className="text-sm text-destructive">{conflict}</p>
+              </div>
+              {conflictDetail && (
+                <p className="text-xs text-muted-foreground pl-6">{conflictDetail}</p>
+              )}
             </div>
           )}
 
@@ -380,21 +426,32 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          {conflict && !timeError && serviceId && appointmentTime && appointmentDate && (
+            <Button
+              variant="destructive"
+              onClick={() => handleSave(true)}
+              disabled={saving || updateAppt.isPending}
+            >
+              {(saving || updateAppt.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Override & Save
+            </Button>
+          )}
           <Button
-            onClick={handleSave}
+            onClick={() => handleSave(false)}
             disabled={
               !serviceId ||
               !appointmentTime ||
               !appointmentDate ||
               !!conflict ||
               !!timeError ||
+              saving ||
               updateAppt.isPending ||
               checkAvail.isPending
             }
           >
-            {(updateAppt.isPending || checkAvail.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {(saving || updateAppt.isPending || checkAvail.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Save Changes
           </Button>
         </DialogFooter>

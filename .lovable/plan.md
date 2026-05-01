@@ -1,35 +1,42 @@
-I found the issue in the spa edit flow: the edit modal does try to exclude the appointment being edited, but the client fallback conflict check still includes that same appointment, and the server/database conflict function may not be consistently handling edit exclusions depending on the deployed function signature. That makes an appointment conflict with itself when you change time, duration, therapist, or room.
+I checked the current code and backend function. The backend RPC now excludes the appointment correctly, but the edit modal can still reintroduce the same failure in the UI because it relies on cached auto-assignment state and the existing start time / cleanup window. I’ll tighten the edit path so edits are treated differently from new bookings and the current appointment can never be counted as its own blocker.
 
 Plan:
 
-1. Fix appointment edits so the current appointment does not block itself
-- Update the spa availability check fallback to respect `excludeAppointmentId` for both therapist and room conflict queries.
-- Keep the server-side RPC exclusion in place, but make the client fallback match it so editing works even if the RPC returns no rows or falls back.
-- Preserve real conflict protection: it will still block if the new time/duration overlaps a different appointment for the same therapist or room.
+1. Make edit saves compute therapist/room fresh every time
+- In `SpaAppointmentEditModal`, replace the save-time reliance on `resolvedTherapistId` / `resolvedRoomId` state with a fresh resolver based on the current form values.
+- If therapist/room are set to `auto`, prefer the appointment’s current therapist and room first, then fall back to the matching availability window.
+- This prevents stale “auto-assigned” state from saving/checking against the wrong resource after changing service, date, duration, or time.
 
-2. Make auto-assignment smarter during edits
-- In `SpaAppointmentEditModal`, when the appointment is being edited and therapist/room are set to auto, prefer the appointment’s current therapist/room if they are still valid for the new service/date/time.
-- If the current room or therapist is the only reason the slot appears blocked, the edit will be allowed because the appointment itself is excluded.
-- This supports examples like moving a 10:00 appointment to 11:00 when its existing service cleanup/hold had made 11:00 look blocked.
+2. Prevent the current appointment from appearing as a conflict in every path
+- Add a defensive client-side filter after `useCheckSpaAvailability` returns results: if the only returned conflict ID is the appointment being edited, treat it as available.
+- Keep real conflicts blocked if a different appointment overlaps the new time/duration/resource.
+- Improve conflict messages to include whether the blocking appointment is another booking, not just “therapist is booked.”
 
-3. Support service duration changes without false conflicts
-- Ensure changing a service from 90 minutes to 60 minutes recalculates the new duration + cleanup range and only checks that new range against other appointments.
-- The old appointment range will not be counted as a conflict against itself.
+3. Make time changes re-check immediately and reliably
+- Re-run the edit conflict check when `appointmentTime` changes, not only on blur and some field changes.
+- Clear old conflict messages when the user changes service, date, time, therapist, or room so a previous false conflict cannot keep the Save button disabled.
 
-4. Add a clean admin removal option for cancelled spa appointments
-- Add a “Remove from list” action for appointments with status `cancelled` in the admin appointments screen.
-- Implement this as a hard delete only for staff/admin users via existing role-protected appointment management access, so cancelled clutter can be removed when desired.
-- Add a confirmation prompt so it is not accidental.
+4. Add an admin override path for legitimate schedule reshuffling
+- Add a clearly labeled “Save anyway / Override conflict” option in the edit modal for admin/staff users when a conflict is detected.
+- This will allow your real workflow: move one client, then move the other clients afterward, instead of being trapped by the first blocked edit.
+- It will still show the conflict warning before override so accidental double-booking is visible.
 
-5. Keep cancelled appointments out of day operations by default
-- Adjust the main admin daily schedule counts and timeline so cancelled appointments do not keep appearing as normal scheduled items.
-- If useful for audit visibility, cancelled items can remain discoverable through historical data/querying, but they will not clutter the active daily appointment list.
+5. Use a backend edit RPC to avoid race conditions and RLS/update inconsistencies
+- Add a `update_spa_appointment_admin(...)` backend function that performs the appointment update in one place.
+- It will accept the appointment ID, new service/time/duration/staff/room/notes, and an `override_conflict` flag.
+- By default it runs the same conflict check excluding the appointment itself; with override enabled it updates anyway.
+- It will be restricted to existing staff/admin/front desk roles.
+
+6. Clean up cancelled/no-show visibility completely
+- Keep cancelled/no-show hidden by default in the schedule timeline.
+- Make the daily total reflect active appointments, with cancelled shown separately, so hidden cancelled appointments do not make the day look booked.
+- Keep the “Show cancelled” toggle and remove button for cleanup.
 
 Technical details:
-- Files to update:
-  - `src/hooks/useSpaBooking.ts`
-  - `src/hooks/useAdminSpaAppointments.ts`
+- Update:
   - `src/components/admin/spa/SpaAppointmentEditModal.tsx`
+  - `src/hooks/useAdminSpaAppointments.ts`
   - `src/pages/admin/Appointments.tsx`
-- Database may need a small migration to normalize `check_spa_appointment_conflict(...)` so the deployed backend function always accepts `p_room_id` and `p_exclude_appointment_id`, checks `confirmed/pending/checked_in/in_progress`, and excludes the edited appointment before overlap checks.
-- I will not edit the generated backend client/types files.
+  - likely a new database migration for the admin update RPC
+- Do not edit generated backend client/type files.
+- Preserve the existing conflict rules for normal new bookings; the override applies only to admin appointment edits.
