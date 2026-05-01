@@ -214,49 +214,75 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
     (selectedService.price !== appointment.service_price ||
       (selectedService.member_price ?? null) !== (appointment.member_price ?? null));
 
-  const handleSave = async () => {
+  const handleSave = async (override = false) => {
     if (!selectedService || !appointmentTime || !appointmentDate) return;
-    if (conflict) return;
+    if (conflict && !override) return;
 
-    const resolvedTherapist = therapistId !== "auto" ? therapistId : resolvedTherapistId || null;
-    const resolvedRoom = roomId !== "auto" ? roomId : resolvedRoomId || null;
+    // Compute fresh resolution at save time so we never rely on stale state.
+    const slot = findCoveringSlot(
+      availability,
+      serviceId,
+      dateObj,
+      appointmentTime,
+      selectedService.duration_minutes,
+      selectedService.cleanup_minutes
+    );
+    const hasManualTherapist = therapistId !== "auto";
+    const hasManualRoom = roomId !== "auto";
+    const resolvedTherapist = hasManualTherapist
+      ? therapistId
+      : appointment.staff_id || slot?.therapist_id || null;
+    const resolvedRoom = hasManualRoom
+      ? roomId
+      : appointment.room_id || slot?.room_id || null;
 
     if (!resolvedTherapist && !resolvedRoom) {
       setConflict("Please assign a therapist or room.");
       return;
     }
 
-    // Final server-side check excluding self
-    const result = await checkAvail.mutateAsync({
-      appointmentDate: dateObj,
-      appointmentTime,
-      durationMinutes: selectedService.duration_minutes,
-      cleanupMinutes: selectedService.cleanup_minutes,
-      staffId: resolvedTherapist || undefined,
-      roomId: resolvedRoom || undefined,
-      excludeAppointmentId: appointment.id,
-    });
-    if (!result.available) {
-      setConflict("That therapist or room is already booked for the full service plus cleanup time.");
-      return;
+    if (!override) {
+      // Final server-side check excluding self
+      const result = await checkAvail.mutateAsync({
+        appointmentDate: dateObj,
+        appointmentTime,
+        durationMinutes: selectedService.duration_minutes,
+        cleanupMinutes: selectedService.cleanup_minutes,
+        staffId: resolvedTherapist || undefined,
+        roomId: resolvedRoom || undefined,
+        excludeAppointmentId: appointment.id,
+      });
+      const realConflicts = (result.conflictingAppointments || []).filter(
+        (c: any) => c.id !== appointment.id
+      );
+      if (realConflicts.length > 0) {
+        setConflict("That therapist or room is already booked for the full service plus cleanup time.");
+        setConflictDetail("You can override and save anyway if you’re reshuffling the schedule.");
+        return;
+      }
     }
 
-    await updateAppt.mutateAsync({
-      appointmentId: appointment.id,
-      service_id: selectedService.id,
-      service_name: selectedService.name,
-      service_category: selectedService.category,
-      service_price: selectedService.price,
-      member_price: selectedService.member_price ?? null,
-      duration_minutes: selectedService.duration_minutes,
-      cleanup_minutes: selectedService.cleanup_minutes,
-      appointment_date: appointmentDate,
-      appointment_time: appointmentTime + ":00",
-      staff_id: resolvedTherapist,
-      room_id: resolvedRoom,
-      staff_notes: staffNotes || null,
-    });
-    onOpenChange(false);
+    setSaving(true);
+    try {
+      await updateAppt.mutateAsync({
+        appointmentId: appointment.id,
+        service_id: selectedService.id,
+        service_name: selectedService.name,
+        service_category: selectedService.category,
+        service_price: selectedService.price,
+        member_price: selectedService.member_price ?? null,
+        duration_minutes: selectedService.duration_minutes,
+        cleanup_minutes: selectedService.cleanup_minutes,
+        appointment_date: appointmentDate,
+        appointment_time: appointmentTime + ":00",
+        staff_id: resolvedTherapist,
+        room_id: resolvedRoom,
+        staff_notes: staffNotes || null,
+      });
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
