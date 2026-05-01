@@ -386,3 +386,33 @@ export function useUpdateSpaAppointment() {
     },
   });
 }
+
+/**
+ * Hard-deletes a spa appointment. Intended for admins clearing cancelled rows
+ * from the schedule. RLS already restricts this to staff/admin roles via the
+ * "Staff can manage all appointments" policy.
+ */
+export function useDeleteSpaAppointment() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (appointmentId: string) => {
+      if (!user) throw new Error("You must be signed in");
+      const { error } = await (supabase.from as any)("spa_appointments")
+        .delete()
+        .eq("id", appointmentId);
+      if (error) throw error;
+      return appointmentId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
+      toast.success("Appointment removed");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to remove appointment");
+    },
+  });
+}

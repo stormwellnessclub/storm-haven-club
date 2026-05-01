@@ -1,32 +1,35 @@
-# Finish Mobile UX & Persistence Overhaul — Phases 5 & 6
+I found the issue in the spa edit flow: the edit modal does try to exclude the appointment being edited, but the client fallback conflict check still includes that same appointment, and the server/database conflict function may not be consistently handling edit exclusions depending on the deployed function signature. That makes an appointment conflict with itself when you change time, duration, therapist, or room.
 
-Phases 1–4 are done. This plan closes out the remaining work.
+Plan:
 
-## Phase 5 — Mobile sizing pass for WorkoutBuilder
+1. Fix appointment edits so the current appointment does not block itself
+- Update the spa availability check fallback to respect `excludeAppointmentId` for both therapist and room conflict queries.
+- Keep the server-side RPC exclusion in place, but make the client fallback match it so editing works even if the RPC returns no rows or falls back.
+- Preserve real conflict protection: it will still block if the new time/duration overlaps a different appointment for the same therapist or room.
 
-**File:** `src/components/member/WorkoutBuilder.tsx`
+2. Make auto-assignment smarter during edits
+- In `SpaAppointmentEditModal`, when the appointment is being edited and therapist/room are set to auto, prefer the appointment’s current therapist/room if they are still valid for the new service/date/time.
+- If the current room or therapist is the only reason the slot appears blocked, the edit will be allowed because the appointment itself is excluded.
+- This supports examples like moving a 10:00 appointment to 11:00 when its existing service cleanup/hold had made 11:00 look blocked.
 
-- `DialogContent`: change `sm:max-w-3xl max-h-[90vh]` → `w-[calc(100vw-1rem)] sm:max-w-3xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6`.
-- Per-exercise `grid grid-cols-4 gap-2` (Sets/Reps/Weight/Rest) → `grid grid-cols-2 md:grid-cols-4 gap-2` so the four numeric inputs don't get squashed on mobile.
-- Bump exercise number inputs from `h-8` → `h-10` and Save/Log action buttons to `min-h-[44px]` for proper touch targets.
-- Make the action row sticky on mobile: wrap the Save/Log buttons in `sticky bottom-0 -mx-4 sm:mx-0 px-4 sm:px-0 pt-3 pb-[env(safe-area-inset-bottom)] bg-background border-t sm:border-0 sm:static`.
+3. Support service duration changes without false conflicts
+- Ensure changing a service from 90 minutes to 60 minutes recalculates the new duration + cleanup range and only checks that new range against other appointments.
+- The old appointment range will not be counted as a conflict against itself.
 
-## Phase 6 — Kids Care resume banner + QA
+4. Add a clean admin removal option for cancelled spa appointments
+- Add a “Remove from list” action for appointments with status `cancelled` in the admin appointments screen.
+- Implement this as a hard delete only for staff/admin users via existing role-protected appointment management access, so cancelled clutter can be removed when desired.
+- Add a confirmation prompt so it is not accidental.
 
-**File:** `src/pages/member/KidsCare.tsx`
-- Add `<ResumeBookingBanner kind="kids-care" onResume={...} />` near the top of the page content.
-- On resume, navigate to `/member/kids-care/service` (or whichever entry the existing flow uses) — the form already reads its draft from `bookingDraft.ts` and will rehydrate.
+5. Keep cancelled appointments out of day operations by default
+- Adjust the main admin daily schedule counts and timeline so cancelled appointments do not keep appearing as normal scheduled items.
+- If useful for audit visibility, cancelled items can remain discoverable through historical data/querying, but they will not clutter the active daily appointment list.
 
-**File:** `src/pages/member/KidsCareServiceForm.tsx` (verify only)
-- Confirm it reads from `readKidsCareDraft()` on mount and calls `clearKidsCareDraft()` on successful submit. If not already wired (Phase 4 covered the modal, not the standalone form), add the same persistence hooks here using `usePersistedState` keyed off `swc:booking-draft:kids-care`.
-
-**Verification at 390x844 (iPhone 12/13/14):**
-- Workouts → AI Generator → set goal → close sheet → reopen: state preserved.
-- Programs → AI Generator → close mid-step → reopen: state preserved, "Start over" works.
-- Schedule → tap a class → pick payment → close sheet → schedule shows Resume banner → tap Resume → returns to same step.
-- Kids Care → start booking → close → Resume banner shows on `/member/kids-care` and `/member/kids-care/bookings`.
-- WorkoutBuilder: open on mobile, scroll, verify Save/Log buttons remain reachable, no horizontal overflow.
-
-## Out of scope
-- No backend, RPC, or RLS changes.
-- No new payment flows — only re-entry into existing steps.
+Technical details:
+- Files to update:
+  - `src/hooks/useSpaBooking.ts`
+  - `src/hooks/useAdminSpaAppointments.ts`
+  - `src/components/admin/spa/SpaAppointmentEditModal.tsx`
+  - `src/pages/admin/Appointments.tsx`
+- Database may need a small migration to normalize `check_spa_appointment_conflict(...)` so the deployed backend function always accepts `p_room_id` and `p_exclude_appointment_id`, checks `confirmed/pending/checked_in/in_progress`, and excludes the edited appointment before overlap checks.
+- I will not edit the generated backend client/types files.

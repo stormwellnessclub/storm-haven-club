@@ -4,7 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, User, Plus, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, CreditCard, Sparkles, LayoutGrid, Pencil } from "lucide-react";
-import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus } from "@/hooks/useAdminSpaAppointments";
+import { useAdminSpaAppointments, useUpdateSpaAppointmentStatus, useDeleteSpaAppointment } from "@/hooks/useAdminSpaAppointments";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2, Eye, EyeOff } from "lucide-react";
 import { format, parse } from "date-fns";
 import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModal";
 import { SpaCompletionDialog } from "@/components/admin/spa/SpaCompletionDialog";
@@ -55,6 +67,7 @@ export default function Appointments() {
   const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
   const [editAppointment, setEditAppointment] = useState<AdminSpaAppointment | null>(null);
   const [isRetroactive, setIsRetroactive] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
   const navigate = useNavigate();
 
   const formatDate = (date: Date) => {
@@ -76,13 +89,26 @@ export default function Appointments() {
     appointmentDate: selectedDate 
   });
   const updateStatus = useUpdateSpaAppointmentStatus();
+  const deleteAppointment = useDeleteSpaAppointment();
 
   // Use the date string directly instead of re-parsing with new Date()
   const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
 
-  const appointmentsForDate = useMemo(() => {
+  const allAppointmentsForDate = useMemo(() => {
     return (appointments || []).filter(apt => apt.appointment_date === selectedDateStr);
   }, [appointments, selectedDateStr]);
+
+  const cancelledForDate = useMemo(
+    () => allAppointmentsForDate.filter(a => a.status === 'cancelled' || a.status === 'no_show'),
+    [allAppointmentsForDate]
+  );
+
+  // The visible list excludes cancelled/no-show by default to keep the daily
+  // schedule clean. Toggle "Show cancelled" to bring them back in.
+  const appointmentsForDate = useMemo(() => {
+    if (showCancelled) return allAppointmentsForDate;
+    return allAppointmentsForDate.filter(a => a.status !== 'cancelled' && a.status !== 'no_show');
+  }, [allAppointmentsForDate, showCancelled]);
 
   // Helper: convert "HH:mm" or "HH:mm:ss" to minutes since midnight
   const toMinutes = (t: string): number => {
@@ -159,10 +185,10 @@ export default function Appointments() {
   }, [timeSlots, activeForDate]);
 
   const stats = {
-    total: appointmentsForDate.length,
-    completed: appointmentsForDate.filter(a => a.status === 'completed').length,
-    upcoming: appointmentsForDate.filter(a => ['confirmed'].includes(a.status)).length,
-    cancelled: appointmentsForDate.filter(a => a.status === 'cancelled').length,
+    total: allAppointmentsForDate.length,
+    completed: allAppointmentsForDate.filter(a => a.status === 'completed').length,
+    upcoming: allAppointmentsForDate.filter(a => ['confirmed'].includes(a.status)).length,
+    cancelled: cancelledForDate.length,
   };
 
   const handleAppointmentClick = (appointment: AdminSpaAppointment) => {
@@ -288,6 +314,35 @@ export default function Appointments() {
           </Button>
         </div>
       )}
+      {(appointment.status === 'cancelled' || appointment.status === 'no_show') && (
+        <div className="ml-2" onClick={(e) => e.stopPropagation()}>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10">
+                <Trash2 className="h-3 w-3 mr-1" />
+                Remove
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove this appointment?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently removes the cancelled appointment from the schedule. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteAppointment.mutate(appointment.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Remove
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
     </div>
   );
 
@@ -365,6 +420,12 @@ export default function Appointments() {
             <Sparkles className="h-4 w-4 mr-2" />
             Spa Management
           </Button>
+          {cancelledForDate.length > 0 && (
+            <Button variant="outline" onClick={() => setShowCancelled(v => !v)}>
+              {showCancelled ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+              {showCancelled ? "Hide" : "Show"} cancelled ({cancelledForDate.length})
+            </Button>
+          )}
         </div>
 
         {/* Date Navigation */}
