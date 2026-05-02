@@ -329,6 +329,13 @@ export default function ClassRoster() {
     }) => {
       const { waitlistId, userId, memberId, method, passId, creditId, dropInRate } = args;
 
+      // Refund any waitlist hold first so the regular decrement below doesn't double-charge.
+      try {
+        await supabase.rpc("refund_waitlist_hold", { p_waitlist_id: waitlistId });
+      } catch (e) {
+        console.error("refund_waitlist_hold failed (continuing):", e);
+      }
+
       // Block double-bookings
       const { data: existing } = await supabase
         .from("class_bookings")
