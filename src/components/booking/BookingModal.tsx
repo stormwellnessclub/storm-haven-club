@@ -529,7 +529,12 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           {user && isClassFull && !isOnWaitlist && (
             <Button
               onClick={handleJoinWaitlist}
-              disabled={joinWaitlist.isPending}
+              disabled={
+                joinWaitlist.isPending ||
+                hasNoPaymentOptions ||
+                !hasLiabilityWaiver ||
+                (paymentMethod === "pass" && !selectedPassId)
+              }
               className="min-h-[44px]"
             >
               {joinWaitlist.isPending ? (
@@ -540,9 +545,22 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
               ) : (
                 <>
                   <ListOrdered className="h-4 w-4 mr-2" />
-                  Join Waitlist
+                  Join Waitlist & Hold {paymentMethod === "credits" ? "Credit" : "Pass"}
                 </>
               )}
+            </Button>
+          )}
+          {user && isClassFull && isOnWaitlist && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await leaveWaitlist.mutateAsync({ waitlistId: myWaitlistEntry.id });
+                onOpenChange(false);
+              }}
+              disabled={leaveWaitlist.isPending}
+              className="min-h-[44px]"
+            >
+              {leaveWaitlist.isPending ? "Leaving..." : "Leave Waitlist & Refund"}
             </Button>
           )}
           {/* Normal booking button when class has spots */}
