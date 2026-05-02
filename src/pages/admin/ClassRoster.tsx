@@ -148,7 +148,7 @@ export default function ClassRoster() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_waitlist")
-        .select("id, user_id, position, status, notified_at, claimed_at, claim_expires_at, created_at")
+        .select("id, user_id, position, status, notified_at, claimed_at, claim_expires_at, created_at, payment_method, pass_id, member_credit_id, hold_refunded")
         .eq("session_id", sessionId!)
         .in("status", ["waiting", "notified"])
         .order("position", { ascending: true });
@@ -329,6 +329,13 @@ export default function ClassRoster() {
     }) => {
       const { waitlistId, userId, memberId, method, passId, creditId, dropInRate } = args;
 
+      // Refund any waitlist hold first so the regular decrement below doesn't double-charge.
+      try {
+        await supabase.rpc("refund_waitlist_hold", { p_waitlist_id: waitlistId });
+      } catch (e) {
+        console.error("refund_waitlist_hold failed (continuing):", e);
+      }
+
       // Block double-bookings
       const { data: existing } = await supabase
         .from("class_bookings")
@@ -432,15 +439,20 @@ export default function ClassRoster() {
     onError: (err: Error) => toast.error(err.message || "Failed to promote"),
   });
 
-  // Remove from waitlist
+  // Remove from waitlist (refund the held credit/pass)
   const removeWaitlistMutation = useMutation({
     mutationFn: async (waitlistId: string) => {
+      try {
+        await supabase.rpc("refund_waitlist_hold", { p_waitlist_id: waitlistId });
+      } catch (e) {
+        console.error("refund_waitlist_hold failed (continuing):", e);
+      }
       await supabase
         .from("class_waitlist")
         .update({ status: "expired" as any })
         .eq("id", waitlistId);
     },
-    onSuccess: () => { invalidateAll(); toast.success("Removed from waitlist"); },
+    onSuccess: () => { invalidateAll(); toast.success("Removed from waitlist — credit/pass refunded"); },
     onError: () => toast.error("Failed to remove from waitlist"),
   });
 
@@ -893,6 +905,11 @@ export default function ClassRoster() {
                               : <Badge variant="secondary" className="text-xs">Waiting</Badge>}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
+                            {entry.payment_method && !entry.hold_refunded && (
+                              <Badge variant="secondary" className="mr-2 text-[10px]">
+                                {entry.payment_method === "credits" ? "Credit held" : entry.payment_method === "pass" ? "Pass held" : "Held"}
+                              </Badge>
+                            )}
                             <Button size="sm" variant="outline" onClick={async () => {
                               // Resolve memberId for this user (active member only)
                               const { data: member } = await supabase
@@ -902,9 +919,11 @@ export default function ClassRoster() {
                                 .eq("status", "active")
                                 .maybeSingle();
                               setPromoteEntry({ id: entry.id, user_id: entry.user_id, memberId: member?.id || null, name });
-                              setPromoteMethod(null);
-                              setPromotePassId(null);
-                              setPromoteCreditId(null);
+                              // Default to whatever was held on the waitlist row
+                              const heldMethod = !entry.hold_refunded ? entry.payment_method : null;
+                              setPromoteMethod((heldMethod as PaymentOption) || null);
+                              setPromotePassId(heldMethod === "pass" ? entry.pass_id : null);
+                              setPromoteCreditId(heldMethod === "credits" ? entry.member_credit_id : null);
                               setPromoteDropInRate(member ? "member" : "nonmember");
                             }} disabled={promoteMutation.isPending}>
                               <ArrowUp className="h-4 w-4 mr-1" /> Promote

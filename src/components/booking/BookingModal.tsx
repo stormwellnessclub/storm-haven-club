@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { useAllAgreements } from "@/hooks/useAllAgreements";
-import { useJoinWaitlist, useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
+import { useJoinWaitlist, useLeaveWaitlist, useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
 import {
   Dialog,
   DialogContent,
@@ -69,6 +69,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
   const bookClass = useBookClass();
   const joinWaitlist = useJoinWaitlist();
+  const leaveWaitlist = useLeaveWaitlist();
   const category = session?.class_type.category || "aerobics";
   const { data: creditsData, isLoading: creditsLoading } = useAvailableCreditsForCategory(category);
   const { data: waitlistStatus } = useWaitlistStatus(session ? [session.id] : []);
@@ -176,7 +177,12 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       onOpenChange(false);
       return;
     }
-    await joinWaitlist.mutateAsync({ sessionId: session.id });
+    if (paymentMethod === "pass" && !selectedPassId) return;
+    await joinWaitlist.mutateAsync({
+      sessionId: session.id,
+      paymentMethod,
+      passId: paymentMethod === "pass" ? selectedPassId : null,
+    });
     // Keep modal open so user sees their position
   };
 
@@ -364,8 +370,14 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           )}
 
-          {/* Payment Method Selection */}
-          {user && !isClassFull && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
+          {/* Payment Method Selection (also used for waitlist hold when full) */}
+          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
+            <>
+              {isClassFull && (
+                <p className="text-xs text-muted-foreground -mb-1">
+                  We'll hold this credit/pass while you're on the waitlist and refund it if you leave or the spot doesn't open.
+                </p>
+              )}
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Method</Label>
               <RadioGroup
@@ -422,6 +434,18 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                   ))}
               </RadioGroup>
             </div>
+            </>
+          )}
+
+          {/* No payment options available — block waitlist join */}
+          {user && isClassFull && !creditsLoading && hasNoPaymentOptions && !isOnWaitlist && (
+            <Alert className="bg-destructive/10 border-destructive/30">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+              <AlertTitle className="text-destructive">A class credit or pass is required</AlertTitle>
+              <AlertDescription className="mt-1">
+                Joining the waitlist holds 1 class credit or 1 class on a pass. Please purchase a class pass first.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Waitlist UI — shown when class is full */}
@@ -506,7 +530,12 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           {user && isClassFull && !isOnWaitlist && (
             <Button
               onClick={handleJoinWaitlist}
-              disabled={joinWaitlist.isPending}
+              disabled={
+                joinWaitlist.isPending ||
+                hasNoPaymentOptions ||
+                !hasLiabilityWaiver ||
+                (paymentMethod === "pass" && !selectedPassId)
+              }
               className="min-h-[44px]"
             >
               {joinWaitlist.isPending ? (
@@ -517,9 +546,22 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
               ) : (
                 <>
                   <ListOrdered className="h-4 w-4 mr-2" />
-                  Join Waitlist
+                  Join Waitlist & Hold {paymentMethod === "credits" ? "Credit" : "Pass"}
                 </>
               )}
+            </Button>
+          )}
+          {user && isClassFull && isOnWaitlist && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await leaveWaitlist.mutateAsync({ waitlistId: myWaitlistEntry.id });
+                onOpenChange(false);
+              }}
+              disabled={leaveWaitlist.isPending}
+              className="min-h-[44px]"
+            >
+              {leaveWaitlist.isPending ? "Leaving..." : "Leave Waitlist & Refund"}
             </Button>
           )}
           {/* Normal booking button when class has spots */}

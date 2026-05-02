@@ -110,6 +110,13 @@ serve(async (req) => {
     for (const entry of expiredEntries) {
       console.log(`Processing expired entry ${entry.id} for session ${entry.session_id}`);
 
+      // Refund any held credit/pass before marking expired
+      try {
+        await supabase.rpc('refund_waitlist_hold', { p_waitlist_id: entry.id });
+      } catch (e) {
+        console.error(`refund_waitlist_hold failed for ${entry.id}:`, e);
+      }
+
       // Mark as expired
       const { error: updateError } = await supabase
         .from('class_waitlist')

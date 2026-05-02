@@ -207,6 +207,20 @@ export function useBookClass() {
         }
       }
 
+      // If user is claiming from a waitlist entry with a held payment, refund the hold
+      // first so the booking RPC's normal decrement doesn't double-charge.
+      const { data: heldEntry } = await supabase
+        .from("class_waitlist")
+        .select("id, payment_method")
+        .eq("session_id", sessionId)
+        .eq("user_id", currentUserId)
+        .in("status", ["notified", "waiting"])
+        .eq("hold_refunded", false)
+        .maybeSingle();
+      if (heldEntry?.payment_method) {
+        await supabase.rpc("refund_waitlist_hold", { p_waitlist_id: heldEntry.id });
+      }
+
       // Prepare variables for atomic booking function
       let memberCreditId: string | null = null;
       let passIdToUse: string | null = passId || null;

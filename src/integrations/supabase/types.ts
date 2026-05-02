@@ -1438,9 +1438,15 @@ export type Database = {
           claim_expires_at: string | null
           claimed_at: string | null
           created_at: string
+          credits_used: number
+          hold_refunded: boolean
           id: string
+          member_credit_id: string | null
           notified_at: string | null
+          pass_id: string | null
+          payment_method: string | null
           position: number
+          refunded_at: string | null
           session_id: string
           status: Database["public"]["Enums"]["waitlist_status"]
           updated_at: string
@@ -1450,9 +1456,15 @@ export type Database = {
           claim_expires_at?: string | null
           claimed_at?: string | null
           created_at?: string
+          credits_used?: number
+          hold_refunded?: boolean
           id?: string
+          member_credit_id?: string | null
           notified_at?: string | null
+          pass_id?: string | null
+          payment_method?: string | null
           position: number
+          refunded_at?: string | null
           session_id: string
           status?: Database["public"]["Enums"]["waitlist_status"]
           updated_at?: string
@@ -1462,15 +1474,35 @@ export type Database = {
           claim_expires_at?: string | null
           claimed_at?: string | null
           created_at?: string
+          credits_used?: number
+          hold_refunded?: boolean
           id?: string
+          member_credit_id?: string | null
           notified_at?: string | null
+          pass_id?: string | null
+          payment_method?: string | null
           position?: number
+          refunded_at?: string | null
           session_id?: string
           status?: Database["public"]["Enums"]["waitlist_status"]
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "class_waitlist_member_credit_id_fkey"
+            columns: ["member_credit_id"]
+            isOneToOne: false
+            referencedRelation: "member_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_waitlist_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "class_passes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "class_waitlist_session_id_fkey"
             columns: ["session_id"]
@@ -6757,6 +6789,15 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
+      join_waitlist_with_hold: {
+        Args: {
+          p_credit_id?: string
+          p_method: string
+          p_pass_id?: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
       kiosk_check_in_class: { Args: { p_booking_id: string }; Returns: Json }
       kiosk_check_in_guest: { Args: { p_guest_pass_id: string }; Returns: Json }
       kiosk_check_in_kids_care: {
@@ -6859,6 +6900,10 @@ export type Database = {
       redeem_referral_points: {
         Args: { _member_id: string; _points_cost: number; _reward_type: string }
         Returns: Json
+      }
+      refund_waitlist_hold: {
+        Args: { p_waitlist_id: string }
+        Returns: undefined
       }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
       staff_book_wellness_appointment: {
