@@ -46,6 +46,13 @@ export default function ClassRoster() {
   const [editingCapacity, setEditingCapacity] = useState(false);
   const [capacityValue, setCapacityValue] = useState<number>(0);
 
+  // Promote-from-waitlist dialog state
+  const [promoteEntry, setPromoteEntry] = useState<{ id: string; user_id: string; memberId: string | null; name: string } | null>(null);
+  const [promoteMethod, setPromoteMethod] = useState<PaymentOption | null>(null);
+  const [promotePassId, setPromotePassId] = useState<string | null>(null);
+  const [promoteCreditId, setPromoteCreditId] = useState<string | null>(null);
+  const [promoteDropInRate, setPromoteDropInRate] = useState<"member" | "nonmember">("member");
+
   // Resolve walk-in email
   useEffect(() => {
     if (!walkInEmail.trim() || walkInEmail.length < 5) {
