@@ -52,40 +52,67 @@ export function useJoinWaitlist() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ sessionId }: { sessionId: string }) => {
+    mutationFn: async ({
+      sessionId,
+      paymentMethod,
+      passId,
+      creditId,
+    }: {
+      sessionId: string;
+      paymentMethod: "credits" | "pass";
+      passId?: string | null;
+      creditId?: string | null;
+    }) => {
       if (!user) throw new Error("Please sign in first.");
 
-      // Get next position using SECURITY DEFINER function (bypasses RLS)
-      const { data: posData, error: posError } = await supabase.rpc(
-        "get_next_waitlist_position",
-        { p_session_id: sessionId }
-      );
-
-      if (posError) throw posError;
-      const nextPosition = posData as number;
-
-      const { error } = await supabase.from("class_waitlist").insert({
-        session_id: sessionId,
-        user_id: user.id,
-        position: nextPosition,
-        status: "waiting",
+      const { data, error } = await supabase.rpc("join_waitlist_with_hold", {
+        p_session_id: sessionId,
+        p_method: paymentMethod,
+        p_pass_id: passId ?? null,
+        p_credit_id: creditId ?? null,
       });
 
-      if (error) {
-        if (error.code === "23505") throw new Error("You're already on the waitlist.");
-        throw error;
-      }
-
-      return { position: nextPosition };
+      if (error) throw error;
+      const result = data as { position: number; payment_method: string };
+      return result;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["waitlist-status"] });
+      queryClient.invalidateQueries({ queryKey: ["waitlist-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["available-credits"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-credits"] });
+      const heldLabel = data.payment_method === "credits" ? "1 class credit" : "1 class on your pass";
       toast.success("Added to Waitlist", {
-        description: `You're #${data.position} on the waitlist. We'll notify you if a spot opens.`,
+        description: `You're #${data.position} on the waitlist. We've held ${heldLabel} — it'll be refunded if you leave or the spot doesn't open.`,
       });
     },
     onError: (error: Error) => {
       toast.error(error.message);
     },
+  });
+}
+
+export function useLeaveWaitlist() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ waitlistId }: { waitlistId: string }) => {
+      const { error: refundError } = await supabase.rpc("refund_waitlist_hold", {
+        p_waitlist_id: waitlistId,
+      });
+      if (refundError) throw refundError;
+      const { error } = await supabase
+        .from("class_waitlist")
+        .delete()
+        .eq("id", waitlistId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["waitlist-status"] });
+      queryClient.invalidateQueries({ queryKey: ["waitlist-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["available-credits"] });
+      toast.success("Left waitlist — your credit/pass has been refunded.");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
