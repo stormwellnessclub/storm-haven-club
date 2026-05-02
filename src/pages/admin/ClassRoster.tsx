@@ -148,7 +148,7 @@ export default function ClassRoster() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_waitlist")
-        .select("id, user_id, position, status, notified_at, claimed_at, claim_expires_at, created_at")
+        .select("id, user_id, position, status, notified_at, claimed_at, claim_expires_at, created_at, payment_method, pass_id, member_credit_id, hold_refunded")
         .eq("session_id", sessionId!)
         .in("status", ["waiting", "notified"])
         .order("position", { ascending: true });
