@@ -1,47 +1,48 @@
-## Goal
+# Fix Waitlist Promotion (Carly's case)
 
-After a successful spa/wellness booking, replace the current toast-only feedback with an in-modal confirmation screen that clearly shows the booking details and a link to view all appointments.
+## What's wrong today
 
-## What it shows
+In `src/pages/admin/ClassRoster.tsx`, the **Promote** button on the Waitlist tab does two harmful things:
 
-A success view rendered inside `SpaBookingModal` (replacing the booking form once a booking succeeds), containing:
+1. **Always comps the booking.** The promote mutation (lines 287–313) inserts a `class_bookings` row with `payment_method: "comp"` regardless of whether the member has class credits or a class pass. That's why Carly didn't get a credit/pass deducted.
+2. **Doesn't recover gracefully.** When you then cancel that comped booking and try to re-add her with credits via the "Add to class" panel, the existing flow gets confused because:
+   - The waitlist entry is already marked `claimed` (so she no longer appears in the waitlist tab to be re-promoted).
+   - The "Add to class" panel's existence check (lines 338–345) only blocks on `status = 'confirmed'`, so re-add should work — but the UI on the waitlist tab itself offers no alternative payment methods, leaving the admin stuck.
 
-- Large green check icon + "Booking Confirmed" heading
-- **Service name** (e.g. "Red Light Therapy")
-- **Date & time** formatted as `EEEE, MMMM d, yyyy · h:mm a` (Chicago time)
-- **Duration** (e.g. "20 min")
-- **Payment summary** — one of:
-  - `Paid with 1 Red Light Therapy Credit · X remaining` (when credits were used)
-  - `Charged $XX.XX to card ending •••• 4242` (when card was charged)
-  - `Charged to Member Account` (when applicable)
-- Two actions:
-  - Primary: **View My Appointments** → navigates to `/member/wellness` for members, `/portal/bookings` for non-members, then closes the modal
-  - Secondary: **Done** → just closes the modal
+## What we'll change
 
-If the service requires an intake form, the existing intake dialog flow stays exactly as it is (intake takes precedence over the confirmation screen).
+### 1. Replace the single "Promote" button with a Promote dialog
 
-## Implementation
+When the admin clicks **Promote** on a waitlist row, open a small dialog that reuses the existing `PaymentMethodSelector` component (the same one used in the Add panel), pre-loaded with that user's passes and credits.
 
-All changes in `src/components/booking/SpaBookingModal.tsx`:
+- Default selection: **Credits** if available, else **Pass** if available, else **Comp** (with a clear "Comp" label so it's an intentional choice, not the default).
+- Confirm button runs the same booking insert logic the Add panel uses (decrement pass / credit, set the right `payment_method`, `pass_id` / `member_credit_id`, `credits_used`), then marks the waitlist entry `claimed`.
+- All in one mutation so a failure rolls the user back to the waitlist (don't mark `claimed` until the booking insert succeeds).
 
-1. Add a `confirmation` state object holding the data captured at booking time:
-   ```
-   { serviceName, date, time, durationMinutes, paymentSummary, creditsRemaining? }
-   ```
-2. In `handleBook`, on success of either the credit RPC or the card path (and when no intake form is required), set `confirmation` instead of immediately calling `onOpenChange(false)`. Build the `paymentSummary` from the path that was taken:
-   - credit → `"1 {creditTypeDisplayName} Credit · {credits_remaining} remaining"`
-   - card → `"$X.XX charged to {brand} •••• {last4}"` using the selected `savedPaymentMethods` entry
-   - member_account → `"Charged to your member account"`
-3. While `confirmation` is set, render a new `<BookingConfirmationView />` block inside the existing `DialogContent`, replacing the form sections. Keep `DialogTitle` ("Booking Confirmed") for accessibility.
-4. Reset `confirmation`, `selectedDate`, `selectedTime`, `memberNotes` when the modal closes (existing `useEffect` on `open`).
-5. The "View My Appointments" button uses `useUserMembership` (already imported) to decide the destination: members → `/member/wellness`; everyone else → `/portal/bookings`.
+### 2. Make cancel-then-re-add work
 
-## Out of scope
+When `removeMutation` cancels a booking that originated from a waitlist promotion, also revert the waitlist entry from `claimed` back to `waiting` (or `notified`) so the admin can promote again with the correct payment method. We'll detect this by joining the most recent waitlist entry for that user/session.
 
-- No new route or dedicated detail page — the existing wellness/bookings lists already render the booking with date, time, service, and status.
-- No DB or RPC changes.
-- Admin booking modal unchanged.
+Alternatively (simpler): after cancelling, the admin can use the existing "Add to class" search panel — but today that panel doesn't surface for waitlisted users on the Waitlist tab. Adding the dialog from change #1 is the cleaner fix and avoids needing this fallback.
 
-## Files to change
+### 3. Defensive guard
 
-- `src/components/booking/SpaBookingModal.tsx` — add confirmation state, success view, and post-book navigation.
+In the new promote dialog, if Credits is selected but the member has zero remaining, the Confirm button is disabled with an inline message ("No class credits available — choose a pass or comp"). Same for Pass.
+
+## Files to edit
+
+- `src/pages/admin/ClassRoster.tsx`
+  - Replace the inline `promoteMutation` (lines 287–313) with logic that accepts a `PaymentOption` + selected pass/credit id.
+  - Add local state for the promote dialog (`promoteEntry`, `promoteMethod`, `promotePassId`, `promoteCreditId`).
+  - Render a `<Dialog>` containing `<PaymentMethodSelector>` wired to the selected waitlist entry's `user_id` / `member_id`.
+  - On confirm: run the same pass/credit decrement + booking insert used by `addToClassMutation`, then update the waitlist row to `claimed`.
+  - In `removeMutation`, after marking the booking `cancelled`, look up the most recent `claimed` waitlist entry for that user/session and revert it to `waiting`. Best-effort, don't block.
+
+No DB migrations needed — `class_bookings` and `class_waitlist` already support every status and payment method we need.
+
+## Acceptance check
+
+- Promoting Carly with **Credits** selected: booking shows `payment_method = credits`, `member_credit_id` set, `credits_used = 1`; her credit balance drops by 1 and the deduction shows in her credit history.
+- Promoting with **Pass** selected: pass `classes_remaining` drops by 1; booking shows `payment_method = pass`, `pass_id` set.
+- Cancelling a credit/pass-promoted booking restores the credit/pass (existing `removeMutation` already does this) and re-opens the waitlist entry so the admin can promote again.
+- Comp is still available as an explicit choice in the dialog.
