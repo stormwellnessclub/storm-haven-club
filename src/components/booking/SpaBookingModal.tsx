@@ -840,6 +840,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
             )}
           </Button>
         </div>
+        </>
+        )}
       </DialogContent>
     </Dialog>
 
