@@ -254,6 +254,30 @@ export default function ClassRoster() {
         .eq("id", bookingId);
       if (error) throw error;
 
+      // If this booking was promoted from the waitlist, revert the claimed entry to waiting
+      // so the admin can promote again with a different payment method.
+      if (booking.user_id) {
+        try {
+          const { data: claimed } = await supabase
+            .from("class_waitlist")
+            .select("id")
+            .eq("session_id", sessionId!)
+            .eq("user_id", booking.user_id)
+            .eq("status", "claimed" as any)
+            .order("claimed_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (claimed?.id) {
+            await supabase
+              .from("class_waitlist")
+              .update({ status: "waiting" as any, claimed_at: null })
+              .eq("id", claimed.id);
+          }
+        } catch (err) {
+          console.error("Failed to revert waitlist entry:", err);
+        }
+      }
+
       // Send cancellation email (best-effort — don't block on failure).
       // Resolve recipient: member > linked profile > walk-in fallback.
       try {
