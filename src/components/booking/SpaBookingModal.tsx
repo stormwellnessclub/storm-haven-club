@@ -112,6 +112,9 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
     if (!open) {
       setShowWaiverInline(false);
       setWaiverAcknowledged(false);
+      setConfirmation(null);
+      setSelectedTime("");
+      setMemberNotes("");
     }
   }, [open]);
 
