@@ -306,6 +306,16 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
           setMemberNotes("");
           return;
         }
+
+        // Show in-modal confirmation
+        setConfirmation({
+          serviceName: service.name,
+          date: selectedDate,
+          time: selectedTime,
+          durationMinutes,
+          paymentSummary: `Paid with 1 ${getCreditTypeDisplayName(creditType)} Credit · ${result?.credits_remaining ?? 0} remaining`,
+        });
+        return;
       } else {
         if (paymentMethod === "card" && selectedPaymentMethodId) {
           // Find a Stripe customer — member first, fall back to non-member profile
