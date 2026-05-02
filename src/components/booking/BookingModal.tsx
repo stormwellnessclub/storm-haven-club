@@ -69,6 +69,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
   const bookClass = useBookClass();
   const joinWaitlist = useJoinWaitlist();
+  const leaveWaitlist = useLeaveWaitlist();
   const category = session?.class_type.category || "aerobics";
   const { data: creditsData, isLoading: creditsLoading } = useAvailableCreditsForCategory(category);
   const { data: waitlistStatus } = useWaitlistStatus(session ? [session.id] : []);
