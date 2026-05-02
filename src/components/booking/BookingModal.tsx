@@ -433,6 +433,18 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                   ))}
               </RadioGroup>
             </div>
+            </>
+          )}
+
+          {/* No payment options available — block waitlist join */}
+          {user && isClassFull && !creditsLoading && hasNoPaymentOptions && !isOnWaitlist && (
+            <Alert className="bg-destructive/10 border-destructive/30">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+              <AlertTitle className="text-destructive">A class credit or pass is required</AlertTitle>
+              <AlertDescription className="mt-1">
+                Joining the waitlist holds 1 class credit or 1 class on a pass. Please purchase a class pass first.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Waitlist UI — shown when class is full */}
