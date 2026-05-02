@@ -912,6 +912,58 @@ export default function ClassRoster() {
         }}
         userId={effectiveUserId || undefined}
       />
+
+      {/* Promote-from-Waitlist Dialog */}
+      <Dialog open={!!promoteEntry} onOpenChange={(o) => { if (!o) setPromoteEntry(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Promote from Waitlist</DialogTitle>
+            <DialogDescription>
+              How should {promoteEntry?.name || "this person"} pay for the class?
+            </DialogDescription>
+          </DialogHeader>
+          {promoteEntry && (
+            <PaymentMethodSelector
+              userId={promoteEntry.user_id}
+              memberId={promoteEntry.memberId}
+              isMember={!!promoteEntry.memberId}
+              selectedMethod={promoteMethod}
+              onMethodChange={setPromoteMethod}
+              selectedPassId={promotePassId}
+              onPassIdChange={setPromotePassId}
+              selectedCreditId={promoteCreditId}
+              onCreditIdChange={setPromoteCreditId}
+              dropInRate={promoteDropInRate}
+              onDropInRateChange={setPromoteDropInRate}
+            />
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromoteEntry(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!promoteEntry || !promoteMethod) return;
+                promoteMutation.mutate({
+                  waitlistId: promoteEntry.id,
+                  userId: promoteEntry.user_id,
+                  memberId: promoteEntry.memberId,
+                  method: promoteMethod,
+                  passId: promotePassId,
+                  creditId: promoteCreditId,
+                  dropInRate: promoteDropInRate,
+                });
+              }}
+              disabled={
+                !promoteMethod ||
+                promoteMethod === "sell" ||
+                (promoteMethod === "pass" && !promotePassId) ||
+                promoteMutation.isPending
+              }
+            >
+              {promoteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm & Promote"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
