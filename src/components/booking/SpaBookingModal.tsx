@@ -93,6 +93,16 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const [intakeAppointmentId, setIntakeAppointmentId] = useState<string | null>(null);
   const [intakeMemberId, setIntakeMemberId] = useState<string | null>(null);
 
+  // In-modal booking confirmation
+  type Confirmation = {
+    serviceName: string;
+    date: Date;
+    time: string;
+    durationMinutes: number;
+    paymentSummary: string;
+  };
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
   const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
     ? resolvePdfUrl(agreements.liability_waiver[0].pdf_url)
