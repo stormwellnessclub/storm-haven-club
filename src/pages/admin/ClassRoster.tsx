@@ -869,7 +869,20 @@ export default function ClassRoster() {
                               : <Badge variant="secondary" className="text-xs">Waiting</Badge>}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
-                            <Button size="sm" variant="outline" onClick={() => promoteMutation.mutate({ id: entry.id, user_id: entry.user_id })} disabled={promoteMutation.isPending}>
+                            <Button size="sm" variant="outline" onClick={async () => {
+                              // Resolve memberId for this user (active member only)
+                              const { data: member } = await supabase
+                                .from("members")
+                                .select("id")
+                                .eq("user_id", entry.user_id)
+                                .eq("status", "active")
+                                .maybeSingle();
+                              setPromoteEntry({ id: entry.id, user_id: entry.user_id, memberId: member?.id || null, name });
+                              setPromoteMethod(null);
+                              setPromotePassId(null);
+                              setPromoteCreditId(null);
+                              setPromoteDropInRate(member ? "member" : "nonmember");
+                            }} disabled={promoteMutation.isPending}>
                               <ArrowUp className="h-4 w-4 mr-1" /> Promote
                             </Button>
                             <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeWaitlistMutation.mutate(entry.id)} disabled={removeWaitlistMutation.isPending}>
