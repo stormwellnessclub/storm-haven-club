@@ -292,32 +292,120 @@ export default function ClassRoster() {
     onError: () => toast.error("Failed to remove"),
   });
 
-  // Promote from waitlist
+  // Promote from waitlist (with payment method choice)
   const promoteMutation = useMutation({
-    mutationFn: async (waitlistEntry: { id: string; user_id: string }) => {
-      const { data: member } = await supabase
-        .from("members")
+    mutationFn: async (args: {
+      waitlistId: string;
+      userId: string;
+      memberId: string | null;
+      method: PaymentOption;
+      passId: string | null;
+      creditId: string | null;
+      dropInRate: "member" | "nonmember";
+    }) => {
+      const { waitlistId, userId, memberId, method, passId, creditId, dropInRate } = args;
+
+      // Block double-bookings
+      const { data: existing } = await supabase
+        .from("class_bookings")
         .select("id")
-        .eq("user_id", waitlistEntry.user_id)
-        .eq("status", "active")
+        .eq("session_id", sessionId!)
+        .eq("user_id", userId)
+        .eq("status", "confirmed")
         .maybeSingle();
+      if (existing) throw new Error("This person is already booked");
 
-      await supabase.from("class_bookings").insert({
-        session_id: sessionId!,
-        user_id: waitlistEntry.user_id,
-        member_id: member?.id || null,
-        status: "confirmed",
-        payment_method: "comp",
-        booked_at: new Date().toISOString(),
-      });
+      if (method === "pass") {
+        if (!passId) throw new Error("Select a class pass");
+        const { data: pass, error: passErr } = await supabase
+          .from("class_passes")
+          .select("classes_remaining")
+          .eq("id", passId)
+          .single();
+        if (passErr || !pass || pass.classes_remaining <= 0) throw new Error("Pass has no remaining classes");
 
+        await supabase
+          .from("class_passes")
+          .update({
+            classes_remaining: pass.classes_remaining - 1,
+            status: pass.classes_remaining - 1 <= 0 ? ("exhausted" as any) : ("active" as any),
+          })
+          .eq("id", passId);
+
+        await supabase.from("class_bookings").insert({
+          session_id: sessionId!, user_id: userId, member_id: memberId,
+          status: "confirmed", payment_method: "pass", pass_id: passId,
+          booked_at: new Date().toISOString(),
+        });
+      } else if (method === "credits") {
+        let targetCreditId = creditId;
+        if (!targetCreditId && memberId) {
+          const { data: creds } = await supabase
+            .from("member_credits")
+            .select("id, credits_remaining")
+            .eq("member_id", memberId)
+            .eq("credit_type", "class")
+            .gt("credits_remaining", 0)
+            .gt("expires_at", new Date().toISOString())
+            .order("expires_at", { ascending: true })
+            .limit(1);
+          if (!creds?.length) throw new Error("No class credits available");
+          targetCreditId = creds[0].id;
+        }
+        if (!targetCreditId) throw new Error("No credits available");
+
+        const { data: credit, error: credErr } = await supabase
+          .from("member_credits")
+          .select("credits_remaining")
+          .eq("id", targetCreditId)
+          .single();
+        if (credErr || !credit || credit.credits_remaining <= 0) throw new Error("No credits remaining");
+
+        await supabase
+          .from("member_credits")
+          .update({ credits_remaining: credit.credits_remaining - 1 })
+          .eq("id", targetCreditId);
+
+        await supabase.from("class_bookings").insert({
+          session_id: sessionId!, user_id: userId, member_id: memberId,
+          status: "confirmed", payment_method: "credits",
+          member_credit_id: targetCreditId, credits_used: 1,
+          booked_at: new Date().toISOString(),
+        });
+      } else if (method === "dropin") {
+        const amountCents = dropInRate === "member" ? 2500 : 3000;
+        await supabase.from("class_bookings").insert({
+          session_id: sessionId!, user_id: userId, member_id: memberId,
+          status: "confirmed", payment_method: "walk_in", amount_paid: amountCents,
+          booked_at: new Date().toISOString(),
+        });
+      } else if (method === "comp") {
+        await supabase.from("class_bookings").insert({
+          session_id: sessionId!, user_id: userId, member_id: memberId,
+          status: "confirmed", payment_method: "comp",
+          booked_at: new Date().toISOString(),
+        });
+      } else {
+        throw new Error("Unsupported payment method for promotion");
+      }
+
+      // Mark waitlist entry claimed only after the booking succeeds.
       await supabase
         .from("class_waitlist")
         .update({ status: "claimed" as any, claimed_at: new Date().toISOString() })
-        .eq("id", waitlistEntry.id);
+        .eq("id", waitlistId);
     },
-    onSuccess: () => { invalidateAll(); toast.success("Promoted from waitlist"); },
-    onError: () => toast.error("Failed to promote"),
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ["roster-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-credits"] });
+      setPromoteEntry(null);
+      setPromoteMethod(null);
+      setPromotePassId(null);
+      setPromoteCreditId(null);
+      toast.success("Promoted from waitlist");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to promote"),
   });
 
   // Remove from waitlist
