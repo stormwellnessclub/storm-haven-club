@@ -439,15 +439,20 @@ export default function ClassRoster() {
     onError: (err: Error) => toast.error(err.message || "Failed to promote"),
   });
 
-  // Remove from waitlist
+  // Remove from waitlist (refund the held credit/pass)
   const removeWaitlistMutation = useMutation({
     mutationFn: async (waitlistId: string) => {
+      try {
+        await supabase.rpc("refund_waitlist_hold", { p_waitlist_id: waitlistId });
+      } catch (e) {
+        console.error("refund_waitlist_hold failed (continuing):", e);
+      }
       await supabase
         .from("class_waitlist")
         .update({ status: "expired" as any })
         .eq("id", waitlistId);
     },
-    onSuccess: () => { invalidateAll(); toast.success("Removed from waitlist"); },
+    onSuccess: () => { invalidateAll(); toast.success("Removed from waitlist — credit/pass refunded"); },
     onError: () => toast.error("Failed to remove from waitlist"),
   });
 
