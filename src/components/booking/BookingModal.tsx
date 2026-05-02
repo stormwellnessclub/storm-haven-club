@@ -369,8 +369,14 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           )}
 
-          {/* Payment Method Selection */}
-          {user && !isClassFull && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
+          {/* Payment Method Selection (also used for waitlist hold when full) */}
+          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
+            <>
+              {isClassFull && (
+                <p className="text-xs text-muted-foreground -mb-1">
+                  We'll hold this credit/pass while you're on the waitlist and refund it if you leave or the spot doesn't open.
+                </p>
+              )}
             <div className="space-y-3">
               <Label className="text-sm font-medium">Payment Method</Label>
               <RadioGroup
