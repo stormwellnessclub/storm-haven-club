@@ -176,7 +176,12 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       onOpenChange(false);
       return;
     }
-    await joinWaitlist.mutateAsync({ sessionId: session.id });
+    if (paymentMethod === "pass" && !selectedPassId) return;
+    await joinWaitlist.mutateAsync({
+      sessionId: session.id,
+      paymentMethod,
+      passId: paymentMethod === "pass" ? selectedPassId : null,
+    });
     // Keep modal open so user sees their position
   };
 
