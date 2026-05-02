@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PersonSearch, type PersonResult } from "@/components/admin/roster/PersonSearch";
 import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/roster/PaymentMethodSelector";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
@@ -44,6 +45,13 @@ export default function ClassRoster() {
   const [rosterTab, setRosterTab] = useState<"roster" | "waitlist">("roster");
   const [editingCapacity, setEditingCapacity] = useState(false);
   const [capacityValue, setCapacityValue] = useState<number>(0);
+
+  // Promote-from-waitlist dialog state
+  const [promoteEntry, setPromoteEntry] = useState<{ id: string; user_id: string; memberId: string | null; name: string } | null>(null);
+  const [promoteMethod, setPromoteMethod] = useState<PaymentOption | null>(null);
+  const [promotePassId, setPromotePassId] = useState<string | null>(null);
+  const [promoteCreditId, setPromoteCreditId] = useState<string | null>(null);
+  const [promoteDropInRate, setPromoteDropInRate] = useState<"member" | "nonmember">("member");
 
   // Resolve walk-in email
   useEffect(() => {
@@ -246,6 +254,30 @@ export default function ClassRoster() {
         .eq("id", bookingId);
       if (error) throw error;
 
+      // If this booking was promoted from the waitlist, revert the claimed entry to waiting
+      // so the admin can promote again with a different payment method.
+      if (booking.user_id) {
+        try {
+          const { data: claimed } = await supabase
+            .from("class_waitlist")
+            .select("id")
+            .eq("session_id", sessionId!)
+            .eq("user_id", booking.user_id)
+            .eq("status", "claimed" as any)
+            .order("claimed_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (claimed?.id) {
+            await supabase
+              .from("class_waitlist")
+              .update({ status: "waiting" as any, claimed_at: null })
+              .eq("id", claimed.id);
+          }
+        } catch (err) {
+          console.error("Failed to revert waitlist entry:", err);
+        }
+      }
+
       // Send cancellation email (best-effort — don't block on failure).
       // Resolve recipient: member > linked profile > walk-in fallback.
       try {
@@ -284,32 +316,120 @@ export default function ClassRoster() {
     onError: () => toast.error("Failed to remove"),
   });
 
-  // Promote from waitlist
+  // Promote from waitlist (with payment method choice)
   const promoteMutation = useMutation({
-    mutationFn: async (waitlistEntry: { id: string; user_id: string }) => {
-      const { data: member } = await supabase
-        .from("members")
+    mutationFn: async (args: {
+      waitlistId: string;
+      userId: string;
+      memberId: string | null;
+      method: PaymentOption;
+      passId: string | null;
+      creditId: string | null;
+      dropInRate: "member" | "nonmember";
+    }) => {
+      const { waitlistId, userId, memberId, method, passId, creditId, dropInRate } = args;
+
+      // Block double-bookings
+      const { data: existing } = await supabase
+        .from("class_bookings")
         .select("id")
-        .eq("user_id", waitlistEntry.user_id)
-        .eq("status", "active")
+        .eq("session_id", sessionId!)
+        .eq("user_id", userId)
+        .eq("status", "confirmed")
         .maybeSingle();
+      if (existing) throw new Error("This person is already booked");
 
-      await supabase.from("class_bookings").insert({
-        session_id: sessionId!,
-        user_id: waitlistEntry.user_id,
-        member_id: member?.id || null,
-        status: "confirmed",
-        payment_method: "comp",
-        booked_at: new Date().toISOString(),
-      });
+      if (method === "pass") {
+        if (!passId) throw new Error("Select a class pass");
+        const { data: pass, error: passErr } = await supabase
+          .from("class_passes")
+          .select("classes_remaining")
+          .eq("id", passId)
+          .single();
+        if (passErr || !pass || pass.classes_remaining <= 0) throw new Error("Pass has no remaining classes");
 
+        await supabase
+          .from("class_passes")
+          .update({
+            classes_remaining: pass.classes_remaining - 1,
+            status: pass.classes_remaining - 1 <= 0 ? ("exhausted" as any) : ("active" as any),
+          })
+          .eq("id", passId);
+
+        await supabase.from("class_bookings").insert({
+          session_id: sessionId!, user_id: userId, member_id: memberId,
+          status: "confirmed", payment_method: "pass", pass_id: passId,
+          booked_at: new Date().toISOString(),
+        });
+      } else if (method === "credits") {
+        let targetCreditId = creditId;
+        if (!targetCreditId && memberId) {
+          const { data: creds } = await supabase
+            .from("member_credits")
+            .select("id, credits_remaining")
+            .eq("member_id", memberId)
+            .eq("credit_type", "class")
+            .gt("credits_remaining", 0)
+            .gt("expires_at", new Date().toISOString())
+            .order("expires_at", { ascending: true })
+            .limit(1);
+          if (!creds?.length) throw new Error("No class credits available");
+          targetCreditId = creds[0].id;
+        }
+        if (!targetCreditId) throw new Error("No credits available");
+
+        const { data: credit, error: credErr } = await supabase
+          .from("member_credits")
+          .select("credits_remaining")
+          .eq("id", targetCreditId)
+          .single();
+        if (credErr || !credit || credit.credits_remaining <= 0) throw new Error("No credits remaining");
+
+        await supabase
+          .from("member_credits")
+          .update({ credits_remaining: credit.credits_remaining - 1 })
+          .eq("id", targetCreditId);
+
+        await supabase.from("class_bookings").insert({
+          session_id: sessionId!, user_id: userId, member_id: memberId,
+          status: "confirmed", payment_method: "credits",
+          member_credit_id: targetCreditId, credits_used: 1,
+          booked_at: new Date().toISOString(),
+        });
+      } else if (method === "dropin") {
+        const amountCents = dropInRate === "member" ? 2500 : 3000;
+        await supabase.from("class_bookings").insert({
+          session_id: sessionId!, user_id: userId, member_id: memberId,
+          status: "confirmed", payment_method: "walk_in", amount_paid: amountCents,
+          booked_at: new Date().toISOString(),
+        });
+      } else if (method === "comp") {
+        await supabase.from("class_bookings").insert({
+          session_id: sessionId!, user_id: userId, member_id: memberId,
+          status: "confirmed", payment_method: "comp",
+          booked_at: new Date().toISOString(),
+        });
+      } else {
+        throw new Error("Unsupported payment method for promotion");
+      }
+
+      // Mark waitlist entry claimed only after the booking succeeds.
       await supabase
         .from("class_waitlist")
         .update({ status: "claimed" as any, claimed_at: new Date().toISOString() })
-        .eq("id", waitlistEntry.id);
+        .eq("id", waitlistId);
     },
-    onSuccess: () => { invalidateAll(); toast.success("Promoted from waitlist"); },
-    onError: () => toast.error("Failed to promote"),
+    onSuccess: () => {
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ["roster-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["roster-credits"] });
+      setPromoteEntry(null);
+      setPromoteMethod(null);
+      setPromotePassId(null);
+      setPromoteCreditId(null);
+      toast.success("Promoted from waitlist");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to promote"),
   });
 
   // Remove from waitlist
@@ -773,7 +893,20 @@ export default function ClassRoster() {
                               : <Badge variant="secondary" className="text-xs">Waiting</Badge>}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
-                            <Button size="sm" variant="outline" onClick={() => promoteMutation.mutate({ id: entry.id, user_id: entry.user_id })} disabled={promoteMutation.isPending}>
+                            <Button size="sm" variant="outline" onClick={async () => {
+                              // Resolve memberId for this user (active member only)
+                              const { data: member } = await supabase
+                                .from("members")
+                                .select("id")
+                                .eq("user_id", entry.user_id)
+                                .eq("status", "active")
+                                .maybeSingle();
+                              setPromoteEntry({ id: entry.id, user_id: entry.user_id, memberId: member?.id || null, name });
+                              setPromoteMethod(null);
+                              setPromotePassId(null);
+                              setPromoteCreditId(null);
+                              setPromoteDropInRate(member ? "member" : "nonmember");
+                            }} disabled={promoteMutation.isPending}>
                               <ArrowUp className="h-4 w-4 mr-1" /> Promote
                             </Button>
                             <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeWaitlistMutation.mutate(entry.id)} disabled={removeWaitlistMutation.isPending}>
@@ -803,6 +936,58 @@ export default function ClassRoster() {
         }}
         userId={effectiveUserId || undefined}
       />
+
+      {/* Promote-from-Waitlist Dialog */}
+      <Dialog open={!!promoteEntry} onOpenChange={(o) => { if (!o) setPromoteEntry(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Promote from Waitlist</DialogTitle>
+            <DialogDescription>
+              How should {promoteEntry?.name || "this person"} pay for the class?
+            </DialogDescription>
+          </DialogHeader>
+          {promoteEntry && (
+            <PaymentMethodSelector
+              userId={promoteEntry.user_id}
+              memberId={promoteEntry.memberId}
+              isMember={!!promoteEntry.memberId}
+              selectedMethod={promoteMethod}
+              onMethodChange={setPromoteMethod}
+              selectedPassId={promotePassId}
+              onPassIdChange={setPromotePassId}
+              selectedCreditId={promoteCreditId}
+              onCreditIdChange={setPromoteCreditId}
+              dropInRate={promoteDropInRate}
+              onDropInRateChange={setPromoteDropInRate}
+            />
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromoteEntry(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!promoteEntry || !promoteMethod) return;
+                promoteMutation.mutate({
+                  waitlistId: promoteEntry.id,
+                  userId: promoteEntry.user_id,
+                  memberId: promoteEntry.memberId,
+                  method: promoteMethod,
+                  passId: promotePassId,
+                  creditId: promoteCreditId,
+                  dropInRate: promoteDropInRate,
+                });
+              }}
+              disabled={
+                !promoteMethod ||
+                promoteMethod === "sell" ||
+                (promoteMethod === "pass" && !promotePassId) ||
+                promoteMutation.isPending
+              }
+            >
+              {promoteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm & Promote"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
