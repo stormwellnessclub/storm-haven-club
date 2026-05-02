@@ -905,6 +905,11 @@ export default function ClassRoster() {
                               : <Badge variant="secondary" className="text-xs">Waiting</Badge>}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
+                            {entry.payment_method && !entry.hold_refunded && (
+                              <Badge variant="secondary" className="mr-2 text-[10px]">
+                                {entry.payment_method === "credits" ? "Credit held" : entry.payment_method === "pass" ? "Pass held" : "Held"}
+                              </Badge>
+                            )}
                             <Button size="sm" variant="outline" onClick={async () => {
                               // Resolve memberId for this user (active member only)
                               const { data: member } = await supabase
@@ -914,9 +919,11 @@ export default function ClassRoster() {
                                 .eq("status", "active")
                                 .maybeSingle();
                               setPromoteEntry({ id: entry.id, user_id: entry.user_id, memberId: member?.id || null, name });
-                              setPromoteMethod(null);
-                              setPromotePassId(null);
-                              setPromoteCreditId(null);
+                              // Default to whatever was held on the waitlist row
+                              const heldMethod = !entry.hold_refunded ? entry.payment_method : null;
+                              setPromoteMethod((heldMethod as PaymentOption) || null);
+                              setPromotePassId(heldMethod === "pass" ? entry.pass_id : null);
+                              setPromoteCreditId(heldMethod === "credits" ? entry.member_credit_id : null);
                               setPromoteDropInRate(member ? "member" : "nonmember");
                             }} disabled={promoteMutation.isPending}>
                               <ArrowUp className="h-4 w-4 mr-1" /> Promote
