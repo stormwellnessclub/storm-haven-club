@@ -420,6 +420,69 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        {confirmation ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="sr-only">Booking Confirmed</DialogTitle>
+              <DialogDescription className="sr-only">
+                Your {confirmation.serviceName} booking is confirmed.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-6 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-accent/15 flex items-center justify-center mb-4">
+                <Check className="w-8 h-8 text-accent" />
+              </div>
+              <h2 className="text-2xl font-semibold mb-1">Booking Confirmed</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                We've added this to your schedule.
+              </p>
+
+              <div className="w-full max-w-md border rounded-lg divide-y">
+                <div className="px-4 py-3 flex justify-between items-start gap-4">
+                  <span className="text-sm text-muted-foreground">Service</span>
+                  <span className="text-sm font-medium text-right">{confirmation.serviceName}</span>
+                </div>
+                <div className="px-4 py-3 flex justify-between items-start gap-4">
+                  <span className="text-sm text-muted-foreground">Date</span>
+                  <span className="text-sm font-medium text-right">
+                    {format(confirmation.date, "EEEE, MMMM d, yyyy")}
+                  </span>
+                </div>
+                <div className="px-4 py-3 flex justify-between items-start gap-4">
+                  <span className="text-sm text-muted-foreground">Time</span>
+                  <span className="text-sm font-medium text-right">
+                    {formatTime12h(confirmation.time)} · {confirmation.durationMinutes} min
+                  </span>
+                </div>
+                <div className="px-4 py-3 flex justify-between items-start gap-4">
+                  <span className="text-sm text-muted-foreground">Payment</span>
+                  <span className="text-sm font-medium text-right">{confirmation.paymentSummary}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 w-full max-w-md mt-6">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Done
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate(membership ? "/member/wellness" : "/portal/bookings");
+                  }}
+                >
+                  View My Appointments
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
         <DialogHeader>
           <DialogTitle>Book {service.name}</DialogTitle>
           <DialogDescription>
