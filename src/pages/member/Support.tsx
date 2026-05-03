@@ -188,16 +188,38 @@ export default function Support() {
                     <>
                       <ScrollArea className="h-[400px] px-4">
                         <div className="space-y-4 py-4">
+                          <div className="rounded-md border border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+                            <span>Your messages are delivered to the Storm Wellness Club team. We typically reply within one business day.</span>
+                          </div>
                           {messages?.map((message) => (
                             <div key={message.id} className={`flex ${message.sender_type === 'member' ? 'justify-end' : 'justify-start'}`}>
                               <div className={`max-w-[80%] rounded-lg p-3 ${message.sender_type === 'member' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                 <p className="text-sm whitespace-pre-wrap">{message.message_body}</p>
-                                <p className={`text-xs mt-1 ${message.sender_type === 'member' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                <p className={`text-xs mt-1 flex items-center gap-1 ${message.sender_type === 'member' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                                   {format(new Date(message.created_at), 'MMM d, h:mm a')}
+                                  {message.sender_type === 'member' && (
+                                    <>
+                                      <span>·</span>
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      <span>Delivered</span>
+                                    </>
+                                  )}
                                 </p>
                               </div>
                             </div>
                           ))}
+                          {sendMessage.isPending && (
+                            <div className="flex justify-end">
+                              <div className="max-w-[80%] rounded-lg p-3 bg-primary/70 text-primary-foreground opacity-80">
+                                <p className="text-sm whitespace-pre-wrap">{newMessage}</p>
+                                <p className="text-xs mt-1 flex items-center gap-1 text-primary-foreground/70">
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  <span>Sending…</span>
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </ScrollArea>
                       <Separator />
