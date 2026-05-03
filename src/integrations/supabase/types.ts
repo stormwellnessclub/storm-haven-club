@@ -7002,6 +7002,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      validate_manager_refund_code: {
+        Args: { _code: string }
+        Returns: boolean
+      }
       verify_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
     }
     Enums: {
