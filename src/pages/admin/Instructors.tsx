@@ -61,10 +61,11 @@ export default function Instructors() {
   }, []);
 
   async function fetchInstructors() {
-    const { data, error } = await supabase
-      .from("instructors")
-      .select("*")
-      .order("last_name");
+    // Use SECURITY DEFINER RPC so staff can read email/phone (restricted columns)
+    const { data, error } = await (supabase as any).rpc("get_instructors_with_contact");
+    if (data) {
+      (data as any[]).sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
+    }
     
     if (error) {
       toast.error("Failed to load instructors");

@@ -109,12 +109,13 @@ export function useSpaTherapists() {
   return useQuery({
     queryKey: ["spa-therapists"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("spa_therapists")
-        .select("*")
-        .order("full_name");
+      // Use SECURITY DEFINER RPC so staff can read email/phone (restricted columns)
+      const { data, error } = await (supabase as any).rpc("get_spa_therapists_with_contact");
       if (error) throw error;
-      return data as SpaTherapist[];
+      const sorted = (data || []).slice().sort((a: any, b: any) =>
+        (a.full_name || "").localeCompare(b.full_name || "")
+      );
+      return sorted as SpaTherapist[];
     },
   });
 }
