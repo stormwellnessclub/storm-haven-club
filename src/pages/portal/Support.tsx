@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, ArrowLeft } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 
@@ -69,7 +70,13 @@ export default function PortalSupport() {
     if (!replyText.trim() || !selectedConvId) return;
     sendMessage.mutate(
       { conversationId: selectedConvId, message: replyText },
-      { onSuccess: () => setReplyText("") }
+      {
+        onSuccess: () => {
+          setReplyText("");
+          toast.success("Message sent", { description: "Our team has received your message and will reply soon." });
+        },
+        onError: () => toast.error("Failed to send message. Please try again."),
+      }
     );
   };
 
@@ -84,6 +91,10 @@ export default function PortalSupport() {
           </Button>
           <h3 className="font-medium">{conv?.subject || "Conversation"}</h3>
           <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+            <div className="rounded-md border border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
+              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+              <span>Your messages are delivered to the Storm Wellness Club team. We typically reply within one business day.</span>
+            </div>
             {messages.map((msg: any) => (
               <div
                 key={msg.id}
@@ -93,13 +104,27 @@ export default function PortalSupport() {
                     : "bg-card mr-8 border border-border"
                 }`}
               >
-                <p className="text-xs text-muted-foreground mb-1">
-                  {msg.sender_type === "member" ? "You" : "Staff"} ·{" "}
-                  {format(new Date(msg.created_at), "MMM d, h:mm a")}
+                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                  <span>{msg.sender_type === "member" ? "You" : "Staff"} · {format(new Date(msg.created_at), "MMM d, h:mm a")}</span>
+                  {msg.sender_type === "member" && (
+                    <>
+                      <span>·</span>
+                      <CheckCircle2 className="h-3 w-3" />
+                      <span>Delivered</span>
+                    </>
+                  )}
                 </p>
                 <p className="whitespace-pre-wrap">{msg.message_body}</p>
               </div>
             ))}
+            {sendMessage.isPending && (
+              <div className="p-3 rounded-sm text-sm bg-primary/5 ml-8 opacity-70">
+                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Sending…
+                </p>
+                <p className="whitespace-pre-wrap">{replyText}</p>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <Textarea
