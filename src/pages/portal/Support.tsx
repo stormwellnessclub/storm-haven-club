@@ -70,7 +70,13 @@ export default function PortalSupport() {
     if (!replyText.trim() || !selectedConvId) return;
     sendMessage.mutate(
       { conversationId: selectedConvId, message: replyText },
-      { onSuccess: () => setReplyText("") }
+      {
+        onSuccess: () => {
+          setReplyText("");
+          toast.success("Message sent", { description: "Our team has received your message and will reply soon." });
+        },
+        onError: () => toast.error("Failed to send message. Please try again."),
+      }
     );
   };
 
