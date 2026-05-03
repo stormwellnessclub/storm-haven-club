@@ -128,6 +128,17 @@ serve(async (req) => {
 
   try {
     const { type, to, data }: EmailRequest = await req.json();
+
+    // Authorize: require service-role key or valid JWT, except for whitelisted public types
+    const authz = await authorizeRequest(req, type);
+    if (!authz.ok) {
+      console.warn(`Unauthorized send-email request for type: ${type}`);
+      return new Response(
+        JSON.stringify({ error: authz.error }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: authz.status }
+      );
+    }
+
     console.log(`Processing email type: ${type} for: ${to}`);
 
     let subject = '';
