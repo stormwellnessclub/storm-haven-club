@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -341,7 +342,7 @@ export function ReferralCampaignTab() {
           <CardContent>
             <div
               className="border rounded-lg overflow-hidden"
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewHtml) }}
             />
           </CardContent>
         </Card>

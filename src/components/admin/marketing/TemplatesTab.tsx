@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -257,7 +258,7 @@ export function TemplatesTab() {
                           <p className="text-sm font-medium">Subject: {t.subject}</p>
                           <div
                             className="border rounded p-4 prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: t.body_html }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(t.body_html) }}
                           />
                         </div>
                       </DialogContent>
