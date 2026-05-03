@@ -26,8 +26,9 @@ export function useTeamMembers() {
         // Pull staff via user_roles + profiles
         const [{ data: roles }, { data: instructors }, { data: therapists }] = await Promise.all([
           supabase.from('user_roles').select('user_id, role'),
-          supabase.from('instructors').select('id, user_id, first_name, last_name, email').eq('is_active', true),
-          supabase.from('spa_therapists' as any).select('id, full_name, email').eq('is_active', true),
+          // Use SECURITY DEFINER RPCs to fetch email (restricted column for staff only)
+          (supabase as any).rpc('get_instructors_with_contact'),
+          (supabase as any).rpc('get_spa_therapists_with_contact'),
         ]);
 
         // Get profiles for staff users
