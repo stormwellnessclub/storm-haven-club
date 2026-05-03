@@ -211,10 +211,34 @@ export default function ClassRoster() {
       // Pull everything we need for the email BEFORE we cancel.
       const { data: booking, error: fetchErr } = await supabase
         .from("class_bookings")
-        .select("id, payment_method, pass_id, member_credit_id, credits_used, walk_in_email, walk_in_name, member_id, user_id, members(first_name, last_name, email), profiles:user_id(first_name, last_name, email)")
+        .select("id, payment_method, pass_id, member_credit_id, credits_used, walk_in_email, walk_in_name, member_id, user_id")
         .eq("id", bookingId)
-        .single();
-      if (fetchErr || !booking) throw new Error("Booking not found");
+        .maybeSingle();
+      if (fetchErr) {
+        console.error("Booking fetch error:", fetchErr);
+        throw new Error(fetchErr.message || "Failed to load booking");
+      }
+      if (!booking) throw new Error("Booking not found");
+
+      // Fetch member + profile separately (embedded joins fail because user_id FK points to auth.users, not profiles).
+      let member: { first_name?: string; last_name?: string; email?: string } | null = null;
+      let profile: { first_name?: string; last_name?: string; email?: string } | null = null;
+      if (booking.member_id) {
+        const { data } = await supabase
+          .from("members")
+          .select("first_name, last_name, email")
+          .eq("id", booking.member_id)
+          .maybeSingle();
+        member = data as any;
+      }
+      if (booking.user_id) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, email")
+          .eq("user_id", booking.user_id)
+          .maybeSingle();
+        profile = data as any;
+      }
 
       if (booking.payment_method === "credits" && booking.member_credit_id) {
         const { data: credit } = await supabase
@@ -289,8 +313,7 @@ export default function ClassRoster() {
       // Send cancellation email (best-effort — don't block on failure).
       // Resolve recipient: member > linked profile > walk-in fallback.
       try {
-        const member = booking.members as any;
-        const profile = booking.profiles as any;
+        // member and profile already fetched above
         const email = member?.email || profile?.email || booking.walk_in_email;
         const firstName = member?.first_name || profile?.first_name || booking.walk_in_name?.split(" ")[0];
         const lastName = member?.last_name || profile?.last_name;
