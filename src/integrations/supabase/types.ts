@@ -6733,6 +6733,29 @@ export type Database = {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
       }
+      get_instructors_with_contact: {
+        Args: never
+        Returns: {
+          bio: string | null
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          is_active: boolean
+          last_name: string
+          phone: string | null
+          photo_url: string | null
+          specialties: string[] | null
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "instructors"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_member_arrears_summary: {
         Args: { p_member_id: string }
         Returns: Json
@@ -6763,6 +6786,27 @@ export type Database = {
           anon_key: string
           supabase_url: string
         }[]
+      }
+      get_spa_therapists_with_contact: {
+        Args: never
+        Returns: {
+          bio: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          photo_url: string | null
+          specialties: string[] | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "spa_therapists"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_subscription_health: { Args: never; Returns: Json }
       get_waitlist_counts: {
