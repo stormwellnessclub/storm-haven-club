@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, ArrowLeft } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 
