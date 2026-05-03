@@ -314,8 +314,6 @@ export default function ClassRoster() {
       // Resolve recipient: member > linked profile > walk-in fallback.
       try {
         // member and profile already fetched above
-        const _member: any = member;
-        const _profile: any = profile;
         const email = member?.email || profile?.email || booking.walk_in_email;
         const firstName = member?.first_name || profile?.first_name || booking.walk_in_name?.split(" ")[0];
         const lastName = member?.last_name || profile?.last_name;
