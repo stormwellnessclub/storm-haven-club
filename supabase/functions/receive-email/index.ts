@@ -69,7 +69,46 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const payload: ResendEmailPayload = await req.json();
+    // Verify Svix webhook signature (Resend uses Svix for webhook delivery)
+    const rawBody = await req.text();
+    const webhookSecret = Deno.env.get('RESEND_WEBHOOK_SECRET');
+    const svixId = req.headers.get('svix-id');
+    const svixTimestamp = req.headers.get('svix-timestamp');
+    const svixSignature = req.headers.get('svix-signature');
+
+    if (!webhookSecret) {
+      console.error('RESEND_WEBHOOK_SECRET is not configured — refusing to process unverified webhook');
+      return new Response(
+        JSON.stringify({ error: 'Webhook signing secret not configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      console.error('Missing Svix signature headers');
+      return new Response(
+        JSON.stringify({ error: 'Missing webhook signature headers' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    let payload: ResendEmailPayload;
+    try {
+      const { Webhook } = await import('https://esm.sh/svix@1.24.0');
+      const wh = new Webhook(webhookSecret);
+      payload = wh.verify(rawBody, {
+        'svix-id': svixId,
+        'svix-timestamp': svixTimestamp,
+        'svix-signature': svixSignature,
+      }) as ResendEmailPayload;
+    } catch (verifyErr) {
+      console.error('Svix signature verification failed:', verifyErr);
+      return new Response(
+        JSON.stringify({ error: 'Invalid webhook signature' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
     console.log("Received email webhook:", payload.type, "from:", payload.data?.from);
 
     // Only process email.received events
