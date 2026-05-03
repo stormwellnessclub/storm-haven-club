@@ -7,6 +7,47 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Types that can be safely invoked without authentication (e.g., from the public
+// application submission flow). All other types require a valid JWT or service-role key.
+const PUBLIC_EMAIL_TYPES = new Set<string>([
+  'application_submitted',
+]);
+
+async function authorizeRequest(req: Request, type: string): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+
+  // Allow service-role key (used by other edge functions calling send-email).
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (token && serviceRoleKey && token === serviceRoleKey) {
+    return { ok: true };
+  }
+
+  // Validate user JWT.
+  if (token) {
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const authClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      const { data, error } = await authClient.auth.getUser(token);
+      if (!error && data?.user) {
+        return { ok: true };
+      }
+    } catch (_e) {
+      // fallthrough
+    }
+  }
+
+  // No valid auth — only allow safe public types.
+  if (PUBLIC_EMAIL_TYPES.has(type)) {
+    return { ok: true };
+  }
+
+  return { ok: false, status: 401, error: 'Unauthorized' };
+}
+
 interface EmailRequest {
   type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'freeze_completed' | 'freeze_request_rejected' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification';
   to: string;
