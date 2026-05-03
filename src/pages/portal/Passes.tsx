@@ -43,8 +43,11 @@ export default function PortalPasses() {
     enabled: !!user,
   });
 
-  const activePasses = passes.filter((p) => p.status === "active" && p.classes_remaining > 0);
-  const otherPasses = passes.filter((p) => p.status !== "active" || p.classes_remaining <= 0);
+  // Hide Kids Care passes — those are managed exclusively in the Kids Care flow,
+  // not redeemable as regular class passes.
+  const visiblePasses = passes.filter((p) => !p.pass_type?.toLowerCase().startsWith("kids_care"));
+  const activePasses = visiblePasses.filter((p) => p.status === "active" && p.classes_remaining > 0);
+  const otherPasses = visiblePasses.filter((p) => p.status !== "active" || p.classes_remaining <= 0);
 
   const activeGuestPasses = guestPasses.filter((p: any) => p.status === "active" && new Date(p.expires_at) > new Date());
   const usedGuestPasses = guestPasses.filter((p: any) => p.status !== "active" || new Date(p.expires_at) <= new Date());
