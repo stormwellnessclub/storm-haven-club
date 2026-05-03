@@ -254,28 +254,36 @@ export default function ClassRoster() {
         .eq("id", bookingId);
       if (error) throw error;
 
-      // If this booking was promoted from the waitlist, revert the claimed entry to waiting
-      // so the admin can promote again with a different payment method.
+      // If this booking came from the waitlist, fully close any related claimed/waiting
+      // waitlist row so the person is completely removed from the class.
       if (booking.user_id) {
         try {
-          const { data: claimed } = await supabase
+          await supabase
             .from("class_waitlist")
-            .select("id")
+            .update({ status: "expired" as any, hold_refunded: true })
             .eq("session_id", sessionId!)
             .eq("user_id", booking.user_id)
-            .eq("status", "claimed" as any)
-            .order("claimed_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (claimed?.id) {
-            await supabase
-              .from("class_waitlist")
-              .update({ status: "waiting" as any, claimed_at: null })
-              .eq("id", claimed.id);
-          }
+            .in("status", ["claimed", "waiting", "notified"] as any);
         } catch (err) {
-          console.error("Failed to revert waitlist entry:", err);
+          console.error("Failed to close waitlist entry:", err);
         }
+      }
+
+      // Recompute enrollment counter to keep the roster header accurate.
+      try {
+        const { count } = await supabase
+          .from("class_bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("session_id", sessionId!)
+          .in("status", ["confirmed", "completed"]);
+        if (typeof count === "number") {
+          await supabase
+            .from("class_sessions")
+            .update({ current_enrollment: count })
+            .eq("id", sessionId!);
+        }
+      } catch (err) {
+        console.error("Failed to recompute enrollment:", err);
       }
 
       // Send cancellation email (best-effort — don't block on failure).
@@ -313,7 +321,7 @@ export default function ClassRoster() {
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Removed from class — credit/pass restored, member notified"); },
-    onError: () => toast.error("Failed to remove"),
+    onError: (err: any) => toast.error(err?.message || "Failed to remove"),
   });
 
   // Promote from waitlist (with payment method choice)
