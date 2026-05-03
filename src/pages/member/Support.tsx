@@ -72,6 +72,7 @@ export default function Support() {
     try {
       await sendMessage.mutateAsync({ conversationId: selectedConversation, message: newMessage.trim() });
       setNewMessage("");
+      toast({ title: "Message sent", description: "Our team has received your message and will reply soon." });
     } catch {
       toast({ title: "Error", description: "Failed to send message. Please try again.", variant: "destructive" });
     }
