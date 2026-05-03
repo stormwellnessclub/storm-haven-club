@@ -1,133 +1,48 @@
+## Detailed Sales Reports (Q1 + April + May 2026)
 
-# Bank Financial Package — Storm Wellness Club
+The previous bank package undercounted ancillary revenue because it only pulled from each "primary" table (e.g. `cafe_orders`, `spa_appointments`) and missed the bulk of real activity, which is recorded in `manual_charges` (POS, kiosk, admin manual checkouts) with patterns like `2x Cafe - ...`, `Drop-in: Reformer ...`, `Spa: Deep Relief Massage — 90 + tip`, `185 - 90 min treatment`, etc.
 
-## Deliverables
+I will rebuild the sales reports by unifying every revenue source and classifying line items with smarter rules.
 
-Three Excel workbooks plus one PDF cover summary, written to `/mnt/documents/`:
+### What I'll deliver
 
-1. **`Storm_Wellness_Q1_2026_Financials.xlsx`** — Q1 2026 actuals as captured in the system (revenue side only; expense side flagged as "CPA to populate"). Note: app does not store payroll, rent, utilities, etc., so this serves as a CPA-ready revenue worksheet, not a full CPA-prepared statement.
-2. **`Storm_Wellness_2026_PL_Projection.xlsx`** — full-year 2026 P&L by month with totals, split into Revenue / COGS / Operating Expenses / EBITDA / Net Income.
-3. **`Storm_Wellness_13_Week_Cash_Flow.xlsx`** — 13 weeks starting Monday Apr 6, 2026 (week-of Q2 start). Standard SBA-style format: Beginning Cash → Receipts → Disbursements → Net Change → Ending Cash.
-4. **`Storm_Wellness_Bank_Package_Summary.pdf`** — 2-3 page cover for the bank summarizing membership base, growth strategy, key assumptions, and where each number comes from.
+A single workbook **`Storm_Wellness_Detailed_Sales_Report.xlsx`** with one tab per category, plus a summary tab and a PDF executive summary.
 
-## Data Sources (Pulled from Lovable Cloud DB)
+Tabs:
+1. **Summary** — Totals by category by month (Jan–May 2026), with grand totals.
+2. **Cafe Sales** — Every cafe transaction (from `cafe_orders` + `manual_charges` matching cafe items, including multi-item carts like `2x Cafe - …`). Columns: date, member, items, gross, tax (6% MI), processing fee, net.
+3. **Class Pass Sales** — `class_passes` (single, 10-pack, kids_care, kids_care_monthly) + `manual_charges` matching class pass / drop-in patterns. Columns: date, member, pass_type, qty, price_paid.
+4. **Guest Pass Sales** — `guest_passes` + `manual_charges` matching guest pass / day pass.
+5. **Kids Care Sales** — Kids care passes from `class_passes` (`kids_care`, `kids_care_monthly`) + matching `manual_charges` + booking activity counts from `kids_care_bookings`.
+6. **Spa & Massage Sales** — `spa_appointments` (completed + confirmed, member_price/service_price + tip) + `manual_charges` matching spa/massage/cryo/red-light/stretch/lymphatic patterns. Includes service breakdown (Deep Relief 60/90, Storm Signature 60/90, Sports Performance, Lymph & Flow, etc.).
+7. **Monthly Totals by Category** — Pivot table with formulas summing each tab.
 
-Confirmed available on the backend:
+### Classification rules (handles missed records)
 
-- **Active members**: 107 total (14 founding, 93 paying). Mix by tier:
-  - Silver: 62 paying / 8 founding → $12,400/mo dues
-  - Gold: 24 paying / 5 founding → $6,000/mo dues
-  - Diamond: 7 paying / 1 founding → $3,500/mo dues
-  - **Baseline recurring dues: ~$21,900/mo**
-- **Manual charges (Q1+April actuals)**: ~$8.1k Jan, $18.3k Feb, $8.5k Mar, $13.2k Apr (initiation fees, annual fees, class passes, spa, etc.)
-- **Cafe + merch + payment_attempts**: minor volumes (cafe ~$73 Apr, merch ~$70 Mar, payment_attempts $1.5k Apr)
-- **Founding annual renewals**: pulled from `annual_fee_paid_at` + 12 months
-- **Next billing dates**: from `members.next_billing_date` for dues timing in 13-week cash flow
+- **Cafe**: description matches `Cafe -`, `Cafe %`, or starts with `<n>x Cafe`, or contains `incl. MI 6%` with `Cafe`/menu item names; plus all rows from `cafe_orders` where `status='completed'`.
+- **Class Pass**: `class pass`, `Pilates/Cycling`, `single class`, `10-pack`, `Drop-in: Reformer`, `Drop-in: Cycling`, plus all `class_passes` purchases.
+- **Guest Pass**: `guest pass`, `day pass`, plus all `guest_passes`.
+- **Kids Care**: `kids care`, `kids_care`, `childcare`, plus `class_passes` where `pass_type ILIKE '%kids%'`.
+- **Spa/Massage**: `Spa:`, `massage`, `min treatment`, `min stretch`, `lymphatic`, `cryo`, `Red Light`, `ZeroBody`, `chakra`, plus `spa_appointments` (completed + confirmed) revenue minus any duplicate `manual_charges` already linked via `payment_intent_id`.
 
-## What I Need From You (Expense Inputs)
+To prevent double counting, I'll dedupe `manual_charges` against `spa_appointments.payment_intent_id` and `cafe_orders.stripe_payment_intent_id` on the join.
 
-The app does not track operating expenses. To make projections meaningful I'll insert clearly-marked **placeholder rows** with **yellow-highlighted assumption cells** that you (or your CPA) overwrite. Categories included:
+### Preliminary numbers found (will be the floor)
 
-- Payroll & contractor (instructors, front desk, spa therapists, mgmt)
-- Rent & CAM
-- Utilities
-- Insurance
-- Loan / SBA debt service
-- Marketing
-- Software / SaaS
-- Cleaning, supplies, repairs
-- Cafe COGS
-- Merchandise COGS
-- Owner draws / distributions
+| Category       | Feb       | Mar       | Apr       | May (MTD) |
+|----------------|-----------|-----------|-----------|-----------|
+| Cafe           | $169.02   | $2,263.81 | $4,869.73 | $99.05    |
+| Spa/Massage    | $215.20   | $297.00   | $5,888.76 | $2,143.83 |
+| Class Passes   | $2,166.32 | $3,565.08 | $4,405.85 | $62.42    |
+| Guest Passes   | $1,514.88 | $1,775.81 | $2,094.64 | $186.33   |
+| Kids Care      | $0        | $853.05   | $767.54   | $0        |
 
-Each formula will reference these assumption cells so when you plug numbers in, every downstream total auto-recalculates.
+(These will increase further once "Other" multi-item carts are properly parsed.)
 
-## Workbook 1 — Q1 2026 Actuals
+### Format
 
-Sheet: `Q1_Actuals`
-- Columns: Jan / Feb / Mar / Q1 Total
-- Revenue lines (from DB): Membership Dues, Initiation/Annual Fees, Class Passes, Spa, Cafe, Merch, Other
-- Expense lines: blank rows with "Source: CPA" notes for you to fill in or hand to the CPA
-- Net income formula at bottom
+- Excel: openpyxl, formulas for all totals (no hardcoded sums), professional formatting (frozen header, currency format, bold totals).
+- PDF: 1-page executive summary of the same numbers, Helvetica fonts.
+- Output: `/mnt/documents/Storm_Wellness_Detailed_Sales_Report.xlsx` and `/mnt/documents/Storm_Wellness_Detailed_Sales_Report.pdf`.
 
-Sheet: `Revenue_Detail` — itemized list of every manual_charge / order in Q1 with date, member, description, amount (audit trail for the CPA).
-
-## Workbook 2 — 2026 P&L Projection by Month
-
-Sheet: `Projection_2026`
-- Columns: Jan (actual) … Apr (actual) … May–Dec (projected) … FY Total
-- **Revenue model**:
-  - Recurring dues = current $21,900/mo baseline × monthly growth assumption (default **+3 net new paying members/month**, weighted-average ~$235/mo). Growth rate is editable in `Assumptions` sheet.
-  - Annual fees / initiation: blended $300 women / $175 men × new joins
-  - Founding annual renewals: scheduled by `annual_fee_paid_at + 12mo` (calendared to actual due months)
-  - Ancillary (class passes, spa, cafe, merch, kids care): trailing-3-month run rate × seasonality factor
-- **Expenses**: assumption-driven, fixed + variable
-- **Outputs**: Gross Profit, Operating Income, EBITDA, Net Income — all formulas
-
-Sheet: `Assumptions` (yellow cells)
-- Net new members/month, churn %, average tier mix, expense category amounts, growth ramp
-- Changing any cell flows through entire model
-
-Sheet: `Member_Roster_Snapshot` — current 107 members with tier, gender, founding flag, monthly value (audit basis for the projection).
-
-## Workbook 3 — 13-Week Cash Flow (Apr 6 – Jul 5, 2026)
-
-Sheet: `13_Week_CF`
-
-```
-                    W1   W2   W3   W4 ...  W13   Total
-Beginning Cash      [in] =E…  =F…  =G…       
-RECEIPTS
-  Membership dues    
-  Annual fee renewals
-  Initiation fees
-  Class pass sales   
-  Spa revenue        
-  Cafe / Merch       
-  Other              
-Total Receipts       
-DISBURSEMENTS
-  Payroll            
-  Rent               
-  Utilities          
-  Insurance          
-  Loan payment       
-  Marketing          
-  Software           
-  Supplies / cleaning
-  COGS - Cafe        
-  COGS - Merch       
-  Owner draws        
-  Other              
-Total Disbursements  
-Net Cash Flow        
-Ending Cash          
-```
-
-- **Receipt timing**: dues hit on members' actual `next_billing_date` (DB-driven, distributed across 13 weeks). Annual renewals on founding members' renewal dates that fall in window.
-- **Disbursement timing**: bi-weekly payroll, monthly rent on the 1st, etc. — editable on `Assumptions` sheet.
-- Yellow cells: starting cash balance + all expense assumptions.
-- Conditional formatting: ending cash turns red if negative.
-
-## Workbook 4 — Bank Summary PDF
-
-2-3 pages, cover-letter style:
-1. **Page 1**: business overview, membership snapshot (107 active, $21.9k recurring MRR), Q1 highlights
-2. **Page 2**: growth strategy bullets (expand membership, ancillary revenue, founding renewals), key assumptions
-3. **Page 3**: list of attached workbooks + how to read them
-
-Generated with reportlab, branded with Storm Wellness colors.
-
-## Process
-
-1. Build a Python script that queries the DB for all the actuals/membership data
-2. Generate three .xlsx files via openpyxl (formulas, not hardcoded values; yellow assumption cells)
-3. Run `recalculate_formulas.py` on each — verify zero #REF/#DIV/0
-4. Generate PDF summary
-5. Render Workbook 2 first sheet + PDF to images for visual QA
-6. Drop all four files in `/mnt/documents/` and emit `<lov-artifact>` tags
-
-## Caveats
-
-- The "CPA-prepared Q1 financials" deliverable per se requires your CPA — the DB only contains revenue activity. I'll produce a Q1 revenue workbook that the CPA can drop expense numbers into, plus the projection and cash flow which you can complete yourself and send.
-- Default expense assumptions in the projections will be conservative placeholders ($0 where unknown) so the bank reviewer immediately sees what still needs your input — preferable to fabricated numbers.
+Approve and I'll generate it.
