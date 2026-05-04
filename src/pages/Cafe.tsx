@@ -621,6 +621,23 @@ export default function Cafe() {
                 <span className="text-accent">${cartTotal.toFixed(2)}</span>
               </div>
             </div>
+            {showSmsOptIn && (
+              <label className="flex items-start gap-2 rounded-md border bg-muted/30 p-3 cursor-pointer">
+                <Checkbox
+                  checked={smsOptIn}
+                  onCheckedChange={(v) => setSmsOptIn(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 text-sm font-medium">
+                    <MessageSquare className="h-3.5 w-3.5" /> Text me when it's ready
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    We'll text you order updates and the occasional cafe special. Reply STOP to opt out anytime.
+                  </p>
+                </div>
+              </label>
+            )}
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)} disabled={isProcessingPayment}>
