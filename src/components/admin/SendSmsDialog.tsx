@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,6 +14,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MessageSquare, AlertTriangle } from "lucide-react";
+import { SmsMediaPicker } from "./SmsMediaPicker";
+import { estimateCost, segments } from "@/lib/smsCosts";
 
 interface Props {
   open: boolean;
@@ -47,15 +48,20 @@ const QUICK_TEMPLATES: { label: string; value: string }[] = [
 
 export function SendSmsDialog({ open, onOpenChange, recipient }: Props) {
   const [body, setBody] = useState("");
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
 
-  const segments = useMemo(() => Math.max(1, Math.ceil(body.length / 160)), [body.length]);
+  const segs = segments(body);
+  const cost = useMemo(
+    () => estimateCost({ recipients: 1, body, hasMedia: mediaUrls.length > 0 }),
+    [body, mediaUrls.length],
+  );
   const hasPhone = !!recipient.phone?.trim();
   const optedIn = recipient.smsOptIn === true;
 
   const handleSend = async () => {
-    if (!body.trim()) {
-      toast.error("Message body cannot be empty.");
+    if (!body.trim() && mediaUrls.length === 0) {
+      toast.error("Add a message or an image.");
       return;
     }
     if (!hasPhone) {
@@ -68,23 +74,27 @@ export function SendSmsDialog({ open, onOpenChange, recipient }: Props) {
         body: {
           to: { userId: recipient.userId || undefined, phone: recipient.phone },
           templateKey: "admin-custom",
-          variables: { customBody: body },
+          variables: { customBody: body || " " },
           idempotencyKey: `admin-${recipient.userId ?? recipient.phone}-${Date.now()}`,
-          metadata: { source: "admin_member_detail" },
+          metadata: { source: "admin_send_dialog" },
           bypassConsent: true,
+          mediaUrls,
         },
       });
       if (error) throw error;
       if ((data as any)?.success === false) {
         throw new Error((data as any)?.error || "Send failed");
       }
-      toast.success("SMS sent.", {
-        description: (data as any)?.sid ? `Twilio SID: ${(data as any).sid}` : undefined,
+      toast.success(`${cost.type} sent.`, {
+        description: (data as any)?.twilio_sid
+          ? `Twilio SID: ${(data as any).twilio_sid}`
+          : undefined,
       });
       setBody("");
+      setMediaUrls([]);
       onOpenChange(false);
     } catch (e: any) {
-      toast.error(e.message || "Failed to send SMS");
+      toast.error(e.message || "Failed to send");
     } finally {
       setSending(false);
     }
@@ -96,11 +106,13 @@ export function SendSmsDialog({ open, onOpenChange, recipient }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
-            Send SMS to {recipient.name}
+            Send {cost.type} to {recipient.name}
           </DialogTitle>
           <DialogDescription>
             {hasPhone ? (
-              <span>To: <span className="font-mono">{recipient.phone}</span></span>
+              <span>
+                To: <span className="font-mono">{recipient.phone}</span>
+              </span>
             ) : (
               <span className="text-destructive">No phone number on file.</span>
             )}
@@ -111,9 +123,8 @@ export function SendSmsDialog({ open, onOpenChange, recipient }: Props) {
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              This member has <strong>not opted in</strong> to SMS. Only send transactional
-              service messages required for their account (billing, appointment, account).
-              Marketing messages require opt-in (TCPA / 10DLC).
+              This recipient has <strong>not opted in</strong>. Only send transactional service
+              messages required for their account. Marketing requires opt-in (TCPA / 10DLC).
             </AlertDescription>
           </Alert>
         )}
@@ -147,18 +158,25 @@ export function SendSmsDialog({ open, onOpenChange, recipient }: Props) {
               placeholder="Type your message…"
             />
             <div className="text-xs text-muted-foreground mt-1 flex justify-between">
-              <span>{body.length} chars · {segments} segment{segments !== 1 ? "s" : ""}</span>
-              <span>Append "Reply STOP to opt out" for marketing sends</span>
+              <span>
+                {body.length} chars · {segs} segment{segs !== 1 ? "s" : ""} · {cost.type}
+              </span>
+              <span>≈ {cost.perRecipientFormatted}</span>
             </div>
           </div>
+
+          <SmsMediaPicker value={mediaUrls} onChange={setMediaUrls} />
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>
             Cancel
           </Button>
-          <Button onClick={handleSend} disabled={sending || !hasPhone || !body.trim()}>
-            {sending ? "Sending…" : "Send SMS"}
+          <Button
+            onClick={handleSend}
+            disabled={sending || !hasPhone || (!body.trim() && mediaUrls.length === 0)}
+          >
+            {sending ? "Sending…" : `Send ${cost.type}`}
           </Button>
         </DialogFooter>
       </DialogContent>
