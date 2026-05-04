@@ -22,6 +22,8 @@ type SendInput = {
   metadata?: Record<string, unknown>;
   /** When true and the caller is an admin, bypass the sms_opt_in gate (for transactional service messages). */
   bypassConsent?: boolean;
+  /** Up to 10 publicly accessible image URLs (sms-media bucket). When set, message is sent as MMS. */
+  mediaUrls?: string[];
 };
 
 function tmpl(s: string, v: Record<string, unknown>) {
@@ -253,12 +255,16 @@ Deno.serve(async (req) => {
 
     // Send via Twilio
     const statusCallback = `${SUPABASE_URL}/functions/v1/twilio-status`;
+    const mediaUrls = Array.isArray(body.mediaUrls)
+      ? body.mediaUrls.filter((u) => typeof u === "string" && u.startsWith("http")).slice(0, 10)
+      : [];
     const form = new URLSearchParams({
       To: phone,
       From: TWILIO_FROM_NUMBER,
       Body: messageBody,
       StatusCallback: statusCallback,
     });
+    for (const url of mediaUrls) form.append("MediaUrl", url);
     const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
     const tw = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
@@ -285,6 +291,8 @@ Deno.serve(async (req) => {
         error_code: String(twData.code ?? tw.status),
         error_message: twData.message ?? "Twilio error",
         metadata: body.metadata ?? {},
+        media_urls: mediaUrls,
+        media_count: mediaUrls.length,
       });
       return new Response(
         JSON.stringify({ success: false, error: twData.message ?? "twilio_failed" }),
@@ -305,6 +313,8 @@ Deno.serve(async (req) => {
         twilio_sid: twData.sid,
         sent_at: new Date().toISOString(),
         metadata: body.metadata ?? {},
+        media_urls: mediaUrls,
+        media_count: mediaUrls.length,
       })
       .select("id")
       .single();

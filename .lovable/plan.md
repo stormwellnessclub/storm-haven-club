@@ -1,88 +1,103 @@
-## Problem
+## What you'll get
 
-Three issues to fix:
+A real SMS control center inside `/admin/marketing` with picture (MMS) support. After this ships you'll be able to:
 
-1. **No admin SMS sender exists.** The `send-sms` edge function is wired up, but there is no admin UI anywhere to actually trigger it — not for one member, not for a group, not as a test.
-2. **SMS opt-in toggle is buried.** It only appears at the bottom of `/member/profile`. Members never scroll there. It needs to surface in the top notification bar so it's a one-tap opt-in.
-3. **Member's phone doesn't show on `/member/profile` even though admin sees it.** Root cause confirmed by querying the database:
-   - 132 members have a linked `user_id` but **no row in `profiles`** at all → form loads blank, SMS toggle has nothing to write to.
-   - 47 members have no `user_id` linked yet → can't be helped until they create an auth account, but admin can still text them.
-
-The earlier backfill only updated existing `profiles` rows. It never created missing ones.
+- Send a test SMS/MMS to your own phone in 2 clicks
+- Send an SMS/MMS to any individual member or non-member
+- Run a bulk SMS/MMS blast to a filtered audience with cost estimate
+- View a full log of every SMS the system has ever sent
+- Attach up to 10 images per message (MMS), with size warnings
 
 ---
 
-## Plan
+## 1. New "SMS" tab in `/admin/marketing`
 
-### 1. Backfill missing `profiles` rows (one-time SQL)
+Adds a third `<TabsTrigger>` next to **Guests** and **Members**. The tab contains four stacked cards:
 
-For every `members` row where `user_id IS NOT NULL` but no matching `profiles` row exists, INSERT a profile row carrying `id`, `email`, `first_name`, `last_name`, and `phone` from `members`. This unblocks the 132 members whose phone "disappeared" on their own profile page.
+### a. Send Test SMS (top card)
+- Phone field pre-filled with logged-in admin's phone (editable)
+- Message textarea + image picker
+- Single **Send Test** button
+- On success: shows Twilio SID, status, delivery timestamp inline
 
-Also strengthen the existing `members → profiles` phone-sync trigger so it does an UPSERT (insert if missing, update if blank) instead of update-only.
+### b. Send to Individual
+- Search-as-you-type combobox over `members` + `non_member_profiles` (name, email, phone)
+- Selecting a result opens the same upgraded `SendSmsDialog`
 
-### 2. Member-side: Promote SMS opt-in into the top notification bar
+### c. Bulk SMS Blast
+- **Audience filters:** status (active / frozen / all opted-in) + tier + tag
+- **Live recipient count** with breakdown ("23 opted-in, 4 skipped: no phone, 2 skipped: blocked")
+- **Compose box** with `{{firstName}}` variable, character + segment counter
+- **Image attachments** (drag-drop, up to 10)
+- **Cost estimate** ("23 × MMS @ $0.02 = $0.46")
+- **Confirmation dialog** before send
+- **Per-recipient results table** after send (sent / failed / Twilio SID)
+- Hard-blocks anyone with `sms_opt_in != true` or in `blocked_persons`
 
-In `MemberLayout.tsx`, add a new notification item (priority just below activation/payment) that shows when `profile.sms_opt_in !== true`:
+### d. SMS Send Log
+- Table from new `sms_send_log` rows: timestamp, recipient name + phone, body preview, media count, status, Twilio SID
+- Filters: date range, status (sent/failed), recipient name
+- Click row → drawer with full body, all media thumbnails, full Twilio response
 
-```
-"📱 Get text alerts for class reminders, waitlist & billing.  [Enable SMS]"
-```
+---
 
-`Enable SMS` is a button that:
-- If `profile.phone` is missing → toast "Add a phone number first" + link to `/member/profile`.
-- If phone is present → opens a small confirmation dialog showing the legal disclosure (reuses `SMS_DISCLOSURE_TEXT`), with **Enable** / **Not now** buttons. Enabling writes `sms_opt_in=true` to `profiles` and logs to `sms_consent_log` (same logic as `SmsToggleCard`).
-- Once opted-in (or dismissed for the session), the banner hides.
+## 2. MMS (image) support
 
-This makes opt-in 1–2 taps instead of "scroll to the bottom of profile."
+### Storage
+- New public-read storage bucket **`sms-media`**
+- RLS: only admins/staff can INSERT; public SELECT (Twilio fetches images by URL)
 
-### 3. Admin-side: Add a "Send SMS" tool
+### Edge function update (`send-sms`)
+- Accept new `mediaUrls: string[]` field (max 10)
+- Pass each as repeated `MediaUrl` form param to Twilio's `/Messages.json`
+- Auto-routes to MMS when `mediaUrls.length > 0`, falls back to SMS otherwise
+- Logs media URLs + count into existing `sms_send_log` table (add `media_urls jsonb` column)
 
-Two surfaces:
+### UI
+- Image picker integrated into `SendSmsDialog` (drag-drop + file input)
+- Uploads to `sms-media` bucket, shows thumbnail strip with remove buttons
+- Warns when any file >1.2 MB ("Carriers may compress this image")
+- Cost line in dialog footer: "1 MMS segment ≈ $0.02" vs "1 SMS segment ≈ $0.0079"
 
-**a) Per-member quick-send** — On the admin member detail sheet (where staff already see phone, billing, etc.), add a "Send SMS" button. Opens a dialog with:
-- To: pre-filled with member name + phone (read-only)
-- Template dropdown (reuses keys from `send-sms`: test-message, class-reminder, payment-failed, custom-free-text, etc.)
-- Message preview
-- Big red warning if member has `sms_opt_in=false` ("This member has not opted in. You may only send transactional service messages required for their account.")
-- Send button → calls `send-sms` edge function, shows Twilio SID + status on success.
+---
 
-**b) Bulk SMS Blast** — New tab inside `MemberMarketingTab` called **"SMS"**:
-- Audience filter: All opted-in members / by tier / by tag / by status (active, frozen)
-- Live count of recipients (e.g. "Will send to 23 members")
-- Message composer with character count + cost estimate ($0.0079/segment × N)
-- Template variables (`{{firstName}}`)
-- Hard-blocks anyone where `sms_opt_in != true` or in `blocked_persons`
-- Confirmation dialog: "Send to 23 members?  Est. cost $0.18"
-- Sends in batches via `send-sms` with unique idempotency keys, reports per-recipient success/failure in a results table.
+## 3. Admin sidebar shortcut
 
-### 4. Self-service phone fix on member profile
-
-Right now if `profiles.phone` is empty, the form shows blank with no nudge. Add a small inline alert above the phone field if empty:
-> "We don't have a phone number on file. Add one to enable SMS class reminders and waitlist alerts."
+Add an **SMS** link under "Marketing" in the admin sidebar that deep-links to `/admin/marketing?tab=sms` for one-click access.
 
 ---
 
 ## Technical details
 
-- **Backfill SQL** (single migration):
-  ```sql
-  INSERT INTO profiles (id, email, first_name, last_name, phone)
-  SELECT m.user_id, m.email, m.first_name, m.last_name, m.phone
-  FROM members m
-  WHERE m.user_id IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM profiles p WHERE p.id = m.user_id);
-  ```
-- **Trigger upgrade**: change `trg_sync_phone_members_to_profiles` to UPSERT.
-- **New components**:
-  - `src/components/member/SmsOptInBanner.tsx` (used by `MemberLayout`)
-  - `src/components/admin/SendSmsDialog.tsx` (per-member)
-  - `src/components/admin/marketing/SmsBlastTab.tsx` (bulk)
-- **Reuse**: `send-sms` edge function (already deployed), `SMS_DISCLOSURE_TEXT`, `sms_consent_log`.
-- **Compliance**: Keeps the existing rule — never auto-opt-in. Bulk blast filters to `sms_opt_in=true` only. Per-member sender allows transactional sends to non-opted-in members but warns staff (legally permitted for service messages under TCPA; marketing requires opt-in).
-- **Out of scope** (can do later if you want): scheduled SMS campaigns, two-way SMS chat in admin (the inbound webhook exists but no UI consumes it yet).
+- **New components:**
+  - `src/components/admin/marketing/SmsBlastTab.tsx` (the whole tab)
+  - `src/components/admin/marketing/SmsTestCard.tsx`
+  - `src/components/admin/marketing/SmsSendLogTable.tsx`
+  - `src/components/admin/SmsMediaPicker.tsx` (reusable upload + thumbnail strip)
+- **Updated:** `src/components/admin/SendSmsDialog.tsx` (add media picker, cost line), `src/pages/admin/Marketing.tsx` (new tab), `supabase/functions/send-sms/index.ts` (mediaUrls), admin sidebar
+- **Migration:**
+  - Create bucket `sms-media` (public-read, admin-insert RLS)
+  - Add `media_urls jsonb`, `media_count int default 0` columns to `sms_send_log`
+- **Reused:** existing `send-sms` consent gate, `sms_opt_in` check, `blocked_persons` filter, `sms_consent_log`
+- **Cost constants** (US 10DLC 2026 baseline): SMS ≈ $0.0079/segment, MMS ≈ $0.02/segment. Stored in `src/lib/smsCosts.ts` for easy tuning.
+- **Concurrency for blast:** sends in batches of 10 in parallel via `Promise.allSettled`, idempotency keys per recipient, full results returned to client.
 
 ---
 
-## Approval needed
+## Out of scope (explicit, won't be built in this pass)
 
-Approve and I'll switch to build mode and implement all four sections in one pass.
+- **RCS / iMessage Business / WhatsApp** — these are not MMS. They require separate Twilio brand registration + Apple/Google approval (2–4 weeks). If you want true rich messaging with buttons and your business name as sender, that's a separate plan.
+- **Scheduled SMS / drip automation** — already tracked under Automation Hub.
+- **Two-way SMS inbox** — inbound webhook exists, but UI not in this build.
+
+---
+
+## Reality checks
+
+- Your Twilio number must be MMS-capable (most US 10DLC long-codes are; toll-free varies). I'll add a one-time check that surfaces an inline warning in the SMS tab if Twilio rejects MMS sends.
+- Carriers compress images regardless of source resolution. Keeping files ≤1.2 MB / 1280px gives best delivery rates. Anything bigger may be downsampled or dropped by some carriers.
+- MMS to international (non-US/Canada) recipients typically arrives as an SMS with a link, not the embedded image. This is a carrier limitation — no software fix exists.
+
+---
+
+Approve and I'll switch to build mode and ship all of the above in one pass.
