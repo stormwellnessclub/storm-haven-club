@@ -121,6 +121,72 @@ export default function Terms() {
             <p><strong>Non-Payment:</strong> Failure to pay fees may result in suspension or termination of membership privileges.</p>
           </section>
 
+          <section id="sms" className="mb-12 scroll-mt-24">
+            <h2 className="text-2xl font-display font-semibold mb-4">8a. SMS / Text Messaging Program</h2>
+            <p>
+              By providing your mobile number and opting in, you agree to receive text messages
+              from <strong>Storm Fitness DBA Storm Wellness Club</strong> as described below. Your
+              consent is not a condition of any purchase.
+            </p>
+
+            <div className="my-6 rounded-lg border border-border bg-muted/30 p-6">
+              <h3 className="text-lg font-display font-semibold mb-4">Program Summary</h3>
+              <dl className="grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-x-6 gap-y-3 text-sm">
+                <dt className="font-semibold">Program Name</dt>
+                <dd>Storm Wellness Club SMS</dd>
+                <dt className="font-semibold">Operator</dt>
+                <dd>Storm Fitness DBA Storm Wellness Club</dd>
+                <dt className="font-semibold">Description</dt>
+                <dd>
+                  Transactional and service messages including class reminders, waitlist
+                  openings, spa, recovery, and Kids Care appointment confirmations, billing
+                  notices, café pickup notifications, and account or operational notices.
+                  Promotional offers are sent only if you separately opt in to marketing.
+                </dd>
+                <dt className="font-semibold">Message Frequency</dt>
+                <dd>Varies; typically 4–15 messages per month per subscriber.</dd>
+                <dt className="font-semibold">Message &amp; Data Rates</dt>
+                <dd>Message and data rates may apply per your wireless carrier's plan.</dd>
+                <dt className="font-semibold">Opt-In Methods</dt>
+                <dd>
+                  Online membership application; non-member account signup; SMS toggle in your
+                  member portal Profile; front-desk and kiosk in-person registration; and
+                  phone-number capture at point of sale.
+                </dd>
+                <dt className="font-semibold">Opt-Out</dt>
+                <dd>
+                  Reply <strong>STOP</strong>, UNSUBSCRIBE, CANCEL, END, or QUIT to any message;
+                  toggle SMS off in your member portal Profile; or email{" "}
+                  <a href="mailto:admin@stormwellnessclub.com" className="text-gold hover:text-gold-light">
+                    admin@stormwellnessclub.com
+                  </a>
+                  .
+                </dd>
+                <dt className="font-semibold">Help</dt>
+                <dd>
+                  Reply <strong>HELP</strong> or INFO for support information.
+                </dd>
+                <dt className="font-semibold">Support Contact</dt>
+                <dd>
+                  <a href="mailto:admin@stormwellnessclub.com" className="text-gold hover:text-gold-light">
+                    admin@stormwellnessclub.com
+                  </a>{" "}
+                  ·{" "}
+                  <a href="tel:+13132865070" className="text-gold hover:text-gold-light">
+                    (313) 286-5070
+                  </a>
+                </dd>
+              </dl>
+            </div>
+
+            <p>
+              <strong>No third-party sharing.</strong> Mobile opt-in data and consent will not be
+              shared with third parties or affiliates for marketing or promotional purposes. See
+              our <Link to="/privacy" className="text-gold hover:text-gold-light">Privacy Policy</Link>{" "}
+              for details on how SMS data is handled.
+            </p>
+          </section>
+
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">9. Refunds and Credits</h2>
             <p>
