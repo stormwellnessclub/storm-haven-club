@@ -28,9 +28,9 @@ export default function Privacy() {
       <div className="container mx-auto px-6 py-16">
         <div className="max-w-4xl mx-auto prose prose-lg prose-neutral dark:prose-invert">
           <p className="lead text-xl text-muted-foreground mb-12">
-            This Privacy Policy describes how Storm Wellness Club collects, uses, shares, and
-            protects your personal information across our website, mobile experience, member
-            portal, and on-site facilities.
+            This Privacy Policy describes how <strong>Storm Fitness, doing business as Storm
+            Wellness Club</strong>, collects, uses, shares, and protects your personal information
+            across our website, mobile experience, member portal, and on-site facilities.
           </p>
 
           <section className="mb-12">
