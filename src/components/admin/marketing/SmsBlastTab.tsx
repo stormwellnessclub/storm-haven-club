@@ -248,6 +248,7 @@ export function SmsBlastTab() {
 
   // === Send log ===
   const [logRows, setLogRows] = useState<any[]>([]);
+  const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [logLoading, setLogLoading] = useState(false);
 
   const loadLog = async () => {
