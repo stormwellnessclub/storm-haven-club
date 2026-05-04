@@ -57,6 +57,7 @@ const initialFormData = {
   holisticWellness: "",
   referredByMember: "",
   foundingMember: "",
+  smsConsent: false,
   ackOneYearCommitment: false,
   ackInitiationFee: false,
   ackMembershipAgreement: false,
