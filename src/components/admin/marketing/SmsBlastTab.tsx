@@ -470,41 +470,70 @@ export function SmsBlastTab() {
                     </TableCell>
                   </TableRow>
                 )}
-                {logRows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {row.created_at ? format(new Date(row.created_at), "MM/dd HH:mm") : "—"}
-                    </TableCell>
-                    <TableCell className="text-xs font-mono">{row.phone}</TableCell>
-                    <TableCell className="text-xs max-w-md truncate" title={row.message_body}>
-                      {row.message_body}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {row.media_count > 0 ? (
-                        <Badge variant="outline" className="gap-1 text-[10px]">
-                          <ImageIcon className="h-3 w-3" /> {row.media_count}
+                {logRows.map((row) => {
+                  const urls: string[] = Array.isArray(row.media_urls) ? row.media_urls : [];
+                  const hasMedia = (row.media_count ?? 0) > 0;
+                  return (
+                    <TableRow
+                      key={row.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedRow(row)}
+                    >
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {row.created_at ? format(new Date(row.created_at), "MM/dd HH:mm") : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono">{row.phone}</TableCell>
+                      <TableCell className="text-xs max-w-md">
+                        <div className="flex items-center gap-1.5 truncate" title={row.message_body}>
+                          {hasMedia && <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                          <span className="truncate">{row.message_body}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {hasMedia ? (
+                          <div className="flex items-center gap-1.5">
+                            {urls.slice(0, 3).map((u, i) => (
+                              <img
+                                key={i}
+                                src={u}
+                                alt=""
+                                loading="lazy"
+                                className="h-6 w-6 object-cover rounded border border-border"
+                              />
+                            ))}
+                            {urls.length === 0 && (
+                              <Badge variant="outline" className="gap-1 text-[10px]">
+                                <ImageIcon className="h-3 w-3" /> {row.media_count}
+                              </Badge>
+                            )}
+                            {urls.length > 3 && (
+                              <span className="text-[10px] text-muted-foreground">
+                                +{urls.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            row.status === "sent" || row.status === "delivered"
+                              ? "default"
+                              : row.status === "failed" || row.status === "blocked_no_consent"
+                              ? "destructive"
+                              : "outline"
+                          }
+                          className="text-[10px]"
+                          title={row.error_message || row.twilio_sid || ""}
+                        >
+                          {row.status}
                         </Badge>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          row.status === "sent" || row.status === "delivered"
-                            ? "default"
-                            : row.status === "failed" || row.status === "blocked_no_consent"
-                            ? "destructive"
-                            : "outline"
-                        }
-                        className="text-[10px]"
-                        title={row.error_message || row.twilio_sid || ""}
-                      >
-                        {row.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
