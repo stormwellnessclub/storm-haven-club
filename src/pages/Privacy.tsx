@@ -156,14 +156,13 @@ export default function Privacy() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">5. SR &amp; D Development LLC Liability Limitation</h2>
             <p>
-              SR &amp; D Development LLC is the parent ownership entity of the Storm Wellness Club
-              brand. To the fullest extent permitted by law, SR &amp; D Development LLC shall not
-              be liable for any indirect, incidental, special, consequential, or punitive damages
-              arising out of any data breach, unauthorized access, or other security incident
-              affecting Storm Wellness Club, its operating entity Storm Fitness, or any service
-              provider engaged by either of them. Users acknowledge that no data transmission or
-              storage system can be guaranteed 100% secure. This limitation of liability applies
-              solely to SR &amp; D Development LLC as the parent entity.
+              To the fullest extent permitted by law, SR &amp; D Development LLC and its members,
+              managers, and affiliates shall not be liable for any indirect, incidental, special,
+              consequential, or punitive damages arising out of any data breach, unauthorized
+              access, or other security incident affecting Storm Fitness or any service provider
+              engaged by Storm Fitness. Users acknowledge that no data transmission or storage
+              system can be guaranteed 100% secure. This limitation of liability is in addition to
+              the limitations set forth in our Terms and Conditions.
             </p>
           </section>
 
