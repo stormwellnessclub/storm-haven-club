@@ -37,6 +37,7 @@ export function CampaignAnalytics() {
   const [campaigns, setCampaigns] = useState<CampaignWithConversion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalSent, setTotalSent] = useState(0);
+  const [totalSmsSent, setTotalSmsSent] = useState(0);
   const [totalConversions, setTotalConversions] = useState(0);
 
   useEffect(() => {
