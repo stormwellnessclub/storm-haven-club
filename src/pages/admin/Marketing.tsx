@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GuestMarketingTab } from "@/components/admin/marketing/GuestMarketingTab";
@@ -5,9 +6,13 @@ import { MemberMarketingTab } from "@/components/admin/marketing/MemberMarketing
 import { ReferralCampaignTab } from "@/components/admin/marketing/ReferralCampaignTab";
 import { TemplatesTab } from "@/components/admin/marketing/TemplatesTab";
 import { CampaignAnalytics } from "@/components/admin/marketing/CampaignAnalytics";
-import { Megaphone } from "lucide-react";
+import { SmsBlastTab } from "@/components/admin/marketing/SmsBlastTab";
+import { Megaphone, MessageSquare } from "lucide-react";
 
 export default function Marketing() {
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") ?? "guests";
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -16,15 +21,26 @@ export default function Marketing() {
           <div>
             <h1 className="text-2xl font-semibold">Marketing Portal</h1>
             <p className="text-sm text-muted-foreground">
-              Guest & member outreach, templates, and campaign analytics
+              Guest & member outreach, SMS, templates, and campaign analytics
             </p>
           </div>
         </div>
 
-        <Tabs defaultValue="guests" className="space-y-4">
+        <Tabs
+          value={tab}
+          onValueChange={(v) => {
+            const next = new URLSearchParams(params);
+            next.set("tab", v);
+            setParams(next, { replace: true });
+          }}
+          className="space-y-4"
+        >
           <TabsList>
             <TabsTrigger value="guests">Guests</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
+            <TabsTrigger value="sms" className="gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" /> SMS
+            </TabsTrigger>
             <TabsTrigger value="referrals">Referrals</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -35,6 +51,9 @@ export default function Marketing() {
           </TabsContent>
           <TabsContent value="members">
             <MemberMarketingTab />
+          </TabsContent>
+          <TabsContent value="sms">
+            <SmsBlastTab />
           </TabsContent>
           <TabsContent value="referrals">
             <ReferralCampaignTab />
@@ -50,3 +69,4 @@ export default function Marketing() {
     </AdminLayout>
   );
 }
+
