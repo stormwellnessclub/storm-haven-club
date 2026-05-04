@@ -20,6 +20,8 @@ type SendInput = {
   variables?: Record<string, unknown>;
   idempotencyKey: string;
   metadata?: Record<string, unknown>;
+  /** When true and the caller is an admin, bypass the sms_opt_in gate (for transactional service messages). */
+  bypassConsent?: boolean;
 };
 
 function tmpl(s: string, v: Record<string, unknown>) {
