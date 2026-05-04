@@ -34,17 +34,25 @@ export default function Terms() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">1. Acceptance of Terms</h2>
             <p>
-              By accessing, registering for, or using any services, facilities, or programs provided by Storm Wellness Club ("Storm," "we," "us," or "our"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, you must not use our services or facilities.
+              By accessing, registering for, or using any services, facilities, or programs
+              provided by <strong>Storm Fitness, doing business as Storm Wellness Club</strong>{" "}
+              ("Storm Fitness," "we," "us," or "our"), you agree to be bound by these Terms and
+              Conditions ("Terms"). If you do not agree to these Terms, you must not use our
+              services or facilities.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">2. Parties and Entities</h2>
             <p>
-              <strong>Operating Entity:</strong> Storm Wellness Club is owned and operated by SR & D Development LLC ("SR & D Development"). SR & D Development manages all services, memberships, and transactions related to Storm.
+              <strong>Operating Entity:</strong> Services are provided by <strong>Storm Fitness
+              DBA Storm Wellness Club</strong>. "Storm Wellness Club" is the trade name (DBA) under
+              which Storm Fitness offers its services. All memberships, transactions, and services
+              described in these Terms are provided by Storm Fitness.
             </p>
             <p>
-              <strong>User:</strong> "You" or "User" refers to any individual using Storm's services or facilities, including members, guests, and pass holders.
+              <strong>User:</strong> "You" or "User" refers to any individual using Storm Fitness's
+              services or facilities, including members, guests, and pass holders.
             </p>
           </section>
 
