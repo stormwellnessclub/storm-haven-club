@@ -91,3 +91,15 @@ verify_jwt = false
 [functions.stripe-sales-tax]
 enabled = true
 verify_jwt = false
+
+[functions.send-sms]
+enabled = true
+verify_jwt = false
+
+[functions.twilio-inbound]
+enabled = true
+verify_jwt = false
+
+[functions.twilio-status]
+enabled = true
+verify_jwt = false
