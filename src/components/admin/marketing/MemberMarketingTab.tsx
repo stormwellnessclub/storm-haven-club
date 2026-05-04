@@ -136,6 +136,7 @@ export function MemberMarketingTab() {
           <CampaignPlaybooks
             type="member"
             onLaunchPlaybook={handleLaunchPlaybook}
+            onLaunchSmsPlaybook={handleLaunchSmsPlaybook}
             onCustomCampaign={handleBulkSend}
           />
         </CardContent>
