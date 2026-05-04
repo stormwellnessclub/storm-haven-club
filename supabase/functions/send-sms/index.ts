@@ -77,6 +77,13 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
     ),
   "cafe-order-ready": (v) =>
     tmpl(`Storm Cafe: Your order #{{orderNumber}} is ready for pickup.`, v),
+  // Admin freeform: passes through customBody verbatim. Auto-appends opt-out only when not already present.
+  "admin-custom": (v) => {
+    const raw = String(v.customBody ?? "").trim();
+    if (!raw) return "Storm Wellness Club: (empty)";
+    if (/STOP/i.test(raw)) return raw;
+    return raw;
+  },
 };
 
 function normalizePhone(p: string | null | undefined): string | null {
