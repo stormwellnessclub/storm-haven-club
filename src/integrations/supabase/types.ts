@@ -5142,12 +5142,18 @@ export type Database = {
           contact_id: string | null
           created_at: string
           delivered_at: string | null
+          direction: string
+          error_code: string | null
           error_message: string | null
           id: string
+          idempotency_key: string | null
           message_body: string
+          metadata: Json
           phone: string
+          recipient_user_id: string | null
           sent_at: string | null
           status: Database["public"]["Enums"]["sms_status"]
+          template_key: string | null
           twilio_sid: string | null
         }
         Insert: {
@@ -5155,12 +5161,18 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           delivered_at?: string | null
+          direction?: string
+          error_code?: string | null
           error_message?: string | null
           id?: string
+          idempotency_key?: string | null
           message_body: string
+          metadata?: Json
           phone: string
+          recipient_user_id?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["sms_status"]
+          template_key?: string | null
           twilio_sid?: string | null
         }
         Update: {
@@ -5168,12 +5180,18 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           delivered_at?: string | null
+          direction?: string
+          error_code?: string | null
           error_message?: string | null
           id?: string
+          idempotency_key?: string | null
           message_body?: string
+          metadata?: Json
           phone?: string
+          recipient_user_id?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["sms_status"]
+          template_key?: string | null
           twilio_sid?: string | null
         }
         Relationships: [
@@ -7124,7 +7142,14 @@ export type Database = {
         | "post_class"
         | "churn_risk"
         | "manual"
-      sms_status: "queued" | "sent" | "failed" | "delivered" | "undelivered"
+      sms_status:
+        | "queued"
+        | "sent"
+        | "failed"
+        | "delivered"
+        | "undelivered"
+        | "received"
+        | "blocked_no_consent"
       staff_shift_status: "scheduled" | "pto" | "cancelled" | "swapped"
       staff_time_off_status: "pending" | "approved" | "denied"
       task_priority: "low" | "medium" | "high" | "urgent"
@@ -7313,7 +7338,15 @@ export const Constants = {
         "churn_risk",
         "manual",
       ],
-      sms_status: ["queued", "sent", "failed", "delivered", "undelivered"],
+      sms_status: [
+        "queued",
+        "sent",
+        "failed",
+        "delivered",
+        "undelivered",
+        "received",
+        "blocked_no_consent",
+      ],
       staff_shift_status: ["scheduled", "pto", "cancelled", "swapped"],
       staff_time_off_status: ["pending", "approved", "denied"],
       task_priority: ["low", "medium", "high", "urgent"],
