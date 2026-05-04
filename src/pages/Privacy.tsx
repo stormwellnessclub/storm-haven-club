@@ -234,7 +234,7 @@ export default function Privacy() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">11. No Medical Services / No Health Claims</h2>
             <p>
-              Storm does not provide medical services, medical advice, or healthcare treatment.
+              Storm Fitness does not provide medical services, medical advice, or healthcare treatment.
               Information related to health and wellness is for general informational purposes
               only and should not replace advice from a qualified healthcare provider.
             </p>
