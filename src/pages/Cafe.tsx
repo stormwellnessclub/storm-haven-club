@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, ShoppingBag, Loader2, CreditCard, User, ChevronDown } from "lucide-react";
+import { Plus, Minus, ShoppingBag, Loader2, CreditCard, User, ChevronDown, MessageSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCreateCafeOrder } from "@/hooks/useCafeOrder";
@@ -106,6 +107,8 @@ export default function Cafe() {
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
+  const [smsOptIn, setSmsOptIn] = useState(false);
+  const [showSmsOptIn, setShowSmsOptIn] = useState(false);
 
   const isLoading = catLoading || itemsLoading;
 
