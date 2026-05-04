@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2, Send, Star, Mail, Search, MessageSquare, Users } from "lucide-react";
 import { ComposeEmailDialog } from "./ComposeEmailDialog";
+import { ComposeSmsDialog } from "./ComposeSmsDialog";
 import { CampaignPlaybooks, type PlaybookConfig } from "./CampaignPlaybooks";
 
 interface GuestFeedback {
@@ -34,6 +35,7 @@ export function GuestMarketingTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeSmsOpen, setComposeSmsOpen] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<{ email: string; name: string } | null>(null);
   const [activeGoalType, setActiveGoalType] = useState<string | undefined>();
   const [activePlaybookName, setActivePlaybookName] = useState<string | undefined>();
@@ -98,6 +100,13 @@ export function GuestMarketingTab() {
     setComposeOpen(true);
   };
 
+  const handleLaunchSmsPlaybook = (playbook: PlaybookConfig) => {
+    setSelectedGuest(null);
+    setActiveGoalType(playbook.goalType);
+    setActivePlaybookName(playbook.name);
+    setComposeSmsOpen(true);
+  };
+
   const handleBulkSend = () => {
     setSelectedGuest(null);
     setActiveGoalType(undefined);
@@ -142,6 +151,7 @@ export function GuestMarketingTab() {
           <CampaignPlaybooks
             type="guest"
             onLaunchPlaybook={handleLaunchPlaybook}
+            onLaunchSmsPlaybook={handleLaunchSmsPlaybook}
             onCustomCampaign={handleBulkSend}
           />
         </CardContent>
@@ -249,6 +259,14 @@ export function GuestMarketingTab() {
         onOpenChange={setComposeOpen}
         recipientType="guest"
         prefilledRecipient={selectedGuest}
+        goalType={activeGoalType}
+        playbookName={activePlaybookName}
+      />
+
+      <ComposeSmsDialog
+        open={composeSmsOpen}
+        onOpenChange={setComposeSmsOpen}
+        recipientType="guest"
         goalType={activeGoalType}
         playbookName={activePlaybookName}
       />

@@ -16,6 +16,7 @@ interface Campaign {
   created_at: string;
   goal_type: string | null;
   goal_metadata: any;
+  channel: "email" | "sms";
 }
 
 interface CampaignWithConversion extends Campaign {
@@ -36,6 +37,7 @@ export function CampaignAnalytics() {
   const [campaigns, setCampaigns] = useState<CampaignWithConversion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalSent, setTotalSent] = useState(0);
+  const [totalSmsSent, setTotalSmsSent] = useState(0);
   const [totalConversions, setTotalConversions] = useState(0);
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function CampaignAnalytics() {
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
-      const [campaignsRes, recipientsRes] = await Promise.all([
+      const [campaignsRes, recipientsRes, smsCampaignsRes, smsRecipientsRes] = await Promise.all([
         supabase
           .from("email_campaigns" as any)
           .select("id, campaign_name, campaign_type, subject, sent_count, sent_at, created_at, goal_type, goal_metadata")
@@ -55,11 +57,29 @@ export function CampaignAnalytics() {
           .from("email_campaign_recipients" as any)
           .select("id", { count: "exact", head: true })
           .eq("status", "sent"),
+        supabase
+          .from("sms_campaigns" as any)
+          .select("id, campaign_name, campaign_type, body, sent_count, sent_at, created_at, goal_type, goal_metadata")
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("sms_campaign_recipients" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("status", "sent"),
       ]);
 
       setTotalSent(recipientsRes.count || 0);
+      setTotalSmsSent(smsRecipientsRes.count || 0);
 
-      const rawCampaigns = (campaignsRes.data || []) as unknown as Campaign[];
+      const emailCampaigns = ((campaignsRes.data || []) as any[]).map((c: any) => ({ ...c, channel: "email" as const }));
+      const smsCampaigns = ((smsCampaignsRes.data || []) as any[]).map((c: any) => ({
+        ...c,
+        subject: c.body?.slice(0, 60) ?? "",
+        channel: "sms" as const,
+      }));
+      const rawCampaigns = [...emailCampaigns, ...smsCampaigns].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      ) as unknown as Campaign[];
 
       // Calculate conversions for each campaign with a goal_type
       const withConversions: CampaignWithConversion[] = await Promise.all(
@@ -72,15 +92,18 @@ export function CampaignAnalytics() {
           const sentDate = c.sent_at;
           const windowEnd = new Date(new Date(sentDate).getTime() + attributionDays * 86400000).toISOString();
 
-          // Get recipient emails for this campaign
-          const { data: recipientData } = await (supabase
-            .from("email_campaign_recipients" as any)
-            .select("email")
-            .eq("campaign_id", c.id)
-            .eq("status", "sent") as any);
-          const emails = (recipientData || []).map((r: any) => r.email?.toLowerCase()).filter(Boolean);
-
-          if (emails.length === 0) return { ...c, conversions: 0, conversionRate: 0 };
+          // Skip recipient gate for SMS campaigns; conversions are time-window based
+          if (c.channel === "email") {
+            const { data: recipientData } = await (supabase
+              .from("email_campaign_recipients" as any)
+              .select("email")
+              .eq("campaign_id", c.id)
+              .eq("status", "sent") as any);
+            const emails = (recipientData || []).map((r: any) => r.email?.toLowerCase()).filter(Boolean);
+            if (emails.length === 0) return { ...c, conversions: 0, conversionRate: 0 };
+          } else if (c.sent_count === 0) {
+            return { ...c, conversions: 0, conversionRate: 0 };
+          }
 
           let conversions = 0;
 
@@ -146,7 +169,7 @@ export function CampaignAnalytics() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardContent className="pt-6 text-center">
             <Send className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
@@ -159,6 +182,13 @@ export function CampaignAnalytics() {
             <BarChart3 className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
             <p className="text-2xl font-bold">{totalSent}</p>
             <p className="text-xs text-muted-foreground">Emails Sent</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <Send className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-2xl font-bold">{totalSmsSent}</p>
+            <p className="text-xs text-muted-foreground">SMS Sent</p>
           </CardContent>
         </Card>
         <Card>
@@ -207,8 +237,9 @@ export function CampaignAnalytics() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Campaign</TableHead>
-                  <TableHead>Type</TableHead>
+                 <TableHead>Campaign</TableHead>
+                 <TableHead>Channel</TableHead>
+                 <TableHead>Type</TableHead>
                   <TableHead>Goal</TableHead>
                   <TableHead>Sent</TableHead>
                   <TableHead>Conversions</TableHead>
@@ -220,6 +251,11 @@ export function CampaignAnalytics() {
                 {campaigns.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium text-sm">{c.campaign_name}</TableCell>
+                    <TableCell>
+                      <Badge variant={c.channel === "sms" ? "default" : "outline"} className="text-xs">
+                        {c.channel === "sms" ? "SMS/MMS" : "Email"}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={c.campaign_type === "guest" ? "secondary" : "default"} className="text-xs">
                         {c.campaign_type}

@@ -1,30 +1,59 @@
-## Enhance SMS Send Log with Media Previews
+## Finish SMS-Enabling the Campaign Playbooks
 
-The Activity Log table in the SMS Marketing tab already shows a `media_count` badge, but the count is not clickable and there are no actual image previews. This adds inline thumbnails and a full preview drawer.
+Right now the 6 strategic playbooks (Convert to Applicant, Re-engage Lapsed Guests, Collect Feedback, Prevent Churn, Upsell Tier, Referral Push) only run as **email** through `ComposeEmailDialog`. The SMS plumbing (`send-sms` edge function, MMS picker, opt-in gating, idempotency, send-log with thumbnails) is fully built but can only fire from the one-off "SMS Blast" tab and the per-recipient `SendSmsDialog`.
 
-### Changes (single file: `src/components/admin/marketing/SmsBlastTab.tsx`)
+This plan wires the playbooks into SMS/MMS so each card has a "Launch Campaign" dropdown → choose **Email** or **SMS/MMS**, with the same audience auto-targeting and 14-day conversion attribution.
 
-1. **Inline thumbnails in the Media column**
-   - When `media_count > 0`, render up to 3 small (24×24 rounded) thumbnails from `media_urls` next to the count badge.
-   - If more than 3 attachments, show `+N` chip after the thumbnails.
-   - Fallback to current count-only badge if `media_urls` is empty/null but `media_count > 0` (older rows).
+### What gets built
 
-2. **Click-to-expand row drawer**
-   - Make each log row clickable; opens a side `Sheet` showing:
-     - Timestamp, phone, status, Twilio SID, error message (if any)
-     - Full message body (no truncation)
-     - Full-size image grid (each click opens in new tab for full resolution)
-     - Copy-to-clipboard button for the SID
+**1. New file: `src/components/admin/marketing/ComposeSmsDialog.tsx`**
+- Mirror of `ComposeEmailDialog` but for SMS, accepting `goalType`, `playbookName`, optional `prefilledRecipient`.
+- Reuses the same 6 audience-resolution queries already in `ComposeEmailDialog.fetchSmartAudience`, but additionally filters to recipients where `profiles.sms_opt_in = true` AND `profiles.phone IS NOT NULL`. Shows two counts: "Total in segment: X · SMS-eligible: Y".
+- Body editor with segment counter, MMS media picker (`SmsMediaPicker`, up to 3 images), live cost estimate (`estimateCost` from `@/lib/smsCosts`).
+- Quick-template chips per goal:
+  - `guest_to_applicant`: "Loved your visit? Apply for membership today: stormwellnessclub.com/apply"
+  - `re_engage_guest`: "We miss you! Come back this week — book a guest pass: stormwellnessclub.com/guest-pass"
+  - `collect_feedback`: "How was your visit to Storm? 30-sec feedback: stormwellnessclub.com/feedback"
+  - `prevent_churn`: "Storm: We need an updated card to keep your benefits active: stormwellnessclub.com/portal/billing"
+  - `upsell_tier`: "Unlock more at Storm — upgrade your tier and save: stormwellnessclub.com/member/membership"
+  - `referral_push`: "Refer a friend, earn 500 pts: stormwellnessclub.com/member/referrals"
+- On send: creates an `sms_campaigns` row, then iterates audience invoking `send-sms` with `templateKey: "admin-custom"`, `bypassConsent: false` (so opt-in is enforced), `metadata: { campaign_id, goal_type, source: "playbook_sms" }`. Inserts an `sms_campaign_recipients` row per send with status from the response.
+- Confirmation modal showing recipient count + total estimated cost before firing.
+- Throttled loop (250ms between sends) to stay under Twilio short-burst limits.
 
-3. **Body column tweak**
-   - Add a small paperclip icon next to truncated body when media is attached, so the column scanning is faster.
+**2. New migration: `sms_campaigns` + `sms_campaign_recipients` tables**
+Mirrors the email_campaigns pattern so analytics can use the same `goal_type` + 14-day attribution logic.
+```
+sms_campaigns(id, campaign_name, campaign_type 'guest'|'member', body, media_urls jsonb, 
+              media_count int, sent_count int, sent_at, goal_type text, 
+              goal_metadata jsonb, created_by uuid, created_at)
+sms_campaign_recipients(id, campaign_id fk, recipient_user_id uuid, phone, recipient_name,
+                        status 'sent'|'failed'|'blocked_no_consent', twilio_sid, 
+                        error_message, sent_at, created_at)
+```
+RLS: SELECT/INSERT/UPDATE for `has_any_role(auth.uid(), 'admin','super_admin','manager','front_desk')`. Both tables un-realtime.
+
+**3. Edit: `src/components/admin/marketing/CampaignPlaybooks.tsx`**
+- Replace the single "Launch Campaign" button with a `DropdownMenu` split-style: primary action stays "Launch Email", secondary item "Launch SMS/MMS". 
+- Add a new prop `onLaunchSmsPlaybook: (playbook: PlaybookConfig) => void`.
+- Add a small SMS-eligible chip under the recipient badge (e.g. `~62% reachable by SMS`) — computed from a single `profiles` count query on `sms_opt_in = true` filtered by the audience emails. Cached in component state.
+
+**4. Edit: `src/components/admin/marketing/GuestMarketingTab.tsx` and `MemberMarketingTab.tsx`**
+- Add `composeSmsOpen` state and `handleLaunchSmsPlaybook` handler.
+- Render `<ComposeSmsDialog>` alongside `<ComposeEmailDialog>`.
+
+**5. Edit: `src/components/admin/marketing/CampaignAnalytics.tsx`**
+- Add a "Channel" column to the campaigns list: pulls from both `email_campaigns` and `sms_campaigns`, shows `Email` or `SMS/MMS` badge.
+- Conversion attribution stays goal-based — it doesn't care which channel drove it, but now we can compare email vs SMS conversion rates side-by-side per playbook.
+- Add a small per-channel rollup card: "Last 30d — Email: X sent, Y converted (Z%) · SMS: A sent, B converted (C%)".
 
 ### Out of scope
-- No DB changes — `media_urls` and `media_count` already exist on `sms_messages`.
-- No edge function changes.
-- No changes to `SendSmsDialog` or `SmsMediaPicker`.
+- No changes to `send-sms` edge function, `SmsMediaPicker`, `SendSmsDialog`, or the existing SMS log/thumbnails (already done last turn).
+- No automated drip scheduling — that's the existing Automation Hub. This is one-shot manual playbook launches.
+- No Stripe/billing changes.
 
 ### Technical notes
-- `media_urls` is a `jsonb` array of public Storage URLs from the `sms-media` bucket; render with `<img loading="lazy">` directly.
-- Reuse existing shadcn `Sheet`, `Badge`, `Button` components — no new deps.
-- Keep the table dense (admin UX principle); thumbnails are 24px so row height stays compact.
+- Audience queries in `ComposeSmsDialog` are duplicated from `ComposeEmailDialog` rather than extracted to a shared hook to keep this PR contained; we can refactor later if a third channel appears.
+- `bypassConsent: false` — playbook campaigns are marketing, so TCPA/10DLC opt-in is strictly enforced. The audience preview shows the SMS-eligible subset only.
+- Idempotency key per send: `playbook-sms-${campaign.id}-${recipient.user_id ?? phone}`.
+- Cost guardrail: confirmation modal blocks send if estimated total > $50 unless re-confirmed.

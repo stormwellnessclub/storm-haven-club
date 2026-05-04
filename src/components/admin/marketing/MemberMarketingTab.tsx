@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2, Send, Mail, Search, Users, Filter } from "lucide-react";
 import { ComposeEmailDialog } from "./ComposeEmailDialog";
+import { ComposeSmsDialog } from "./ComposeSmsDialog";
 import { CampaignPlaybooks, type PlaybookConfig } from "./CampaignPlaybooks";
 
 interface MemberRecord {
@@ -27,6 +28,7 @@ export function MemberMarketingTab() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [tierFilter, setTierFilter] = useState("all");
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeSmsOpen, setComposeSmsOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ email: string; name: string } | null>(null);
   const [activeGoalType, setActiveGoalType] = useState<string | undefined>();
   const [activePlaybookName, setActivePlaybookName] = useState<string | undefined>();
@@ -80,6 +82,13 @@ export function MemberMarketingTab() {
     setComposeOpen(true);
   };
 
+  const handleLaunchSmsPlaybook = (playbook: PlaybookConfig) => {
+    setSelectedMember(null);
+    setActiveGoalType(playbook.goalType);
+    setActivePlaybookName(playbook.name);
+    setComposeSmsOpen(true);
+  };
+
   const handleBulkSend = () => {
     setSelectedMember(null);
     setActiveGoalType(undefined);
@@ -127,6 +136,7 @@ export function MemberMarketingTab() {
           <CampaignPlaybooks
             type="member"
             onLaunchPlaybook={handleLaunchPlaybook}
+            onLaunchSmsPlaybook={handleLaunchSmsPlaybook}
             onCustomCampaign={handleBulkSend}
           />
         </CardContent>
@@ -218,6 +228,14 @@ export function MemberMarketingTab() {
         onOpenChange={setComposeOpen}
         recipientType="member"
         prefilledRecipient={selectedMember}
+        goalType={activeGoalType}
+        playbookName={activePlaybookName}
+      />
+
+      <ComposeSmsDialog
+        open={composeSmsOpen}
+        onOpenChange={setComposeSmsOpen}
+        recipientType="member"
         goalType={activeGoalType}
         playbookName={activePlaybookName}
       />

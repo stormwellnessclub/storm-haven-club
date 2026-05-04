@@ -5097,6 +5097,98 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_campaign_recipients: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          phone: string | null
+          recipient_name: string | null
+          recipient_user_id: string | null
+          sent_at: string | null
+          status: string
+          twilio_sid: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          phone?: string | null
+          recipient_name?: string | null
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          status: string
+          twilio_sid?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          phone?: string | null
+          recipient_name?: string | null
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          status?: string
+          twilio_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "sms_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_campaigns: {
+        Row: {
+          body: string
+          campaign_name: string
+          campaign_type: string
+          created_at: string
+          created_by: string | null
+          goal_metadata: Json | null
+          goal_type: string | null
+          id: string
+          media_count: number
+          media_urls: Json
+          sent_at: string | null
+          sent_count: number
+        }
+        Insert: {
+          body: string
+          campaign_name: string
+          campaign_type: string
+          created_at?: string
+          created_by?: string | null
+          goal_metadata?: Json | null
+          goal_type?: string | null
+          id?: string
+          media_count?: number
+          media_urls?: Json
+          sent_at?: string | null
+          sent_count?: number
+        }
+        Update: {
+          body?: string
+          campaign_name?: string
+          campaign_type?: string
+          created_at?: string
+          created_by?: string | null
+          goal_metadata?: Json | null
+          goal_type?: string | null
+          id?: string
+          media_count?: number
+          media_urls?: Json
+          sent_at?: string | null
+          sent_count?: number
+        }
+        Relationships: []
+      }
       sms_consent_log: {
         Row: {
           action: string

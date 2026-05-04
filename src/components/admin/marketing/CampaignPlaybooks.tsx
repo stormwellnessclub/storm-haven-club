@@ -3,7 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, UserPlus, RefreshCw, MessageSquare, ShieldAlert, TrendingUp, Users, PenLine } from "lucide-react";
+import { Loader2, UserPlus, RefreshCw, MessageSquare, ShieldAlert, TrendingUp, Users, PenLine, Mail, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export interface PlaybookConfig {
   id: string;
@@ -82,10 +88,11 @@ interface AudienceCounts {
 interface CampaignPlaybooksProps {
   type: "guest" | "member";
   onLaunchPlaybook: (playbook: PlaybookConfig) => void;
+  onLaunchSmsPlaybook?: (playbook: PlaybookConfig) => void;
   onCustomCampaign: () => void;
 }
 
-export function CampaignPlaybooks({ type, onLaunchPlaybook, onCustomCampaign }: CampaignPlaybooksProps) {
+export function CampaignPlaybooks({ type, onLaunchPlaybook, onLaunchSmsPlaybook, onCustomCampaign }: CampaignPlaybooksProps) {
   const [counts, setCounts] = useState<AudienceCounts>({});
   const [loading, setLoading] = useState(true);
 
@@ -204,14 +211,37 @@ export function CampaignPlaybooks({ type, onLaunchPlaybook, onCustomCampaign }: 
               <CardDescription className="text-xs">{playbook.description}</CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <Button
-                size="sm"
-                className="w-full"
-                onClick={() => onLaunchPlaybook(playbook)}
-                disabled={loading || (counts[playbook.goalType] ?? 0) === 0}
-              >
-                Launch Campaign
-              </Button>
+              <div className="flex">
+                <Button
+                  size="sm"
+                  className="flex-1 rounded-r-none"
+                  onClick={() => onLaunchPlaybook(playbook)}
+                  disabled={loading || (counts[playbook.goalType] ?? 0) === 0}
+                >
+                  <Mail className="h-3.5 w-3.5 mr-1.5" />
+                  Launch Email
+                </Button>
+                {onLaunchSmsPlaybook && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        className="rounded-l-none border-l border-primary-foreground/20 px-2"
+                        disabled={loading || (counts[playbook.goalType] ?? 0) === 0}
+                        aria-label="More launch options"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onLaunchSmsPlaybook(playbook)}>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Launch SMS / MMS
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}
