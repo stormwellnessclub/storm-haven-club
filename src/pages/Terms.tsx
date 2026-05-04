@@ -59,7 +59,7 @@ export default function Terms() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">3. Scope of Services</h2>
             <p>
-              Storm provides fitness, wellness, and related services, including but not limited to:
+              Storm Fitness provides fitness, wellness, and related services, including but not limited to:
             </p>
             <ul className="list-disc pl-6 space-y-2">
               <li>Access to gym facilities</li>
@@ -70,61 +70,61 @@ export default function Terms() {
               <li>Childcare services (Storm Kids Care)</li>
             </ul>
             <p>
-              Services may be updated, modified, or discontinued at Storm's discretion. Storm is not obligated to maintain or continue specific services indefinitely.
+              Services may be updated, modified, or discontinued at Storm Fitness's discretion. Storm Fitness is not obligated to maintain or continue specific services indefinitely.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">4. Account Registration and Conduct</h2>
-            <p><strong>Registration:</strong> Users must provide accurate, complete, and current information when registering for a membership or any Storm service.</p>
+            <p><strong>Registration:</strong> Users must provide accurate, complete, and current information when registering for a membership or any Storm Fitness service.</p>
             <p><strong>Account Security:</strong> You are responsible for maintaining the confidentiality of your account credentials. Any activities under your account are your responsibility.</p>
             <p><strong>Conduct:</strong> Users must:</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Follow all posted rules, guidelines, and instructions from Storm staff.</li>
+              <li>Follow all posted rules, guidelines, and instructions from Storm Fitness staff.</li>
               <li>Treat other users, staff, and property with respect.</li>
               <li>Refrain from any illegal, threatening, abusive, or disruptive behavior.</li>
             </ul>
             <p>
-              Storm reserves the right to terminate or suspend any user's membership or access for violations of these Terms or other unacceptable conduct.
+              Storm Fitness reserves the right to terminate or suspend any user's membership or access for violations of these Terms or other unacceptable conduct.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">5. Assumption of Risk</h2>
             <p>
-              Use of Storm's facilities, services, and programs involves inherent risks, including but not limited to risk of physical injury, illness, or other harm. By using our services, you:
+              Use of Storm Fitness's facilities, services, and programs involves inherent risks, including but not limited to risk of physical injury, illness, or other harm. By using our services, you:
             </p>
             <ul className="list-disc pl-6 space-y-2">
               <li>Acknowledge that participation in fitness activities, wellness treatments, and related offerings can be physically demanding and may pose health risks.</li>
               <li>Agree to assume full responsibility for any personal injury, property damage, or loss resulting from your participation.</li>
-              <li>Release and hold harmless Storm, SR & D Development, and their respective officers, employees, and agents from any claims arising out of your use of our services or facilities.</li>
+              <li>Release and hold harmless Storm Fitness, SR & D Development, and their respective officers, employees, and agents from any claims arising out of your use of our services or facilities.</li>
             </ul>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">6. User Duty of Care</h2>
             <p>
-              Users are advised to consult a qualified physician before starting any fitness program or treatment, especially if you have pre-existing health conditions, injuries, or concerns. Storm staff are not medical professionals and are not responsible for diagnosing or treating medical conditions.
+              Users are advised to consult a qualified physician before starting any fitness program or treatment, especially if you have pre-existing health conditions, injuries, or concerns. Storm Fitness staff are not medical professionals and are not responsible for diagnosing or treating medical conditions.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">7. No Medical Services</h2>
             <p>
-              Storm does not offer or provide medical services, medical advice, or healthcare treatment. Any information, recommendations, or guidance provided by staff or through our offerings is for informational and general wellness purposes only and should not be construed as a substitute for professional medical advice. Always seek the guidance of your physician or other qualified health provider for any medical questions or conditions.
+              Storm Fitness does not offer or provide medical services, medical advice, or healthcare treatment. Any information, recommendations, or guidance provided by staff or through our offerings is for informational and general wellness purposes only and should not be construed as a substitute for professional medical advice. Always seek the guidance of your physician or other qualified health provider for any medical questions or conditions.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">8. Payments and Fees</h2>
-            <p><strong>Payment Terms:</strong> All fees must be paid in accordance with the membership agreement or service agreement you signed. Storm may use third-party payment processors, and by providing payment information, you consent to these processors handling your transactions.</p>
+            <p><strong>Payment Terms:</strong> All fees must be paid in accordance with the membership agreement or service agreement you signed. Storm Fitness may use third-party payment processors, and by providing payment information, you consent to these processors handling your transactions.</p>
             <p><strong>Non-Payment:</strong> Failure to pay fees may result in suspension or termination of membership privileges.</p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">9. Refunds and Credits</h2>
             <p>
-              Unless otherwise provided by applicable law, membership fees and service payments are non-refundable. Any credits or refunds are at Storm's sole discretion.
+              Unless otherwise provided by applicable law, membership fees and service payments are non-refundable. Any credits or refunds are at Storm Fitness's sole discretion.
             </p>
           </section>
 
@@ -133,35 +133,35 @@ export default function Terms() {
             <ul className="list-disc pl-6 space-y-2">
               <li>All users must follow posted hours of operation, dress code, and usage policies.</li>
               <li>Users must present a valid membership card or check in appropriately before accessing facilities.</li>
-              <li>Storm is not responsible for lost, stolen, or damaged personal property on our premises.</li>
+              <li>Storm Fitness is not responsible for lost, stolen, or damaged personal property on our premises.</li>
             </ul>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">11. Damages Limitation</h2>
             <p>
-              To the fullest extent permitted by law, Storm, SR & D Development, and their respective owners, directors, officers, employees, and agents shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of your use of our services or facilities. In no event shall our total liability exceed the amount you paid for the specific service or membership fee that gave rise to the claim.
+              To the fullest extent permitted by law, Storm Fitness, SR & D Development, and their respective owners, directors, officers, employees, and agents shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of your use of our services or facilities. In no event shall our total liability exceed the amount you paid for the specific service or membership fee that gave rise to the claim.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">12. Property Damage</h2>
             <p>
-              Users are liable for any damage they cause to Storm's facilities, equipment, or property. Storm reserves the right to seek reimbursement for repair or replacement costs.
+              Users are liable for any damage they cause to Storm Fitness's facilities, equipment, or property. Storm Fitness reserves the right to seek reimbursement for repair or replacement costs.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">13. Third-Party Providers</h2>
             <p>
-              Storm may engage or recommend third-party providers for certain services (e.g., spa treatments, personal training, health assessments). These providers operate independently, and Storm is not responsible for their acts or omissions.
+              Storm Fitness may engage or recommend third-party providers for certain services (e.g., spa treatments, personal training, health assessments). These providers operate independently, and Storm Fitness is not responsible for their acts or omissions.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">14. Intellectual Property</h2>
             <p>
-              All content, branding, logos, and materials on our website, in our facilities, or in our communications are the property of Storm or SR & D Development. You may not reproduce, distribute, or create derivative works without prior written consent.
+              All content, branding, logos, and materials on our website, in our facilities, or in our communications are the property of Storm Fitness or SR & D Development. You may not reproduce, distribute, or create derivative works without prior written consent.
             </p>
           </section>
 
@@ -182,7 +182,7 @@ export default function Terms() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">17. Jury Trial Waiver</h2>
             <p>
-              To the fullest extent permitted by law, you and Storm each waive the right to a jury trial in any action, proceeding, or counterclaim arising out of or relating to these Terms or any dispute between the parties.
+              To the fullest extent permitted by law, you and Storm Fitness each waive the right to a jury trial in any action, proceeding, or counterclaim arising out of or relating to these Terms or any dispute between the parties.
             </p>
           </section>
 
@@ -196,7 +196,7 @@ export default function Terms() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">19. Modifications</h2>
             <p>
-              Storm may modify these Terms at any time. Notice of material changes may be provided via email or posted on our website. Continued use of our services after such changes constitutes your acceptance.
+              Storm Fitness may modify these Terms at any time. Notice of material changes may be provided via email or posted on our website. Continued use of our services after such changes constitutes your acceptance.
             </p>
           </section>
 
