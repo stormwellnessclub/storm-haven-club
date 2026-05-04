@@ -28,6 +28,7 @@ export function MemberMarketingTab() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [tierFilter, setTierFilter] = useState("all");
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeSmsOpen, setComposeSmsOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ email: string; name: string } | null>(null);
   const [activeGoalType, setActiveGoalType] = useState<string | undefined>();
   const [activePlaybookName, setActivePlaybookName] = useState<string | undefined>();
