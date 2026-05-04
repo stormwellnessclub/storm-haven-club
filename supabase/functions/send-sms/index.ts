@@ -291,6 +291,8 @@ Deno.serve(async (req) => {
         error_code: String(twData.code ?? tw.status),
         error_message: twData.message ?? "Twilio error",
         metadata: body.metadata ?? {},
+        media_urls: mediaUrls,
+        media_count: mediaUrls.length,
       });
       return new Response(
         JSON.stringify({ success: false, error: twData.message ?? "twilio_failed" }),
@@ -311,6 +313,8 @@ Deno.serve(async (req) => {
         twilio_sid: twData.sid,
         sent_at: new Date().toISOString(),
         metadata: body.metadata ?? {},
+        media_urls: mediaUrls,
+        media_count: mediaUrls.length,
       })
       .select("id")
       .single();
