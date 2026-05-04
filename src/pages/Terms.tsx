@@ -204,8 +204,7 @@ export default function Terms() {
             <h2 className="text-2xl font-display font-semibold mb-4">20. Contact</h2>
             <p>For questions about these Terms:</p>
             <address className="not-italic">
-              <strong>Storm Wellness Club</strong><br />
-              Operated by SR & D Development LLC<br />
+              <strong>Storm Fitness DBA Storm Wellness Club</strong><br />
               18340 Middlebelt Rd<br />
               Livonia, MI 48152<br />
               Email: <a href="mailto:admin@stormwellnessclub.com" className="text-gold hover:text-gold-light">admin@stormwellnessclub.com</a><br />
