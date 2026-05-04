@@ -5147,6 +5147,8 @@ export type Database = {
           error_message: string | null
           id: string
           idempotency_key: string | null
+          media_count: number
+          media_urls: Json
           message_body: string
           metadata: Json
           phone: string
@@ -5166,6 +5168,8 @@ export type Database = {
           error_message?: string | null
           id?: string
           idempotency_key?: string | null
+          media_count?: number
+          media_urls?: Json
           message_body: string
           metadata?: Json
           phone: string
@@ -5185,6 +5189,8 @@ export type Database = {
           error_message?: string | null
           id?: string
           idempotency_key?: string | null
+          media_count?: number
+          media_urls?: Json
           message_body?: string
           metadata?: Json
           phone?: string
