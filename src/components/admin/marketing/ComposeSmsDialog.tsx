@@ -49,6 +49,14 @@ const QUICK_TEMPLATES: Record<string, string> = {
     "Storm: Unlock more — upgrade your tier and save: stormwellnessclub.com/member/membership Reply STOP to opt out.",
   referral_push:
     "Storm: Refer a friend, earn 500 points toward perks: stormwellnessclub.com/member/referrals Reply STOP to opt out.",
+  cafe_first_order:
+    "Storm Cafe: Your first drink is on us ☕ Show this text at the counter or order online: stormwellnessclub.com/cafe Reply STOP to opt out.",
+  cafe_winback:
+    "Storm Cafe: We saved your usual. Come back this week — order ahead: stormwellnessclub.com/cafe Reply STOP to opt out.",
+  cafe_habit:
+    "Storm Cafe: Order 3 more this month, get the 4th free 🎉 Start: stormwellnessclub.com/cafe Reply STOP to opt out.",
+  cafe_drink_of_week:
+    "Storm Cafe: This week's featured drink is here. Pre-order on your way in: stormwellnessclub.com/cafe Reply STOP to opt out.",
 };
 
 const COST_GUARDRAIL = 50;
@@ -182,6 +190,52 @@ export function ComposeSmsDialog({
             email: m.email,
             name: `${m.first_name || ""} ${m.last_name || ""}`.trim() || "Member",
           }));
+      } else if (goal.startsWith("cafe_")) {
+        const { data: members } = await supabase
+          .from("members")
+          .select("id, user_id, email, first_name, last_name")
+          .eq("status", "active")
+          .not("email", "is", null)
+          .limit(1000);
+        if (goal === "cafe_drink_of_week") {
+          emails = (members || []).map((m: any) => ({
+            email: m.email,
+            name: `${m.first_name || ""} ${m.last_name || ""}`.trim() || "Member",
+          }));
+        } else {
+          const userIds = (members || []).map((m: any) => m.user_id).filter(Boolean);
+          const orderCounts = new Map<string, number>();
+          const orderLast = new Map<string, string>();
+          for (let i = 0; i < userIds.length; i += 200) {
+            const slice = userIds.slice(i, i + 200);
+            const { data: orders } = await supabase
+              .from("cafe_orders" as any)
+              .select("user_id, created_at, status")
+              .in("user_id", slice)
+              .eq("status", "completed");
+            (orders || []).forEach((o: any) => {
+              orderCounts.set(o.user_id, (orderCounts.get(o.user_id) || 0) + 1);
+              const prev = orderLast.get(o.user_id);
+              if (!prev || o.created_at > prev) orderLast.set(o.user_id, o.created_at);
+            });
+          }
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - 30);
+          const cutoffISO = cutoff.toISOString();
+          emails = (members || [])
+            .filter((m: any) => {
+              const c = orderCounts.get(m.user_id) || 0;
+              const last = orderLast.get(m.user_id);
+              if (goal === "cafe_first_order") return c === 0;
+              if (goal === "cafe_habit") return c === 1;
+              if (goal === "cafe_winback") return last !== undefined && last < cutoffISO;
+              return false;
+            })
+            .map((m: any) => ({
+              email: m.email,
+              name: `${m.first_name || ""} ${m.last_name || ""}`.trim() || "Member",
+            }));
+        }
       }
 
       // Step 2: Filter to SMS-eligible (sms_opt_in + phone) using profiles lookup
