@@ -569,6 +569,115 @@ export function SmsBlastTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* LOG ROW DETAIL DRAWER */}
+      <Sheet open={!!selectedRow} onOpenChange={(o) => !o && setSelectedRow(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          {selectedRow && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  Message detail
+                  <Badge
+                    variant={
+                      selectedRow.status === "sent" || selectedRow.status === "delivered"
+                        ? "default"
+                        : selectedRow.status === "failed" ||
+                          selectedRow.status === "blocked_no_consent"
+                        ? "destructive"
+                        : "outline"
+                    }
+                    className="text-[10px]"
+                  >
+                    {selectedRow.status}
+                  </Badge>
+                </SheetTitle>
+                <SheetDescription className="font-mono text-xs">
+                  {selectedRow.phone} ·{" "}
+                  {selectedRow.created_at
+                    ? format(new Date(selectedRow.created_at), "MM/dd/yyyy HH:mm:ss")
+                    : "—"}
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="space-y-4 mt-4">
+                {selectedRow.twilio_sid && (
+                  <div className="flex items-center justify-between gap-2 rounded border border-border p-2">
+                    <div>
+                      <div className="text-[10px] uppercase text-muted-foreground">Twilio SID</div>
+                      <div className="font-mono text-xs break-all">{selectedRow.twilio_sid}</div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedRow.twilio_sid);
+                        toast.success("SID copied");
+                      }}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+
+                {selectedRow.error_message && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs break-words">
+                      {selectedRow.error_message}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div>
+                  <div className="text-[10px] uppercase text-muted-foreground mb-1">
+                    Message body
+                  </div>
+                  <div className="rounded border border-border bg-muted/30 p-3 text-sm whitespace-pre-wrap break-words">
+                    {selectedRow.message_body || "(empty)"}
+                  </div>
+                </div>
+
+                {Array.isArray(selectedRow.media_urls) && selectedRow.media_urls.length > 0 && (
+                  <div>
+                    <div className="text-[10px] uppercase text-muted-foreground mb-2 flex items-center gap-1">
+                      <ImageIcon className="h-3 w-3" />
+                      Media ({selectedRow.media_urls.length})
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedRow.media_urls.map((u: string, i: number) => (
+                        <a
+                          key={i}
+                          href={u}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block group"
+                        >
+                          <img
+                            src={u}
+                            alt={`Attachment ${i + 1}`}
+                            loading="lazy"
+                            className="w-full h-32 object-cover rounded border border-border group-hover:opacity-90 transition"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(selectedRow.media_count ?? 0) > 0 &&
+                  (!Array.isArray(selectedRow.media_urls) ||
+                    selectedRow.media_urls.length === 0) && (
+                    <div className="text-xs text-muted-foreground">
+                      {selectedRow.media_count} attachment{selectedRow.media_count !== 1 ? "s" : ""}{" "}
+                      sent (URLs not retained for this row).
+                    </div>
+                  )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
