@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -52,7 +52,7 @@ import UpdatePassword from "./pages/UpdatePassword";
 import MyBookings from "./pages/MyBookings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
-import SMSTerms from "./pages/SMSTerms";
+
 import FAQ from "./pages/FAQ";
 import GuestPass from "./pages/GuestPass";
 import NotFound from "./pages/NotFound";
@@ -158,7 +158,7 @@ const App = () => (
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
-              <Route path="/sms-terms" element={<SMSTerms />} />
+              <Route path="/sms-terms" element={<Navigate to="/terms#sms" replace />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/guest-pass" element={<GuestPass />} />
               <Route path="/guest-feedback" element={<GuestFeedback />} />

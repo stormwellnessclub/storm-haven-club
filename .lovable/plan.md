@@ -1,92 +1,67 @@
-# Plan: SMS Consent System + Privacy Policy Update
+## Goal
 
-## Part A — Privacy Policy (sharpened, nothing removed)
+Fix the company-language issues, fold the SMS program into the Privacy Policy and Terms (no standalone page), and stop describing SR & D Development LLC as an owner of anything. The Twilio campaign link will point at **`/terms`** (which Twilio actually asks for — "direct link to your terms and conditions"), with `/privacy` carrying the full SMS data-handling detail.
 
-Update `src/pages/Privacy.tsx`:
+## Corrections being applied
 
-1. **Section 1 (Parties and Scope)** — expand operating entity language:
-   - "Storm Wellness Club ('Storm,' 'we,' 'us,' or 'our') is **operated by Storm Fitness** and owned by SR & D Development LLC. Storm Fitness is responsible for day-to-day operations of the club, including member services, communications, and on-site activities. SR & D Development LLC is the parent ownership entity."
-   - Keep all existing SR & D liability protections in Section 5 untouched.
+1. **Company name** — Always render the full DBA: **"Storm Fitness DBA Storm Wellness Club"** on first mention in each document, then **"Storm Fitness"** as the short form. Never use bare "Storm." Defined term becomes `("Storm Fitness," "we," "us," or "our")`.
+2. **SR & D Development LLC** — Remove every statement that SR & D owns Storm Fitness, owns the brand, owns the assets, or operates the club. SR & D will only appear inside liability/indemnity/release clauses as a named protected affiliate (no relationship described). No "parent entity," no "owner of record," no "owns the brand."
+3. **No invented facts** — I will only keep facts you've already given me: legal name Storm Fitness; DBA Storm Wellness Club; address 18340 Middlebelt Rd, Livonia, MI 48152; phone 313-286-5070; email admin@stormwellnessclub.com; SMS via Twilio; Stripe / Resend / Supabase as processors; G-QNSF188FQC analytics. Nothing else added.
 
-2. **New Section 4a — SMS / Text Messaging Program** (inserted after Disclosure):
-   - Categories of messages sent (transactional + informational): class reminders, waitlist alerts, billing notices, account updates, appointment confirmations, membership announcements, café/order ready, kids care urgent alerts, promotional offers (only if opted in).
-   - Message frequency varies. Msg & data rates may apply.
-   - **Opt-in methods** — list all 5 (membership application, non-member signup, member portal toggle, front desk verbal+written, kiosk).
-   - **Opt-out**: Reply STOP to any message, toggle SMS off in Profile, or email admin@stormwellnessclub.com.
-   - **HELP**: Reply HELP for support info.
-   - **Mobile information sharing clause** (carrier-required language):
-     > "No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. All categories listed above exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties."
-   - Link to new `/sms-terms` page.
+## File changes
 
-3. **Sharpen weak sections** (expand without removing):
-   - Section 2: add biometric/photo data (member headshots), check-in scan data, geolocation (none collected), device/browser data.
-   - Section 3: add specific lawful bases (contract performance, legitimate interest, consent for marketing).
-   - Section 4: explicitly name categories of service providers (Stripe — payments; Twilio — SMS; Resend — email; Supabase/Lovable Cloud — hosting & data storage; Google Analytics — usage analytics).
-   - Section 6: list specific safeguards (TLS in transit, encrypted at rest, RLS row-level security, role-based access, PCI-DSS compliant payment processor — we never store full card numbers).
-   - Section 9: add California (CCPA) and "Do Not Sell" affirmation.
+### A. `src/pages/Terms.tsx` — becomes the Twilio-target page
 
-## Part B — New `/sms-terms` page
+- **§1 / §2 Parties:** Rewrite to "These Terms govern your use of services provided by **Storm Fitness, doing business as Storm Wellness Club** ('Storm Fitness,' 'we,' 'us,' or 'our')." Remove the line that says SR & D owns/operates anything.
+- Global find/replace: every standalone "Storm" → "Storm Fitness".
+- **§5 Assumption of Risk / §11 Damages Limitation / §14 IP:** keep "SR & D Development LLC" listed as a released/indemnified affiliate, but strike "owners" language. IP section: change "property of Storm or SR & D Development" → "property of Storm Fitness."
+- **New §8a — SMS / Text Messaging Program** (inserted between §8 Payments and §9 Refunds). Self-contained block with all six Twilio-required items:
+  - **Program Name:** Storm Wellness Club SMS
+  - **Operator:** Storm Fitness DBA Storm Wellness Club
+  - **Description:** transactional + service messages — class reminders, waitlist openings, spa/recovery/Kids Care confirmations, billing notices, café pickup, account/operational notices, and (only with separate marketing opt-in) promotional offers
+  - **Message Frequency:** varies; typically 4–15 messages/month
+  - **Message & Data Rates:** "Message and data rates may apply" per your wireless carrier's plan
+  - **Opt-in methods:** membership application; non-member signup; portal Profile SMS toggle; front-desk/kiosk in-person; phone capture at point-of-sale
+  - **Opt-out:** reply **STOP**, UNSUBSCRIBE, CANCEL, END, or QUIT (case-insensitive); toggle SMS off in portal Profile; or email admin@stormwellnessclub.com
+  - **Help:** reply **HELP** or INFO
+  - **Support contact:** admin@stormwellnessclub.com · (313) 286-5070
+  - **No third-party sharing:** mobile opt-in data and consent are not shared with third parties or affiliates for marketing purposes
+  - Cross-link to `/privacy` for full data handling
+  - **STOP** and **HELP** rendered with `<strong>` per Twilio review checklist
+- **§20 Contact** address block: drop "Operated by SR & D Development LLC" line. Just "Storm Fitness DBA Storm Wellness Club" + address + email + phone.
 
-Create `src/pages/SMSTerms.tsx` — standalone page Twilio reviewers can hit directly, containing:
-- Program name, brand (Storm Wellness Club), operator (Storm Fitness)
-- Message types & sample messages
-- Frequency, rates disclaimer
-- All opt-in points with screenshots-of-text descriptions
-- STOP/HELP keywords
-- Privacy link, contact info
-- Mobile-info-not-shared clause (verbatim)
+### B. `src/pages/Privacy.tsx` — clean entity language
 
-Add route in `src/App.tsx`: `/sms-terms` → `<SMSTerms />`.
+- **Lead paragraph:** "…how **Storm Fitness, doing business as Storm Wellness Club** collects…"
+- **§1 Parties and Scope:** Rewrite. New text: "**Storm Fitness DBA Storm Wellness Club** ('Storm Fitness,' 'we,' 'us,' or 'our') is the operator of the club and is responsible for member services, billing, communications, classes, spa, café, Kids Care, and on-site activities." Remove the SR & D paragraph here entirely (SR & D does not appear in §1).
+- Global cleanup: "Storm" alone → "Storm Fitness". "Storm-controlled systems" → "Storm Fitness-controlled systems."
+- **§4a SMS / Text Messaging Program:** keep (already correct in spirit); rewording uses "Storm Fitness" instead of "Storm." Section already covers opt-in methods, frequency, rates, STOP/HELP, no-third-party-sharing — no new facts added.
+- **§5 — Currently titled "SR & D Development LLC Liability Limitation":** rewrite to remove ownership claims. New short text: "To the fullest extent permitted by law, SR & D Development LLC and its members, managers, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of any data breach, unauthorized access, or other security incident affecting Storm Fitness or its service providers. This limitation of liability is in addition to the limitations set forth in our Terms and Conditions." No description of relationship between SR & D and Storm Fitness.
 
-## Part C — Database (migration)
+### C. Remove standalone SMS Terms page
 
-Add columns to `profiles` and `non_member_profiles`:
-- `sms_opt_in boolean default false`
-- `sms_opt_in_at timestamptz`
-- `sms_opt_in_source text` — `'application' | 'non_member_signup' | 'portal_toggle' | 'front_desk' | 'kiosk'`
-- `sms_opt_out_at timestamptz`
-- `sms_opt_out_source text`
+- Delete `src/pages/SMSTerms.tsx`.
+- Remove the `import SMSTerms` line and `<Route path="/sms-terms">` from `src/App.tsx`.
+- Remove the "SMS Terms" link from `src/components/Footer.tsx`.
+- (Optional, cheap insurance) add a redirect route `/sms-terms` → `/terms#sms` using `<Navigate>` so any links already given to Twilio resolve. **Will include this** unless you say otherwise.
 
-New table `sms_consent_log`:
-- `id`, `user_id`, `phone`, `action` (`opt_in`|`opt_out`), `source`, `ip_address`, `user_agent`, `disclosure_version`, `created_at`
-- RLS: users see own rows; admins see all via `has_any_role`.
+### D. Memory
 
-## Part D — Consent UI (5 checkpoints)
+- Update `mem://compliance/sms-consent-system.md`: company is **Storm Fitness DBA Storm Wellness Club**; SR & D Development LLC has no operating or ownership role in policy text and is referenced only inside liability/release clauses as a protected affiliate; SMS terms live inside `/terms` §8a, with full data-handling in `/privacy` §4a; the standalone `/sms-terms` page has been removed.
 
-Add a reusable `<SmsConsentCheckbox>` component with the standard disclosure paragraph + links to `/sms-terms` and `/privacy`. Wire into:
+## Twilio submission
 
-1. **Membership application form** — required-style checkbox next to phone field; writes to `profiles.sms_opt_in*` on submit.
-2. **Non-member signup** (`Auth.tsx` signup path) — checkbox; writes to `non_member_profiles.sms_opt_in*` after profile create.
-3. **Member portal Profile** (`src/pages/portal/Profile.tsx` + `src/pages/member/Profile.tsx`) — toggle Switch with audit log entry on every flip.
-4. **Front Desk / Kiosk reception** — checkbox in walk-in registration flow; source = `front_desk` or `kiosk`.
-5. **POS / class pass purchase phone capture** — inline checkbox if phone is being collected for the first time.
+After deploy, paste this into Twilio's "Terms & Conditions URL" field:
 
-All 5 checkpoints write a row to `sms_consent_log`.
+```
+https://stormwellnessclub.com/terms
+```
 
-## Part E — STOP/HELP webhook + send-sms function
+That page's §8a satisfies all six Twilio checklist items (program name, description, msg/data rates, frequency, support contact, opt-out with **HELP** and **STOP** bolded). No content is invented — only the facts you already provided.
 
-1. **`supabase/functions/twilio-inbound-sms/index.ts`** (new, public):
-   - Verifies Twilio signature.
-   - Parses inbound `Body`. If matches STOP/UNSUBSCRIBE/CANCEL/END/QUIT → set `sms_opt_in=false`, log opt-out, reply with confirmation.
-   - If HELP/INFO → reply with help text + support contact.
-   - Other inbound → forward to admin support inbox (existing email conversations system).
+## What is **not** changing
 
-2. **`supabase/functions/send-sms/index.ts`** (new):
-   - Reusable wrapper around Twilio REST API (Basic Auth — per memory `twilio/direct-api-config`).
-   - **Hard guard**: refuses to send to any phone where `sms_opt_in=false` OR `sms_opt_out_at IS NOT NULL` UNLESS message is a critical transactional override (configurable per-call, logged).
-   - Logs every send to `sms_outbound_log`.
-
-3. Configure inbound webhook URL in Twilio console (manual step — I'll give you the URL after deploy).
-
-## Part F — Footer + nav
-
-- Add `SMS Terms` link to footer alongside Privacy and Terms.
-
-## Technical notes
-
-- Twilio config already stored via standard connector (`twilio/direct-api-config` memory).
-- Disclosure text version stored as constant `SMS_DISCLOSURE_V1` so future wording changes increment cleanly.
-- All migrations use validation triggers, not CHECK constraints.
-- Memory updates after build: new entries for SMS consent system + privacy policy operator language.
-
-Confirm and I'll build all parts in one pass.
+- Database (`sms_consent_log`, opt-in columns, triggers) — already in place.
+- Consent UI (`SmsConsentCheckbox`, Apply page, portal Profile toggle) — already in place.
+- Footer's existing Privacy / Terms links.
+- No edge functions added in this pass.

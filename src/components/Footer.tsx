@@ -143,9 +143,6 @@ export function Footer() {
             <Link to="/terms" className="text-xs text-primary-foreground/50 hover:text-primary-foreground transition-colors">
               Terms of Service
             </Link>
-            <Link to="/sms-terms" className="text-xs text-primary-foreground/50 hover:text-primary-foreground transition-colors">
-              SMS Terms
-            </Link>
           </div>
         </div>
       </div>

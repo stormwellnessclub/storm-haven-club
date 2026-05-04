@@ -28,26 +28,25 @@ export default function Privacy() {
       <div className="container mx-auto px-6 py-16">
         <div className="max-w-4xl mx-auto prose prose-lg prose-neutral dark:prose-invert">
           <p className="lead text-xl text-muted-foreground mb-12">
-            This Privacy Policy describes how Storm Wellness Club collects, uses, shares, and
-            protects your personal information across our website, mobile experience, member
-            portal, and on-site facilities.
+            This Privacy Policy describes how <strong>Storm Fitness, doing business as Storm
+            Wellness Club</strong>, collects, uses, shares, and protects your personal information
+            across our website, mobile experience, member portal, and on-site facilities.
           </p>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">1. Parties and Scope</h2>
             <p>
-              <strong>Operating Entity:</strong> Storm Wellness Club ("Storm," "we," "us," or "our")
-              is <strong>operated by Storm Fitness</strong>, which is responsible for the day-to-day
-              operations of the club, including member services, billing, communications, classes,
-              spa, café, Kids Care, and on-site activities. The club brand and its operating assets
-              are owned by <strong>SR &amp; D Development LLC</strong> ("SR &amp; D Development"),
-              which serves as the parent ownership entity.
+              <strong>Storm Fitness DBA Storm Wellness Club</strong> ("Storm Fitness," "we," "us,"
+              or "our") is the operator of the club and is responsible for member services,
+              billing, communications, classes, spa, café, Kids Care, and on-site activities.
+              "Storm Wellness Club" is the trade name (DBA) under which Storm Fitness offers its
+              services to the public.
             </p>
             <p>
               This Privacy Policy applies to all services, facilities, and programs offered under
               the Storm Wellness Club brand, regardless of whether the day-to-day service is
               delivered by Storm Fitness employees, contractors, instructors, or third-party
-              service providers acting on Storm's behalf.
+              service providers acting on Storm Fitness's behalf.
             </p>
             <p>
               <strong>User:</strong> "You" or "User" refers to any individual who accesses our
@@ -62,7 +61,7 @@ export default function Privacy() {
             <ul className="list-disc pl-6 space-y-2">
               <li><strong>Personal Information:</strong> Name, email address, phone number, home address, date of birth, and emergency contact information.</li>
               <li><strong>Account &amp; Authentication Data:</strong> Login credentials (passwords are stored as one-way hashes), session tokens, and account preferences.</li>
-              <li><strong>Payment Information:</strong> Card brand, last 4 digits, expiration, and a tokenized payment-method identifier provided by our PCI-DSS compliant processor (Stripe). We never see, store, or log full card numbers, CVCs, or full bank account numbers on Storm-controlled systems.</li>
+              <li><strong>Payment Information:</strong> Card brand, last 4 digits, expiration, and a tokenized payment-method identifier provided by our PCI-DSS compliant processor (Stripe). We never see, store, or log full card numbers, CVCs, or full bank account numbers on Storm Fitness-controlled systems.</li>
               <li><strong>Health &amp; Fitness Data:</strong> Any fitness goals, health history, injuries, restrictions, or medical information you voluntarily provide so we can tailor classes, recovery, and spa services to your needs.</li>
               <li><strong>Photo &amp; Identity Data:</strong> If you choose to provide a member headshot for visual check-in identity, that photo is stored in a private, restricted bucket and used only for staff identity verification at the front desk and scanner.</li>
               <li><strong>Check-In &amp; Facility Usage Data:</strong> Scan events, class attendance, recovery and spa appointments, Kids Care usage, café orders, and other records of how you use the facility.</li>
@@ -116,8 +115,8 @@ export default function Privacy() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">4a. SMS / Text Messaging Program</h2>
             <p>
-              Storm operates a text messaging program for members, applicants, non-member account
-              holders, and guests who provide consent. Categories of messages include:
+              Storm Fitness operates a text messaging program for members, applicants, non-member
+              account holders, and guests who provide consent. Categories of messages include:
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>Class reminders, schedule changes, waitlist openings</li>
@@ -150,21 +149,20 @@ export default function Privacy() {
             <p>
               <strong>No third-party sharing.</strong> Mobile opt-in data and consent will not be
               shared with third parties or affiliates for marketing or promotional purposes. See
-              our full <Link to="/sms-terms" className="text-gold hover:text-gold-light">SMS Terms</Link>.
+              our full <Link to="/terms#sms" className="text-gold hover:text-gold-light">SMS Terms</Link>.
             </p>
           </section>
 
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">5. SR &amp; D Development LLC Liability Limitation</h2>
             <p>
-              SR &amp; D Development LLC is the parent ownership entity of the Storm Wellness Club
-              brand. To the fullest extent permitted by law, SR &amp; D Development LLC shall not
-              be liable for any indirect, incidental, special, consequential, or punitive damages
-              arising out of any data breach, unauthorized access, or other security incident
-              affecting Storm Wellness Club, its operating entity Storm Fitness, or any service
-              provider engaged by either of them. Users acknowledge that no data transmission or
-              storage system can be guaranteed 100% secure. This limitation of liability applies
-              solely to SR &amp; D Development LLC as the parent entity.
+              To the fullest extent permitted by law, SR &amp; D Development LLC and its members,
+              managers, and affiliates shall not be liable for any indirect, incidental, special,
+              consequential, or punitive damages arising out of any data breach, unauthorized
+              access, or other security incident affecting Storm Fitness or any service provider
+              engaged by Storm Fitness. Users acknowledge that no data transmission or storage
+              system can be guaranteed 100% secure. This limitation of liability is in addition to
+              the limitations set forth in our Terms and Conditions.
             </p>
           </section>
 
@@ -179,7 +177,7 @@ export default function Privacy() {
               <li>Encryption at rest for our managed database and file storage.</li>
               <li>Row-level security (RLS) policies enforced at the database tier so users can only access their own data, except where staff roles are authorized.</li>
               <li>Role-based access control for staff (front desk, instructors, managers, admins, super admins) limiting access to the minimum necessary information.</li>
-              <li>PCI-DSS compliant payment processing via Stripe — full card numbers and CVCs never touch Storm-controlled systems.</li>
+              <li>PCI-DSS compliant payment processing via Stripe — full card numbers and CVCs never touch Storm Fitness-controlled systems.</li>
               <li>Audit logs for sensitive actions (consent changes, billing operations, access-control overrides).</li>
             </ul>
             <p>However, we cannot guarantee the absolute security of your data.</p>
@@ -236,7 +234,7 @@ export default function Privacy() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">11. No Medical Services / No Health Claims</h2>
             <p>
-              Storm does not provide medical services, medical advice, or healthcare treatment.
+              Storm Fitness does not provide medical services, medical advice, or healthcare treatment.
               Information related to health and wellness is for general informational purposes
               only and should not replace advice from a qualified healthcare provider.
             </p>
@@ -281,8 +279,7 @@ export default function Privacy() {
             <h2 className="text-2xl font-display font-semibold mb-4">15. Contact Information</h2>
             <p>For questions or concerns about this Privacy Policy or our data practices:</p>
             <address className="not-italic">
-              <strong>Storm Wellness Club</strong><br />
-              Operated by Storm Fitness; owned by SR &amp; D Development LLC<br />
+              <strong>Storm Fitness DBA Storm Wellness Club</strong><br />
               18340 Middlebelt Rd<br />
               Livonia, MI 48152<br />
               Email: <a href="mailto:admin@stormwellnessclub.com" className="text-gold hover:text-gold-light">admin@stormwellnessclub.com</a><br />
