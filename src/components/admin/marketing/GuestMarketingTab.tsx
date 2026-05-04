@@ -151,6 +151,7 @@ export function GuestMarketingTab() {
           <CampaignPlaybooks
             type="guest"
             onLaunchPlaybook={handleLaunchPlaybook}
+            onLaunchSmsPlaybook={handleLaunchSmsPlaybook}
             onCustomCampaign={handleBulkSend}
           />
         </CardContent>
