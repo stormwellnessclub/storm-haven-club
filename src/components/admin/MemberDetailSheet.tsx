@@ -921,7 +921,16 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   {member.phone && (
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <p>{member.phone}</p>
+                      <p className="flex-1">{member.phone}</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setSmsDialogOpen(true)}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                        Send SMS
+                      </Button>
                     </div>
                   )}
 
