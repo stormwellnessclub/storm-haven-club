@@ -161,7 +161,7 @@ export default function Terms() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">14. Intellectual Property</h2>
             <p>
-              All content, branding, logos, and materials on our website, in our facilities, or in our communications are the property of Storm Fitness or SR & D Development. You may not reproduce, distribute, or create derivative works without prior written consent.
+              All content, branding, logos, and materials on our website, in our facilities, or in our communications are the property of Storm Fitness. You may not reproduce, distribute, or create derivative works without prior written consent.
             </p>
           </section>
 
