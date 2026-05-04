@@ -232,7 +232,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (!optedIn) {
+    const allowSend = optedIn || (callerIsAdmin && body.bypassConsent === true);
+
+    if (!allowSend) {
       await admin.from("sms_messages").insert({
         recipient_user_id: recipientUserId,
         phone,
