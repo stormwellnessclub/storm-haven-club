@@ -12,7 +12,7 @@ export const SMS_DISCLOSURE_TEXT = (
     Kids Care updates, and account messages. Message frequency varies. Message and
     data rates may apply. Reply <strong>STOP</strong> to unsubscribe or{" "}
     <strong>HELP</strong> for help. Consent is not a condition of purchase. See our{" "}
-    <Link to="/sms-terms" className="underline" target="_blank" rel="noopener noreferrer">
+    <Link to="/terms#sms" className="underline" target="_blank" rel="noopener noreferrer">
       SMS Terms
     </Link>{" "}
     and{" "}

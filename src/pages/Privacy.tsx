@@ -149,7 +149,7 @@ export default function Privacy() {
             <p>
               <strong>No third-party sharing.</strong> Mobile opt-in data and consent will not be
               shared with third parties or affiliates for marketing or promotional purposes. See
-              our full <Link to="/sms-terms" className="text-gold hover:text-gold-light">SMS Terms</Link>.
+              our full <Link to="/terms#sms" className="text-gold hover:text-gold-light">SMS Terms</Link>.
             </p>
           </section>
 
