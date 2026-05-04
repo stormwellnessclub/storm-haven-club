@@ -169,7 +169,7 @@ export function CampaignAnalytics() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardContent className="pt-6 text-center">
             <Send className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
