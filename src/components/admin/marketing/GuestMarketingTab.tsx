@@ -35,6 +35,7 @@ export function GuestMarketingTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeSmsOpen, setComposeSmsOpen] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<{ email: string; name: string } | null>(null);
   const [activeGoalType, setActiveGoalType] = useState<string | undefined>();
   const [activePlaybookName, setActivePlaybookName] = useState<string | undefined>();
