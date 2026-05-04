@@ -22,6 +22,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +44,8 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   XCircle,
+  Paperclip,
+  Copy,
 } from "lucide-react";
 import { SmsMediaPicker } from "../SmsMediaPicker";
 import { estimateCost, segments } from "@/lib/smsCosts";
@@ -239,6 +248,7 @@ export function SmsBlastTab() {
 
   // === Send log ===
   const [logRows, setLogRows] = useState<any[]>([]);
+  const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [logLoading, setLogLoading] = useState(false);
 
   const loadLog = async () => {
@@ -460,41 +470,70 @@ export function SmsBlastTab() {
                     </TableCell>
                   </TableRow>
                 )}
-                {logRows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {row.created_at ? format(new Date(row.created_at), "MM/dd HH:mm") : "—"}
-                    </TableCell>
-                    <TableCell className="text-xs font-mono">{row.phone}</TableCell>
-                    <TableCell className="text-xs max-w-md truncate" title={row.message_body}>
-                      {row.message_body}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {row.media_count > 0 ? (
-                        <Badge variant="outline" className="gap-1 text-[10px]">
-                          <ImageIcon className="h-3 w-3" /> {row.media_count}
+                {logRows.map((row) => {
+                  const urls: string[] = Array.isArray(row.media_urls) ? row.media_urls : [];
+                  const hasMedia = (row.media_count ?? 0) > 0;
+                  return (
+                    <TableRow
+                      key={row.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedRow(row)}
+                    >
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {row.created_at ? format(new Date(row.created_at), "MM/dd HH:mm") : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono">{row.phone}</TableCell>
+                      <TableCell className="text-xs max-w-md">
+                        <div className="flex items-center gap-1.5 truncate" title={row.message_body}>
+                          {hasMedia && <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                          <span className="truncate">{row.message_body}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {hasMedia ? (
+                          <div className="flex items-center gap-1.5">
+                            {urls.slice(0, 3).map((u, i) => (
+                              <img
+                                key={i}
+                                src={u}
+                                alt=""
+                                loading="lazy"
+                                className="h-6 w-6 object-cover rounded border border-border"
+                              />
+                            ))}
+                            {urls.length === 0 && (
+                              <Badge variant="outline" className="gap-1 text-[10px]">
+                                <ImageIcon className="h-3 w-3" /> {row.media_count}
+                              </Badge>
+                            )}
+                            {urls.length > 3 && (
+                              <span className="text-[10px] text-muted-foreground">
+                                +{urls.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            row.status === "sent" || row.status === "delivered"
+                              ? "default"
+                              : row.status === "failed" || row.status === "blocked_no_consent"
+                              ? "destructive"
+                              : "outline"
+                          }
+                          className="text-[10px]"
+                          title={row.error_message || row.twilio_sid || ""}
+                        >
+                          {row.status}
                         </Badge>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          row.status === "sent" || row.status === "delivered"
-                            ? "default"
-                            : row.status === "failed" || row.status === "blocked_no_consent"
-                            ? "destructive"
-                            : "outline"
-                        }
-                        className="text-[10px]"
-                        title={row.error_message || row.twilio_sid || ""}
-                      >
-                        {row.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -530,6 +569,115 @@ export function SmsBlastTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* LOG ROW DETAIL DRAWER */}
+      <Sheet open={!!selectedRow} onOpenChange={(o) => !o && setSelectedRow(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          {selectedRow && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  Message detail
+                  <Badge
+                    variant={
+                      selectedRow.status === "sent" || selectedRow.status === "delivered"
+                        ? "default"
+                        : selectedRow.status === "failed" ||
+                          selectedRow.status === "blocked_no_consent"
+                        ? "destructive"
+                        : "outline"
+                    }
+                    className="text-[10px]"
+                  >
+                    {selectedRow.status}
+                  </Badge>
+                </SheetTitle>
+                <SheetDescription className="font-mono text-xs">
+                  {selectedRow.phone} ·{" "}
+                  {selectedRow.created_at
+                    ? format(new Date(selectedRow.created_at), "MM/dd/yyyy HH:mm:ss")
+                    : "—"}
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="space-y-4 mt-4">
+                {selectedRow.twilio_sid && (
+                  <div className="flex items-center justify-between gap-2 rounded border border-border p-2">
+                    <div>
+                      <div className="text-[10px] uppercase text-muted-foreground">Twilio SID</div>
+                      <div className="font-mono text-xs break-all">{selectedRow.twilio_sid}</div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedRow.twilio_sid);
+                        toast.success("SID copied");
+                      }}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+
+                {selectedRow.error_message && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs break-words">
+                      {selectedRow.error_message}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div>
+                  <div className="text-[10px] uppercase text-muted-foreground mb-1">
+                    Message body
+                  </div>
+                  <div className="rounded border border-border bg-muted/30 p-3 text-sm whitespace-pre-wrap break-words">
+                    {selectedRow.message_body || "(empty)"}
+                  </div>
+                </div>
+
+                {Array.isArray(selectedRow.media_urls) && selectedRow.media_urls.length > 0 && (
+                  <div>
+                    <div className="text-[10px] uppercase text-muted-foreground mb-2 flex items-center gap-1">
+                      <ImageIcon className="h-3 w-3" />
+                      Media ({selectedRow.media_urls.length})
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedRow.media_urls.map((u: string, i: number) => (
+                        <a
+                          key={i}
+                          href={u}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block group"
+                        >
+                          <img
+                            src={u}
+                            alt={`Attachment ${i + 1}`}
+                            loading="lazy"
+                            className="w-full h-32 object-cover rounded border border-border group-hover:opacity-90 transition"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(selectedRow.media_count ?? 0) > 0 &&
+                  (!Array.isArray(selectedRow.media_urls) ||
+                    selectedRow.media_urls.length === 0) && (
+                    <div className="text-xs text-muted-foreground">
+                      {selectedRow.media_count} attachment{selectedRow.media_count !== 1 ? "s" : ""}{" "}
+                      sent (URLs not retained for this row).
+                    </div>
+                  )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
