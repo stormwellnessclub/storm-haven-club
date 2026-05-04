@@ -82,6 +82,13 @@ export function MemberMarketingTab() {
     setComposeOpen(true);
   };
 
+  const handleLaunchSmsPlaybook = (playbook: PlaybookConfig) => {
+    setSelectedMember(null);
+    setActiveGoalType(playbook.goalType);
+    setActivePlaybookName(playbook.name);
+    setComposeSmsOpen(true);
+  };
+
   const handleBulkSend = () => {
     setSelectedMember(null);
     setActiveGoalType(undefined);
