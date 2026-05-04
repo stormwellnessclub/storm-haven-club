@@ -20,6 +20,7 @@ import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { formatSetupError } from "@/lib/stripeErrors";
+import { SmsConsentCheckbox, SMS_DISCLOSURE_VERSION } from "@/components/SmsConsentCheckbox";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
@@ -57,6 +58,7 @@ const initialFormData = {
   holisticWellness: "",
   referredByMember: "",
   foundingMember: "",
+  smsConsent: false,
   ackOneYearCommitment: false,
   ackInitiationFee: false,
   ackMembershipAgreement: false,
@@ -723,7 +725,6 @@ export default function Apply() {
       return;
     }
 
-
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
       toast.error(dupeCheck.message);
@@ -816,6 +817,20 @@ export default function Apply() {
         toast.error(`Failed to submit application: ${error.message || error.code || 'Unknown error'}`);
         setIsSubmitting(false);
         return;
+      }
+
+      // Log SMS consent (best-effort, non-blocking)
+      if (formData.smsConsent) {
+        (supabase.from('sms_consent_log') as any).insert({
+          phone: formData.phone,
+          action: 'opt_in',
+          source: 'application',
+          user_agent: navigator.userAgent,
+          disclosure_version: SMS_DISCLOSURE_VERSION,
+          metadata: { email: formData.email },
+        }).then(({ error: logErr }: any) => {
+          if (logErr) console.warn('SMS consent log failed:', logErr);
+        });
       }
 
       // Send confirmation email
@@ -1011,6 +1026,12 @@ export default function Apply() {
                   <Label htmlFor="phone">Phone Number *</Label>
                   <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} placeholder="(123) 456-7890" className="mt-1" required />
                 </div>
+
+                <SmsConsentCheckbox
+                  checked={formData.smsConsent}
+                  onCheckedChange={(v) => setFormData((prev) => ({ ...prev, smsConsent: v }))}
+                  id="apply-sms-consent"
+                />
               </div>
             </div>
 

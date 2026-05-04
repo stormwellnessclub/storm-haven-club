@@ -4137,6 +4137,11 @@ export type Database = {
           id: string
           last_name: string | null
           phone: string | null
+          sms_opt_in: boolean
+          sms_opt_in_at: string | null
+          sms_opt_in_source: string | null
+          sms_opt_out_at: string | null
+          sms_opt_out_source: string | null
           stripe_customer_id: string | null
           updated_at: string
           user_id: string
@@ -4154,6 +4159,11 @@ export type Database = {
           id?: string
           last_name?: string | null
           phone?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_source?: string | null
+          sms_opt_out_at?: string | null
+          sms_opt_out_source?: string | null
           stripe_customer_id?: string | null
           updated_at?: string
           user_id: string
@@ -4171,6 +4181,11 @@ export type Database = {
           id?: string
           last_name?: string | null
           phone?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_source?: string | null
+          sms_opt_out_at?: string | null
+          sms_opt_out_source?: string | null
           stripe_customer_id?: string | null
           updated_at?: string
           user_id?: string
@@ -4546,6 +4561,11 @@ export type Database = {
           private_event_agreement_signed_at: string | null
           single_class_pass_agreement_signed: boolean | null
           single_class_pass_agreement_signed_at: string | null
+          sms_opt_in: boolean
+          sms_opt_in_at: string | null
+          sms_opt_in_source: string | null
+          sms_opt_out_at: string | null
+          sms_opt_out_source: string | null
           state: string | null
           updated_at: string
           user_id: string
@@ -4582,6 +4602,11 @@ export type Database = {
           private_event_agreement_signed_at?: string | null
           single_class_pass_agreement_signed?: boolean | null
           single_class_pass_agreement_signed_at?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_source?: string | null
+          sms_opt_out_at?: string | null
+          sms_opt_out_source?: string | null
           state?: string | null
           updated_at?: string
           user_id: string
@@ -4618,6 +4643,11 @@ export type Database = {
           private_event_agreement_signed_at?: string | null
           single_class_pass_agreement_signed?: boolean | null
           single_class_pass_agreement_signed_at?: string | null
+          sms_opt_in?: boolean
+          sms_opt_in_at?: string | null
+          sms_opt_in_source?: string | null
+          sms_opt_out_at?: string | null
+          sms_opt_out_source?: string | null
           state?: string | null
           updated_at?: string
           user_id?: string
@@ -5064,6 +5094,45 @@ export type Database = {
           id?: string
           supabase_url?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      sms_consent_log: {
+        Row: {
+          action: string
+          created_at: string
+          disclosure_version: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          phone: string | null
+          source: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          disclosure_version?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          phone?: string | null
+          source: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          disclosure_version?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          phone?: string | null
+          source?: string
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
