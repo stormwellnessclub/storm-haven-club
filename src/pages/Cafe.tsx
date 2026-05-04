@@ -242,6 +242,12 @@ export default function Cafe() {
         paymentMethod: paymentMethod === "member_account" ? "member_account" : "card",
         paymentIntentId,
       });
+
+      // Flip SMS opt-in if the user checked it
+      if (smsOptIn && user) {
+        await supabase.from("profiles").update({ sms_opt_in: true }).eq("id", user.id);
+      }
+
       setCart([]);
       setShowPaymentDialog(false);
       setPaymentMethod("card");
