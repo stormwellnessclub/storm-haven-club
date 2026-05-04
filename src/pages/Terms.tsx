@@ -140,7 +140,7 @@ export default function Terms() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">11. Damages Limitation</h2>
             <p>
-              To the fullest extent permitted by law, Storm Fitness, SR & D Development, and their respective owners, directors, officers, employees, and agents shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of your use of our services or facilities. In no event shall our total liability exceed the amount you paid for the specific service or membership fee that gave rise to the claim.
+              To the fullest extent permitted by law, Storm Fitness, SR & D Development LLC, and their respective members, managers, directors, officers, employees, and agents shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of your use of our services or facilities. In no event shall our total liability exceed the amount you paid for the specific service or membership fee that gave rise to the claim.
             </p>
           </section>
 
