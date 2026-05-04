@@ -186,6 +186,13 @@ export function CampaignAnalytics() {
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
+            <Send className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-2xl font-bold">{totalSmsSent}</p>
+            <p className="text-xs text-muted-foreground">SMS Sent</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
             <Target className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
             <p className="text-2xl font-bold">{goalCampaigns.length}</p>
             <p className="text-xs text-muted-foreground">Goal-Driven Campaigns</p>
