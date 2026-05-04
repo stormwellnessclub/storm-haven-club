@@ -36,6 +36,9 @@ export interface UserProfile {
   single_class_pass_agreement_signed?: boolean;
   single_class_pass_agreement_signed_at?: string | null;
   manager_refund_code?: string | null;
+  sms_opt_in?: boolean | null;
+  sms_opt_in_at?: string | null;
+  sms_opt_in_source?: string | null;
   created_at: string;
   updated_at: string;
 }
