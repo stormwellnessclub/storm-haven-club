@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, ShoppingBag, Loader2, CreditCard, User, ChevronDown } from "lucide-react";
+import { Plus, Minus, ShoppingBag, Loader2, CreditCard, User, ChevronDown, MessageSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCreateCafeOrder } from "@/hooks/useCafeOrder";
@@ -106,6 +107,8 @@ export default function Cafe() {
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
+  const [smsOptIn, setSmsOptIn] = useState(false);
+  const [showSmsOptIn, setShowSmsOptIn] = useState(false);
 
   const isLoading = catLoading || itemsLoading;
 
@@ -239,6 +242,12 @@ export default function Cafe() {
         paymentMethod: paymentMethod === "member_account" ? "member_account" : "card",
         paymentIntentId,
       });
+
+      // Flip SMS opt-in if the user checked it
+      if (smsOptIn && user) {
+        await supabase.from("profiles").update({ sms_opt_in: true }).eq("id", user.id);
+      }
+
       setCart([]);
       setShowPaymentDialog(false);
       setPaymentMethod("card");
@@ -263,6 +272,22 @@ export default function Cafe() {
         });
     }
   }, [user, showPaymentDialog, paymentMethod]);
+
+  // When payment dialog opens, check if user has SMS opt-in already; if not, show the nudge
+  useEffect(() => {
+    if (!user || !showPaymentDialog) return;
+    supabase
+      .from("profiles")
+      .select("sms_opt_in, phone")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const optedIn = (data as any)?.sms_opt_in === true;
+        const hasPhone = !!(data as any)?.phone;
+        setShowSmsOptIn(!optedIn && hasPhone);
+        setSmsOptIn(false);
+      });
+  }, [user, showPaymentDialog]);
 
   return (
     <Layout>
@@ -596,6 +621,23 @@ export default function Cafe() {
                 <span className="text-accent">${cartTotal.toFixed(2)}</span>
               </div>
             </div>
+            {showSmsOptIn && (
+              <label className="flex items-start gap-2 rounded-md border bg-muted/30 p-3 cursor-pointer">
+                <Checkbox
+                  checked={smsOptIn}
+                  onCheckedChange={(v) => setSmsOptIn(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 text-sm font-medium">
+                    <MessageSquare className="h-3.5 w-3.5" /> Text me when it's ready
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    We'll text you order updates and the occasional cafe special. Reply STOP to opt out anytime.
+                  </p>
+                </div>
+              </label>
+            )}
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)} disabled={isProcessingPayment}>

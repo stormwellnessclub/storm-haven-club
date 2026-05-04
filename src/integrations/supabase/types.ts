@@ -475,6 +475,27 @@ export type Database = {
           },
         ]
       }
+      cafe_marketing_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       cafe_menu_addons: {
         Row: {
           category_id: string | null
@@ -686,6 +707,86 @@ export type Database = {
           },
           {
             foreignKeyName: "cafe_orders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cafe_vouchers: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          expires_at: string | null
+          granted_by: string | null
+          id: string
+          item_id: string | null
+          max_value_cents: number | null
+          member_id: string
+          redeemed_at: string | null
+          redeemed_order_id: string | null
+          source_campaign_id: string | null
+          source_goal_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          granted_by?: string | null
+          id?: string
+          item_id?: string | null
+          max_value_cents?: number | null
+          member_id: string
+          redeemed_at?: string | null
+          redeemed_order_id?: string | null
+          source_campaign_id?: string | null
+          source_goal_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          granted_by?: string | null
+          id?: string
+          item_id?: string | null
+          max_value_cents?: number | null
+          member_id?: string
+          redeemed_at?: string | null
+          redeemed_order_id?: string | null
+          source_campaign_id?: string | null
+          source_goal_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cafe_vouchers_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_menu_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_vouchers_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_vouchers_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_vouchers_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"

@@ -31,6 +31,10 @@ const GOAL_LABELS: Record<string, string> = {
   prevent_churn: "Prevent Churn",
   upsell_tier: "Upsell Tier",
   referral_push: "Referral Push",
+  cafe_first_order: "Cafe: First Sip",
+  cafe_winback: "Cafe: Win Back",
+  cafe_habit: "Cafe: Habit Builder",
+  cafe_drink_of_week: "Cafe: Drink of Week",
 };
 
 export function CampaignAnalytics() {

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, UserPlus, RefreshCw, MessageSquare, ShieldAlert, TrendingUp, Users, PenLine, Mail, ChevronDown } from "lucide-react";
+import { Loader2, UserPlus, RefreshCw, MessageSquare, ShieldAlert, TrendingUp, Users, PenLine, Mail, ChevronDown, Coffee, Sparkles, Repeat } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ export interface PlaybookConfig {
   goalType: string;
   icon: React.ReactNode;
   color: string;
-  audienceType: "guest" | "member";
+  audienceType: "guest" | "member" | "cafe";
 }
 
 const GUEST_PLAYBOOKS: PlaybookConfig[] = [
@@ -81,12 +81,51 @@ const MEMBER_PLAYBOOKS: PlaybookConfig[] = [
   },
 ];
 
+const CAFE_PLAYBOOKS: PlaybookConfig[] = [
+  {
+    id: "cafe_first_order",
+    name: "First Sip",
+    description: "Active members who have never placed a cafe order",
+    goalType: "cafe_first_order",
+    icon: <Sparkles className="h-5 w-5" />,
+    color: "text-emerald-600",
+    audienceType: "cafe",
+  },
+  {
+    id: "cafe_winback",
+    name: "Win Them Back",
+    description: "Members who ordered 30+ days ago and not since",
+    goalType: "cafe_winback",
+    icon: <RefreshCw className="h-5 w-5" />,
+    color: "text-amber-600",
+    audienceType: "cafe",
+  },
+  {
+    id: "cafe_habit",
+    name: "Habit Builder",
+    description: "Members with exactly 1 lifetime order — turn into regulars",
+    goalType: "cafe_habit",
+    icon: <Repeat className="h-5 w-5" />,
+    color: "text-blue-600",
+    audienceType: "cafe",
+  },
+  {
+    id: "cafe_drink_of_week",
+    name: "Drink of the Week",
+    description: "All active members — promote a featured menu item",
+    goalType: "cafe_drink_of_week",
+    icon: <Coffee className="h-5 w-5" />,
+    color: "text-purple-600",
+    audienceType: "cafe",
+  },
+];
+
 interface AudienceCounts {
   [key: string]: number | null;
 }
 
 interface CampaignPlaybooksProps {
-  type: "guest" | "member";
+  type: "guest" | "member" | "cafe";
   onLaunchPlaybook: (playbook: PlaybookConfig) => void;
   onLaunchSmsPlaybook?: (playbook: PlaybookConfig) => void;
   onCustomCampaign: () => void;
@@ -96,7 +135,8 @@ export function CampaignPlaybooks({ type, onLaunchPlaybook, onLaunchSmsPlaybook,
   const [counts, setCounts] = useState<AudienceCounts>({});
   const [loading, setLoading] = useState(true);
 
-  const playbooks = type === "guest" ? GUEST_PLAYBOOKS : MEMBER_PLAYBOOKS;
+  const playbooks =
+    type === "guest" ? GUEST_PLAYBOOKS : type === "member" ? MEMBER_PLAYBOOKS : CAFE_PLAYBOOKS;
 
   useEffect(() => {
     fetchAudienceCounts();
@@ -151,6 +191,53 @@ export function CampaignPlaybooks({ type, onLaunchPlaybook, onLaunchSmsPlaybook,
           }
         });
         newCounts["collect_feedback"] = noFeedbackEmails.size;
+      } else if (type === "cafe") {
+        // Active members with email
+        const { data: activeMembers } = await supabase
+          .from("members")
+          .select("id, user_id, email")
+          .eq("status", "active")
+          .not("email", "is", null)
+          .limit(1000);
+        const total = (activeMembers || []).length;
+        const userIds = (activeMembers || []).map((m: any) => m.user_id).filter(Boolean);
+
+        // Order counts per user
+        const orderCounts = new Map<string, number>();
+        const orderLast = new Map<string, string>();
+        if (userIds.length > 0) {
+          // chunk to avoid URL length
+          for (let i = 0; i < userIds.length; i += 200) {
+            const slice = userIds.slice(i, i + 200);
+            const { data: orders } = await supabase
+              .from("cafe_orders" as any)
+              .select("user_id, created_at, status")
+              .in("user_id", slice)
+              .eq("status", "completed");
+            (orders || []).forEach((o: any) => {
+              orderCounts.set(o.user_id, (orderCounts.get(o.user_id) || 0) + 1);
+              const prev = orderLast.get(o.user_id);
+              if (!prev || o.created_at > prev) orderLast.set(o.user_id, o.created_at);
+            });
+          }
+        }
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const cutoffISO = thirtyDaysAgo.toISOString();
+
+        let firstSip = 0, winback = 0, habit = 0;
+        (activeMembers || []).forEach((m: any) => {
+          const c = orderCounts.get(m.user_id) || 0;
+          if (c === 0) firstSip++;
+          else if (c === 1) habit++;
+          const last = orderLast.get(m.user_id);
+          if (last && last < cutoffISO) winback++;
+        });
+        newCounts["cafe_first_order"] = firstSip;
+        newCounts["cafe_winback"] = winback;
+        newCounts["cafe_habit"] = habit;
+        newCounts["cafe_drink_of_week"] = total;
       } else {
         // Prevent churn
         const { count: churnCount } = await supabase

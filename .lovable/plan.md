@@ -1,59 +1,52 @@
-## Finish SMS-Enabling the Campaign Playbooks
+## Cafe Sales: Hitting Targets
 
-Right now the 6 strategic playbooks (Convert to Applicant, Re-engage Lapsed Guests, Collect Feedback, Prevent Churn, Upsell Tier, Referral Push) only run as **email** through `ComposeEmailDialog`. The SMS plumbing (`send-sms` edge function, MMS picker, opt-in gating, idempotency, send-log with thumbnails) is fully built but can only fire from the one-off "SMS Blast" tab and the per-recipient `SendSmsDialog`.
+### Reality check (live data)
+- **108 active members**, **113 menu items across 15 categories** — supply is fine.
+- **Last 6 months of cafe orders: 6 completed totaling $0.89** (most are tests). Cafe is essentially zero-revenue today.
+- **Only 2 profiles have `sms_opt_in = true`** — SMS won't be a meaningful cafe channel until we drive opt-in. Email + on-property triggers carry the load early.
 
-This plan wires the playbooks into SMS/MMS so each card has a "Launch Campaign" dropdown → choose **Email** or **SMS/MMS**, with the same audience auto-targeting and 14-day conversion attribution.
+The constraint isn't "marketing the cafe" yet — it's **awareness, ordering friction, and habit formation**. Plan attacks all three with the existing rails (cafe orders table, email/SMS infra, member portal, kiosks, manual charges).
 
-### What gets built
+### Target framing
+Realistic Q3 target: **$8k/mo cafe revenue** (≈ 30% of active members ordering 1×/week at avg $7 ticket). Plan instruments this so we see the gap weekly, not at month-end.
 
-**1. New file: `src/components/admin/marketing/ComposeSmsDialog.tsx`**
-- Mirror of `ComposeEmailDialog` but for SMS, accepting `goalType`, `playbookName`, optional `prefilledRecipient`.
-- Reuses the same 6 audience-resolution queries already in `ComposeEmailDialog.fetchSmartAudience`, but additionally filters to recipients where `profiles.sms_opt_in = true` AND `profiles.phone IS NOT NULL`. Shows two counts: "Total in segment: X · SMS-eligible: Y".
-- Body editor with segment counter, MMS media picker (`SmsMediaPicker`, up to 3 images), live cost estimate (`estimateCost` from `@/lib/smsCosts`).
-- Quick-template chips per goal:
-  - `guest_to_applicant`: "Loved your visit? Apply for membership today: stormwellnessclub.com/apply"
-  - `re_engage_guest`: "We miss you! Come back this week — book a guest pass: stormwellnessclub.com/guest-pass"
-  - `collect_feedback`: "How was your visit to Storm? 30-sec feedback: stormwellnessclub.com/feedback"
-  - `prevent_churn`: "Storm: We need an updated card to keep your benefits active: stormwellnessclub.com/portal/billing"
-  - `upsell_tier`: "Unlock more at Storm — upgrade your tier and save: stormwellnessclub.com/member/membership"
-  - `referral_push`: "Refer a friend, earn 500 pts: stormwellnessclub.com/member/referrals"
-- On send: creates an `sms_campaigns` row, then iterates audience invoking `send-sms` with `templateKey: "admin-custom"`, `bypassConsent: false` (so opt-in is enforced), `metadata: { campaign_id, goal_type, source: "playbook_sms" }`. Inserts an `sms_campaign_recipients` row per send with status from the response.
-- Confirmation modal showing recipient count + total estimated cost before firing.
-- Throttled loop (250ms between sends) to stay under Twilio short-burst limits.
+---
 
-**2. New migration: `sms_campaigns` + `sms_campaign_recipients` tables**
-Mirrors the email_campaigns pattern so analytics can use the same `goal_type` + 14-day attribution logic.
-```
-sms_campaigns(id, campaign_name, campaign_type 'guest'|'member', body, media_urls jsonb, 
-              media_count int, sent_count int, sent_at, goal_type text, 
-              goal_metadata jsonb, created_by uuid, created_at)
-sms_campaign_recipients(id, campaign_id fk, recipient_user_id uuid, phone, recipient_name,
-                        status 'sent'|'failed'|'blocked_no_consent', twilio_sid, 
-                        error_message, sent_at, created_at)
-```
-RLS: SELECT/INSERT/UPDATE for `has_any_role(auth.uid(), 'admin','super_admin','manager','front_desk')`. Both tables un-realtime.
+### What gets built (5 pieces, all in admin Marketing → new "Cafe" subtab)
 
-**3. Edit: `src/components/admin/marketing/CampaignPlaybooks.tsx`**
-- Replace the single "Launch Campaign" button with a `DropdownMenu` split-style: primary action stays "Launch Email", secondary item "Launch SMS/MMS". 
-- Add a new prop `onLaunchSmsPlaybook: (playbook: PlaybookConfig) => void`.
-- Add a small SMS-eligible chip under the recipient badge (e.g. `~62% reachable by SMS`) — computed from a single `profiles` count query on `sms_opt_in = true` filtered by the audience emails. Cached in component state.
+**1. Cafe Sales Command Center** — `src/components/admin/marketing/CafeSalesTab.tsx`
+A single screen with:
+- **Target vs actual:** monthly revenue goal (editable, persisted in `app_settings`), MTD revenue, gap-to-target, daily run-rate needed to close.
+- **Funnel KPIs:** active members, members who've *ever* ordered, members ordered last 30d, members ordered last 7d, repeat-order rate, avg ticket, top 5 items, top 5 lapsed buyers.
+- **Channel rollups:** orders by source (member portal vs admin POS vs kiosk) — surfaces which entry points actually convert.
 
-**4. Edit: `src/components/admin/marketing/GuestMarketingTab.tsx` and `MemberMarketingTab.tsx`**
-- Add `composeSmsOpen` state and `handleLaunchSmsPlaybook` handler.
-- Render `<ComposeSmsDialog>` alongside `<ComposeEmailDialog>`.
+**2. Three Cafe Playbooks** added to `CampaignPlaybooks.tsx` as a third audience type `"cafe"`:
+- **First Sip** — active members who have NEVER placed a cafe order. CTA: "Your first drink on us — code WELCOME5". Tracks conversion = first cafe_order in 14 days.
+- **Win Them Back** — members who ordered 30+ days ago and not since. CTA: "We saved your usual" with their last item name pulled from order history. Tracks = new order within 14 days.
+- **Habit Builder** — members with 1 lifetime order. CTA: "Order 3 more this month, get the 4th free" (manual fulfillment for now via a flag on the profile). Tracks = 2nd order within 14 days.
 
-**5. Edit: `src/components/admin/marketing/CampaignAnalytics.tsx`**
-- Add a "Channel" column to the campaigns list: pulls from both `email_campaigns` and `sms_campaigns`, shows `Email` or `SMS/MMS` badge.
-- Conversion attribution stays goal-based — it doesn't care which channel drove it, but now we can compare email vs SMS conversion rates side-by-side per playbook.
-- Add a small per-channel rollup card: "Last 30d — Email: X sent, Y converted (Z%) · SMS: A sent, B converted (C%)".
+Each runs as **email** (works today, ~108 reachable) with an SMS option ready when opt-in grows. Uses the same `email_campaigns` + `goal_type` infra already built — adds three new goal types: `cafe_first_order`, `cafe_winback`, `cafe_habit`.
 
-### Out of scope
-- No changes to `send-sms` edge function, `SmsMediaPicker`, `SendSmsDialog`, or the existing SMS log/thumbnails (already done last turn).
-- No automated drip scheduling — that's the existing Automation Hub. This is one-shot manual playbook launches.
-- No Stripe/billing changes.
+**3. Drink-of-the-Week Email Blast Tool** — lightweight composer specifically for cafe promo. Pulls a `cafe_menu_items` row, auto-fills product name + image + price into a pre-built MJML template. One click → sends to all active members with a "View on the way in" CTA linking to `/cafe`. Logs as a campaign with `goal_type: cafe_drink_of_week` so we measure week-over-week lift.
+
+**4. SMS opt-in nudge in the cafe order confirmation flow**
+Today, when a member places a cafe order through the portal, we don't ask for SMS opt-in. Add a one-line checkbox on the order confirmation page: *"Text me when it's ready (and the occasional drink special)"* — flips `profiles.sms_opt_in = true`. This is the cheapest way to grow the SMS list from 2 → 50+ in 30 days using the audience that's already most engaged.
+
+**5. Free-Drink Voucher (manual issuance)**
+Add a `cafe_vouchers` table with: `member_id`, `code`, `item_id` (nullable = any item up to $X), `expires_at`, `redeemed_at`, `redeemed_order_id`. Admin can grant from member detail page. Front Desk POS auto-applies the voucher when scanning the member. Used by playbooks #1 and #3 above. This is the actual incentive engine that makes the campaigns convert instead of being polite emails.
+
+### Out of scope (for this PR)
+- No changes to cafe checkout/Stripe flow itself.
+- No menu redesign — assumes the 113 items are fine.
+- No physical signage / in-club marketing copy.
+- No loyalty tier / points integration (already exists in member_points; we can wire it in a follow-up once basic flow proves out).
 
 ### Technical notes
-- Audience queries in `ComposeSmsDialog` are duplicated from `ComposeEmailDialog` rather than extracted to a shared hook to keep this PR contained; we can refactor later if a third channel appears.
-- `bypassConsent: false` — playbook campaigns are marketing, so TCPA/10DLC opt-in is strictly enforced. The audience preview shows the SMS-eligible subset only.
-- Idempotency key per send: `playbook-sms-${campaign.id}-${recipient.user_id ?? phone}`.
-- Cost guardrail: confirmation modal blocks send if estimated total > $50 unless re-confirmed.
+- `cafe_orders` already has `user_id`, `status`, `total_amount` (cents), `created_at` — all queries the dashboard needs.
+- New goal_types added to `GOAL_TEMPLATE_MAP` and `GOAL_LABELS` in existing files.
+- `cafe_vouchers` migration + simple RLS (members read own, staff manage all).
+- Conversion attribution reuses the 14-day window pattern from existing playbooks.
+- Order-confirmation SMS opt-in is a 5-line UI change in `src/pages/Cafe.tsx` (or wherever the confirmation step lives — will verify before implementing).
+
+### Why this hits the target
+The math: 108 active members × 25% First-Sip conversion (with free drink) = 27 first-time orderers in month 1. If half become 2×/month repeats at $7 = $189 recurring + the rest churn back. Habit Builder converts 30% of those into 4×/month = ~$224 each. Adding Win-Them-Back layered on top of existing one-timers compounds. Realistic landing: **$1.5k–$3k mo 1, $4k–$6k mo 2, $8k+ mo 3** — that's the pace to hit the Q3 target.
