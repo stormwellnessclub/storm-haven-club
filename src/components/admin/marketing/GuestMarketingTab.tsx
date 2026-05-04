@@ -100,6 +100,13 @@ export function GuestMarketingTab() {
     setComposeOpen(true);
   };
 
+  const handleLaunchSmsPlaybook = (playbook: PlaybookConfig) => {
+    setSelectedGuest(null);
+    setActiveGoalType(playbook.goalType);
+    setActivePlaybookName(playbook.name);
+    setComposeSmsOpen(true);
+  };
+
   const handleBulkSend = () => {
     setSelectedGuest(null);
     setActiveGoalType(undefined);
