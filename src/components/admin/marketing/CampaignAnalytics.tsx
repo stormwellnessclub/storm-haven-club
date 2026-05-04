@@ -92,15 +92,18 @@ export function CampaignAnalytics() {
           const sentDate = c.sent_at;
           const windowEnd = new Date(new Date(sentDate).getTime() + attributionDays * 86400000).toISOString();
 
-          // Get recipient emails for this campaign
-          const { data: recipientData } = await (supabase
-            .from("email_campaign_recipients" as any)
-            .select("email")
-            .eq("campaign_id", c.id)
-            .eq("status", "sent") as any);
-          const emails = (recipientData || []).map((r: any) => r.email?.toLowerCase()).filter(Boolean);
-
-          if (emails.length === 0) return { ...c, conversions: 0, conversionRate: 0 };
+          // Skip recipient gate for SMS campaigns; conversions are time-window based
+          if (c.channel === "email") {
+            const { data: recipientData } = await (supabase
+              .from("email_campaign_recipients" as any)
+              .select("email")
+              .eq("campaign_id", c.id)
+              .eq("status", "sent") as any);
+            const emails = (recipientData || []).map((r: any) => r.email?.toLowerCase()).filter(Boolean);
+            if (emails.length === 0) return { ...c, conversions: 0, conversionRate: 0 };
+          } else if (c.sent_count === 0) {
+            return { ...c, conversions: 0, conversionRate: 0 };
+          }
 
           let conversions = 0;
 
