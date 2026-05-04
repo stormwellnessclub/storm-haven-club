@@ -808,9 +808,6 @@ export default function Apply() {
         ack_initiation_fee: formData.ackInitiationFee,
         ack_card_on_file: formData.ackCardOnFile,
         ack_final_readiness: formData.ackFinalReadiness,
-        sms_opt_in: formData.smsConsent,
-        sms_opt_in_at: formData.smsConsent ? new Date().toISOString() : null,
-        sms_opt_in_source: formData.smsConsent ? 'application' : null,
         status: "pending",
       };
 
