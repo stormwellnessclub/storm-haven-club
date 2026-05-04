@@ -47,7 +47,7 @@ export function CampaignAnalytics() {
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
-      const [campaignsRes, recipientsRes] = await Promise.all([
+      const [campaignsRes, recipientsRes, smsCampaignsRes, smsRecipientsRes] = await Promise.all([
         supabase
           .from("email_campaigns" as any)
           .select("id, campaign_name, campaign_type, subject, sent_count, sent_at, created_at, goal_type, goal_metadata")
@@ -57,11 +57,29 @@ export function CampaignAnalytics() {
           .from("email_campaign_recipients" as any)
           .select("id", { count: "exact", head: true })
           .eq("status", "sent"),
+        supabase
+          .from("sms_campaigns" as any)
+          .select("id, campaign_name, campaign_type, body, sent_count, sent_at, created_at, goal_type, goal_metadata")
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("sms_campaign_recipients" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("status", "sent"),
       ]);
 
       setTotalSent(recipientsRes.count || 0);
+      setTotalSmsSent(smsRecipientsRes.count || 0);
 
-      const rawCampaigns = (campaignsRes.data || []) as unknown as Campaign[];
+      const emailCampaigns = ((campaignsRes.data || []) as any[]).map((c: any) => ({ ...c, channel: "email" as const }));
+      const smsCampaigns = ((smsCampaignsRes.data || []) as any[]).map((c: any) => ({
+        ...c,
+        subject: c.body?.slice(0, 60) ?? "",
+        channel: "sms" as const,
+      }));
+      const rawCampaigns = [...emailCampaigns, ...smsCampaigns].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      ) as unknown as Campaign[];
 
       // Calculate conversions for each campaign with a goal_type
       const withConversions: CampaignWithConversion[] = await Promise.all(
