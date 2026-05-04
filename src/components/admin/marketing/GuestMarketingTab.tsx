@@ -262,6 +262,14 @@ export function GuestMarketingTab() {
         goalType={activeGoalType}
         playbookName={activePlaybookName}
       />
+
+      <ComposeSmsDialog
+        open={composeSmsOpen}
+        onOpenChange={setComposeSmsOpen}
+        recipientType="guest"
+        goalType={activeGoalType}
+        playbookName={activePlaybookName}
+      />
     </div>
   );
 }
