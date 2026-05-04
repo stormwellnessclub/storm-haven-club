@@ -191,6 +191,53 @@ export function CampaignPlaybooks({ type, onLaunchPlaybook, onLaunchSmsPlaybook,
           }
         });
         newCounts["collect_feedback"] = noFeedbackEmails.size;
+      } else if (type === "cafe") {
+        // Active members with email
+        const { data: activeMembers } = await supabase
+          .from("members")
+          .select("id, user_id, email")
+          .eq("status", "active")
+          .not("email", "is", null)
+          .limit(1000);
+        const total = (activeMembers || []).length;
+        const userIds = (activeMembers || []).map((m: any) => m.user_id).filter(Boolean);
+
+        // Order counts per user
+        const orderCounts = new Map<string, number>();
+        const orderLast = new Map<string, string>();
+        if (userIds.length > 0) {
+          // chunk to avoid URL length
+          for (let i = 0; i < userIds.length; i += 200) {
+            const slice = userIds.slice(i, i + 200);
+            const { data: orders } = await supabase
+              .from("cafe_orders" as any)
+              .select("user_id, created_at, status")
+              .in("user_id", slice)
+              .eq("status", "completed");
+            (orders || []).forEach((o: any) => {
+              orderCounts.set(o.user_id, (orderCounts.get(o.user_id) || 0) + 1);
+              const prev = orderLast.get(o.user_id);
+              if (!prev || o.created_at > prev) orderLast.set(o.user_id, o.created_at);
+            });
+          }
+        }
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const cutoffISO = thirtyDaysAgo.toISOString();
+
+        let firstSip = 0, winback = 0, habit = 0;
+        (activeMembers || []).forEach((m: any) => {
+          const c = orderCounts.get(m.user_id) || 0;
+          if (c === 0) firstSip++;
+          else if (c === 1) habit++;
+          const last = orderLast.get(m.user_id);
+          if (last && last < cutoffISO) winback++;
+        });
+        newCounts["cafe_first_order"] = firstSip;
+        newCounts["cafe_winback"] = winback;
+        newCounts["cafe_habit"] = habit;
+        newCounts["cafe_drink_of_week"] = total;
       } else {
         // Prevent churn
         const { count: churnCount } = await supabase
