@@ -36,18 +36,17 @@ export default function Privacy() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">1. Parties and Scope</h2>
             <p>
-              <strong>Operating Entity:</strong> Storm Wellness Club ("Storm," "we," "us," or "our")
-              is <strong>operated by Storm Fitness</strong>, which is responsible for the day-to-day
-              operations of the club, including member services, billing, communications, classes,
-              spa, café, Kids Care, and on-site activities. The club brand and its operating assets
-              are owned by <strong>SR &amp; D Development LLC</strong> ("SR &amp; D Development"),
-              which serves as the parent ownership entity.
+              <strong>Storm Fitness DBA Storm Wellness Club</strong> ("Storm Fitness," "we," "us,"
+              or "our") is the operator of the club and is responsible for member services,
+              billing, communications, classes, spa, café, Kids Care, and on-site activities.
+              "Storm Wellness Club" is the trade name (DBA) under which Storm Fitness offers its
+              services to the public.
             </p>
             <p>
               This Privacy Policy applies to all services, facilities, and programs offered under
               the Storm Wellness Club brand, regardless of whether the day-to-day service is
               delivered by Storm Fitness employees, contractors, instructors, or third-party
-              service providers acting on Storm's behalf.
+              service providers acting on Storm Fitness's behalf.
             </p>
             <p>
               <strong>User:</strong> "You" or "User" refers to any individual who accesses our
