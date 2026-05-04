@@ -67,10 +67,11 @@ export function SendSmsDialog({ open, onOpenChange, recipient }: Props) {
       const { data, error } = await supabase.functions.invoke("send-sms", {
         body: {
           to: { userId: recipient.userId || undefined, phone: recipient.phone },
-          templateKey: "test-message",
+          templateKey: "admin-custom",
           variables: { customBody: body },
           idempotencyKey: `admin-${recipient.userId ?? recipient.phone}-${Date.now()}`,
-          metadata: { source: "admin_member_detail", body },
+          metadata: { source: "admin_member_detail" },
+          bypassConsent: true,
         },
       });
       if (error) throw error;
