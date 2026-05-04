@@ -52,7 +52,7 @@ import UpdatePassword from "./pages/UpdatePassword";
 import MyBookings from "./pages/MyBookings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
-import SMSTerms from "./pages/SMSTerms";
+
 import FAQ from "./pages/FAQ";
 import GuestPass from "./pages/GuestPass";
 import NotFound from "./pages/NotFound";
