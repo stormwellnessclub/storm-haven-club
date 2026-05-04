@@ -122,8 +122,10 @@ Deno.serve(async (req) => {
     const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: claims } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (!claims?.claims) {
+    const { data: userData, error: userErr } = await userClient.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (userErr || !userData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -131,7 +133,7 @@ Deno.serve(async (req) => {
     }
 
     // Determine if caller is admin/staff (used for bypassConsent)
-    const callerUserId = (claims.claims as any).sub as string;
+    const callerUserId = userData.user.id;
     const { data: roleRows } = await admin
       .from("user_roles")
       .select("role")
