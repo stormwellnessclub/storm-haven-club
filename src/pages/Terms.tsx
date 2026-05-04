@@ -28,7 +28,7 @@ export default function Terms() {
       <div className="container mx-auto px-6 py-16">
         <div className="max-w-4xl mx-auto prose prose-lg prose-neutral dark:prose-invert">
           <p className="lead text-xl text-muted-foreground mb-12">
-            Please read these terms carefully before using Storm Wellness Club facilities and services.
+            Please read these terms carefully before using Storm Fitness facilities and services.
           </p>
 
           <section className="mb-12">
