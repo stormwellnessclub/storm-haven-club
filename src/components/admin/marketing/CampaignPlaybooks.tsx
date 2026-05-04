@@ -91,7 +91,14 @@ interface CampaignPlaybooksProps {
   onCustomCampaign: () => void;
 }
 
-export function CampaignPlaybooks({ type, onLaunchPlaybook, onCustomCampaign }: CampaignPlaybooksProps) {
+interface CampaignPlaybooksProps {
+  type: "guest" | "member";
+  onLaunchPlaybook: (playbook: PlaybookConfig) => void;
+  onLaunchSmsPlaybook?: (playbook: PlaybookConfig) => void;
+  onCustomCampaign: () => void;
+}
+
+export function CampaignPlaybooks({ type, onLaunchPlaybook, onLaunchSmsPlaybook, onCustomCampaign }: CampaignPlaybooksProps) {
   const [counts, setCounts] = useState<AudienceCounts>({});
   const [loading, setLoading] = useState(true);
 
