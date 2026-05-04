@@ -16,6 +16,7 @@ interface Campaign {
   created_at: string;
   goal_type: string | null;
   goal_metadata: any;
+  channel: "email" | "sms";
 }
 
 interface CampaignWithConversion extends Campaign {
