@@ -186,6 +186,11 @@ export default function MemberProfile() {
                         <FormControl>
                           <Input placeholder="(555) 555-5555" {...field} value={field.value || ""} />
                         </FormControl>
+                        {!field.value?.trim() && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            Add a phone number to enable SMS class reminders, waitlist alerts, and billing notices.
+                          </p>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
