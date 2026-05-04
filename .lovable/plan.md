@@ -1,82 +1,88 @@
-# Fix SMS toggle visibility + backfill missing contact data
+## Problem
 
-## What's wrong
+Three issues to fix:
 
-**Issue 1 — Toggle is missing from the member portal**
-The SMS opt-in toggle currently only exists in two places:
-- `/portal/profile` (non-member portal)
-- The public membership application form
+1. **No admin SMS sender exists.** The `send-sms` edge function is wired up, but there is no admin UI anywhere to actually trigger it — not for one member, not for a group, not as a test.
+2. **SMS opt-in toggle is buried.** It only appears at the bottom of `/member/profile`. Members never scroll there. It needs to surface in the top notification bar so it's a one-tap opt-in.
+3. **Member's phone doesn't show on `/member/profile` even though admin sees it.** Root cause confirmed by querying the database:
+   - 132 members have a linked `user_id` but **no row in `profiles`** at all → form loads blank, SMS toggle has nothing to write to.
+   - 47 members have no `user_id` linked yet → can't be helped until they create an auth account, but admin can still text them.
 
-It's NOT on `/member/profile`, which is where actual members go. That's why you can't find it.
+The earlier backfill only updated existing `profiles` rows. It never created missing ones.
 
-**Issue 2 — Phone numbers aren't where SMS needs them**
-The `send-sms` function reads phone + opt-in from the `profiles` and `non_member_profiles` tables. Current data:
-
-| Table | Total rows | With phone | Opted in |
-|---|---|---|---|
-| profiles | 618 | 31 | 0 |
-| non_member_profiles | 393 | 50 | 0 |
-| members | 179 | 179 | — (no opt-in column) |
-| membership_applications | 215 | 215 | — (no opt-in column) |
-
-Phones collected during application and stored on `members` were never copied into `profiles`. So even if a member opts in, there's no number to text.
+---
 
 ## Plan
 
-### 1. Add SMS toggle to `/member/profile`
-Mirror the same card already used in `/portal/profile`:
-- Reuse `SMS_DISCLOSURE_TEXT` and `SMS_DISCLOSURE_VERSION` from `SmsConsentCheckbox`
-- Switch writes to `profiles.sms_opt_in / sms_opt_in_at / sms_opt_in_source` (source = `member_portal_toggle`)
-- Block toggling on if `phone` is empty (toast asking to add phone first)
-- Log every change to `sms_consent_log` with user_agent + disclosure version
-- Place it as a new "SMS Notifications" card under the existing profile form
+### 1. Backfill missing `profiles` rows (one-time SQL)
 
-### 2. Backfill phone numbers into `profiles`
-One-time SQL migration:
-```sql
--- Copy phone from members → profiles where profiles.phone is missing
-UPDATE profiles p
-SET phone = m.phone
-FROM members m
-WHERE p.id = m.user_id
-  AND m.phone IS NOT NULL AND m.phone <> ''
-  AND (p.phone IS NULL OR p.phone = '');
+For every `members` row where `user_id IS NOT NULL` but no matching `profiles` row exists, INSERT a profile row carrying `id`, `email`, `first_name`, `last_name`, and `phone` from `members`. This unblocks the 132 members whose phone "disappeared" on their own profile page.
 
--- Copy phone from membership_applications → profiles by email match
-UPDATE profiles p
-SET phone = a.phone
-FROM membership_applications a
-WHERE LOWER(p.email) = LOWER(a.email)
-  AND a.phone IS NOT NULL AND a.phone <> ''
-  AND (p.phone IS NULL OR p.phone = '');
+Also strengthen the existing `members → profiles` phone-sync trigger so it does an UPSERT (insert if missing, update if blank) instead of update-only.
 
--- Copy phone from membership_applications → non_member_profiles by email
-UPDATE non_member_profiles n
-SET phone = a.phone
-FROM membership_applications a
-WHERE LOWER(n.email) = LOWER(a.email)
-  AND a.phone IS NOT NULL AND a.phone <> ''
-  AND (n.phone IS NULL OR n.phone = '');
+### 2. Member-side: Promote SMS opt-in into the top notification bar
+
+In `MemberLayout.tsx`, add a new notification item (priority just below activation/payment) that shows when `profile.sms_opt_in !== true`:
+
+```
+"📱 Get text alerts for class reminders, waitlist & billing.  [Enable SMS]"
 ```
 
-Expected after backfill: ~179 members get phones on `profiles` + however many applications match by email.
+`Enable SMS` is a button that:
+- If `profile.phone` is missing → toast "Add a phone number first" + link to `/member/profile`.
+- If phone is present → opens a small confirmation dialog showing the legal disclosure (reuses `SMS_DISCLOSURE_TEXT`), with **Enable** / **Not now** buttons. Enabling writes `sms_opt_in=true` to `profiles` and logs to `sms_consent_log` (same logic as `SmsToggleCard`).
+- Once opted-in (or dismissed for the session), the banner hides.
 
-### 3. Keep them in sync going forward
-Add a database trigger so future inserts/updates to `members.phone` and `membership_applications.phone` automatically populate the matching `profiles` row when its phone is empty. Prevents drift.
+This makes opt-in 1–2 taps instead of "scroll to the bottom of profile."
 
-### 4. About opt-in counts (0 / 0)
-Nothing to backfill here — opt-in must be explicit user consent (legal requirement for A2P 10DLC). After step 1, members will see the toggle and can opt in. We do NOT auto-opt-in anyone.
+### 3. Admin-side: Add a "Send SMS" tool
 
-If you want to drive opt-ins, the right next step is a one-time email blast: "We now offer text reminders — log in and enable SMS." I'd queue that as a separate task.
+Two surfaces:
 
-## What you'll be able to do after this
+**a) Per-member quick-send** — On the admin member detail sheet (where staff already see phone, billing, etc.), add a "Send SMS" button. Opens a dialog with:
+- To: pre-filled with member name + phone (read-only)
+- Template dropdown (reuses keys from `send-sms`: test-message, class-reminder, payment-failed, custom-free-text, etc.)
+- Message preview
+- Big red warning if member has `sms_opt_in=false` ("This member has not opted in. You may only send transactional service messages required for their account.")
+- Send button → calls `send-sms` edge function, shows Twilio SID + status on success.
 
-- Log into `/member/profile` → see the SMS Notifications card → toggle on
-- Test SMS will actually have a phone number to send to for any of the 179 active members
-- New applications and member edits keep `profiles.phone` synced automatically
+**b) Bulk SMS Blast** — New tab inside `MemberMarketingTab` called **"SMS"**:
+- Audience filter: All opted-in members / by tier / by tag / by status (active, frozen)
+- Live count of recipients (e.g. "Will send to 23 members")
+- Message composer with character count + cost estimate ($0.0079/segment × N)
+- Template variables (`{{firstName}}`)
+- Hard-blocks anyone where `sms_opt_in != true` or in `blocked_persons`
+- Confirmation dialog: "Send to 23 members?  Est. cost $0.18"
+- Sends in batches via `send-sms` with unique idempotency keys, reports per-recipient success/failure in a results table.
 
-## Out of scope (not doing now)
+### 4. Self-service phone fix on member profile
 
-- Adding SMS opt-in to `members` or `membership_applications` tables — unnecessary, `profiles` is the source of truth for `send-sms`
-- Bulk opt-in email campaign — separate task
-- Auto-opting anyone in — illegal under TCPA / 10DLC rules
+Right now if `profiles.phone` is empty, the form shows blank with no nudge. Add a small inline alert above the phone field if empty:
+> "We don't have a phone number on file. Add one to enable SMS class reminders and waitlist alerts."
+
+---
+
+## Technical details
+
+- **Backfill SQL** (single migration):
+  ```sql
+  INSERT INTO profiles (id, email, first_name, last_name, phone)
+  SELECT m.user_id, m.email, m.first_name, m.last_name, m.phone
+  FROM members m
+  WHERE m.user_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM profiles p WHERE p.id = m.user_id);
+  ```
+- **Trigger upgrade**: change `trg_sync_phone_members_to_profiles` to UPSERT.
+- **New components**:
+  - `src/components/member/SmsOptInBanner.tsx` (used by `MemberLayout`)
+  - `src/components/admin/SendSmsDialog.tsx` (per-member)
+  - `src/components/admin/marketing/SmsBlastTab.tsx` (bulk)
+- **Reuse**: `send-sms` edge function (already deployed), `SMS_DISCLOSURE_TEXT`, `sms_consent_log`.
+- **Compliance**: Keeps the existing rule — never auto-opt-in. Bulk blast filters to `sms_opt_in=true` only. Per-member sender allows transactional sends to non-opted-in members but warns staff (legally permitted for service messages under TCPA; marketing requires opt-in).
+- **Out of scope** (can do later if you want): scheduled SMS campaigns, two-way SMS chat in admin (the inbound webhook exists but no UI consumes it yet).
+
+---
+
+## Approval needed
+
+Approve and I'll switch to build mode and implement all four sections in one pass.
