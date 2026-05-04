@@ -51,9 +51,10 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye, RotateCcw, KeyRound, CalendarClock } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye, RotateCcw, KeyRound, CalendarClock, MessageSquare } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
+import { SendSmsDialog } from "./SendSmsDialog";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
 import { useMemberActivities } from "@/hooks/useMemberActivities";
@@ -316,6 +317,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   const [showChargeDialog, setShowChargeDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReactivating, setIsReactivating] = useState(false);
+  const [smsDialogOpen, setSmsDialogOpen] = useState(false);
   const [isCharging, setIsCharging] = useState(false);
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeDescription, setChargeDescription] = useState("");
@@ -921,7 +923,16 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   {member.phone && (
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <p>{member.phone}</p>
+                      <p className="flex-1">{member.phone}</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setSmsDialogOpen(true)}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                        Send SMS
+                      </Button>
                     </div>
                   )}
 
@@ -1776,6 +1787,16 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           annualFeeSubscriptionId={member.annual_fee_subscription_id}
         />
       )}
+
+      <SendSmsDialog
+        open={smsDialogOpen}
+        onOpenChange={setSmsDialogOpen}
+        recipient={{
+          userId: member.user_id,
+          name: `${member.first_name} ${member.last_name}`.trim(),
+          phone: member.phone,
+        }}
+      />
     </>
   );
 }

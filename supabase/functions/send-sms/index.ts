@@ -20,6 +20,8 @@ type SendInput = {
   variables?: Record<string, unknown>;
   idempotencyKey: string;
   metadata?: Record<string, unknown>;
+  /** When true and the caller is an admin, bypass the sms_opt_in gate (for transactional service messages). */
+  bypassConsent?: boolean;
 };
 
 function tmpl(s: string, v: Record<string, unknown>) {
@@ -77,6 +79,13 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
     ),
   "cafe-order-ready": (v) =>
     tmpl(`Storm Cafe: Your order #{{orderNumber}} is ready for pickup.`, v),
+  // Admin freeform: passes through customBody verbatim. Auto-appends opt-out only when not already present.
+  "admin-custom": (v) => {
+    const raw = String(v.customBody ?? "").trim();
+    if (!raw) return "Storm Wellness Club: (empty)";
+    if (/STOP/i.test(raw)) return raw;
+    return raw;
+  },
 };
 
 function normalizePhone(p: string | null | undefined): string | null {
@@ -118,6 +127,16 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Determine if caller is admin/staff (used for bypassConsent)
+    const callerUserId = (claims.claims as any).sub as string;
+    const { data: roleRows } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callerUserId);
+    const callerIsAdmin = !!(roleRows ?? []).some((r: any) =>
+      ["admin", "super_admin", "front_desk", "manager", "staff"].includes(r.role),
+    );
 
     const body: SendInput = await req.json();
     if (!body?.templateKey || !body?.idempotencyKey || !body?.to) {
@@ -213,7 +232,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (!optedIn) {
+    const allowSend = optedIn || (callerIsAdmin && body.bypassConsent === true);
+
+    if (!allowSend) {
       await admin.from("sms_messages").insert({
         recipient_user_id: recipientUserId,
         phone,

@@ -31,10 +31,9 @@ export function SmsToggleCard({ table, phone, source }: Props) {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const idCol = table === "profiles" ? "id" : "user_id";
       const { data } = await (supabase.from(table) as any)
         .select("sms_opt_in")
-        .eq(idCol, user.id)
+        .eq("user_id", user.id)
         .maybeSingle();
       if (!cancelled) {
         setOptIn(Boolean(data?.sms_opt_in));
@@ -58,10 +57,9 @@ export function SmsToggleCard({ table, phone, source }: Props) {
       ? { sms_opt_in: true, sms_opt_in_at: now, sms_opt_in_source: source }
       : { sms_opt_in: false, sms_opt_out_at: now, sms_opt_out_source: source };
 
-    const idCol = table === "profiles" ? "id" : "user_id";
     const { error } = await (supabase.from(table) as any)
       .update(updates)
-      .eq(idCol, user.id);
+      .eq("user_id", user.id);
 
     if (error) {
       toast.error(`Could not save: ${error.message}`);

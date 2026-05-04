@@ -8,6 +8,7 @@ import { AnnualFeeNotice } from "./AnnualFeeNotice";
 import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
+import { SmsOptInBannerContent } from "./SmsOptInBannerContent";
 
 
 import { WifiBanner } from "./WifiBanner";
@@ -16,6 +17,7 @@ import { User, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface MemberLayoutProps {
   children: React.ReactNode;
@@ -25,6 +27,7 @@ interface MemberLayoutProps {
 export function MemberLayout({ children, title }: MemberLayoutProps) {
   const { data: membership } = useUserMembership();
   const { hasPaymentIssues, isInitiationFeePaid } = usePaymentStatus();
+  const { profile } = useUserProfile();
   
   const isPendingActivation = membership?.status === "pending_activation";
 
@@ -70,8 +73,17 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
       });
     }
 
+    // SMS opt-in nudge (lowest priority, dismissible)
+    if (profile && profile.sms_opt_in !== true) {
+      items.push({
+        id: "sms_opt_in",
+        priority: 4,
+        content: <SmsOptInBannerContent phone={profile.phone} />,
+      });
+    }
+
     return items;
-  }, [isPendingActivation, membership, hasPaymentIssues, isInitiationFeePaid]);
+  }, [isPendingActivation, membership, hasPaymentIssues, isInitiationFeePaid, profile]);
 
   return (
     <SidebarProvider>
