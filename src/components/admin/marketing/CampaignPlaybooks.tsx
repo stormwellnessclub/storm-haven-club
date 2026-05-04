@@ -3,7 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, UserPlus, RefreshCw, MessageSquare, ShieldAlert, TrendingUp, Users, PenLine } from "lucide-react";
+import { Loader2, UserPlus, RefreshCw, MessageSquare, ShieldAlert, TrendingUp, Users, PenLine, Mail, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export interface PlaybookConfig {
   id: string;
