@@ -115,8 +115,8 @@ export default function Privacy() {
           <section className="mb-12">
             <h2 className="text-2xl font-display font-semibold mb-4">4a. SMS / Text Messaging Program</h2>
             <p>
-              Storm operates a text messaging program for members, applicants, non-member account
-              holders, and guests who provide consent. Categories of messages include:
+              Storm Fitness operates a text messaging program for members, applicants, non-member
+              account holders, and guests who provide consent. Categories of messages include:
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>Class reminders, schedule changes, waitlist openings</li>
