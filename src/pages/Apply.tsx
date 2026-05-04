@@ -20,6 +20,7 @@ import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { formatSetupError } from "@/lib/stripeErrors";
+import { SmsConsentCheckbox, SMS_DISCLOSURE_VERSION } from "@/components/SmsConsentCheckbox";
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
