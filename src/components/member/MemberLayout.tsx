@@ -73,8 +73,17 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
       });
     }
 
+    // SMS opt-in nudge (lowest priority, dismissible)
+    if (profile && profile.sms_opt_in !== true) {
+      items.push({
+        id: "sms_opt_in",
+        priority: 4,
+        content: <SmsOptInBannerContent phone={profile.phone} />,
+      });
+    }
+
     return items;
-  }, [isPendingActivation, membership, hasPaymentIssues, isInitiationFeePaid]);
+  }, [isPendingActivation, membership, hasPaymentIssues, isInitiationFeePaid, profile]);
 
   return (
     <SidebarProvider>
