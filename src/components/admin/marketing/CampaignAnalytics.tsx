@@ -252,6 +252,11 @@ export function CampaignAnalytics() {
                   <TableRow key={c.id}>
                     <TableCell className="font-medium text-sm">{c.campaign_name}</TableCell>
                     <TableCell>
+                      <Badge variant={c.channel === "sms" ? "default" : "outline"} className="text-xs">
+                        {c.channel === "sms" ? "SMS/MMS" : "Email"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={c.campaign_type === "guest" ? "secondary" : "default"} className="text-xs">
                         {c.campaign_type}
                       </Badge>
