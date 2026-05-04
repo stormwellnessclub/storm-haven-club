@@ -819,6 +819,20 @@ export default function Apply() {
         return;
       }
 
+      // Log SMS consent (best-effort, non-blocking)
+      if (formData.smsConsent) {
+        (supabase.from('sms_consent_log') as any).insert({
+          phone: formData.phone,
+          action: 'opt_in',
+          source: 'application',
+          user_agent: navigator.userAgent,
+          disclosure_version: SMS_DISCLOSURE_VERSION,
+          metadata: { email: formData.email },
+        }).then(({ error: logErr }: any) => {
+          if (logErr) console.warn('SMS consent log failed:', logErr);
+        });
+      }
+
       // Send confirmation email
       supabase.functions.invoke('send-email', {
         body: {
