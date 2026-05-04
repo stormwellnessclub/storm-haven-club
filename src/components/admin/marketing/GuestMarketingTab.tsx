@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2, Send, Star, Mail, Search, MessageSquare, Users } from "lucide-react";
 import { ComposeEmailDialog } from "./ComposeEmailDialog";
+import { ComposeSmsDialog } from "./ComposeSmsDialog";
 import { CampaignPlaybooks, type PlaybookConfig } from "./CampaignPlaybooks";
 
 interface GuestFeedback {
