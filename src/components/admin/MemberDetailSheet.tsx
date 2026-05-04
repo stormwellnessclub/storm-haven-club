@@ -317,6 +317,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   const [showChargeDialog, setShowChargeDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReactivating, setIsReactivating] = useState(false);
+  const [smsDialogOpen, setSmsDialogOpen] = useState(false);
   const [isCharging, setIsCharging] = useState(false);
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeDescription, setChargeDescription] = useState("");
