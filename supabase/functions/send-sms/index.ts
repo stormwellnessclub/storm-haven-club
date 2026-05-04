@@ -128,6 +128,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Determine if caller is admin/staff (used for bypassConsent)
+    const callerUserId = (claims.claims as any).sub as string;
+    const { data: roleRows } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callerUserId);
+    const callerIsAdmin = !!(roleRows ?? []).some((r: any) =>
+      ["admin", "super_admin", "front_desk", "manager", "staff"].includes(r.role),
+    );
+
     const body: SendInput = await req.json();
     if (!body?.templateKey || !body?.idempotencyKey || !body?.to) {
       return new Response(
