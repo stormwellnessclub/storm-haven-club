@@ -177,7 +177,7 @@ export default function Privacy() {
               <li>Encryption at rest for our managed database and file storage.</li>
               <li>Row-level security (RLS) policies enforced at the database tier so users can only access their own data, except where staff roles are authorized.</li>
               <li>Role-based access control for staff (front desk, instructors, managers, admins, super admins) limiting access to the minimum necessary information.</li>
-              <li>PCI-DSS compliant payment processing via Stripe — full card numbers and CVCs never touch Storm-controlled systems.</li>
+              <li>PCI-DSS compliant payment processing via Stripe — full card numbers and CVCs never touch Storm Fitness-controlled systems.</li>
               <li>Audit logs for sensitive actions (consent changes, billing operations, access-control overrides).</li>
             </ul>
             <p>However, we cannot guarantee the absolute security of your data.</p>
