@@ -1,167 +1,92 @@
+# Plan: SMS Consent System + Privacy Policy Update
 
-# Café Upsell Engine — Phase 1: Functional Smoothie Line + A/B Framework
+## Part A — Privacy Policy (sharpened, nothing removed)
 
-Lift café attach rate from 26% → 40%+ by combining (1) a hero "Functional Smoothie Line" treatment, (2) high-intent surface placement (post-class, portal, booking confirm), and (3) a real A/B framework so we know what works. Same plumbing extends later to missed-membership and non-member upsells.
+Update `src/pages/Privacy.tsx`:
 
-The Strawberry Glaze ($18, already in the menu) is the launch hero — Storm's answer to the viral Erewhon smoothie, only better (Organic Sea Moss, Hyaluronic Acid, 3 Collagens, Colostrum, Healthy Fats, Vitamin C). Sample retouched product photo and editorial promo card already approved above.
+1. **Section 1 (Parties and Scope)** — expand operating entity language:
+   - "Storm Wellness Club ('Storm,' 'we,' 'us,' or 'our') is **operated by Storm Fitness** and owned by SR & D Development LLC. Storm Fitness is responsible for day-to-day operations of the club, including member services, communications, and on-site activities. SR & D Development LLC is the parent ownership entity."
+   - Keep all existing SR & D liability protections in Section 5 untouched.
 
----
+2. **New Section 4a — SMS / Text Messaging Program** (inserted after Disclosure):
+   - Categories of messages sent (transactional + informational): class reminders, waitlist alerts, billing notices, account updates, appointment confirmations, membership announcements, café/order ready, kids care urgent alerts, promotional offers (only if opted in).
+   - Message frequency varies. Msg & data rates may apply.
+   - **Opt-in methods** — list all 5 (membership application, non-member signup, member portal toggle, front desk verbal+written, kiosk).
+   - **Opt-out**: Reply STOP to any message, toggle SMS off in Profile, or email admin@stormwellnessclub.com.
+   - **HELP**: Reply HELP for support info.
+   - **Mobile information sharing clause** (carrier-required language):
+     > "No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. All categories listed above exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties."
+   - Link to new `/sms-terms` page.
 
-## Part 0 — Fix SMS first (prerequisite)
+3. **Sharpen weak sections** (expand without removing):
+   - Section 2: add biometric/photo data (member headshots), check-in scan data, geolocation (none collected), device/browser data.
+   - Section 3: add specific lawful bases (contract performance, legitimate interest, consent for marketing).
+   - Section 4: explicitly name categories of service providers (Stripe — payments; Twilio — SMS; Resend — email; Supabase/Lovable Cloud — hosting & data storage; Google Analytics — usage analytics).
+   - Section 6: list specific safeguards (TLS in transit, encrypted at rest, RLS row-level security, role-based access, PCI-DSS compliant payment processor — we never store full card numbers).
+   - Section 9: add California (CCPA) and "Do Not Sell" affirmation.
 
-SMS has never actually worked end-to-end. Before we build any post-class SMS upsell, we fix the pipeline.
+## Part B — New `/sms-terms` page
 
-**Diagnose:**
-- Audit existing Twilio code paths (class reminders, waitlist, support — anywhere we've called Twilio).
-- Check whether the project is using the **Twilio connector via the Lovable gateway** vs. raw API creds. Per project memory, current attempts use direct REST. We'll move everything to the connector gateway pattern (`connector-gateway.lovable.dev/twilio/Messages.json`), which handles auth + token refresh.
-- Verify `TWILIO_API_KEY` + `LOVABLE_API_KEY` are present in edge function env.
-- Pull last failed Twilio attempts from `supabase--edge_function_logs` to see exact error (most likely: bad creds, unverified From number, or geo-permission block).
+Create `src/pages/SMSTerms.tsx` — standalone page Twilio reviewers can hit directly, containing:
+- Program name, brand (Storm Wellness Club), operator (Storm Fitness)
+- Message types & sample messages
+- Frequency, rates disclaimer
+- All opt-in points with screenshots-of-text descriptions
+- STOP/HELP keywords
+- Privacy link, contact info
+- Mobile-info-not-shared clause (verbatim)
 
-**Fix + harden:**
-- New shared edge function `send-sms` — single entry point, validates input with Zod, gateway-based, logs every attempt to a new `sms_log` table (`to`, `body`, `status`, `error`, `provider_sid`, `purpose`, `member_id`, `created_at`).
-- Member opt-in: add `sms_opt_in boolean` + `phone_verified boolean` to `members` (and `non_member_profiles`). Portal Profile gets an SMS toggle and a one-time verification flow (send 6-digit code → confirm).
-- Add a small admin **SMS Health** page: send a test message to any number, view last 50 sends with status, see today's send count + failures.
-- Enable Twilio **SMS Pumping Protection** + **SMS Geo Permissions** (US/CA only) on the Twilio side — call out in setup notes.
+Add route in `src/App.tsx`: `/sms-terms` → `<SMSTerms />`.
 
-**Acceptance:** I can send a test SMS from the admin panel to a real phone, see it logged, and an opted-in member receives a class-reminder SMS without manual intervention.
+## Part C — Database (migration)
 
-Once this works, SMS becomes a real channel for the upsell engine **and** retroactively fixes class reminders, waitlist notifications, and freeze/billing alerts.
+Add columns to `profiles` and `non_member_profiles`:
+- `sms_opt_in boolean default false`
+- `sms_opt_in_at timestamptz`
+- `sms_opt_in_source text` — `'application' | 'non_member_signup' | 'portal_toggle' | 'front_desk' | 'kiosk'`
+- `sms_opt_out_at timestamptz`
+- `sms_opt_out_source text`
 
----
+New table `sms_consent_log`:
+- `id`, `user_id`, `phone`, `action` (`opt_in`|`opt_out`), `source`, `ip_address`, `user_agent`, `disclosure_version`, `created_at`
+- RLS: users see own rows; admins see all via `has_any_role`.
 
-## Part 1 — Functional Smoothie Line (Menu Story)
+## Part D — Consent UI (5 checkpoints)
 
-**Schema additions to `cafe_menu_items`:**
-- `is_featured boolean`, `feature_label text`, `tagline text`
-- `key_benefits text[]` (bullet ingredients)
-- `feature_starts_at`, `feature_ends_at`, `feature_discount_pct`
-- `viral_inspiration text` (internal note)
+Add a reusable `<SmsConsentCheckbox>` component with the standard disclosure paragraph + links to `/sms-terms` and `/privacy`. Wire into:
 
-**New table `cafe_menu_collections`** — group items into named lines (Functional Smoothie Line, Recovery Stack, Morning Boost). Items get a `collection_id`. Lets you launch whole "lines" with shared branding/photography.
+1. **Membership application form** — required-style checkbox next to phone field; writes to `profiles.sms_opt_in*` on submit.
+2. **Non-member signup** (`Auth.tsx` signup path) — checkbox; writes to `non_member_profiles.sms_opt_in*` after profile create.
+3. **Member portal Profile** (`src/pages/portal/Profile.tsx` + `src/pages/member/Profile.tsx`) — toggle Switch with audit log entry on every flip.
+4. **Front Desk / Kiosk reception** — checkbox in walk-in registration flow; source = `front_desk` or `kiosk`.
+5. **POS / class pass purchase phone capture** — inline checkbox if phone is being collected for the first time.
 
-**Admin UI** — `CafeMenuManager` gets:
-- **Specials & Features** tab — toggle featured, schedule window, % off, set tagline + benefits.
-- **Collections** tab — create collection, set hero image + description, drag items in.
+All 5 checkpoints write a row to `sms_consent_log`.
 
-**Strawberry Glaze**: I'll mark it featured, set price to **$18**, attach the cleaned hero photo, set tagline + benefits per the approved promo card. (You said it's already in the menu — I'll update it in place rather than create a duplicate.)
+## Part E — STOP/HELP webhook + send-sms function
 
----
+1. **`supabase/functions/twilio-inbound-sms/index.ts`** (new, public):
+   - Verifies Twilio signature.
+   - Parses inbound `Body`. If matches STOP/UNSUBSCRIBE/CANCEL/END/QUIT → set `sms_opt_in=false`, log opt-out, reply with confirmation.
+   - If HELP/INFO → reply with help text + support contact.
+   - Other inbound → forward to admin support inbox (existing email conversations system).
 
-## Part 2 — Member-Facing Display
+2. **`supabase/functions/send-sms/index.ts`** (new):
+   - Reusable wrapper around Twilio REST API (Basic Auth — per memory `twilio/direct-api-config`).
+   - **Hard guard**: refuses to send to any phone where `sms_opt_in=false` OR `sms_opt_out_at IS NOT NULL` UNLESS message is a critical transactional override (configurable per-call, logged).
+   - Logs every send to `sms_outbound_log`.
 
-**`/cafe`:**
-- Hero strip: **"The Functional Smoothie Line"** carousel — full-bleed photo, tagline, ingredient pills, price.
-- "Today at the Café" specials row beneath.
-- Existing menu sits below the heroes.
+3. Configure inbound webhook URL in Twilio console (manual step — I'll give you the URL after deploy).
 
-**Portal Dashboard:**
-- "From the Café" widget — rotates featured items, one-tap **Pre-order** CTA.
+## Part F — Footer + nav
 
-Look/feel: cream + burgundy editorial — same direction as the approved Strawberry Glaze promo. I'll generate matching hero shots for each Functional Smoothie you send me.
+- Add `SMS Terms` link to footer alongside Privacy and Terms.
 
----
+## Technical notes
 
-## Part 3 — Post-Class Café Prompt
+- Twilio config already stored via standard connector (`twilio/direct-api-config` memory).
+- Disclosure text version stored as constant `SMS_DISCLOSURE_V1` so future wording changes increment cleanly.
+- All migrations use validation triggers, not CHECK constraints.
+- Memory updates after build: new entries for SMS consent system + privacy policy operator language.
 
-Surfaces (gated on rules below):
-1. **Portal dashboard banner** — "You just crushed Reformer. Refuel with The Strawberry Glaze."
-2. **Booking-confirmation footer** — "Pre-order your post-class smoothie."
-3. **SMS** (5 min before class ends) — "Your Strawberry Glaze can be ready when you walk out. Tap to order." — **only after Part 0 is green**, and only for opted-in members.
-
-**Rules:**
-- Trigger only if class end is within ±60 min OR upcoming class within 30 min.
-- Suppress if `cafe_orders` row in last 4 hr OR `sms_opt_in = false`.
-
----
-
-## Part 4 — Pre-Order from the App
-
-`cafe_orders` already exists, so this is mostly UI:
-- New **`/portal/cafe`** — browse menu (Functional Line first), cart, pickup time picker ("Now / In 10 min / After my next class").
-- Charges via existing manual-charge / saved-card flow.
-- Pushes to admin **CafePOS** queue with `pending` status; staff sees it on the kiosk.
-- Member gets push + SMS (once Part 0 is done) when staff marks `completed`.
-
----
-
-## Part 5 — Bundle / Credits
-
-A/B-tested mechanics:
-- **"Class + Smoothie" bundle** at booking: optional "+$10 add a Functional Smoothie (save $4)". Creates a tied `cafe_orders` row, ready at class end.
-- **Café credit pack**: $50 → $60, $100 → $125. New small ledger table, debited at POS. Same pattern as wellness credits.
-
----
-
-## Part 6 — A/B Framework (Reusable)
-
-**New tables:**
-```text
-experiments (id, key, name, status, started_at, ended_at, target_metric)
-experiment_variants (id, experiment_id, key, name, config jsonb, is_control)
-experiment_assignments (id, experiment_id, variant_id, user_id, member_id, assigned_at)
-experiment_events (id, experiment_id, variant_id, user_id, event_type, value numeric, metadata jsonb, created_at)
-```
-
-**RPC `assign_experiment_variant(_key, _user_id)`** — deterministic hash bucketing, sticky per user.
-
-**Client hook `useExperiment(key)`** — returns `{ variant, track(event, value?) }`.
-
-**Initial experiments:**
-| Key | Variants | Surface |
-|---|---|---|
-| `cafe_post_class_prompt` | control / banner / modal / sms | Portal + booking confirm |
-| `cafe_smoothie_line_hero` | control / carousel / single-hero | Cafe + portal |
-| `cafe_bundle_at_booking` | control / +$10 / 20%-off-add-on | Booking flow |
-| `cafe_credit_pack` | control / $50→$60 / $100→$125 | Portal |
-
----
-
-## Part 7 — Reporting (by Day + Class Type)
-
-New admin report **Café Attach Performance**:
-- KPIs: attach rate, avg ticket, revenue/check-in, repeat-buy rate, pre-order vs walk-up split.
-- By day of week, by class type (joins `class_sessions` → `bookings` → café charges within ±90 min of class end), by time-of-day, by experiment variant (lift vs control, sample size, 95% CI).
-- CSV/PDF export.
-
----
-
-## Part 8 — Roadmap (next phases)
-
-Same plumbing extends to:
-- Missed-membership re-activation (frozen >30 days) with offer A/B
-- Non-member → member conversion prompts (guest-pass, class-pass users)
-- Spa attach off recovery bookings
-
----
-
-## Build Order
-
-1. **Part 0 — Fix SMS** (blocks all SMS variants)
-2. Schema + admin specials/collections UI (Part 1) + update Strawberry Glaze to $18 featured
-3. Member-facing Smoothie Line on /cafe + portal home (Part 2)
-4. Experiments framework + reporting (Parts 6 + 7) — gets baseline before tests
-5. Post-class prompt (Part 3) — in-app first, SMS once Part 0 ships
-6. Pre-order flow (Part 4)
-7. Bundle + credit pack (Part 5)
-
----
-
-## Technical Notes
-
-- Reuse `manual_charges` for café POS; pre-orders link `cafe_orders.id` in metadata.
-- Suppression checks `cafe_orders` + `manual_charges WHERE description ILIKE 'Cafe%'` last 4 hr.
-- Experiment writes via RLS-protected RPCs only.
-- Reporting joins `bookings.session_id → class_sessions.class_type_id` for class-type breakdown.
-- Timezone `America/Chicago` everywhere.
-- All SMS routed through new `send-sms` edge fn → Twilio connector gateway → `sms_log` table.
-
----
-
-## What I need from you
-
-1. **Approve the plan.**
-2. **Recipes for the rest of the Functional Smoothie Line** (names + ingredients) so I can generate matching hero photos + promos for each.
-3. **Café credit pack pricing** — confirm $50→$60 / $100→$125, 90-day expiry?
-4. **Twilio From number** — confirm which Twilio phone number we should send from (or do you want me to use the one already in env / pick one in Twilio).
-
-Once approved I start with **Part 0 (fix SMS)** in parallel with **Part 1 (schema + admin)** so the Strawberry Glaze can go live this week regardless of SMS timing.
+Confirm and I'll build all parts in one pass.
