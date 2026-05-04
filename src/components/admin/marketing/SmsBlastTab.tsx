@@ -44,6 +44,8 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   XCircle,
+  Paperclip,
+  Copy,
 } from "lucide-react";
 import { SmsMediaPicker } from "../SmsMediaPicker";
 import { estimateCost, segments } from "@/lib/smsCosts";
