@@ -267,6 +267,22 @@ export default function Cafe() {
     }
   }, [user, showPaymentDialog, paymentMethod]);
 
+  // When payment dialog opens, check if user has SMS opt-in already; if not, show the nudge
+  useEffect(() => {
+    if (!user || !showPaymentDialog) return;
+    supabase
+      .from("profiles")
+      .select("sms_opt_in, phone")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const optedIn = (data as any)?.sms_opt_in === true;
+        const hasPhone = !!(data as any)?.phone;
+        setShowSmsOptIn(!optedIn && hasPhone);
+        setSmsOptIn(false);
+      });
+  }, [user, showPaymentDialog]);
+
   return (
     <Layout>
       <SEOHead title="Café" description="In-house café with smoothies, protein shakes, acai bowls, cold-pressed juices, coffee, and healthy snacks at Storm Wellness Club." path="/cafe" />
