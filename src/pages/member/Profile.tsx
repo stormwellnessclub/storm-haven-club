@@ -20,6 +20,7 @@ import {
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { MemberPhotoUpload } from "@/components/member/MemberPhotoUpload";
+import { SmsToggleCard } from "@/components/SmsToggleCard";
 import { User, MapPin, Phone, Heart, Save, Camera } from "lucide-react";
 
 const profileSchema = z.object({
@@ -363,6 +364,13 @@ export default function MemberProfile() {
                 />
               </CardContent>
             </Card>
+
+            {/* SMS Notifications */}
+            <SmsToggleCard
+              table="profiles"
+              phone={form.watch("phone")}
+              source="member_portal_toggle"
+            />
 
             {/* Save Button */}
             <div className="flex justify-end">
