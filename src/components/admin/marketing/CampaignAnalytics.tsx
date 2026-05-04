@@ -237,8 +237,9 @@ export function CampaignAnalytics() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Campaign</TableHead>
-                  <TableHead>Type</TableHead>
+                 <TableHead>Campaign</TableHead>
+                 <TableHead>Channel</TableHead>
+                 <TableHead>Type</TableHead>
                   <TableHead>Goal</TableHead>
                   <TableHead>Sent</TableHead>
                   <TableHead>Conversions</TableHead>
