@@ -88,12 +88,6 @@ interface AudienceCounts {
 interface CampaignPlaybooksProps {
   type: "guest" | "member";
   onLaunchPlaybook: (playbook: PlaybookConfig) => void;
-  onCustomCampaign: () => void;
-}
-
-interface CampaignPlaybooksProps {
-  type: "guest" | "member";
-  onLaunchPlaybook: (playbook: PlaybookConfig) => void;
   onLaunchSmsPlaybook?: (playbook: PlaybookConfig) => void;
   onCustomCampaign: () => void;
 }
