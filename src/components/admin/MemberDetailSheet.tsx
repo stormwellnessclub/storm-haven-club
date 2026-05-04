@@ -1787,6 +1787,16 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           annualFeeSubscriptionId={member.annual_fee_subscription_id}
         />
       )}
+
+      <SendSmsDialog
+        open={smsDialogOpen}
+        onOpenChange={setSmsDialogOpen}
+        recipient={{
+          userId: member.user_id,
+          name: `${member.first_name} ${member.last_name}`.trim(),
+          phone: member.phone,
+        }}
+      />
     </>
   );
 }
