@@ -1012,6 +1012,12 @@ export default function Apply() {
                   <Label htmlFor="phone">Phone Number *</Label>
                   <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} placeholder="(123) 456-7890" className="mt-1" required />
                 </div>
+
+                <SmsConsentCheckbox
+                  checked={formData.smsConsent}
+                  onCheckedChange={(v) => setFormData((prev) => ({ ...prev, smsConsent: v }))}
+                  id="apply-sms-consent"
+                />
               </div>
             </div>
 
