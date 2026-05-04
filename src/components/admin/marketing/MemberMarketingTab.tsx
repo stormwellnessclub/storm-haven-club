@@ -231,6 +231,14 @@ export function MemberMarketingTab() {
         goalType={activeGoalType}
         playbookName={activePlaybookName}
       />
+
+      <ComposeSmsDialog
+        open={composeSmsOpen}
+        onOpenChange={setComposeSmsOpen}
+        recipientType="member"
+        goalType={activeGoalType}
+        playbookName={activePlaybookName}
+      />
     </div>
   );
 }
