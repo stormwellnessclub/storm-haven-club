@@ -723,21 +723,7 @@ export default function Apply() {
       toast.error("Please add a payment method before submitting your application.");
       sectionRefs.current["payment"]?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
-      }
-
-      // Log SMS consent (best-effort, non-blocking)
-      if (formData.smsConsent) {
-        supabase.from('sms_consent_log').insert({
-          phone: formData.phone,
-          action: 'opt_in',
-          source: 'application',
-          user_agent: navigator.userAgent,
-          disclosure_version: SMS_DISCLOSURE_VERSION,
-          metadata: { email: formData.email },
-        }).then(({ error: logError }) => {
-          if (logError) console.warn('SMS consent log failed:', logError);
-        });
-      }
+    }
 
     const dupeCheck = await checkForDuplicateApplication(formData.email);
     if (dupeCheck.isDuplicate) {
