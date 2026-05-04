@@ -211,14 +211,37 @@ export function CampaignPlaybooks({ type, onLaunchPlaybook, onLaunchSmsPlaybook,
               <CardDescription className="text-xs">{playbook.description}</CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <Button
-                size="sm"
-                className="w-full"
-                onClick={() => onLaunchPlaybook(playbook)}
-                disabled={loading || (counts[playbook.goalType] ?? 0) === 0}
-              >
-                Launch Campaign
-              </Button>
+              <div className="flex">
+                <Button
+                  size="sm"
+                  className="flex-1 rounded-r-none"
+                  onClick={() => onLaunchPlaybook(playbook)}
+                  disabled={loading || (counts[playbook.goalType] ?? 0) === 0}
+                >
+                  <Mail className="h-3.5 w-3.5 mr-1.5" />
+                  Launch Email
+                </Button>
+                {onLaunchSmsPlaybook && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        className="rounded-l-none border-l border-primary-foreground/20 px-2"
+                        disabled={loading || (counts[playbook.goalType] ?? 0) === 0}
+                        aria-label="More launch options"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onLaunchSmsPlaybook(playbook)}>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Launch SMS / MMS
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}
