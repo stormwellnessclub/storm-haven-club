@@ -682,6 +682,42 @@ serve(async (req) => {
               return errorResponse(passError, "CLASS_PASS_CREATION");
             }
 
+          } else if (metadata.type === 'fundraiser_class_booking') {
+            const userId = metadata.user_id;
+            const classSessionId = metadata.class_session_id;
+            const amountCents = parseInt(metadata.amount_cents || '4000', 10);
+
+            if (!userId || !classSessionId) {
+              logError("Missing user_id or class_session_id in fundraiser_class_booking metadata", "FUNDRAISER_CLASS_BOOKING");
+              return errorResponse(new Error("Missing required metadata"), "FUNDRAISER_CLASS_BOOKING");
+            }
+
+            try {
+              const { data: rpcResult, error: rpcErr } = await supabase.rpc('create_fundraiser_class_booking', {
+                _session_id: classSessionId,
+                _user_id: userId,
+                _amount_cents: amountCents,
+              });
+
+              if (rpcErr) {
+                logError(rpcErr, "FUNDRAISER_CLASS_BOOKING_RPC");
+                return errorResponse(rpcErr, "FUNDRAISER_CLASS_BOOKING_RPC");
+              }
+
+              const result = rpcResult as { success: boolean; error?: string; booking_id?: string; already_existed?: boolean };
+              if (!result?.success) {
+                logError(new Error(result?.error || "Fundraiser booking RPC failed"), "FUNDRAISER_CLASS_BOOKING_RPC");
+              } else {
+                logStep("Fundraiser class booking recorded", {
+                  userId, classSessionId, amountCents,
+                  bookingId: result.booking_id, alreadyExisted: !!result.already_existed,
+                });
+              }
+            } catch (fundErr) {
+              logError(fundErr, "FUNDRAISER_CLASS_BOOKING");
+              return errorResponse(fundErr, "FUNDRAISER_CLASS_BOOKING");
+            }
+
           } else if (metadata.type === 'kids_care_pass') {
             // Handle Kids Care Pass subscription purchase
             const userId = metadata.user_id;
