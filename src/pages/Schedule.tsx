@@ -44,6 +44,10 @@ interface ClassSession {
   current_enrollment: number;
   is_cancelled: boolean;
   room: string | null;
+  is_fundraiser?: boolean;
+  fundraiser_beneficiary?: string | null;
+  session_notes?: string | null;
+  override_price_cents?: number | null;
   class_types: {
     id: string;
     name: string;
@@ -92,6 +96,10 @@ export default function Schedule() {
       current_enrollment: session.current_enrollment,
       room: session.room,
       is_cancelled: session.is_cancelled,
+      is_fundraiser: session.is_fundraiser,
+      fundraiser_beneficiary: session.fundraiser_beneficiary,
+      session_notes: session.session_notes,
+      override_price_cents: session.override_price_cents,
       class_type: {
         id: ct.id,
         name: ct.name,
@@ -178,6 +186,7 @@ export default function Schedule() {
         .from("class_sessions")
         .select(`
           id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, room,
+          is_fundraiser, fundraiser_beneficiary, session_notes, override_price_cents,
           class_types!inner(id, name, category, description, duration_minutes, is_heated, image_url),
           instructors(id, first_name, last_name)
         `)
