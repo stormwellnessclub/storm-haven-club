@@ -239,15 +239,11 @@ export default function Spa() {
       );
     }
 
-    // All other categories: Request button
+    // All other categories: Coming Soon badge
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => handleRequestService(service)}
-      >
-        Request
-      </Button>
+      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs uppercase tracking-wider bg-muted text-muted-foreground">
+        Coming Soon
+      </span>
     );
   };
 
@@ -284,7 +280,7 @@ export default function Spa() {
           <div className="flex items-center justify-center gap-3 text-center">
             <Info className="w-5 h-5 text-accent flex-shrink-0" />
             <p className="text-sm font-medium text-foreground">
-              Spa Aella is opening early April. <span className="text-accent">Red Light Therapy</span> and <span className="text-accent">ZeroBody Cryo</span> are available now — full spa services coming soon.
+              Full spa services coming soon.
             </p>
           </div>
         </div>
