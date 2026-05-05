@@ -151,7 +151,6 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const myWaitlistEntry = waitlistStatus?.[session.id];
   const isOnWaitlist = !!myWaitlistEntry;
 
-  const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
   const isFundraiser = !!session?.is_fundraiser;
   const fundraiserAmount = session?.override_price_cents != null ? session.override_price_cents / 100 : 40;
 
