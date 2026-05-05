@@ -149,10 +149,55 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const myWaitlistEntry = waitlistStatus?.[session.id];
   const isOnWaitlist = !!myWaitlistEntry;
 
+  const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
+  const isFundraiser = !!session?.is_fundraiser;
+  const fundraiserAmount = session?.override_price_cents != null ? session.override_price_cents / 100 : 40;
+
+  const handleFundraiserCheckout = async () => {
+    if (!session) return;
+    if (!user) {
+      navigate("/auth");
+      onOpenChange(false);
+      return;
+    }
+    try {
+      setIsFundraiserCheckingOut(true);
+      const origin = window.location.origin;
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_fundraiser_class_checkout",
+          sessionId: session.id,
+          successUrl: `${origin}/payment-success`,
+          cancelUrl: `${origin}/schedule`,
+        },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, "_blank");
+        clearClassDraft();
+        onOpenChange(false);
+      } else {
+        throw new Error("Could not start checkout");
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Could not start checkout";
+      // toast is imported via sonner in useBooking; use alert fallback through sonner
+      const { toast } = await import("sonner");
+      toast.error(msg);
+    } finally {
+      setIsFundraiserCheckingOut(false);
+    }
+  };
+
   const handleBook = async () => {
     if (!user) {
       navigate("/auth");
       onOpenChange(false);
+      return;
+    }
+
+    if (isFundraiser) {
+      await handleFundraiserCheckout();
       return;
     }
 
