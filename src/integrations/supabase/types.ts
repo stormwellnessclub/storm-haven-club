@@ -6917,6 +6917,10 @@ export type Database = {
         }
         Returns: Json
       }
+      create_fundraiser_class_booking: {
+        Args: { _amount_cents: number; _session_id: string; _user_id: string }
+        Returns: Json
+      }
       current_user_email: { Args: never; Returns: string }
       current_user_email_lower: { Args: never; Returns: string }
       evaluate_member_check_in_eligibility: {
