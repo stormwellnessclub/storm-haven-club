@@ -7,11 +7,12 @@ export interface RosterAttendee {
   name: string;
   email: string;
   phone: string;
-  type: "member" | "pass_holder" | "account" | "walk_in";
+  type: "member" | "pass_holder" | "account" | "walk_in" | "hold";
   isCheckedIn: boolean;
   checkedInAt: string | null;
   paymentMethod: string | null;
   walkInName: string | null;
+  isAdminHold: boolean;
 }
 
 interface RawBooking {
