@@ -1224,6 +1224,84 @@ export default function ClassRoster() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hold Slots dialog */}
+      <Dialog open={holdDialogOpen} onOpenChange={setHoldDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hold seats</DialogTitle>
+            <DialogDescription>
+              Reserve seats so they can't be booked publicly. Convert each held seat into a real attendee later, or release it if it's no longer needed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Number of seats to hold</Label>
+              <Input
+                type="number"
+                min={1}
+                max={Math.max(1, session ? session.max_capacity - bookings.length : 1)}
+                value={holdCount}
+                onChange={(e) => setHoldCount(Math.max(1, Number(e.target.value) || 1))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {session ? `${session.max_capacity - bookings.length} seat${session.max_capacity - bookings.length === 1 ? "" : "s"} remaining` : ""}
+              </p>
+            </div>
+            <div>
+              <Label>Note (optional)</Label>
+              <Input
+                value={holdNote}
+                onChange={(e) => setHoldNote(e.target.value)}
+                placeholder="e.g. Reserved at door, name pending"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHoldDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => holdSlotsMutation.mutate({ count: holdCount, note: holdNote })}
+              disabled={holdSlotsMutation.isPending}
+            >
+              {holdSlotsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : `Hold ${holdCount} seat${holdCount === 1 ? "" : "s"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert Hold dialog */}
+      <Dialog open={!!convertEntry} onOpenChange={(o) => { if (!o) setConvertEntry(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Convert hold to attendee</DialogTitle>
+            <DialogDescription>
+              Enter the person's details. If their email matches an existing account, we'll link it automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>First name *</Label><Input value={convertFirst} onChange={(e) => setConvertFirst(e.target.value)} /></div>
+              <div><Label>Last name *</Label><Input value={convertLast} onChange={(e) => setConvertLast(e.target.value)} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Phone *</Label><Input value={convertPhone} onChange={(e) => setConvertPhone(e.target.value)} type="tel" /></div>
+              <div><Label>Email</Label><Input value={convertEmail} onChange={(e) => setConvertEmail(e.target.value)} type="email" placeholder="Optional" /></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertEntry(null)}>Cancel</Button>
+            <Button
+              onClick={() => convertEntry && convertHoldMutation.mutate({
+                bookingId: convertEntry.bookingId,
+                first: convertFirst, last: convertLast, phone: convertPhone, email: convertEmail,
+              })}
+              disabled={convertHoldMutation.isPending || !convertFirst.trim() || !convertLast.trim() || !convertPhone.trim()}
+            >
+              {convertHoldMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save attendee"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
