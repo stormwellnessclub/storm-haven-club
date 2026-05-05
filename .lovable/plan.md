@@ -1,50 +1,55 @@
-## Problem
+## Goal
+Add two **Iraqi Children Foundation fundraiser** sessions on **Tue, May 12, 2026** — Signature Flow Pilates with Duha A, $40/person, 100% of proceeds donated, capacity 8, in the Reformer Studio.
 
-`send-sms` edge function fails immediately with:
-```
-TypeError: userClient.auth.getClaims is not a function
-```
+| # | Time | Class | Instructor | Capacity | Price |
+|---|------|-------|------------|----------|-------|
+| 1 | 11:00 AM – 11:50 AM | Signature Flow Pilates – All Levels | Duha A | 8 | **$40** |
+| 2 | 12:00 PM – 12:50 PM | Signature Flow Pilates – All Levels | Duha A | 8 | **$40** |
 
-Cause: the function imports `@supabase/supabase-js@2.45.0`, which does not expose `auth.getClaims()`. That method only exists on newer SDK versions. Every SMS send (test, admin one-off, blast, playbook) is currently broken at the auth gate before Twilio is ever called.
+Today the system has no per-session pricing or notes field, so we'll add minimal support for one-off fundraiser/special sessions, then create these two.
 
-## Fix
+## Step 1 — Migration: extend `class_sessions`
+Add nullable columns (no impact on existing rows):
+- `is_fundraiser boolean NOT NULL DEFAULT false`
+- `fundraiser_beneficiary text` — e.g. "Iraqi Children Foundation"
+- `session_notes text` — public-facing note, e.g. "100% of proceeds donated to the Iraqi Children Foundation"
+- `override_price_cents integer` — when set, this is the drop-in price for this specific session (overrides the standard $25/$30 single-class price)
 
-In `supabase/functions/send-sms/index.ts`, replace the `getClaims` call with `getUser(token)`, which exists in 2.45.0 and returns the same `sub`/email info we need.
+Then insert the two ad-hoc sessions:
+- `schedule_id = NULL` (won't be touched by weekly reconciliation)
+- `class_type_id = 8d29b6d1-…` (Signature Flow Pilates – All Levels)
+- `instructor_id = 284f1cc6-…` (Duha A)
+- `room = 'Reformer Studio'`, `max_capacity = 8`
+- `is_fundraiser = true`, `fundraiser_beneficiary = 'Iraqi Children Foundation'`
+- `session_notes = '100% of proceeds will be donated to the Iraqi Children Foundation.'`
+- `override_price_cents = 4000`
 
-Change roughly lines 121–134 from:
+## Step 2 — Display the fundraiser badge & note
+Wherever sessions render (members & public schedule, admin roster):
+- `src/pages/Schedule.tsx` and `ClassTypeDetail.tsx` (member/public)
+- `src/pages/admin/Classes.tsx` / roster (admin)
 
-```ts
-const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-  global: { headers: { Authorization: authHeader } },
-});
-const { data: claims } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-if (!claims?.claims) { ...401... }
-const callerUserId = (claims.claims as any).sub as string;
-```
+Add: a **"Fundraiser"** badge + a small line "100% of proceeds donated to {beneficiary}" when `is_fundraiser = true`. Show `$40` price clearly on the booking CTA when `override_price_cents` is set.
 
-to:
+## Step 3 — Honor the $40 price at booking
+Single-class booking already supports paying for non-members and members-without-credits via the existing single-class-pass flow (`ClassPasses.tsx`, `stripe-payment` edge function).
 
-```ts
-const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-  global: { headers: { Authorization: authHeader } },
-});
-const { data: userData, error: userErr } = await userClient.auth.getUser(
-  authHeader.replace("Bearer ", "")
-);
-if (userErr || !userData?.user) { ...401... }
-const callerUserId = userData.user.id;
-```
+Update the booking/checkout path to:
+1. Read `override_price_cents` from the session being booked.
+2. If set, use that amount (in cents) for the Stripe charge instead of the standard $25/$30 price, and bypass any "use a credit" path so everyone pays cash for the fundraiser. Members can still book — they just pay $40 like anyone else (so 100% can be donated).
+3. Label the Stripe charge description: `Iraqi Children Foundation Fundraiser — Signature Flow Pilates (May 12, 11:00 AM)` so it's easy to total in the Stripe dashboard.
 
-No other logic changes — the rest of the function (admin role lookup, idempotency, Twilio call, logging) keeps working as-is.
+## Step 4 — Helpful follow-ups (optional, ask before doing)
+- Send an SMS/email blast announcing the fundraiser via Marketing → Compose.
+- Pin a banner on `/schedule` for the week of May 12 calling out the fundraiser.
 
-## Verification
+## Files
+- New migration adding the 4 columns + two `INSERT` rows.
+- `src/pages/Schedule.tsx`, `src/pages/ClassTypeDetail.tsx`, admin roster — fundraiser badge + note + price display.
+- `src/pages/ClassPasses.tsx` (and/or the booking dialog that calls `stripe-payment`) — pass `session_id` so backend can read `override_price_cents`.
+- `supabase/functions/stripe-payment/index.ts` — when a `session_id` is provided and the session has `override_price_cents`, charge that amount and force a no-credit cash purchase; set descriptive line item.
+- `src/integrations/supabase/types.ts` — auto-regenerated.
 
-1. Deploy `send-sms`.
-2. From admin → member detail → Send SMS, send a test message to a known phone.
-3. Confirm: HTTP 200, `twilio_sid` returned, message arrives, no `getClaims` error in edge logs.
-4. Spot-check a marketing blast (1 recipient) to confirm the same auth path works for `ComposeSmsDialog`.
-
-## Out of scope
-
-- No SDK version bump (would risk breaking other functions sharing patterns).
-- No template, consent, or Twilio config changes.
+## Notes
+- Existing 11:00 AM "Pilates Foundations – Beginner" on May 12 is `is_hidden = true`, so no visible conflict.
+- All times stored in `America/Chicago` per project policy.
