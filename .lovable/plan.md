@@ -1,24 +1,32 @@
-## Issue
-The public `/schedule` page renders class cards with its own inline markup (not the shared `ClassCard` component), and its query/`ClassSession` interface don't include fundraiser fields. So Tue May 12 11 AM and 12 PM render as plain cards with no Fundraiser badge or "Iraqi Children Foundation" label.
+## Goal
+Make the two May 12 Iraqi Children Foundation fundraiser sessions display as non-heated, without changing any other sessions tied to the heated "Signature Flow Pilates – All Levels" class type.
 
-The shared `ClassCard` already renders the fundraiser badge + donation callout correctly, but it's used on other surfaces — not on `/schedule`.
+## Why a migration is needed
+`is_heated` is stored on `class_types`, not on `class_sessions`. We can't just toggle a flag on the two sessions. The cleanest fix is to repoint those two sessions to the existing non-heated class type already in the database:
 
-## Fix — `src/pages/Schedule.tsx`
+- Current class type: `Signature Flow Pilates – All Levels` (id `8d29b6d1-1b37-4bca-aa7d-13aca36b8059`, `is_heated = true`)
+- Target class type: `Signature Flow` (id `cf22bbe2-298d-4f36-9741-85559b242e9e`, `is_heated = false`)
 
-1. **Extend the local `ClassSession` interface** (lines 38–61) with optional `is_fundraiser`, `fundraiser_beneficiary`, `session_notes`, `override_price_cents`.
+Both are in the `pilates_cycling` category, so credit/pass eligibility and pricing rules remain unchanged. Fundraiser flags (`is_fundraiser`, `fundraiser_beneficiary`, `override_price_cents`, `session_notes`) live on the session itself and stay as-is — the $40 donation flow is unaffected.
 
-2. **Extend the Supabase query** (lines 178–183) to select those four columns.
+## Changes
 
-3. **Pass them through `buildBookable`** (lines 84–113) so the BookingModal also sees them when opened from `/schedule`.
+1. **New migration** — update only the two fundraiser sessions:
+   ```sql
+   UPDATE public.class_sessions
+   SET class_type_id = 'cf22bbe2-298d-4f36-9741-85559b242e9e'
+   WHERE id IN (
+     'aad7a9f7-d673-4f7e-b4fc-a4dffa9c6026',
+     '228e3197-02ac-465e-a58e-f1694fbac84f'
+   )
+   AND is_fundraiser = true;
+   ```
+   Scoped by id + `is_fundraiser = true` so it can't accidentally touch other sessions.
 
-4. **Render a fundraiser ribbon inside the card** (around lines 467–506):
-   - Pink "♥ Fundraiser" badge next to the class name.
-   - Below the title row, a small rose-tinted callout: `$40 · Iraqi Children Foundation — 100% of proceeds will be donated.`
-   - Replace the "Book" button label with **"Donate & Reserve"** for fundraiser sessions.
+## Result
+- The two May 12 fundraiser cards on `/schedule`, `BookingModal`, `ClassDetailsSheet`, and `MyBookings` will no longer render the "Heated" badge.
+- All other Signature Flow Pilates – All Levels sessions remain heated and untouched.
+- Fundraiser badge, "$40 · Iraqi Children Foundation" callout, and "Donate & Reserve" donation checkout flow are unaffected.
 
-5. **Pass fundraiser info to `openDetailsFor`** so the details dialog (`ClassDetailsData`) can also show it. If `ClassDetailsData` doesn't already accept fundraiser fields, add optional `isFundraiser`, `fundraiserBeneficiary`, `sessionNotes`, `overridePriceCents` and surface them in the details dialog component.
-
-## Notes
-- No DB or RPC changes; the May 12 sessions already have `is_fundraiser=true`, `fundraiser_beneficiary='Iraqi Children Foundation'`, `override_price_cents=4000`, and the donation note.
-- All other class cards on `/schedule` render unchanged because the new UI is gated on `session.is_fundraiser`.
-- The BookingModal already handles fundraiser checkout — once the data flows through `buildBookable`, opening the modal from `/schedule` will show the "Donate $40 & Reserve Spot" button as expected.
+## Out of scope
+No code changes, no UI changes, no RPC changes — purely a data correction migration.
