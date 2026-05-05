@@ -18,6 +18,7 @@ import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
+import { MothersDayBanner } from "@/components/marketing/MothersDayBanner";
 
 export default function PortalDashboard() {
   const { user } = useAuth();
@@ -135,6 +136,7 @@ export default function PortalDashboard() {
   return (
     <PortalLayout title="Dashboard">
       <div className="space-y-6 max-w-4xl">
+        <MothersDayBanner />
         {/* Welcome */}
         <div>
           <h2 className="heading-section">Welcome back, {firstName}</h2>
