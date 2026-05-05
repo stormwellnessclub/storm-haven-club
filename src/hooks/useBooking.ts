@@ -155,11 +155,18 @@ export function useBookClass() {
       // Get session details to check advance booking limit
       const { data: session, error: sessionError } = await supabase
         .from("class_sessions")
-        .select("session_date, class_type:class_types(*)")
+        .select("session_date, is_fundraiser, class_type:class_types(*)")
         .eq("id", sessionId)
         .single();
 
       if (sessionError) throw sessionError;
+
+      // Defense-in-depth: fundraiser sessions cannot be booked with credits/passes
+      if ((session as any).is_fundraiser) {
+        throw new Error(
+          "This is a fundraiser class. Class credits and passes can't be used — please complete checkout to donate and reserve your spot."
+        );
+      }
 
       // Check advance booking limit (3 weeks for members, 2 weeks for non-members)
       const sessionDate = parseISO(session.session_date);
