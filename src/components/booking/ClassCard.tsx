@@ -150,7 +150,7 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
             className="w-full"
             size="sm"
           >
-            {isBooked ? "Booked" : isOnWaitlist ? "On Waitlist" : isFull ? "Join Waitlist" : "Book Class"}
+            {isBooked ? "Booked" : isOnWaitlist ? "On Waitlist" : isFull ? "Join Waitlist" : session.is_fundraiser ? "Donate & Reserve" : "Book Class"}
           </Button>
         )}
       </CardContent>
