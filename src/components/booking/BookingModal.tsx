@@ -67,6 +67,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const [selectedPassType, setSelectedPassType] = useState<string | null>(null);
   const [showWaiverInline, setShowWaiverInline] = useState(false);
   const [waiverAcknowledged, setWaiverAcknowledged] = useState(false);
+  const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
 
   const bookClass = useBookClass();
   const joinWaitlist = useJoinWaitlist();
@@ -150,7 +151,6 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const myWaitlistEntry = waitlistStatus?.[session.id];
   const isOnWaitlist = !!myWaitlistEntry;
 
-  const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
   const isFundraiser = !!session?.is_fundraiser;
   const fundraiserAmount = session?.override_price_cents != null ? session.override_price_cents / 100 : 40;
 
