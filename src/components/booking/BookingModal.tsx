@@ -433,7 +433,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
 
           {/* Payment Method Selection (also used for waitlist hold when full) */}
-          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
+          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && !isFundraiser && (
             <>
               {isClassFull && (
                 <p className="text-xs text-muted-foreground -mb-1">
