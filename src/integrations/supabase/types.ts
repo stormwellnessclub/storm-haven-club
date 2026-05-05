@@ -1409,14 +1409,18 @@ export type Database = {
           created_at: string
           current_enrollment: number
           end_time: string
+          fundraiser_beneficiary: string | null
           id: string
           instructor_id: string | null
           is_cancelled: boolean
+          is_fundraiser: boolean
           is_hidden: boolean
           max_capacity: number
+          override_price_cents: number | null
           room: string | null
           schedule_id: string | null
           session_date: string
+          session_notes: string | null
           start_time: string
           updated_at: string
         }
@@ -1426,14 +1430,18 @@ export type Database = {
           created_at?: string
           current_enrollment?: number
           end_time: string
+          fundraiser_beneficiary?: string | null
           id?: string
           instructor_id?: string | null
           is_cancelled?: boolean
+          is_fundraiser?: boolean
           is_hidden?: boolean
           max_capacity: number
+          override_price_cents?: number | null
           room?: string | null
           schedule_id?: string | null
           session_date: string
+          session_notes?: string | null
           start_time: string
           updated_at?: string
         }
@@ -1443,14 +1451,18 @@ export type Database = {
           created_at?: string
           current_enrollment?: number
           end_time?: string
+          fundraiser_beneficiary?: string | null
           id?: string
           instructor_id?: string | null
           is_cancelled?: boolean
+          is_fundraiser?: boolean
           is_hidden?: boolean
           max_capacity?: number
+          override_price_cents?: number | null
           room?: string | null
           schedule_id?: string | null
           session_date?: string
+          session_notes?: string | null
           start_time?: string
           updated_at?: string
         }
