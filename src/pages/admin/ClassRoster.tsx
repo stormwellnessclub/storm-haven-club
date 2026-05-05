@@ -971,9 +971,55 @@ export default function ClassRoster() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bookings.map((attendee) => {
+                    {[...bookings].sort((a, b) => Number(b.isAdminHold) - Number(a.isAdminHold)).map((attendee) => {
                       const initials = attendee.name.split(" ").map(n => n[0] || "").join("").slice(0, 2) || "?";
                       const typeLabel = attendee.type === "member" ? "Member" : attendee.type === "pass_holder" ? "Pass Holder" : attendee.type === "walk_in" ? "Walk-In" : "Account";
+                      if (attendee.isAdminHold) {
+                        return (
+                          <TableRow key={attendee.bookingId} className="bg-amber-50/60 dark:bg-amber-950/20">
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                                  <Lock className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+                                </div>
+                                <div>
+                                  <span className="font-medium text-amber-900 dark:text-amber-100">{attendee.name}</span>
+                                  <p className="text-xs text-muted-foreground">Admin hold — name pending</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell><span className="text-xs text-muted-foreground">—</span></TableCell>
+                            <TableCell>
+                              <Badge className="bg-amber-500 hover:bg-amber-500 text-white text-xs">HOLD</Badge>
+                            </TableCell>
+                            <TableCell><span className="text-sm text-muted-foreground">—</span></TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">Reserved</Badge>
+                            </TableCell>
+                            <TableCell className="text-right space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setConvertEntry({ bookingId: attendee.bookingId, defaultName: attendee.name });
+                                  setConvertFirst(""); setConvertLast(""); setConvertPhone(""); setConvertEmail("");
+                                }}
+                              >
+                                <UserCog className="h-4 w-4 mr-1" /> Convert
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => releaseHoldMutation.mutate(attendee.bookingId)}
+                                disabled={releaseHoldMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
                       return (
                         <TableRow key={attendee.bookingId}>
                           <TableCell>
