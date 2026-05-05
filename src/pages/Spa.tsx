@@ -286,6 +286,31 @@ export default function Spa() {
         </div>
       </section>
 
+      {/* Mother's Day Special promo */}
+      <section className="py-10" style={{ background: "linear-gradient(135deg, #ece2d2 0%, #e0d2b8 100%)" }}>
+        <div className="container mx-auto px-6 flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+          <div className="flex-1">
+            <p className="text-xs tracking-[0.4em] mb-2" style={{ color: "#a17e3a" }}>LIMITED TIME</p>
+            <h2 className="font-serif text-3xl md:text-4xl mb-2" style={{ color: "#a17e3a" }}>
+              Mother's Day Special
+            </h2>
+            <p className="text-base mb-1" style={{ color: "#6b5a3b" }}>
+              Custom Massage + Exclusive Wet Spa Access
+            </p>
+            <p className="text-sm" style={{ color: "#8a6d3b" }}>
+              Sauna · Steam · Himalayan Salt Room — Redeemable for 6 months
+            </p>
+          </div>
+          <Button
+            size="lg"
+            onClick={() => navigate("/mothers-day")}
+            style={{ background: "#a17e3a", color: "#fff" }}
+          >
+            Buy Gift Voucher
+          </Button>
+        </div>
+      </section>
+
       {/* Member Discounts Banner */}
       <section className="py-6 bg-secondary/50 border-b border-border">
         <div className="container mx-auto px-6">
