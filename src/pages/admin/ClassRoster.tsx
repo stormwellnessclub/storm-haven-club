@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft, Phone, Pencil, Check,
+  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft, Phone, Pencil, Check, Lock, UserCog,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -45,6 +45,18 @@ export default function ClassRoster() {
   const [rosterTab, setRosterTab] = useState<"roster" | "waitlist">("roster");
   const [editingCapacity, setEditingCapacity] = useState(false);
   const [capacityValue, setCapacityValue] = useState<number>(0);
+
+  // Hold-slot dialog
+  const [holdDialogOpen, setHoldDialogOpen] = useState(false);
+  const [holdCount, setHoldCount] = useState<number>(1);
+  const [holdNote, setHoldNote] = useState<string>("");
+
+  // Convert-hold dialog
+  const [convertEntry, setConvertEntry] = useState<{ bookingId: string; defaultName: string } | null>(null);
+  const [convertFirst, setConvertFirst] = useState("");
+  const [convertLast, setConvertLast] = useState("");
+  const [convertPhone, setConvertPhone] = useState("");
+  const [convertEmail, setConvertEmail] = useState("");
 
   // Promote-from-waitlist dialog state
   const [promoteEntry, setPromoteEntry] = useState<{ id: string; user_id: string; memberId: string | null; name: string } | null>(null);
@@ -192,7 +204,107 @@ export default function ClassRoster() {
     onError: (err: any) => toast.error(err.message || "Failed to update capacity"),
   });
 
-  // Check in mutation
+  // Hold slots mutation — insert N placeholder bookings
+  const holdSlotsMutation = useMutation({
+    mutationFn: async ({ count, note }: { count: number; note: string }) => {
+      if (!session) throw new Error("Session not loaded");
+      const remaining = session.max_capacity - bookings.length;
+      if (count < 1) throw new Error("Hold at least 1 seat");
+      if (count > remaining) throw new Error(`Only ${remaining} seat${remaining === 1 ? "" : "s"} remain`);
+      const baseLabel = note.trim() || "HOLD — Pending";
+      const rows = Array.from({ length: count }, (_, i) => ({
+        session_id: sessionId!,
+        status: "confirmed" as const,
+        payment_method: "comp",
+        is_admin_hold: true,
+        walk_in_name: count > 1 ? `${baseLabel} #${i + 1}` : baseLabel,
+        amount_paid: 0,
+        booked_at: new Date().toISOString(),
+      }));
+      const { error } = await supabase.from("class_bookings").insert(rows as any);
+      if (error) throw error;
+      await supabase
+        .from("class_sessions")
+        .update({ current_enrollment: bookings.length + count })
+        .eq("id", sessionId!);
+    },
+    onSuccess: (_d, vars) => {
+      invalidateAll();
+      setHoldDialogOpen(false);
+      setHoldCount(1);
+      setHoldNote("");
+      toast.success(`Held ${vars.count} seat${vars.count === 1 ? "" : "s"}`);
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to hold seats"),
+  });
+
+  // Release a held seat (delete row + decrement)
+  const releaseHoldMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { error } = await supabase.from("class_bookings").delete().eq("id", bookingId);
+      if (error) throw error;
+      const { count } = await supabase
+        .from("class_bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", sessionId!)
+        .in("status", ["confirmed", "completed"]);
+      if (typeof count === "number") {
+        await supabase.from("class_sessions").update({ current_enrollment: count }).eq("id", sessionId!);
+      }
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Seat released"); },
+    onError: (err: any) => toast.error(err.message || "Failed to release"),
+  });
+
+  // Convert a held seat into a real attendee
+  const convertHoldMutation = useMutation({
+    mutationFn: async (args: { bookingId: string; first: string; last: string; phone: string; email: string }) => {
+      const { bookingId, first, last, phone, email } = args;
+      if (!first.trim() || !last.trim() || !phone.trim()) {
+        throw new Error("First name, last name, and phone are required");
+      }
+      // Try to link to an existing account by email
+      let userId: string | null = null;
+      let memberId: string | null = null;
+      if (email.trim()) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .ilike("email", email.trim())
+          .maybeSingle();
+        if (profile) {
+          userId = profile.user_id;
+          const { data: member } = await supabase
+            .from("members")
+            .select("id")
+            .eq("user_id", profile.user_id)
+            .eq("status", "active")
+            .maybeSingle();
+          memberId = member?.id || null;
+        }
+      }
+      const { error } = await supabase
+        .from("class_bookings")
+        .update({
+          is_admin_hold: false,
+          walk_in_name: `${first.trim()} ${last.trim()}`,
+          walk_in_phone: phone.trim(),
+          walk_in_email: email.trim() || null,
+          user_id: userId,
+          member_id: memberId,
+        } as any)
+        .eq("id", bookingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      setConvertEntry(null);
+      setConvertFirst(""); setConvertLast(""); setConvertPhone(""); setConvertEmail("");
+      toast.success("Hold converted to attendee");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to convert"),
+  });
+
   const checkInMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       const { error } = await supabase
@@ -711,6 +823,34 @@ export default function ClassRoster() {
         </div>
       </div>
 
+      {/* Hold seats action */}
+      {(() => {
+        const holdCountActive = bookings.filter((a) => a.isAdminHold).length;
+        const remaining = session.max_capacity - bookings.length;
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300/40 bg-amber-50 px-3 py-2 text-sm dark:bg-amber-950/30">
+            <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+              <Lock className="h-4 w-4" />
+              {holdCountActive > 0 ? (
+                <span><span className="font-semibold">{holdCountActive}</span> seat{holdCountActive === 1 ? "" : "s"} held by admin{holdCountActive >= remaining + holdCountActive ? " — class shows full to public" : ""}.</span>
+              ) : (
+                <span>Reserve seats so they can't be booked publicly. Convert to a real attendee later.</span>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setHoldCount(Math.min(1, Math.max(1, remaining))); setHoldNote(""); setHoldDialogOpen(true); }}
+              disabled={remaining <= 0 || session.is_cancelled}
+            >
+              <Lock className="h-4 w-4 mr-1.5" />
+              Hold Slots
+            </Button>
+          </div>
+        );
+      })()}
+
+
       {/* Add to Class Panel */}
       <Card>
         <CardHeader className="pb-3">
@@ -831,9 +971,55 @@ export default function ClassRoster() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bookings.map((attendee) => {
+                    {[...bookings].sort((a, b) => Number(b.isAdminHold) - Number(a.isAdminHold)).map((attendee) => {
                       const initials = attendee.name.split(" ").map(n => n[0] || "").join("").slice(0, 2) || "?";
                       const typeLabel = attendee.type === "member" ? "Member" : attendee.type === "pass_holder" ? "Pass Holder" : attendee.type === "walk_in" ? "Walk-In" : "Account";
+                      if (attendee.isAdminHold) {
+                        return (
+                          <TableRow key={attendee.bookingId} className="bg-amber-50/60 dark:bg-amber-950/20">
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                                  <Lock className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+                                </div>
+                                <div>
+                                  <span className="font-medium text-amber-900 dark:text-amber-100">{attendee.name}</span>
+                                  <p className="text-xs text-muted-foreground">Admin hold — name pending</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell><span className="text-xs text-muted-foreground">—</span></TableCell>
+                            <TableCell>
+                              <Badge className="bg-amber-500 hover:bg-amber-500 text-white text-xs">HOLD</Badge>
+                            </TableCell>
+                            <TableCell><span className="text-sm text-muted-foreground">—</span></TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">Reserved</Badge>
+                            </TableCell>
+                            <TableCell className="text-right space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setConvertEntry({ bookingId: attendee.bookingId, defaultName: attendee.name });
+                                  setConvertFirst(""); setConvertLast(""); setConvertPhone(""); setConvertEmail("");
+                                }}
+                              >
+                                <UserCog className="h-4 w-4 mr-1" /> Convert
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => releaseHoldMutation.mutate(attendee.bookingId)}
+                                disabled={releaseHoldMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
                       return (
                         <TableRow key={attendee.bookingId}>
                           <TableCell>
@@ -1034,6 +1220,84 @@ export default function ClassRoster() {
               }
             >
               {promoteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm & Promote"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hold Slots dialog */}
+      <Dialog open={holdDialogOpen} onOpenChange={setHoldDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hold seats</DialogTitle>
+            <DialogDescription>
+              Reserve seats so they can't be booked publicly. Convert each held seat into a real attendee later, or release it if it's no longer needed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Number of seats to hold</Label>
+              <Input
+                type="number"
+                min={1}
+                max={Math.max(1, session ? session.max_capacity - bookings.length : 1)}
+                value={holdCount}
+                onChange={(e) => setHoldCount(Math.max(1, Number(e.target.value) || 1))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {session ? `${session.max_capacity - bookings.length} seat${session.max_capacity - bookings.length === 1 ? "" : "s"} remaining` : ""}
+              </p>
+            </div>
+            <div>
+              <Label>Note (optional)</Label>
+              <Input
+                value={holdNote}
+                onChange={(e) => setHoldNote(e.target.value)}
+                placeholder="e.g. Reserved at door, name pending"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHoldDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => holdSlotsMutation.mutate({ count: holdCount, note: holdNote })}
+              disabled={holdSlotsMutation.isPending}
+            >
+              {holdSlotsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : `Hold ${holdCount} seat${holdCount === 1 ? "" : "s"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert Hold dialog */}
+      <Dialog open={!!convertEntry} onOpenChange={(o) => { if (!o) setConvertEntry(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Convert hold to attendee</DialogTitle>
+            <DialogDescription>
+              Enter the person's details. If their email matches an existing account, we'll link it automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>First name *</Label><Input value={convertFirst} onChange={(e) => setConvertFirst(e.target.value)} /></div>
+              <div><Label>Last name *</Label><Input value={convertLast} onChange={(e) => setConvertLast(e.target.value)} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Phone *</Label><Input value={convertPhone} onChange={(e) => setConvertPhone(e.target.value)} type="tel" /></div>
+              <div><Label>Email</Label><Input value={convertEmail} onChange={(e) => setConvertEmail(e.target.value)} type="email" placeholder="Optional" /></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertEntry(null)}>Cancel</Button>
+            <Button
+              onClick={() => convertEntry && convertHoldMutation.mutate({
+                bookingId: convertEntry.bookingId,
+                first: convertFirst, last: convertLast, phone: convertPhone, email: convertEmail,
+              })}
+              disabled={convertHoldMutation.isPending || !convertFirst.trim() || !convertLast.trim() || !convertPhone.trim()}
+            >
+              {convertHoldMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save attendee"}
             </Button>
           </DialogFooter>
         </DialogContent>

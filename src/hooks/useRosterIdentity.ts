@@ -7,11 +7,12 @@ export interface RosterAttendee {
   name: string;
   email: string;
   phone: string;
-  type: "member" | "pass_holder" | "account" | "walk_in";
+  type: "member" | "pass_holder" | "account" | "walk_in" | "hold";
   isCheckedIn: boolean;
   checkedInAt: string | null;
   paymentMethod: string | null;
   walkInName: string | null;
+  isAdminHold: boolean;
 }
 
 interface RawBooking {
@@ -24,6 +25,7 @@ interface RawBooking {
   walk_in_email: string | null;
   walk_in_phone: string | null;
   payment_method: string | null;
+  is_admin_hold: boolean | null;
   members: {
     id: string;
     first_name: string;
@@ -43,7 +45,7 @@ export async function resolveRosterIdentities(
   const { data: rawBookings, error } = await supabase
     .from("class_bookings")
     .select(
-      "id, user_id, member_id, status, checked_in_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, members (id, first_name, last_name, phone, photo_url)"
+      "id, user_id, member_id, status, checked_in_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, members (id, first_name, last_name, phone, photo_url)"
     )
     .eq("session_id", sessionId)
     .in("status", ["confirmed", "completed"]);
@@ -81,6 +83,25 @@ export async function resolveRosterIdentities(
 
   return bookings.map((b): RosterAttendee => {
     const isCheckedIn = b.status === "completed" || !!b.checked_in_at;
+    const isAdminHold = !!b.is_admin_hold;
+
+    // 0. Admin hold — placeholder seat
+    if (isAdminHold) {
+      return {
+        bookingId: b.id,
+        userId: b.user_id,
+        memberId: b.member_id,
+        name: b.walk_in_name || "Held seat",
+        email: b.walk_in_email || "",
+        phone: b.walk_in_phone || "",
+        type: "hold",
+        isCheckedIn,
+        checkedInAt: b.checked_in_at,
+        paymentMethod: b.payment_method,
+        walkInName: b.walk_in_name,
+        isAdminHold: true,
+      };
+    }
 
     // 1. Member record
     if (b.members) {
@@ -96,6 +117,7 @@ export async function resolveRosterIdentities(
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
+        isAdminHold: false,
       };
     }
 
@@ -114,6 +136,7 @@ export async function resolveRosterIdentities(
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
+        isAdminHold: false,
       };
     }
 
@@ -132,6 +155,7 @@ export async function resolveRosterIdentities(
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
+        isAdminHold: false,
       };
     }
 
@@ -149,6 +173,7 @@ export async function resolveRosterIdentities(
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
+        isAdminHold: false,
       };
     }
 
@@ -165,6 +190,7 @@ export async function resolveRosterIdentities(
       checkedInAt: b.checked_in_at,
       paymentMethod: b.payment_method,
       walkInName: b.walk_in_name,
+      isAdminHold: false,
     };
   });
 }

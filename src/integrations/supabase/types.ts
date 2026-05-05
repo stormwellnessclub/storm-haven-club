@@ -997,6 +997,7 @@ export type Database = {
           created_at: string
           credits_used: number | null
           id: string
+          is_admin_hold: boolean
           member_credit_id: string | null
           member_id: string | null
           pass_id: string | null
@@ -1019,6 +1020,7 @@ export type Database = {
           created_at?: string
           credits_used?: number | null
           id?: string
+          is_admin_hold?: boolean
           member_credit_id?: string | null
           member_id?: string | null
           pass_id?: string | null
@@ -1041,6 +1043,7 @@ export type Database = {
           created_at?: string
           credits_used?: number | null
           id?: string
+          is_admin_hold?: boolean
           member_credit_id?: string | null
           member_id?: string | null
           pass_id?: string | null
