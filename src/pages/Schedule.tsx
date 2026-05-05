@@ -10,7 +10,7 @@ import {
 } from "date-fns";
 import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
-  ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake,
+  ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake, Heart,
   CircleDot, Bike, Activity, CalendarDays, CalendarIcon,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -476,18 +476,39 @@ export default function Schedule() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
                                   <h3 className="font-serif text-base font-medium truncate">{ct.name}</h3>
-                                  {ct.category !== "cycling" && (
-                                    ct.is_heated ? (
-                                      <Badge variant="outline" className="text-[10px] shrink-0 border-accent/50 text-accent bg-accent/10">
-                                        <Flame className="w-2.5 h-2.5 mr-0.5" /> Hot
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {session.is_fundraiser && (
+                                      <Badge className="text-[10px] bg-rose-600 hover:bg-rose-600 text-white">
+                                        <Heart className="w-2.5 h-2.5 mr-0.5" /> Fundraiser
                                       </Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="text-[10px] shrink-0">
-                                        <Snowflake className="w-2.5 h-2.5 mr-0.5" /> Cool
-                                      </Badge>
-                                    )
-                                  )}
+                                    )}
+                                    {ct.category !== "cycling" && (
+                                      ct.is_heated ? (
+                                        <Badge variant="outline" className="text-[10px] border-accent/50 text-accent bg-accent/10">
+                                          <Flame className="w-2.5 h-2.5 mr-0.5" /> Hot
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="text-[10px]">
+                                          <Snowflake className="w-2.5 h-2.5 mr-0.5" /> Cool
+                                        </Badge>
+                                      )
+                                    )}
+                                  </div>
                                 </div>
+
+                                {session.is_fundraiser && (
+                                  <div className="mt-1 rounded-md border border-rose-300/60 bg-rose-50 dark:bg-rose-950/30 px-2 py-1 text-[11px] text-rose-900 dark:text-rose-100">
+                                    <span className="font-semibold">
+                                      {session.override_price_cents != null
+                                        ? `$${(session.override_price_cents / 100).toFixed(0)} · `
+                                        : ""}
+                                      {session.fundraiser_beneficiary || "Fundraiser"}
+                                    </span>
+                                    <span className="block leading-snug">
+                                      {session.session_notes || "100% of proceeds will be donated."}
+                                    </span>
+                                  </div>
+                                )}
 
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
@@ -546,7 +567,7 @@ export default function Schedule() {
                                           setBookingOpen(true);
                                         }}
                                       >
-                                        {isFull ? "Join Waitlist" : "Book"}
+                                        {isFull ? "Join Waitlist" : session.is_fundraiser ? "Donate & Reserve" : "Book"}
                                       </Button>
                                     )}
                                   </div>
