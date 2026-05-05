@@ -1,0 +1,184 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, Search, Heart } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
+
+const GOAL = 50;
+
+export function MothersDayTab() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const { data: vouchers, isLoading } = useQuery({
+    queryKey: ["mothers-day-vouchers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mothers_day_vouchers")
+        .select("*")
+        .order("purchased_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
+
+  const redeem = useMutation({
+    mutationFn: async (code: string) => {
+      const { data, error } = await supabase.rpc("redeem_mothers_day_voucher", {
+        p_code: code,
+        p_appointment_id: null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      if (data?.success) {
+        toast.success("Voucher marked as redeemed");
+        qc.invalidateQueries({ queryKey: ["mothers-day-vouchers"] });
+      } else {
+        toast.error(data?.error || "Could not redeem");
+      }
+    },
+  });
+
+  const filtered = (vouchers || []).filter((v) => {
+    if (statusFilter !== "all" && v.status !== statusFilter) return false;
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      v.code?.toLowerCase().includes(s) ||
+      v.buyer_name?.toLowerCase().includes(s) ||
+      v.buyer_email?.toLowerCase().includes(s) ||
+      v.recipient_name?.toLowerCase().includes(s) ||
+      v.recipient_email?.toLowerCase().includes(s)
+    );
+  });
+
+  const sold = (vouchers || []).filter((v) => v.status !== "pending" && v.status !== "refunded").length;
+  const redeemed = (vouchers || []).filter((v) => v.status === "redeemed").length;
+  const active = (vouchers || []).filter((v) => v.status === "active").length;
+  const revenue = (vouchers || [])
+    .filter((v) => v.status !== "pending" && v.status !== "refunded")
+    .reduce((s, v) => s + (v.amount_paid_cents || 0), 0);
+
+  const exportCsv = () => {
+    const rows = [
+      ["Code", "Status", "Buyer", "Buyer Email", "Recipient", "Recipient Email", "Massage", "Duration", "Amount", "Purchased", "Expires", "Redeemed"],
+      ...(vouchers || []).map((v) => [
+        v.code, v.status, v.buyer_name, v.buyer_email,
+        v.recipient_name || "", v.recipient_email || "",
+        v.massage_choice || "", v.massage_duration,
+        ((v.amount_paid_cents || 0) / 100).toFixed(2),
+        v.purchased_at, v.expires_at, v.redeemed_at || "",
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mothers-day-vouchers-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+  };
+
+  if (isLoading)
+    return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Goal tracker */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Heart className="w-5 h-5 text-rose-400" /> Mother's Day Goal
+          </CardTitle>
+          <span className="text-2xl font-serif">{sold} / {GOAL}</span>
+        </CardHeader>
+        <CardContent>
+          <Progress value={Math.min(100, (sold / GOAL) * 100)} className="h-3" />
+        </CardContent>
+      </Card>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi label="Sold" value={String(sold)} />
+        <Kpi label="Active" value={String(active)} />
+        <Kpi label="Redeemed" value={String(redeemed)} />
+        <Kpi label="Revenue" value={`$${(revenue / 100).toFixed(0)}`} />
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search code, name, email…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <div className="flex gap-1">
+          {["all", "active", "redeemed", "pending", "expired"].map((s) => (
+            <Button key={s} size="sm" variant={statusFilter === s ? "default" : "outline"} onClick={() => setStatusFilter(s)}>
+              {s}
+            </Button>
+          ))}
+        </div>
+        <Button variant="outline" size="sm" onClick={exportCsv}>Export CSV</Button>
+      </div>
+
+      {/* List */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="divide-y">
+            {filtered.length === 0 && (
+              <div className="p-8 text-center text-sm text-muted-foreground">No vouchers found.</div>
+            )}
+            {filtered.map((v) => (
+              <div key={v.id} className="p-4 flex flex-wrap items-center gap-3 text-sm">
+                <div className="font-mono font-semibold tracking-wide">{v.code}</div>
+                <Badge variant={v.status === "redeemed" ? "secondary" : v.status === "active" ? "default" : "outline"}>
+                  {v.status}
+                </Badge>
+                <div className="flex-1 min-w-[200px]">
+                  <div className="font-medium">
+                    {v.recipient_name ? `🎁 ${v.recipient_name}` : v.buyer_name}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {v.massage_choice} · {v.massage_duration} min · From {v.buyer_name}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold">${((v.amount_paid_cents || 0) / 100).toFixed(0)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Exp {format(new Date(v.expires_at), "MMM d, yyyy")}
+                  </div>
+                </div>
+                {v.status === "active" && (
+                  <Button size="sm" variant="outline" onClick={() => redeem.mutate(v.code)} disabled={redeem.isPending}>
+                    Mark Redeemed
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Kpi({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+        <div className="text-2xl font-serif mt-1">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
