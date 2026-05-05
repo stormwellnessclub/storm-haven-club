@@ -4245,7 +4245,11 @@ export type Database = {
         Row: {
           amount_paid_cents: number
           buyer_email: string
+          buyer_first_name: string | null
+          buyer_gender: string | null
+          buyer_last_name: string | null
           buyer_name: string
+          buyer_phone: string | null
           buyer_user_id: string | null
           code: string
           created_at: string
@@ -4257,7 +4261,11 @@ export type Database = {
           notes: string | null
           purchased_at: string
           recipient_email: string | null
+          recipient_first_name: string | null
+          recipient_gender: string | null
+          recipient_last_name: string | null
           recipient_name: string | null
+          recipient_phone: string | null
           redeemed_appointment_id: string | null
           redeemed_at: string | null
           redeemed_by_user_id: string | null
@@ -4269,7 +4277,11 @@ export type Database = {
         Insert: {
           amount_paid_cents?: number
           buyer_email: string
+          buyer_first_name?: string | null
+          buyer_gender?: string | null
+          buyer_last_name?: string | null
           buyer_name: string
+          buyer_phone?: string | null
           buyer_user_id?: string | null
           code?: string
           created_at?: string
@@ -4281,7 +4293,11 @@ export type Database = {
           notes?: string | null
           purchased_at?: string
           recipient_email?: string | null
+          recipient_first_name?: string | null
+          recipient_gender?: string | null
+          recipient_last_name?: string | null
           recipient_name?: string | null
+          recipient_phone?: string | null
           redeemed_appointment_id?: string | null
           redeemed_at?: string | null
           redeemed_by_user_id?: string | null
@@ -4293,7 +4309,11 @@ export type Database = {
         Update: {
           amount_paid_cents?: number
           buyer_email?: string
+          buyer_first_name?: string | null
+          buyer_gender?: string | null
+          buyer_last_name?: string | null
           buyer_name?: string
+          buyer_phone?: string | null
           buyer_user_id?: string | null
           code?: string
           created_at?: string
@@ -4305,7 +4325,11 @@ export type Database = {
           notes?: string | null
           purchased_at?: string
           recipient_email?: string | null
+          recipient_first_name?: string | null
+          recipient_gender?: string | null
+          recipient_last_name?: string | null
           recipient_name?: string | null
+          recipient_phone?: string | null
           redeemed_appointment_id?: string | null
           redeemed_at?: string | null
           redeemed_by_user_id?: string | null
