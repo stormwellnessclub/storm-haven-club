@@ -83,6 +83,25 @@ export async function resolveRosterIdentities(
 
   return bookings.map((b): RosterAttendee => {
     const isCheckedIn = b.status === "completed" || !!b.checked_in_at;
+    const isAdminHold = !!b.is_admin_hold;
+
+    // 0. Admin hold — placeholder seat
+    if (isAdminHold) {
+      return {
+        bookingId: b.id,
+        userId: b.user_id,
+        memberId: b.member_id,
+        name: b.walk_in_name || "Held seat",
+        email: b.walk_in_email || "",
+        phone: b.walk_in_phone || "",
+        type: "hold",
+        isCheckedIn,
+        checkedInAt: b.checked_in_at,
+        paymentMethod: b.payment_method,
+        walkInName: b.walk_in_name,
+        isAdminHold: true,
+      };
+    }
 
     // 1. Member record
     if (b.members) {
@@ -98,6 +117,7 @@ export async function resolveRosterIdentities(
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
+        isAdminHold: false,
       };
     }
 
@@ -116,6 +136,7 @@ export async function resolveRosterIdentities(
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
+        isAdminHold: false,
       };
     }
 
@@ -134,6 +155,7 @@ export async function resolveRosterIdentities(
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
+        isAdminHold: false,
       };
     }
 
@@ -151,6 +173,7 @@ export async function resolveRosterIdentities(
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
+        isAdminHold: false,
       };
     }
 
@@ -167,6 +190,7 @@ export async function resolveRosterIdentities(
       checkedInAt: b.checked_in_at,
       paymentMethod: b.payment_method,
       walkInName: b.walk_in_name,
+      isAdminHold: false,
     };
   });
 }
