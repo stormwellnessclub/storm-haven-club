@@ -71,10 +71,18 @@ export function MothersDayTab() {
 
   const exportCsv = () => {
     const rows = [
-      ["Code", "Status", "Buyer", "Buyer Email", "Recipient", "Recipient Email", "Massage", "Duration", "Amount", "Purchased", "Expires", "Redeemed"],
-      ...(vouchers || []).map((v) => [
-        v.code, v.status, v.buyer_name, v.buyer_email,
-        v.recipient_name || "", v.recipient_email || "",
+      [
+        "Code", "Status", "Member?",
+        "Buyer First", "Buyer Last", "Buyer Email", "Buyer Phone", "Buyer Gender",
+        "Is Gift", "Recipient First", "Recipient Last", "Recipient Email", "Recipient Phone", "Recipient Gender", "Gift Message",
+        "Massage", "Duration", "Amount", "Purchased", "Expires", "Redeemed",
+      ],
+      ...(vouchers || []).map((v: any) => [
+        v.code, v.status, v.buyer_user_id ? "Member" : "Non-member",
+        v.buyer_first_name || v.buyer_name || "", v.buyer_last_name || "", v.buyer_email, v.buyer_phone || "", v.buyer_gender || "",
+        v.recipient_name ? "Yes" : "No",
+        v.recipient_first_name || "", v.recipient_last_name || "", v.recipient_email || "", v.recipient_phone || "", v.recipient_gender || "",
+        v.gift_message || "",
         v.massage_choice || "", v.massage_duration,
         ((v.amount_paid_cents || 0) / 100).toFixed(2),
         v.purchased_at, v.expires_at, v.redeemed_at || "",
@@ -138,11 +146,14 @@ export function MothersDayTab() {
             {filtered.length === 0 && (
               <div className="p-8 text-center text-sm text-muted-foreground">No vouchers found.</div>
             )}
-            {filtered.map((v) => (
+            {filtered.map((v: any) => (
               <div key={v.id} className="p-4 flex flex-wrap items-center gap-3 text-sm">
                 <div className="font-mono font-semibold tracking-wide">{v.code}</div>
                 <Badge variant={v.status === "redeemed" ? "secondary" : v.status === "active" ? "default" : "outline"}>
                   {v.status}
+                </Badge>
+                <Badge variant={v.buyer_user_id ? "secondary" : "outline"} className="text-xs">
+                  {v.buyer_user_id ? "Member" : "Non-member"}
                 </Badge>
                 <div className="flex-1 min-w-[200px]">
                   <div className="font-medium">
@@ -150,6 +161,8 @@ export function MothersDayTab() {
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {v.massage_choice} · {v.massage_duration} min · From {v.buyer_name}
+                    {v.buyer_phone ? ` · ${v.buyer_phone}` : ""}
+                    {v.buyer_gender ? ` · ${v.buyer_gender.replace(/_/g, " ")}` : ""}
                   </div>
                 </div>
                 <div className="text-right">
