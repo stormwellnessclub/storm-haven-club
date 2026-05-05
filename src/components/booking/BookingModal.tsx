@@ -627,17 +627,22 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </Button>
           )}
           {/* Normal booking button when class has spots */}
-          {!isClassFull && (!user || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
+          {!isClassFull && (!user || isFundraiser || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
             <Button
               onClick={handleBook}
-              disabled={bookClass.isPending || (user && (hasNoPaymentOptions || !hasLiabilityWaiver))}
+              disabled={
+                bookClass.isPending ||
+                isFundraiserCheckingOut ||
+                (!!user && !isFundraiser && (hasNoPaymentOptions || !hasLiabilityWaiver)) ||
+                (!!user && isFundraiser && !hasLiabilityWaiver)
+              }
               className="min-h-[44px]"
             >
-              {bookClass.isPending
-                ? "Booking..."
-                : !user
+              {!user
                 ? "Sign In to Book"
-                : "Confirm Booking"}
+                : isFundraiser
+                ? (isFundraiserCheckingOut ? "Starting checkout..." : `Donate $${fundraiserAmount.toFixed(0)} & Reserve Spot`)
+                : (bookClass.isPending ? "Booking..." : "Confirm Booking")}
             </Button>
           )}
         </DialogFooter>
