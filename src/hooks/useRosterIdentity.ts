@@ -25,6 +25,7 @@ interface RawBooking {
   walk_in_email: string | null;
   walk_in_phone: string | null;
   payment_method: string | null;
+  is_admin_hold: boolean | null;
   members: {
     id: string;
     first_name: string;
@@ -44,7 +45,7 @@ export async function resolveRosterIdentities(
   const { data: rawBookings, error } = await supabase
     .from("class_bookings")
     .select(
-      "id, user_id, member_id, status, checked_in_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, members (id, first_name, last_name, phone, photo_url)"
+      "id, user_id, member_id, status, checked_in_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, members (id, first_name, last_name, phone, photo_url)"
     )
     .eq("session_id", sessionId)
     .in("status", ["confirmed", "completed"]);
