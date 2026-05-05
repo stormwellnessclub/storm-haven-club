@@ -2,7 +2,7 @@ import { ClassSession } from "@/hooks/useClassSessions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, MapPin, User, Flame, Users } from "lucide-react";
+import { Clock, MapPin, User, Flame, Users, Heart } from "lucide-react";
 import { format, parse } from "date-fns";
 import { StarRating } from "@/components/reviews/StarRating";
 
@@ -55,6 +55,12 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
                 <Badge variant="destructive" className="text-xs">
                   <Flame className="h-3 w-3 mr-1" />
                   Hot
+                </Badge>
+              )}
+              {session.is_fundraiser && (
+                <Badge className="text-xs bg-rose-600 hover:bg-rose-600 text-white">
+                  <Heart className="h-3 w-3 mr-1" />
+                  Fundraiser
                 </Badge>
               )}
             </div>
