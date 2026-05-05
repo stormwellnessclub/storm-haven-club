@@ -204,7 +204,107 @@ export default function ClassRoster() {
     onError: (err: any) => toast.error(err.message || "Failed to update capacity"),
   });
 
-  // Check in mutation
+  // Hold slots mutation — insert N placeholder bookings
+  const holdSlotsMutation = useMutation({
+    mutationFn: async ({ count, note }: { count: number; note: string }) => {
+      if (!session) throw new Error("Session not loaded");
+      const remaining = session.max_capacity - bookings.length;
+      if (count < 1) throw new Error("Hold at least 1 seat");
+      if (count > remaining) throw new Error(`Only ${remaining} seat${remaining === 1 ? "" : "s"} remain`);
+      const baseLabel = note.trim() || "HOLD — Pending";
+      const rows = Array.from({ length: count }, (_, i) => ({
+        session_id: sessionId!,
+        status: "confirmed" as const,
+        payment_method: "comp",
+        is_admin_hold: true,
+        walk_in_name: count > 1 ? `${baseLabel} #${i + 1}` : baseLabel,
+        amount_paid: 0,
+        booked_at: new Date().toISOString(),
+      }));
+      const { error } = await supabase.from("class_bookings").insert(rows as any);
+      if (error) throw error;
+      await supabase
+        .from("class_sessions")
+        .update({ current_enrollment: bookings.length + count })
+        .eq("id", sessionId!);
+    },
+    onSuccess: (_d, vars) => {
+      invalidateAll();
+      setHoldDialogOpen(false);
+      setHoldCount(1);
+      setHoldNote("");
+      toast.success(`Held ${vars.count} seat${vars.count === 1 ? "" : "s"}`);
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to hold seats"),
+  });
+
+  // Release a held seat (delete row + decrement)
+  const releaseHoldMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { error } = await supabase.from("class_bookings").delete().eq("id", bookingId);
+      if (error) throw error;
+      const { count } = await supabase
+        .from("class_bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", sessionId!)
+        .in("status", ["confirmed", "completed"]);
+      if (typeof count === "number") {
+        await supabase.from("class_sessions").update({ current_enrollment: count }).eq("id", sessionId!);
+      }
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Seat released"); },
+    onError: (err: any) => toast.error(err.message || "Failed to release"),
+  });
+
+  // Convert a held seat into a real attendee
+  const convertHoldMutation = useMutation({
+    mutationFn: async (args: { bookingId: string; first: string; last: string; phone: string; email: string }) => {
+      const { bookingId, first, last, phone, email } = args;
+      if (!first.trim() || !last.trim() || !phone.trim()) {
+        throw new Error("First name, last name, and phone are required");
+      }
+      // Try to link to an existing account by email
+      let userId: string | null = null;
+      let memberId: string | null = null;
+      if (email.trim()) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .ilike("email", email.trim())
+          .maybeSingle();
+        if (profile) {
+          userId = profile.user_id;
+          const { data: member } = await supabase
+            .from("members")
+            .select("id")
+            .eq("user_id", profile.user_id)
+            .eq("status", "active")
+            .maybeSingle();
+          memberId = member?.id || null;
+        }
+      }
+      const { error } = await supabase
+        .from("class_bookings")
+        .update({
+          is_admin_hold: false,
+          walk_in_name: `${first.trim()} ${last.trim()}`,
+          walk_in_phone: phone.trim(),
+          walk_in_email: email.trim() || null,
+          user_id: userId,
+          member_id: memberId,
+        } as any)
+        .eq("id", bookingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateAll();
+      setConvertEntry(null);
+      setConvertFirst(""); setConvertLast(""); setConvertPhone(""); setConvertEmail("");
+      toast.success("Hold converted to attendee");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to convert"),
+  });
+
   const checkInMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       const { error } = await supabase
