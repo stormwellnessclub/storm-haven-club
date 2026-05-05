@@ -1,70 +1,88 @@
-## Goal
+## Corrected understanding
 
-Give admin the ability to hold seats in a class session so they can't be booked publicly. Holds count against capacity (which is what blocks new bookings since the booking RPC checks `current_enrollment >= max_capacity`). Later, admin can either:
-- **Convert** a held slot into a real attendee once they have the person's name/contact, or
-- **Release** the hold to free the seat.
+You are right: **admin holds should not be released to customers.** If you hold 4 seats, those 4 seats must stay blocked until admin converts or releases them.
 
-Works for any class session — not just fundraisers — but solves the immediate fundraiser need.
+The 12pm fundraiser currently has 8 total capacity with 4 admin holds, so it should still have **4 public donation spots** available. The issue is that the app is using `current_enrollment` as if every occupied seat is a real customer seat. Since holds count in `current_enrollment`, the public UI thinks the class is full even though only the non-held public spots should be counted for fundraiser checkout.
 
-## What gets built
+There is also a frontend bug in `BookingModal.tsx`: `useState` for fundraiser checkout is declared after `if (!session) return null`, which can cause a React hook-order crash when opening/closing the modal. That matches the “kicks me out of the session” behavior.
 
-### 1. Schema change (small)
-Add one column to `class_bookings`:
-- `is_admin_hold boolean NOT NULL DEFAULT false`
+## Plan
 
-This lets us distinguish placeholder seats from real walk-ins/bookings without overloading `walk_in_name` parsing.
+### 1. Add a safe backend availability RPC for fundraiser checkout
+Create a database function such as `get_fundraiser_public_availability(session_id)` that returns:
 
-### 2. Admin UI on Class Roster page (`src/pages/admin/ClassRoster.tsx`)
+- `max_capacity`
+- `confirmed_total`
+- `admin_holds`
+- `confirmed_non_hold`
+- `public_spots_left = max_capacity - admin_holds - confirmed_non_hold`
 
-In the roster header (next to the existing "Add Attendee" / capacity controls), add a new **"Hold Slots"** button that opens a small dialog:
+Rules:
 
-- Number input: "Hold N slots" (default 1, max = remaining capacity)
-- Optional label field: "Note (optional)" — e.g. "Reserved at door, name pending"
-- Action: **Hold N seats**
+- Admin holds remain reserved and unavailable to customers.
+- Customers may only book if `public_spots_left > 0`.
+- Normal class credit/pass booking remains unchanged and still treats holds as occupying capacity.
 
-Behavior on submit:
-- Inserts N rows into `class_bookings` with:
-  - `status = 'confirmed'`
-  - `payment_method = 'comp'`
-  - `is_admin_hold = true`
-  - `walk_in_name = 'HOLD — Pending #1'`, `#2`, … (or the admin's note)
-  - `amount_paid = 0`
-- Increments `current_enrollment` by N (same pattern as existing walk-in inserts).
-- Toast confirms and refreshes roster + capacity.
+For the 12pm class: `8 capacity - 4 holds - 0 real fundraiser bookings = 4 public spots left`.
 
-For a **single hold** the same dialog with N=1 covers it — no separate flow needed.
+### 2. Fix fundraiser checkout creation in `stripe-payment`
+Update `create_fundraiser_class_checkout` so it checks public fundraiser availability using non-hold seats instead of `current_enrollment >= max_capacity`.
 
-### 3. Roster row treatment for holds
+Important behavior:
 
-In the attendees table, rows where `is_admin_hold = true` get:
-- A distinct amber **"HOLD"** badge instead of the usual type label.
-- Two contextual actions replacing the normal check-in row:
-  - **Convert** — opens a small inline form (first name, last name, phone, optional email). On save: clears `is_admin_hold`, sets `walk_in_name/email/phone`, keeps `payment_method = 'comp'` (admin can change to a real method later via the existing edit flow). If email matches an existing profile/member, it auto-links `user_id`/`member_id` (same logic the walk-in tab already uses).
-  - **Release** — deletes the booking row and decrements `current_enrollment`. Same path as the existing remove-attendee mutation.
+- It will **not** consume or convert admin holds.
+- It allows checkout only for the non-held capacity.
+- It still blocks true sellout when `admin holds + real bookings >= capacity`.
+- It still blocks duplicate bookings for the same logged-in account.
 
-Holds are sorted to the top of the roster so they're easy to find.
+### 3. Fix fundraiser webhook fulfillment
+Update the `create_fundraiser_class_booking` database function used by the webhook so successful fundraiser payments create a real booking only when there is public capacity excluding admin holds.
 
-### 4. Capacity banner
+Because the insert trigger increments `current_enrollment`, this preserves correct counts:
 
-Above the roster, show a small summary line when holds exist:
-> "X of Y seats held by admin — public booking shows class as full."
+- Admin holds stay in the roster as holds.
+- Paid customers get new real bookings.
+- Once real bookings fill the unheld seats, future checkout is blocked.
 
-So you (and any other admin) immediately understand why a class looks fully booked.
+### 4. Fix the booking modal crash
+Move fundraiser checkout state (`isFundraiserCheckingOut`) above the early `if (!session) return null` in `BookingModal.tsx`.
 
-## Why this works for the immediate fundraiser problem
+This prevents React from changing hook order when the modal opens/closes.
 
-- The two May 12 fundraiser sessions each have ~1–2 seats left (per your message). You open each session's roster, click **Hold Slots**, enter the remaining count, and the class is now fully reserved — no member can book it.
-- As people send you their account info, you click **Convert** on a held row, fill in their details, and it becomes a normal confirmed attendee on the roster. Capacity stays the same; you don't have to release+re-add.
-- If someone backs out, click **Release** — the seat opens up.
+### 5. Update public fundraiser UI to use real public availability
+For fundraiser classes on schedule cards and the booking modal:
 
-## Doesn't affect anything else
+- Show capacity as public spots left excluding admin holds.
+- Keep the CTA as **Donate & Reserve** while public spots remain.
+- Show full/waitlist only when public spots are truly gone.
 
-- The existing booking RPC and Stripe-payment RPC already block when `current_enrollment >= max_capacity`. No changes needed there.
-- Holds use the same `class_bookings` table the roster already knows how to render, so reports, attendance, and the auto-heal counter logic continue to work. Reports can optionally filter `is_admin_hold = true` out later if you want — out of scope for this change.
-- No member-facing UI changes. The fundraiser badge/donate flow built earlier is untouched.
+Implementation approach:
 
-## Files touched
+- Query confirmed admin hold counts for the visible sessions on `/schedule`.
+- Add `admin_hold_count`/derived public spot count to the session data passed into `BookingModal` and `ClassDetailsSheet`.
+- For non-fundraiser classes, keep the current behavior exactly as-is.
 
-- New migration: add `is_admin_hold` column + index.
-- `src/pages/admin/ClassRoster.tsx`: Hold Slots dialog, Convert/Release actions, hold badge, capacity banner.
-- `src/hooks/useRosterIdentity.ts`: include `is_admin_hold` when resolving attendees so the UI can render the badge.
+### 6. Update class card behavior used elsewhere
+In `ClassCard.tsx`, calculate fundraiser spots as:
+
+`max_capacity - admin_holds - non_hold_confirmed_bookings`
+
+If the component does not have hold counts available, keep the button routing to the modal and let the backend be the source of truth, but avoid sending fundraiser customers into the credits/pass waitlist path.
+
+## Files to update
+
+- `supabase/migrations/...fundraiser_public_availability.sql`
+- `supabase/functions/stripe-payment/index.ts`
+- `supabase/functions/stripe-webhook/index.ts` if needed, depending on whether the database RPC alone can enforce fulfillment
+- `src/components/booking/BookingModal.tsx`
+- `src/components/booking/ClassCard.tsx`
+- `src/components/booking/ClassDetailsSheet.tsx`
+- `src/pages/Schedule.tsx`
+- `src/hooks/useClassSessions.ts` if the shared class session type needs an `admin_hold_count` field
+
+## Expected result
+
+- The 12pm fundraiser with 4 unheld seats will allow 4 customers to donate and reserve.
+- The 4 admin holds stay protected and cannot be taken by customers.
+- The 11am fundraiser with all seats held/admin-filled will correctly show no public booking spots unless admin releases holds.
+- Opening the fundraiser booking modal will no longer crash or kick the user out.
