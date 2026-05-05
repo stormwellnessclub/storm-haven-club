@@ -113,6 +113,21 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
           </div>
         </div>
 
+        {session.is_fundraiser && (
+          <div className="mb-3 rounded-md border border-rose-300/60 bg-rose-50 dark:bg-rose-950/30 p-2 text-xs text-rose-900 dark:text-rose-100">
+            <div className="font-semibold flex items-center gap-1">
+              <Heart className="h-3 w-3" />
+              {session.override_price_cents != null && (
+                <span>${(session.override_price_cents / 100).toFixed(0)} · </span>
+              )}
+              Fundraiser{session.fundraiser_beneficiary ? ` · ${session.fundraiser_beneficiary}` : ""}
+            </div>
+            {session.session_notes && (
+              <div className="mt-0.5 leading-snug">{session.session_notes}</div>
+            )}
+          </div>
+        )}
+
         {bookingDisabled ? (
           <div className="flex items-center gap-2">
             <Button
