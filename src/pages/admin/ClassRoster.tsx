@@ -46,6 +46,18 @@ export default function ClassRoster() {
   const [editingCapacity, setEditingCapacity] = useState(false);
   const [capacityValue, setCapacityValue] = useState<number>(0);
 
+  // Hold-slot dialog
+  const [holdDialogOpen, setHoldDialogOpen] = useState(false);
+  const [holdCount, setHoldCount] = useState<number>(1);
+  const [holdNote, setHoldNote] = useState<string>("");
+
+  // Convert-hold dialog
+  const [convertEntry, setConvertEntry] = useState<{ bookingId: string; defaultName: string } | null>(null);
+  const [convertFirst, setConvertFirst] = useState("");
+  const [convertLast, setConvertLast] = useState("");
+  const [convertPhone, setConvertPhone] = useState("");
+  const [convertEmail, setConvertEmail] = useState("");
+
   // Promote-from-waitlist dialog state
   const [promoteEntry, setPromoteEntry] = useState<{ id: string; user_id: string; memberId: string | null; name: string } | null>(null);
   const [promoteMethod, setPromoteMethod] = useState<PaymentOption | null>(null);
