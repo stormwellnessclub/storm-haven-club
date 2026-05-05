@@ -61,6 +61,10 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
           current_enrollment,
           room,
           is_cancelled,
+          is_fundraiser,
+          fundraiser_beneficiary,
+          session_notes,
+          override_price_cents,
           class_type:class_types!inner (
             id,
             name,
