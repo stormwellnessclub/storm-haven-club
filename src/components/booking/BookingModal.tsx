@@ -67,6 +67,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const [selectedPassType, setSelectedPassType] = useState<string | null>(null);
   const [showWaiverInline, setShowWaiverInline] = useState(false);
   const [waiverAcknowledged, setWaiverAcknowledged] = useState(false);
+  const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
 
   const bookClass = useBookClass();
   const joinWaitlist = useJoinWaitlist();
