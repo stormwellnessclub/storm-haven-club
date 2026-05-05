@@ -823,6 +823,34 @@ export default function ClassRoster() {
         </div>
       </div>
 
+      {/* Hold seats action */}
+      {(() => {
+        const holdCountActive = bookings.filter((a) => a.isAdminHold).length;
+        const remaining = session.max_capacity - bookings.length;
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300/40 bg-amber-50 px-3 py-2 text-sm dark:bg-amber-950/30">
+            <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+              <Lock className="h-4 w-4" />
+              {holdCountActive > 0 ? (
+                <span><span className="font-semibold">{holdCountActive}</span> seat{holdCountActive === 1 ? "" : "s"} held by admin{holdCountActive >= remaining + holdCountActive ? " — class shows full to public" : ""}.</span>
+              ) : (
+                <span>Reserve seats so they can't be booked publicly. Convert to a real attendee later.</span>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setHoldCount(Math.min(1, Math.max(1, remaining))); setHoldNote(""); setHoldDialogOpen(true); }}
+              disabled={remaining <= 0 || session.is_cancelled}
+            >
+              <Lock className="h-4 w-4 mr-1.5" />
+              Hold Slots
+            </Button>
+          </div>
+        );
+      })()}
+
+
       {/* Add to Class Panel */}
       <Card>
         <CardHeader className="pb-3">
