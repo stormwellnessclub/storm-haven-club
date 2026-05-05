@@ -600,6 +600,91 @@ serve(async (req) => {
         );
       }
 
+      case 'create_fundraiser_class_checkout': {
+        const { sessionId, successUrl, cancelUrl } = body;
+        if (!sessionId || !successUrl || !cancelUrl) {
+          throw new Error("Missing required fields for fundraiser class checkout");
+        }
+
+        // Load session and validate it's a fundraiser, not cancelled, has capacity
+        const { data: classSession, error: sessErr } = await supabase
+          .from('class_sessions')
+          .select(`
+            id, is_fundraiser, is_cancelled, max_capacity, current_enrollment,
+            override_price_cents, fundraiser_beneficiary, session_date, start_time,
+            class_type:class_types(name)
+          `)
+          .eq('id', sessionId)
+          .maybeSingle();
+
+        if (sessErr || !classSession) throw new Error("Class session not found");
+        if (!classSession.is_fundraiser) throw new Error("This class is not a fundraiser");
+        if (classSession.is_cancelled) throw new Error("This class has been cancelled");
+        if ((classSession.current_enrollment ?? 0) >= (classSession.max_capacity ?? 0)) {
+          throw new Error("This class is full");
+        }
+
+        // Block double-booking
+        const { data: existingBooking } = await supabase
+          .from('class_bookings')
+          .select('id')
+          .eq('session_id', sessionId)
+          .eq('user_id', user.id)
+          .eq('status', 'confirmed')
+          .maybeSingle();
+        if (existingBooking) throw new Error("You already have a booking for this class");
+
+        const amountCents = classSession.override_price_cents ?? 4000;
+        const beneficiary = classSession.fundraiser_beneficiary || 'Charity';
+        const className = (Array.isArray(classSession.class_type)
+          ? (classSession.class_type[0] as any)?.name
+          : (classSession.class_type as any)?.name) || 'Fundraiser Class';
+
+        const customerId = await getOrCreateCustomer();
+
+        // Inline price_data so we don't have to manage Stripe products for every fundraiser
+        const fundraiserLineItems: any[] = [{
+          price_data: {
+            currency: 'usd',
+            unit_amount: amountCents,
+            product_data: {
+              name: `${beneficiary} Fundraiser — ${className}`,
+              description: `100% of proceeds donated to ${beneficiary}.`,
+            },
+          },
+          quantity: 1,
+        }];
+        const fundraiserFeeItem = await createProcessingFeeLineItem(stripe, amountCents);
+        if (fundraiserFeeItem) fundraiserLineItems.push(fundraiserFeeItem);
+
+        const fundraiserMetadata = {
+          type: 'fundraiser_class_booking',
+          user_id: user.id,
+          class_session_id: sessionId,
+          amount_cents: String(amountCents),
+          beneficiary,
+        };
+
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: fundraiserLineItems,
+          mode: 'payment',
+          payment_intent_data: {
+            metadata: fundraiserMetadata,
+          },
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: cancelUrl,
+          metadata: fundraiserMetadata,
+        });
+
+        logStep("Fundraiser checkout created", { sessionId: session.id, classSessionId: sessionId, amountCents });
+
+        return new Response(
+          JSON.stringify({ sessionId: session.id, url: session.url }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
       case 'create_kids_care_checkout': {
         const { successUrl, cancelUrl, embedded } = body;
 

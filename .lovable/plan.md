@@ -1,55 +1,65 @@
 ## Goal
-Add two **Iraqi Children Foundation fundraiser** sessions on **Tue, May 12, 2026** — Signature Flow Pilates with Duha A, $40/person, 100% of proceeds donated, capacity 8, in the Reformer Studio.
+Enforce: **Fundraiser class sessions cannot be booked with class credits or class passes — every attendee must pay $40 at checkout** so 100% can be donated.
 
-| # | Time | Class | Instructor | Capacity | Price |
-|---|------|-------|------------|----------|-------|
-| 1 | 11:00 AM – 11:50 AM | Signature Flow Pilates – All Levels | Duha A | 8 | **$40** |
-| 2 | 12:00 PM – 12:50 PM | Signature Flow Pilates – All Levels | Duha A | 8 | **$40** |
+## Backwards-compatibility guarantee (non-fundraiser classes)
+This is the explicit safety check the user asked for. Every change is gated on `is_fundraiser = true`, so non-fundraiser sessions follow the existing flow byte-for-byte:
 
-Today the system has no per-session pricing or notes field, so we'll add minimal support for one-off fundraiser/special sessions, then create these two.
+- **`create_atomic_class_booking` RPC**: the fundraiser block is a single early-return inside `IF _session_record.is_fundraiser THEN …`. All other branches (credits, pass, capacity, blocked-email, duplicate booking, enrollment trigger) are kept identical to the current production version. Non-fundraiser sessions never enter the new branch.
+- **`is_fundraiser` column**: already exists with `NOT NULL DEFAULT false`, so every existing row and every future schedule-generated session is `false`. No migration of historical data needed.
+- **Stripe edge function**: a brand-new `case 'create_fundraiser_class_checkout'` is added. Existing cases (`create_class_pass_checkout`, credits purchase, etc.) are untouched.
+- **Webhook**: a new `metadata.type === 'fundraiser_class_booking'` branch is added alongside the others; existing branches are untouched.
+- **`BookingModal.tsx`**: every fundraiser-specific UI swap is wrapped in `if (session.is_fundraiser) { … } else { /* existing markup */ }`. The default render path for normal classes is preserved exactly.
+- **`ClassCard.tsx`**: button label change is `session.is_fundraiser ? "Donate & Reserve" : "Book"`. Same handler.
+- **`useBooking.ts` pre-flight guard**: only fires when the loaded session has `is_fundraiser = true`. Normal sessions skip the guard and go straight to the RPC as today.
+- **Waitlist, cancellations, reminders, schedule generation, attendance, reviews**: untouched. Fundraiser sessions are one-offs (`schedule_id = NULL`) and the May 12 records are already in place, so weekly reconciliation will not delete them and won't create duplicates.
 
-## Step 1 — Migration: extend `class_sessions`
-Add nullable columns (no impact on existing rows):
-- `is_fundraiser boolean NOT NULL DEFAULT false`
-- `fundraiser_beneficiary text` — e.g. "Iraqi Children Foundation"
-- `session_notes text` — public-facing note, e.g. "100% of proceeds donated to the Iraqi Children Foundation"
-- `override_price_cents integer` — when set, this is the drop-in price for this specific session (overrides the standard $25/$30 single-class price)
+## Remaining work
 
-Then insert the two ad-hoc sessions:
-- `schedule_id = NULL` (won't be touched by weekly reconciliation)
-- `class_type_id = 8d29b6d1-…` (Signature Flow Pilates – All Levels)
-- `instructor_id = 284f1cc6-…` (Duha A)
-- `room = 'Reformer Studio'`, `max_capacity = 8`
-- `is_fundraiser = true`, `fundraiser_beneficiary = 'Iraqi Children Foundation'`
-- `session_notes = '100% of proceeds will be donated to the Iraqi Children Foundation.'`
-- `override_price_cents = 4000`
+### 1. Migration — fundraiser gate + fulfillment RPC
+Replace `create_atomic_class_booking` with a copy of the current function plus one new block:
+```
+IF _session_record.is_fundraiser THEN
+  RETURN jsonb_build_object(
+    'success', false,
+    'error', 'This is a fundraiser class. Credits and class passes cannot be used — please complete checkout to pay the donation amount in full.'
+  );
+END IF;
+```
+All other logic (BLOCKED CHECK, payment validation, capacity check, duplicate-booking check, member_credits / class_passes decrement, INSERT, enrollment trigger) is preserved verbatim.
 
-## Step 2 — Display the fundraiser badge & note
-Wherever sessions render (members & public schedule, admin roster):
-- `src/pages/Schedule.tsx` and `ClassTypeDetail.tsx` (member/public)
-- `src/pages/admin/Classes.tsx` / roster (admin)
+Add `create_fundraiser_class_booking(_session_id, _user_id, _amount_cents)` (SECURITY DEFINER) used only by the Stripe webhook to insert a confirmed booking with `payment_method = 'cash'` and `amount_paid = amount/100`. Idempotent (returns existing booking_id if already confirmed).
 
-Add: a **"Fundraiser"** badge + a small line "100% of proceeds donated to {beneficiary}" when `is_fundraiser = true`. Show `$40` price clearly on the booking CTA when `override_price_cents` is set.
+### 2. Edge function `stripe-payment` — new action
+`create_fundraiser_class_checkout`: validates `is_fundraiser`, not cancelled, not full, no existing booking. Creates Stripe Checkout `mode: 'payment'` with `override_price_cents` (default 4000) + processing fee. Metadata `type: 'fundraiser_class_booking'`, `class_session_id`, `user_id`, `amount_cents`, `beneficiary` on both checkout and payment_intent_data. Product name: `"{Beneficiary} Fundraiser — {Class Name}"`. Returns `{ url }` for new-tab redirect.
 
-## Step 3 — Honor the $40 price at booking
-Single-class booking already supports paying for non-members and members-without-credits via the existing single-class-pass flow (`ClassPasses.tsx`, `stripe-payment` edge function).
+### 3. Edge function `stripe-webhook` — new branch
+In `checkout.session.completed`, add `else if (metadata.type === 'fundraiser_class_booking')` that calls `create_fundraiser_class_booking` RPC. Logged + idempotent.
 
-Update the booking/checkout path to:
-1. Read `override_price_cents` from the session being booked.
-2. If set, use that amount (in cents) for the Stripe charge instead of the standard $25/$30 price, and bypass any "use a credit" path so everyone pays cash for the fundraiser. Members can still book — they just pay $40 like anyone else (so 100% can be donated).
-3. Label the Stripe charge description: `Iraqi Children Foundation Fundraiser — Signature Flow Pilates (May 12, 11:00 AM)` so it's easy to total in the Stripe dashboard.
+### 4. UI — `BookingModal.tsx`
+Wrap fundraiser branch around the payment selection / book button:
+- Hide credits/pass radios.
+- Show "Donation Checkout" panel: $40, beneficiary, "100% of proceeds donated…".
+- Replace primary button with **"Donate $40 & Reserve Spot"** → `supabase.functions.invoke('stripe-payment', { body: { action: 'create_fundraiser_class_checkout', sessionId, successUrl, cancelUrl } })` then `window.open(url, '_blank')`.
+- Liability waiver still required.
+- Skip the "purchase a pass" empty-state for fundraiser sessions.
 
-## Step 4 — Helpful follow-ups (optional, ask before doing)
-- Send an SMS/email blast announcing the fundraiser via Marketing → Compose.
-- Pin a banner on `/schedule` for the week of May 12 calling out the fundraiser.
+### 5. UI — `ClassCard.tsx`
+Button label conditional: `session.is_fundraiser ? "Donate & Reserve" : "Book"`. Same click handler opens BookingModal.
+
+### 6. `useBooking.ts` — defense-in-depth pre-flight
+Before calling the RPC, fetch `is_fundraiser` for the session and throw a friendly error pointing to the donation checkout if true. This protects against a stale tab and guarantees no credit/pass is ever consumed for a fundraiser session even if the UI didn't switch over.
 
 ## Files
-- New migration adding the 4 columns + two `INSERT` rows.
-- `src/pages/Schedule.tsx`, `src/pages/ClassTypeDetail.tsx`, admin roster — fundraiser badge + note + price display.
-- `src/pages/ClassPasses.tsx` (and/or the booking dialog that calls `stripe-payment`) — pass `session_id` so backend can read `override_price_cents`.
-- `supabase/functions/stripe-payment/index.ts` — when a `session_id` is provided and the session has `override_price_cents`, charge that amount and force a no-credit cash purchase; set descriptive line item.
-- `src/integrations/supabase/types.ts` — auto-regenerated.
+- New migration (replaces `create_atomic_class_booking`, adds `create_fundraiser_class_booking`).
+- `supabase/functions/stripe-payment/index.ts` — new case.
+- `supabase/functions/stripe-webhook/index.ts` — new metadata branch.
+- `src/components/booking/BookingModal.tsx` — fundraiser branch.
+- `src/components/booking/ClassCard.tsx` — donate label.
+- `src/hooks/useBooking.ts` — pre-flight fundraiser guard.
 
-## Notes
-- Existing 11:00 AM "Pilates Foundations – Beginner" on May 12 is `is_hidden = true`, so no visible conflict.
-- All times stored in `America/Chicago` per project policy.
+## Post-implementation verification
+- Manually book a normal Pilates/Cycling class with credits — should succeed exactly as today.
+- Manually book a normal class with a pass — should succeed and decrement.
+- Try to book the May 12 fundraiser with credits — RPC returns the friendly fundraiser error, nothing decremented.
+- Complete a $40 fundraiser checkout — webhook records confirmed booking, enrollment increments via existing trigger.
+- Cancel a fundraiser booking — existing `cancel_class_booking` works (no credit refund since payment_method = 'cash').

@@ -1,4 +1,5 @@
 import { ClassSession } from "@/hooks/useClassSessions";
+import { supabase } from "@/integrations/supabase/client";
 import { useBookClass } from "@/hooks/useBooking";
 import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
 import { useAuth } from "@/contexts/AuthContext";
@@ -149,10 +150,55 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const myWaitlistEntry = waitlistStatus?.[session.id];
   const isOnWaitlist = !!myWaitlistEntry;
 
+  const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
+  const isFundraiser = !!session?.is_fundraiser;
+  const fundraiserAmount = session?.override_price_cents != null ? session.override_price_cents / 100 : 40;
+
+  const handleFundraiserCheckout = async () => {
+    if (!session) return;
+    if (!user) {
+      navigate("/auth");
+      onOpenChange(false);
+      return;
+    }
+    try {
+      setIsFundraiserCheckingOut(true);
+      const origin = window.location.origin;
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_fundraiser_class_checkout",
+          sessionId: session.id,
+          successUrl: `${origin}/payment-success`,
+          cancelUrl: `${origin}/schedule`,
+        },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, "_blank");
+        clearClassDraft();
+        onOpenChange(false);
+      } else {
+        throw new Error("Could not start checkout");
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Could not start checkout";
+      // toast is imported via sonner in useBooking; use alert fallback through sonner
+      const { toast } = await import("sonner");
+      toast.error(msg);
+    } finally {
+      setIsFundraiserCheckingOut(false);
+    }
+  };
+
   const handleBook = async () => {
     if (!user) {
       navigate("/auth");
       onOpenChange(false);
+      return;
+    }
+
+    if (isFundraiser) {
+      await handleFundraiserCheckout();
       return;
     }
 
@@ -269,8 +315,24 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           )}
 
-          {/* No Payment Options Available - Prompt to Purchase */}
-          {user && !isClassFull && !creditsLoading && hasNoPaymentOptions && (
+          {/* Fundraiser Donation Panel — replaces credits/pass selection */}
+          {user && !isClassFull && isFundraiser && (
+            <div className="rounded-lg border border-rose-300/60 bg-rose-50 dark:bg-rose-950/30 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-rose-900 dark:text-rose-100 font-semibold">
+                <CreditCard className="h-4 w-4" />
+                Donation Checkout — ${fundraiserAmount.toFixed(0)}
+              </div>
+              <p className="text-sm text-rose-900/90 dark:text-rose-100/90">
+                {session.session_notes || `100% of proceeds will be donated to ${session.fundraiser_beneficiary || "the beneficiary"}.`}
+              </p>
+              <p className="text-xs text-rose-900/80 dark:text-rose-100/80">
+                Class credits and class passes can't be used for fundraiser classes — please complete checkout to reserve your spot.
+              </p>
+            </div>
+          )}
+
+          {/* No Payment Options Available - Prompt to Purchase (non-fundraiser only) */}
+          {user && !isClassFull && !creditsLoading && hasNoPaymentOptions && !isFundraiser && (
             <div className="space-y-4">
               <Alert variant="destructive">
                 <ShoppingBag className="h-4 w-4" />
@@ -302,7 +364,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
 
           {/* Liability Waiver Required — Inline Signing */}
-          {user && !isClassFull && !creditsLoading && !hasNoPaymentOptions && !hasLiabilityWaiver && (
+          {user && !isClassFull && !creditsLoading && (!hasNoPaymentOptions || isFundraiser) && !hasLiabilityWaiver && (
             <div className="space-y-3">
               <Alert className="bg-destructive/10 border-destructive/30">
                 <FileCheck className="h-4 w-4 text-destructive" />
@@ -371,7 +433,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
 
           {/* Payment Method Selection (also used for waitlist hold when full) */}
-          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && (
+          {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && !isFundraiser && (
             <>
               {isClassFull && (
                 <p className="text-xs text-muted-foreground -mb-1">
@@ -565,17 +627,22 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </Button>
           )}
           {/* Normal booking button when class has spots */}
-          {!isClassFull && (!user || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
+          {!isClassFull && (!user || isFundraiser || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
             <Button
               onClick={handleBook}
-              disabled={bookClass.isPending || (user && (hasNoPaymentOptions || !hasLiabilityWaiver))}
+              disabled={
+                bookClass.isPending ||
+                isFundraiserCheckingOut ||
+                (!!user && !isFundraiser && (hasNoPaymentOptions || !hasLiabilityWaiver)) ||
+                (!!user && isFundraiser && !hasLiabilityWaiver)
+              }
               className="min-h-[44px]"
             >
-              {bookClass.isPending
-                ? "Booking..."
-                : !user
+              {!user
                 ? "Sign In to Book"
-                : "Confirm Booking"}
+                : isFundraiser
+                ? (isFundraiserCheckingOut ? "Starting checkout..." : `Donate $${fundraiserAmount.toFixed(0)} & Reserve Spot`)
+                : (bookClass.isPending ? "Booking..." : "Confirm Booking")}
             </Button>
           )}
         </DialogFooter>
