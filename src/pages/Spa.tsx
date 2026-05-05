@@ -239,15 +239,11 @@ export default function Spa() {
       );
     }
 
-    // All other categories: Request button
+    // All other categories: Coming Soon badge
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => handleRequestService(service)}
-      >
-        Request
-      </Button>
+      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs uppercase tracking-wider bg-muted text-muted-foreground">
+        Coming Soon
+      </span>
     );
   };
 
