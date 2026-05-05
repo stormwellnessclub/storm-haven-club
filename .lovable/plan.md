@@ -1,136 +1,74 @@
+## Mother's Day Special — In-App Checkout + Buyer Data Capture
 
-# Mother's Day Special — Massage + Wet Spa Access
+Right now the Mother's Day flow redirects to Stripe Checkout and only captures name + email. You want the whole purchase to happen inside the app, and you want to know who's buying — especially non-members — including their gender and whether the voucher is for someone else. No SMS opt-in.
 
-The product is an **add-on package**: customer picks any massage from the menu (60 or 90 min), and the Mother's Day Special grants them **Exclusive Wet Spa Access** that day — Sauna, Steam Room, and Himalayan Salt Room — plus a 6-month redemption window. Sold as self-use or gift, with a TO/FROM card design matching the uploaded artwork.
+### 1. Switch to embedded Stripe checkout (no redirect)
 
-## 1. Data model — `mothers_day_vouchers` table
+Replace Stripe Checkout (hosted page) with an in-app `PaymentElement` flow, the same pattern used everywhere else in the app (`PaymentSectionEnhanced`, `MembershipActivationPayment`, `AdminChargeWith3DS`).
 
-```text
-id              uuid pk
-code            text unique         -- e.g. MOM-7K2X9P (shown on voucher)
-buyer_user_id   uuid (nullable, links auth.users)
-buyer_name      text
-buyer_email     text
-recipient_name  text (nullable — blank = self)
-recipient_email text (nullable)
-gift_message    text (nullable)
-massage_choice  text (nullable)     -- pre-selected at checkout, or "TBD"
-massage_duration int                -- 60 or 90
-amount_paid_cents int
-stripe_payment_intent_id text
-status          text                -- 'active' | 'redeemed' | 'expired' | 'refunded'
-purchased_at    timestamptz default now()
-expires_at      timestamptz         -- purchased_at + 6 months
-redeemed_at     timestamptz (nullable)
-redeemed_appointment_id uuid (nullable, FK spa_appointments)
-created_at      timestamptz default now()
-```
+Flow:
+1. User fills buyer + (optional) recipient details on `/mothers-day`.
+2. Click "Pay $X" → calls new `mothers-day-create-intent` edge function.
+3. Edge function inserts a `pending` voucher row, then creates a Stripe **PaymentIntent** with `amount`, `metadata.voucher_id`, `metadata.campaign = "mothers_day_2026"`, returns `client_secret`.
+4. Frontend mounts `<StripeProvider clientSecret>` with `PaymentElement`, user enters card inline, calls `stripe.confirmPayment({ redirect: "if_required" })`.
+5. On success, frontend calls `mothers-day-confirm` (existing) which marks voucher `active`, generates `MOM-XXXXXX` code, fires `send-mothers-day-voucher`.
+6. User stays on `/mothers-day`, shows the same gold confirmation card with voucher code, copy button, "Book Massage" CTA.
 
-RLS: buyers can read their own vouchers; admins/staff can read/update all; redemption is via SECURITY DEFINER RPC.
+No URL redirect. `success_url`/`cancel_url` removed.
 
-## 2. Stripe products
+### 2. Expanded buyer data capture (required fields)
 
-Two prices (one per duration), each named "Mother's Day Special — Custom Massage + Wet Spa Access":
-- 60 min — price set per current menu pricing for a 60-min custom massage (e.g. matches existing custom massage line)
-- 90 min — same for 90-min
+The form will collect on every purchase:
+- **Buyer first name** *(required)*
+- **Buyer last name** *(required)*
+- **Buyer email** *(required)*
+- **Buyer phone** *(required)* — used for redemption lookup
+- **Buyer gender** *(required)* — radio: Female / Male / Prefer not to say
+- **Is this a gift?** checkbox
 
-We'll list current massage prices from `spa_services` (Massage category) and confirm the two amounts before creating Stripe products. Both products tagged with metadata `{ campaign: "mothers_day_2026" }` so the Stripe webhook handler / payment-link fulfillment can route to the voucher table.
+If gift = yes:
+- **Recipient first name** *(required)*
+- **Recipient last name** *(required)*
+- **Recipient email** *(required)*
+- **Recipient phone** *(optional)*
+- **Recipient gender** *(required)* — Female / Male / Prefer not to say
+- **Personal message** *(optional)*
 
-## 3. Public landing — `/mothers-day`
+For logged-in members, buyer fields prefill from their profile but stay editable. No SMS / marketing opt-in checkbox anywhere — explicitly excluded per your direction.
 
-A dedicated marketing page styled to match the uploaded card (cream background, gold serif headings, signature "Happy Mother's Day" script):
+### 3. Schema additions
 
-- Hero with the Aella mark + "Mother's Day Special"
-- Bullet list: Custom Massage + Sauna · Steam · Himalayan Salt Room
-- "Redeemable for 6 months" pill
-- Two CTA tiles: **60 min** / **90 min**, each opening a checkout sheet
-- Checkout sheet collects: buyer name/email (auto-filled if logged in), optional recipient name/email + gift message, then redirects to Stripe Checkout
-- After successful payment: branded confirmation page with the voucher code and a "Print/Email Card" action
+Migration adds columns to `mothers_day_vouchers`:
+- `buyer_first_name`, `buyer_last_name`, `buyer_phone`, `buyer_gender` (text)
+- `recipient_first_name`, `recipient_last_name`, `recipient_phone`, `recipient_gender` (text)
+- `stripe_payment_intent_id` (text) — replaces session-id-only tracking
+- Keep existing `buyer_name` / `recipient_name` populated as `first + " " + last` for backwards compatibility with the email + admin tab.
 
-Linked from the homepage (small seasonal banner) and the Spa page.
+Existing rows untouched (all new columns nullable).
 
-## 4. Spa page — new "Mother's Day" category tab
+### 4. Non-member tracking
 
-Add `"Mother's Day"` to the `categories` array on `src/pages/Spa.tsx` (placed first so it stands out). Inside, render a single hero card matching the uploaded design with:
-- Aella logo, "Mother's Day Special" heading, the bullet points, "Happy Mother's Day" signature
-- "Buy Gift Voucher" primary CTA → routes to `/mothers-day`
+When a non-member (no `buyer_user_id`) buys, the voucher row itself **is** the non-member record — name, email, phone, gender all stored. The Mother's Day admin tab already lists every voucher; we'll extend its detail view + CSV export to include the new fields, and add a "Member / Non-member" column so you can see at a glance who's new to the club. Easy follow-up audience for the lead list.
 
-This avoids cluttering the Massage tab while still being discoverable from the spa menu.
+### 5. Files
 
-## 5. Member portal banner
+**New**
+- `supabase/migrations/...` — add columns above
+- `supabase/functions/mothers-day-create-intent/index.ts` — PaymentIntent + pending voucher insert
 
-Add a dismissible top banner to `src/pages/portal/Dashboard.tsx` and `src/pages/member/Dashboard.tsx`:
-- Cream/gold styling, signature script accent
-- Copy: "Mother's Day Special — Custom Massage + Exclusive Wet Spa Access. Give the gift of renewal."
-- CTA: "View Special" → `/mothers-day`
-- Auto-hides after Mother's Day (May 10, 2026) or once the user dismisses it (stored in `localStorage`)
+**Edit**
+- `src/pages/MothersDay.tsx` — new form fields, embedded `<PaymentElement>` step, no redirect
+- `supabase/functions/mothers-day-confirm/index.ts` — accept `payment_intent_id` instead of (or alongside) `session_id`
+- `src/components/admin/spa/MothersDayTab.tsx` — show phone, gender, member/non-member; include in CSV
+- `mem://features/promotions/mothers-day-special.md` — record embedded-checkout + required fields
 
-## 6. Redemption flow (how staff "knows" they bought it)
+**Delete (cleanup)**
+- `mothers-day-checkout` edge function (or keep as deprecated stub) — replaced by `create-intent`
 
-Two paths:
+### Technical notes
 
-**A. Voucher code at booking time (primary):**
-- On the spa booking modal, add a "Have a voucher?" field. Entering a `MOM-…` code:
-  - Validates against `mothers_day_vouchers` (active, not expired)
-  - Pre-selects the massage and shows a gold "Mother's Day Special — includes Wet Spa Access" badge on the appointment
-  - Marks voucher as `redeemed` and links `redeemed_appointment_id` on confirm
-- Skips payment (already paid)
-
-**B. Front desk lookup (fallback for in-person):**
-- New admin tab **Spa Management → Mother's Day** lists all vouchers with filters (active / redeemed / expired), search by code/name/email
-- "Redeem" button to mark a voucher used and attach to an appointment if booked offline
-
-**Visibility on the appointment:** Any spa appointment created from a Mother's Day voucher carries `notes: "MOTHER'S DAY SPECIAL — Wet Spa Access included (Sauna · Steam · Himalayan Salt Room)"` and a gold badge in the admin Appointments view, the Therapist schedule, and the kiosk. This is the cue staff use to grant wet spa access on the day of service.
-
-## 7. Email confirmation / gift delivery
-
-`send-mothers-day-voucher` edge function, triggered after Stripe webhook marks payment succeeded:
-- If `recipient_email` provided → send the branded card (TO/FROM, signature, voucher code, redemption instructions, expiration date) to recipient, with a CC-style copy to buyer
-- If recipient blank → send the voucher to the buyer
-- HTML email mirrors the uploaded card styling (cream/gold, serif + signature)
-
-## 8. Admin — Mother's Day dashboard
-
-New tab inside Spa Management:
-- KPI cards: Sold (count + revenue), Redeemed, Outstanding, Expiring soon
-- Sales list with buyer/recipient, amount, status, code, redemption date
-- Export CSV
-- Goal tracker: "X of 50 sold" progress bar (since the user's stated goal is 50)
-
-## Technical details
-
-- New table + RLS migration as described in §1
-- `mothers_day-checkout` edge function (creates Stripe Checkout session in `payment` mode, stores pending voucher row with status `pending` keyed by `payment_intent_id`)
-- `mothers_day-webhook` (or extension to existing Stripe webhook) flips status to `active`, generates code, sends email
-- `redeem_mothers_day_voucher(p_code text, p_appointment_id uuid)` SECURITY DEFINER RPC — atomic update with status check
-- Banner component: `<MothersDayBanner />` reused across portal/member dashboards
-- New route: `<Route path="/mothers-day" element={<MothersDay />} />` in `src/App.tsx`
-- Update memory with a `features/promotions/mothers-day-special` note covering voucher schema, redemption RPC, and 6-month expiry rule
-
-## Files to create / change
-
-Create:
-- `supabase/migrations/…_mothers_day_vouchers.sql`
-- `supabase/functions/mothers-day-checkout/index.ts`
-- `supabase/functions/send-mothers-day-voucher/index.ts`
-- `src/pages/MothersDay.tsx` (public landing + checkout sheet + success view)
-- `src/components/marketing/MothersDayBanner.tsx`
-- `src/components/admin/spa/MothersDayTab.tsx`
-- `mem://features/promotions/mothers-day-special.md`
-
-Edit:
-- `src/App.tsx` — add `/mothers-day` route
-- `src/pages/Spa.tsx` — add "Mother's Day" category + featured card
-- `src/pages/portal/Dashboard.tsx`, `src/pages/member/Dashboard.tsx`, `src/pages/Index.tsx` — add banner
-- `src/pages/admin/SpaManagement.tsx` — add "Mother's Day" tab
-- `src/components/booking/SpaBookingModal.tsx` — voucher code field + apply logic
-- Stripe webhook handler — route campaign metadata to voucher fulfillment
-- `mem://index.md` — add reference
-
-## Open question before I build
-
-What should the **two prices** be? I can either:
-1. Match the existing Custom Massage 60 / 90 min prices from your spa menu exactly (no change), or
-2. Set a special bundle price (e.g. $20 over the standalone massage to reflect the wet spa access value)
-
-I'll default to option 1 (current massage prices, wet spa access included free as the holiday perk) unless you say otherwise.
+- PaymentIntent uses `automatic_payment_methods: { enabled: true }`.
+- `confirmPayment({ redirect: "if_required" })` — keeps user on page; only redirects for 3DS, which returns to `/mothers-day` and resumes via `payment_intent` query param.
+- `mothers-day-confirm` becomes idempotent on `stripe_payment_intent_id` so 3DS returns and explicit calls don't double-fire emails.
+- Validation: zod schema on the edge function rejects missing required fields and invalid gender enum.
+- Gender stored as enum-style text: `female | male | prefer_not_to_say`.
