@@ -4241,6 +4241,81 @@ export type Database = {
         }
         Relationships: []
       }
+      mothers_day_vouchers: {
+        Row: {
+          amount_paid_cents: number
+          buyer_email: string
+          buyer_name: string
+          buyer_user_id: string | null
+          code: string
+          created_at: string
+          expires_at: string
+          gift_message: string | null
+          id: string
+          massage_choice: string | null
+          massage_duration: number
+          notes: string | null
+          purchased_at: string
+          recipient_email: string | null
+          recipient_name: string | null
+          redeemed_appointment_id: string | null
+          redeemed_at: string | null
+          redeemed_by_user_id: string | null
+          status: Database["public"]["Enums"]["mothers_day_voucher_status"]
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_paid_cents?: number
+          buyer_email: string
+          buyer_name: string
+          buyer_user_id?: string | null
+          code?: string
+          created_at?: string
+          expires_at?: string
+          gift_message?: string | null
+          id?: string
+          massage_choice?: string | null
+          massage_duration: number
+          notes?: string | null
+          purchased_at?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          redeemed_appointment_id?: string | null
+          redeemed_at?: string | null
+          redeemed_by_user_id?: string | null
+          status?: Database["public"]["Enums"]["mothers_day_voucher_status"]
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_paid_cents?: number
+          buyer_email?: string
+          buyer_name?: string
+          buyer_user_id?: string | null
+          code?: string
+          created_at?: string
+          expires_at?: string
+          gift_message?: string | null
+          id?: string
+          massage_choice?: string | null
+          massage_duration?: number
+          notes?: string | null
+          purchased_at?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          redeemed_appointment_id?: string | null
+          redeemed_at?: string | null
+          redeemed_by_user_id?: string | null
+          status?: Database["public"]["Enums"]["mothers_day_voucher_status"]
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       non_member_profiles: {
         Row: {
           card_brand: string | null
@@ -6947,6 +7022,7 @@ export type Database = {
           sessions_skipped: number
         }[]
       }
+      generate_mothers_day_code: { Args: never; Returns: string }
       generate_referral_code: { Args: { _member_id: string }; Returns: string }
       generate_shifts_from_templates: {
         Args: { week_start: string }
@@ -7215,6 +7291,7 @@ export type Database = {
         }
         Returns: string
       }
+      lookup_mothers_day_voucher: { Args: { p_code: string }; Returns: Json }
       mark_guest_pass_used: { Args: { p_pass_id: string }; Returns: Json }
       process_member_scan: {
         Args: {
@@ -7244,6 +7321,10 @@ export type Database = {
           p_guest_phone: string
           p_visit_date: string
         }
+        Returns: Json
+      }
+      redeem_mothers_day_voucher: {
+        Args: { p_appointment_id?: string; p_code: string }
         Returns: Json
       }
       redeem_referral_points: {
@@ -7348,6 +7429,12 @@ export type Database = {
         | "member"
         | "manual"
       message_sender_type: "member" | "staff"
+      mothers_day_voucher_status:
+        | "pending"
+        | "active"
+        | "redeemed"
+        | "expired"
+        | "refunded"
       note_visibility: "all_staff" | "specific_roles" | "specific_users"
       pass_status: "active" | "expired" | "exhausted"
       sequence_channel: "email" | "sms" | "both"
@@ -7543,6 +7630,13 @@ export const Constants = {
         "manual",
       ],
       message_sender_type: ["member", "staff"],
+      mothers_day_voucher_status: [
+        "pending",
+        "active",
+        "redeemed",
+        "expired",
+        "refunded",
+      ],
       note_visibility: ["all_staff", "specific_roles", "specific_users"],
       pass_status: ["active", "expired", "exhausted"],
       sequence_channel: ["email", "sms", "both"],
