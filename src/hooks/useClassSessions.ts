@@ -12,6 +12,10 @@ export interface ClassSession {
   current_enrollment: number;
   room: string | null;
   is_cancelled: boolean;
+  is_fundraiser?: boolean;
+  fundraiser_beneficiary?: string | null;
+  session_notes?: string | null;
+  override_price_cents?: number | null;
   class_type: {
     id: string;
     name: string;
