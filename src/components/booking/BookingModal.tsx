@@ -1,4 +1,5 @@
 import { ClassSession } from "@/hooks/useClassSessions";
+import { supabase } from "@/integrations/supabase/client";
 import { useBookClass } from "@/hooks/useBooking";
 import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
 import { useAuth } from "@/contexts/AuthContext";
