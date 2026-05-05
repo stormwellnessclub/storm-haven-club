@@ -315,8 +315,24 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           )}
 
-          {/* No Payment Options Available - Prompt to Purchase */}
-          {user && !isClassFull && !creditsLoading && hasNoPaymentOptions && (
+          {/* Fundraiser Donation Panel — replaces credits/pass selection */}
+          {user && !isClassFull && isFundraiser && (
+            <div className="rounded-lg border border-rose-300/60 bg-rose-50 dark:bg-rose-950/30 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-rose-900 dark:text-rose-100 font-semibold">
+                <CreditCard className="h-4 w-4" />
+                Donation Checkout — ${fundraiserAmount.toFixed(0)}
+              </div>
+              <p className="text-sm text-rose-900/90 dark:text-rose-100/90">
+                {session.session_notes || `100% of proceeds will be donated to ${session.fundraiser_beneficiary || "the beneficiary"}.`}
+              </p>
+              <p className="text-xs text-rose-900/80 dark:text-rose-100/80">
+                Class credits and class passes can't be used for fundraiser classes — please complete checkout to reserve your spot.
+              </p>
+            </div>
+          )}
+
+          {/* No Payment Options Available - Prompt to Purchase (non-fundraiser only) */}
+          {user && !isClassFull && !creditsLoading && hasNoPaymentOptions && !isFundraiser && (
             <div className="space-y-4">
               <Alert variant="destructive">
                 <ShoppingBag className="h-4 w-4" />
