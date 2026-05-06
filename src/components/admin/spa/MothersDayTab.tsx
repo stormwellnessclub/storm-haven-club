@@ -92,13 +92,16 @@ export function MothersDayTab() {
   const exportCsv = () => {
     const rows = [
       [
-        "Code", "Status", "Member?",
+        "Code", "Status", "Sale Source", "Payment Method", "Member?",
         "Buyer First", "Buyer Last", "Buyer Email", "Buyer Phone", "Buyer Gender",
         "Is Gift", "Recipient First", "Recipient Last", "Recipient Email", "Recipient Phone", "Recipient Gender", "Gift Message",
-        "Massage", "Duration", "Base", "Processing Fee", "Total Paid", "Purchased", "Expires", "Redeemed",
+        "Massage", "Duration", "Base", "Processing Fee", "Total Paid", "Admin Notes", "Purchased", "Expires", "Redeemed",
       ],
       ...(vouchers || []).map((v: any) => [
-        v.code, v.status, v.buyer_user_id ? "Member" : "Non-member",
+        v.code, v.status,
+        v.sold_in_house ? "In-house" : "Online",
+        v.payment_method || (v.sold_in_house ? "" : "online"),
+        v.buyer_user_id ? "Member" : "Non-member",
         v.buyer_first_name || v.buyer_name || "", v.buyer_last_name || "", v.buyer_email, v.buyer_phone || "", v.buyer_gender || "",
         v.recipient_name ? "Yes" : "No",
         v.recipient_first_name || "", v.recipient_last_name || "", v.recipient_email || "", v.recipient_phone || "", v.recipient_gender || "",
@@ -107,6 +110,7 @@ export function MothersDayTab() {
         ((v.base_amount_cents || 0) / 100).toFixed(2),
         ((v.processing_fee_cents || 0) / 100).toFixed(2),
         ((v.amount_paid_cents || 0) / 100).toFixed(2),
+        v.admin_notes || "",
         v.purchased_at, v.expires_at, v.redeemed_at || "",
       ]),
     ];
