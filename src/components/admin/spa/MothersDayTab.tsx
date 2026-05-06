@@ -52,8 +52,22 @@ export function MothersDayTab() {
     },
   });
 
-  const filtered = (vouchers || []).filter((v) => {
+  const resend = useMutation({
+    mutationFn: async (voucher_id: string) => {
+      const { data, error } = await supabase.functions.invoke("send-mothers-day-voucher", {
+        body: { voucher_id },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => toast.success("Voucher email resent"),
+    onError: (e: any) => toast.error(e?.message || "Could not resend"),
+  });
+
+  const filtered = (vouchers || []).filter((v: any) => {
     if (statusFilter !== "all" && v.status !== statusFilter) return false;
+    if (sourceFilter === "online" && v.sold_in_house) return false;
+    if (sourceFilter === "in_house" && !v.sold_in_house) return false;
     if (!search) return true;
     const s = search.toLowerCase();
     return (
