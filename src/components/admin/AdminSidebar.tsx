@@ -38,6 +38,7 @@ import {
   Monitor,
   CalendarDays,
   History,
+  Heart,
 } from "lucide-react";
 import {
   Sidebar,
@@ -120,6 +121,7 @@ const departments: DepartmentSection[] = [
     items: [
       { title: "Appointments", url: "/admin/appointments", icon: Calendar },
       { title: "Spa Management", url: "/admin/spa-management", icon: Calendar },
+      { title: "Mother's Day 💛", url: "/admin/mothers-day", icon: Heart, highlight: true },
       { title: "Front Desk POS", url: "/admin/front-desk", icon: Sparkles },
     ],
   },
