@@ -24,9 +24,6 @@ import { formatTime12h } from "@/lib/timeFormat";
  import { Link } from "react-router-dom";
  import { CREDIT_TYPE_LABELS, CREDIT_TYPE_DESCRIPTIONS, CreditType } from "@/lib/memberCredits";
  
-// Wellness service definitions for booking (shaped to match SpaService from DB)
-const WELLNESS_SERVICES = {
-  redLight: {
 // Fetch the real Recovery services (Red Light & Ice Bed) from the DB so booking
 // hits real spa_service_availability rows.
 function useWellnessServices() {
