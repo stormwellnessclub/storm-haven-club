@@ -233,6 +233,7 @@ export function ClubConciergeTab() {
                   className="w-full"
                   onClick={() => {
                     setSelectedService(service);
+                    setRequestedDate(todayISO());
                     setRequestedTime("");
                     setTimeError("");
                     setNotes("");
@@ -276,27 +277,49 @@ export function ClubConciergeTab() {
             <DialogDescription>{selectedService?.description}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="request-time">
-                When would you like it ready? <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="request-time"
-                type="time"
-                min={minTime}
-                value={requestedTime}
-                onChange={(e) => {
-                  setRequestedTime(e.target.value);
-                  if (timeError) validateTime(e.target.value);
-                }}
-              />
-              {timeError && (
-                <p className="text-xs text-destructive">{timeError}</p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Must be at least 20 minutes from now for prep time.
-              </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="request-date">
+                  Date <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="request-date"
+                  type="date"
+                  min={todayISO()}
+                  value={requestedDate}
+                  onChange={(e) => {
+                    setRequestedDate(e.target.value);
+                    if (timeError) validateDateTime(e.target.value, requestedTime);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="request-time">
+                  Time <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="request-time"
+                  type="time"
+                  min={minTime}
+                  value={requestedTime}
+                  onChange={(e) => {
+                    setRequestedTime(e.target.value);
+                    if (timeError) validateDateTime(requestedDate, e.target.value);
+                  }}
+                />
+                {requestedTime && !timeError && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {formatTime12h(requestedTime)}
+                  </p>
+                )}
+              </div>
             </div>
+            {timeError && (
+              <p className="text-xs text-destructive">{timeError}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              For same-day requests, please pick a time at least 20 minutes from now so we can prep.
+            </p>
             <div className="space-y-2">
               <Label>Additional notes (optional)</Label>
               <Textarea
