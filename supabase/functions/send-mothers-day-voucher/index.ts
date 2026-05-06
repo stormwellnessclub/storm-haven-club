@@ -159,7 +159,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-    const { voucher_id, only, triggered_by } = await req.json();
+    const { voucher_id, only, triggered_by, preview } = await req.json();
     if (!voucher_id) throw new Error("voucher_id required");
 
     const { data: v, error: vErr } = await supabase
