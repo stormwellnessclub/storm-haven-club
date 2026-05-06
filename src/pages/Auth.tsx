@@ -53,12 +53,16 @@ export default function Auth() {
     // Check query parameter first
     const searchParams = new URLSearchParams(window.location.search);
     const fromQuery = searchParams.get("redirect");
-    
+    const voucherCode = searchParams.get("voucher");
+
     // Check router state as fallback
     const fromState = (location.state as { from?: { pathname: string } })?.from?.pathname;
-    
-    const target = fromQuery || fromState || "/member";
-    
+
+    // If a voucher code is present and no explicit redirect, send them to redeem page
+    const voucherTarget = voucherCode ? `/mothers-day/redeem?code=${encodeURIComponent(voucherCode)}` : null;
+
+    const target = fromQuery || voucherTarget || fromState || "/member";
+
     // Security: only allow internal paths (starts with / but not //)
     if (target.startsWith("/") && !target.startsWith("//")) {
       return target;
