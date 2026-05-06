@@ -40,6 +40,7 @@ import Schedule from "./pages/Schedule";
 import PublicClassTypeDetail from "./pages/ClassTypeDetail";
 import Spa from "./pages/Spa";
 import MothersDay from "./pages/MothersDay";
+import MothersDayRedeem from "./pages/MothersDayRedeem";
 import Cafe from "./pages/Cafe";
 import Amenities from "./pages/Amenities";
 import KidsCare from "./pages/KidsCare";
@@ -149,6 +150,7 @@ const App = () => (
               <Route path="/spa" element={<Spa />} />
               <Route path="/mothers-day" element={<MothersDay />} />
               <Route path="/mothers-day/success" element={<MothersDay />} />
+              <Route path="/mothers-day/redeem" element={<MothersDayRedeem />} />
               <Route path="/cafe" element={<Cafe />} />
               <Route path="/amenities" element={<Amenities />} />
               <Route path="/kids-care" element={<KidsCare />} />
