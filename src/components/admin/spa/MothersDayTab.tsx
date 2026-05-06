@@ -65,9 +65,12 @@ export function MothersDayTab() {
   const sold = (vouchers || []).filter((v) => v.status !== "pending" && v.status !== "refunded").length;
   const redeemed = (vouchers || []).filter((v) => v.status === "redeemed").length;
   const active = (vouchers || []).filter((v) => v.status === "active").length;
-  const revenue = (vouchers || [])
-    .filter((v) => v.status !== "pending" && v.status !== "refunded")
-    .reduce((s, v) => s + (v.amount_paid_cents || 0), 0);
+  const paidVouchers = (vouchers || []).filter((v) => v.status !== "pending" && v.status !== "refunded");
+  const revenue = paidVouchers.reduce((s, v) => s + (v.amount_paid_cents || 0), 0);
+  const netRevenue = paidVouchers.reduce(
+    (s, v: any) => s + ((v.base_amount_cents ?? v.amount_paid_cents) || 0),
+    0
+  );
 
   const exportCsv = () => {
     const rows = [
@@ -75,7 +78,7 @@ export function MothersDayTab() {
         "Code", "Status", "Member?",
         "Buyer First", "Buyer Last", "Buyer Email", "Buyer Phone", "Buyer Gender",
         "Is Gift", "Recipient First", "Recipient Last", "Recipient Email", "Recipient Phone", "Recipient Gender", "Gift Message",
-        "Massage", "Duration", "Amount", "Purchased", "Expires", "Redeemed",
+        "Massage", "Duration", "Base", "Processing Fee", "Total Paid", "Purchased", "Expires", "Redeemed",
       ],
       ...(vouchers || []).map((v: any) => [
         v.code, v.status, v.buyer_user_id ? "Member" : "Non-member",
@@ -84,6 +87,8 @@ export function MothersDayTab() {
         v.recipient_first_name || "", v.recipient_last_name || "", v.recipient_email || "", v.recipient_phone || "", v.recipient_gender || "",
         v.gift_message || "",
         v.massage_choice || "", v.massage_duration,
+        ((v.base_amount_cents || 0) / 100).toFixed(2),
+        ((v.processing_fee_cents || 0) / 100).toFixed(2),
         ((v.amount_paid_cents || 0) / 100).toFixed(2),
         v.purchased_at, v.expires_at, v.redeemed_at || "",
       ]),
@@ -120,7 +125,7 @@ export function MothersDayTab() {
         <Kpi label="Sold" value={String(sold)} />
         <Kpi label="Active" value={String(active)} />
         <Kpi label="Redeemed" value={String(redeemed)} />
-        <Kpi label="Revenue" value={`$${(revenue / 100).toFixed(0)}`} />
+        <Kpi label="Revenue" value={`$${(revenue / 100).toFixed(0)}`} sub={`Net $${(netRevenue / 100).toFixed(0)}`} />
       </div>
 
       {/* Filters */}
@@ -185,12 +190,13 @@ export function MothersDayTab() {
   );
 }
 
-function Kpi({ label, value }: { label: string; value: string }) {
+function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <Card>
       <CardContent className="p-4">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
         <div className="text-2xl font-serif mt-1">{value}</div>
+        {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
       </CardContent>
     </Card>
   );

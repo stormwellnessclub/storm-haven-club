@@ -56,6 +56,11 @@ serve(async (req) => {
     if (missing(body.massage_choice)) throw new Error("Please choose a massage");
     if (!body.amount_cents || body.amount_cents < 100) throw new Error("Invalid amount");
 
+    // Gross-up the amount so the buyer covers the Stripe processing fee (2.9% + $0.30)
+    const baseCents = body.amount_cents;
+    const totalCents = Math.ceil((baseCents + 30) / 0.971);
+    const feeCents = totalCents - baseCents;
+
     if (body.is_gift) {
       if (missing(body.recipient_first_name) || missing(body.recipient_last_name))
         throw new Error("Recipient first and last name are required");
@@ -103,7 +108,9 @@ serve(async (req) => {
         gift_message: body.is_gift ? body.gift_message?.trim() || null : null,
         massage_choice: body.massage_choice.trim(),
         massage_duration: body.massage_duration,
-        amount_paid_cents: body.amount_cents,
+        amount_paid_cents: totalCents,
+        base_amount_cents: baseCents,
+        processing_fee_cents: feeCents,
         status: "pending",
       })
       .select()
@@ -125,7 +132,7 @@ serve(async (req) => {
     }
 
     const intent = await stripe.paymentIntents.create({
-      amount: body.amount_cents,
+      amount: totalCents,
       currency: "usd",
       customer: customerId,
       receipt_email: body.buyer_email.trim().toLowerCase(),
@@ -138,6 +145,8 @@ serve(async (req) => {
         massage_duration: String(body.massage_duration),
         is_gift: String(!!body.is_gift),
         recipient_email: body.recipient_email || "",
+        base_amount_cents: String(baseCents),
+        processing_fee_cents: String(feeCents),
       },
     });
 
@@ -151,6 +160,9 @@ serve(async (req) => {
         client_secret: intent.client_secret,
         payment_intent_id: intent.id,
         voucher_id: voucher.id,
+        base_cents: baseCents,
+        processing_fee_cents: feeCents,
+        total_cents: totalCents,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );

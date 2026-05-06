@@ -4244,6 +4244,7 @@ export type Database = {
       mothers_day_vouchers: {
         Row: {
           amount_paid_cents: number
+          base_amount_cents: number
           buyer_email: string
           buyer_first_name: string | null
           buyer_gender: string | null
@@ -4259,6 +4260,7 @@ export type Database = {
           massage_choice: string | null
           massage_duration: number
           notes: string | null
+          processing_fee_cents: number
           purchased_at: string
           recipient_email: string | null
           recipient_first_name: string | null
@@ -4276,6 +4278,7 @@ export type Database = {
         }
         Insert: {
           amount_paid_cents?: number
+          base_amount_cents?: number
           buyer_email: string
           buyer_first_name?: string | null
           buyer_gender?: string | null
@@ -4291,6 +4294,7 @@ export type Database = {
           massage_choice?: string | null
           massage_duration: number
           notes?: string | null
+          processing_fee_cents?: number
           purchased_at?: string
           recipient_email?: string | null
           recipient_first_name?: string | null
@@ -4308,6 +4312,7 @@ export type Database = {
         }
         Update: {
           amount_paid_cents?: number
+          base_amount_cents?: number
           buyer_email?: string
           buyer_first_name?: string | null
           buyer_gender?: string | null
@@ -4323,6 +4328,7 @@ export type Database = {
           massage_choice?: string | null
           massage_duration?: number
           notes?: string | null
+          processing_fee_cents?: number
           purchased_at?: string
           recipient_email?: string | null
           recipient_first_name?: string | null

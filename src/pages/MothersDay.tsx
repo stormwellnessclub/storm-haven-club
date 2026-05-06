@@ -18,6 +18,7 @@ import aellaLogo from "@/assets/aella-logo.png";
 import cardImage from "@/assets/mothers-day-card.jpeg";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { calculateProcessingFee } from "@/lib/processingFee";
 
 type Gender = "female" | "male" | "prefer_not_to_say";
 
@@ -150,7 +151,9 @@ export default function MothersDay() {
   }, [duration, massageOptions, serviceName]);
 
   const selected = massageOptions.find((m) => m.name === serviceName);
-  const amountCents = selected ? Math.round(Number(selected.price) * 100) : 0;
+  const baseCents = selected ? Math.round(Number(selected.price) * 100) : 0;
+  const feeCents = calculateProcessingFee(baseCents);
+  const totalCents = baseCents + feeCents;
 
   const handleStartCheckout = async () => {
     if (!buyerFirst.trim() || !buyerLast.trim()) return toast.error("Please enter your first and last name.");
@@ -182,7 +185,7 @@ export default function MothersDay() {
           gift_message: isGift ? giftMessage : null,
           massage_choice: selected.name,
           massage_duration: duration,
-          amount_cents: amountCents,
+          amount_cents: baseCents,
         },
       });
       if (error) throw error;
@@ -338,7 +341,7 @@ export default function MothersDay() {
               </div>
               <StripeProvider clientSecret={clientSecret}>
                 <PayForm
-                  amountCents={amountCents}
+                  amountCents={totalCents}
                   onSuccess={handlePaid}
                   onBack={() => {
                     setClientSecret(null);
@@ -523,15 +526,29 @@ export default function MothersDay() {
               )}
 
               {/* Total + Continue */}
-              <div className="flex items-center justify-between pt-4 border-t">
-                <div>
-                  <div className="text-sm text-muted-foreground">Total</div>
-                  <div className="font-serif text-3xl text-gold">${(amountCents / 100).toFixed(2)}</div>
+              <div className="pt-4 border-t space-y-3">
+                {selected && (
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Massage</span>
+                      <span>${(baseCents / 100).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Processing fee</span>
+                      <span>${(feeCents / 100).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Total</div>
+                    <div className="font-serif text-3xl text-gold">${(totalCents / 100).toFixed(2)}</div>
+                  </div>
+                  <Button size="lg" onClick={handleStartCheckout} disabled={creating || !selected} style={{ background: "#a17e3a" }}>
+                    {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                    Continue to payment
+                  </Button>
                 </div>
-                <Button size="lg" onClick={handleStartCheckout} disabled={creating || !selected} style={{ background: "#a17e3a" }}>
-                  {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  Continue to payment
-                </Button>
               </div>
 
               <p className="text-xs text-muted-foreground text-center">
