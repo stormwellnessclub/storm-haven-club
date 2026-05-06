@@ -134,12 +134,19 @@ export function MothersDayTab() {
           <CardTitle className="text-lg flex items-center gap-2">
             <Heart className="w-5 h-5 text-rose-400" /> Mother's Day Goal
           </CardTitle>
-          <span className="text-2xl font-serif">{sold} / {GOAL}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl font-serif">{sold} / {GOAL}</span>
+            <Button size="sm" onClick={() => setSellOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Sell in-house
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Progress value={Math.min(100, (sold / GOAL) * 100)} className="h-3" />
         </CardContent>
       </Card>
+
+      <MothersDaySellDialog open={sellOpen} onOpenChange={setSellOpen} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
