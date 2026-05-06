@@ -169,6 +169,13 @@ export function MothersDayTab() {
             </Button>
           ))}
         </div>
+        <div className="flex gap-1">
+          {(["all", "online", "in_house"] as const).map((s) => (
+            <Button key={s} size="sm" variant={sourceFilter === s ? "default" : "outline"} onClick={() => setSourceFilter(s)}>
+              {s.replace("_", "-")}
+            </Button>
+          ))}
+        </div>
         <Button variant="outline" size="sm" onClick={exportCsv}>Export CSV</Button>
       </div>
 
