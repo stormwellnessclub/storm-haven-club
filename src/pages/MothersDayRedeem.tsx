@@ -5,11 +5,12 @@ import { SEOHead } from "@/components/SEOHead";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, Copy, ArrowRight } from "lucide-react";
+import { Loader2, Heart, Copy, ArrowRight, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { WalletButtons } from "@/components/mothers-day/WalletButtons";
 
 export default function MothersDayRedeem() {
   const [params] = useSearchParams();
@@ -101,6 +102,23 @@ export default function MothersDayRedeem() {
                   Status: <strong>{voucher.status}</strong>
                   {voucher.expires_at && <> · Expires {format(new Date(voucher.expires_at), "MMM d, yyyy")}</>}
                 </div>
+
+                <p className="text-xs italic" style={{ color: "#6b5a3b" }}>
+                  Non-transferable. Valid only for the named recipient.
+                </p>
+
+                {user && (
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#2d6a4f" }}>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Linked to your account ({user.email})</span>
+                  </div>
+                )}
+
+                {voucher.status === "active" && (
+                  <div className="pt-2 border-t" style={{ borderColor: "#c9a86a" }}>
+                    <WalletButtons code={voucher.code || code} />
+                  </div>
+                )}
 
                 {voucher.status === "active" ? (
                   <div className="space-y-3 pt-2">

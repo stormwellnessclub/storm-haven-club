@@ -77,13 +77,26 @@ function buildGiftHtml(v: any) {
     </ol>
   </div>
 
-  <a href="${SITE}/mothers-day/redeem?code=${encodeURIComponent(v.code)}"
+  <p style="font-size:13px;color:#a17e3a;margin:0 0 16px;font-weight:600;letter-spacing:1px;">
+    ★ SAVE THIS CODE — you'll need it at check-in
+  </p>
+
+  <a href="${SITE}/auth?mode=signup&voucher=${encodeURIComponent(v.code)}&redirect=${encodeURIComponent(`/mothers-day/redeem?code=${v.code}`)}"
      style="display:inline-block;background:#a17e3a;color:#fff;padding:14px 32px;border-radius:4px;text-decoration:none;font-weight:600;letter-spacing:2px;font-size:14px;margin:8px 0;">
-    REDEEM YOUR GIFT
+    CLAIM &amp; SAVE YOUR GIFT
   </a>
 
-  <p style="font-size:13px;color:#6b5a3b;margin-top:24px;">
-    Redeemable through <strong>${fmtDate(v.expires_at)}</strong>
+  <p style="font-size:12px;color:#6b5a3b;margin:10px 0 0;">
+    Already have an account?
+    <a href="${SITE}/auth?mode=signin&redirect=${encodeURIComponent(`/mothers-day/redeem?code=${v.code}`)}" style="color:#a17e3a;text-decoration:underline;">Sign in</a>
+  </p>
+
+  <p style="font-size:13px;color:#6b5a3b;margin-top:18px;">
+    On the next page you'll be able to <strong>save this gift to Apple or Google Wallet</strong> so it's always with you.
+  </p>
+
+  <p style="font-size:13px;color:#6b5a3b;margin-top:18px;">
+    Redeemable through <strong>${fmtDate(v.expires_at)}</strong> · Non-transferable
   </p>
   <p style="font-size:13px;color:#6b5a3b;margin-top:8px;">
     Questions? Reply to this email or call us — we'd love to help you book.
@@ -146,7 +159,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-    const { voucher_id, only, triggered_by } = await req.json();
+    const { voucher_id, only, triggered_by, preview } = await req.json();
     if (!voucher_id) throw new Error("voucher_id required");
 
     const { data: v, error: vErr } = await supabase
@@ -157,6 +170,19 @@ serve(async (req) => {
     if (vErr || !v) throw new Error(vErr?.message || "Voucher not found");
 
     const isGift = !!(v.recipient_email && v.recipient_email.trim());
+
+    if (preview) {
+      const recipient_subject = isGift ? `${v.buyer_name} sent you a Mother's Day gift 💛` : null;
+      const recipient_html = isGift ? buildGiftHtml(v) : null;
+      const buyer_subject = isGift
+        ? `Your Mother's Day gift to ${v.recipient_name} is on its way`
+        : "Your Mother's Day Special voucher";
+      const buyer_html = buildBuyerHtml(v, { isGift });
+      return new Response(
+        JSON.stringify({ success: true, preview: true, recipient_subject, recipient_html, buyer_subject, buyer_html }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
 
     const sends: Array<{
       kind: "recipient" | "buyer" | "self";

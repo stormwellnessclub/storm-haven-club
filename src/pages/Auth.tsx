@@ -22,7 +22,8 @@ const passwordSchema = z.string().min(6, "Password must be at least 6 characters
 const nameSchema = z.string().min(1, "This field is required").max(100, "Maximum 100 characters");
 
 export default function Auth() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const initialMode = new URLSearchParams(window.location.search).get("mode") === "signup";
+  const [isSignUp, setIsSignUp] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -52,12 +53,16 @@ export default function Auth() {
     // Check query parameter first
     const searchParams = new URLSearchParams(window.location.search);
     const fromQuery = searchParams.get("redirect");
-    
+    const voucherCode = searchParams.get("voucher");
+
     // Check router state as fallback
     const fromState = (location.state as { from?: { pathname: string } })?.from?.pathname;
-    
-    const target = fromQuery || fromState || "/member";
-    
+
+    // If a voucher code is present and no explicit redirect, send them to redeem page
+    const voucherTarget = voucherCode ? `/mothers-day/redeem?code=${encodeURIComponent(voucherCode)}` : null;
+
+    const target = fromQuery || voucherTarget || fromState || "/member";
+
     // Security: only allow internal paths (starts with / but not //)
     if (target.startsWith("/") && !target.startsWith("//")) {
       return target;
