@@ -526,15 +526,29 @@ export default function MothersDay() {
               )}
 
               {/* Total + Continue */}
-              <div className="flex items-center justify-between pt-4 border-t">
-                <div>
-                  <div className="text-sm text-muted-foreground">Total</div>
-                  <div className="font-serif text-3xl text-gold">${(amountCents / 100).toFixed(2)}</div>
+              <div className="pt-4 border-t space-y-3">
+                {selected && (
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Massage</span>
+                      <span>${(baseCents / 100).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Processing fee</span>
+                      <span>${(feeCents / 100).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Total</div>
+                    <div className="font-serif text-3xl text-gold">${(totalCents / 100).toFixed(2)}</div>
+                  </div>
+                  <Button size="lg" onClick={handleStartCheckout} disabled={creating || !selected} style={{ background: "#a17e3a" }}>
+                    {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                    Continue to payment
+                  </Button>
                 </div>
-                <Button size="lg" onClick={handleStartCheckout} disabled={creating || !selected} style={{ background: "#a17e3a" }}>
-                  {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  Continue to payment
-                </Button>
               </div>
 
               <p className="text-xs text-muted-foreground text-center">
