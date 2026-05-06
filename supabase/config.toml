@@ -107,3 +107,19 @@ verify_jwt = false
 [functions.twilio-fallback]
 enabled = true
 verify_jwt = false
+
+[functions.mothers-day-webhook]
+enabled = true
+verify_jwt = false
+
+[functions.send-mothers-day-voucher]
+enabled = true
+verify_jwt = false
+
+[functions.mothers-day-reconcile]
+enabled = true
+verify_jwt = false
+
+[functions.mothers-day-redeem]
+enabled = true
+verify_jwt = false
