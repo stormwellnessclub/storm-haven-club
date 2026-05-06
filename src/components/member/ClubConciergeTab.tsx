@@ -49,9 +49,13 @@ const conciergeServices: ConciergeService[] = [
   },
 ];
 
-function getMinTime(): string {
+function getMinTimeToday(): string {
   const min = addMinutes(new Date(), 20);
   return format(min, "HH:mm");
+}
+
+function todayISO(): string {
+  return format(new Date(), "yyyy-MM-dd");
 }
 
 export function ClubConciergeTab() {
@@ -62,13 +66,15 @@ export function ClubConciergeTab() {
 
   const [selectedService, setSelectedService] = useState<ConciergeService | null>(null);
   const [notes, setNotes] = useState("");
+  const [requestedDate, setRequestedDate] = useState<string>(todayISO());
   const [requestedTime, setRequestedTime] = useState("");
   const [isOtherOpen, setIsOtherOpen] = useState(false);
   const [otherSubject, setOtherSubject] = useState("");
   const [otherMessage, setOtherMessage] = useState("");
   const [timeError, setTimeError] = useState("");
 
-  const minTime = useMemo(() => getMinTime(), [selectedService]);
+  const isToday = requestedDate === todayISO();
+  const minTime = useMemo(() => (isToday ? getMinTimeToday() : "06:00"), [isToday, selectedService]);
 
   const getCreditInfo = (creditType?: string) => {
     if (!creditType || !credits) return null;
@@ -82,19 +88,26 @@ export function ClubConciergeTab() {
       : null;
   };
 
-  const validateTime = (time: string): boolean => {
-    if (!time) {
-      setTimeError("Please select a time for your request.");
+  const validateDateTime = (date: string, time: string): boolean => {
+    if (!date) {
+      setTimeError("Please pick a date.");
       return false;
     }
-    // Parse the selected time as today
-    const now = new Date();
+    if (!time) {
+      setTimeError("Please pick a time.");
+      return false;
+    }
     const [hours, minutes] = time.split(":").map(Number);
-    const selectedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-    const minDate = addMinutes(now, 20);
-
-    if (isBefore(selectedDate, minDate)) {
-      setTimeError("Please select a time at least 20 minutes from now so we can prepare.");
+    const [yy, mm, dd] = date.split("-").map(Number);
+    const selectedDate = new Date(yy, mm - 1, dd, hours, minutes);
+    if (date === todayISO()) {
+      const minDate = addMinutes(new Date(), 20);
+      if (isBefore(selectedDate, minDate)) {
+        setTimeError("For today, please pick a time at least 20 minutes from now so we can prepare.");
+        return false;
+      }
+    } else if (isBefore(selectedDate, new Date())) {
+      setTimeError("Please pick a future date and time.");
       return false;
     }
     setTimeError("");
