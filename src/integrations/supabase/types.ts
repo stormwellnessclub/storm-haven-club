@@ -4314,6 +4314,7 @@ export type Database = {
           recipient_last_name: string | null
           recipient_name: string | null
           recipient_phone: string | null
+          recipient_user_id: string | null
           redeemed_appointment_id: string | null
           redeemed_at: string | null
           redeemed_by_user_id: string | null
@@ -4352,6 +4353,7 @@ export type Database = {
           recipient_last_name?: string | null
           recipient_name?: string | null
           recipient_phone?: string | null
+          recipient_user_id?: string | null
           redeemed_appointment_id?: string | null
           redeemed_at?: string | null
           redeemed_by_user_id?: string | null
@@ -4390,6 +4392,7 @@ export type Database = {
           recipient_last_name?: string | null
           recipient_name?: string | null
           recipient_phone?: string | null
+          recipient_user_id?: string | null
           redeemed_appointment_id?: string | null
           redeemed_at?: string | null
           redeemed_by_user_id?: string | null
