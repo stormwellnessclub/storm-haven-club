@@ -4241,6 +4241,50 @@ export type Database = {
         }
         Relationships: []
       }
+      mothers_day_voucher_emails: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          kind: string
+          recipient_email: string
+          resend_id: string | null
+          status: string
+          triggered_by: string | null
+          voucher_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          kind: string
+          recipient_email: string
+          resend_id?: string | null
+          status: string
+          triggered_by?: string | null
+          voucher_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          kind?: string
+          recipient_email?: string
+          resend_id?: string | null
+          status?: string
+          triggered_by?: string | null
+          voucher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mothers_day_voucher_emails_voucher_id_fkey"
+            columns: ["voucher_id"]
+            isOneToOne: false
+            referencedRelation: "mothers_day_vouchers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mothers_day_vouchers: {
         Row: {
           admin_notes: string | null
