@@ -77,13 +77,26 @@ function buildGiftHtml(v: any) {
     </ol>
   </div>
 
-  <a href="${SITE}/mothers-day/redeem?code=${encodeURIComponent(v.code)}"
+  <p style="font-size:13px;color:#a17e3a;margin:0 0 16px;font-weight:600;letter-spacing:1px;">
+    ★ SAVE THIS CODE — you'll need it at check-in
+  </p>
+
+  <a href="${SITE}/auth?mode=signup&voucher=${encodeURIComponent(v.code)}&redirect=${encodeURIComponent(`/mothers-day/redeem?code=${v.code}`)}"
      style="display:inline-block;background:#a17e3a;color:#fff;padding:14px 32px;border-radius:4px;text-decoration:none;font-weight:600;letter-spacing:2px;font-size:14px;margin:8px 0;">
-    REDEEM YOUR GIFT
+    CLAIM &amp; SAVE YOUR GIFT
   </a>
 
-  <p style="font-size:13px;color:#6b5a3b;margin-top:24px;">
-    Redeemable through <strong>${fmtDate(v.expires_at)}</strong>
+  <p style="font-size:12px;color:#6b5a3b;margin:10px 0 0;">
+    Already have an account?
+    <a href="${SITE}/auth?mode=signin&redirect=${encodeURIComponent(`/mothers-day/redeem?code=${v.code}`)}" style="color:#a17e3a;text-decoration:underline;">Sign in</a>
+  </p>
+
+  <p style="font-size:13px;color:#6b5a3b;margin-top:18px;">
+    On the next page you'll be able to <strong>save this gift to Apple or Google Wallet</strong> so it's always with you.
+  </p>
+
+  <p style="font-size:13px;color:#6b5a3b;margin-top:18px;">
+    Redeemable through <strong>${fmtDate(v.expires_at)}</strong> · Non-transferable
   </p>
   <p style="font-size:13px;color:#6b5a3b;margin-top:8px;">
     Questions? Reply to this email or call us — we'd love to help you book.
