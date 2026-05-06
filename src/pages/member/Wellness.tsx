@@ -66,7 +66,8 @@ export default function MemberWellness() {
       apt.service_name?.toLowerCase().includes("zerobody"))
    ) || [];
  
-   const handleBookService = (service: typeof WELLNESS_SERVICES.redLight) => {
+   const handleBookService = (service: SpaService | null | undefined) => {
+     if (!service) return;
      setSelectedService(service);
      setBookingOpen(true);
    };
