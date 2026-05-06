@@ -1,4 +1,6 @@
- import { useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
  import { MemberLayout } from "@/components/member/MemberLayout";
  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
  import { Button } from "@/components/ui/button";
@@ -8,6 +10,7 @@
  import { useUserCredits, MemberCredit } from "@/hooks/useUserCredits";
 import { useMySpaAppointments } from "@/hooks/useSpaBooking";
  import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
+import type { SpaService } from "@/hooks/useSpaManagement";
  import { 
    Zap, 
    Snowflake,
