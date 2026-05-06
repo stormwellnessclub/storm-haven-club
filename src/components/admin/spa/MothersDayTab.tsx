@@ -242,6 +242,14 @@ export function MothersDayTab() {
                 <Button
                   size="sm"
                   variant="ghost"
+                  onClick={() => openPreview(v.id)}
+                  title="Preview voucher email"
+                >
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
                   onClick={() => resend.mutate(v.id)}
                   disabled={resend.isPending}
                   title="Resend voucher email"
@@ -258,6 +266,46 @@ export function MothersDayTab() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!previewVoucherId} onOpenChange={(o) => { if (!o) { setPreviewVoucherId(null); setPreviewData(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Email Preview</DialogTitle>
+          </DialogHeader>
+          {previewLoading || !previewData ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+          ) : (
+            <Tabs defaultValue={previewData.recipient_html ? "recipient" : "buyer"} className="flex-1 overflow-hidden flex flex-col">
+              <TabsList>
+                {previewData.recipient_html && <TabsTrigger value="recipient">Gift email (recipient)</TabsTrigger>}
+                <TabsTrigger value="buyer">Buyer receipt</TabsTrigger>
+              </TabsList>
+              {previewData.recipient_html && (
+                <TabsContent value="recipient" className="flex-1 overflow-auto space-y-2">
+                  <div className="text-xs text-muted-foreground">Subject:</div>
+                  <div className="font-medium text-sm border rounded px-3 py-2 bg-muted/30">{previewData.recipient_subject}</div>
+                  <iframe
+                    title="Gift email preview"
+                    srcDoc={previewData.recipient_html}
+                    className="w-full h-[60vh] border rounded bg-white"
+                  />
+                </TabsContent>
+              )}
+              <TabsContent value="buyer" className="flex-1 overflow-auto space-y-2">
+                <div className="text-xs text-muted-foreground">Subject:</div>
+                <div className="font-medium text-sm border rounded px-3 py-2 bg-muted/30">{previewData.buyer_subject}</div>
+                <iframe
+                  title="Buyer email preview"
+                  srcDoc={previewData.buyer_html}
+                  className="w-full h-[60vh] border rounded bg-white"
+                />
+              </TabsContent>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
