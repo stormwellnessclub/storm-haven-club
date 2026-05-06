@@ -115,15 +115,14 @@ export function ClubConciergeTab() {
   };
 
   const handleServiceRequest = async (service: ConciergeService) => {
-    if (!validateTime(requestedTime)) return;
+    if (!validateDateTime(requestedDate, requestedTime)) return;
 
-    const timeStr = format(
-      new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), ...requestedTime.split(":").map(Number)),
-      "h:mm a"
-    );
+    const timeStr = formatTime12h(requestedTime);
+    const dateStr = format(parse(requestedDate, "yyyy-MM-dd", new Date()), "EEE, MMM d");
+    const whenStr = `${dateStr} at ${timeStr}`;
 
     const message = [
-      `Requested time: ${timeStr}`,
+      `Requested for: ${whenStr}`,
       notes.trim() ? `Additional notes: ${notes}` : "",
     ].filter(Boolean).join("\n\n");
 
@@ -137,17 +136,18 @@ export function ClubConciergeTab() {
       // Send automatic confirmation reply from "staff"
       await sendMessage.mutateAsync({
         conversationId: conversation.id,
-        message: `Thank you for your ${service.title} request! ✨\n\nPlease allow 20–30 minutes for our team to get everything ready for you. We'll have it prepared by your requested time of ${timeStr}.\n\nIf you need to make any changes, just reply to this message.`,
+        message: `Thank you for your ${service.title} request! ✨\n\nPlease allow 20–30 minutes for our team to get everything ready for you. We'll have it prepared by your requested time of ${whenStr}.\n\nIf you need to make any changes, just reply to this message.`,
         senderType: 'staff',
       });
 
       toast({
         title: "Request sent",
-        description: `Your ${service.title} will be ready around ${timeStr}. Please allow 20–30 minutes for prep.`,
+        description: `Your ${service.title} will be ready ${whenStr}. Please allow 20–30 minutes for prep.`,
       });
       setSelectedService(null);
       setNotes("");
       setRequestedTime("");
+      setRequestedDate(todayISO());
       setTimeError("");
     } catch {
       toast({
