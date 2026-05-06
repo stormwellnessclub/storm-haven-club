@@ -18,6 +18,7 @@ import aellaLogo from "@/assets/aella-logo.png";
 import cardImage from "@/assets/mothers-day-card.jpeg";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { calculateProcessingFee } from "@/lib/processingFee";
 
 type Gender = "female" | "male" | "prefer_not_to_say";
 
@@ -150,7 +151,9 @@ export default function MothersDay() {
   }, [duration, massageOptions, serviceName]);
 
   const selected = massageOptions.find((m) => m.name === serviceName);
-  const amountCents = selected ? Math.round(Number(selected.price) * 100) : 0;
+  const baseCents = selected ? Math.round(Number(selected.price) * 100) : 0;
+  const feeCents = calculateProcessingFee(baseCents);
+  const totalCents = baseCents + feeCents;
 
   const handleStartCheckout = async () => {
     if (!buyerFirst.trim() || !buyerLast.trim()) return toast.error("Please enter your first and last name.");
@@ -182,7 +185,7 @@ export default function MothersDay() {
           gift_message: isGift ? giftMessage : null,
           massage_choice: selected.name,
           massage_duration: duration,
-          amount_cents: amountCents,
+          amount_cents: baseCents,
         },
       });
       if (error) throw error;
@@ -338,7 +341,7 @@ export default function MothersDay() {
               </div>
               <StripeProvider clientSecret={clientSecret}>
                 <PayForm
-                  amountCents={amountCents}
+                  amountCents={totalCents}
                   onSuccess={handlePaid}
                   onBack={() => {
                     setClientSecret(null);
