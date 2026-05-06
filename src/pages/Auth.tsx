@@ -22,7 +22,8 @@ const passwordSchema = z.string().min(6, "Password must be at least 6 characters
 const nameSchema = z.string().min(1, "This field is required").max(100, "Maximum 100 characters");
 
 export default function Auth() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const initialMode = new URLSearchParams(window.location.search).get("mode") === "signup";
+  const [isSignUp, setIsSignUp] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
