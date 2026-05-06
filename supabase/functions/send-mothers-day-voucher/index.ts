@@ -171,6 +171,19 @@ serve(async (req) => {
 
     const isGift = !!(v.recipient_email && v.recipient_email.trim());
 
+    if (preview) {
+      const recipient_subject = isGift ? `${v.buyer_name} sent you a Mother's Day gift 💛` : null;
+      const recipient_html = isGift ? buildGiftHtml(v) : null;
+      const buyer_subject = isGift
+        ? `Your Mother's Day gift to ${v.recipient_name} is on its way`
+        : "Your Mother's Day Special voucher";
+      const buyer_html = buildBuyerHtml(v, { isGift });
+      return new Response(
+        JSON.stringify({ success: true, preview: true, recipient_subject, recipient_html, buyer_subject, buyer_html }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
     const sends: Array<{
       kind: "recipient" | "buyer" | "self";
       to: string;
