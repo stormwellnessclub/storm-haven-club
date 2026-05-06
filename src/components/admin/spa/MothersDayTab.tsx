@@ -195,6 +195,11 @@ export function MothersDayTab() {
                 <Badge variant={v.buyer_user_id ? "secondary" : "outline"} className="text-xs">
                   {v.buyer_user_id ? "Member" : "Non-member"}
                 </Badge>
+                {v.sold_in_house && (
+                  <Badge variant="outline" className="text-xs border-amber-500 text-amber-700">
+                    In-house{v.payment_method ? ` · ${v.payment_method.replace(/_/g, " ")}` : ""}
+                  </Badge>
+                )}
                 <div className="flex-1 min-w-[200px]">
                   <div className="font-medium">
                     {v.recipient_name ? `🎁 ${v.recipient_name}` : v.buyer_name}
@@ -211,6 +216,15 @@ export function MothersDayTab() {
                     Exp {format(new Date(v.expires_at), "MMM d, yyyy")}
                   </div>
                 </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => resend.mutate(v.id)}
+                  disabled={resend.isPending}
+                  title="Resend voucher email"
+                >
+                  <Mail className="w-4 h-4" />
+                </Button>
                 {v.status === "active" && (
                   <Button size="sm" variant="outline" onClick={() => redeem.mutate(v.code)} disabled={redeem.isPending}>
                     Mark Redeemed
