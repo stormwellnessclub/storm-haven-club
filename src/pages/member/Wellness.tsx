@@ -105,14 +105,14 @@ export default function MemberWellness() {
              type="red_light"
              icon={<Zap className="h-6 w-6 text-orange-500" />}
              iconBg="bg-orange-100 dark:bg-orange-900/20"
-             onBook={() => handleBookService(WELLNESS_SERVICES.redLight)}
+             onBook={() => handleBookService(services?.redLight)}
            />
            <WellnessCreditCard
              credit={credits?.dryCredits || null}
              type="dry_cryo"
              icon={<Snowflake className="h-6 w-6 text-blue-500" />}
              iconBg="bg-blue-100 dark:bg-blue-900/20"
-             onBook={() => handleBookService(WELLNESS_SERVICES.dryCryo)}
+             onBook={() => handleBookService(services?.dryCryo)}
            />
          </div>
  
