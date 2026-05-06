@@ -1,4 +1,6 @@
- import { useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
  import { MemberLayout } from "@/components/member/MemberLayout";
  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
  import { Button } from "@/components/ui/button";
@@ -8,6 +10,7 @@
  import { useUserCredits, MemberCredit } from "@/hooks/useUserCredits";
 import { useMySpaAppointments } from "@/hooks/useSpaBooking";
  import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
+import type { SpaService } from "@/hooks/useSpaManagement";
  import { 
    Zap, 
    Snowflake,
@@ -21,49 +24,39 @@ import { formatTime12h } from "@/lib/timeFormat";
  import { Link } from "react-router-dom";
  import { CREDIT_TYPE_LABELS, CREDIT_TYPE_DESCRIPTIONS, CreditType } from "@/lib/memberCredits";
  
-// Wellness service definitions for booking (shaped to match SpaService from DB)
-const WELLNESS_SERVICES = {
-  redLight: {
-    id: "wellness-red-light",
-    name: "Red Light Therapy",
-    description: "Full-body red light therapy session to boost cellular energy and promote healing",
-    duration_minutes: 20,
-    cleanup_minutes: 5,
-    price: 45,
-    member_price: null,
-    category: "Recovery",
-    is_active: true,
-    display_order: 0,
-    popular: false,
-    requires_intake_form: false,
-    created_at: "",
-    updated_at: "",
-  },
-  dryCryo: {
-    id: "wellness-dry-cryo",
-    name: "Dry Cryotherapy",
-    description: "Whole-body dry cryotherapy session for recovery and wellness",
-    duration_minutes: 3,
-    cleanup_minutes: 5,
-    price: 65,
-    member_price: null,
-    category: "Recovery",
-    is_active: true,
-    display_order: 0,
-    popular: false,
-    requires_intake_form: false,
-    created_at: "",
-    updated_at: "",
-  },
-};
- 
- export default function MemberWellness() {
-   const { data: credits, isLoading: creditsLoading } = useUserCredits();
+// Fetch the real Recovery services (Red Light & Ice Bed) from the DB so booking
+// hits real spa_service_availability rows.
+function useWellnessServices() {
+  return useQuery({
+    queryKey: ["wellness-services"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("spa_services")
+        .select("*")
+        .eq("is_active", true)
+        .or("name.ilike.%red light%,name.ilike.%ice bed%,name.ilike.%zerobody%,name.ilike.%dry cryo%");
+      if (error) throw error;
+      const all = (data || []) as SpaService[];
+      // Prefer the 20-min Red Light variant, fall back to any red-light service.
+      const redLight =
+        all.find((s) => /red light/i.test(s.name) && s.duration_minutes === 20) ||
+        all.find((s) => /red light/i.test(s.name)) ||
+        null;
+      const dryCryo =
+        all.find((s) => /ice bed|zerobody|dry cryo|cryo/i.test(s.name)) || null;
+      return { redLight, dryCryo };
+    },
+  });
+}
+
+export default function MemberWellness() {
+  const { data: credits, isLoading: creditsLoading } = useUserCredits();
   const { data: appointments, isLoading: appointmentsLoading } = useMySpaAppointments();
-   const [selectedService, setSelectedService] = useState<(typeof WELLNESS_SERVICES)[keyof typeof WELLNESS_SERVICES] | null>(null);
-   const [bookingOpen, setBookingOpen] = useState(false);
- 
-   const isLoading = creditsLoading;
+  const { data: services, isLoading: servicesLoading } = useWellnessServices();
+  const [selectedService, setSelectedService] = useState<SpaService | null>(null);
+  const [bookingOpen, setBookingOpen] = useState(false);
+
+  const isLoading = creditsLoading || servicesLoading;
  
    // Filter upcoming wellness appointments
    const wellnessAppointments = appointments?.filter(apt => 
@@ -73,7 +66,8 @@ const WELLNESS_SERVICES = {
       apt.service_name?.toLowerCase().includes("zerobody"))
    ) || [];
  
-   const handleBookService = (service: typeof WELLNESS_SERVICES.redLight) => {
+   const handleBookService = (service: SpaService | null | undefined) => {
+     if (!service) return;
      setSelectedService(service);
      setBookingOpen(true);
    };
@@ -111,14 +105,14 @@ const WELLNESS_SERVICES = {
              type="red_light"
              icon={<Zap className="h-6 w-6 text-orange-500" />}
              iconBg="bg-orange-100 dark:bg-orange-900/20"
-             onBook={() => handleBookService(WELLNESS_SERVICES.redLight)}
+             onBook={() => handleBookService(services?.redLight)}
            />
            <WellnessCreditCard
              credit={credits?.dryCredits || null}
              type="dry_cryo"
              icon={<Snowflake className="h-6 w-6 text-blue-500" />}
              iconBg="bg-blue-100 dark:bg-blue-900/20"
-             onBook={() => handleBookService(WELLNESS_SERVICES.dryCryo)}
+             onBook={() => handleBookService(services?.dryCryo)}
            />
          </div>
  

@@ -11,7 +11,8 @@ import { CloudRain, Snowflake, Sun, Pencil, Loader2, Send, Clock } from "lucide-
 import { useCreateConversation, useSendMessage } from "@/hooks/useEmailConversations";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { useToast } from "@/hooks/use-toast";
-import { format, addMinutes, isBefore } from "date-fns";
+import { format, addMinutes, isBefore, parse } from "date-fns";
+import { formatTime12h } from "@/lib/timeFormat";
 
 interface ConciergeService {
   id: string;
@@ -48,9 +49,13 @@ const conciergeServices: ConciergeService[] = [
   },
 ];
 
-function getMinTime(): string {
+function getMinTimeToday(): string {
   const min = addMinutes(new Date(), 20);
   return format(min, "HH:mm");
+}
+
+function todayISO(): string {
+  return format(new Date(), "yyyy-MM-dd");
 }
 
 export function ClubConciergeTab() {
@@ -61,13 +66,15 @@ export function ClubConciergeTab() {
 
   const [selectedService, setSelectedService] = useState<ConciergeService | null>(null);
   const [notes, setNotes] = useState("");
+  const [requestedDate, setRequestedDate] = useState<string>(todayISO());
   const [requestedTime, setRequestedTime] = useState("");
   const [isOtherOpen, setIsOtherOpen] = useState(false);
   const [otherSubject, setOtherSubject] = useState("");
   const [otherMessage, setOtherMessage] = useState("");
   const [timeError, setTimeError] = useState("");
 
-  const minTime = useMemo(() => getMinTime(), [selectedService]);
+  const isToday = requestedDate === todayISO();
+  const minTime = useMemo(() => (isToday ? getMinTimeToday() : "06:00"), [isToday, selectedService]);
 
   const getCreditInfo = (creditType?: string) => {
     if (!creditType || !credits) return null;
@@ -81,19 +88,26 @@ export function ClubConciergeTab() {
       : null;
   };
 
-  const validateTime = (time: string): boolean => {
-    if (!time) {
-      setTimeError("Please select a time for your request.");
+  const validateDateTime = (date: string, time: string): boolean => {
+    if (!date) {
+      setTimeError("Please pick a date.");
       return false;
     }
-    // Parse the selected time as today
-    const now = new Date();
+    if (!time) {
+      setTimeError("Please pick a time.");
+      return false;
+    }
     const [hours, minutes] = time.split(":").map(Number);
-    const selectedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-    const minDate = addMinutes(now, 20);
-
-    if (isBefore(selectedDate, minDate)) {
-      setTimeError("Please select a time at least 20 minutes from now so we can prepare.");
+    const [yy, mm, dd] = date.split("-").map(Number);
+    const selectedDate = new Date(yy, mm - 1, dd, hours, minutes);
+    if (date === todayISO()) {
+      const minDate = addMinutes(new Date(), 20);
+      if (isBefore(selectedDate, minDate)) {
+        setTimeError("For today, please pick a time at least 20 minutes from now so we can prepare.");
+        return false;
+      }
+    } else if (isBefore(selectedDate, new Date())) {
+      setTimeError("Please pick a future date and time.");
       return false;
     }
     setTimeError("");
@@ -101,15 +115,14 @@ export function ClubConciergeTab() {
   };
 
   const handleServiceRequest = async (service: ConciergeService) => {
-    if (!validateTime(requestedTime)) return;
+    if (!validateDateTime(requestedDate, requestedTime)) return;
 
-    const timeStr = format(
-      new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), ...requestedTime.split(":").map(Number)),
-      "h:mm a"
-    );
+    const timeStr = formatTime12h(requestedTime);
+    const dateStr = format(parse(requestedDate, "yyyy-MM-dd", new Date()), "EEE, MMM d");
+    const whenStr = `${dateStr} at ${timeStr}`;
 
     const message = [
-      `Requested time: ${timeStr}`,
+      `Requested for: ${whenStr}`,
       notes.trim() ? `Additional notes: ${notes}` : "",
     ].filter(Boolean).join("\n\n");
 
@@ -123,17 +136,18 @@ export function ClubConciergeTab() {
       // Send automatic confirmation reply from "staff"
       await sendMessage.mutateAsync({
         conversationId: conversation.id,
-        message: `Thank you for your ${service.title} request! ✨\n\nPlease allow 20–30 minutes for our team to get everything ready for you. We'll have it prepared by your requested time of ${timeStr}.\n\nIf you need to make any changes, just reply to this message.`,
+        message: `Thank you for your ${service.title} request! ✨\n\nPlease allow 20–30 minutes for our team to get everything ready for you. We'll have it prepared by your requested time of ${whenStr}.\n\nIf you need to make any changes, just reply to this message.`,
         senderType: 'staff',
       });
 
       toast({
         title: "Request sent",
-        description: `Your ${service.title} will be ready around ${timeStr}. Please allow 20–30 minutes for prep.`,
+        description: `Your ${service.title} will be ready ${whenStr}. Please allow 20–30 minutes for prep.`,
       });
       setSelectedService(null);
       setNotes("");
       setRequestedTime("");
+      setRequestedDate(todayISO());
       setTimeError("");
     } catch {
       toast({
@@ -219,6 +233,7 @@ export function ClubConciergeTab() {
                   className="w-full"
                   onClick={() => {
                     setSelectedService(service);
+                    setRequestedDate(todayISO());
                     setRequestedTime("");
                     setTimeError("");
                     setNotes("");
@@ -262,27 +277,49 @@ export function ClubConciergeTab() {
             <DialogDescription>{selectedService?.description}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="request-time">
-                When would you like it ready? <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="request-time"
-                type="time"
-                min={minTime}
-                value={requestedTime}
-                onChange={(e) => {
-                  setRequestedTime(e.target.value);
-                  if (timeError) validateTime(e.target.value);
-                }}
-              />
-              {timeError && (
-                <p className="text-xs text-destructive">{timeError}</p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Must be at least 20 minutes from now for prep time.
-              </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="request-date">
+                  Date <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="request-date"
+                  type="date"
+                  min={todayISO()}
+                  value={requestedDate}
+                  onChange={(e) => {
+                    setRequestedDate(e.target.value);
+                    if (timeError) validateDateTime(e.target.value, requestedTime);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="request-time">
+                  Time <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="request-time"
+                  type="time"
+                  min={minTime}
+                  value={requestedTime}
+                  onChange={(e) => {
+                    setRequestedTime(e.target.value);
+                    if (timeError) validateDateTime(requestedDate, e.target.value);
+                  }}
+                />
+                {requestedTime && !timeError && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {formatTime12h(requestedTime)}
+                  </p>
+                )}
+              </div>
             </div>
+            {timeError && (
+              <p className="text-xs text-destructive">{timeError}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              For same-day requests, please pick a time at least 20 minutes from now so we can prep.
+            </p>
             <div className="space-y-2">
               <Label>Additional notes (optional)</Label>
               <Textarea
