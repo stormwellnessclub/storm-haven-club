@@ -21,6 +21,27 @@ export function MothersDayTab() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "online" | "in_house">("all");
   const [sellOpen, setSellOpen] = useState(false);
+  const [previewVoucherId, setPreviewVoucherId] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const openPreview = async (voucher_id: string) => {
+    setPreviewVoucherId(voucher_id);
+    setPreviewData(null);
+    setPreviewLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-mothers-day-voucher", {
+        body: { voucher_id, preview: true },
+      });
+      if (error) throw error;
+      setPreviewData(data);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not load preview");
+      setPreviewVoucherId(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   const { data: vouchers, isLoading } = useQuery({
     queryKey: ["mothers-day-vouchers"],
