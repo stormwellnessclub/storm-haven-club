@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Search, Heart } from "lucide-react";
+import { Loader2, Search, Heart, Mail, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { MothersDaySellDialog } from "./MothersDaySellDialog";
 
 const GOAL = 50;
 
@@ -16,6 +17,8 @@ export function MothersDayTab() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "online" | "in_house">("all");
+  const [sellOpen, setSellOpen] = useState(false);
 
   const { data: vouchers, isLoading } = useQuery({
     queryKey: ["mothers-day-vouchers"],
