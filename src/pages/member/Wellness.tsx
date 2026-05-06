@@ -27,46 +27,39 @@ import { formatTime12h } from "@/lib/timeFormat";
 // Wellness service definitions for booking (shaped to match SpaService from DB)
 const WELLNESS_SERVICES = {
   redLight: {
-    id: "wellness-red-light",
-    name: "Red Light Therapy",
-    description: "Full-body red light therapy session to boost cellular energy and promote healing",
-    duration_minutes: 20,
-    cleanup_minutes: 5,
-    price: 45,
-    member_price: null,
-    category: "Recovery",
-    is_active: true,
-    display_order: 0,
-    popular: false,
-    requires_intake_form: false,
-    created_at: "",
-    updated_at: "",
-  },
-  dryCryo: {
-    id: "wellness-dry-cryo",
-    name: "Dry Cryotherapy",
-    description: "Whole-body dry cryotherapy session for recovery and wellness",
-    duration_minutes: 3,
-    cleanup_minutes: 5,
-    price: 65,
-    member_price: null,
-    category: "Recovery",
-    is_active: true,
-    display_order: 0,
-    popular: false,
-    requires_intake_form: false,
-    created_at: "",
-    updated_at: "",
-  },
-};
- 
- export default function MemberWellness() {
-   const { data: credits, isLoading: creditsLoading } = useUserCredits();
+// Fetch the real Recovery services (Red Light & Ice Bed) from the DB so booking
+// hits real spa_service_availability rows.
+function useWellnessServices() {
+  return useQuery({
+    queryKey: ["wellness-services"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("spa_services")
+        .select("*")
+        .eq("is_active", true)
+        .or("name.ilike.%red light%,name.ilike.%ice bed%,name.ilike.%zerobody%,name.ilike.%dry cryo%");
+      if (error) throw error;
+      const all = (data || []) as SpaService[];
+      // Prefer the 20-min Red Light variant, fall back to any red-light service.
+      const redLight =
+        all.find((s) => /red light/i.test(s.name) && s.duration_minutes === 20) ||
+        all.find((s) => /red light/i.test(s.name)) ||
+        null;
+      const dryCryo =
+        all.find((s) => /ice bed|zerobody|dry cryo|cryo/i.test(s.name)) || null;
+      return { redLight, dryCryo };
+    },
+  });
+}
+
+export default function MemberWellness() {
+  const { data: credits, isLoading: creditsLoading } = useUserCredits();
   const { data: appointments, isLoading: appointmentsLoading } = useMySpaAppointments();
-   const [selectedService, setSelectedService] = useState<(typeof WELLNESS_SERVICES)[keyof typeof WELLNESS_SERVICES] | null>(null);
-   const [bookingOpen, setBookingOpen] = useState(false);
- 
-   const isLoading = creditsLoading;
+  const { data: services, isLoading: servicesLoading } = useWellnessServices();
+  const [selectedService, setSelectedService] = useState<SpaService | null>(null);
+  const [bookingOpen, setBookingOpen] = useState(false);
+
+  const isLoading = creditsLoading || servicesLoading;
  
    // Filter upcoming wellness appointments
    const wellnessAppointments = appointments?.filter(apt => 
