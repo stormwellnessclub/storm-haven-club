@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Search, Heart } from "lucide-react";
+import { Loader2, Search, Heart, Mail, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { MothersDaySellDialog } from "./MothersDaySellDialog";
 
 const GOAL = 50;
 
@@ -16,6 +17,8 @@ export function MothersDayTab() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "online" | "in_house">("all");
+  const [sellOpen, setSellOpen] = useState(false);
 
   const { data: vouchers, isLoading } = useQuery({
     queryKey: ["mothers-day-vouchers"],
@@ -49,8 +52,22 @@ export function MothersDayTab() {
     },
   });
 
-  const filtered = (vouchers || []).filter((v) => {
+  const resend = useMutation({
+    mutationFn: async (voucher_id: string) => {
+      const { data, error } = await supabase.functions.invoke("send-mothers-day-voucher", {
+        body: { voucher_id },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => toast.success("Voucher email resent"),
+    onError: (e: any) => toast.error(e?.message || "Could not resend"),
+  });
+
+  const filtered = (vouchers || []).filter((v: any) => {
     if (statusFilter !== "all" && v.status !== statusFilter) return false;
+    if (sourceFilter === "online" && v.sold_in_house) return false;
+    if (sourceFilter === "in_house" && !v.sold_in_house) return false;
     if (!search) return true;
     const s = search.toLowerCase();
     return (
@@ -75,13 +92,16 @@ export function MothersDayTab() {
   const exportCsv = () => {
     const rows = [
       [
-        "Code", "Status", "Member?",
+        "Code", "Status", "Sale Source", "Payment Method", "Member?",
         "Buyer First", "Buyer Last", "Buyer Email", "Buyer Phone", "Buyer Gender",
         "Is Gift", "Recipient First", "Recipient Last", "Recipient Email", "Recipient Phone", "Recipient Gender", "Gift Message",
-        "Massage", "Duration", "Base", "Processing Fee", "Total Paid", "Purchased", "Expires", "Redeemed",
+        "Massage", "Duration", "Base", "Processing Fee", "Total Paid", "Admin Notes", "Purchased", "Expires", "Redeemed",
       ],
       ...(vouchers || []).map((v: any) => [
-        v.code, v.status, v.buyer_user_id ? "Member" : "Non-member",
+        v.code, v.status,
+        v.sold_in_house ? "In-house" : "Online",
+        v.payment_method || (v.sold_in_house ? "" : "online"),
+        v.buyer_user_id ? "Member" : "Non-member",
         v.buyer_first_name || v.buyer_name || "", v.buyer_last_name || "", v.buyer_email, v.buyer_phone || "", v.buyer_gender || "",
         v.recipient_name ? "Yes" : "No",
         v.recipient_first_name || "", v.recipient_last_name || "", v.recipient_email || "", v.recipient_phone || "", v.recipient_gender || "",
@@ -90,6 +110,7 @@ export function MothersDayTab() {
         ((v.base_amount_cents || 0) / 100).toFixed(2),
         ((v.processing_fee_cents || 0) / 100).toFixed(2),
         ((v.amount_paid_cents || 0) / 100).toFixed(2),
+        v.admin_notes || "",
         v.purchased_at, v.expires_at, v.redeemed_at || "",
       ]),
     ];
@@ -113,12 +134,19 @@ export function MothersDayTab() {
           <CardTitle className="text-lg flex items-center gap-2">
             <Heart className="w-5 h-5 text-rose-400" /> Mother's Day Goal
           </CardTitle>
-          <span className="text-2xl font-serif">{sold} / {GOAL}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl font-serif">{sold} / {GOAL}</span>
+            <Button size="sm" onClick={() => setSellOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Sell in-house
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Progress value={Math.min(100, (sold / GOAL) * 100)} className="h-3" />
         </CardContent>
       </Card>
+
+      <MothersDaySellDialog open={sellOpen} onOpenChange={setSellOpen} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -141,6 +169,13 @@ export function MothersDayTab() {
             </Button>
           ))}
         </div>
+        <div className="flex gap-1">
+          {(["all", "online", "in_house"] as const).map((s) => (
+            <Button key={s} size="sm" variant={sourceFilter === s ? "default" : "outline"} onClick={() => setSourceFilter(s)}>
+              {s.replace("_", "-")}
+            </Button>
+          ))}
+        </div>
         <Button variant="outline" size="sm" onClick={exportCsv}>Export CSV</Button>
       </div>
 
@@ -160,6 +195,11 @@ export function MothersDayTab() {
                 <Badge variant={v.buyer_user_id ? "secondary" : "outline"} className="text-xs">
                   {v.buyer_user_id ? "Member" : "Non-member"}
                 </Badge>
+                {v.sold_in_house && (
+                  <Badge variant="outline" className="text-xs border-amber-500 text-amber-700">
+                    In-house{v.payment_method ? ` · ${v.payment_method.replace(/_/g, " ")}` : ""}
+                  </Badge>
+                )}
                 <div className="flex-1 min-w-[200px]">
                   <div className="font-medium">
                     {v.recipient_name ? `🎁 ${v.recipient_name}` : v.buyer_name}
@@ -176,6 +216,15 @@ export function MothersDayTab() {
                     Exp {format(new Date(v.expires_at), "MMM d, yyyy")}
                   </div>
                 </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => resend.mutate(v.id)}
+                  disabled={resend.isPending}
+                  title="Resend voucher email"
+                >
+                  <Mail className="w-4 h-4" />
+                </Button>
                 {v.status === "active" && (
                   <Button size="sm" variant="outline" onClick={() => redeem.mutate(v.code)} disabled={redeem.isPending}>
                     Mark Redeemed

@@ -4243,6 +4243,7 @@ export type Database = {
       }
       mothers_day_vouchers: {
         Row: {
+          admin_notes: string | null
           amount_paid_cents: number
           base_amount_cents: number
           buyer_email: string
@@ -4260,6 +4261,7 @@ export type Database = {
           massage_choice: string | null
           massage_duration: number
           notes: string | null
+          payment_method: string
           processing_fee_cents: number
           purchased_at: string
           recipient_email: string | null
@@ -4271,12 +4273,15 @@ export type Database = {
           redeemed_appointment_id: string | null
           redeemed_at: string | null
           redeemed_by_user_id: string | null
+          sold_by_admin_id: string | null
+          sold_in_house: boolean
           status: Database["public"]["Enums"]["mothers_day_voucher_status"]
           stripe_payment_intent_id: string | null
           stripe_session_id: string | null
           updated_at: string
         }
         Insert: {
+          admin_notes?: string | null
           amount_paid_cents?: number
           base_amount_cents?: number
           buyer_email: string
@@ -4294,6 +4299,7 @@ export type Database = {
           massage_choice?: string | null
           massage_duration: number
           notes?: string | null
+          payment_method?: string
           processing_fee_cents?: number
           purchased_at?: string
           recipient_email?: string | null
@@ -4305,12 +4311,15 @@ export type Database = {
           redeemed_appointment_id?: string | null
           redeemed_at?: string | null
           redeemed_by_user_id?: string | null
+          sold_by_admin_id?: string | null
+          sold_in_house?: boolean
           status?: Database["public"]["Enums"]["mothers_day_voucher_status"]
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
           updated_at?: string
         }
         Update: {
+          admin_notes?: string | null
           amount_paid_cents?: number
           base_amount_cents?: number
           buyer_email?: string
@@ -4328,6 +4337,7 @@ export type Database = {
           massage_choice?: string | null
           massage_duration?: number
           notes?: string | null
+          payment_method?: string
           processing_fee_cents?: number
           purchased_at?: string
           recipient_email?: string | null
@@ -4339,6 +4349,8 @@ export type Database = {
           redeemed_appointment_id?: string | null
           redeemed_at?: string | null
           redeemed_by_user_id?: string | null
+          sold_by_admin_id?: string | null
+          sold_in_house?: boolean
           status?: Database["public"]["Enums"]["mothers_day_voucher_status"]
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
