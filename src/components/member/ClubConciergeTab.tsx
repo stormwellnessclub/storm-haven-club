@@ -11,7 +11,8 @@ import { CloudRain, Snowflake, Sun, Pencil, Loader2, Send, Clock } from "lucide-
 import { useCreateConversation, useSendMessage } from "@/hooks/useEmailConversations";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { useToast } from "@/hooks/use-toast";
-import { format, addMinutes, isBefore } from "date-fns";
+import { format, addMinutes, isBefore, parse } from "date-fns";
+import { formatTime12h } from "@/lib/timeFormat";
 
 interface ConciergeService {
   id: string;
