@@ -65,9 +65,12 @@ export function MothersDayTab() {
   const sold = (vouchers || []).filter((v) => v.status !== "pending" && v.status !== "refunded").length;
   const redeemed = (vouchers || []).filter((v) => v.status === "redeemed").length;
   const active = (vouchers || []).filter((v) => v.status === "active").length;
-  const revenue = (vouchers || [])
-    .filter((v) => v.status !== "pending" && v.status !== "refunded")
-    .reduce((s, v) => s + (v.amount_paid_cents || 0), 0);
+  const paidVouchers = (vouchers || []).filter((v) => v.status !== "pending" && v.status !== "refunded");
+  const revenue = paidVouchers.reduce((s, v) => s + (v.amount_paid_cents || 0), 0);
+  const netRevenue = paidVouchers.reduce(
+    (s, v: any) => s + ((v.base_amount_cents ?? v.amount_paid_cents) || 0),
+    0
+  );
 
   const exportCsv = () => {
     const rows = [
