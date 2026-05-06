@@ -1349,6 +1349,7 @@ serve(async (req) => {
       }
 
 
+      case 'member_activation_setup':
       case 'setup_instructions':
         subject = 'Welcome to Storm Wellness Club — Complete Your Membership Setup';
         html = `
