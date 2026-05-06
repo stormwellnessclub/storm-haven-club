@@ -125,7 +125,7 @@ export function MothersDayTab() {
         <Kpi label="Sold" value={String(sold)} />
         <Kpi label="Active" value={String(active)} />
         <Kpi label="Redeemed" value={String(redeemed)} />
-        <Kpi label="Revenue" value={`$${(revenue / 100).toFixed(0)}`} />
+        <Kpi label="Revenue" value={`$${(revenue / 100).toFixed(0)}`} sub={`Net $${(netRevenue / 100).toFixed(0)}`} />
       </div>
 
       {/* Filters */}
