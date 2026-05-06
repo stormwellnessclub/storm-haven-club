@@ -75,7 +75,7 @@ export function MothersDayTab() {
         "Code", "Status", "Member?",
         "Buyer First", "Buyer Last", "Buyer Email", "Buyer Phone", "Buyer Gender",
         "Is Gift", "Recipient First", "Recipient Last", "Recipient Email", "Recipient Phone", "Recipient Gender", "Gift Message",
-        "Massage", "Duration", "Amount", "Purchased", "Expires", "Redeemed",
+        "Massage", "Duration", "Base", "Processing Fee", "Total Paid", "Purchased", "Expires", "Redeemed",
       ],
       ...(vouchers || []).map((v: any) => [
         v.code, v.status, v.buyer_user_id ? "Member" : "Non-member",
@@ -84,6 +84,8 @@ export function MothersDayTab() {
         v.recipient_first_name || "", v.recipient_last_name || "", v.recipient_email || "", v.recipient_phone || "", v.recipient_gender || "",
         v.gift_message || "",
         v.massage_choice || "", v.massage_duration,
+        ((v.base_amount_cents || 0) / 100).toFixed(2),
+        ((v.processing_fee_cents || 0) / 100).toFixed(2),
         ((v.amount_paid_cents || 0) / 100).toFixed(2),
         v.purchased_at, v.expires_at, v.redeemed_at || "",
       ]),
