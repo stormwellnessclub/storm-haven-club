@@ -63,7 +63,7 @@ interface SpaBookingModalProps {
 
 type PaymentMethodType = "card" | "member_account" | "credit";
 
-export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModalProps) {
+export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCode }: SpaBookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: membership } = useUserMembership();
