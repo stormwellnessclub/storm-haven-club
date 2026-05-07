@@ -479,14 +479,19 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
       const isWalkIn = !userIdToInsert;
 
-      const { error } = await (supabase.from as any)("spa_appointments").insert({
+      const usingVoucher = !!appliedVoucher;
+      const finalNotesWithVoucher = usingVoucher
+        ? `${finalNotes ? finalNotes + "\n" : ""}Mother's Day Voucher: ${appliedVoucher!.code}`
+        : finalNotes;
+
+      const { data: inserted, error } = await (supabase.from as any)("spa_appointments").insert({
         member_id: memberIdToInsert,
         user_id: userIdToInsert,
         service_id: selectedService.id,
         service_name: selectedService.name,
         service_category: selectedService.category,
-        service_price: selectedService.price,
-        member_price: selectedService.member_price,
+        service_price: usingVoucher ? 0 : selectedService.price,
+        member_price: usingVoucher ? 0 : selectedService.member_price,
         appointment_date: appointmentDate,
         appointment_time: appointmentTime + ":00",
         duration_minutes: selectedService.duration_minutes,
@@ -494,15 +499,24 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         status: "confirmed",
         staff_id: resolvedTherapist,
         room_id: resolvedRoom,
-        staff_notes: finalNotes || null,
-        payment_method: paymentMethod === "comp" ? "comp" : null,
-        amount_paid: paymentMethod === "comp" ? 0 : null,
+        staff_notes: finalNotesWithVoucher || null,
+        payment_method: usingVoucher ? "mothers_day_voucher" : (paymentMethod === "comp" ? "comp" : null),
+        amount_paid: usingVoucher ? 0 : (paymentMethod === "comp" ? 0 : null),
         // Booking attribution: admin booked on behalf
         created_by_user_id: adminUser?.id || null,
         created_via: isWalkIn ? "walk_in_guest" : "admin_booking",
         created_by_admin_name: adminDisplayName,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      if (usingVoucher) {
+        try {
+          await redeemMothersDayVoucher(appliedVoucher!.code, inserted?.id || null);
+        } catch (e: any) {
+          // If redemption fails, surface but don't roll back appointment — front desk will be told
+          toast.error(`Voucher redeem failed: ${e.message}. Mark voucher manually.`);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
