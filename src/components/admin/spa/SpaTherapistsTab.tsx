@@ -17,7 +17,7 @@ import { Loader2, Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const emptyTherapist = (): Omit<SpaTherapist, "id" | "created_at" | "updated_at"> => ({
-  full_name: "", email: null, phone: null, bio: null, specialties: [], photo_url: null, is_active: true,
+  full_name: "", email: null, phone: null, bio: null, specialties: [], photo_url: null, is_active: true, hourly_rate: 26,
 });
 
 export function SpaTherapistsTab() {
