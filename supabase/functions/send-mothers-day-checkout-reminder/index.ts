@@ -81,6 +81,15 @@ serve(async (req) => {
       });
     }
 
+    if (preview) {
+      const html = buildHtml(v);
+      const subject = "Finish your Mother's Day gift — your checkout is waiting";
+      return new Response(
+        JSON.stringify({ success: true, preview: true, subject, html, to: v.buyer_email || null }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+      );
+    }
+
     if (v.status !== "pending") {
       return new Response(
         JSON.stringify({ error: `Voucher status is "${v.status}" — reminder only valid for pending.` }),
