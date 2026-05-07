@@ -6170,6 +6170,7 @@ export type Database = {
           created_at: string
           email: string | null
           full_name: string
+          hourly_rate: number
           id: string
           is_active: boolean
           phone: string | null
@@ -6182,6 +6183,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name: string
+          hourly_rate?: number
           id?: string
           is_active?: boolean
           phone?: string | null
@@ -6194,6 +6196,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name?: string
+          hourly_rate?: number
           id?: string
           is_active?: boolean
           phone?: string | null
@@ -7395,6 +7398,7 @@ export type Database = {
           created_at: string
           email: string | null
           full_name: string
+          hourly_rate: number
           id: string
           is_active: boolean
           phone: string | null
@@ -7410,6 +7414,10 @@ export type Database = {
         }
       }
       get_subscription_health: { Args: never; Returns: Json }
+      get_therapist_payroll: {
+        Args: { _end_date: string; _start_date: string; _therapist_id: string }
+        Returns: Json
+      }
       get_waitlist_counts: {
         Args: { p_session_ids: string[] }
         Returns: {
