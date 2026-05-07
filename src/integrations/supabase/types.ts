@@ -2961,43 +2961,61 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          external_metadata: Json
           first_name: string | null
           id: string
+          imported_at: string
           last_name: string | null
           linked_member_id: string | null
+          linked_non_member_id: string | null
           opted_in_email: boolean | null
           opted_in_sms: boolean | null
           phone: string | null
+          segment: string
           segment_tags: string[] | null
           source: Database["public"]["Enums"]["marketing_source"]
+          source_label: string | null
+          unsubscribed_at: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           email?: string | null
+          external_metadata?: Json
           first_name?: string | null
           id?: string
+          imported_at?: string
           last_name?: string | null
           linked_member_id?: string | null
+          linked_non_member_id?: string | null
           opted_in_email?: boolean | null
           opted_in_sms?: boolean | null
           phone?: string | null
+          segment?: string
           segment_tags?: string[] | null
           source?: Database["public"]["Enums"]["marketing_source"]
+          source_label?: string | null
+          unsubscribed_at?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string | null
+          external_metadata?: Json
           first_name?: string | null
           id?: string
+          imported_at?: string
           last_name?: string | null
           linked_member_id?: string | null
+          linked_non_member_id?: string | null
           opted_in_email?: boolean | null
           opted_in_sms?: boolean | null
           phone?: string | null
+          segment?: string
           segment_tags?: string[] | null
           source?: Database["public"]["Enums"]["marketing_source"]
+          source_label?: string | null
+          unsubscribed_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3020,6 +3038,13 @@ export type Database = {
             columns: ["linked_member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_contacts_linked_non_member_id_fkey"
+            columns: ["linked_non_member_id"]
+            isOneToOne: false
+            referencedRelation: "non_member_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -7407,6 +7432,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_marketing_contacts: {
+        Args: { _source_label: string; rows: Json }
+        Returns: Json
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
       join_waitlist_with_hold: {
@@ -7488,6 +7517,7 @@ export type Database = {
       }
       lookup_mothers_day_voucher: { Args: { p_code: string }; Returns: Json }
       mark_guest_pass_used: { Args: { p_pass_id: string }; Returns: Json }
+      preview_marketing_contacts: { Args: { rows: Json }; Returns: Json }
       process_member_scan: {
         Args: {
           p_auto_check_in?: boolean
@@ -7498,6 +7528,10 @@ export type Database = {
           p_scanned_by: string
         }
         Returns: Json
+      }
+      recompute_marketing_contact_segment: {
+        Args: { _email: string }
+        Returns: undefined
       }
       reconcile_and_generate_class_sessions: {
         Args: { _start_date?: string; _weeks_ahead?: number }
