@@ -17,7 +17,7 @@ import { Loader2, Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const emptyTherapist = (): Omit<SpaTherapist, "id" | "created_at" | "updated_at"> => ({
-  full_name: "", email: null, phone: null, bio: null, specialties: [], photo_url: null, is_active: true,
+  full_name: "", email: null, phone: null, bio: null, specialties: [], photo_url: null, is_active: true, hourly_rate: 26,
 });
 
 export function SpaTherapistsTab() {
@@ -38,7 +38,7 @@ export function SpaTherapistsTab() {
 
   const openNew = () => { setForm(emptyTherapist()); setEditingId(null); setShowForm(true); };
   const openEdit = (t: SpaTherapist) => {
-    setForm({ full_name: t.full_name, email: t.email, phone: t.phone, bio: t.bio, specialties: t.specialties || [], photo_url: t.photo_url, is_active: t.is_active });
+    setForm({ full_name: t.full_name, email: t.email, phone: t.phone, bio: t.bio, specialties: t.specialties || [], photo_url: t.photo_url, is_active: t.is_active, hourly_rate: t.hourly_rate ?? 26 });
     setEditingId(t.id);
     setShowForm(true);
   };
@@ -181,6 +181,11 @@ export function SpaTherapistsTab() {
               </div>
             </div>
             <div><Label>Photo URL</Label><Input value={form.photo_url || ""} onChange={e => setForm({ ...form, photo_url: e.target.value || null })} /></div>
+            <div>
+              <Label>Hourly Pay Rate ($/hr)</Label>
+              <Input type="number" step="0.01" min="0" value={form.hourly_rate} onChange={e => setForm({ ...form, hourly_rate: parseFloat(e.target.value) || 0 })} />
+              <p className="text-xs text-muted-foreground mt-1">Used for payroll calculation. Default $26/hr.</p>
+            </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} />
               <Label>Active</Label>
