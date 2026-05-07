@@ -35,6 +35,7 @@ export default function SpaManagement() {
           <TabsTrigger value="rooms">Rooms</TabsTrigger>
           <TabsTrigger value="availability">Availability</TabsTrigger>
           <TabsTrigger value="addons">Add-Ons</TabsTrigger>
+          <TabsTrigger value="payroll">Payroll</TabsTrigger>
           <TabsTrigger value="mothers-day">Mother's Day Tracking 💛</TabsTrigger>
         </TabsList>
 
