@@ -542,6 +542,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setStaffNotes("");
     setPaymentMethod("in_person");
     setConflict(null);
+    setVoucherInput("");
+    clearVoucher();
   };
 
   const activeServices = services?.filter((s) => s.is_active) || [];
