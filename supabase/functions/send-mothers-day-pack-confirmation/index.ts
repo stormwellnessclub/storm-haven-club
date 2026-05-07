@@ -83,11 +83,11 @@ function recipientGiftHtml(opts: {
   </div>`;
 }
 
-async function send(supabase: any, to: string, subject: string, html: string) {
-  const { error } = await supabase.functions.invoke("send-transactional-email", {
-    body: { to, from: FROM, subject, html, purpose: "transactional" },
-  });
-  if (error) throw error;
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+async function send(to: string, subject: string, html: string) {
+  const r = await resend.emails.send({ from: FROM, to: [to], subject, html });
+  if ((r as any).error) throw new Error((r as any).error.message || "send failed");
 }
 
 serve(async (req) => {
