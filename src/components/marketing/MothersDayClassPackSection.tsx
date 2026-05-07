@@ -241,13 +241,13 @@ export function MothersDayClassPackSection() {
             <Heart className="w-8 h-8 mx-auto mb-3" style={{ color: PROMO_GOLD }} />
             <p className="text-xs tracking-[0.3em] mb-2" style={{ color: PROMO_GOLD }}>MEMBER</p>
             <div className="font-serif text-5xl mb-1" style={{ color: PROMO_GOLD }}>${memberPrice}</div>
-            <p className="text-sm mb-6" style={{ color: PROMO_TEXT }}>10-Class Pack — for active Storm members</p>
+            <p className="text-sm mb-6" style={{ color: PROMO_TEXT }}>10-Class Pack — for active Storm Wellness Club members</p>
             <div className="flex flex-col gap-2">
               <Button onClick={() => openDialog("self")} style={{ background: PROMO_GOLD }}>
                 Buy for myself
               </Button>
               <Button variant="outline" onClick={() => openDialog("gift")} style={{ borderColor: PROMO_TAN, color: PROMO_GOLD }}>
-                <Gift className="w-4 h-4 mr-2" /> Buy as a gift
+                <Gift className="w-4 h-4 mr-2" /> Buy as a gift for a Storm Wellness Club member
               </Button>
             </div>
           </Card>
@@ -268,7 +268,7 @@ export function MothersDayClassPackSection() {
         </div>
 
         <p className="text-xs text-center mt-6 max-w-xl mx-auto" style={{ color: PROMO_TEXT }}>
-          Member pricing is automatically applied if {`{the buyer or gift recipient}`.replace(/[{}]/g, "")} has an active Storm Wellness Club membership — verified at checkout.
+          Member pricing is automatically applied if the buyer or gift recipient has an active Storm Wellness Club membership — verified at checkout.
         </p>
       </div>
 
@@ -366,7 +366,7 @@ export function MothersDayClassPackSection() {
                       <Label className="text-xs">Email</Label>
                       <Input type="email" value={recipEmail} onChange={(e) => setRecipEmail(e.target.value)} autoComplete="off" />
                       <p className="text-[11px] mt-1" style={{ color: PROMO_TEXT }}>
-                        We'll email them their pass. If this email matches an active member, you'll get member pricing automatically.
+                        We'll email them their pass. If this email matches an active Storm Wellness Club member, you'll get member pricing automatically.
                       </p>
                     </div>
                   </>
