@@ -49,12 +49,16 @@ import { formatTime12h } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
+import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useApplyMothersDayVoucher";
+import { Input } from "@/components/ui/input";
+import { Heart, X } from "lucide-react";
 
 
 interface SpaBookingModalProps {
   service: SpaService | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialVoucherCode?: string | null;
 }
 
 type PaymentMethodType = "card" | "member_account" | "credit";
