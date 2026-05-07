@@ -333,12 +333,34 @@ export default function ClassPasses() {
   // Waiver is valid if signed in either member or non-member profile
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
 
-  // Detect ?purchase=success on return from Stripe (non-member flow)
+  // Purchase success dialog state
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successPass, setSuccessPass] = useState<any>(null);
+
+  // Detect Stripe return: backend appends ?session_id={CHECKOUT_SESSION_ID} to successUrl
   useEffect(() => {
-    if (searchParams.get("purchase") === "success") {
+    const sessionId = searchParams.get("session_id");
+    const purchase = searchParams.get("purchase");
+    if (sessionId || purchase === "success") {
       queryClient.invalidateQueries({ queryKey: ["user-credits"] });
       refetchCredits();
-      toast.success("Class pass purchased! Your pass is now active.");
+      if (sessionId) {
+        supabase.functions
+          .invoke("class-pass-confirm", { body: { session_id: sessionId } })
+          .then(({ data }: any) => {
+            if (data?.success && data?.paid) {
+              setSuccessPass(data.pass);
+              setSuccessOpen(true);
+            } else {
+              toast.success("Class pass purchased! Your pass is now active.");
+            }
+          })
+          .catch(() => {
+            toast.success("Class pass purchased! Your pass is now active.");
+          });
+      } else {
+        toast.success("Class pass purchased! Your pass is now active.");
+      }
       setSearchParams({}, { replace: true });
     }
   }, []);
