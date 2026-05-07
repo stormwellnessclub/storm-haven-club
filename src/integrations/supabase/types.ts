@@ -4302,6 +4302,7 @@ export type Database = {
           expires_at: string
           gift_message: string | null
           id: string
+          last_reminder_sent_at: string | null
           massage_choice: string | null
           massage_duration: number
           notes: string | null
@@ -4341,6 +4342,7 @@ export type Database = {
           expires_at?: string
           gift_message?: string | null
           id?: string
+          last_reminder_sent_at?: string | null
           massage_choice?: string | null
           massage_duration: number
           notes?: string | null
@@ -4380,6 +4382,7 @@ export type Database = {
           expires_at?: string
           gift_message?: string | null
           id?: string
+          last_reminder_sent_at?: string | null
           massage_choice?: string | null
           massage_duration?: number
           notes?: string | null

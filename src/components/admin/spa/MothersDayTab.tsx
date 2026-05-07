@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Search, Heart, Mail, Plus, Eye } from "lucide-react";
-import { format } from "date-fns";
+import { Loader2, Search, Heart, Mail, Plus, Eye, Send } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { MothersDaySellDialog } from "./MothersDaySellDialog";
 
@@ -85,6 +85,22 @@ export function MothersDayTab() {
     },
     onSuccess: () => toast.success("Voucher email resent"),
     onError: (e: any) => toast.error(e?.message || "Could not resend"),
+  });
+
+  const sendReminder = useMutation({
+    mutationFn: async (voucher_id: string) => {
+      const { data, error } = await supabase.functions.invoke("send-mothers-day-checkout-reminder", {
+        body: { voucher_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Checkout reminder sent");
+      qc.invalidateQueries({ queryKey: ["mothers-day-vouchers"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not send reminder"),
   });
 
   const filtered = (vouchers || []).filter((v: any) => {
@@ -256,6 +272,27 @@ export function MothersDayTab() {
                 >
                   <Mail className="w-4 h-4" />
                 </Button>
+                {v.status === "pending" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-500 text-amber-700 hover:bg-amber-50"
+                    onClick={() => sendReminder.mutate(v.id)}
+                    disabled={
+                      sendReminder.isPending ||
+                      (v.last_reminder_sent_at &&
+                        Date.now() - new Date(v.last_reminder_sent_at).getTime() < 60 * 60 * 1000)
+                    }
+                    title={
+                      v.last_reminder_sent_at
+                        ? `Reminder sent ${formatDistanceToNow(new Date(v.last_reminder_sent_at), { addSuffix: true })}`
+                        : "Send finish-checkout email to buyer"
+                    }
+                  >
+                    <Send className="w-4 h-4 mr-1" />
+                    {v.last_reminder_sent_at ? "Re-send reminder" : "Send reminder"}
+                  </Button>
+                )}
                 {v.status === "active" && (
                   <Button size="sm" variant="outline" onClick={() => redeem.mutate(v.code)} disabled={redeem.isPending}>
                     Mark Redeemed
