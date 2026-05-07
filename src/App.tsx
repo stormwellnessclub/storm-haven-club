@@ -105,6 +105,7 @@ import MerchManager from "./pages/admin/MerchManager";
 import SpaManagement from "./pages/admin/SpaManagement";
 import MothersDayAdmin from "./pages/admin/MothersDayAdmin";
 import MothersDayClassPacks from "./pages/admin/MothersDayClassPacks";
+import AbandonedClassPassCheckouts from "./pages/admin/AbandonedClassPassCheckouts";
 import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
 import SiteAudit from "./pages/SiteAudit";
