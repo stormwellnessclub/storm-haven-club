@@ -130,7 +130,7 @@ export default function AbandonedClassPassCheckouts() {
                         <td className="py-2 pr-4 text-right space-x-2 whitespace-nowrap">
                           {r.status === "pending" && (
                             <>
-                              <Button size="sm" variant="outline" onClick={() => resend(r.id)}>
+                              <Button size="sm" variant="outline" onClick={() => resend(r)}>
                                 <Mail className="h-3.5 w-3.5 mr-1" /> Resend
                               </Button>
                               <Button size="sm" variant="ghost" onClick={() => markRecovered(r.id)}>
