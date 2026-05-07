@@ -118,7 +118,6 @@ serve(async (req) => {
 
     if (buyerEmail) {
       await send(
-        supabase,
         buyerEmail,
         isGift ? "Your Mother's Day Class Pack gift is confirmed" : "Your Mother's Day Class Pack is confirmed",
         buyerReceiptHtml({
@@ -134,7 +133,6 @@ serve(async (req) => {
 
     if (isGift && pass.gift_recipient_email) {
       await send(
-        supabase,
         pass.gift_recipient_email,
         `${buyerName || "A friend"} sent you a Mother's Day gift`,
         recipientGiftHtml({
