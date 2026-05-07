@@ -854,7 +854,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           </div>
           )}
 
-          {paymentMethod === "credit" && availableCredit && creditType && (
+          {!usingVoucher && paymentMethod === "credit" && availableCredit && creditType && (
             <div className="p-3 bg-accent/10 border border-accent/20 rounded-md">
               <div className="flex items-center gap-2 text-accent">
                 <Sparkles className="w-4 h-4" />
