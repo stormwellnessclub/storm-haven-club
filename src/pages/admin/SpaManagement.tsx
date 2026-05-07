@@ -5,6 +5,7 @@ import { SpaTherapistsTab } from "@/components/admin/spa/SpaTherapistsTab";
 import { SpaRoomsTab } from "@/components/admin/spa/SpaRoomsTab";
 import { SpaAvailabilityTab } from "@/components/admin/spa/SpaAvailabilityTab";
 import { SpaAddonsTab } from "@/components/admin/spa/SpaAddonsTab";
+import { SpaPayrollTab } from "@/components/admin/spa/SpaPayrollTab";
 import { MothersDayTab } from "@/components/admin/spa/MothersDayTab";
 import { useSearchParams } from "react-router-dom";
 
