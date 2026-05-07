@@ -181,6 +181,11 @@ export function SpaTherapistsTab() {
               </div>
             </div>
             <div><Label>Photo URL</Label><Input value={form.photo_url || ""} onChange={e => setForm({ ...form, photo_url: e.target.value || null })} /></div>
+            <div>
+              <Label>Hourly Pay Rate ($/hr)</Label>
+              <Input type="number" step="0.01" min="0" value={form.hourly_rate} onChange={e => setForm({ ...form, hourly_rate: parseFloat(e.target.value) || 0 })} />
+              <p className="text-xs text-muted-foreground mt-1">Used for payroll calculation. Default $26/hr.</p>
+            </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} />
               <Label>Active</Label>
