@@ -87,6 +87,22 @@ export function MothersDayTab() {
     onError: (e: any) => toast.error(e?.message || "Could not resend"),
   });
 
+  const sendReminder = useMutation({
+    mutationFn: async (voucher_id: string) => {
+      const { data, error } = await supabase.functions.invoke("send-mothers-day-checkout-reminder", {
+        body: { voucher_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Checkout reminder sent");
+      qc.invalidateQueries({ queryKey: ["mothers-day-vouchers"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not send reminder"),
+  });
+
   const filtered = (vouchers || []).filter((v: any) => {
     if (statusFilter !== "all" && v.status !== statusFilter) return false;
     if (sourceFilter === "online" && v.sold_in_house) return false;
