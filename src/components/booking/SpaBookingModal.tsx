@@ -90,6 +90,11 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
 
+  // Mother's Day voucher
+  const [voucherInput, setVoucherInput] = useState("");
+  const { apply: applyVoucher, clear: clearVoucher, applying: applyingVoucher, applied: appliedVoucher, error: voucherError } = useApplyMothersDayVoucher();
+  const usingVoucher = !!appliedVoucher;
+
   const { data: bookedSlots } = useSpaBookedSlots(selectedDate);
 
   // Intake form follow-up state
