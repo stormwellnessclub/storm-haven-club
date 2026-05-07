@@ -79,7 +79,7 @@ function normalizeRow(row: Record<string, string>): ParsedRow {
     const key = k.trim().toLowerCase();
     const mapped = HEADER_MAP[key];
     if (mapped) {
-      (out as Record<string, unknown>)[mapped] = (v ?? "").trim();
+      (out as unknown as Record<string, unknown>)[mapped] = (v ?? "").trim();
     } else if (v) {
       meta[k] = v;
     }
