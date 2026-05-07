@@ -55,7 +55,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { voucher_id } = await req.json();
+    const { voucher_id, preview } = await req.json();
     if (!voucher_id) {
       return new Response(JSON.stringify({ error: "voucher_id required" }), {
         status: 400,
