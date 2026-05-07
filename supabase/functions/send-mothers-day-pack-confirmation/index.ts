@@ -1,5 +1,6 @@
 // Sends Mother's Day Class Pack confirmation emails — buyer receipt and (if gift) recipient email.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
