@@ -60,6 +60,9 @@ export default function Marketing() {
           <TabsContent value="members">
             <MemberMarketingTab />
           </TabsContent>
+          <TabsContent value="contacts">
+            <ContactsTab />
+          </TabsContent>
           <TabsContent value="cafe">
             <CafeSalesTab />
           </TabsContent>
