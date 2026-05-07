@@ -71,6 +71,47 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const [resolvedTherapistId, setResolvedTherapistId] = useState<string | null>(null);
   const [resolvedRoomId, setResolvedRoomId] = useState<string | null>(null);
 
+  // Mother's Day voucher
+  const [voucherInput, setVoucherInput] = useState("");
+  const { apply: applyVoucher, clear: clearVoucher, applying: applyingVoucher, applied: appliedVoucher, error: voucherError } = useApplyMothersDayVoucher();
+  const [reminderSending, setReminderSending] = useState(false);
+
+  const handleApplyVoucher = async () => {
+    const res = await applyVoucher(voucherInput);
+    if (res.ok && res.voucher) {
+      // Auto-pick the matching massage service if not already chosen
+      const matched = (services || []).find(
+        (s) => (s.category || "").toLowerCase().includes("massage") &&
+          (s.duration_minutes === res.voucher!.massage_duration)
+      );
+      if (matched) {
+        setServiceId(matched.id);
+      }
+      setPaymentMethod("comp");
+      toast.success("Voucher applied — $0 due");
+    }
+  };
+
+  const handleSendReminder = async () => {
+    // Need voucher_id; do a fresh lookup since blocked state clears applied
+    setReminderSending(true);
+    try {
+      const code = voucherInput.trim().toUpperCase();
+      const { data: lookup } = await supabase.rpc("lookup_mothers_day_voucher", { p_code: code });
+      const v = lookup as any;
+      if (!v?.found || !v?.id) { toast.error("Voucher not found"); return; }
+      const { error } = await supabase.functions.invoke("send-mothers-day-checkout-reminder", {
+        body: { voucher_id: v.id },
+      });
+      if (error) throw error;
+      toast.success("Checkout reminder sent");
+    } catch (e: any) {
+      toast.error(e.message || "Could not send reminder");
+    } finally {
+      setReminderSending(false);
+    }
+  };
+
   // Unified customer search across members, non-members, and saved guests
   const { data: customerResults } = useQuery({
     queryKey: ["spa-customer-search", customerSearch],
