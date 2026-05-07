@@ -15,6 +15,7 @@ import cycling from "@/assets/cycling-studio-hero.jpg";
 import aerobicsStudio from "@/assets/aerobics-studio-hero.jpg";
 import communityBanner from "@/assets/community-banner.png";
 import stormLogoDark from "@/assets/storm-logo-dark.png";
+import { PromoBanner } from "@/components/marketing/PromoBanner";
 
 import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
 import bodyTreatments from "@/assets/body-treatments.jpg";
