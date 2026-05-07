@@ -73,10 +73,10 @@ function recipientGiftHtml(opts: {
       </p>
       <p style="margin:0 0 18px;color:#6b5a3b;">Valid through <strong>${fmtDate(opts.expiresAt)}</strong>.</p>
       <p style="text-align:center;margin:28px 0 14px;">
-        <a href="${SITE}/auth?redirect=/schedule" style="background:#a17e3a;color:#fff;padding:14px 32px;text-decoration:none;border-radius:4px;display:inline-block;font-family:Helvetica,Arial,sans-serif;">Sign In &amp; Book</a>
+        <a href="${redeemUrl}" style="background:#a17e3a;color:#fff;padding:14px 32px;text-decoration:none;border-radius:4px;display:inline-block;font-family:Helvetica,Arial,sans-serif;">Claim Your Gift</a>
       </p>
       <p style="font-size:13px;color:#6b5a3b;text-align:center;margin:0 0 4px;">
-        New here? Create a free account using this email address — your pass will be linked automatically.
+        New to Storm Wellness Club? Create a free account using <strong>this email address</strong> — your pass will be linked automatically.
       </p>
       <p style="font-size:12px;color:#8a7a5a;margin:24px 0 0;text-align:center;">
         Storm Wellness Club &middot; Livonia, MI
