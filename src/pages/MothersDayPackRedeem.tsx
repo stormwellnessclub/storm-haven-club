@@ -92,6 +92,7 @@ export default function MothersDayPackRedeem() {
       <SEOHead
         title="Claim Your Mother's Day Gift | Storm Wellness Club"
         description="Redeem your Mother's Day Class Pack at Storm Wellness Club."
+        path="/mothers-day-pack-redeem"
       />
       <div style={{ background: BG, minHeight: "100vh" }} className="py-16 px-6">
         <div className="max-w-xl mx-auto">
