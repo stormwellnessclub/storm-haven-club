@@ -124,8 +124,27 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       setConfirmation(null);
       setSelectedTime("");
       setMemberNotes("");
+      setVoucherInput("");
+      clearVoucher();
     }
-  }, [open]);
+  }, [open, clearVoucher]);
+
+  // Auto-apply voucher when modal opens with a code (from ?voucher= param or member card)
+  useEffect(() => {
+    if (open && initialVoucherCode && !appliedVoucher && !applyingVoucher) {
+      const code = initialVoucherCode.trim().toUpperCase();
+      setVoucherInput(code);
+      applyVoucher(code).then((res) => {
+        if (res.ok) toast.success("Mother's Day voucher applied — $0 due");
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialVoucherCode]);
+
+  const handleApplyVoucher = async () => {
+    const res = await applyVoucher(voucherInput);
+    if (res.ok) toast.success("Mother's Day voucher applied — $0 due");
+  };
 
   const handleSignWaiverInline = async () => {
     if (profile) {
