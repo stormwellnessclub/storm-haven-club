@@ -289,40 +289,75 @@ export function MothersDayTab() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => openPreview(v.id)}
+                  onClick={() => openVoucherPreview(v.id)}
                   title="Preview voucher email"
                 >
                   <Eye className="w-4 h-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => resend.mutate(v.id)}
-                  disabled={resend.isPending}
-                  title="Resend voucher email"
-                >
-                  <Mail className="w-4 h-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" disabled={resend.isPending} title="Resend voucher email">
+                      <Mail className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-72">
+                    {v.recipient_email && (
+                      <DropdownMenuItem
+                        onClick={() => resend.mutate({ voucher_id: v.id, only: "recipient" })}
+                      >
+                        Resend gift email to {v.recipient_email}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => resend.mutate({ voucher_id: v.id, only: v.recipient_email ? "buyer" : "self" })}
+                    >
+                      Resend buyer receipt to {v.buyer_email}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => resend.mutate({ voucher_id: v.id })}>
+                      Resend everything
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setOverrideVoucher(v);
+                        setOverrideEmail("");
+                        setOverrideKind(v.recipient_email ? "recipient" : "buyer");
+                      }}
+                    >
+                      Send to a different email…
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {v.status === "pending" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-amber-500 text-amber-700 hover:bg-amber-50"
-                    onClick={() => sendReminder.mutate(v.id)}
-                    disabled={
-                      sendReminder.isPending ||
-                      (v.last_reminder_sent_at &&
-                        Date.now() - new Date(v.last_reminder_sent_at).getTime() < 60 * 60 * 1000)
-                    }
-                    title={
-                      v.last_reminder_sent_at
-                        ? `Reminder sent ${formatDistanceToNow(new Date(v.last_reminder_sent_at), { addSuffix: true })}`
-                        : "Send finish-checkout email to buyer"
-                    }
-                  >
-                    <Send className="w-4 h-4 mr-1" />
-                    {v.last_reminder_sent_at ? "Re-send reminder" : "Send reminder"}
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openReminderPreview(v.id)}
+                      title="Preview finish-checkout reminder"
+                    >
+                      <Eye className="w-4 h-4 text-amber-700" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-500 text-amber-700 hover:bg-amber-50"
+                      onClick={() => sendReminder.mutate(v.id)}
+                      disabled={
+                        sendReminder.isPending ||
+                        (v.last_reminder_sent_at &&
+                          Date.now() - new Date(v.last_reminder_sent_at).getTime() < 60 * 60 * 1000)
+                      }
+                      title={
+                        v.last_reminder_sent_at
+                          ? `Reminder sent ${formatDistanceToNow(new Date(v.last_reminder_sent_at), { addSuffix: true })}`
+                          : "Send finish-checkout email to buyer"
+                      }
+                    >
+                      <Send className="w-4 h-4 mr-1" />
+                      {v.last_reminder_sent_at ? "Re-send reminder" : "Send reminder"}
+                    </Button>
+                  </>
                 )}
                 {v.status === "active" && (
                   <Button size="sm" variant="outline" onClick={() => redeem.mutate(v.code)} disabled={redeem.isPending}>
