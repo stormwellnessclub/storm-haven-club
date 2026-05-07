@@ -86,7 +86,9 @@ export default function PortalPasses() {
 
   return (
     <PortalLayout title="My Passes">
+      <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
       <div className="max-w-3xl space-y-6">
+        <PromoBanner className="rounded-lg" />
         <div className="flex items-center justify-end gap-3">
           <Button variant="outline" asChild>
             <Link to="/schedule"><Calendar className="h-4 w-4 mr-2" />Book a Class</Link>
