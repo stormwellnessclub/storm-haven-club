@@ -50,11 +50,13 @@ export default function Spa() {
 
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
+  const voucherFromUrl = searchParams.get("voucher");
   const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || "All");
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [activeVoucherCode, setActiveVoucherCode] = useState<string | null>(null);
 
   // Gate states
   const [showWaiverGate, setShowWaiverGate] = useState(false);
