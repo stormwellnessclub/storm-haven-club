@@ -40,6 +40,9 @@ export default function Marketing() {
           <TabsList>
             <TabsTrigger value="guests">Guests</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
+            <TabsTrigger value="contacts" className="gap-1.5">
+              <Mail className="h-3.5 w-3.5" /> Contacts
+            </TabsTrigger>
             <TabsTrigger value="cafe" className="gap-1.5">
               <Coffee className="h-3.5 w-3.5" /> Cafe
             </TabsTrigger>
