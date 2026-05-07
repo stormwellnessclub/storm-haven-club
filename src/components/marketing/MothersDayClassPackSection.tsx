@@ -217,7 +217,7 @@ export function MothersDayClassPackSection() {
   if (!live) return null;
 
   return (
-    <section className="py-16" style={{ background: PROMO_BG }}>
+    <section className="py-16 overflow-hidden" style={{ background: PROMO_BG }}>
       <div className="container mx-auto px-6">
         <div className="max-w-4xl mx-auto text-center mb-10">
           <p className="text-xs tracking-[0.4em] mb-3" style={{ color: PROMO_GOLD }}>
@@ -237,7 +237,7 @@ export function MothersDayClassPackSection() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          <Card className="p-8 text-center" style={{ background: "#fff", borderColor: PROMO_TAN, borderWidth: 2 }}>
+          <Card className="p-6 sm:p-8 text-center min-w-0" style={{ background: "#fff", borderColor: PROMO_TAN, borderWidth: 2 }}>
             <Heart className="w-8 h-8 mx-auto mb-3" style={{ color: PROMO_GOLD }} />
             <p className="text-xs tracking-[0.3em] mb-2" style={{ color: PROMO_GOLD }}>MEMBER</p>
             <div className="font-serif text-5xl mb-1" style={{ color: PROMO_GOLD }}>${memberPrice}</div>
@@ -246,12 +246,19 @@ export function MothersDayClassPackSection() {
               <Button onClick={() => openDialog("self")} style={{ background: PROMO_GOLD }}>
                 Buy for myself
               </Button>
-              <Button variant="outline" onClick={() => openDialog("gift")} style={{ borderColor: PROMO_TAN, color: PROMO_GOLD }}>
-                <Gift className="w-4 h-4 mr-2" /> Buy as a gift for a Storm Wellness Club member
+              <Button
+                variant="outline"
+                onClick={() => openDialog("gift")}
+                className="whitespace-normal h-auto py-2 leading-tight text-sm"
+                style={{ borderColor: PROMO_TAN, color: PROMO_GOLD }}
+              >
+                <Gift className="w-4 h-4 mr-2 flex-shrink-0" />
+                <span className="sm:hidden">Gift to a member</span>
+                <span className="hidden sm:inline">Buy as a gift for a Storm Wellness Club member</span>
               </Button>
             </div>
           </Card>
-          <Card className="p-8 text-center" style={{ background: "#fff", borderColor: PROMO_TAN, borderWidth: 2 }}>
+          <Card className="p-6 sm:p-8 text-center min-w-0" style={{ background: "#fff", borderColor: PROMO_TAN, borderWidth: 2 }}>
             <Sparkles className="w-8 h-8 mx-auto mb-3" style={{ color: PROMO_GOLD }} />
             <p className="text-xs tracking-[0.3em] mb-2" style={{ color: PROMO_GOLD }}>NON-MEMBER</p>
             <div className="font-serif text-5xl mb-1" style={{ color: PROMO_GOLD }}>${nonMemberPrice}</div>
@@ -260,8 +267,13 @@ export function MothersDayClassPackSection() {
               <Button onClick={() => openDialog("self")} style={{ background: PROMO_GOLD }}>
                 Buy for myself
               </Button>
-              <Button variant="outline" onClick={() => openDialog("gift")} style={{ borderColor: PROMO_TAN, color: PROMO_GOLD }}>
-                <Gift className="w-4 h-4 mr-2" /> Buy as a gift
+              <Button
+                variant="outline"
+                onClick={() => openDialog("gift")}
+                className="whitespace-normal h-auto py-2 leading-tight text-sm"
+                style={{ borderColor: PROMO_TAN, color: PROMO_GOLD }}
+              >
+                <Gift className="w-4 h-4 mr-2 flex-shrink-0" /> Buy as a gift
               </Button>
             </div>
           </Card>
