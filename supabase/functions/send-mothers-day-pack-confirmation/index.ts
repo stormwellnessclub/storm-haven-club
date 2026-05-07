@@ -140,6 +140,7 @@ serve(async (req) => {
         recipientGiftHtml({
           buyerName: buyerName || "A friend",
           recipientName: recipName || "there",
+          recipientEmail: pass.gift_recipient_email,
           expiresAt: pass.expires_at,
         })
       );
