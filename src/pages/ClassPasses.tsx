@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { MothersDayClassPackSection } from "@/components/marketing/MothersDayClassPackSection";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
+import { PromoBanner } from "@/components/marketing/PromoBanner";
 
 interface PricingTier {
   type: string;
@@ -332,12 +333,34 @@ export default function ClassPasses() {
   // Waiver is valid if signed in either member or non-member profile
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
 
-  // Detect ?purchase=success on return from Stripe (non-member flow)
+  // Purchase success dialog state
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successPass, setSuccessPass] = useState<any>(null);
+
+  // Detect Stripe return: backend appends ?session_id={CHECKOUT_SESSION_ID} to successUrl
   useEffect(() => {
-    if (searchParams.get("purchase") === "success") {
+    const sessionId = searchParams.get("session_id");
+    const purchase = searchParams.get("purchase");
+    if (sessionId || purchase === "success") {
       queryClient.invalidateQueries({ queryKey: ["user-credits"] });
       refetchCredits();
-      toast.success("Class pass purchased! Your pass is now active.");
+      if (sessionId) {
+        supabase.functions
+          .invoke("class-pass-confirm", { body: { session_id: sessionId } })
+          .then(({ data }: any) => {
+            if (data?.success && data?.paid) {
+              setSuccessPass(data.pass);
+              setSuccessOpen(true);
+            } else {
+              toast.success("Class pass purchased! Your pass is now active.");
+            }
+          })
+          .catch(() => {
+            toast.success("Class pass purchased! Your pass is now active.");
+          });
+      } else {
+        toast.success("Class pass purchased! Your pass is now active.");
+      }
       setSearchParams({}, { replace: true });
     }
   }, []);
@@ -415,6 +438,8 @@ export default function ClassPasses() {
   return (
     <Layout>
       <SEOHead title="Class Passes" description="Purchase class passes for all studio classes. Single class and 10-pack options available with member and non-member pricing at Storm Wellness Club." path="/class-passes" />
+      <PromoBanner />
+      <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
         <div className="container mx-auto px-6">

@@ -123,6 +123,7 @@ const departments: DepartmentSection[] = [
       { title: "Spa Management", url: "/admin/spa-management", icon: Calendar },
       { title: "Mother's Day 💛", url: "/admin/mothers-day", icon: Heart, highlight: true },
       { title: "MD Class Packs 🎁", url: "/admin/mothers-day-class-packs", icon: Heart, highlight: true },
+      { title: "Abandoned Checkouts", url: "/admin/abandoned-class-pass-checkouts", icon: Heart },
       { title: "Front Desk POS", url: "/admin/front-desk", icon: Sparkles },
     ],
   },
