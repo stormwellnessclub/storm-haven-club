@@ -1,5 +1,5 @@
 // Confirms a Mother's Day Class Pack payment, fulfills the pass, and triggers emails.
-// Idempotent: a duplicate confirm returns the existing pass instead of creating a new row.
+// Idempotent on stripe_payment_intent_id (DB-enforced). Safe to invoke from client AND webhook.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -42,6 +42,26 @@ serve(async (req) => {
       throw new Error("Unexpected payment metadata");
     }
 
+    // Idempotency by PI id
+    const { data: existing } = await supabase
+      .from("class_passes")
+      .select("id, expires_at, gift_recipient_email, gift_recipient_name, is_member_price, gift_buyer_email, gift_buyer_name, user_id")
+      .eq("stripe_payment_intent_id", pi.id)
+      .maybeSingle();
+    if (existing) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          pass_id: existing.id,
+          already_fulfilled: true,
+          is_gift: !!existing.gift_recipient_email,
+          tier: existing.is_member_price ? "member" : "nonMember",
+          expires_at: existing.expires_at,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
     const isGift = m.is_gift === "true";
     const tier = m.tier === "member" ? "member" : "nonMember";
     const buyerUserId = m.buyer_user_id || null;
@@ -51,10 +71,10 @@ serve(async (req) => {
     const recipientEmail = (m.recipient_email || "").toLowerCase() || null;
     const baseCents = parseInt(m.base_amount_cents || "0", 10);
 
-    // -------- Resolve target user (gift recipient or buyer) --------
+    // Resolve target user / member
     let targetUserId: string | null = null;
     let memberId: string | null = null;
-    let giftVerificationStatus: string;
+    let giftVerificationStatus = "auto";
 
     const lookupActiveMemberByEmail = async (email: string) => {
       const { data } = await supabase
@@ -72,9 +92,10 @@ serve(async (req) => {
       if (recipMember) {
         targetUserId = recipMember.user_id;
         memberId = recipMember.id;
-        giftVerificationStatus = tier === "member" ? "auto" : "auto";
+        giftVerificationStatus = "auto";
       } else {
-        targetUserId = buyerUserId;
+        // Leave user_id NULL — recipient will claim via redeem page or signup trigger
+        targetUserId = null;
         giftVerificationStatus = tier === "member" ? "pending" : "auto";
       }
     } else {
@@ -87,35 +108,6 @@ serve(async (req) => {
         }
       }
       giftVerificationStatus = tier === "member" && !memberId ? "pending" : "auto";
-    }
-
-    if (!targetUserId) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          fulfillment: "manual_required",
-          message:
-            "Payment received. We could not match an account — our team will set up the pass within one business day.",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
-    }
-
-    // Idempotency check: pass already created for this PI?
-    const { data: alreadyByEmail } = await supabase
-      .from("class_passes")
-      .select("id, expires_at")
-      .eq("promo_code", PROMO)
-      .eq("user_id", targetUserId)
-      .eq("gift_buyer_email", buyerEmail)
-      .gte("created_at", new Date(Date.now() - 1000 * 60 * 60).toISOString())
-      .limit(1)
-      .maybeSingle();
-    if (alreadyByEmail) {
-      return new Response(
-        JSON.stringify({ success: true, pass_id: alreadyByEmail.id, already_fulfilled: true }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
     }
 
     const expiresAt = new Date();
@@ -135,6 +127,7 @@ serve(async (req) => {
         status: "active",
         expires_at: expiresAt.toISOString(),
         promo_code: PROMO,
+        stripe_payment_intent_id: pi.id,
         gift_buyer_user_id: buyerUserId,
         gift_buyer_name: buyerName,
         gift_buyer_email: buyerEmail,
@@ -144,16 +137,28 @@ serve(async (req) => {
       })
       .select()
       .single();
-    if (insErr) throw insErr;
+    if (insErr) {
+      // Race: another invocation just inserted with same PI — return that one
+      const { data: race } = await supabase
+        .from("class_passes")
+        .select("id, expires_at, is_member_price, gift_recipient_email")
+        .eq("stripe_payment_intent_id", pi.id)
+        .maybeSingle();
+      if (race) {
+        return new Response(
+          JSON.stringify({ success: true, pass_id: race.id, already_fulfilled: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+      throw insErr;
+    }
 
     // Fire confirmation emails (non-fatal)
     try {
       await supabase.functions.invoke("send-mothers-day-pack-confirmation", {
         body: { pass_id: pass.id },
       });
-    } catch (_e) {
-      /* non-fatal */
-    }
+    } catch (_e) { /* non-fatal */ }
 
     return new Response(
       JSON.stringify({
@@ -163,6 +168,7 @@ serve(async (req) => {
         recipient_name: recipientName,
         expires_at: pass.expires_at,
         tier,
+        unclaimed: !targetUserId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
