@@ -1,76 +1,64 @@
+## Goal
 
-## Generic voucher redemption on /spa
+In the **Admin → Mother's Day** tab, give you full control over voucher and reminder emails, and fix the misleading expiration wording in the gift email.
 
-A small, permanent **"Redeem a voucher / gift card"** entry point on the Spa page. Today it accepts Mother's Day codes (`MOM-XXXXXX`). When we add gift cards later, the same entry handles them — no UI changes needed.
+---
 
-### What the user sees
+## 1. Fix misleading wording in gift email
 
-On `/spa`, in the page header next to the category tabs, a discreet text link:
+**File:** `supabase/functions/send-mothers-day-voucher/index.ts`
 
-> **Have a voucher or gift card? Redeem →**
+Current step 2 in the recipient gift email reads:
+> "Choose a date and time that works for you (booking opens 6 months from today)."
 
-Click it → small dialog opens:
+Remove that line entirely. The "How to redeem" steps will become:
+1. Click the button below to redeem online, or call us to book.
+2. Mention your code at check-in if booking by phone.
 
-```
-┌──────────────────────────────────┐
-│  Redeem a voucher                │
-│                                  │
-│  [ Enter your code         ]     │
-│                                  │
-│  [ Cancel ]   [ Look up code ]   │
-└──────────────────────────────────┘
-```
+The expiration window stays clear via the existing line lower in the email:
+> "Redeemable through **{expires_at}** · Non-transferable"
 
-On success → dialog closes, booking modal opens with the right service pre-selected and the code already applied (FREE / $0 due). Same flow as the email link.
+`expires_at` is already correctly anchored to purchase date (DB default `purchased_at + 6 months`). No DB change needed.
 
-On failure → inline red error inside the dialog: *"Code not found, expired, already used, or not yet paid."* They stay in the dialog and can try again.
+---
 
-No banner. No always-on visual clutter. Lives there forever.
+## 2. Preview the "finish your checkout" reminder
 
-### Why this is reliable
+**File:** `supabase/functions/send-mothers-day-checkout-reminder/index.ts`
+- Add a `preview: true` branch returning `{ subject, html, to }` without sending and without touching `last_reminder_sent_at`.
 
-The dialog calls **one** server-side resolver (`resolve_voucher_code`) that:
+**File:** `src/components/admin/spa/MothersDayTab.tsx`
+- For `pending` vouchers, add an Eye icon next to "Send reminder" that opens the preview dialog with a "Finish-checkout reminder" tab.
+- Show "**To:** {buyer_email}" above the iframe so it's clear the reminder only goes to the buyer (never the gift recipient).
 
-1. Trims + uppercases input.
-2. Detects type by prefix (`MOM-` → Mother's Day; later `GIFT-` → gift card).
-3. For Mother's Day: calls existing `lookup_mothers_day_voucher` RPC. If `pending`, triggers a one-shot `mothers-day-reconcile` for that voucher and re-checks. Only `active` succeeds.
-4. Returns a normalized shape: `{ ok, type, code, service_hint: { category, duration }, applied_credit_cents, error_message }`.
-5. Client uses `service_hint` to auto-select the matching spa service and opens the booking modal with the code applied.
+---
 
-All redemption still happens server-side after appointment creation (existing `redeem_mothers_day_voucher` RPC). No client-side bypass. Frozen / expired / unpaid vouchers are rejected at the RPC, not in the UI.
+## 3. Per-recipient resend + send to a custom email
 
-### Cases handled (same matching logic as today)
+**File:** `supabase/functions/send-mothers-day-voucher/index.ts`
+- Accept new optional body params:
+  - `override_email?: string` — when present, send to this address instead of the voucher's recipient/buyer.
+  - Require `only` (`'recipient' | 'buyer' | 'self'`) whenever `override_email` is set.
+- Log overrides in `mothers_day_voucher_emails`: store the override address as `recipient_email`, tag `triggered_by` as `manual_override` for audit.
 
-| Who | What happens |
-|---|---|
-| Member or non-member, bought for self, signed in with purchase email | Code resolves, booking modal opens, books for $0. |
-| Recipient of a gift, signed in with the email it was sent to | Same — voucher matched by `recipient_email`. |
-| Recipient with no account | They sign up with the email the gift was sent to (or any email — they paste the code, the code itself authorizes redemption regardless of account match for Mother's Day, since the code is the bearer instrument). After booking, code is marked redeemed and locked to that appointment. |
-| Wrong / expired / unpaid code | Dialog shows clear error. Cannot proceed. |
+**File:** `src/components/admin/spa/MothersDayTab.tsx`
+- Replace the single Mail icon on each row with a `DropdownMenu`:
+  - "Resend gift email to {recipient}" (gift only)
+  - "Resend buyer receipt to {buyer}"
+  - "Resend everything"
+  - "Send to a different email…" → small dialog with email input + choice (gift email / buyer receipt) → invokes `send-mothers-day-voucher` with `override_email` + `only`
+- Add "**To:** …" labels above each preview-dialog tab (gift / buyer / reminder).
 
-### Future-proofing for gift cards
+---
 
-When gift cards launch, we add a new branch inside `resolve_voucher_code` (e.g. `GIFT-` prefix → look up `gift_cards` table → return `applied_credit_cents`). The booking modal already supports a "voucher applied" state — we extend it to also accept partial credit (e.g. $50 off a $90 service, customer pays the $40 difference). Zero changes to the /spa UI.
+## Out of scope
+- No DB migration — `expires_at` already correct, override is in-flight only, audit log table already exists.
+- No changes to the public Mother's Day flow or auto-send-on-purchase webhook behavior.
 
-### Files touched
+---
 
-**New**
-- `supabase/migrations/<ts>_resolve_voucher_code.sql` — `resolve_voucher_code(p_code text)` SECURITY DEFINER RPC, prefix-routed, returns normalized JSON.
-- `src/components/spa/RedeemVoucherDialog.tsx` — dialog UI + lookup + handoff to booking modal.
-
-**Edited**
-- `src/pages/Spa.tsx` — add "Redeem a voucher" link in the header; on success, set selected service + open `SpaBookingModal` with `initialVoucherCode`.
-- `src/components/booking/SpaBookingModal.tsx` — already accepts `initialVoucherCode`; no changes needed beyond confirming auto-apply behavior on open.
-
-### Out of scope (deliberately)
-
-- No homepage banner, no dashboard card, no /spa hero strip.
-- No changes to email templates or admin tools — those already work.
-- Gift card schema is not built now; only the resolver is structured to absorb it later.
-
-### Validation before shipping
-
-- Test with a known active `MOM-XXXXXX` code → opens booking modal, $0 due, books, voucher flips to `redeemed`.
-- Test with a `pending` code → reconcile fires; if Stripe shows paid, proceeds; else hard-blocks.
-- Test with `redeemed` / fake / lowercase / extra-whitespace input → all rejected with the same friendly error.
-- Test signed-out user → dialog still resolves the code, then prompts sign-in before opening booking modal (since spa booking requires an account).
+## Validation
+- Open an active gift voucher → "Choose a date and time…" line is gone, redemption window only appears in the "Redeemable through {date}" line.
+- Open a `pending` voucher → click Eye → see reminder HTML with "To: {buyer_email}", no send recorded.
+- Open Sarah/Lama's gift voucher → confirm two log rows in `mothers_day_voucher_emails` (one to Lama, one to Sarah).
+- From dropdown, "Send to a different email" → enter a test address, pick "Buyer receipt" → confirm a row lands with the override address and `triggered_by = manual_override`.

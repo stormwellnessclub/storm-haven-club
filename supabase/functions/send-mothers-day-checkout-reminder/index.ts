@@ -55,7 +55,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { voucher_id } = await req.json();
+    const { voucher_id, preview } = await req.json();
     if (!voucher_id) {
       return new Response(JSON.stringify({ error: "voucher_id required" }), {
         status: 400,
@@ -79,6 +79,15 @@ serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (preview) {
+      const html = buildHtml(v);
+      const subject = "Finish your Mother's Day gift — your checkout is waiting";
+      return new Response(
+        JSON.stringify({ success: true, preview: true, subject, html, to: v.buyer_email || null }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+      );
     }
 
     if (v.status !== "pending") {

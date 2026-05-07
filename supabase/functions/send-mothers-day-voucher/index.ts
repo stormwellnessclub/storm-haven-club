@@ -72,7 +72,6 @@ function buildGiftHtml(v: any) {
     <p style="font-size:14px;color:#6b5a3b;margin:0 0 10px;font-weight:600;letter-spacing:1px;">HOW TO REDEEM</p>
     <ol style="font-size:14px;color:#6b5a3b;margin:0;padding-left:18px;line-height:1.7;">
       <li>Click the button below to redeem online, or call us to book.</li>
-      <li>Choose a date and time that works for you (booking opens 6 months from today).</li>
       <li>Mention your code at check-in if booking by phone.</li>
     </ol>
   </div>
@@ -160,7 +159,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-    const { voucher_id, only, triggered_by, preview } = await req.json();
+    const { voucher_id, only, triggered_by, preview, override_email } = await req.json();
     if (!voucher_id) throw new Error("voucher_id required");
 
     const { data: v, error: vErr } = await supabase
@@ -180,10 +179,19 @@ serve(async (req) => {
         : "Your Mother's Day Special voucher";
       const buyer_html = buildBuyerHtml(v, { isGift });
       return new Response(
-        JSON.stringify({ success: true, preview: true, recipient_subject, recipient_html, buyer_subject, buyer_html }),
+        JSON.stringify({
+          success: true, preview: true,
+          recipient_subject, recipient_html, recipient_to: v.recipient_email || null,
+          buyer_subject, buyer_html, buyer_to: v.buyer_email || null,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
+
+    if (override_email && !only) {
+      throw new Error("override_email requires 'only' to be set");
+    }
+    const overrideTo = override_email?.trim().toLowerCase() || null;
 
     const sends: Array<{
       kind: "recipient" | "buyer" | "self";
@@ -196,7 +204,7 @@ serve(async (req) => {
       if (!only || only === "recipient") {
         sends.push({
           kind: "recipient",
-          to: v.recipient_email,
+          to: overrideTo || v.recipient_email,
           subject: `${v.buyer_name} sent you a Mother's Day gift 💛`,
           html: buildGiftHtml(v),
         });
@@ -204,7 +212,7 @@ serve(async (req) => {
       if (!only || only === "buyer") {
         sends.push({
           kind: "buyer",
-          to: v.buyer_email,
+          to: overrideTo || v.buyer_email,
           subject: `Your Mother's Day gift to ${v.recipient_name} is on its way`,
           html: buildBuyerHtml(v, { isGift: true }),
         });
@@ -213,12 +221,16 @@ serve(async (req) => {
       if (!only || only === "self" || only === "buyer") {
         sends.push({
           kind: "self",
-          to: v.buyer_email,
+          to: overrideTo || v.buyer_email,
           subject: "Your Mother's Day Special voucher",
           html: buildBuyerHtml(v, { isGift: false }),
         });
       }
     }
+
+    const effectiveTrigger = overrideTo
+      ? `manual_override${triggered_by ? `:${triggered_by}` : ""}`
+      : (triggered_by || "system");
 
     const results: SendResult[] = [];
     for (const s of sends) {
@@ -240,7 +252,7 @@ serve(async (req) => {
           recipient_email: s.to,
           status: "sent",
           resend_id: resendId,
-          triggered_by: triggered_by || "system",
+          triggered_by: effectiveTrigger,
         });
       } catch (e: any) {
         const msg = e?.message || String(e);
@@ -251,7 +263,7 @@ serve(async (req) => {
           recipient_email: s.to,
           status: "failed",
           error_message: msg,
-          triggered_by: triggered_by || "system",
+          triggered_by: effectiveTrigger,
         });
       }
     }

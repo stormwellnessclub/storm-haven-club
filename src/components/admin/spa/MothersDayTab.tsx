@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Loader2, Search, Heart, Mail, Plus, Eye, Send } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -24,10 +27,15 @@ export function MothersDayTab() {
   const [previewVoucherId, setPreviewVoucherId] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"voucher" | "reminder">("voucher");
+  const [overrideVoucher, setOverrideVoucher] = useState<any>(null);
+  const [overrideEmail, setOverrideEmail] = useState("");
+  const [overrideKind, setOverrideKind] = useState<"recipient" | "buyer">("recipient");
 
-  const openPreview = async (voucher_id: string) => {
+  const openVoucherPreview = async (voucher_id: string) => {
     setPreviewVoucherId(voucher_id);
     setPreviewData(null);
+    setPreviewMode("voucher");
     setPreviewLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-mothers-day-voucher", {
@@ -37,6 +45,26 @@ export function MothersDayTab() {
       setPreviewData(data);
     } catch (e: any) {
       toast.error(e?.message || "Could not load preview");
+      setPreviewVoucherId(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const openReminderPreview = async (voucher_id: string) => {
+    setPreviewVoucherId(voucher_id);
+    setPreviewData(null);
+    setPreviewMode("reminder");
+    setPreviewLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-mothers-day-checkout-reminder", {
+        body: { voucher_id, preview: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPreviewData(data);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not load reminder preview");
       setPreviewVoucherId(null);
     } finally {
       setPreviewLoading(false);
@@ -76,14 +104,17 @@ export function MothersDayTab() {
   });
 
   const resend = useMutation({
-    mutationFn: async (voucher_id: string) => {
+    mutationFn: async (args: { voucher_id: string; only?: "recipient" | "buyer" | "self"; override_email?: string }) => {
       const { data, error } = await supabase.functions.invoke("send-mothers-day-voucher", {
-        body: { voucher_id },
+        body: args,
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => toast.success("Voucher email resent"),
+    onSuccess: (_d, vars) => {
+      toast.success(vars.override_email ? `Email sent to ${vars.override_email}` : "Voucher email resent");
+    },
     onError: (e: any) => toast.error(e?.message || "Could not resend"),
   });
 
@@ -258,40 +289,75 @@ export function MothersDayTab() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => openPreview(v.id)}
+                  onClick={() => openVoucherPreview(v.id)}
                   title="Preview voucher email"
                 >
                   <Eye className="w-4 h-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => resend.mutate(v.id)}
-                  disabled={resend.isPending}
-                  title="Resend voucher email"
-                >
-                  <Mail className="w-4 h-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" disabled={resend.isPending} title="Resend voucher email">
+                      <Mail className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-72">
+                    {v.recipient_email && (
+                      <DropdownMenuItem
+                        onClick={() => resend.mutate({ voucher_id: v.id, only: "recipient" })}
+                      >
+                        Resend gift email to {v.recipient_email}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => resend.mutate({ voucher_id: v.id, only: v.recipient_email ? "buyer" : "self" })}
+                    >
+                      Resend buyer receipt to {v.buyer_email}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => resend.mutate({ voucher_id: v.id })}>
+                      Resend everything
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setOverrideVoucher(v);
+                        setOverrideEmail("");
+                        setOverrideKind(v.recipient_email ? "recipient" : "buyer");
+                      }}
+                    >
+                      Send to a different email…
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {v.status === "pending" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-amber-500 text-amber-700 hover:bg-amber-50"
-                    onClick={() => sendReminder.mutate(v.id)}
-                    disabled={
-                      sendReminder.isPending ||
-                      (v.last_reminder_sent_at &&
-                        Date.now() - new Date(v.last_reminder_sent_at).getTime() < 60 * 60 * 1000)
-                    }
-                    title={
-                      v.last_reminder_sent_at
-                        ? `Reminder sent ${formatDistanceToNow(new Date(v.last_reminder_sent_at), { addSuffix: true })}`
-                        : "Send finish-checkout email to buyer"
-                    }
-                  >
-                    <Send className="w-4 h-4 mr-1" />
-                    {v.last_reminder_sent_at ? "Re-send reminder" : "Send reminder"}
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openReminderPreview(v.id)}
+                      title="Preview finish-checkout reminder"
+                    >
+                      <Eye className="w-4 h-4 text-amber-700" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-500 text-amber-700 hover:bg-amber-50"
+                      onClick={() => sendReminder.mutate(v.id)}
+                      disabled={
+                        sendReminder.isPending ||
+                        (v.last_reminder_sent_at &&
+                          Date.now() - new Date(v.last_reminder_sent_at).getTime() < 60 * 60 * 1000)
+                      }
+                      title={
+                        v.last_reminder_sent_at
+                          ? `Reminder sent ${formatDistanceToNow(new Date(v.last_reminder_sent_at), { addSuffix: true })}`
+                          : "Send finish-checkout email to buyer"
+                      }
+                    >
+                      <Send className="w-4 h-4 mr-1" />
+                      {v.last_reminder_sent_at ? "Re-send reminder" : "Send reminder"}
+                    </Button>
+                  </>
                 )}
                 {v.status === "active" && (
                   <Button size="sm" variant="outline" onClick={() => redeem.mutate(v.code)} disabled={redeem.isPending}>
@@ -307,11 +373,26 @@ export function MothersDayTab() {
       <Dialog open={!!previewVoucherId} onOpenChange={(o) => { if (!o) { setPreviewVoucherId(null); setPreviewData(null); } }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Email Preview</DialogTitle>
+            <DialogTitle>
+              {previewMode === "reminder" ? "Finish-checkout reminder preview" : "Email preview"}
+            </DialogTitle>
           </DialogHeader>
           {previewLoading || !previewData ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+          ) : previewMode === "reminder" ? (
+            <div className="flex-1 overflow-auto space-y-2">
+              <div className="text-xs text-muted-foreground">
+                <strong>To:</strong> {previewData.to} (buyer only — never sent to gift recipient)
+              </div>
+              <div className="text-xs text-muted-foreground">Subject:</div>
+              <div className="font-medium text-sm border rounded px-3 py-2 bg-muted/30">{previewData.subject}</div>
+              <iframe
+                title="Reminder preview"
+                srcDoc={previewData.html}
+                className="w-full h-[60vh] border rounded bg-white"
+              />
             </div>
           ) : (
             <Tabs defaultValue={previewData.recipient_html ? "recipient" : "buyer"} className="flex-1 overflow-hidden flex flex-col">
@@ -321,6 +402,7 @@ export function MothersDayTab() {
               </TabsList>
               {previewData.recipient_html && (
                 <TabsContent value="recipient" className="flex-1 overflow-auto space-y-2">
+                  <div className="text-xs text-muted-foreground"><strong>To:</strong> {previewData.recipient_to}</div>
                   <div className="text-xs text-muted-foreground">Subject:</div>
                   <div className="font-medium text-sm border rounded px-3 py-2 bg-muted/30">{previewData.recipient_subject}</div>
                   <iframe
@@ -331,6 +413,7 @@ export function MothersDayTab() {
                 </TabsContent>
               )}
               <TabsContent value="buyer" className="flex-1 overflow-auto space-y-2">
+                <div className="text-xs text-muted-foreground"><strong>To:</strong> {previewData.buyer_to}</div>
                 <div className="text-xs text-muted-foreground">Subject:</div>
                 <div className="font-medium text-sm border rounded px-3 py-2 bg-muted/30">{previewData.buyer_subject}</div>
                 <iframe
@@ -341,6 +424,66 @@ export function MothersDayTab() {
               </TabsContent>
             </Tabs>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!overrideVoucher} onOpenChange={(o) => { if (!o) setOverrideVoucher(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send voucher to a custom email</DialogTitle>
+          </DialogHeader>
+          {overrideVoucher && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Voucher <span className="font-mono font-semibold">{overrideVoucher.code}</span> — {overrideVoucher.massage_choice} ({overrideVoucher.massage_duration} min)
+              </div>
+              <div>
+                <Label htmlFor="override-email">Email address</Label>
+                <Input
+                  id="override-email"
+                  type="email"
+                  placeholder="someone@example.com"
+                  value={overrideEmail}
+                  onChange={(e) => setOverrideEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Which email to send</Label>
+                <RadioGroup value={overrideKind} onValueChange={(val) => setOverrideKind(val as "recipient" | "buyer")}>
+                  {overrideVoucher.recipient_email && (
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="recipient" id="kind-gift" />
+                      <Label htmlFor="kind-gift" className="font-normal">Gift email (the branded voucher)</Label>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="buyer" id="kind-buyer" />
+                    <Label htmlFor="kind-buyer" className="font-normal">Buyer receipt</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOverrideVoucher(null)}>Cancel</Button>
+            <Button
+              disabled={resend.isPending || !overrideEmail.trim() || !/.+@.+\..+/.test(overrideEmail)}
+              onClick={() => {
+                if (!overrideVoucher) return;
+                const isGift = !!overrideVoucher.recipient_email;
+                const only =
+                  overrideKind === "recipient"
+                    ? "recipient"
+                    : (isGift ? "buyer" : "self");
+                resend.mutate(
+                  { voucher_id: overrideVoucher.id, only, override_email: overrideEmail.trim() },
+                  { onSuccess: () => setOverrideVoucher(null) }
+                );
+              }}
+            >
+              {resend.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
