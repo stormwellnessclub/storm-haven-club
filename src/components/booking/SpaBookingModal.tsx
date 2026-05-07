@@ -293,6 +293,50 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     try {
       let paymentIntentId: string | undefined;
 
+      if (usingVoucher) {
+        const appt = await bookAppointment.mutateAsync({
+          serviceId: service.id,
+          serviceName: service.name,
+          serviceCategory: service.category,
+          servicePrice: service.price,
+          appointmentDate: selectedDate,
+          appointmentTime: selectedTime,
+          durationMinutes,
+          cleanupMinutes,
+          memberNotes: memberNotes || undefined,
+          paymentMethod: "mothers_day_voucher",
+          voucherCode: appliedVoucher!.code,
+          staffId: slot.therapist_id || undefined,
+          roomId: slot.room_id || undefined,
+        });
+
+        try {
+          await redeemMothersDayVoucher(appliedVoucher!.code, appt?.id || null);
+        } catch (e: any) {
+          toast.error(`Voucher redeem failed: ${e.message}. Please contact the front desk.`);
+        }
+
+        if (service.requires_intake_form && appt?.id) {
+          setIntakeAppointmentId(appt.id);
+          setIntakeMemberId(appt.member_id || null);
+          onOpenChange(false);
+          setIntakeOpen(true);
+          setSelectedDate(undefined);
+          setSelectedTime("");
+          setMemberNotes("");
+          return;
+        }
+
+        setConfirmation({
+          serviceName: service.name,
+          date: selectedDate,
+          time: selectedTime,
+          durationMinutes,
+          paymentSummary: `Prepaid with Mother's Day Voucher (${appliedVoucher!.code})`,
+        });
+        return;
+      }
+
       if (paymentMethod === "credit" && creditType) {
         const { data: rpcResult, error: rpcError } = await supabase.rpc(
           "book_wellness_appointment" as any,
