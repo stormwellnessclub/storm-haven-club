@@ -1,0 +1,1 @@
+ALTER TABLE public.mothers_day_vouchers ADD COLUMN IF NOT EXISTS last_reminder_sent_at TIMESTAMPTZ NULL;
