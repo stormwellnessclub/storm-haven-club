@@ -27,10 +27,15 @@ export function MothersDayTab() {
   const [previewVoucherId, setPreviewVoucherId] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"voucher" | "reminder">("voucher");
+  const [overrideVoucher, setOverrideVoucher] = useState<any>(null);
+  const [overrideEmail, setOverrideEmail] = useState("");
+  const [overrideKind, setOverrideKind] = useState<"recipient" | "buyer">("recipient");
 
-  const openPreview = async (voucher_id: string) => {
+  const openVoucherPreview = async (voucher_id: string) => {
     setPreviewVoucherId(voucher_id);
     setPreviewData(null);
+    setPreviewMode("voucher");
     setPreviewLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-mothers-day-voucher", {
@@ -40,6 +45,26 @@ export function MothersDayTab() {
       setPreviewData(data);
     } catch (e: any) {
       toast.error(e?.message || "Could not load preview");
+      setPreviewVoucherId(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const openReminderPreview = async (voucher_id: string) => {
+    setPreviewVoucherId(voucher_id);
+    setPreviewData(null);
+    setPreviewMode("reminder");
+    setPreviewLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-mothers-day-checkout-reminder", {
+        body: { voucher_id, preview: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPreviewData(data);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not load reminder preview");
       setPreviewVoucherId(null);
     } finally {
       setPreviewLoading(false);
