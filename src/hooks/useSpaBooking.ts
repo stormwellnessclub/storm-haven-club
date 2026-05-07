@@ -43,12 +43,13 @@ interface BookSpaAppointmentParams {
   durationMinutes: number;
   cleanupMinutes?: number;
   memberNotes?: string;
-  paymentMethod: "card" | "member_account" | "credit";
+  paymentMethod: "card" | "member_account" | "credit" | "mothers_day_voucher";
   paymentIntentId?: string;
   staffId?: string;
   roomId?: string;
   creditType?: "red_light" | "dry_cryo";
   creditId?: string;
+  voucherCode?: string;
 }
 
 interface CheckAvailabilityParams {
