@@ -509,9 +509,18 @@ export default function Spa() {
       <SpaBookingModal
         service={selectedService}
         open={showBookingModal}
+        initialVoucherCode={activeVoucherCode}
         onOpenChange={(open) => {
           setShowBookingModal(open);
-          if (!open) setSelectedService(null);
+          if (!open) {
+            setSelectedService(null);
+            if (activeVoucherCode) {
+              setActiveVoucherCode(null);
+              const next = new URLSearchParams(searchParams);
+              next.delete("voucher");
+              setSearchParams(next, { replace: true });
+            }
+          }
         }}
       />
 
