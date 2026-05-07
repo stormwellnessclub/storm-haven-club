@@ -159,7 +159,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-    const { voucher_id, only, triggered_by, preview } = await req.json();
+    const { voucher_id, only, triggered_by, preview, override_email } = await req.json();
     if (!voucher_id) throw new Error("voucher_id required");
 
     const { data: v, error: vErr } = await supabase
@@ -179,10 +179,19 @@ serve(async (req) => {
         : "Your Mother's Day Special voucher";
       const buyer_html = buildBuyerHtml(v, { isGift });
       return new Response(
-        JSON.stringify({ success: true, preview: true, recipient_subject, recipient_html, buyer_subject, buyer_html }),
+        JSON.stringify({
+          success: true, preview: true,
+          recipient_subject, recipient_html, recipient_to: v.recipient_email || null,
+          buyer_subject, buyer_html, buyer_to: v.buyer_email || null,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
+
+    if (override_email && !only) {
+      throw new Error("override_email requires 'only' to be set");
+    }
+    const overrideTo = override_email?.trim().toLowerCase() || null;
 
     const sends: Array<{
       kind: "recipient" | "buyer" | "self";
@@ -195,7 +204,7 @@ serve(async (req) => {
       if (!only || only === "recipient") {
         sends.push({
           kind: "recipient",
-          to: v.recipient_email,
+          to: overrideTo || v.recipient_email,
           subject: `${v.buyer_name} sent you a Mother's Day gift 💛`,
           html: buildGiftHtml(v),
         });
@@ -203,7 +212,7 @@ serve(async (req) => {
       if (!only || only === "buyer") {
         sends.push({
           kind: "buyer",
-          to: v.buyer_email,
+          to: overrideTo || v.buyer_email,
           subject: `Your Mother's Day gift to ${v.recipient_name} is on its way`,
           html: buildBuyerHtml(v, { isGift: true }),
         });
@@ -212,12 +221,16 @@ serve(async (req) => {
       if (!only || only === "self" || only === "buyer") {
         sends.push({
           kind: "self",
-          to: v.buyer_email,
+          to: overrideTo || v.buyer_email,
           subject: "Your Mother's Day Special voucher",
           html: buildBuyerHtml(v, { isGift: false }),
         });
       }
     }
+
+    const effectiveTrigger = overrideTo
+      ? `manual_override${triggered_by ? `:${triggered_by}` : ""}`
+      : (triggered_by || "system");
 
     const results: SendResult[] = [];
     for (const s of sends) {
