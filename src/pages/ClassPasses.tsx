@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { MothersDayClassPackSection } from "@/components/marketing/MothersDayClassPackSection";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
+import { PromoBanner } from "@/components/marketing/PromoBanner";
 
 interface PricingTier {
   type: string;
