@@ -104,14 +104,17 @@ export function MothersDayTab() {
   });
 
   const resend = useMutation({
-    mutationFn: async (voucher_id: string) => {
+    mutationFn: async (args: { voucher_id: string; only?: "recipient" | "buyer" | "self"; override_email?: string }) => {
       const { data, error } = await supabase.functions.invoke("send-mothers-day-voucher", {
-        body: { voucher_id },
+        body: args,
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => toast.success("Voucher email resent"),
+    onSuccess: (_d, vars) => {
+      toast.success(vars.override_email ? `Email sent to ${vars.override_email}` : "Voucher email resent");
+    },
     onError: (e: any) => toast.error(e?.message || "Could not resend"),
   });
 
