@@ -898,7 +898,12 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
           {/* Total */}
           <div className="border-t pt-4 space-y-1">
-            {paymentMethod === "credit" ? (
+            {usingVoucher ? (
+              <div className="flex justify-between items-center text-lg font-semibold">
+                <span>Total</span>
+                <span className="text-accent">FREE (Mother's Day Voucher)</span>
+              </div>
+            ) : paymentMethod === "credit" ? (
               <div className="flex justify-between items-center text-lg font-semibold">
                 <span>Total</span>
                 <span className="text-accent">FREE (1 Credit)</span>
