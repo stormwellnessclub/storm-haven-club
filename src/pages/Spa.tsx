@@ -366,16 +366,26 @@ export default function Spa() {
       {/* Category Filters */}
       <section className="py-8 bg-background border-b border-border sticky top-20 z-40">
         <div className="container mx-auto px-6">
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`filter-badge ${selectedCategory === category ? "filter-badge-active" : ""}`}
-              >
-                {category}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`filter-badge ${selectedCategory === category ? "filter-badge-active" : ""}`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRedeemDialog(true)}
+              className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 hover:underline whitespace-nowrap"
+            >
+              <Gift className="w-4 h-4" />
+              Have a voucher or gift card? Redeem
+            </button>
           </div>
         </div>
       </section>
