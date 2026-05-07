@@ -266,6 +266,7 @@ const App = () => (
               <Route path="/admin/spa-management" element={<ProtectedAdminRoute><SpaManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day" element={<ProtectedAdminRoute><MothersDayAdmin /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day-class-packs" element={<ProtectedAdminRoute><MothersDayClassPacks /></ProtectedAdminRoute>} />
+              <Route path="/admin/abandoned-class-pass-checkouts" element={<ProtectedAdminRoute><AbandonedClassPassCheckouts /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
