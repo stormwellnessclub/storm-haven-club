@@ -6,7 +6,7 @@ import { Loader2, Gift, Check, Heart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import SEOHead from "@/components/SEOHead";
+import { SEOHead } from "@/components/SEOHead";
 
 const GOLD = "#a17e3a";
 const TAN = "#c9a86a";
