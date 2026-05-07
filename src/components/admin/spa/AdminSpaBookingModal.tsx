@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info, CreditCard } from "lucide-react";
+import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info, CreditCard, Heart, X } from "lucide-react";
+import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useApplyMothersDayVoucher";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability, useSpaBookedSlots } from "@/hooks/useSpaBooking";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,6 +70,47 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const [conflict, setConflict] = useState<string | null>(null);
   const [resolvedTherapistId, setResolvedTherapistId] = useState<string | null>(null);
   const [resolvedRoomId, setResolvedRoomId] = useState<string | null>(null);
+
+  // Mother's Day voucher
+  const [voucherInput, setVoucherInput] = useState("");
+  const { apply: applyVoucher, clear: clearVoucher, applying: applyingVoucher, applied: appliedVoucher, error: voucherError } = useApplyMothersDayVoucher();
+  const [reminderSending, setReminderSending] = useState(false);
+
+  const handleApplyVoucher = async () => {
+    const res = await applyVoucher(voucherInput);
+    if (res.ok && res.voucher) {
+      // Auto-pick the matching massage service if not already chosen
+      const matched = (services || []).find(
+        (s) => (s.category || "").toLowerCase().includes("massage") &&
+          (s.duration_minutes === res.voucher!.massage_duration)
+      );
+      if (matched) {
+        setServiceId(matched.id);
+      }
+      setPaymentMethod("comp");
+      toast.success("Voucher applied — $0 due");
+    }
+  };
+
+  const handleSendReminder = async () => {
+    // Need voucher_id; do a fresh lookup since blocked state clears applied
+    setReminderSending(true);
+    try {
+      const code = voucherInput.trim().toUpperCase();
+      const { data: lookup } = await supabase.rpc("lookup_mothers_day_voucher", { p_code: code });
+      const v = lookup as any;
+      if (!v?.found || !v?.id) { toast.error("Voucher not found"); return; }
+      const { error } = await supabase.functions.invoke("send-mothers-day-checkout-reminder", {
+        body: { voucher_id: v.id },
+      });
+      if (error) throw error;
+      toast.success("Checkout reminder sent");
+    } catch (e: any) {
+      toast.error(e.message || "Could not send reminder");
+    } finally {
+      setReminderSending(false);
+    }
+  };
 
   // Unified customer search across members, non-members, and saved guests
   const { data: customerResults } = useQuery({
@@ -437,14 +479,19 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
       const isWalkIn = !userIdToInsert;
 
-      const { error } = await (supabase.from as any)("spa_appointments").insert({
+      const usingVoucher = !!appliedVoucher;
+      const finalNotesWithVoucher = usingVoucher
+        ? `${finalNotes ? finalNotes + "\n" : ""}Mother's Day Voucher: ${appliedVoucher!.code}`
+        : finalNotes;
+
+      const { data: inserted, error } = await (supabase.from as any)("spa_appointments").insert({
         member_id: memberIdToInsert,
         user_id: userIdToInsert,
         service_id: selectedService.id,
         service_name: selectedService.name,
         service_category: selectedService.category,
-        service_price: selectedService.price,
-        member_price: selectedService.member_price,
+        service_price: usingVoucher ? 0 : selectedService.price,
+        member_price: usingVoucher ? 0 : selectedService.member_price,
         appointment_date: appointmentDate,
         appointment_time: appointmentTime + ":00",
         duration_minutes: selectedService.duration_minutes,
@@ -452,15 +499,24 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         status: "confirmed",
         staff_id: resolvedTherapist,
         room_id: resolvedRoom,
-        staff_notes: finalNotes || null,
-        payment_method: paymentMethod === "comp" ? "comp" : null,
-        amount_paid: paymentMethod === "comp" ? 0 : null,
+        staff_notes: finalNotesWithVoucher || null,
+        payment_method: usingVoucher ? "mothers_day_voucher" : (paymentMethod === "comp" ? "comp" : null),
+        amount_paid: usingVoucher ? 0 : (paymentMethod === "comp" ? 0 : null),
         // Booking attribution: admin booked on behalf
         created_by_user_id: adminUser?.id || null,
         created_via: isWalkIn ? "walk_in_guest" : "admin_booking",
         created_by_admin_name: adminDisplayName,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      if (usingVoucher) {
+        try {
+          await redeemMothersDayVoucher(appliedVoucher!.code, inserted?.id || null);
+        } catch (e: any) {
+          // If redemption fails, surface but don't roll back appointment — front desk will be told
+          toast.error(`Voucher redeem failed: ${e.message}. Mark voucher manually.`);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
@@ -486,6 +542,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setStaffNotes("");
     setPaymentMethod("in_person");
     setConflict(null);
+    setVoucherInput("");
+    clearVoucher();
   };
 
   const activeServices = services?.filter((s) => s.is_active) || [];
@@ -719,7 +777,52 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             )}
           </div>
 
+          {/* Mother's Day Voucher */}
+          <div className="rounded-md border p-3 space-y-2" style={{ borderColor: "#c9a86a", background: "#fdfaf3" }}>
+            <Label className="flex items-center gap-2 text-sm" style={{ color: "#a17e3a" }}>
+              <Heart className="h-4 w-4" /> Mother's Day Voucher
+            </Label>
+            {appliedVoucher ? (
+              <div className="flex items-center justify-between gap-2 p-2 rounded bg-emerald-50 border border-emerald-200">
+                <div className="text-sm">
+                  <div className="font-medium text-emerald-900">{appliedVoucher.code} applied · $0 due</div>
+                  <div className="text-xs text-emerald-700">
+                    {appliedVoucher.massage_choice} · {appliedVoucher.massage_duration} min · prepaid
+                  </div>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => { clearVoucher(); setVoucherInput(""); setPaymentMethod("in_person"); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="MOM-XXXXXX"
+                    value={voucherInput}
+                    onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+                    className="font-mono tracking-wider"
+                  />
+                  <Button size="sm" onClick={handleApplyVoucher} disabled={applyingVoucher || !voucherInput.trim()}>
+                    {applyingVoucher ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                  </Button>
+                </div>
+                {voucherError && (
+                  <div className="text-xs text-destructive flex items-center justify-between gap-2">
+                    <span>{voucherError}</span>
+                    {voucherError.includes("hasn't been paid") && (
+                      <Button size="sm" variant="outline" onClick={handleSendReminder} disabled={reminderSending}>
+                        {reminderSending ? "Sending..." : "Send reminder"}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
           {/* Payment */}
+          {!appliedVoucher && (
           <div>
             <Label>Payment Method</Label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -732,6 +835,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
               </SelectContent>
             </Select>
           </div>
+          )}
 
           {/* Notes */}
           <div>

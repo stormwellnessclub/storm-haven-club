@@ -1,36 +1,56 @@
-## Add "Send finish-checkout email" button to pending Mother's Day vouchers
+## Mother's Day voucher booking — admin + member flow
 
-In the Mother's Day admin tab, pending vouchers (people who started checkout but never paid) currently only show a resend/preview button. Add a dedicated **"Send checkout reminder"** button (envelope icon with a "Finish" tooltip) that appears **only on rows with status = "pending"**. Clicking it sends the buyer a friendly email reminding them to complete their Mother's Day purchase, with a link back to the Mother's Day page.
+### Goal
+Make MOM-XXXXXX codes redeemable end-to-end: front desk can apply a code in the admin booking modal to bypass charging, members can book online with their code, and unpaid/pending codes are strictly blocked.
 
-### Scope
+---
 
-**1. New edge function: `send-mothers-day-checkout-reminder`**
-- Input: `{ voucher_id }`
-- Loads the pending voucher row, validates `status === 'pending'`
-- Sends an email to `buyer_email` with:
-  - Subject: "Finish your Mother's Day gift — your checkout is waiting"
-  - Body: brand-styled (matches existing voucher email tone), summarizes what they were buying (massage choice + duration + recipient name if gift), and a CTA button linking to `https://stormwellnessclub.com/mothers-day` (the offer is still live; they'll re-enter card)
-  - Notes the offer expires soon
-- Logs send via existing email log pattern used by `send-mothers-day-voucher`
-- Updates `mothers_day_vouchers.last_reminder_sent_at` (new nullable timestamp column) so admins can see when they last nudged the buyer
+### 1. Admin: voucher input in `AdminSpaBookingModal.tsx`
+- New "Mother's Day Voucher" section above the confirm/charge area.
+- Input + "Apply Code" button → calls `lookup_mothers_day_voucher` RPC.
+- On `active` voucher matching a massage service:
+  - Auto-selects the matching service + locks duration to 60/90.
+  - Shows green banner: *"MOM-XXXXXX applied · $0 due · prepaid"*.
+  - Hides the charge UI (no card prompt, no price line).
+  - On submit, after appointment is created, calls `redeem_mothers_day_voucher` to mark `redeemed` and link `appointment_id`.
+- On `pending`: triggers a single live `mothers-day-reconcile` re-check for that voucher_id.
+  - If Stripe confirms paid → upgraded to `active` and continues.
+  - If still unpaid → **hard block** with red banner: *"This voucher hasn't been paid for yet. Cannot book until payment completes."* Plus a "Send checkout reminder" shortcut.
+- On `redeemed` / `expired` / `refunded`: hard block with explanation.
 
-**2. Migration**
-- Add `last_reminder_sent_at TIMESTAMPTZ NULL` to `mothers_day_vouchers`
+### 2. Member: `/spa` voucher flow
+- Read `?voucher=CODE` from URL (already linked from `MyMothersDayVoucherCard` and `/mothers-day/redeem`).
+- Add an "Apply Mother's Day code" input near the booking step for users who land without the param.
+- Same validation as admin: only `active` proceeds, `pending` triggers reconcile then hard-block if still unpaid.
+- When valid: filter massage list to voucher's `massage_choice`, lock duration, show prepaid banner, skip Stripe at confirmation, auto-call `redeem_mothers_day_voucher` after the appointment is created.
 
-**3. Admin UI (`MothersDayTab.tsx`)**
-- Add a "Send finish-checkout email" button (Send/Mail icon with distinct color, e.g., amber) shown **only when `v.status === 'pending'`**, placed next to the existing preview/resend buttons
-- Tooltip: "Send reminder to finish checkout"
-- On click: invoke `send-mothers-day-checkout-reminder` with `voucher_id`, toast success/error, refetch list
-- If `v.last_reminder_sent_at` is set, show small muted text under the row: "Reminder sent {relative time}"
-- Disable button + show "Reminder sent — wait 1h" if last reminder was less than 1 hour ago (prevent spam)
+### 3. Surface the existing voucher card
+`MyMothersDayVoucherCard` is currently rendered nowhere. Add it to:
+- Member dashboard
+- Non-member portal dashboard
+- Top of `/spa` page when an active voucher is detected
+
+### 4. Fix self-purchase email link
+In `send-mothers-day-voucher` `buildBuyerHtml`: change "BOOK YOUR MASSAGE" CTA from `/spa?category=Massage` to `/mothers-day/redeem?code={CODE}` and add a short 3-step "How to book" block matching the gift email.
+
+### 5. One-time follow-up to already-emailed self-buyers
+Send a short clarification email to active self-purchase voucher holders whose original receipt had the broken link, with a "Book with your code →" button to `/mothers-day/redeem?code=...`. I'll list the affected vouchers for you to approve before sending.
+
+---
+
+### Validation rules (no holes)
+Every entry point — admin modal, `/spa`, `/mothers-day/redeem` — must:
+1. Call `lookup_mothers_day_voucher` to validate.
+2. On `pending`, call `mothers-day-reconcile` once for that voucher and re-lookup.
+3. Only `active` allows booking. No staff override. No client-side bypass.
+4. After appointment creation, call `redeem_mothers_day_voucher` server-side to mark redeemed and prevent re-use.
 
 ### Out of scope
-- No automatic/scheduled reminders (manual button only for now)
-- No resuming the exact original PaymentIntent — the link drops them at the Mother's Day page to re-enter card details. (Resuming the original intent is brittle since cards/details may have changed; a fresh checkout is cleaner.)
-- The 3 confirmed-unpaid vouchers (Duha A, Nahla Hammoud, Fatemah Ayoub) are the immediate candidates for this button.
+- Purchase flow / Stripe pricing — unchanged.
+- Admin Mother's Day tab — unchanged beyond what's already shipped.
+- No staff override for unpaid codes (per your decision).
 
 ### Technical notes
-- Reuse the email-sending utility/SDK already used in `send-mothers-day-voucher` (same Resend/Lovable mailer setup, same `from` address, same brand HTML wrapper)
-- CORS headers same as other Mother's Day functions
-- RLS: function uses service role; no RLS changes needed
-- Button uses semantic tokens (no raw color classes)
+- New helper hook `useApplyMothersDayVoucher` shared between admin modal and `/spa`.
+- Reconcile-on-demand: pass `{ voucher_id }` to `mothers-day-reconcile` so it re-checks just that one PaymentIntent (faster than full sweep).
+- All voucher state changes already have audit columns (`redeemed_at`, `appointment_id`) — no schema changes needed.
