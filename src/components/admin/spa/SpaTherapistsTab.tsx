@@ -38,7 +38,7 @@ export function SpaTherapistsTab() {
 
   const openNew = () => { setForm(emptyTherapist()); setEditingId(null); setShowForm(true); };
   const openEdit = (t: SpaTherapist) => {
-    setForm({ full_name: t.full_name, email: t.email, phone: t.phone, bio: t.bio, specialties: t.specialties || [], photo_url: t.photo_url, is_active: t.is_active });
+    setForm({ full_name: t.full_name, email: t.email, phone: t.phone, bio: t.bio, specialties: t.specialties || [], photo_url: t.photo_url, is_active: t.is_active, hourly_rate: t.hourly_rate ?? 26 });
     setEditingId(t.id);
     setShowForm(true);
   };
