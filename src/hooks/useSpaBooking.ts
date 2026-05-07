@@ -43,12 +43,13 @@ interface BookSpaAppointmentParams {
   durationMinutes: number;
   cleanupMinutes?: number;
   memberNotes?: string;
-  paymentMethod: "card" | "member_account" | "credit";
+  paymentMethod: "card" | "member_account" | "credit" | "mothers_day_voucher";
   paymentIntentId?: string;
   staffId?: string;
   roomId?: string;
   creditType?: "red_light" | "dry_cryo";
   creditId?: string;
+  voucherCode?: string;
 }
 
 interface CheckAvailabilityParams {
@@ -135,6 +136,12 @@ export function useSpaBookAppointment() {
         }
       }
 
+      const usingVoucher = params.paymentMethod === "mothers_day_voucher";
+      const voucherNote = usingVoucher && params.voucherCode
+        ? `Mother's Day Voucher: ${params.voucherCode}`
+        : null;
+      const memberNotesFinal = [params.memberNotes, voucherNote].filter(Boolean).join("\n") || null;
+
       try {
         const { data, error } = await (supabase.from as any)("spa_appointments")
           .insert({
@@ -143,17 +150,17 @@ export function useSpaBookAppointment() {
             service_id: params.serviceId,
             service_name: params.serviceName,
             service_category: params.serviceCategory,
-            service_price: params.servicePrice,
-            member_price: memberPrice,
+            service_price: usingVoucher ? 0 : params.servicePrice,
+            member_price: usingVoucher ? 0 : memberPrice,
             appointment_date: format(params.appointmentDate, "yyyy-MM-dd"),
             appointment_time: appointmentTimeStr,
             duration_minutes: params.durationMinutes,
             cleanup_minutes: cleanup,
             status: "confirmed",
-            member_notes: params.memberNotes || null,
+            member_notes: memberNotesFinal,
             payment_method: params.paymentMethod,
             payment_intent_id: params.paymentIntentId || null,
-            amount_paid: finalPrice,
+            amount_paid: usingVoucher ? 0 : finalPrice,
             staff_id: params.staffId || null,
             room_id: params.roomId || null,
             // Booking attribution: customer self-booked via portal

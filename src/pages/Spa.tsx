@@ -50,11 +50,13 @@ export default function Spa() {
 
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
+  const voucherFromUrl = searchParams.get("voucher");
   const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || "All");
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [activeVoucherCode, setActiveVoucherCode] = useState<string | null>(null);
 
   // Gate states
   const [showWaiverGate, setShowWaiverGate] = useState(false);
@@ -81,6 +83,32 @@ export default function Spa() {
       setSelectedCategory(categoryFromUrl);
     }
   }, [categoryFromUrl]);
+
+  // ?voucher=MOM-XXXXXX → look up voucher, open booking modal pre-filled with matching massage service
+  useEffect(() => {
+    if (!voucherFromUrl || spaServices.length === 0 || activeVoucherCode) return;
+    const code = voucherFromUrl.trim().toUpperCase();
+    (async () => {
+      const { data, error } = await supabase.rpc("lookup_mothers_day_voucher", { p_code: code });
+      const v = data as any;
+      if (error || !v?.found) {
+        toast.error("Voucher code not found");
+        return;
+      }
+      // Pick a Massage service matching the voucher's duration
+      const massage = spaServices.find(
+        (s) => (s.category || "").toLowerCase().includes("massage") &&
+          s.duration_minutes === v.massage_duration
+      ) || spaServices.find((s) => (s.category || "").toLowerCase().includes("massage"));
+      if (!massage) {
+        toast.error("No massage service available to redeem this voucher");
+        return;
+      }
+      setActiveVoucherCode(code);
+      setSelectedService(massage);
+      setShowBookingModal(true);
+    })();
+  }, [voucherFromUrl, spaServices, activeVoucherCode]);
 
   const filteredServices = selectedCategory === "All" 
     ? spaServices 
@@ -481,9 +509,18 @@ export default function Spa() {
       <SpaBookingModal
         service={selectedService}
         open={showBookingModal}
+        initialVoucherCode={activeVoucherCode}
         onOpenChange={(open) => {
           setShowBookingModal(open);
-          if (!open) setSelectedService(null);
+          if (!open) {
+            setSelectedService(null);
+            if (activeVoucherCode) {
+              setActiveVoucherCode(null);
+              const next = new URLSearchParams(searchParams);
+              next.delete("voucher");
+              setSearchParams(next, { replace: true });
+            }
+          }
         }}
       />
 

@@ -49,17 +49,21 @@ import { formatTime12h } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
+import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useApplyMothersDayVoucher";
+import { Input } from "@/components/ui/input";
+import { Heart, X } from "lucide-react";
 
 
 interface SpaBookingModalProps {
   service: SpaService | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialVoucherCode?: string | null;
 }
 
 type PaymentMethodType = "card" | "member_account" | "credit";
 
-export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModalProps) {
+export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCode }: SpaBookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: membership } = useUserMembership();
@@ -85,6 +89,11 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("card");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
+
+  // Mother's Day voucher
+  const [voucherInput, setVoucherInput] = useState("");
+  const { apply: applyVoucher, clear: clearVoucher, applying: applyingVoucher, applied: appliedVoucher, error: voucherError } = useApplyMothersDayVoucher();
+  const usingVoucher = !!appliedVoucher;
 
   const { data: bookedSlots } = useSpaBookedSlots(selectedDate);
 
@@ -115,8 +124,27 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
       setConfirmation(null);
       setSelectedTime("");
       setMemberNotes("");
+      setVoucherInput("");
+      clearVoucher();
     }
-  }, [open]);
+  }, [open, clearVoucher]);
+
+  // Auto-apply voucher when modal opens with a code (from ?voucher= param or member card)
+  useEffect(() => {
+    if (open && initialVoucherCode && !appliedVoucher && !applyingVoucher) {
+      const code = initialVoucherCode.trim().toUpperCase();
+      setVoucherInput(code);
+      applyVoucher(code).then((res) => {
+        if (res.ok) toast.success("Mother's Day voucher applied — $0 due");
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialVoucherCode]);
+
+  const handleApplyVoucher = async () => {
+    const res = await applyVoucher(voucherInput);
+    if (res.ok) toast.success("Mother's Day voucher applied — $0 due");
+  };
 
   const handleSignWaiverInline = async () => {
     if (profile) {
@@ -242,7 +270,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
       return;
     }
 
-    if (paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0) {
+    if (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0) {
       toast.error("Please select a payment method");
       return;
     }
@@ -264,6 +292,50 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
 
     try {
       let paymentIntentId: string | undefined;
+
+      if (usingVoucher) {
+        const appt = await bookAppointment.mutateAsync({
+          serviceId: service.id,
+          serviceName: service.name,
+          serviceCategory: service.category,
+          servicePrice: service.price,
+          appointmentDate: selectedDate,
+          appointmentTime: selectedTime,
+          durationMinutes,
+          cleanupMinutes,
+          memberNotes: memberNotes || undefined,
+          paymentMethod: "mothers_day_voucher",
+          voucherCode: appliedVoucher!.code,
+          staffId: slot.therapist_id || undefined,
+          roomId: slot.room_id || undefined,
+        });
+
+        try {
+          await redeemMothersDayVoucher(appliedVoucher!.code, appt?.id || null);
+        } catch (e: any) {
+          toast.error(`Voucher redeem failed: ${e.message}. Please contact the front desk.`);
+        }
+
+        if (service.requires_intake_form && appt?.id) {
+          setIntakeAppointmentId(appt.id);
+          setIntakeMemberId(appt.member_id || null);
+          onOpenChange(false);
+          setIntakeOpen(true);
+          setSelectedDate(undefined);
+          setSelectedTime("");
+          setMemberNotes("");
+          return;
+        }
+
+        setConfirmation({
+          serviceName: service.name,
+          date: selectedDate,
+          time: selectedTime,
+          durationMinutes,
+          paymentSummary: `Prepaid with Mother's Day Voucher (${appliedVoucher!.code})`,
+        });
+        return;
+      }
 
       if (paymentMethod === "credit" && creditType) {
         const { data: rpcResult, error: rpcError } = await supabase.rpc(
@@ -706,7 +778,48 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
             </div>
           )}
 
+          {/* Mother's Day Voucher */}
+          <div className="rounded-md border p-3 space-y-2" style={{ borderColor: "#c9a86a", background: "#fdfaf3" }}>
+            <Label className="flex items-center gap-2 text-sm" style={{ color: "#a17e3a" }}>
+              <Heart className="h-4 w-4" /> Mother's Day Voucher
+            </Label>
+            {appliedVoucher ? (
+              <div className="flex items-center justify-between gap-2 p-2 rounded bg-emerald-50 border border-emerald-200">
+                <div className="text-sm">
+                  <div className="font-medium text-emerald-900">{appliedVoucher.code} applied · $0 due</div>
+                  <div className="text-xs text-emerald-700">
+                    {appliedVoucher.massage_choice} · {appliedVoucher.massage_duration} min · prepaid
+                  </div>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => { clearVoucher(); setVoucherInput(""); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="MOM-XXXXXX"
+                    value={voucherInput}
+                    onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+                    className="font-mono tracking-wider"
+                  />
+                  <Button size="sm" onClick={handleApplyVoucher} disabled={applyingVoucher || !voucherInput.trim()}>
+                    {applyingVoucher ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                  </Button>
+                </div>
+                {voucherError && (
+                  <p className="text-xs text-destructive">{voucherError}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Have a Mother's Day code? Enter it to skip payment.
+                </p>
+              </>
+            )}
+          </div>
+
           {/* Payment Method */}
+          {!usingVoucher && (
           <div className="space-y-2">
             <Label>Payment Method</Label>
             <Select value={paymentMethod} onValueChange={(value: PaymentMethodType) => setPaymentMethod(value)}>
@@ -739,8 +852,9 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
               </SelectContent>
             </Select>
           </div>
+          )}
 
-          {paymentMethod === "credit" && availableCredit && creditType && (
+          {!usingVoucher && paymentMethod === "credit" && availableCredit && creditType && (
             <div className="p-3 bg-accent/10 border border-accent/20 rounded-md">
               <div className="flex items-center gap-2 text-accent">
                 <Sparkles className="w-4 h-4" />
@@ -753,7 +867,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
             </div>
           )}
 
-          {paymentMethod === "card" && savedPaymentMethods.length > 0 && (
+          {!usingVoucher && paymentMethod === "card" && savedPaymentMethods.length > 0 && (
             <div className="space-y-2">
               <Label>Select Card</Label>
               <Select value={selectedPaymentMethodId || ""} onValueChange={setSelectedPaymentMethodId}>
@@ -784,7 +898,12 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
 
           {/* Total */}
           <div className="border-t pt-4 space-y-1">
-            {paymentMethod === "credit" ? (
+            {usingVoucher ? (
+              <div className="flex justify-between items-center text-lg font-semibold">
+                <span>Total</span>
+                <span className="text-accent">FREE (Mother's Day Voucher)</span>
+              </div>
+            ) : paymentMethod === "credit" ? (
               <div className="flex justify-between items-center text-lg font-semibold">
                 <span>Total</span>
                 <span className="text-accent">FREE (1 Credit)</span>
@@ -825,7 +944,7 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
               !selectedDate ||
               !selectedTime ||
               bookAppointment.isPending ||
-              (paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0)
+              (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0)
             }
           >
             {bookAppointment.isPending ? (
@@ -833,6 +952,8 @@ export function SpaBookingModal({ service, open, onOpenChange }: SpaBookingModal
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Booking...
               </>
+            ) : usingVoucher ? (
+              "Book with Voucher"
             ) : paymentMethod === "credit" ? (
               "Book with Credit"
             ) : (
