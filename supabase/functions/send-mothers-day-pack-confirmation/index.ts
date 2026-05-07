@@ -58,8 +58,10 @@ function buyerReceiptHtml(opts: {
 function recipientGiftHtml(opts: {
   buyerName: string;
   recipientName: string;
+  recipientEmail: string;
   expiresAt: string;
 }) {
+  const redeemUrl = `${SITE}/mothers-day-pack-redeem?email=${encodeURIComponent(opts.recipientEmail)}`;
   return `
   <div style="font-family:Georgia,serif;background:#ece2d2;padding:40px 20px;color:#3a2e1a;">
     <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #c9a86a;padding:36px;border-radius:6px;">
