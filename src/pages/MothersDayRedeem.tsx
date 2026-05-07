@@ -114,12 +114,6 @@ export default function MothersDayRedeem() {
                   </div>
                 )}
 
-                {voucher.status === "active" && (
-                  <div className="pt-2 border-t" style={{ borderColor: "#c9a86a" }}>
-                    <WalletButtons code={voucher.code || code} />
-                  </div>
-                )}
-
                 {voucher.status === "active" ? (
                   <div className="space-y-3 pt-2">
                     {user ? (
