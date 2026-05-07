@@ -270,7 +270,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       return;
     }
 
-    if (paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0) {
+    if (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0) {
       toast.error("Please select a payment method");
       return;
     }
