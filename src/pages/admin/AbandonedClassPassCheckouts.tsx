@@ -32,12 +32,22 @@ export default function AbandonedClassPassCheckouts() {
     refetchInterval: 30000,
   });
 
-  const resend = async (id: string) => {
+  const resend = async (row: any) => {
     try {
+      const step = Math.min(3, (row.reminders_sent || 0) + 1);
       const { error } = await supabase.functions.invoke("send-class-pass-abandoned-reminder", {
-        body: { pending_id: id, force: true },
+        body: {
+          to: row.email,
+          name: row.name,
+          product_kind: row.product_kind,
+          reminder_step: step,
+        },
       });
       if (error) throw error;
+      await supabase
+        .from("pending_class_pass_checkouts")
+        .update({ reminders_sent: step, last_reminder_sent_at: new Date().toISOString() })
+        .eq("id", row.id);
       toast.success("Reminder sent");
       qc.invalidateQueries({ queryKey: ["abandoned-cp-checkouts"] });
     } catch (e: any) {
