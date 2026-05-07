@@ -45,10 +45,21 @@ serve(async (req) => {
       if (!(roles || []).some((r: any) => allowed.has(r.role))) throw new Error("Not authorized");
     }
 
-    const { data: pending } = await supabase
+    // Optional body: { voucher_id } scopes reconcile to a single voucher (used by booking flows)
+    let scopedVoucherId: string | null = null;
+    try {
+      if (req.method === "POST") {
+        const body = await req.json().catch(() => null);
+        if (body?.voucher_id) scopedVoucherId = String(body.voucher_id);
+      }
+    } catch { /* ignore */ }
+
+    let pendingQuery = supabase
       .from("mothers_day_vouchers")
       .select("id, code, stripe_payment_intent_id, stripe_session_id, buyer_email, recipient_email")
       .eq("status", "pending");
+    if (scopedVoucherId) pendingQuery = pendingQuery.eq("id", scopedVoucherId);
+    const { data: pending } = await pendingQuery;
 
     const results: any[] = [];
     for (const v of pending || []) {
