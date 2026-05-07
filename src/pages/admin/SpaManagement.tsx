@@ -46,6 +46,7 @@ export default function SpaManagement() {
           <SpaAvailabilityTab initialView={initialView} initialDate={initialDate} />
         </TabsContent>
         <TabsContent value="addons"><SpaAddonsTab /></TabsContent>
+        <TabsContent value="payroll"><SpaPayrollTab /></TabsContent>
         <TabsContent value="mothers-day"><MothersDayTab /></TabsContent>
       </Tabs>
     </AdminLayout>
