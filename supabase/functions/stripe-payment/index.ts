@@ -594,6 +594,24 @@ serve(async (req) => {
 
         logStep("Class pass checkout created", { sessionId: session.id, url: session.url });
 
+        // Track pending checkout for abandoned-cart recovery (best-effort, never blocks)
+        try {
+          await supabase.from('pending_class_pass_checkouts').insert({
+            user_id: user.id,
+            email: user.email,
+            name: (user.user_metadata as any)?.first_name || (user.user_metadata as any)?.full_name || null,
+            stripe_session_id: session.id,
+            product_kind: 'class_pass',
+            category,
+            pass_type: passType,
+            is_member: isVerifiedMember,
+            amount_cents: classPassPrice.unit_amount || 0,
+            status: 'pending',
+          });
+        } catch (e) {
+          logStep("pending_class_pass_checkouts insert failed (non-fatal)", { error: (e as any)?.message });
+        }
+
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }

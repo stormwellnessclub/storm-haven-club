@@ -4754,6 +4754,78 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_class_pass_checkouts: {
+        Row: {
+          amount_cents: number | null
+          category: string | null
+          completed_at: string | null
+          created_at: string
+          email: string
+          gift_recipient_email: string | null
+          gift_recipient_name: string | null
+          id: string
+          is_gift: boolean
+          is_member: boolean
+          last_reminder_sent_at: string | null
+          metadata: Json | null
+          name: string | null
+          pass_type: string | null
+          product_kind: string
+          reminders_sent: number
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents?: number | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          email: string
+          gift_recipient_email?: string | null
+          gift_recipient_name?: string | null
+          id?: string
+          is_gift?: boolean
+          is_member?: boolean
+          last_reminder_sent_at?: string | null
+          metadata?: Json | null
+          name?: string | null
+          pass_type?: string | null
+          product_kind: string
+          reminders_sent?: number
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          email?: string
+          gift_recipient_email?: string | null
+          gift_recipient_name?: string | null
+          id?: string
+          is_gift?: boolean
+          is_member?: boolean
+          last_reminder_sent_at?: string | null
+          metadata?: Json | null
+          name?: string | null
+          pass_type?: string | null
+          product_kind?: string
+          reminders_sent?: number
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       pending_non_member_imports: {
         Row: {
           classes_total: number
