@@ -1,56 +1,76 @@
-## Mother's Day voucher booking — admin + member flow
 
-### Goal
-Make MOM-XXXXXX codes redeemable end-to-end: front desk can apply a code in the admin booking modal to bypass charging, members can book online with their code, and unpaid/pending codes are strictly blocked.
+## Generic voucher redemption on /spa
 
----
+A small, permanent **"Redeem a voucher / gift card"** entry point on the Spa page. Today it accepts Mother's Day codes (`MOM-XXXXXX`). When we add gift cards later, the same entry handles them — no UI changes needed.
 
-### 1. Admin: voucher input in `AdminSpaBookingModal.tsx`
-- New "Mother's Day Voucher" section above the confirm/charge area.
-- Input + "Apply Code" button → calls `lookup_mothers_day_voucher` RPC.
-- On `active` voucher matching a massage service:
-  - Auto-selects the matching service + locks duration to 60/90.
-  - Shows green banner: *"MOM-XXXXXX applied · $0 due · prepaid"*.
-  - Hides the charge UI (no card prompt, no price line).
-  - On submit, after appointment is created, calls `redeem_mothers_day_voucher` to mark `redeemed` and link `appointment_id`.
-- On `pending`: triggers a single live `mothers-day-reconcile` re-check for that voucher_id.
-  - If Stripe confirms paid → upgraded to `active` and continues.
-  - If still unpaid → **hard block** with red banner: *"This voucher hasn't been paid for yet. Cannot book until payment completes."* Plus a "Send checkout reminder" shortcut.
-- On `redeemed` / `expired` / `refunded`: hard block with explanation.
+### What the user sees
 
-### 2. Member: `/spa` voucher flow
-- Read `?voucher=CODE` from URL (already linked from `MyMothersDayVoucherCard` and `/mothers-day/redeem`).
-- Add an "Apply Mother's Day code" input near the booking step for users who land without the param.
-- Same validation as admin: only `active` proceeds, `pending` triggers reconcile then hard-block if still unpaid.
-- When valid: filter massage list to voucher's `massage_choice`, lock duration, show prepaid banner, skip Stripe at confirmation, auto-call `redeem_mothers_day_voucher` after the appointment is created.
+On `/spa`, in the page header next to the category tabs, a discreet text link:
 
-### 3. Surface the existing voucher card
-`MyMothersDayVoucherCard` is currently rendered nowhere. Add it to:
-- Member dashboard
-- Non-member portal dashboard
-- Top of `/spa` page when an active voucher is detected
+> **Have a voucher or gift card? Redeem →**
 
-### 4. Fix self-purchase email link
-In `send-mothers-day-voucher` `buildBuyerHtml`: change "BOOK YOUR MASSAGE" CTA from `/spa?category=Massage` to `/mothers-day/redeem?code={CODE}` and add a short 3-step "How to book" block matching the gift email.
+Click it → small dialog opens:
 
-### 5. One-time follow-up to already-emailed self-buyers
-Send a short clarification email to active self-purchase voucher holders whose original receipt had the broken link, with a "Book with your code →" button to `/mothers-day/redeem?code=...`. I'll list the affected vouchers for you to approve before sending.
+```
+┌──────────────────────────────────┐
+│  Redeem a voucher                │
+│                                  │
+│  [ Enter your code         ]     │
+│                                  │
+│  [ Cancel ]   [ Look up code ]   │
+└──────────────────────────────────┘
+```
 
----
+On success → dialog closes, booking modal opens with the right service pre-selected and the code already applied (FREE / $0 due). Same flow as the email link.
 
-### Validation rules (no holes)
-Every entry point — admin modal, `/spa`, `/mothers-day/redeem` — must:
-1. Call `lookup_mothers_day_voucher` to validate.
-2. On `pending`, call `mothers-day-reconcile` once for that voucher and re-lookup.
-3. Only `active` allows booking. No staff override. No client-side bypass.
-4. After appointment creation, call `redeem_mothers_day_voucher` server-side to mark redeemed and prevent re-use.
+On failure → inline red error inside the dialog: *"Code not found, expired, already used, or not yet paid."* They stay in the dialog and can try again.
 
-### Out of scope
-- Purchase flow / Stripe pricing — unchanged.
-- Admin Mother's Day tab — unchanged beyond what's already shipped.
-- No staff override for unpaid codes (per your decision).
+No banner. No always-on visual clutter. Lives there forever.
 
-### Technical notes
-- New helper hook `useApplyMothersDayVoucher` shared between admin modal and `/spa`.
-- Reconcile-on-demand: pass `{ voucher_id }` to `mothers-day-reconcile` so it re-checks just that one PaymentIntent (faster than full sweep).
-- All voucher state changes already have audit columns (`redeemed_at`, `appointment_id`) — no schema changes needed.
+### Why this is reliable
+
+The dialog calls **one** server-side resolver (`resolve_voucher_code`) that:
+
+1. Trims + uppercases input.
+2. Detects type by prefix (`MOM-` → Mother's Day; later `GIFT-` → gift card).
+3. For Mother's Day: calls existing `lookup_mothers_day_voucher` RPC. If `pending`, triggers a one-shot `mothers-day-reconcile` for that voucher and re-checks. Only `active` succeeds.
+4. Returns a normalized shape: `{ ok, type, code, service_hint: { category, duration }, applied_credit_cents, error_message }`.
+5. Client uses `service_hint` to auto-select the matching spa service and opens the booking modal with the code applied.
+
+All redemption still happens server-side after appointment creation (existing `redeem_mothers_day_voucher` RPC). No client-side bypass. Frozen / expired / unpaid vouchers are rejected at the RPC, not in the UI.
+
+### Cases handled (same matching logic as today)
+
+| Who | What happens |
+|---|---|
+| Member or non-member, bought for self, signed in with purchase email | Code resolves, booking modal opens, books for $0. |
+| Recipient of a gift, signed in with the email it was sent to | Same — voucher matched by `recipient_email`. |
+| Recipient with no account | They sign up with the email the gift was sent to (or any email — they paste the code, the code itself authorizes redemption regardless of account match for Mother's Day, since the code is the bearer instrument). After booking, code is marked redeemed and locked to that appointment. |
+| Wrong / expired / unpaid code | Dialog shows clear error. Cannot proceed. |
+
+### Future-proofing for gift cards
+
+When gift cards launch, we add a new branch inside `resolve_voucher_code` (e.g. `GIFT-` prefix → look up `gift_cards` table → return `applied_credit_cents`). The booking modal already supports a "voucher applied" state — we extend it to also accept partial credit (e.g. $50 off a $90 service, customer pays the $40 difference). Zero changes to the /spa UI.
+
+### Files touched
+
+**New**
+- `supabase/migrations/<ts>_resolve_voucher_code.sql` — `resolve_voucher_code(p_code text)` SECURITY DEFINER RPC, prefix-routed, returns normalized JSON.
+- `src/components/spa/RedeemVoucherDialog.tsx` — dialog UI + lookup + handoff to booking modal.
+
+**Edited**
+- `src/pages/Spa.tsx` — add "Redeem a voucher" link in the header; on success, set selected service + open `SpaBookingModal` with `initialVoucherCode`.
+- `src/components/booking/SpaBookingModal.tsx` — already accepts `initialVoucherCode`; no changes needed beyond confirming auto-apply behavior on open.
+
+### Out of scope (deliberately)
+
+- No homepage banner, no dashboard card, no /spa hero strip.
+- No changes to email templates or admin tools — those already work.
+- Gift card schema is not built now; only the resolver is structured to absorb it later.
+
+### Validation before shipping
+
+- Test with a known active `MOM-XXXXXX` code → opens booking modal, $0 due, books, voucher flips to `redeemed`.
+- Test with a `pending` code → reconcile fires; if Stripe shows paid, proceeds; else hard-blocks.
+- Test with `redeemed` / fake / lowercase / extra-whitespace input → all rejected with the same friendly error.
+- Test signed-out user → dialog still resolves the code, then prompts sign-in before opening booking modal (since spa booking requires an account).
