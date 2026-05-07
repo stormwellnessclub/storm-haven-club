@@ -41,6 +41,7 @@ import PublicClassTypeDetail from "./pages/ClassTypeDetail";
 import Spa from "./pages/Spa";
 import MothersDay from "./pages/MothersDay";
 import MothersDayRedeem from "./pages/MothersDayRedeem";
+import MothersDayPackRedeem from "./pages/MothersDayPackRedeem";
 import Cafe from "./pages/Cafe";
 import Amenities from "./pages/Amenities";
 import KidsCare from "./pages/KidsCare";
@@ -103,6 +104,7 @@ import StaffSchedule from "./pages/admin/StaffSchedule";
 import MerchManager from "./pages/admin/MerchManager";
 import SpaManagement from "./pages/admin/SpaManagement";
 import MothersDayAdmin from "./pages/admin/MothersDayAdmin";
+import MothersDayClassPacks from "./pages/admin/MothersDayClassPacks";
 import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
 import SiteAudit from "./pages/SiteAudit";
@@ -151,6 +153,7 @@ const App = () => (
               <Route path="/mothers-day" element={<MothersDay />} />
               <Route path="/mothers-day/success" element={<MothersDay />} />
               <Route path="/mothers-day/redeem" element={<MothersDayRedeem />} />
+              <Route path="/mothers-day-pack-redeem" element={<MothersDayPackRedeem />} />
               <Route path="/cafe" element={<Cafe />} />
               <Route path="/amenities" element={<Amenities />} />
               <Route path="/kids-care" element={<KidsCare />} />
@@ -261,6 +264,7 @@ const App = () => (
               <Route path="/admin/staff-hub" element={<ProtectedAdminRoute><StaffHub /></ProtectedAdminRoute>} />
               <Route path="/admin/spa-management" element={<ProtectedAdminRoute><SpaManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day" element={<ProtectedAdminRoute><MothersDayAdmin /></ProtectedAdminRoute>} />
+              <Route path="/admin/mothers-day-class-packs" element={<ProtectedAdminRoute><MothersDayClassPacks /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1181,8 +1181,9 @@ export type Database = {
           promo_code: string | null
           purchased_at: string
           status: Database["public"]["Enums"]["pass_status"]
+          stripe_payment_intent_id: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           category: Database["public"]["Enums"]["class_category"]
@@ -1204,8 +1205,9 @@ export type Database = {
           promo_code?: string | null
           purchased_at?: string
           status?: Database["public"]["Enums"]["pass_status"]
+          stripe_payment_intent_id?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           category?: Database["public"]["Enums"]["class_category"]
@@ -1227,8 +1229,9 @@ export type Database = {
           promo_code?: string | null
           purchased_at?: string
           status?: Database["public"]["Enums"]["pass_status"]
+          stripe_payment_intent_id?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -7096,6 +7099,13 @@ export type Database = {
           conflict_type: string
           conflicting_appointment_id: string
           has_conflict: boolean
+        }[]
+      }
+      claim_mothers_day_pack: {
+        Args: { _email: string }
+        Returns: {
+          claimed_count: number
+          pass_ids: string[]
         }[]
       }
       create_atomic_class_booking: {

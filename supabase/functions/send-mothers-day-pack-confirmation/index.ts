@@ -58,8 +58,10 @@ function buyerReceiptHtml(opts: {
 function recipientGiftHtml(opts: {
   buyerName: string;
   recipientName: string;
+  recipientEmail: string;
   expiresAt: string;
 }) {
+  const redeemUrl = `${SITE}/mothers-day-pack-redeem?email=${encodeURIComponent(opts.recipientEmail)}`;
   return `
   <div style="font-family:Georgia,serif;background:#ece2d2;padding:40px 20px;color:#3a2e1a;">
     <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #c9a86a;padding:36px;border-radius:6px;">
@@ -71,10 +73,10 @@ function recipientGiftHtml(opts: {
       </p>
       <p style="margin:0 0 18px;color:#6b5a3b;">Valid through <strong>${fmtDate(opts.expiresAt)}</strong>.</p>
       <p style="text-align:center;margin:28px 0 14px;">
-        <a href="${SITE}/auth?redirect=/schedule" style="background:#a17e3a;color:#fff;padding:14px 32px;text-decoration:none;border-radius:4px;display:inline-block;font-family:Helvetica,Arial,sans-serif;">Sign In &amp; Book</a>
+        <a href="${redeemUrl}" style="background:#a17e3a;color:#fff;padding:14px 32px;text-decoration:none;border-radius:4px;display:inline-block;font-family:Helvetica,Arial,sans-serif;">Claim Your Gift</a>
       </p>
       <p style="font-size:13px;color:#6b5a3b;text-align:center;margin:0 0 4px;">
-        New here? Create a free account using this email address — your pass will be linked automatically.
+        New to Storm Wellness Club? Create a free account using <strong>this email address</strong> — your pass will be linked automatically.
       </p>
       <p style="font-size:12px;color:#8a7a5a;margin:24px 0 0;text-align:center;">
         Storm Wellness Club &middot; Livonia, MI
@@ -138,6 +140,7 @@ serve(async (req) => {
         recipientGiftHtml({
           buyerName: buyerName || "A friend",
           recipientName: recipName || "there",
+          recipientEmail: pass.gift_recipient_email,
           expiresAt: pass.expires_at,
         })
       );

@@ -441,6 +441,30 @@ serve(async (req) => {
     }
 
     switch (event.type) {
+      case 'payment_intent.succeeded': {
+        try {
+          const pi = event.data.object as Stripe.PaymentIntent;
+          const md = pi.metadata || {};
+          if (md.type === 'mothers_day_class_pack' && md.promo === 'mothers_day_2026') {
+            logStep("Mother's Day pack PI succeeded — invoking confirm", { piId: pi.id });
+            const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+            const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+            const resp = await fetch(`${supabaseUrl}/functions/v1/mothers-day-pack-confirm`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${serviceKey}`,
+              },
+              body: JSON.stringify({ payment_intent_id: pi.id }),
+            });
+            const body = await resp.text();
+            logStep("Mother's Day confirm response", { status: resp.status, body: body.slice(0, 500) });
+          }
+        } catch (e: any) {
+          logError("payment_intent.succeeded handler error", "MOTHERS_DAY_FALLBACK", { error: e.message });
+        }
+        break;
+      }
       case 'checkout.session.completed': {
         try {
           const session = event.data.object as Stripe.Checkout.Session;
