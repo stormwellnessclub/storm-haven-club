@@ -536,6 +536,32 @@ export default function Spa() {
         }}
       />
 
+      {/* Generic voucher / gift card redemption */}
+      <RedeemVoucherDialog
+        open={showRedeemDialog}
+        onOpenChange={setShowRedeemDialog}
+        onResolved={(code, voucher) => {
+          if (!user) {
+            toast.error("Please sign in to redeem your voucher");
+            navigate(`/auth?redirect=${encodeURIComponent(`/spa?voucher=${code}`)}`);
+            return;
+          }
+          const massage =
+            spaServices.find(
+              (s) =>
+                (s.category || "").toLowerCase().includes("massage") &&
+                s.duration_minutes === voucher.massage_duration
+            ) || spaServices.find((s) => (s.category || "").toLowerCase().includes("massage"));
+          if (!massage) {
+            toast.error("No massage service available to redeem this voucher");
+            return;
+          }
+          setActiveVoucherCode(code);
+          setSelectedService(massage);
+          setShowBookingModal(true);
+        }}
+      />
+
       {/* ===== WAIVER GATE MODAL ===== */}
       <Dialog open={showWaiverGate} onOpenChange={(open) => {
         setShowWaiverGate(open);
