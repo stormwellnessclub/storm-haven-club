@@ -17,6 +17,7 @@ import { AccountRequiredSection } from "@/components/AccountRequiredSection";
 import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
+import { MothersDayClassPackSection } from "@/components/marketing/MothersDayClassPackSection";
 
 interface PricingTier {
   type: string;
@@ -487,6 +488,8 @@ export default function ClassPasses() {
           </div>
         </section>
       )}
+
+      <MothersDayClassPackSection />
 
       <ClassPassPricingTables 
         onPurchase={handlePurchase}
