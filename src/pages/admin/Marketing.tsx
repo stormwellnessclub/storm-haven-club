@@ -8,7 +8,8 @@ import { TemplatesTab } from "@/components/admin/marketing/TemplatesTab";
 import { CampaignAnalytics } from "@/components/admin/marketing/CampaignAnalytics";
 import { SmsBlastTab } from "@/components/admin/marketing/SmsBlastTab";
 import { CafeSalesTab } from "@/components/admin/marketing/CafeSalesTab";
-import { Megaphone, MessageSquare, Coffee } from "lucide-react";
+import { ContactsTab } from "@/components/admin/marketing/ContactsTab";
+import { Megaphone, MessageSquare, Coffee, Mail } from "lucide-react";
 
 export default function Marketing() {
   const [params, setParams] = useSearchParams();
