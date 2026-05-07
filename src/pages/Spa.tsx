@@ -2,7 +2,8 @@ import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
-import { Clock, Star, Users, Info, ShieldCheck, CreditCard, ExternalLink, Loader2 } from "lucide-react";
+import { Clock, Star, Users, Info, ShieldCheck, CreditCard, ExternalLink, Loader2, Gift } from "lucide-react";
+import { RedeemVoucherDialog } from "@/components/spa/RedeemVoucherDialog";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
@@ -57,6 +58,7 @@ export default function Spa() {
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [activeVoucherCode, setActiveVoucherCode] = useState<string | null>(null);
+  const [showRedeemDialog, setShowRedeemDialog] = useState(false);
 
   // Gate states
   const [showWaiverGate, setShowWaiverGate] = useState(false);
@@ -364,16 +366,26 @@ export default function Spa() {
       {/* Category Filters */}
       <section className="py-8 bg-background border-b border-border sticky top-20 z-40">
         <div className="container mx-auto px-6">
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`filter-badge ${selectedCategory === category ? "filter-badge-active" : ""}`}
-              >
-                {category}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`filter-badge ${selectedCategory === category ? "filter-badge-active" : ""}`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRedeemDialog(true)}
+              className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 hover:underline whitespace-nowrap"
+            >
+              <Gift className="w-4 h-4" />
+              Have a voucher or gift card? Redeem
+            </button>
           </div>
         </div>
       </section>
@@ -521,6 +533,32 @@ export default function Spa() {
               setSearchParams(next, { replace: true });
             }
           }
+        }}
+      />
+
+      {/* Generic voucher / gift card redemption */}
+      <RedeemVoucherDialog
+        open={showRedeemDialog}
+        onOpenChange={setShowRedeemDialog}
+        onResolved={(code, voucher) => {
+          if (!user) {
+            toast.error("Please sign in to redeem your voucher");
+            navigate(`/auth?redirect=${encodeURIComponent(`/spa?voucher=${code}`)}`);
+            return;
+          }
+          const massage =
+            spaServices.find(
+              (s) =>
+                (s.category || "").toLowerCase().includes("massage") &&
+                s.duration_minutes === voucher.massage_duration
+            ) || spaServices.find((s) => (s.category || "").toLowerCase().includes("massage"));
+          if (!massage) {
+            toast.error("No massage service available to redeem this voucher");
+            return;
+          }
+          setActiveVoucherCode(code);
+          setSelectedService(massage);
+          setShowBookingModal(true);
         }}
       />
 
