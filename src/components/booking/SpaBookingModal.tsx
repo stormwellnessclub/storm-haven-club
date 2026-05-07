@@ -944,7 +944,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               !selectedDate ||
               !selectedTime ||
               bookAppointment.isPending ||
-              (paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0)
+              (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0)
             }
           >
             {bookAppointment.isPending ? (
@@ -952,6 +952,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Booking...
               </>
+            ) : usingVoucher ? (
+              "Book with Voucher"
             ) : paymentMethod === "credit" ? (
               "Book with Credit"
             ) : (
