@@ -72,7 +72,6 @@ function buildGiftHtml(v: any) {
     <p style="font-size:14px;color:#6b5a3b;margin:0 0 10px;font-weight:600;letter-spacing:1px;">HOW TO REDEEM</p>
     <ol style="font-size:14px;color:#6b5a3b;margin:0;padding-left:18px;line-height:1.7;">
       <li>Click the button below to redeem online, or call us to book.</li>
-      <li>Choose a date and time that works for you (booking opens 6 months from today).</li>
       <li>Mention your code at check-in if booking by phone.</li>
     </ol>
   </div>
