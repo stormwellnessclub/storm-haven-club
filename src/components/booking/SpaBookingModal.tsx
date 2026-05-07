@@ -778,7 +778,48 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             </div>
           )}
 
+          {/* Mother's Day Voucher */}
+          <div className="rounded-md border p-3 space-y-2" style={{ borderColor: "#c9a86a", background: "#fdfaf3" }}>
+            <Label className="flex items-center gap-2 text-sm" style={{ color: "#a17e3a" }}>
+              <Heart className="h-4 w-4" /> Mother's Day Voucher
+            </Label>
+            {appliedVoucher ? (
+              <div className="flex items-center justify-between gap-2 p-2 rounded bg-emerald-50 border border-emerald-200">
+                <div className="text-sm">
+                  <div className="font-medium text-emerald-900">{appliedVoucher.code} applied · $0 due</div>
+                  <div className="text-xs text-emerald-700">
+                    {appliedVoucher.massage_choice} · {appliedVoucher.massage_duration} min · prepaid
+                  </div>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => { clearVoucher(); setVoucherInput(""); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="MOM-XXXXXX"
+                    value={voucherInput}
+                    onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+                    className="font-mono tracking-wider"
+                  />
+                  <Button size="sm" onClick={handleApplyVoucher} disabled={applyingVoucher || !voucherInput.trim()}>
+                    {applyingVoucher ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                  </Button>
+                </div>
+                {voucherError && (
+                  <p className="text-xs text-destructive">{voucherError}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Have a Mother's Day code? Enter it to skip payment.
+                </p>
+              </>
+            )}
+          </div>
+
           {/* Payment Method */}
+          {!usingVoucher && (
           <div className="space-y-2">
             <Label>Payment Method</Label>
             <Select value={paymentMethod} onValueChange={(value: PaymentMethodType) => setPaymentMethod(value)}>
@@ -811,6 +852,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               </SelectContent>
             </Select>
           </div>
+          )}
 
           {paymentMethod === "credit" && availableCredit && creditType && (
             <div className="p-3 bg-accent/10 border border-accent/20 rounded-md">
