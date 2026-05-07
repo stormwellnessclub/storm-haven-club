@@ -373,11 +373,26 @@ export function MothersDayTab() {
       <Dialog open={!!previewVoucherId} onOpenChange={(o) => { if (!o) { setPreviewVoucherId(null); setPreviewData(null); } }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Email Preview</DialogTitle>
+            <DialogTitle>
+              {previewMode === "reminder" ? "Finish-checkout reminder preview" : "Email preview"}
+            </DialogTitle>
           </DialogHeader>
           {previewLoading || !previewData ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+          ) : previewMode === "reminder" ? (
+            <div className="flex-1 overflow-auto space-y-2">
+              <div className="text-xs text-muted-foreground">
+                <strong>To:</strong> {previewData.to} (buyer only — never sent to gift recipient)
+              </div>
+              <div className="text-xs text-muted-foreground">Subject:</div>
+              <div className="font-medium text-sm border rounded px-3 py-2 bg-muted/30">{previewData.subject}</div>
+              <iframe
+                title="Reminder preview"
+                srcDoc={previewData.html}
+                className="w-full h-[60vh] border rounded bg-white"
+              />
             </div>
           ) : (
             <Tabs defaultValue={previewData.recipient_html ? "recipient" : "buyer"} className="flex-1 overflow-hidden flex flex-col">
@@ -387,6 +402,7 @@ export function MothersDayTab() {
               </TabsList>
               {previewData.recipient_html && (
                 <TabsContent value="recipient" className="flex-1 overflow-auto space-y-2">
+                  <div className="text-xs text-muted-foreground"><strong>To:</strong> {previewData.recipient_to}</div>
                   <div className="text-xs text-muted-foreground">Subject:</div>
                   <div className="font-medium text-sm border rounded px-3 py-2 bg-muted/30">{previewData.recipient_subject}</div>
                   <iframe
@@ -397,6 +413,7 @@ export function MothersDayTab() {
                 </TabsContent>
               )}
               <TabsContent value="buyer" className="flex-1 overflow-auto space-y-2">
+                <div className="text-xs text-muted-foreground"><strong>To:</strong> {previewData.buyer_to}</div>
                 <div className="text-xs text-muted-foreground">Subject:</div>
                 <div className="font-medium text-sm border rounded px-3 py-2 bg-muted/30">{previewData.buyer_subject}</div>
                 <iframe
@@ -407,6 +424,66 @@ export function MothersDayTab() {
               </TabsContent>
             </Tabs>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!overrideVoucher} onOpenChange={(o) => { if (!o) setOverrideVoucher(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send voucher to a custom email</DialogTitle>
+          </DialogHeader>
+          {overrideVoucher && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Voucher <span className="font-mono font-semibold">{overrideVoucher.code}</span> — {overrideVoucher.massage_choice} ({overrideVoucher.massage_duration} min)
+              </div>
+              <div>
+                <Label htmlFor="override-email">Email address</Label>
+                <Input
+                  id="override-email"
+                  type="email"
+                  placeholder="someone@example.com"
+                  value={overrideEmail}
+                  onChange={(e) => setOverrideEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Which email to send</Label>
+                <RadioGroup value={overrideKind} onValueChange={(val) => setOverrideKind(val as "recipient" | "buyer")}>
+                  {overrideVoucher.recipient_email && (
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="recipient" id="kind-gift" />
+                      <Label htmlFor="kind-gift" className="font-normal">Gift email (the branded voucher)</Label>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="buyer" id="kind-buyer" />
+                    <Label htmlFor="kind-buyer" className="font-normal">Buyer receipt</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOverrideVoucher(null)}>Cancel</Button>
+            <Button
+              disabled={resend.isPending || !overrideEmail.trim() || !/.+@.+\..+/.test(overrideEmail)}
+              onClick={() => {
+                if (!overrideVoucher) return;
+                const isGift = !!overrideVoucher.recipient_email;
+                const only =
+                  overrideKind === "recipient"
+                    ? "recipient"
+                    : (isGift ? "buyer" : "self");
+                resend.mutate(
+                  { voucher_id: overrideVoucher.id, only, override_email: overrideEmail.trim() },
+                  { onSuccess: () => setOverrideVoucher(null) }
+                );
+              }}
+            >
+              {resend.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
