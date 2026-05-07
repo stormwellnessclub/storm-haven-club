@@ -18,6 +18,7 @@ import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementC
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { MothersDayClassPackSection } from "@/components/marketing/MothersDayClassPackSection";
+import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
 
 interface PricingTier {
   type: string;
@@ -134,7 +135,7 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
         size="sm"
         onClick={() => onPurchase(category, passType)}
         disabled={isLoading || loadingPass !== null}
-        className="min-w-[100px]"
+        className="w-full sm:w-auto sm:min-w-[110px] h-10"
       >
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
