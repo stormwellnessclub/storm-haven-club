@@ -867,7 +867,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             </div>
           )}
 
-          {paymentMethod === "card" && savedPaymentMethods.length > 0 && (
+          {!usingVoucher && paymentMethod === "card" && savedPaymentMethods.length > 0 && (
             <div className="space-y-2">
               <Label>Select Card</Label>
               <Select value={selectedPaymentMethodId || ""} onValueChange={setSelectedPaymentMethodId}>
