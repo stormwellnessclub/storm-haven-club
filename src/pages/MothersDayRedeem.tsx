@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { WalletButtons } from "@/components/mothers-day/WalletButtons";
+
 
 export default function MothersDayRedeem() {
   const [params] = useSearchParams();
@@ -111,12 +111,6 @@ export default function MothersDayRedeem() {
                   <div className="flex items-center gap-2 text-xs" style={{ color: "#2d6a4f" }}>
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Linked to your account ({user.email})</span>
-                  </div>
-                )}
-
-                {voucher.status === "active" && (
-                  <div className="pt-2 border-t" style={{ borderColor: "#c9a86a" }}>
-                    <WalletButtons code={voucher.code || code} />
                   </div>
                 )}
 

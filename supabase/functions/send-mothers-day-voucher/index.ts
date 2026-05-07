@@ -92,8 +92,9 @@ function buildGiftHtml(v: any) {
   </p>
 
   <p style="font-size:13px;color:#6b5a3b;margin-top:18px;">
-    On the next page you'll be able to <strong>save this gift to Apple or Google Wallet</strong> so it's always with you.
+    Be sure to <strong>save this code</strong> — screenshot this email or write it down. You'll need it at check-in.
   </p>
+
 
   <p style="font-size:13px;color:#6b5a3b;margin-top:18px;">
     Redeemable through <strong>${fmtDate(v.expires_at)}</strong> · Non-transferable
