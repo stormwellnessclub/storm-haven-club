@@ -1167,11 +1167,18 @@ export type Database = {
           classes_total: number
           created_at: string
           expires_at: string
+          gift_buyer_email: string | null
+          gift_buyer_name: string | null
+          gift_buyer_user_id: string | null
+          gift_recipient_email: string | null
+          gift_recipient_name: string | null
+          gift_verification_status: string | null
           id: string
           is_member_price: boolean
           member_id: string | null
           pass_type: string
           price_paid: number
+          promo_code: string | null
           purchased_at: string
           status: Database["public"]["Enums"]["pass_status"]
           updated_at: string
@@ -1183,11 +1190,18 @@ export type Database = {
           classes_total: number
           created_at?: string
           expires_at: string
+          gift_buyer_email?: string | null
+          gift_buyer_name?: string | null
+          gift_buyer_user_id?: string | null
+          gift_recipient_email?: string | null
+          gift_recipient_name?: string | null
+          gift_verification_status?: string | null
           id?: string
           is_member_price?: boolean
           member_id?: string | null
           pass_type: string
           price_paid: number
+          promo_code?: string | null
           purchased_at?: string
           status?: Database["public"]["Enums"]["pass_status"]
           updated_at?: string
@@ -1199,11 +1213,18 @@ export type Database = {
           classes_total?: number
           created_at?: string
           expires_at?: string
+          gift_buyer_email?: string | null
+          gift_buyer_name?: string | null
+          gift_buyer_user_id?: string | null
+          gift_recipient_email?: string | null
+          gift_recipient_name?: string | null
+          gift_verification_status?: string | null
           id?: string
           is_member_price?: boolean
           member_id?: string | null
           pass_type?: string
           price_paid?: number
+          promo_code?: string | null
           purchased_at?: string
           status?: Database["public"]["Enums"]["pass_status"]
           updated_at?: string
