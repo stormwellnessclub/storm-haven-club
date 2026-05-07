@@ -1,18 +1,50 @@
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Ticket, Calendar, Gift } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { getCategoryDisplayName } from "@/lib/classCategories";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
+import { PromoBanner } from "@/components/marketing/PromoBanner";
 
 export default function PortalPasses() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successPass, setSuccessPass] = useState<any>(null);
+
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    const purchase = searchParams.get("purchase");
+    if (sessionId || purchase === "success") {
+      queryClient.invalidateQueries({ queryKey: ["portal-passes"] });
+      if (sessionId) {
+        supabase.functions
+          .invoke("class-pass-confirm", { body: { session_id: sessionId } })
+          .then(({ data }: any) => {
+            if (data?.success && data?.paid) {
+              setSuccessPass(data.pass);
+              setSuccessOpen(true);
+            } else {
+              toast.success("Class pass purchased!");
+            }
+          })
+          .catch(() => toast.success("Class pass purchased!"));
+      } else {
+        toast.success("Class pass purchased!");
+      }
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   const { data: passes = [], isLoading } = useQuery({
     queryKey: ["portal-passes", user?.id],
