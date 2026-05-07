@@ -272,6 +272,27 @@ export function MothersDayTab() {
                 >
                   <Mail className="w-4 h-4" />
                 </Button>
+                {v.status === "pending" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-500 text-amber-700 hover:bg-amber-50"
+                    onClick={() => sendReminder.mutate(v.id)}
+                    disabled={
+                      sendReminder.isPending ||
+                      (v.last_reminder_sent_at &&
+                        Date.now() - new Date(v.last_reminder_sent_at).getTime() < 60 * 60 * 1000)
+                    }
+                    title={
+                      v.last_reminder_sent_at
+                        ? `Reminder sent ${formatDistanceToNow(new Date(v.last_reminder_sent_at), { addSuffix: true })}`
+                        : "Send finish-checkout email to buyer"
+                    }
+                  >
+                    <Send className="w-4 h-4 mr-1" />
+                    {v.last_reminder_sent_at ? "Re-send reminder" : "Send reminder"}
+                  </Button>
+                )}
                 {v.status === "active" && (
                   <Button size="sm" variant="outline" onClick={() => redeem.mutate(v.code)} disabled={redeem.isPending}>
                     Mark Redeemed
