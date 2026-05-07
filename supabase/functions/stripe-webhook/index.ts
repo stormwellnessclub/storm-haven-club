@@ -445,6 +445,14 @@ serve(async (req) => {
         try {
           const pi = event.data.object as Stripe.PaymentIntent;
           const md = pi.metadata || {};
+          // Mark abandoned-checkout row completed (MD pack)
+          try {
+            await supabase
+              .from('pending_class_pass_checkouts')
+              .update({ status: 'completed', completed_at: new Date().toISOString() })
+              .eq('stripe_payment_intent_id', pi.id);
+          } catch (_) { /* non-fatal */ }
+
           if (md.type === 'mothers_day_class_pack' && md.promo === 'mothers_day_2026') {
             logStep("Mother's Day pack PI succeeded — invoking confirm", { piId: pi.id });
             const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
