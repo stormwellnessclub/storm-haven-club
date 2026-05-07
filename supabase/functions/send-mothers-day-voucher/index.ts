@@ -252,7 +252,7 @@ serve(async (req) => {
           recipient_email: s.to,
           status: "sent",
           resend_id: resendId,
-          triggered_by: triggered_by || "system",
+          triggered_by: effectiveTrigger,
         });
       } catch (e: any) {
         const msg = e?.message || String(e);
@@ -263,7 +263,7 @@ serve(async (req) => {
           recipient_email: s.to,
           status: "failed",
           error_message: msg,
-          triggered_by: triggered_by || "system",
+          triggered_by: effectiveTrigger,
         });
       }
     }
