@@ -23,22 +23,27 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Verify caller is admin
-    const auth = req.headers.get("Authorization");
-    if (!auth?.startsWith("Bearer ")) throw new Error("Not authenticated");
-    const anon = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
-    const { data: userData } = await anon.auth.getUser(auth.slice(7));
-    const u = userData?.user;
-    if (!u) throw new Error("Not authenticated");
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", u.id);
-    const allowed = new Set(["admin", "super_admin", "manager", "front_desk"]);
-    if (!(roles || []).some((r: any) => allowed.has(r.role))) throw new Error("Not authorized");
+    // Authorize: allow service-role (cron) OR admin user
+    const auth = req.headers.get("Authorization") || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const isService = token && token === serviceKey;
+    if (!isService) {
+      if (!token) throw new Error("Not authenticated");
+      const anon = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+      );
+      const { data: userData } = await anon.auth.getUser(token);
+      const u = userData?.user;
+      if (!u) throw new Error("Not authenticated");
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", u.id);
+      const allowed = new Set(["admin", "super_admin", "manager", "front_desk"]);
+      if (!(roles || []).some((r: any) => allowed.has(r.role))) throw new Error("Not authorized");
+    }
 
     const { data: pending } = await supabase
       .from("mothers_day_vouchers")
