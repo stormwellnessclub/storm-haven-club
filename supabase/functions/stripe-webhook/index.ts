@@ -709,6 +709,34 @@ serve(async (req) => {
               }
 
               logStep("Class pass created", { userId, category, passType, classes: config.classes });
+
+              // Mark pending checkout as completed
+              try {
+                await supabase
+                  .from('pending_class_pass_checkouts')
+                  .update({ status: 'completed', completed_at: new Date().toISOString() })
+                  .eq('stripe_session_id', session.id);
+              } catch (_) { /* non-fatal */ }
+
+              // Fire confirmation email (idempotent — confirm function also calls)
+              try {
+                const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+                const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+                const { data: latestPass } = await supabase
+                  .from('class_passes')
+                  .select('id')
+                  .eq('user_id', userId)
+                  .order('created_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+                if (latestPass) {
+                  await fetch(`${supabaseUrl}/functions/v1/send-class-pass-confirmation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+                    body: JSON.stringify({ pass_id: latestPass.id, session_id: session.id }),
+                  });
+                }
+              } catch (_) { /* non-fatal */ }
             } catch (passError) {
               logError(passError, "CLASS_PASS_CREATION");
               return errorResponse(passError, "CLASS_PASS_CREATION");
