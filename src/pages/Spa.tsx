@@ -58,6 +58,7 @@ export default function Spa() {
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [activeVoucherCode, setActiveVoucherCode] = useState<string | null>(null);
+  const [showRedeemDialog, setShowRedeemDialog] = useState(false);
 
   // Gate states
   const [showWaiverGate, setShowWaiverGate] = useState(false);
