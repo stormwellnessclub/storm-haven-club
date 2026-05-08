@@ -101,8 +101,12 @@ export function hasCoverageOnDate(
 ): boolean {
   if (!availability) return false;
   const dow = getDay(date);
+  const iso = format(date, "yyyy-MM-dd");
   return availability.some(
-    (a) => a.service_id === serviceId && a.day_of_week === dow && a.is_active
+    (a) =>
+      a.service_id === serviceId &&
+      a.is_active &&
+      (a.specific_date ? a.specific_date === iso : a.day_of_week === dow)
   );
 }
 
