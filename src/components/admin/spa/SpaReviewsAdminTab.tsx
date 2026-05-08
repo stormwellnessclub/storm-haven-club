@@ -165,7 +165,7 @@ export function SpaReviewsAdminTab() {
                         <><Eye className="h-3 w-3 mr-1" />Unhide</>
                       )}
                     </Button>
-                    {isSuperAdmin && (
+                    {isSuper && (
                       <Button
                         size="sm"
                         variant="ghost"
