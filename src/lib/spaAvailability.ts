@@ -225,8 +225,12 @@ export function getServiceWindowForDate(
 ): { start: string; end: string } | null {
   if (!availability) return null;
   const dow = getDay(date);
+  const iso = format(date, "yyyy-MM-dd");
   const matches = availability.filter(
-    (a) => a.service_id === serviceId && a.day_of_week === dow && a.is_active
+    (a) =>
+      a.service_id === serviceId &&
+      a.is_active &&
+      (a.specific_date ? a.specific_date === iso : a.day_of_week === dow)
   );
   if (matches.length === 0) return null;
   let start = "23:59";
