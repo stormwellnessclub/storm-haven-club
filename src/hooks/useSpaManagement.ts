@@ -59,6 +59,7 @@ export interface SpaServiceAvailability {
   end_time: string;
   max_bookings: number;
   is_active: boolean;
+  specific_date?: string | null;
 }
 
 export interface SpaServiceAddon {
