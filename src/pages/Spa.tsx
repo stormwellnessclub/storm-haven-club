@@ -490,8 +490,10 @@ export default function Spa() {
           )}
         </div>
       </section>
+      </>
+      )}
 
-      {/* Spa Room Info */}
+
       <section className="py-16 bg-secondary/30">
         <div className="container mx-auto px-6">
           <SectionHeading
