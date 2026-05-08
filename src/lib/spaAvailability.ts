@@ -64,10 +64,13 @@ export function findCoveringSlot(
 ): AvailabilitySlotMatch | null {
   if (!availability) return null;
   const dow = getDay(date);
+  const iso = format(date, "yyyy-MM-dd");
   const endTime = addMinutesToTime(time, durationMinutes + cleanupMinutes);
 
   const matches = availability.filter((a) => {
-    if (a.service_id !== serviceId || a.day_of_week !== dow || !a.is_active) return false;
+    if (a.service_id !== serviceId || !a.is_active) return false;
+    const dateMatches = a.specific_date ? a.specific_date === iso : a.day_of_week === dow;
+    if (!dateMatches) return false;
     const winStart = trim(a.start_time);
     const winEnd = trim(a.end_time);
     return time >= winStart && endTime <= winEnd;
@@ -98,8 +101,12 @@ export function hasCoverageOnDate(
 ): boolean {
   if (!availability) return false;
   const dow = getDay(date);
+  const iso = format(date, "yyyy-MM-dd");
   return availability.some(
-    (a) => a.service_id === serviceId && a.day_of_week === dow && a.is_active
+    (a) =>
+      a.service_id === serviceId &&
+      a.is_active &&
+      (a.specific_date ? a.specific_date === iso : a.day_of_week === dow)
   );
 }
 
@@ -119,8 +126,12 @@ export function generateAvailableStartTimes(
 ): string[] {
   if (!availability) return [];
   const dow = getDay(date);
+  const iso = format(date, "yyyy-MM-dd");
   const windows = availability.filter(
-    (a) => a.service_id === serviceId && a.day_of_week === dow && a.is_active
+    (a) =>
+      a.service_id === serviceId &&
+      a.is_active &&
+      (a.specific_date ? a.specific_date === iso : a.day_of_week === dow)
   );
   if (windows.length === 0) return [];
 
@@ -214,8 +225,12 @@ export function getServiceWindowForDate(
 ): { start: string; end: string } | null {
   if (!availability) return null;
   const dow = getDay(date);
+  const iso = format(date, "yyyy-MM-dd");
   const matches = availability.filter(
-    (a) => a.service_id === serviceId && a.day_of_week === dow && a.is_active
+    (a) =>
+      a.service_id === serviceId &&
+      a.is_active &&
+      (a.specific_date ? a.specific_date === iso : a.day_of_week === dow)
   );
   if (matches.length === 0) return null;
   let start = "23:59";

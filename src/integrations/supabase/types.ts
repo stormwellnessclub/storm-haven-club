@@ -6001,6 +6001,7 @@ export type Database = {
           max_bookings: number
           room_id: string | null
           service_id: string
+          specific_date: string | null
           start_time: string
           therapist_id: string | null
         }
@@ -6012,6 +6013,7 @@ export type Database = {
           max_bookings?: number
           room_id?: string | null
           service_id: string
+          specific_date?: string | null
           start_time: string
           therapist_id?: string | null
         }
@@ -6023,6 +6025,7 @@ export type Database = {
           max_bookings?: number
           room_id?: string | null
           service_id?: string
+          specific_date?: string | null
           start_time?: string
           therapist_id?: string | null
         }
