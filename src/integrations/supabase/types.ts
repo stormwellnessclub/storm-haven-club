@@ -5932,6 +5932,60 @@ export type Database = {
           },
         ]
       }
+      spa_reviews: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          id: string
+          is_visible: boolean
+          rating: number
+          review_text: string | null
+          service_id: string
+          therapist_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          rating: number
+          review_text?: string | null
+          service_id: string
+          therapist_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          rating?: number
+          review_text?: string | null
+          service_id?: string
+          therapist_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_reviews_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spa_reviews_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "spa_therapists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_rooms: {
         Row: {
           created_at: string
@@ -7318,6 +7372,14 @@ export type Database = {
           review_count: number
         }[]
       }
+      get_all_spa_service_ratings: {
+        Args: never
+        Returns: {
+          average_rating: number
+          review_count: number
+          service_id: string
+        }[]
+      }
       get_class_reviews_with_names: {
         Args: { _class_type_id: string }
         Returns: {
@@ -7387,11 +7449,39 @@ export type Database = {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
       }
+      get_pending_spa_reviews: {
+        Args: never
+        Returns: {
+          appointment_date: string
+          appointment_id: string
+          appointment_time: string
+          completed_at: string
+          service_id: string
+          service_name: string
+          therapist_id: string
+          therapist_name: string
+        }[]
+      }
       get_scheduled_functions_config: {
         Args: never
         Returns: {
           anon_key: string
           supabase_url: string
+        }[]
+      }
+      get_spa_reviews_with_names: {
+        Args: { _service_id?: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_visible: boolean
+          rating: number
+          review_text: string
+          reviewer_name: string
+          service_id: string
+          service_name: string
+          therapist_id: string
+          therapist_name: string
         }[]
       }
       get_spa_therapists_with_contact: {
