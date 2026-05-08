@@ -47,6 +47,7 @@ export function SpaReviewsAdminTab() {
   const { data: services = [] } = useSpaServices();
   const { data: therapists = [] } = useSpaTherapists();
   const { isSuperAdmin } = useUserRoles();
+  const isSuper = typeof isSuperAdmin === "function" ? isSuperAdmin() : !!isSuperAdmin;
   const updateVisibility = useAdminUpdateSpaReviewVisibility();
   const deleteReview = useAdminDeleteSpaReview();
 
