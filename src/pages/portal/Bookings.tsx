@@ -17,6 +17,7 @@ import { useMyReviews } from "@/hooks/useClassReviews";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { StarRating } from "@/components/reviews/StarRating";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
+import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
@@ -192,6 +193,7 @@ export default function PortalBookings() {
           onLeaveReview={handleLeaveReviewFromBanner}
           dismissible
         />
+        <LeaveSpaReviewBanner />
         <Tabs defaultValue="upcoming">
           <TabsList>
             <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>

@@ -7,6 +7,7 @@ import { SpaAvailabilityTab } from "@/components/admin/spa/SpaAvailabilityTab";
 import { SpaAddonsTab } from "@/components/admin/spa/SpaAddonsTab";
 import { SpaPayrollTab } from "@/components/admin/spa/SpaPayrollTab";
 import { MothersDayTab } from "@/components/admin/spa/MothersDayTab";
+import { SpaReviewsAdminTab } from "@/components/admin/spa/SpaReviewsAdminTab";
 import { useSearchParams } from "react-router-dom";
 
 export default function SpaManagement() {
@@ -36,6 +37,7 @@ export default function SpaManagement() {
           <TabsTrigger value="availability">Availability</TabsTrigger>
           <TabsTrigger value="addons">Add-Ons</TabsTrigger>
           <TabsTrigger value="payroll">Payroll</TabsTrigger>
+          <TabsTrigger value="reviews">Reviews</TabsTrigger>
           <TabsTrigger value="mothers-day">Mother's Day Tracking 💛</TabsTrigger>
         </TabsList>
 
@@ -47,6 +49,7 @@ export default function SpaManagement() {
         </TabsContent>
         <TabsContent value="addons"><SpaAddonsTab /></TabsContent>
         <TabsContent value="payroll"><SpaPayrollTab /></TabsContent>
+        <TabsContent value="reviews"><SpaReviewsAdminTab /></TabsContent>
         <TabsContent value="mothers-day"><MothersDayTab /></TabsContent>
       </Tabs>
     </AdminLayout>
