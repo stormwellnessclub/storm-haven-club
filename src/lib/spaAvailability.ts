@@ -64,10 +64,13 @@ export function findCoveringSlot(
 ): AvailabilitySlotMatch | null {
   if (!availability) return null;
   const dow = getDay(date);
+  const iso = format(date, "yyyy-MM-dd");
   const endTime = addMinutesToTime(time, durationMinutes + cleanupMinutes);
 
   const matches = availability.filter((a) => {
-    if (a.service_id !== serviceId || a.day_of_week !== dow || !a.is_active) return false;
+    if (a.service_id !== serviceId || !a.is_active) return false;
+    const dateMatches = a.specific_date ? a.specific_date === iso : a.day_of_week === dow;
+    if (!dateMatches) return false;
     const winStart = trim(a.start_time);
     const winEnd = trim(a.end_time);
     return time >= winStart && endTime <= winEnd;
