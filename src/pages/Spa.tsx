@@ -366,6 +366,40 @@ export default function Spa() {
         </div>
       </section>
 
+      {/* Services / Reviews tab */}
+      <section className="py-6 bg-background border-b border-border">
+        <div className="container mx-auto px-6">
+          <div className="inline-flex rounded-full border border-border p-1 bg-card">
+            <button
+              type="button"
+              onClick={() => setView("services")}
+              className={`px-5 py-2 text-sm rounded-full transition-colors ${
+                view === "services" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Services
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("reviews")}
+              className={`px-5 py-2 text-sm rounded-full transition-colors ${
+                view === "reviews" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Reviews
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {view === "reviews" ? (
+        <section className="py-12 bg-background">
+          <div className="container mx-auto px-6 max-w-4xl">
+            <SpaReviewsTab />
+          </div>
+        </section>
+      ) : (
+      <>
       {/* Category Filters */}
       <section className="py-8 bg-background border-b border-border sticky top-20 z-40">
         <div className="container mx-auto px-6">
