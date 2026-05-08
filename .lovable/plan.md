@@ -1,52 +1,42 @@
-## Therapist Payroll Generator
+## Goal
+Open Teresa's massage schedule for **Sunday, May 10, 2026 only** (Mother's Day), 10:00 AM – 8:00 PM, without changing her regular weekly availability.
 
-A new admin tool to generate per-therapist pay summary PDFs for any date range, matching the existing Teresa Tyler 4/9–4/18 layout.
+## Problem
+Today, `spa_service_availability` only supports recurring weekly schedules via `day_of_week`. Adding Sunday rows would open **every** Sunday forever. We need a one-off date opening.
 
-### What you'll see
+## Solution
 
-New page: **Admin → Spa Management → Payroll** tab
+### 1. Schema: add one-off date support (migration)
+Add a nullable `specific_date date` column to `spa_service_availability`.
+- When `specific_date IS NULL` → behaves as today (recurring weekly by `day_of_week`).
+- When `specific_date IS NOT NULL` → row only applies on that exact calendar date (and `day_of_week` is ignored for matching).
 
-1. **Pick therapist** (dropdown of active therapists)
-2. **Pick pay period** (start + end date — quick presets: "Last 2 weeks", "This period")
-3. **Auto-loaded summary** pulled from completed appointments:
-   - Service hours grouped by 90-min / 60-min / other durations
-   - 15-min prep per session (auto-added per completed session)
-   - CC tips list — one row per appointment with customer name (member's full name or "Walk-in")
-   - Cash tips section (any completed appt with `payment_method='cash'` and tip_amount > 0)
-4. **Edit before export**: any row editable — add/remove tip rows, rename customer (e.g. "Shams Mother in Law"), adjust amounts, override hours
-5. **Generate PDF** — downloads `pay_summary-{Name}_{start}_TO_{end}.pdf` matching the existing format exactly (blue table headers, totals box, footer note about cash tips)
+Add an index on `specific_date` for fast lookups.
 
-### Pay calculation rules
+### 2. Booking/availability logic
+Update `src/lib/spaAvailability.ts` (the 4 filters that currently match on `day_of_week === dow`) to also accept a row when `specific_date === <selected date in YYYY-MM-DD>`. Existing recurring rows continue working unchanged.
 
-- Only `status = 'completed'` appointments count toward hours and CC tips
-- Service hours = sum of `duration_minutes / 60` per service-duration bucket × therapist's hourly rate
-- Prep time = 15 min × number of completed sessions × hourly rate
-- CC tips = sum of `tip_amount` where `payment_method = 'card'`
-- Cash tips shown separately (already paid out, excluded from "Total to Pay")
-- **Total to Pay** = Service Hours + Prep + CC Tips
+### 3. Admin UI (small)
+In `SpaAvailabilityTab.tsx`, add an optional "Specific date (one-off)" date picker on the create/edit form. If filled, the row is treated as one-off and the day-of-week selector is disabled. Existing rows render normally.
 
-### Therapist hourly rate
+### 4. Seed Teresa's Mother's Day openings (data insert, after migration)
+Insert 10 one-off rows (one per massage service Teresa offers — 5× 60-min and 5× 90-min), all with:
+- `therapist_id` = Teresa
+- `room_id` = her existing massage room (`a685cf00-…`)
+- `specific_date` = `2026-05-10`
+- `start_time` = `10:00`, `end_time` = `20:00`
+- `is_active` = true, `max_bookings` = 1
 
-Add `hourly_rate numeric(8,2) DEFAULT 26.00` to `spa_therapists`. Editable from the existing therapist edit dialog (`SpaTherapistsTab.tsx`). Each therapist can have their own rate; defaults to $26.
-
-### Technical details
-
-**Migration**
-- `ALTER TABLE spa_therapists ADD COLUMN hourly_rate numeric(8,2) NOT NULL DEFAULT 26.00`
-- New RPC `get_therapist_payroll(_therapist_id uuid, _start date, _end date)` returns JSON: appointments grouped by duration, list of CC tips with customer name, list of cash tips, totals. Uses SECURITY DEFINER + `has_any_role('admin','manager','therapist')` check. Customer name resolved via `members.first_name + last_name` → fallback `non_member_profiles` → "Walk-in".
-
-**New files**
-- `src/components/admin/spa/SpaPayrollTab.tsx` — therapist selector, date range, editable preview table, "Generate PDF" button
-- `src/lib/spaPayrollPdf.ts` — builds PDF using `jsPDF` + `jspdf-autotable` (already used elsewhere in project; verify and add if missing). Layout matches the reference: blue header rows (#2F75A6), gray cash-tips header (#8C8C8C), light-blue total row (#D6EAF8), italic footnote on cash tips.
-- `src/hooks/useTherapistPayroll.ts` — fetches RPC result, exposes editable state
-
-**Edits**
-- `src/pages/admin/SpaManagement.tsx` — add "Payroll" tab
-- `src/components/admin/spa/SpaTherapistsTab.tsx` — add hourly rate field to add/edit dialog
-- `src/hooks/useSpaManagement.ts` — extend `SpaTherapist` type with `hourly_rate`
+The booking engine already enforces "appointment + cleanup must fit inside the window," so the last 60-min slot will auto-cap at 18:45 (or 19:00 if no cleanup) and the last 90-min slot at 17:30 — exactly as you described, with no extra config.
 
 ### Out of scope
+- No changes to her existing Mon–Sat schedule.
+- No facials/waxing — massages only (matching her current Thu/Fri service set).
+- This Sunday only; future Sundays remain closed.
 
-- No automatic payroll dispatch / Stripe payout — this is a download-only tool
-- No historical pay-period storage (each generation is on-demand from appointment data)
-- Tip rounding/splitting between staff is not handled (single-therapist appts only, which is the current spa model)
+### Files touched
+- `supabase/migrations/<new>.sql` — add column + index
+- `src/lib/spaAvailability.ts` — date-match filter
+- `src/hooks/useSpaManagement.ts` — type update
+- `src/components/admin/spa/SpaAvailabilityTab.tsx` — optional date field
+- Data insert for the 10 Sunday rows

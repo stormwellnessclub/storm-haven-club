@@ -1,0 +1,2 @@
+ALTER TABLE public.spa_service_availability ADD COLUMN IF NOT EXISTS specific_date date;
+CREATE INDEX IF NOT EXISTS idx_spa_avail_specific_date ON public.spa_service_availability(specific_date) WHERE specific_date IS NOT NULL;
