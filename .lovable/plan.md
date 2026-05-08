@@ -1,42 +1,71 @@
-## Goal
-Open Teresa's massage schedule for **Sunday, May 10, 2026 only** (Mother's Day), 10:00 AM – 8:00 PM, without changing her regular weekly availability.
+## Spa Reviews Feature
 
-## Problem
-Today, `spa_service_availability` only supports recurring weekly schedules via `day_of_week`. Adding Sunday rows would open **every** Sunday forever. We need a one-off date opening.
+Mirror the existing class reviews system for spa appointments. Anyone who completed a massage/treatment can leave a star rating + optional comment, and a public "Reviews" tab on the Spa page shows aggregate ratings and recent reviews.
 
-## Solution
+**Privacy:** Reviewer names are always displayed as `First L.` (first name + first letter of last name, e.g. "Sarah M.") — never the full last name. This is enforced server-side in the RPC, not just the UI.
 
-### 1. Schema: add one-off date support (migration)
-Add a nullable `specific_date date` column to `spa_service_availability`.
-- When `specific_date IS NULL` → behaves as today (recurring weekly by `day_of_week`).
-- When `specific_date IS NOT NULL` → row only applies on that exact calendar date (and `day_of_week` is ignored for matching).
+### 1. Database (`spa_reviews` table)
 
-Add an index on `specific_date` for fast lookups.
+Mirrors `class_reviews`:
+- `appointment_id` (FK → `spa_appointments`, unique → one review per appointment)
+- `service_id` (FK → `spa_services`)
+- `therapist_id` (FK → `spa_therapists`, nullable)
+- `user_id` (auth user) + `reviewer_name` (snapshot of full name; private)
+- `rating` (1–5), `review_text`
+- `is_visible` (admin can hide)
+- timestamps
 
-### 2. Booking/availability logic
-Update `src/lib/spaAvailability.ts` (the 4 filters that currently match on `day_of_week === dow`) to also accept a row when `specific_date === <selected date in YYYY-MM-DD>`. Existing recurring rows continue working unchanged.
+RLS:
+- INSERT: only the user who owns the appointment, and only if `status = 'completed'`
+- UPDATE: own review (rating/text), or admin (visibility)
+- SELECT public: only `is_visible = true`
+- SELECT admin: all
+- DELETE: admin only
 
-### 3. Admin UI (small)
-In `SpaAvailabilityTab.tsx`, add an optional "Specific date (one-off)" date picker on the create/edit form. If filled, the row is treated as one-off and the day-of-week selector is disabled. Existing rows render normally.
+RPCs:
+- `get_spa_reviews_with_names(service_id, include_hidden)` — returns reviewer name **already abbreviated** as `First L.` (split on first space, take first char of remainder + "."). Admins receive the full name when `include_hidden=true` and they have the admin role.
+- `get_all_spa_service_ratings()` — returns `{service_id, avg_rating, count}` for badges/cards
+- `get_pending_spa_reviews(user_id)` — completed appointments without a review (for portal nudge)
 
-### 4. Seed Teresa's Mother's Day openings (data insert, after migration)
-Insert 10 one-off rows (one per massage service Teresa offers — 5× 60-min and 5× 90-min), all with:
-- `therapist_id` = Teresa
-- `room_id` = her existing massage room (`a685cf00-…`)
-- `specific_date` = `2026-05-10`
-- `start_time` = `10:00`, `end_time` = `20:00`
-- `is_active` = true, `max_bookings` = 1
+### 2. Member-facing review entry
 
-The booking engine already enforces "appointment + cleanup must fit inside the window," so the last 60-min slot will auto-cap at 18:45 (or 19:00 if no cleanup) and the last 90-min slot at 17:30 — exactly as you described, with no extra config.
+- New banner on **portal Bookings / Recovery / spa appointment history**: "Rate your recent treatment" — opens a dialog (reuse `ReviewDialog` pattern from class reviews, adapted to spa).
+- Trigger appears once `spa_appointments.status = 'completed'` and no review exists.
+
+### 3. Spa page Reviews tab (public)
+
+Add a top-level tab/segmented control on `/spa`:
+- **Services** (current view)
+- **Reviews** (new)
+
+Reviews tab shows:
+- Overall club rating (avg of all visible) + total count
+- Filter by service category (Massage, Facials, etc.) and by individual service
+- List of recent reviews — reviewer shown as `First L.`, stars, date, text, service name
+- Each service card on the Services tab also gets a small star + count badge linking into the Reviews tab filtered to that service.
+
+### 4. Admin
+
+New `Reviews` tab in **Admin → Spa Management**:
+- Table of all reviews with filter by service/therapist/visibility
+- Admins see full reviewer name (for moderation/support)
+- Hide / Unhide toggle, delete (super-admin)
+
+### 5. Files
+
+**New**
+- `supabase/migrations/<ts>_spa_reviews.sql` — table + RLS + RPCs (with name abbreviation logic)
+- `src/hooks/useSpaReviews.ts`
+- `src/components/spa/SpaReviewDialog.tsx`
+- `src/components/spa/SpaReviewsList.tsx`
+- `src/components/spa/SpaReviewsTab.tsx`
+- `src/components/admin/spa/SpaReviewsAdminTab.tsx`
+- `src/components/spa/LeaveSpaReviewBanner.tsx`
+
+**Edited**
+- `src/pages/Spa.tsx` — Services / Reviews segmented control
+- `src/pages/admin/SpaManagement.tsx` — add Reviews tab
+- `src/pages/portal/Recovery.tsx` and/or `portal/Bookings.tsx` — mount review banner
 
 ### Out of scope
-- No changes to her existing Mon–Sat schedule.
-- No facials/waxing — massages only (matching her current Thu/Fri service set).
-- This Sunday only; future Sundays remain closed.
-
-### Files touched
-- `supabase/migrations/<new>.sql` — add column + index
-- `src/lib/spaAvailability.ts` — date-match filter
-- `src/hooks/useSpaManagement.ts` — type update
-- `src/components/admin/spa/SpaAvailabilityTab.tsx` — optional date field
-- Data insert for the 10 Sunday rows
+- Post-treatment email nudges
