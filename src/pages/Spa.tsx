@@ -35,6 +35,7 @@ import aellaLogo from "@/assets/aella-logo.png";
 // Wellness imagery
 import saunaInterior from "@/assets/wellness/sauna-interior.jpg";
 import fracturedIce from "@/assets/wellness/fractured-ice.jpg";
+import { SpaReviewsTab } from "@/components/spa/SpaReviewsTab";
 
 const categories = ["All", "Facials", "Massage", "Body Rituals", "Body Wraps", "Recovery"];
 
@@ -55,6 +56,8 @@ export default function Spa() {
   const categoryFromUrl = searchParams.get("category");
   const voucherFromUrl = searchParams.get("voucher");
   const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || "All");
+  const tabFromUrl = searchParams.get("view");
+  const [view, setView] = useState<"services" | "reviews">(tabFromUrl === "reviews" ? "reviews" : "services");
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [activeVoucherCode, setActiveVoucherCode] = useState<string | null>(null);
