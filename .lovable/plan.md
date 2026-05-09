@@ -1,61 +1,33 @@
-## Spa "Leave a Review" Outreach Tab + Member Portal Tab
+I’ll fix this so members cannot keep using old published Kids Care times just because their app stayed open.
 
-Add two new surfaces on top of the existing spa reviews system so members can easily leave reviews for past treatments, and admins can see who hasn't reviewed yet and nudge them.
+Plan:
 
-### 1. Admin → Spa Management → "Leave a Review" tab
+1. Make Kids Care times refresh everywhere members see them
+- Member Kids Care booking modal
+- Member Kids Care Bookings page “Upcoming Open Hours”
+- Public Kids Care booking entry points that open the same modal
+- Admin booking flow, so staff also uses the current source of truth
 
-A new tab next to the existing **Reviews** tab (which shows submitted reviews). This new tab is an outreach list — every completed spa appointment with the client and review status.
+2. Add live refresh for schedule changes
+- Subscribe the app to Kids Care hour changes so when staff saves/removes/changes a slot, open member pages automatically refetch.
+- Add short background refetching for these availability queries as a backup for devices that miss the live event.
+- Keep `staleTime: 0` so cached availability is never treated as reliable.
 
-Columns:
-- Client name + email/phone
-- Service + therapist
-- Appointment date
-- Status badge: **Reviewed** (with stars) / **Pending review**
-- Actions: **Copy review link**, **Send via email**, **Send via SMS**
+3. Silently remove stale selected times
+- If a member has 10:00 AM selected and staff removes that slot, the modal will clear that invalid selected time automatically.
+- No announcement, no extra alert, no push/email/SMS.
+- If staff adds a different time, it will appear as available normally.
 
-Filters:
-- Status: All / Pending / Reviewed
-- Service, therapist, date range
-- Search by name/email
+4. Block stale bookings at the backend level
+- Add server-side validation before a Kids Care booking is created.
+- The selected date/start/end time must fit inside a currently published `kids_care_hour_slots` row.
+- If an old app tab tries to book a removed time, the booking will be rejected even if the old UI still shows it.
 
-The "review link" deep-links to the member portal review tab with the appointment pre-selected (e.g. `/portal/reviews?appointment=<id>`). Email/SMS reuse existing send infra (same pattern as other admin nudges).
+5. Preserve existing bookings
+- Removing a published time only removes it from future available booking options.
+- It will not auto-cancel existing bookings and will not message parents.
 
-Admins do **not** submit reviews on behalf of clients — they only send/copy the link.
-
-### 2. Member portal → "Reviews" tab
-
-New sidebar item under the portal. Shows the member's full spa history with a per-row review action.
-
-Sections:
-- **Pending reviews** — completed appointments without a review → "Leave a review" button opens `SpaReviewDialog`
-- **My reviews** — appointments already reviewed → shows their stars/text, "Edit" button (reuses existing `useUpdateSpaReview`)
-
-Deep link support: if URL has `?appointment=<id>`, auto-open the review dialog for that appointment.
-
-The existing `LeaveSpaReviewBanner` on `/portal/bookings` stays — this new tab is the dedicated home for review management.
-
-### 3. Technical details
-
-**New RPC** `get_all_spa_appointments_review_status(filters)` (admin-only, SECURITY DEFINER, gated by `has_any_role`):
-- Returns every `spa_appointments` row with `status = 'completed'` joined to `spa_reviews` (left join on `appointment_id`)
-- Fields: appointment id, user_id, client name/email/phone, service name, therapist name, appointment date/time, review id (nullable), rating, review_text, is_visible
-
-**New files:**
-- `src/components/admin/spa/SpaLeaveReviewOutreachTab.tsx` — table + filters + send/copy actions
-- `src/pages/portal/Reviews.tsx` — member portal page (Pending + My Reviews)
-- `src/hooks/useSpaReviewOutreach.ts` — admin RPC query + send-link mutation
-
-**Edited files:**
-- `src/pages/admin/SpaManagement.tsx` — add `<TabsTrigger value="leave-review">Leave a Review</TabsTrigger>`
-- `src/components/portal/PortalSidebar.tsx` — add "Reviews" nav item
-- `src/App.tsx` (or portal route file) — register `/portal/reviews` route
-- `src/hooks/useSpaReviews.ts` — extend `usePendingSpaReviews` to optionally accept an appointment id for deep-link
-
-**Send link format:** `https://stormwellnessclub.com/portal/reviews?appointment=<id>` (uses primary domain per project memory).
-
-**Send channels:** reuse existing transactional email function (one-off "Rate your treatment" template) and existing Twilio SMS edge function. SMS body short with link; email matches neutral "The Storm Wellness Club Team" voice.
-
-### Out of scope
-- Admin submitting reviews on behalf of clients
-- Automated post-treatment email nudges (drip)
-- Public display changes — `/spa` Reviews tab unchanged
+Technical details:
+- Update Kids Care availability hooks to force fresh data and realtime invalidation for `kids-care-hour-slots*` query keys.
+- Update `KidsCareBookingModal` to refetch on open/date change/focus and clear invalid start/end selections.
+- Add a database-level validation path for member-created and admin-created Kids Care bookings against current published slots.
