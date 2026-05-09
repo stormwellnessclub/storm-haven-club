@@ -1,71 +1,61 @@
-## Spa Reviews Feature
+## Spa "Leave a Review" Outreach Tab + Member Portal Tab
 
-Mirror the existing class reviews system for spa appointments. Anyone who completed a massage/treatment can leave a star rating + optional comment, and a public "Reviews" tab on the Spa page shows aggregate ratings and recent reviews.
+Add two new surfaces on top of the existing spa reviews system so members can easily leave reviews for past treatments, and admins can see who hasn't reviewed yet and nudge them.
 
-**Privacy:** Reviewer names are always displayed as `First L.` (first name + first letter of last name, e.g. "Sarah M.") — never the full last name. This is enforced server-side in the RPC, not just the UI.
+### 1. Admin → Spa Management → "Leave a Review" tab
 
-### 1. Database (`spa_reviews` table)
+A new tab next to the existing **Reviews** tab (which shows submitted reviews). This new tab is an outreach list — every completed spa appointment with the client and review status.
 
-Mirrors `class_reviews`:
-- `appointment_id` (FK → `spa_appointments`, unique → one review per appointment)
-- `service_id` (FK → `spa_services`)
-- `therapist_id` (FK → `spa_therapists`, nullable)
-- `user_id` (auth user) + `reviewer_name` (snapshot of full name; private)
-- `rating` (1–5), `review_text`
-- `is_visible` (admin can hide)
-- timestamps
+Columns:
+- Client name + email/phone
+- Service + therapist
+- Appointment date
+- Status badge: **Reviewed** (with stars) / **Pending review**
+- Actions: **Copy review link**, **Send via email**, **Send via SMS**
 
-RLS:
-- INSERT: only the user who owns the appointment, and only if `status = 'completed'`
-- UPDATE: own review (rating/text), or admin (visibility)
-- SELECT public: only `is_visible = true`
-- SELECT admin: all
-- DELETE: admin only
+Filters:
+- Status: All / Pending / Reviewed
+- Service, therapist, date range
+- Search by name/email
 
-RPCs:
-- `get_spa_reviews_with_names(service_id, include_hidden)` — returns reviewer name **already abbreviated** as `First L.` (split on first space, take first char of remainder + "."). Admins receive the full name when `include_hidden=true` and they have the admin role.
-- `get_all_spa_service_ratings()` — returns `{service_id, avg_rating, count}` for badges/cards
-- `get_pending_spa_reviews(user_id)` — completed appointments without a review (for portal nudge)
+The "review link" deep-links to the member portal review tab with the appointment pre-selected (e.g. `/portal/reviews?appointment=<id>`). Email/SMS reuse existing send infra (same pattern as other admin nudges).
 
-### 2. Member-facing review entry
+Admins do **not** submit reviews on behalf of clients — they only send/copy the link.
 
-- New banner on **portal Bookings / Recovery / spa appointment history**: "Rate your recent treatment" — opens a dialog (reuse `ReviewDialog` pattern from class reviews, adapted to spa).
-- Trigger appears once `spa_appointments.status = 'completed'` and no review exists.
+### 2. Member portal → "Reviews" tab
 
-### 3. Spa page Reviews tab (public)
+New sidebar item under the portal. Shows the member's full spa history with a per-row review action.
 
-Add a top-level tab/segmented control on `/spa`:
-- **Services** (current view)
-- **Reviews** (new)
+Sections:
+- **Pending reviews** — completed appointments without a review → "Leave a review" button opens `SpaReviewDialog`
+- **My reviews** — appointments already reviewed → shows their stars/text, "Edit" button (reuses existing `useUpdateSpaReview`)
 
-Reviews tab shows:
-- Overall club rating (avg of all visible) + total count
-- Filter by service category (Massage, Facials, etc.) and by individual service
-- List of recent reviews — reviewer shown as `First L.`, stars, date, text, service name
-- Each service card on the Services tab also gets a small star + count badge linking into the Reviews tab filtered to that service.
+Deep link support: if URL has `?appointment=<id>`, auto-open the review dialog for that appointment.
 
-### 4. Admin
+The existing `LeaveSpaReviewBanner` on `/portal/bookings` stays — this new tab is the dedicated home for review management.
 
-New `Reviews` tab in **Admin → Spa Management**:
-- Table of all reviews with filter by service/therapist/visibility
-- Admins see full reviewer name (for moderation/support)
-- Hide / Unhide toggle, delete (super-admin)
+### 3. Technical details
 
-### 5. Files
+**New RPC** `get_all_spa_appointments_review_status(filters)` (admin-only, SECURITY DEFINER, gated by `has_any_role`):
+- Returns every `spa_appointments` row with `status = 'completed'` joined to `spa_reviews` (left join on `appointment_id`)
+- Fields: appointment id, user_id, client name/email/phone, service name, therapist name, appointment date/time, review id (nullable), rating, review_text, is_visible
 
-**New**
-- `supabase/migrations/<ts>_spa_reviews.sql` — table + RLS + RPCs (with name abbreviation logic)
-- `src/hooks/useSpaReviews.ts`
-- `src/components/spa/SpaReviewDialog.tsx`
-- `src/components/spa/SpaReviewsList.tsx`
-- `src/components/spa/SpaReviewsTab.tsx`
-- `src/components/admin/spa/SpaReviewsAdminTab.tsx`
-- `src/components/spa/LeaveSpaReviewBanner.tsx`
+**New files:**
+- `src/components/admin/spa/SpaLeaveReviewOutreachTab.tsx` — table + filters + send/copy actions
+- `src/pages/portal/Reviews.tsx` — member portal page (Pending + My Reviews)
+- `src/hooks/useSpaReviewOutreach.ts` — admin RPC query + send-link mutation
 
-**Edited**
-- `src/pages/Spa.tsx` — Services / Reviews segmented control
-- `src/pages/admin/SpaManagement.tsx` — add Reviews tab
-- `src/pages/portal/Recovery.tsx` and/or `portal/Bookings.tsx` — mount review banner
+**Edited files:**
+- `src/pages/admin/SpaManagement.tsx` — add `<TabsTrigger value="leave-review">Leave a Review</TabsTrigger>`
+- `src/components/portal/PortalSidebar.tsx` — add "Reviews" nav item
+- `src/App.tsx` (or portal route file) — register `/portal/reviews` route
+- `src/hooks/useSpaReviews.ts` — extend `usePendingSpaReviews` to optionally accept an appointment id for deep-link
+
+**Send link format:** `https://stormwellnessclub.com/portal/reviews?appointment=<id>` (uses primary domain per project memory).
+
+**Send channels:** reuse existing transactional email function (one-off "Rate your treatment" template) and existing Twilio SMS edge function. SMS body short with link; email matches neutral "The Storm Wellness Club Team" voice.
 
 ### Out of scope
-- Post-treatment email nudges
+- Admin submitting reviews on behalf of clients
+- Automated post-treatment email nudges (drip)
+- Public display changes — `/spa` Reviews tab unchanged
