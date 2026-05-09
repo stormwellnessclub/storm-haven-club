@@ -82,6 +82,7 @@ export interface KidsCareHourSlot {
 export function useKidsCareHourSlotsForDate(date: Date | undefined) {
   const dateStr = date ? format(date, "yyyy-MM-dd") : "";
 
+  useKidsCareHourSlotsRealtime();
   return useQuery({
     queryKey: ["kids-care-hour-slots", dateStr],
     queryFn: async (): Promise<KidsCareHourSlot[]> => {
@@ -95,11 +96,13 @@ export function useKidsCareHourSlotsForDate(date: Date | undefined) {
       return (data || []) as KidsCareHourSlot[];
     },
     enabled: !!date,
+    ...AVAILABILITY_QUERY_OPTS,
   });
 }
 
 // Fetch all slots for a month (for calendar indicators)
 export function useKidsCareHourSlotsForMonth(year: number, month: number) {
+  useKidsCareHourSlotsRealtime();
   return useQuery({
     queryKey: ["kids-care-hour-slots-month", year, month],
     queryFn: async (): Promise<{ slot_date: string }[]> => {
@@ -116,11 +119,13 @@ export function useKidsCareHourSlotsForMonth(year: number, month: number) {
       if (error) throw error;
       return (data || []) as { slot_date: string }[];
     },
+    ...AVAILABILITY_QUERY_OPTS,
   });
 }
 
 // Fetch upcoming slots for next N days (member-facing schedule)
 export function useUpcomingKidsCareSlots(days = 7) {
+  useKidsCareHourSlotsRealtime();
   const today = format(new Date(), "yyyy-MM-dd");
   const endDate = format(new Date(Date.now() + days * 86400000), "yyyy-MM-dd");
 
@@ -137,6 +142,7 @@ export function useUpcomingKidsCareSlots(days = 7) {
       if (error) throw error;
       return (data || []) as KidsCareHourSlot[];
     },
+    ...AVAILABILITY_QUERY_OPTS,
   });
 }
 
