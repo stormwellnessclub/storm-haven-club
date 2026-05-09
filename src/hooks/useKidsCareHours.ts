@@ -1,8 +1,49 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { startOfWeek, format } from "date-fns";
+
+// Always-fresh availability options for member-facing queries.
+// Members report stale times when their app stays open, so we treat this data
+// as never-fresh + auto-refetch + window-focus refetch + realtime-driven.
+const AVAILABILITY_QUERY_OPTS = {
+  staleTime: 0,
+  gcTime: 30_000,
+  refetchOnWindowFocus: true,
+  refetchOnMount: "always" as const,
+  refetchOnReconnect: true,
+  refetchInterval: 30_000,
+};
+
+/**
+ * Subscribes the React Query cache to realtime changes on
+ * kids_care_hour_slots so any open member/admin page auto-refreshes
+ * when staff add/remove/edit a published time.
+ *
+ * Mounted by the availability hooks below — no need to call directly.
+ */
+function useKidsCareHourSlotsRealtime() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const channel = supabase
+      .channel(`kids-care-hour-slots:${Math.random().toString(36).slice(2, 8)}`)
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "kids_care_hour_slots" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
+          queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-month"] });
+          queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-upcoming"] });
+        }
+      )
+      .subscribe();
+    return () => {
+      try { supabase.removeChannel(channel); } catch { /* ignore */ }
+    };
+  }, [queryClient]);
+}
 
 // ─── Legacy types (kept for backward compat) ───
 export interface KidsCareHourEntry {
@@ -41,6 +82,7 @@ export interface KidsCareHourSlot {
 export function useKidsCareHourSlotsForDate(date: Date | undefined) {
   const dateStr = date ? format(date, "yyyy-MM-dd") : "";
 
+  useKidsCareHourSlotsRealtime();
   return useQuery({
     queryKey: ["kids-care-hour-slots", dateStr],
     queryFn: async (): Promise<KidsCareHourSlot[]> => {
@@ -54,11 +96,13 @@ export function useKidsCareHourSlotsForDate(date: Date | undefined) {
       return (data || []) as KidsCareHourSlot[];
     },
     enabled: !!date,
+    ...AVAILABILITY_QUERY_OPTS,
   });
 }
 
 // Fetch all slots for a month (for calendar indicators)
 export function useKidsCareHourSlotsForMonth(year: number, month: number) {
+  useKidsCareHourSlotsRealtime();
   return useQuery({
     queryKey: ["kids-care-hour-slots-month", year, month],
     queryFn: async (): Promise<{ slot_date: string }[]> => {
@@ -75,11 +119,13 @@ export function useKidsCareHourSlotsForMonth(year: number, month: number) {
       if (error) throw error;
       return (data || []) as { slot_date: string }[];
     },
+    ...AVAILABILITY_QUERY_OPTS,
   });
 }
 
 // Fetch upcoming slots for next N days (member-facing schedule)
 export function useUpcomingKidsCareSlots(days = 7) {
+  useKidsCareHourSlotsRealtime();
   const today = format(new Date(), "yyyy-MM-dd");
   const endDate = format(new Date(Date.now() + days * 86400000), "yyyy-MM-dd");
 
@@ -96,6 +142,7 @@ export function useUpcomingKidsCareSlots(days = 7) {
       if (error) throw error;
       return (data || []) as KidsCareHourSlot[];
     },
+    ...AVAILABILITY_QUERY_OPTS,
   });
 }
 
@@ -134,6 +181,8 @@ export function useSaveKidsCareHourSlots() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-month"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-upcoming"] });
       toast.success("Kids Care hours saved");
     },
     onError: (error: Error) => {
@@ -177,6 +226,8 @@ export function useCopyKidsCareHourSlots() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-month"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-upcoming"] });
       toast.success("Hours copied to selected dates");
     },
     onError: (error: Error) => {

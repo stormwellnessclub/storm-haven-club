@@ -122,7 +122,15 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
 
 
   // Fetch hour slots for the selected date (now returns array of slots)
-  const { data: daySlots, isLoading: hoursLoading } = useKidsCareHoursForDate(selectedDate);
+  const { data: daySlots, isLoading: hoursLoading, refetch: refetchDaySlots } = useKidsCareHoursForDate(selectedDate);
+
+  // Force fresh fetch whenever the modal opens or date changes — prevents
+  // members seeing stale published times if the app stayed open.
+  useEffect(() => {
+    if (open) {
+      refetchDaySlots();
+    }
+  }, [open, selectedDate, refetchDaySlots]);
 
   // Filter time slots based on published hour slots for the day
   const getFilteredTimeSlots = (): string[] => {
@@ -151,6 +159,16 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
   const filteredTimeSlots = getFilteredTimeSlots();
   const dayIsClosed = !hoursLoading && (!daySlots || daySlots.length === 0);
   const noHoursPublished = !hoursLoading && (!daySlots || daySlots.length === 0);
+
+  // Silently clear any selected start/end time that is no longer valid
+  // (e.g. staff just removed that slot). No alert — selection just disappears.
+  useEffect(() => {
+    if (!selectedStartTime) return;
+    if (filteredTimeSlots.length === 0 || !filteredTimeSlots.includes(selectedStartTime)) {
+      setSelectedStartTime("");
+      setSelectedEndTime("");
+    }
+  }, [filteredTimeSlots.join("|"), selectedStartTime]);
 
   // Calculate available end times based on start time, max duration, and slot boundaries
   const getAvailableEndTimes = (startTime: string): string[] => {
