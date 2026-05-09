@@ -30,8 +30,7 @@ function useKidsCareHourSlotsRealtime() {
     const channel = supabase
       .channel(`kids-care-hour-slots:${Math.random().toString(36).slice(2, 8)}`)
       .on(
-        // @ts-expect-error supabase-js types
-        "postgres_changes",
+        "postgres_changes" as any,
         { event: "*", schema: "public", table: "kids_care_hour_slots" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
